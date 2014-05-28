@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<modelVersion>4.0.0</modelVersion>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.build.javaVersion>1.6</project.build.javaVersion>
+		<element.connector.version>1.0-SNAPSHOT</element.connector.version>
+	</properties>
+
+	<groupId>org.eclipse.californium</groupId>
+	<artifactId>root</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>Californium (Cf) Root</name>
+	<description>Californium (Cf) project root</description>
+	<url>https://www.eclipse.org/californium/</url>
+	<organization>
+		<name>Eclipse Foundation</name>
+		<url>http://www.eclipse.org/</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Eclipse Public License - Version 1.0</name>
+			<url>http://www.eclipse.org/org/documents/epl-v10.php</url>
+		</license>
+		<license>
+			<name>Eclipse Distribution License - Version 1.0</name>
+			<url>http://www.eclipse.org/org/documents/edl-v10.php</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>mkovatsch</id>
+			<name>Matthias Kovatsch</name>
+			<email>kovatsch@inf.ethz.ch</email>
+			<url>http://people.inf.ethz.ch/mkovatsc/</url>
+			<organization>ETH Zurich</organization>
+			<organizationUrl>http://www.vs.inf.ethz.ch/</organizationUrl>
+			<roles>
+				<role>Committer</role>
+				<role>Lead</role>
+			</roles>
+		</developer>
+		<developer>
+			<id>mlanter</id>
+			<name>Martin Lanter</name>
+			<email>martin.lanter@gmx.ch</email>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
+		<developer>
+			<id>jvermillard</id>
+			<name>Julien Vermillard</name>
+			<email>jvermillar@sierrawireless.com</email>
+			<organization>Sierra Wireless</organization>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
+	</developers>
+
+	<modules>
+		<module>californium-core</module>
+		<module>californium-proxy</module>
+		<module>californium-osgi</module>
+		<module>cf-plugtest-client</module>
+		<module>cf-plugtest-checker</module>
+		<module>cf-plugtest-server</module>
+		<module>cf-helloworld-client</module>
+		<module>cf-helloworld-server</module>
+		<module>cf-secure</module>
+		<module>cf-proxy</module>
+		<module>cf-benchmark</module>
+	</modules>
+	
+	<distributionManagement>
+		<repository>
+			<id>repo.eclipse.org</id>
+			<name>Californium Repository - Releases</name>
+			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>repo.eclipse.org</id>
+			<name>Californium Repository - Snapshots</name>
+			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.8.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>element-connector</artifactId>
+			<version>${element.connector.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.3.2</version>
+				<configuration>
+					<source>${project.build.javaVersion}</source>
+					<target>${project.build.javaVersion}</target>
+					<encoding>${project.build.sourceEncoding}</encoding>
+				</configuration>
+			</plugin>
+
+			<!--  this create jar file of code from src/test/java so modules with tests can share code -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.2.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

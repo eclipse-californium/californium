@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<osgi.version>4.3.1</osgi.version>
+	</properties>
+	
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>root</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>californium-osgi</artifactId>
+	<packaging>bundle</packaging>
+
+	<name>Californium (Cf) OSGi Bundle</name>
+	<description>OSGi wrapper</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>californium-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.osgi</groupId>
+			<artifactId>org.osgi.core</artifactId>
+			<version>${osgi.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.osgi</groupId>
+			<artifactId>org.osgi.compendium</artifactId>
+			<version>${osgi.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<version>1.9.5</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>scandium</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>2.3.7</version>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.core,
+							org.eclipse.californium.core.coap,
+							org.eclipse.californium.core.network,
+							org.eclipse.californium.core.server,
+							org.eclipse.californium.core.server.resources,
+							org.eclipse.californium.osgi,
+							org.eclipse.californium.elements;version="${element.connector.version}"
+						</Export-Package>
+						<Private-Package>
+							org.eclipse.californium.core.network.*,
+							org.eclipse.californium.core.observe
+						</Private-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Embed-Dependency>californium-core;inline=true,element-connector;inline=true</Embed-Dependency>
+						<Bundle-SymbolicName>californium-osgi</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
