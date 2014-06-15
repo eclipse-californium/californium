@@ -18,8 +18,9 @@ package org.eclipse.californium.examples;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.Utils;
 
 
 public class GETClient {
@@ -41,28 +42,23 @@ public class GETClient {
 				System.err.println("Invalid URI: " + e.getMessage());
 				System.exit(-1);
 			}
-		
-			// create new request
-			Request request = Request.newGet();
-			// specify URI of target endpoint
-			request.setURI(uri);
 			
-			request.send();
+			CoapClient client = new CoapClient(uri);
+
+			CoapResponse response = client.get();
 			
-			// receive response
-			try {
-				Response response = request.waitForResponse(1000);
+			if (response!=null) {
 				
-				if (response != null) {
-					// response received, output a pretty-print
-					System.out.println(response);
-				} else {
-					System.out.println("No response received.");
-				}
+				System.out.println(response.getCode());
+				System.out.println(response.getOptions());
+				System.out.println(response.getResponseText());
 				
-			} catch (InterruptedException e) {
-				System.err.println("Receiving of response interrupted: " + e.getMessage());
-				System.exit(-1);
+				System.out.println("\nADVANCED\n");
+				// access advanced API with access to more details through .advanced()
+				System.out.println(Utils.prettyPrint(response.advanced()));
+				
+			} else {
+				System.out.println("No response received.");
 			}
 			
 		} else {

@@ -387,7 +387,7 @@ public class Request extends Message {
 	 * 
 	 * @param timeout
 	 *            the maximum time to wait in milliseconds.
-	 * @return the response (null if timeout occured)
+	 * @return the response (null if timeout occurred)
 	 * @throws InterruptedException
 	 *             the interrupted exception
 	 */

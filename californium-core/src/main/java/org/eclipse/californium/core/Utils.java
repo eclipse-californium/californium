@@ -51,17 +51,14 @@ public class Utils {
 	/**
 	 * Formats a {@link Request} into a readable String representation. 
 	 * 
-	 * @param msg
-	 * @return
+	 * @param r the Resquest
+	 * @return the pretty print
 	 */
 	public static String prettyPrint(Request r) {
 	
 	        StringBuilder sb = new StringBuilder();
 	        
-	        sb.append("==[ CoAP Request ]============================================\n");
-	
-	
-	        //sb.append(String.format("Address: %s:%d\n", r.getSource().toString(), r.getSourcePort()));
+	        sb.append("==[ CoAP Request ]=============================================\n");
 	        sb.append(String.format("MID    : %d\n", r.getMID()));
 	        sb.append(String.format("Token  : %s\n", r.getTokenString()));
 	        sb.append(String.format("Type   : %s\n", r.getType().toString()));
@@ -78,18 +75,26 @@ public class Utils {
 	}
 
 	/**
-	 * Formats a {@link Request} into a readable String representation. 
+	 * Formats a {@link CoapReponse} into a readable String representation. 
 	 * 
-	 * @param msg
-	 * @return
+	 * @param r the CoapResponse
+	 * @return the pretty print
+	 */
+	public static String prettyPrint(CoapResponse r) {
+		return prettyPrint(r.advanced());
+	}
+
+	/**
+	 * Formats a {@link Response} into a readable String representation. 
+	 * 
+	 * @param r the Response
+	 * @return the pretty print
 	 */
 	public static String prettyPrint(Response r) {
 	
 	        StringBuilder sb = new StringBuilder();
 	        
-	        sb.append("==[ CoAP Response ]===========================================\n");
-	
-	        //sb.append(String.format("Address: %s:%d\n", r.getDestination().toString(), r.getDestinationPort()));
+	        sb.append("==[ CoAP Response ]============================================\n");
 	        sb.append(String.format("MID    : %d\n", r.getMID()));
 	        sb.append(String.format("Token  : %s\n", r.getTokenString()));
 	        sb.append(String.format("Type   : %s\n", r.getType().toString()));
