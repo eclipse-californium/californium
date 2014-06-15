@@ -19,11 +19,11 @@ import java.net.SocketException;
 import java.util.logging.Level;
 
 import org.eclipse.californium.core.CaliforniumLogger;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.server.Server;
 
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
@@ -57,7 +57,7 @@ import org.eclipse.californium.plugtests.resources.Validate;
  * The class PlugtestServer implements the test specification for the
  * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
-public class PlugtestServer extends Server {
+public class PlugtestServer extends CoapServer {
 
 	static {
 		CaliforniumLogger.initialize();
@@ -74,7 +74,7 @@ public class PlugtestServer extends Server {
     	
         // create server
         try {
-            Server server = new PlugtestServer();
+            CoapServer server = new PlugtestServer();
             // ETSI Plugtest environment
 //            server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
 //            server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));

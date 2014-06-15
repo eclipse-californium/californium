@@ -23,11 +23,11 @@ import java.net.DatagramSocket;
 
 import junit.framework.Assert;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class StartStopTest {
 	public static final String SERVER_1_RESPONSE = "This is server one";
 	public static final String SERVER_2_RESPONSE = "This is server two";
 	
-	private Server server1, server2;
+	private CoapServer server1, server2;
 	private int serverPort;
 	
 	@Before
@@ -67,15 +67,15 @@ public class StartStopTest {
 		Thread.sleep(500);
 		System.out.println("Socket port: "+serverPort);
 		
-		server1 = new Server(serverPort);
-		server1.add(new ResourceBase("ress") {
+		server1 = new CoapServer(serverPort);
+		server1.add(new CoapResource("ress") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_1_RESPONSE);
 			}
 		});
 		
-		server2 = new Server(serverPort);
-		server2.add(new ResourceBase("ress") {
+		server2 = new CoapServer(serverPort);
+		server2.add(new CoapResource("ress") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_2_RESPONSE);
 			}

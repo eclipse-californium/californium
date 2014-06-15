@@ -26,12 +26,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 import com.google.common.cache.CacheStats;
 import com.google.common.collect.HashBasedTable;
@@ -41,7 +41,7 @@ import com.google.common.collect.Table;
 /**
  * Resource that encapsulate the proxy statistics.
  */
-public class StatsResource extends ResourceBase {
+public class StatsResource extends CoapResource {
 	
 	private final Table<String, String, StatHelper> statsTable = HashBasedTable.create();
 
@@ -134,7 +134,7 @@ public class StatsResource extends ResourceBase {
 		return builder.length() == 0 ? "The proxy has not received any request, yet." : builder.toString();
 	}
 
-	private static final class CacheStatResource extends ResourceBase {
+	private static final class CacheStatResource extends CoapResource {
 		private CacheStats relativeCacheStats;
 		private final CacheResource cacheResource;
 
@@ -232,7 +232,7 @@ public class StatsResource extends ResourceBase {
 		}
 	}
 
-	private final class ProxyStatResource extends ResourceBase {
+	private final class ProxyStatResource extends CoapResource {
 
 		public ProxyStatResource(String resourceIdentifier) {
 			super(resourceIdentifier);

@@ -17,10 +17,10 @@ package org.eclipse.californium.plugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
-public class ObserveReset extends ResourceBase {
+public class ObserveReset extends CoapResource {
 
 	public ObserveReset() {
 		super("obs-reset");

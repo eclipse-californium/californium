@@ -21,6 +21,7 @@ package org.eclipse.californium.core.server.resources;
 
 import java.net.InetAddress;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -30,7 +31,7 @@ import org.eclipse.californium.core.network.Exchange;
 
 /**
  * The Class CoapExchange represents an exchange of a CoAP request and response
- * and provides a user-friendly API to subclasses of {@link ResourceBase} for
+ * and provides a user-friendly API to subclasses of {@link CoapResource} for
  * responding to requests.
  */
 public class CoapExchange {
@@ -39,7 +40,7 @@ public class CoapExchange {
 	private Exchange exchange;
 	
 	/* The destination resource. */
-	private ResourceBase resource;
+	private CoapResource resource;
 	
 	/* Response option values. */
 	private String locationPath = null;
@@ -54,7 +55,7 @@ public class CoapExchange {
 	 * @param exchange the exchange
 	 * @param resource the resource
 	 */
-	protected CoapExchange(Exchange exchange, ResourceBase resource) {
+	public CoapExchange(Exchange exchange, CoapResource resource) {
 		if (exchange == null) throw new NullPointerException();
 		if (resource == null) throw new NullPointerException();
 		this.exchange = exchange;

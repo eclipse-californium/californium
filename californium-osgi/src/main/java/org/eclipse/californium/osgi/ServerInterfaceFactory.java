@@ -15,8 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.osgi;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.ServerInterface;
 
 /**
@@ -30,7 +30,7 @@ interface ServerInterfaceFactory {
 	 * Creates a new {@link ServerInterface} instance.
 	 * 
 	 * Can be overridden e.g. by test classes to use a mock instance instead of a <i>real</i> server.
-	 * This default implementation returns a new instance of {@link Server}.
+	 * This default implementation returns a new instance of {@link CoapServer}.
 	 * 
 	 * @param config the network configuration to use for setting up the server's endpoint. If <code>null</code>
 	 * the default network configuration is used.
@@ -42,7 +42,7 @@ interface ServerInterfaceFactory {
 	 * Creates a new {@link ServerInterface} instance with multiple endpoints.
 	 * 
 	 * Can be overridden e.g. by test classes to use a mock instance instead of a <i>real</i> server.
-	 * This default implementation returns a new instance of {@link Server}.
+	 * This default implementation returns a new instance of {@link CoapServer}.
 	 * 
 	 * @param config the network configuration to use for setting up the server's endpoints. If <code>null</code>
 	 * the default network configuration is used.

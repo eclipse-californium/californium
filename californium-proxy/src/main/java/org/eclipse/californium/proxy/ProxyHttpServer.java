@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
@@ -32,7 +33,6 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
 
@@ -61,7 +61,7 @@ public class ProxyHttpServer {
 	 * @throws SocketException
 	 *             the socket exception
 	 */
-	public ProxyHttpServer(Server server) throws IOException {
+	public ProxyHttpServer(CoapServer server) throws IOException {
 		this(NetworkConfig.getStandard().getInt(NetworkConfigDefaults.HTTP_PORT));
 	}
 

@@ -16,11 +16,11 @@
  ******************************************************************************/
 package org.eclipse.californium.benchmark;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
-public class ShutDownResource extends ResourceBase {
+public class ShutDownResource extends CoapResource {
 
 	public ShutDownResource(String name) {
 		super(name);

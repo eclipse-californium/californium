@@ -25,15 +25,15 @@ import java.util.Random;
 import junit.framework.Assert;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class LossyBlockwiseTransferTest {
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	
-	private Server server;
+	private CoapServer server;
 	private Endpoint client;
 	private ManInTheMiddle middle;
 	
@@ -74,7 +74,7 @@ public class LossyBlockwiseTransferTest {
 		client.setMessageDeliverer(new EndpointManager.ClientMessageDeliverer());
 		client.start();
 		
-		server = new Server(config, 0);
+		server = new CoapServer(config, 0);
 		testResource = new TestResource("test");
 		server.add(testResource);
 		server.start();
@@ -157,7 +157,7 @@ public class LossyBlockwiseTransferTest {
 	}
 	
 	// All tests are made with this resource
-	private class TestResource extends ResourceBase {
+	private class TestResource extends CoapResource {
 		
 		public TestResource(String name) { 
 			super(name);

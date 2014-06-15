@@ -37,12 +37,12 @@ import java.util.Random;
 
 import junit.framework.Assert;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.junit.After;
 import org.junit.Before;
@@ -56,7 +56,7 @@ public class BlockwiseServerSide {
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	
-	private Server server;
+	private CoapServer server;
 	private int serverPort;
 	
 	private int mid = 7000;
@@ -78,7 +78,7 @@ public class BlockwiseServerSide {
 		NetworkConfig config = new NetworkConfig()
 			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 128)
 			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 128);
-		server = new Server(config, 0);
+		server = new CoapServer(config, 0);
 		server.add(testResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		server.start();
@@ -774,7 +774,7 @@ public class BlockwiseServerSide {
 	}
 	
 	// All tests are made with this resource
-	private class TestResource extends ResourceBase {
+	private class TestResource extends CoapResource {
 		
 		public TestResource(String name) { 
 			super(name);

@@ -23,12 +23,12 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.elements.UDPConnector;
 
 
@@ -105,7 +105,7 @@ public class BenchmarkServer {
 		setBenchmarkConfiguration(udp_sender, udp_receiver, verbose);
 		
 		// Create server
-		Server server = new Server();
+		CoapServer server = new CoapServer();
 		if (use_workers) {
 			System.out.println("Use queues with "+endpoint_threads+" workers");
 			server.setExecutor(new WorkQueueExecutor(endpoint_threads));

@@ -17,13 +17,13 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 
-public abstract class ForwardingResource extends ResourceBase {
+public abstract class ForwardingResource extends CoapResource {
 
 	public ForwardingResource(String resourceIdentifier) {
 		super(resourceIdentifier);

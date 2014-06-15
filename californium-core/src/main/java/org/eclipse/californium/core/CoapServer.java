@@ -17,7 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core.server;
+package org.eclipse.californium.core;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -35,10 +35,12 @@ import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.server.ServerInterface;
+import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -52,8 +54,8 @@ import org.eclipse.californium.core.server.resources.ResourceBase;
  * The following code snippet provides an example of a server with a resource
  * that responds with a <em>"hello world"</em> to any incoming GET request.
  * <pre>
- *   Server server = new Server(port);
- *   server.add(new ResourceBase(&quot;hello-world&quot;) {
+ *   CoapServer server = new CoapServer(port);
+ *   server.add(new CoapResource(&quot;hello-world&quot;) {
  * 	   public void handleGET(CoapExchange exchange) {
  * 	  	 exchange.respond(ResponseCode.CONTENT, &quot;hello world&quot;);
  * 	   }
@@ -64,7 +66,7 @@ import org.eclipse.californium.core.server.resources.ResourceBase;
  * The following figure shows the server's basic architecture.
  * 
  * <pre>
- * +--------------------------------------- Server ----------------------------------------+
+ * +------------------------------------- CoapServer --------------------------------------+
  * |                                                                                       |
  * |                               +-----------------------+                               |
  * |                               |    MessageDeliverer   +--> (Resource Tree)            |
@@ -87,10 +89,10 @@ import org.eclipse.californium.core.server.resources.ResourceBase;
  * @see MessageDeliverer
  * @see Endpoint
  **/
-public class Server implements ServerInterface {
+public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private final static Logger LOGGER = Logger.getLogger(Server.class.getCanonicalName());
+	private final static Logger LOGGER = Logger.getLogger(CoapServer.class.getCanonicalName());
 
 	/** The root resource. */
 	private final Resource root;
@@ -111,7 +113,7 @@ public class Server implements ServerInterface {
 	 * {@link #start()} is called. If a server starts and has no specific ports
 	 * assigned, it will bind to CoAp's default port 5683.
 	 */
-	public Server() {
+	public CoapServer() {
 		this(NetworkConfig.getStandard());
 	}
 	
@@ -121,7 +123,7 @@ public class Server implements ServerInterface {
 	 * 
 	 * @param ports the ports to bind to
 	 */
-	public Server(int... ports) {
+	public CoapServer(int... ports) {
 		this(NetworkConfig.getStandard(), ports);
 	}
 	
@@ -133,7 +135,7 @@ public class Server implements ServerInterface {
 	 * {@link NetworkConfig#getStandard()} is used.
 	 * @param ports the ports to bind to
 	 */
-	public Server(NetworkConfig config, int... ports) {
+	public CoapServer(NetworkConfig config, int... ports) {
 		this.root = createRoot();
 		this.endpoints = new ArrayList<Endpoint>();
 		if (config != null) {
@@ -145,7 +147,7 @@ public class Server implements ServerInterface {
 				config.getInt(NetworkConfigDefaults.SERVER_THRESD_NUMER));
 		this.deliverer = new ServerMessageDeliverer(root);
 		
-		ResourceBase well_known = new ResourceBase(".well-known");
+		CoapResource well_known = new CoapResource(".well-known");
 		well_known.setVisible(false);
 		well_known.add(new DiscoveryResource(root));
 		root.add(well_known);
@@ -331,7 +333,7 @@ public class Server implements ServerInterface {
 	 * @return the server
 	 */
 	@Override
-	public Server add(Resource... resources) {
+	public CoapServer add(Resource... resources) {
 		for (Resource r:resources)
 			root.add(r);
 		return this;
@@ -363,15 +365,15 @@ public class Server implements ServerInterface {
 	/**
 	 * Represents the root of a resource tree.
 	 */
-	private class RootResource extends ResourceBase {
+	private class RootResource extends CoapResource {
 
 		// get version from Maven package
-		private static final String SPACE = "                                "; // 32 until line end
-		private final String VERSION = Server.class.getPackage().getImplementationVersion()!=null ?
-				"Cf "+Server.class.getPackage().getImplementationVersion() : SPACE;
+		private static final String SPACE = "                                               "; // 47 until line end
+		private final String VERSION = CoapServer.class.getPackage().getImplementationVersion()!=null ?
+				"Cf "+CoapServer.class.getPackage().getImplementationVersion() : SPACE;
 		private final String msg = new StringBuilder()
 			.append("************************************************************\n")
-			.append("I-D: draft-ietf-core-coap-18").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
+			.append("CoAP RFC 7252").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
 			.append("************************************************************\n")
 			.append("This server is using the Californium (Cf) CoAP framework\n")
 			.append("published by the Eclipse Foundation under EPL+EDL:\n")
@@ -392,7 +394,7 @@ public class Server implements ServerInterface {
 		}
 		
 		public List<Endpoint> getEndpoints() {
-			return Server.this.getEndpoints();
+			return CoapServer.this.getEndpoints();
 		}
 	}
 

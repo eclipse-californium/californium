@@ -16,7 +16,9 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -29,50 +31,56 @@ public class CoAPClientExample {
 	public static void main(String[] args) {
 		
 		CoapClient client = new CoapClient("coap://vs0.inf.ethz.ch:5683/obs");
+
+		System.out.println("SYNCHRONOUS");
 		
-//		// synchronous
-//		String content1 = client.get().getResponseText();
-//		System.out.println(content1);
-//		String content2 = client.post("payload", MediaTypeRegistry.TEXT_PLAIN).getResponseText();
-//		System.out.println(content2);
-//		
+		// synchronous
+		String content1 = client.get().getResponseText();
+		System.out.println("RESPONSE 1: " + content1);
+		
+		CoapResponse resp2 = client.post("payload", MediaTypeRegistry.TEXT_PLAIN);
+		System.out.println("RESPONSE 2 CODE: " + resp2.getCode());
+		
 		// asynchronous
 		
-		System.out.println("GET");
+		System.out.println("ASYNCHRONOUS (press enter to continue)");
+		
 		client.get(new CoapHandler() {
 			@Override public void onLoad(CoapResponse response) {
 				String content = response.getResponseText();
-				System.out.println(content);
-				System.out.println("HHH");
+				System.out.println("RESPONSE 3: " + content);
 			}
 			
 			@Override public void onError() {
-				System.err.println("Failed");
+				System.err.println("FAILED");
 			}
 		});
-		System.out.println("DONE");
 		
-		try {
-			System.in.read();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.out.println("EXIT");
-//		
-//		// observing
-//		CoapObserveRelation relation = client.observe(
-//				new CoapHandler() {
-//					@Override public void onLoad(CoapResponse response) {
-//						String content = response.getResponseText();
-//						System.out.println(content);
-//					}
-//					
-//					@Override public void onError() {
-//						System.err.println("Failed");
-//					}
-//				});
-//		relation.proactiveCancel();
+		// wait for user
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		try { br.readLine(); } catch (IOException e) { System.err.println("FAILED");}
+		
+		// observe
+
+		System.out.println("OBSERVE (press enter to exit)");
+		
+		CoapObserveRelation relation = client.observe(
+				new CoapHandler() {
+					@Override public void onLoad(CoapResponse response) {
+						String content = response.getResponseText();
+						System.out.println("NOTIFICATION: " + content);
+					}
+					
+					@Override public void onError() {
+						System.err.println("FAILED");
+					}
+				});
+		
+		// wait for user
+		try { br.readLine(); } catch (IOException e) { System.err.println("FAILED");}
+		
+		System.out.println("CANCELLATION");
+		
+		relation.proactiveCancel();
 	}
-	
 }

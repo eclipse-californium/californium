@@ -19,8 +19,8 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 
 /**
@@ -33,7 +33,7 @@ public class LinkParser {
 	public static Resource parseTree(String linkFormat) {
 		Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
 
-		Resource root = new ResourceBase("");
+		Resource root = new CoapResource("");
 		
 		if (linkFormat!=null) {
 			Scanner scanner = new Scanner(linkFormat);
@@ -47,7 +47,7 @@ public class LinkParser {
 				LOG.finer(String.format("Parsing link resource: %s", path));
 	
 				// Retrieve specified resource, create if necessary
-				Resource resource = new ResourceBase(path);
+				Resource resource = new CoapResource(path);
 				
 				// Read link format attributes
 				LinkAttribute attr = null;

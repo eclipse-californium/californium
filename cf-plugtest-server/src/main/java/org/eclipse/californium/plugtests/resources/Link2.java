@@ -15,12 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.plugtests.resources;
 
-import org.eclipse.californium.core.server.resources.ResourceBase;
+import org.eclipse.californium.core.CoapResource;
 
 /**
  * This resource implements a test of specification for the ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
-public class Link2 extends ResourceBase {
+public class Link2 extends CoapResource {
 
 	public Link2() {
 		super("link2");

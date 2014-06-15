@@ -28,15 +28,15 @@ import junit.framework.Assert;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,10 +51,10 @@ public class ClientAsynchronousTest {
 	public static final String CONTENT_4 = "four";
 	public static final String QUERY_UPPER_CASE = "uppercase";
 	
-	private Server server;
+	private CoapServer server;
 	private int serverPort;
 	
-	private ResourceBase resource;
+	private CoapResource resource;
 	
 	private String expected;
 	
@@ -195,7 +195,7 @@ public class ClientAsynchronousTest {
 		CoAPEndpoint endpoint = new CoAPEndpoint(0);
 		
 		resource = new StorageResource(TARGET, CONTENT_1);
-		server = new Server();
+		server = new CoapServer();
 		server.add(resource);
 
 		server.addEndpoint(endpoint);
@@ -203,7 +203,7 @@ public class ClientAsynchronousTest {
 		serverPort = endpoint.getAddress().getPort();
 	}
 	
-	private class StorageResource extends ResourceBase {
+	private class StorageResource extends CoapResource {
 		
 		private String content;
 		

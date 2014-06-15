@@ -17,7 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core.server.resources;
+package org.eclipse.californium.core;
 
 import java.net.URI;
 import java.util.Collection;
@@ -29,7 +29,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -41,13 +40,17 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.observe.ObserveRelationContainer;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.core.server.resources.ResourceObserver;
 
 /**
- * ResourceBase is a basic implementation of a resource. Extend this class to
- * write your own resources. Instances of type or subtype of ResourceBase can be
- * built up to a tree very easily, see {@link #add(ResourceBase)}.
+ * CoapResource is a basic implementation of a resource. Extend this class to
+ * write your own resources. Instances of type or subtype of CoapResource can be
+ * built up to a tree very easily, see {@link #add(CoapResource)}.
  * <p>
- * ResourceBase uses four distinct methods to handle requests:
+ * CoapResource uses four distinct methods to handle requests:
  * <tt>handleGET()</tt>, <tt>handlePOST()</tt>, <tt>handlePUT()</tt> and
  * <tt>handleDELETE()</tt>. Each method has a default implementation that
  * responds with a 4.05 (Method Not Allowed). Each method exists twice but with
@@ -61,7 +64,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * <p>
  * The following example override the four handle-method.
  * <pre>
- * public class CoAPResourceExample extends ResourceBase {
+ * public class CoAPResourceExample extends CoapResource {
  * 
  *   public CoAPResourceExample(String name) {
  *     super(name);
@@ -99,7 +102,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * executor, the thread that delivers the request will invoke the handling
  * method.
  * <p>
- * ResourceBase supports CoAP's observe mechanism. Enable a ResourceBase to be
+ * CoapResource supports CoAP's observe mechanism. Enable a CoapResource to be
  * observable by a CoAP client by marking it as observable with
  * {@link #setObservable(boolean)}. Notify all CoAP observers by calling
  * {@link #changed()}. The method changed() reprocesses the requests from the
@@ -115,10 +118,10 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * added or canceled.
  * // TODO: make example with createClient().get() 
  */
-public  class ResourceBase implements Resource {
+public  class CoapResource implements Resource {
 
 	/** The logger. */
-	protected final static Logger LOGGER = Logger.getLogger(ResourceBase.class.getCanonicalName());
+	protected final static Logger LOGGER = Logger.getLogger(CoapResource.class.getCanonicalName());
 	
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;
@@ -161,7 +164,7 @@ public  class ResourceBase implements Resource {
 	 *
 	 * @param name the name
 	 */
-	public ResourceBase(String name) {
+	public CoapResource(String name) {
 		this(name, true);
 	}
 	
@@ -172,7 +175,7 @@ public  class ResourceBase implements Resource {
 	 * @param name the name
 	 * @param visible if the resource is visible
 	 */
-	public ResourceBase(String name, boolean visible) {
+	public CoapResource(String name, boolean visible) {
 		this.name = name;
 		this.path = "";
 		this.visible = visible;
@@ -361,15 +364,15 @@ public  class ResourceBase implements Resource {
 	 * 
 	 * <pre>
 	 * server.add(
-	 *   new ResourceBase("foo")
-	 *     .add(new ResourceBase("a")
-	 *       .add(new ResourceBase("a1"))
-	 *       .add(new ResourceBase("a2"))
-	 *       .add(new ResourceBase("a3"))
-	 *       .add(new ResourceBase("a4"))
+	 *   new CoapResource("foo")
+	 *     .add(new CoapResource("a")
+	 *       .add(new CoapResource("a1"))
+	 *       .add(new CoapResource("a2"))
+	 *       .add(new CoapResource("a3"))
+	 *       .add(new CoapResource("a4"))
 	 *     )
-	 *     .add(new ResourceBase("b")
-	 *       .add(new ResourceBase("b1")
+	 *     .add(new CoapResource("b")
+	 *       .add(new CoapResource("b1")
 	 *     )
 	 *   )
 	 * );
@@ -378,7 +381,7 @@ public  class ResourceBase implements Resource {
 	 * @param child the child
 	 * @return this
 	 */
-	public synchronized ResourceBase add(ResourceBase child) {
+	public synchronized CoapResource add(CoapResource child) {
 		add( (Resource) child);
 		return this;
 	}
@@ -390,15 +393,15 @@ public  class ResourceBase implements Resource {
 	 * 
 	 * <pre>
 	 * server.add(
-	 *   new ResourceBase("foo").add(
-	 *     new ResourceBase("a").add(
-	 *       new ResourceBase("a1"),
-	 *       new ResourceBase("a2"),
-	 *       new ResourceBase("a3"),
-	 *       new ResourceBase("a4")
+	 *   new CoapResource("foo").add(
+	 *     new CoapResource("a").add(
+	 *       new CoapResource("a1"),
+	 *       new CoapResource("a2"),
+	 *       new CoapResource("a3"),
+	 *       new CoapResource("a4")
 	 *     ),
-	 *     new ResourceBase("b").add(
-	 *       new ResourceBase("b1")
+	 *     new CoapResource("b").add(
+	 *       new CoapResource("b1")
 	 *     )
 	 *   )
 	 * );
@@ -407,8 +410,8 @@ public  class ResourceBase implements Resource {
 	 * @param child the child
 	 * @return this
 	 */
-	public synchronized ResourceBase add(ResourceBase... children) {
-		for (ResourceBase child:children)
+	public synchronized CoapResource add(CoapResource... children) {
+		for (CoapResource child:children)
 			add(child);
 		return this;
 	}

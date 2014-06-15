@@ -54,11 +54,11 @@ import org.eclipse.californium.elements.Connector;
  * | +---------v-+-------+ |
  * | | Stack Top         | |
  * | +-------------------+ |
- * | | {@link TokenLayer }        | |
- * | +-------------------+ |
  * | | {@link ObserveLayer}      | |
  * | +-------------------+ |
  * | | {@link BlockwiseLayer}    | |
+ * | +-------------------+ |
+ * | | {@link TokenLayer}        | |
  * | +-------------------+ |
  * | | {@link ReliabilityLayer}  | |
  * | +-------------------+ |

@@ -18,14 +18,14 @@ package org.eclipse.californium.examples;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ConcurrentResourceBase;
-import org.eclipse.californium.core.server.resources.ResourceBase;
+import org.eclipse.californium.core.server.resources.ConcurrentCoapResource;
 
-public class CoAPClientInResourceExample extends ConcurrentResourceBase {
+public class CoAPClientInResourceExample extends ConcurrentCoapResource {
 
 	public CoAPClientInResourceExample(String name) {
 		super(name, SINGLE_THREADED);
@@ -65,9 +65,9 @@ public class CoAPClientInResourceExample extends ConcurrentResourceBase {
 	}
 
 	public static void main(String[] args) {
-		Server server = new Server();
+		CoapServer server = new CoapServer();
 		server.add(new CoAPClientInResourceExample("example"));
-		server.add(new ResourceBase("target") {
+		server.add(new CoapResource("target") {
 			@Override
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond("Target payload");

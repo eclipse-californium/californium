@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
@@ -34,7 +35,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -46,7 +46,7 @@ import com.google.common.primitives.Ints;
 /**
  * Resource to handle the caching in the proxy.
  */
-public class ProxyCacheResource extends ResourceBase implements CacheResource {
+public class ProxyCacheResource extends CoapResource implements CacheResource {
 	
 	/**
 	 * The time after which an entry is removed. Since it is not possible to set

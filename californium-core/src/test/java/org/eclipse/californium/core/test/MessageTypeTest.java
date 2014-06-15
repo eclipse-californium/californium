@@ -22,15 +22,15 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class MessageTypeTest {
 	private static final String ACC_RESOURCE = "acc-res";
 	private static final String NO_ACC_RESOURCE = "no-acc-res";
 	
-	private Server server;
+	private CoapServer server;
 	private int serverPort;
 	
 	@Before
@@ -56,16 +56,16 @@ public class MessageTypeTest {
 			
 			CoAPEndpoint endpoint = new CoAPEndpoint();
 			
-			server = new Server();
+			server = new CoapServer();
 			server.addEndpoint(endpoint);
-			server.add(new ResourceBase(ACC_RESOURCE) {
+			server.add(new CoapResource(ACC_RESOURCE) {
 				public void handlePOST(CoapExchange exchange) {
 					System.out.println("gotit");
 					exchange.accept();
 					exchange.respond(SERVER_RESPONSE);
 				}
 			});
-			server.add(new ResourceBase(NO_ACC_RESOURCE) {
+			server.add(new CoapResource(NO_ACC_RESOURCE) {
 				public void handlePOST(CoapExchange exchange) {
 					exchange.respond(SERVER_RESPONSE);
 				}

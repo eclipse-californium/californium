@@ -26,6 +26,8 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -36,9 +38,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -83,7 +83,7 @@ public class ObserveTest {
 	public static final String TARGET_Y = "resY";
 	public static final String RESPONSE = "hi";
 	
-	private Server server;
+	private CoapServer server;
 	private MyResource resourceX;
 	private MyResource resourceY;
 	private ClientMessageInterceptor interceptor;
@@ -166,7 +166,7 @@ public class ObserveTest {
 		
 		CoAPEndpoint endpoint = new CoAPEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
 		
-		server = new Server();
+		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		resourceX = new MyResource(TARGET_X);
 		resourceY = new MyResource(TARGET_Y);
@@ -238,7 +238,7 @@ public class ObserveTest {
 		@Override public void receiveEmptyMessage(EmptyMessage message) { }
 	}
 	
-	private static class MyResource extends ResourceBase {
+	private static class MyResource extends CoapResource {
 		
 		private Type type = Type.CON;
 		private int counter = 0;

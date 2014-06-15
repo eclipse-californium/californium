@@ -17,11 +17,11 @@ package org.eclipse.californium.examples;
 
 import java.io.IOException;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 import org.eclipse.californium.proxy.DirectProxyCoAPResolver;
 import org.eclipse.californium.proxy.ProxyHttpServer;
@@ -45,14 +45,14 @@ public class ExampleCrossProxy {
 	
 	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
 
-	private Server targetServerA;
+	private CoapServer targetServerA;
 	
 	public ExampleCrossProxy() throws IOException {
 		ForwardingResource coap2coap = new ProxyCoapClientResource("coap2coap");
 		ForwardingResource coap2http = new ProxyHttpClientResource("coap2http");
 		
 		// Create CoAP Server on PORT with proxy resources form CoAP to CoAP and HTTP
-		targetServerA = new Server(PORT);
+		targetServerA = new CoapServer(PORT);
 		targetServerA.add(coap2coap);
 		targetServerA.add(coap2http);
 		targetServerA.add(new TargetResource("target"));
@@ -68,7 +68,7 @@ public class ExampleCrossProxy {
 	 * A simple resource that responds to GET requests with a small response
 	 * containing the resource's name.
 	 */
-	private static class TargetResource extends ResourceBase {
+	private static class TargetResource extends CoapResource {
 		
 		private int counter = 0;
 		

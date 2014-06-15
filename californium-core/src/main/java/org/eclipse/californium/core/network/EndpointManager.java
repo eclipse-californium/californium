@@ -35,12 +35,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.Server;
 
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
@@ -54,12 +54,12 @@ import org.eclipse.californium.core.server.Server;
  * <p>
  * To make a server listen for requests on the default endpoint, call
  * <pre>{@code
- *  Server server = new Server(EndpointManager.DEFAULT_PORT);
+ *  CoapServer server = new CoapServer(EndpointManager.DEFAULT_PORT);
  * }</pre>
  * or more explicit
  * <pre>{@code
  *  Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint();
- *  Server server = new Server();
+ *  CoapServer server = new CoapServer();
  *  server.addEndpoint(endpoint);
  * }</pre>
  */
@@ -99,7 +99,7 @@ public class EndpointManager {
 	 * send requests over the endpoint and receive responses. It is not possible
 	 * to receive requests by default. If a request arrives at the endpoint, the
 	 * {@link ClientMessageDeliverer} rejects it. To receive requests, the
-	 * endpoint must be added to an instance of {@link Server}. Be careful with
+	 * endpoint must be added to an instance of {@link CoapServer}. Be careful with
 	 * stopping or destroying the default endpoint as it affects all messages
 	 * that are supposed to be sent over it.
 	 * 
@@ -164,7 +164,7 @@ public class EndpointManager {
 	 * It is not possible to receive requests by default. If a request arrives
 	 * at the endpoint, the {@link ClientMessageDeliverer} rejects it. To
 	 * receive requests, the endpoint must be added to an instance of
-	 * {@link Server}. Be careful with stopping or destroying the default
+	 * {@link CoapServer}. Be careful with stopping or destroying the default
 	 * endpoint as it affects all messages that are supposed to be sent over it.
 	 * 
 	 * @return the default endpoint

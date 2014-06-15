@@ -17,10 +17,10 @@ package org.eclipse.californium.plugtests.resources;
 
 import java.nio.ByteBuffer;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
@@ -28,7 +28,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 /**
  * This resource implements a test of specification for the ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
-public class Validate extends ResourceBase {
+public class Validate extends CoapResource {
 
 	private byte[] data = null;
 	private int dataCf = TEXT_PLAIN;

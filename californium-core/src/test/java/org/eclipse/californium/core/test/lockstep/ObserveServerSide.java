@@ -34,13 +34,13 @@ import java.util.logging.Logger;
 
 import junit.framework.Assert;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.eclipse.californium.elements.UDPConnector;
 import org.junit.After;
@@ -52,7 +52,7 @@ public class ObserveServerSide {
 
 private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	
-	private Server server;
+	private CoapServer server;
 	private int serverPort;
 	
 	private int mid = 7000;
@@ -80,7 +80,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 32);
 		
-		server = new Server(config, 0);
+		server = new CoapServer(config, 0);
 		server.add(testObsResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		server.start();
@@ -323,7 +323,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	}
 	
 	// All tests are made with this resource
-	private class TestObserveResource extends ResourceBase {
+	private class TestObserveResource extends CoapResource {
 		
 		public TestObserveResource(String name) { 
 			super(name);

@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -77,7 +78,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * that defines its own executor. If no resource up to the root defines its own
  * executor, the currently executing thread will handle the request. A class
  * that implements this interface can export further methods to allow the
- * execution of code on the resource's executor. See {@link ResourceBase} for an
+ * execution of code on the resource's executor. See {@link CoapResource} for an
  * example.
  * <p>
  */
@@ -261,7 +262,7 @@ public interface Resource /*extends RequestProcessor*/ {
 	 */
 	public List<Endpoint> getEndpoints();
 
-	// TODO: Under construction. Use ResourceBase to enjoy coding sugar
+	// TODO: Under construction. Use CoapResource to enjoy coding sugar
 	public static class ResourceTreeBuilder {
 		
 		private Resource root;

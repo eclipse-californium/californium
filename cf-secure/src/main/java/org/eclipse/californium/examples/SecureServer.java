@@ -18,15 +18,15 @@ package org.eclipse.californium.examples;
 import java.net.InetSocketAddress;
 import java.util.logging.Level;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
@@ -43,8 +43,8 @@ public class SecureServer {
 
 	public static void main(String[] args) {
 		
-		Server server = new Server();
-		server.add(new ResourceBase("secure") {	
+		CoapServer server = new CoapServer();
+		server.add(new CoapResource("secure") {	
 				@Override
 				public void handleGET(CoapExchange exchange) {
 					exchange.respond(ResponseCode.CONTENT, "hello security");

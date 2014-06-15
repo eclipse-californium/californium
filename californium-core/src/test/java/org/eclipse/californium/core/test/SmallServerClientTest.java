@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.net.InetAddress;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -32,7 +33,6 @@ import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.Server;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,7 +81,7 @@ public class SmallServerClientTest {
 	
 	private void createSimpleServer() {
 		CoAPEndpoint endpoint = new CoAPEndpoint(0);
-		Server server = new Server();
+		CoapServer server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {
 			@Override

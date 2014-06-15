@@ -21,11 +21,11 @@ import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.osgi.framework.BundleContext;
@@ -117,7 +117,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 
 				@Override
 				public ServerInterface newServer(NetworkConfig config, int... ports) {
-					Server server = new Server(config, ports);
+					CoapServer server = new CoapServer(config, ports);
 					return server;
 				}
 			};

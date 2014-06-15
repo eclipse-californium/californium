@@ -22,16 +22,17 @@ package org.eclipse.californium.core.server.resources;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Exchange;
 
 /**
- * A ConcurrentResourceBase is an extension to a typical ResourceBase and
+ * A ConcurrentCoapResource is an extension to a typical CoapResource and
  * defines its own {@link Executor}. Arriving request to this resource and to
  * child resources that do not define their own executor will be process by this
  * executor. This class can be used in particular if a resource and potentially
  * its children require a single-threaded environment. In this case, use a
- * ConcurrentResourceBase with a thread-pool of size 1 as parent and
- * ResourceBase for all its children.
+ * ConcurrentCoapResource with a thread-pool of size 1 as parent and
+ * CoapResource for all its children.
  * <p>
  * The following example server contains several resources that have different
  * multi-threading policies. The three resources on top with the name
@@ -48,17 +49,17 @@ import org.eclipse.californium.core.network.Exchange;
  * to process the requests. For the client, the resource behaves exactly like
  * there were no executor.
  * <pre>
- * Server server = new Server();
- * server.add(new ResourceBase("server-thread")
- *   .add(new ResourceBase("server-thread")
- *     .add(new ResourceBase("server-thread"))));
+ * CoapServer server = new CoapServer();
+ * server.add(new CoapResource("server-thread")
+ *   .add(new CoapResource("server-thread")
+ *     .add(new CoapResource("server-thread"))));
  * server.add(new ConcurrentResource("single-threaded", 1)
  *   .add(new ConcurrentResource("single-threaded", 1)));
  * server.add(new ConcurrentResource("four-threaded", 4)
- *   .add(new ResourceBase("same-as-parent")
- *     .add(new ResourceBase("same-as-parent"))));
+ *   .add(new CoapResource("same-as-parent")
+ *     .add(new CoapResource("same-as-parent"))));
  * 
- * server.add(ConcurrentResourceBase.createConcurrentResourceBase(2, new LargeResource("large")));
+ * server.add(ConcurrentCoapResource.createConcurrentResourceBase(2, new LargeResource("large")));
  * server.start();
  * </pre>
  * The resulting resource three looks like the following
@@ -79,7 +80,7 @@ import org.eclipse.californium.core.network.Exchange;
  *  |-- large: executed by pool-5 (2 threads)
  * </pre>
  */
-public class ConcurrentResourceBase extends ResourceBase {
+public class ConcurrentCoapResource extends CoapResource {
 	
 	/** The constant 1 for single threaded executors */
 	public static int SINGLE_THREADED = 1;
@@ -96,7 +97,7 @@ public class ConcurrentResourceBase extends ResourceBase {
 	 * 
 	 * @param name the name
 	 */
-	public ConcurrentResourceBase(String name) {
+	public ConcurrentCoapResource(String name) {
 		super(name);
 		this.threads = getAvailableProcessors();
 		setExecutor(Executors.newFixedThreadPool(threads));
@@ -109,7 +110,7 @@ public class ConcurrentResourceBase extends ResourceBase {
 	 * @param name the name
 	 * @param threads the number of threads
 	 */
-	public ConcurrentResourceBase(String name, int threads) {
+	public ConcurrentCoapResource(String name, int threads) {
 		super(name);
 		this.threads = threads;
 		setExecutor(Executors.newFixedThreadPool(threads));
@@ -125,7 +126,7 @@ public class ConcurrentResourceBase extends ResourceBase {
 	}
 	
 	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.server.resources.ResourceBase#getExecutor()
+	 * @see org.eclipse.californium.core.server.resources.CoapResource#getExecutor()
 	 */
 	@Override
 	public Executor getExecutor() {
@@ -153,7 +154,7 @@ public class ConcurrentResourceBase extends ResourceBase {
 	}
 
 	/**
-	 * Wraps the specified implementation in a ConcurrentResourceBase that uses
+	 * Wraps the specified implementation in a ConcurrentCoapResource that uses
 	 * the specified number of threads to process requests. This method can be
 	 * used to reuse a given resource but with an own thread-pool.
 	 * 
@@ -161,9 +162,8 @@ public class ConcurrentResourceBase extends ResourceBase {
 	 * @param impl the implementation
 	 * @return the wrapping resource
 	 */
-//	public static ConcurrentResourceBase createConcurrentResourceBase(String name, int threads, final RequestProcessor impl) {
-	public static ConcurrentResourceBase createConcurrentResourceBase(int threads, final Resource impl) {
-		return new ConcurrentResourceBase(impl.getName(), threads) {
+	public static ConcurrentCoapResource createConcurrentCoapResource(int threads, final Resource impl) {
+		return new ConcurrentCoapResource(impl.getName(), threads) {
 			@Override
 			public void handleRequest(Exchange exchange) {
 				impl.handleRequest(exchange);

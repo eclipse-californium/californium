@@ -16,15 +16,15 @@
  ******************************************************************************/
 package org.eclipse.californium.benchmark;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 /**
  * This resource responds with a kind "hello world" to GET requests.
  */
-public class BenchmarkResource extends ResourceBase {
+public class BenchmarkResource extends CoapResource {
 
 	public BenchmarkResource(String name) {
 		super(name);

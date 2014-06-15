@@ -16,12 +16,12 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ConcurrentResourceBase;
-import org.eclipse.californium.core.server.resources.ResourceBase;
+import org.eclipse.californium.core.server.resources.ConcurrentCoapResource;
 
 /**
  * Creates an example server with resources that have different multi-threading
@@ -66,7 +66,7 @@ public class ConcurrentExampleServer {
 	public static void main(String[] args) {
 		System.out.println("Starting Concurrent Example Server");
 		
-		Server server = new Server();
+		CoapServer server = new CoapServer();
 		server.add(new NoThreadResource("server-thread")
 					.add(new NoThreadResource("server-thread")
 						.add(new NoThreadResource("server-thread"))));
@@ -78,7 +78,7 @@ public class ConcurrentExampleServer {
 		
 		// Use an already created resource without executor as implementation
 		// for a resource that has its own executor.
-		server.add(ConcurrentResourceBase.createConcurrentResourceBase(2, new LegacyResource("legacy")));
+		server.add(ConcurrentCoapResource.createConcurrentCoapResource(2, new LegacyResource("legacy")));
 		
 		// start the server
 		server.start();
@@ -88,7 +88,7 @@ public class ConcurrentExampleServer {
 	 * A resource that uses the executor of its parent/ancestor if defined or
 	 * the server's executor otherwise.
 	 */
-	private static class NoThreadResource extends ResourceBase {
+	private static class NoThreadResource extends CoapResource {
 		
 		public NoThreadResource(String name) {
 			super(name);
@@ -106,7 +106,7 @@ public class ConcurrentExampleServer {
 	 * A resource with its own executor. Only threads of that executor will
 	 * handle GET requests.
 	 */
-	private static class ConcurrentResource extends ConcurrentResourceBase {
+	private static class ConcurrentResource extends ConcurrentCoapResource {
 		
 		public ConcurrentResource(String name) {
 			super(name);
@@ -141,7 +141,7 @@ public class ConcurrentExampleServer {
 	 * An already existing resource that we want to use as implementation of a
 	 * concurrent resource.
 	 */
-	private static class LegacyResource extends ResourceBase {
+	private static class LegacyResource extends CoapResource {
 		
 		public LegacyResource(String name) { super(name); }
 		

@@ -21,6 +21,7 @@ package org.eclipse.californium.core.server.resources;
 
 import java.util.List;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -30,7 +31,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
  * accessible over CoAP on the well-known URI: <tt>/.well-known/core</tt>. It
  * responds to GET requests with a list of the server's resources, i.e. links.
  */
-public class DiscoveryResource extends ResourceBase {
+public class DiscoveryResource extends CoapResource {
 
 	/** The Constant CORE. */
 	public static final String CORE = "core";

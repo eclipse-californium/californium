@@ -29,13 +29,13 @@ import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.eclipse.californium.osgi.EndpointFactory;
 import org.eclipse.californium.osgi.ManagedServer;
 import org.eclipse.californium.osgi.ServerInterfaceFactory;
@@ -138,7 +138,7 @@ public class ManagedServerTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testAddingService() throws Exception {
-		Resource resource = new ResourceBase("test");
+		Resource resource = new CoapResource("test");
 		ServiceReference<Resource> ref = mock(ServiceReference.class);
 		when(bundleContext.getService(ref)).thenReturn(resource);
 		managedServer.updated(null);
@@ -151,7 +151,7 @@ public class ManagedServerTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testRemovedService() throws Exception {
-		Resource resource = new ResourceBase("test");
+		Resource resource = new CoapResource("test");
 		ServiceReference<Resource> ref = mock(ServiceReference.class);
 		when(bundleContext.getService(ref)).thenReturn(resource);
 		managedServer.updated(null);

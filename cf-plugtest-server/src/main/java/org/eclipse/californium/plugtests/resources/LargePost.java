@@ -18,15 +18,15 @@ package org.eclipse.californium.plugtests.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 /**
  * This resource implements a test of specification for the
  * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
-public class LargePost extends ResourceBase {
+public class LargePost extends CoapResource {
 
 // Constructors ////////////////////////////////////////////////////////////
 

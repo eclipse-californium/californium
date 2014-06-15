@@ -21,11 +21,11 @@ package org.eclipse.californium.core.test;
 
 import java.util.LinkedList;
 
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,10 +41,10 @@ public class ResourceAttributesTest {
 			System.out.println("\nStart "+getClass().getSimpleName());
 			EndpointManager.clear();
 			
-			root = new ResourceBase("");
-			Resource sensors = new ResourceBase("sensors");
-			Resource temp = new ResourceBase("temp");
-			Resource light = new ResourceBase("light");
+			root = new CoapResource("");
+			Resource sensors = new CoapResource("sensors");
+			Resource temp = new CoapResource("temp");
+			Resource light = new CoapResource("light");
 			root.add(sensors);
 			sensors.add(temp);
 			sensors.add(light);

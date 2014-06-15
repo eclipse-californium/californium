@@ -17,12 +17,12 @@ package org.eclipse.californium.examples;
 
 import java.net.SocketException;
 
-import org.eclipse.californium.core.server.Server;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 
 
-public class HelloWorldServer extends Server {
+public class HelloWorldServer extends CoapServer {
     
     /*
      * Application entry point.
@@ -54,7 +54,7 @@ public class HelloWorldServer extends Server {
     /*
      * Definition of the Hello-World Resource
      */
-    class HelloWorldResource extends ResourceBase {
+    class HelloWorldResource extends CoapResource {
         
         public HelloWorldResource() {
             

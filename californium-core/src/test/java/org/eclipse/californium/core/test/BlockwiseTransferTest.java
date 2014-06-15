@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -43,7 +44,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.Server;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,7 +67,7 @@ public class BlockwiseTransferTest {
 	private boolean request_short = true;
 	private boolean respond_short = true;
 	
-	private Server server;
+	private CoapServer server;
 	private ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
 	private int serverPort;
 	
@@ -199,8 +199,8 @@ public class BlockwiseTransferTest {
 		}
 	}
 	
-	private Server createSimpleServer() {
-		Server server = new Server();
+	private CoapServer createSimpleServer() {
+		CoapServer server = new CoapServer();
 		NetworkConfig config = new NetworkConfig();
 		config.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 32);
 		config.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 32);

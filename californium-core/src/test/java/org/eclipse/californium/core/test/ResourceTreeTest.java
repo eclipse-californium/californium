@@ -19,12 +19,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
-import org.eclipse.californium.core.server.Server;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.ResourceBase;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,10 +43,10 @@ public class ResourceTreeTest {
 	public static final String CHILD = "child";
 	public static final String CHILD_PAYLOAD = "It is too cold";
 	
-	private Server server;
+	private CoapServer server;
 	private int serverPort;
 	
-	private ResourceBase resource;
+	private CoapResource resource;
 	
 	@Before
 	public void startupServer() {
@@ -100,10 +100,10 @@ public class ResourceTreeTest {
 		CoAPEndpoint endpoint = new CoAPEndpoint(0);
 		
 		resource = new TestResource(NAME_1, PAYLOAD);
-		server = new Server();
+		server = new CoapServer();
 		server
-			.add(new ResourceBase(RES_A)
-				.add(new ResourceBase(RES_AA)
+			.add(new CoapResource(RES_A)
+				.add(new CoapResource(RES_AA)
 					.add(resource
 						.add(new TestResource(CHILD, CHILD_PAYLOAD)))));
 
@@ -112,7 +112,7 @@ public class ResourceTreeTest {
 		serverPort = endpoint.getAddress().getPort();
 	}
 	
-	private class TestResource extends ResourceBase {
+	private class TestResource extends CoapResource {
 		
 		private String payload;
 		
