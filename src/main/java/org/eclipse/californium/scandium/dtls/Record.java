@@ -174,7 +174,9 @@ public class Record {
 			ContentType contentType = ContentType.getTypeByValue(type);
 			
 			if (contentType==null) {
-				LOGGER.warning(String.format("Received illegal record content type: %s", type));
+				if (LOGGER.isLoggable(Level.WARNING)) {
+				    LOGGER.warning(String.format("Received illegal record content type: %s", type));
+				}
 				break;
 			}
 	

@@ -31,6 +31,7 @@ import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.KeyAgreement;
@@ -94,8 +95,7 @@ public class ECDHECryptography {
 			privateKey = (ECPrivateKey) kp.getPrivate();
 			publicKey = (ECPublicKey) kp.getPublic();
 		} catch (GeneralSecurityException e) {
-			LOGGER.severe("Could not generate the ECDHE keypair.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not generate the ECDHE keypair.",e);
 		}
 
 	}
@@ -116,8 +116,7 @@ public class ECDHECryptography {
 			publicKey = (ECPublicKey) keyPair.getPublic();
 
 		} catch (GeneralSecurityException e) {
-			LOGGER.severe("Could not generate the ECDHE keypair.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not generate the ECDHE keypair.",e);
 		}
 	}
 
@@ -160,8 +159,7 @@ public class ECDHECryptography {
 			secretKey = getSecret(peerPublicKey);
 
 		} catch (Exception e) {
-			LOGGER.severe("Could not generate the premaster secret.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not generate the premaster secret.",e);
 		}
 		return secretKey;
 	}
@@ -183,8 +181,7 @@ public class ECDHECryptography {
 			
 			secretKey = keyAgreement.generateSecret("TlsPremasterSecret");
 		} catch (Exception e) {
-			LOGGER.severe("Could not generate the premaster secret.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not generate the premaster secret.",e);
 		}
 		return secretKey;
 	}

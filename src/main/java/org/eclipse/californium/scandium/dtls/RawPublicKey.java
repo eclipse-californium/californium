@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -163,7 +164,9 @@ public class RawPublicKey {
 				break;
 
 			default:
-				LOGGER.warning("Unknown DER tag: " + tag);
+				if (LOGGER.isLoggable(Level.WARNING)) {
+				    LOGGER.warning("Unknown DER tag: " + tag);
+				}
 				break;
 			}
 		}

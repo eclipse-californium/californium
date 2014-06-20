@@ -20,7 +20,6 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
@@ -37,10 +36,6 @@ import org.eclipse.californium.scandium.util.ScProperties;
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
 public class ClientHello extends HandshakeMessage {
-
-	// Logging ///////////////////////////////////////////////////////////
-
-	protected static final Logger LOGGER = Logger.getLogger(ClientHello.class.getCanonicalName());
 
 	// DTLS-specific constants ///////////////////////////////////////////
 
