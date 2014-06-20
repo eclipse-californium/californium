@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.Cipher;
@@ -120,8 +121,7 @@ public final class CCMBlockCipher {
 			 */
 			mac = computeCbcMac(nonce, m, a, cipher, numAuthenticationBytes);
 		} catch (Exception e) {
-			LOGGER.severe("Could not decrypt the message.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not decrypt the message.",e);
 			return new byte[] {};
 		}
 
@@ -134,7 +134,8 @@ public final class CCMBlockCipher {
 		if (Arrays.equals(T, mac)) {
 			return m;
 		} else {
-			String message = "The encrypted message could not be authenticated:\nExpected: " + ByteArrayUtils.toHexString(T) + "\nActual:   " + ByteArrayUtils.toHexString(mac);
+			String message = "The encrypted message could not be authenticated:\nExpected: " 
+			                + ByteArrayUtils.toHexString(T) + "\nActual:   " + ByteArrayUtils.toHexString(mac);
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_RECORD_MAC);
 			throw new HandshakeException(message, alert);
 		}
@@ -199,8 +200,7 @@ public final class CCMBlockCipher {
 
 			return c;
 		} catch (Exception e) {
-			LOGGER.severe("Could not encrypt the message.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not encrypt the message.",e);
 			return new byte[] {};
 		}
 	}

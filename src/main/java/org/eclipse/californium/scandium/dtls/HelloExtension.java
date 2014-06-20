@@ -16,8 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.logging.Logger;
-
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
@@ -32,10 +30,6 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * the extension format.
  */
 public abstract class HelloExtension {
-
-	// Logging ///////////////////////////////////////////////////////////
-
-	protected static final Logger LOGGER = Logger.getLogger(HelloExtension.class.getCanonicalName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 

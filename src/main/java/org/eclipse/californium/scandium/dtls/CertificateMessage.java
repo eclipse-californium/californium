@@ -28,6 +28,7 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -139,8 +140,7 @@ public class CertificateMessage extends HandshakeMessage {
 						messageLength += encoded.length + 3;
 					} catch (CertificateEncodingException e) {
 						encodedChain = null;
-						LOGGER.severe("Could not encode the certificate.");
-						e.printStackTrace();
+						LOGGER.log(Level.SEVERE,"Could not encode the certificate.", e);
 					}
 				}
 			}
