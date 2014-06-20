@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -123,7 +124,9 @@ public enum CipherSuite {
 			return CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 
 		default:
-			LOGGER.warning("Unknown cipher suite code, fallback to SSL_NULL_WITH_NULL_NULL: " + code);
+			if (LOGGER.isLoggable(Level.WARNING)) {
+			    LOGGER.warning("Unknown cipher suite code, fallback to SSL_NULL_WITH_NULL_NULL: " + code);
+			}
 			return CipherSuite.SSL_NULL_WITH_NULL_NULL;
 		}
 	}

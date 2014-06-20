@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.SecretKey;
@@ -90,7 +91,7 @@ public abstract class Handshaker {
 			sharedKeys.put("Server", "Server".getBytes("US-ASCII"));
 			sharedKeys.put("PSK_Identity", new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.severe("Unsupported Encoding in given PSKs.");
+			LOGGER.log(Level.SEVERE,"Unsupported Encoding in given PSKs.",e);
 		}
 	}
 
@@ -190,8 +191,7 @@ public abstract class Handshaker {
 		try {
 			this.md = MessageDigest.getInstance("SHA-256");
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.severe("Could not initialize the message digest algorithm.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not initialize the message digest algorithm.",e);
 		}
 	}
 
@@ -390,8 +390,7 @@ public abstract class Handshaker {
 				return null;
 			}
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.severe("Message digest algorithm not available.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Message digest algorithm not available.",e);
 			return null;
 		}
 	}
@@ -627,7 +626,9 @@ public abstract class Handshaker {
 		int epoch = record.getEpoch();
 		if (epoch < session.getReadEpoch()) {
 			// discard old message
-			LOGGER.info("Discarded message from " + endpointAddress.toString() + " due to older epoch.");
+			if (LOGGER.isLoggable(Level.INFO)) {
+			    LOGGER.info("Discarded message from " + endpointAddress.toString() + " due to older epoch.");
+			}
 			return false;
 		} else if (epoch == session.getReadEpoch()) {
 			DTLSMessage fragment = record.getFragment();
@@ -646,11 +647,15 @@ public abstract class Handshaker {
 					}
 					return true;
 				} else if (messageSeq > nextReceiveSeq) {
-					LOGGER.info("Queued newer message from same epoch, message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
+					if (LOGGER.isLoggable(Level.INFO)) {
+					    LOGGER.info("Queued newer message from same epoch, message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
+					}
 					queuedMessages.add(record);
 					return false;
 				} else {
-					LOGGER.info("Discarded message due to older message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
+					if (LOGGER.isLoggable(Level.INFO)) {
+					    LOGGER.info("Discarded message due to older message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
+					}
 					return false;
 				}
 			} else {
@@ -686,8 +691,7 @@ public abstract class Handshaker {
 			// TODO load multiple certificates?
 			trustedCertificates[0] = trustStore.getCertificate("root");
 		} catch (Exception e) {
-			LOGGER.severe("Could not load the trusted certificates.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not load the trusted certificates.",e);
 		}
 
 		return trustedCertificates;

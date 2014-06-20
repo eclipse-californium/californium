@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -158,8 +159,7 @@ public class CertificateVerify extends HandshakeMessage {
 
 			signatureBytes = signature.sign();
 		} catch (Exception e) {
-			LOGGER.severe("Could not create signature.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not create signature.",e);
 		}
 
 		return signatureBytes;
@@ -186,8 +186,7 @@ public class CertificateVerify extends HandshakeMessage {
 			verified = signature.verify(signatureBytes);
 
 		} catch (Exception e) {
-			LOGGER.severe("Could not verify the client's signature.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not verify the client's signature.",e);
 		}
 		
 		if (!verified) {

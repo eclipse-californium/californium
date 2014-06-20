@@ -220,9 +220,10 @@ public class ClientHandshaker extends Handshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-
-		LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
-		return flight;
+		if (LOGGER.isLoggable(Level.FINE)) {
+		    LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
+		}
+		    return flight;
 	}
 
 	/**
@@ -434,9 +435,9 @@ public class ClientHandshaker extends Handshaker {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
-			
-			LOGGER.info("Using PSK identity: " + identity);
-
+			if (LOGGER.isLoggable(Level.INFO)) {	
+			    LOGGER.info("Using PSK identity: " + identity);
+			}
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
@@ -519,8 +520,7 @@ public class ClientHandshaker extends Handshaker {
 			try {
 				mdWithClientFinished = (MessageDigest) md.clone();
 			} catch (CloneNotSupportedException e) {
-				LOGGER.severe("Clone not supported.");
-				e.printStackTrace();
+				LOGGER.log(Level.SEVERE,"Clone not supported.",e);
 			}
 
 			handshakeHash = md.digest();
@@ -533,8 +533,7 @@ public class ClientHandshaker extends Handshaker {
 			handshakeHash = mdWithClientFinished.digest();
 
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.severe("No such Message Digest Algorithm available.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"No such Message Digest Algorithm available.",e);
 		}
 
 		return flight;
