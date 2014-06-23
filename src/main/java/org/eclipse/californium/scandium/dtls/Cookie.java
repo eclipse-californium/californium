@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+
 /**
  * Represents a stateless cookie which is used in the {@link HelloVerifyRequest}
  * in the DTLS handshake to prevent denial-of-service attacks. See <a

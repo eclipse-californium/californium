@@ -17,6 +17,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 
+
 /**
  * Defines the DTLS message interface used by {@link Record} and implemented by
  * the 4 message {@link ContentType}: {@link ChangeCipherSpecMessage},

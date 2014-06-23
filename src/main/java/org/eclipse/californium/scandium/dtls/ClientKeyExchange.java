@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+
 /**
  * This message is always sent by the client. It MUST immediately follow the
  * client certificate message, if it is sent. Otherwise, it MUST be the first

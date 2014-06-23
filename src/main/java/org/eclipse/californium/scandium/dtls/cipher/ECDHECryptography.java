@@ -14,7 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  ******************************************************************************/
-package org.eclipse.californium.scandium.dtls;
+package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
@@ -36,6 +36,8 @@ import java.util.logging.Logger;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
+
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * A helper class to execute the ECDHE key agreement and key generation.
@@ -63,6 +65,40 @@ public class ECDHECryptography {
 	 */
 	private static final String KEY_AGREEMENT_INSTANCE = "ECDH";
 
+	/**
+	 * Maps the named curves indices to their names.
+	 * 
+	 * See <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1">RFC 4492,
+	 * Section 5.1.1 Supported Elliptic Curves Extension</a>
+	 */
+	public final static String[] NAMED_CURVE_TABLE = new String[] { null, // 0
+			"sect163k1", // 1
+			"sect163r1", // 2
+			"sect163r2", // 3
+			"sect193r1", // 4
+			"sect193r2", // 5
+			"sect233k1", // 6
+			"sect233r1", // 7
+			"sect239k1", // 8
+			"sect283k1", // 9
+			"sect283r1", // 10
+			"sect409k1", // 11
+			"sect409r1", // 12
+			"sect571k1", // 13
+			"sect571r1", // 14
+			"secp160k1", // 15
+			"secp160r1", // 16
+			"secp160r2", // 17
+			"secp192k1", // 18
+			"secp192r1", // 19
+			"secp224k1", // 20
+			"secp224r1", // 21
+			"secp256k1", // 22
+			"secp256r1", // 23
+			"secp384r1", // 24
+			"secp521r1" // 25
+	};
+
 	// Members ////////////////////////////////////////////////////////
 	
 	/** The ephemeral private key. */
@@ -82,7 +118,7 @@ public class ECDHECryptography {
 	public ECDHECryptography(int namedCurveId) {
 		// create ephemeral key pair
 		try {
-			String namedCurve = ECDHServerKeyExchange.NAMED_CURVE_TABLE[namedCurveId];
+			String namedCurve = NAMED_CURVE_TABLE[namedCurveId];
 
 			// initialize the key pair generator
 			KeyPairGenerator kpg;

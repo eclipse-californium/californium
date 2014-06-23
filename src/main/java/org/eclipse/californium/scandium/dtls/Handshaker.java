@@ -43,7 +43,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.dtls.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
 
@@ -90,6 +93,9 @@ public abstract class Handshaker {
 			sharedKeys.put("Client", "Client".getBytes("US-ASCII"));
 			sharedKeys.put("Server", "Server".getBytes("US-ASCII"));
 			sharedKeys.put("PSK_Identity", new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+			
+			// default tinydtls PSK identity
+			sharedKeys.put("Client_identity", "secretPSK".getBytes("US-ASCII"));
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.log(Level.SEVERE,"Unsupported Encoding in given PSKs.",e);
 		}

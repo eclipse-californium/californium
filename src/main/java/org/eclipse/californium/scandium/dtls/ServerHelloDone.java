@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+
 /**
  * The ServerHelloDone message is sent by the server to indicate the end of the
  * {@link ServerHello} and associated messages. After sending this message, the
