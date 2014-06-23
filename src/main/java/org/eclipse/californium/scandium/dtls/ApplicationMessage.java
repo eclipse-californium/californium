@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
+
 
 /**
  * Application data messages are carried by the record layer and are fragmented,

@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
+
 
 /**
  * This class represents a fragmented handshake message. It treats the

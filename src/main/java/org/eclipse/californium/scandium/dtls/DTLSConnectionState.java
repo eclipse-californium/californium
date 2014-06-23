@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+
 /**
  * Represents a connection state. It specifies a compression algorithm, an
  * encryption algorithm, and a MAC algorithm. For a connection, there are always

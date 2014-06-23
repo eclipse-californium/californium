@@ -38,6 +38,9 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
 

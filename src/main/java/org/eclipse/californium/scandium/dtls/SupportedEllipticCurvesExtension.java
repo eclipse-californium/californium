@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -104,7 +105,7 @@ public class SupportedEllipticCurvesExtension extends HelloExtension {
 		sb.append("\t\t\t\tElliptic Curves (" + ellipticCurveList.size() + " curves):\n");
 
 		for (Integer curveId : ellipticCurveList) {
-			String curveName = ECDHServerKeyExchange.NAMED_CURVE_TABLE[curveId];
+			String curveName = ECDHECryptography.NAMED_CURVE_TABLE[curveId];
 			sb.append("\t\t\t\t\tElliptic Curve: " + curveName + " (" + curveId + ")\n");
 		}
 

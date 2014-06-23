@@ -20,6 +20,8 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Date;
 
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
+
 /**
  * A 32-byte value provided by the client and the server in the
  * {@link ClientHello} respectively in the {@link ServerHello} used later in the

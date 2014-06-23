@@ -23,7 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.scandium.dtls.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 
 /**

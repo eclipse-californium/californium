@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+
 /**
  * This message will be sent immediately after the server
  * {@link CertificateMessage} (or the {@link ServerHello} message, if this is an

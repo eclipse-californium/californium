@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,7 +36,6 @@ import org.eclipse.californium.elements.ConnectorBase;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
-import org.eclipse.californium.scandium.dtls.ByteArrayUtils;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -53,6 +53,7 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHello;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
 
@@ -87,13 +88,13 @@ public class DTLSConnector extends ConnectorBase {
 	private Timer timer = new Timer(true); // run as daemon
 	
 	/** Storing sessions according to peer-addresses */
-	private ConcurrentHashMap<String, DTLSSession> dtlsSessions = new ConcurrentHashMap<String, DTLSSession>();
+	private Map<String, DTLSSession> dtlsSessions = new ConcurrentHashMap<String, DTLSSession>();
 
 	/** Storing handshakers according to peer-addresses. */
-	private ConcurrentHashMap<String, Handshaker> handshakers = new ConcurrentHashMap<String, Handshaker>();
+	private Map<String, Handshaker> handshakers = new ConcurrentHashMap<String, Handshaker>();
 
 	/** Storing flights according to peer-addresses. */
-	private ConcurrentHashMap<String, DTLSFlight> flights = new ConcurrentHashMap<String, DTLSFlight>();
+	private Map<String, DTLSFlight> flights = new ConcurrentHashMap<String, DTLSFlight>();
 	
 	public DTLSConnector(InetSocketAddress address) {
 		super(address);

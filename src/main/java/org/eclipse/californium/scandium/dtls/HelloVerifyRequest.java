@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
