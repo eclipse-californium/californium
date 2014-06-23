@@ -21,6 +21,8 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -103,7 +105,7 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 		return 1 + pointEncoded.length;
 	}
 
-	byte[] getEncodedPoint() {
+	public byte[] getEncodedPoint() {
 		return pointEncoded;
 	}
 

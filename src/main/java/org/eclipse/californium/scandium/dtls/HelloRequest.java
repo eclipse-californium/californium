@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+
 /**
  * HelloRequest is a simple notification that the client should begin the
  * negotiation process anew. In response, the client should send a

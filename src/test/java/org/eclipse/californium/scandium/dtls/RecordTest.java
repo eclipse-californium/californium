@@ -27,14 +27,11 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.scandium.dtls.ByteArrayUtils;
-import org.eclipse.californium.scandium.dtls.CCMBlockCipher;
-import org.eclipse.californium.scandium.dtls.CipherSuite;
 import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
-import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.junit.Before;
 import org.junit.Test;
 

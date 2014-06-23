@@ -17,6 +17,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 
+
 /**
  * The base exception class for all exceptions during a DTLS handshake.
  */
