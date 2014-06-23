@@ -359,8 +359,7 @@ public class CertificateMessage extends HandshakeMessage {
 					Certificate cert = certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
 					certs.add(cert);
 				} catch (CertificateException e) {
-					LOGGER.severe("Could not generate the certificate.");
-					e.printStackTrace();
+					LOGGER.log(Level.SEVERE,"Could not generate the certificate.",e);
 					break;
 				}
 			}
@@ -386,8 +385,7 @@ public class CertificateMessage extends HandshakeMessage {
 				// TODO make instance variable
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
 			} catch (Exception e) {
-				LOGGER.severe("Could not reconstruct the server's public key.");
-				e.printStackTrace();
+				LOGGER.log(Level.SEVERE,"Could not reconstruct the server's public key.",e);
 			}
 		}
 		return publicKey;

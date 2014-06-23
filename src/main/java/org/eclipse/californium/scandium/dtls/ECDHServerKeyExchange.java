@@ -31,12 +31,14 @@ import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -290,8 +292,7 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 			verified = signature.verify(signatureEncoded);
 
 		} catch (Exception e) {
-			LOGGER.severe("Could not verify the server's signature.");
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE,"Could not verify the server's signature.",e);
 		}
 		
 		if (!verified) {
@@ -358,8 +359,7 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 				KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_INSTANCE);
 				publicKey = (ECPublicKey) keyFactory.generatePublic(new ECPublicKeySpec(point, params));
 			} catch (Exception e) {
-				LOGGER.severe("Could not reconstruct the server's ephemeral public key.");
-				e.printStackTrace();
+				LOGGER.log(Level.SEVERE,"Could not reconstruct the server's ephemeral public key.",e);
 			}
 
 		}
@@ -384,39 +384,6 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 		return sb.toString();
 	}
 
-	/**
-	 * Maps the named curves indices to their names.
-	 * 
-	 * See <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1">RFC 4492,
-	 * Section 5.1.1 Supported Elliptic Curves Extension</a>
-	 */
-	public final static String[] NAMED_CURVE_TABLE = new String[] { null, // 0
-			"sect163k1", // 1
-			"sect163r1", // 2
-			"sect163r2", // 3
-			"sect193r1", // 4
-			"sect193r2", // 5
-			"sect233k1", // 6
-			"sect233r1", // 7
-			"sect239k1", // 8
-			"sect283k1", // 9
-			"sect283r1", // 10
-			"sect409k1", // 11
-			"sect409r1", // 12
-			"sect571k1", // 13
-			"sect571r1", // 14
-			"secp160k1", // 15
-			"secp160r1", // 16
-			"secp160r2", // 17
-			"secp192k1", // 18
-			"secp192r1", // 19
-			"secp224k1", // 20
-			"secp224r1", // 21
-			"secp256k1", // 22
-			"secp256r1", // 23
-			"secp384r1", // 24
-			"secp521r1" // 25
-	};
 
 	/**
 	 * Maps the named curves names to its indices. This is done statically
@@ -426,8 +393,8 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 
 	static {
 		NAMED_CURVE_INDEX = new HashMap<String, Integer>();
-		for (int i = 1; i < NAMED_CURVE_TABLE.length; i++) {
-			NAMED_CURVE_INDEX.put(NAMED_CURVE_TABLE[i], i);
+		for (int i = 1; i < ECDHECryptography.NAMED_CURVE_TABLE.length; i++) {
+			NAMED_CURVE_INDEX.put(ECDHECryptography.NAMED_CURVE_TABLE[i], i);
 		}
 	}
 	
