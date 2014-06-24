@@ -17,6 +17,7 @@
 package org.eclipse.californium.scandium.examples;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.util.logging.Level;
 
@@ -25,6 +26,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.util.ScProperties;
 
 
@@ -41,7 +43,16 @@ public class ExampleDTLSServer {
 	private Connector dtlsConnector;
 	
 	public ExampleDTLSServer() {
-		dtlsConnector = new DTLSConnector(new InetSocketAddress(DEFAULT_PORT));
+	    InMemoryPskStore pskStore = new InMemoryPskStore();
+	    try {
+            // put in the PSK store the default identity/psk for tinydtls tests
+	        pskStore.setKey("Client_identity", "secretPSK".getBytes("US-ASCII"));
+        } catch (UnsupportedEncodingException e) {
+           throw new IllegalStateException("no US-ASCII codec in your JVM",e); 
+        }
+	    
+		dtlsConnector = new DTLSConnector(new InetSocketAddress(DEFAULT_PORT),pskStore);
+		
 		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 	}
 	
@@ -49,8 +60,7 @@ public class ExampleDTLSServer {
 		try {
 			dtlsConnector.start();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new IllegalStateException("Unexpected error starting the DTLS UDP server",e);
 		}
 	}
 	
@@ -82,7 +92,6 @@ public class ExampleDTLSServer {
 		try {
 			System.in.read();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
