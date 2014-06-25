@@ -18,7 +18,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.security.MessageDigest;
@@ -46,6 +45,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
@@ -80,26 +80,6 @@ public abstract class Handshaker {
 	
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 
-	/**
-	 * A map storing shared keys. The shared key is associated with an PSK
-	 * identity. See <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC
-	 * 4279</a> for details.
-	 */
-	protected static Map<String, byte[]> sharedKeys = new HashMap<String, byte[]>();
-
-	static {
-		try {
-			sharedKeys.put("password", "sesame".getBytes("US-ASCII"));
-			sharedKeys.put("Client", "Client".getBytes("US-ASCII"));
-			sharedKeys.put("Server", "Server".getBytes("US-ASCII"));
-			sharedKeys.put("PSK_Identity", new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
-			
-			// default tinydtls PSK identity
-			sharedKeys.put("Client_identity", "secretPSK".getBytes("US-ASCII"));
-		} catch (UnsupportedEncodingException e) {
-			LOGGER.log(Level.SEVERE,"Unsupported Encoding in given PSKs.",e);
-		}
-	}
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -175,6 +155,11 @@ public abstract class Handshaker {
 
 	/** The handshaker's certificate chain. */
 	protected Certificate[] certificates;
+	
+	
+	/** Used to retrive pre-shared-key fro a given identity */
+	protected final PskStore pskStore;
+	
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -188,11 +173,12 @@ public abstract class Handshaker {
 	 * @param session
 	 *            the session belonging to this handshake.
 	 */
-	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session) {
+	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session, PskStore pskStore) {
 		this.endpointAddress = peerAddress;
 		this.isClient = isClient;
 		this.session = session;
 		this.queuedMessages = new HashSet<Record>();
+		this.pskStore = pskStore;
 		loadKeyStore();
 		try {
 			this.md = MessageDigest.getInstance("SHA-256");

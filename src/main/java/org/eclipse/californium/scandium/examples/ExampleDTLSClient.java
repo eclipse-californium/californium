@@ -25,6 +25,8 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ScProperties;
 
 
@@ -41,7 +43,8 @@ public class ExampleDTLSClient {
 	private DTLSConnector dtlsConnector;
 	
 	public ExampleDTLSClient() {
-		dtlsConnector = new DTLSConnector(new InetSocketAddress(0));
+	    PskStore pskStore = new InMemoryPskStore();
+		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), pskStore);
 		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
 	}
 	

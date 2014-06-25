@@ -53,6 +53,7 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHello;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
@@ -96,9 +97,18 @@ public class DTLSConnector extends ConnectorBase {
 	/** Storing flights according to peer-addresses. */
 	private Map<String, DTLSFlight> flights = new ConcurrentHashMap<String, DTLSFlight>();
 	
-	public DTLSConnector(InetSocketAddress address) {
+	/** Storage for the pre-shared keys */
+	private final PskStore pskStore;
+	
+	/**
+	 * Create a DTLS connector.
+	 * @param address the address to binf
+	 * @param pskStore the storage for pre-shared keys
+	 */
+	public DTLSConnector(InetSocketAddress address, PskStore pskStore) {
 		super(address);
 		this.address = address;
+		this.pskStore = pskStore;
 	}
 	
 	/**
@@ -280,7 +290,7 @@ public class DTLSConnector extends ConnectorBase {
 								    LOGGER.info("Created new session as client with peer: " + peerAddress.toString());
 								}
 							}
-							handshaker = new ClientHandshaker(peerAddress, null, session);
+							handshaker = new ClientHandshaker(peerAddress, null, session, pskStore);
 							handshakers.put(addressToKey(peerAddress), handshaker);
 							if (LOGGER.isLoggable(Level.FINEST)) {
 							    LOGGER.finest("Stored re-handshaker: " + handshaker.toString() + " for " + peerAddress.toString());
@@ -312,9 +322,9 @@ public class DTLSConnector extends ConnectorBase {
 								if (LOGGER.isLoggable(Level.INFO)) {
 								    LOGGER.info("Created new session as server with peer: " + peerAddress.toString());
 								}
-								handshaker = new ServerHandshaker(peerAddress, session);
+								handshaker = new ServerHandshaker(peerAddress, session, pskStore);
 							} else {
-								handshaker = new ResumingServerHandshaker(peerAddress, session);
+								handshaker = new ResumingServerHandshaker(peerAddress, session, pskStore);
 							}
 							handshakers.put(addressToKey(peerAddress), handshaker);
 							if (LOGGER.isLoggable(Level.FINEST)) {
@@ -415,7 +425,7 @@ public class DTLSConnector extends ConnectorBase {
 			// start fresh handshake
 			session = new DTLSSession(peerAddress, true);
 			dtlsSessions.put(addressToKey(peerAddress), session);
-			handshaker = new ClientHandshaker(peerAddress, message, session);
+			handshaker = new ClientHandshaker(peerAddress, message, session,pskStore);
 
 		} else {
 
@@ -426,7 +436,7 @@ public class DTLSConnector extends ConnectorBase {
 				
 			} else {
 				// try resuming session
-				handshaker = new ResumingClientHandshaker(peerAddress, message, session);
+				handshaker = new ResumingClientHandshaker(peerAddress, message, session,pskStore);
 			}
 		}
 		

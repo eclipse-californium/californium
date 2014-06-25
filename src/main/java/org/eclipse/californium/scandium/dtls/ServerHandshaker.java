@@ -40,6 +40,7 @@ import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.Certificat
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
@@ -86,9 +87,11 @@ public class ServerHandshaker extends Handshaker {
 	 *            the peer's address.
 	 * @param session
 	 *            the {@link DTLSSession}.
+	 * @param pskStore
+	 *            the storage for pre-shared-keys
 	 */
-	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session) {
-		super(endpointAddress, false, session);
+	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, PskStore pskStore) {
+		super(endpointAddress, false, session,pskStore);
 
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();
 		this.supportedCipherSuites.add(CipherSuite.SSL_NULL_WITH_NULL_NULL);
@@ -574,7 +577,7 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to get right preshared key
 		String identity = message.getIdentity();
 
-		byte[] psk = sharedKeys.get(identity);
+		byte[] psk = pskStore.getKey(identity);
 		
 		if (LOGGER.isLoggable(Level.INFO)) {
 		    LOGGER.info("Client " + endpointAddress.toString() + " used PSK identity: " + identity);
