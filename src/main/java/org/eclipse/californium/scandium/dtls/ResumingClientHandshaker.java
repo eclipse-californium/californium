@@ -23,6 +23,7 @@ import java.security.SecureRandom;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 
 /**
@@ -36,8 +37,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session) {
-		super(endpointAddress, message, session);
+	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session, PskStore pskStore) {
+		super(endpointAddress, message, session, pskStore);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////

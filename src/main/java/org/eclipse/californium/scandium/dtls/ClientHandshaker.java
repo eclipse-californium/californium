@@ -36,6 +36,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ScProperties;
 
@@ -89,9 +90,11 @@ public class ClientHandshaker extends Handshaker {
 	 *            the message
 	 * @param session
 	 *            the session
+	 * @param pskStore
+	 *            storage for the pre-shared-keys 
 	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session) {
-		super(endpointAddress, true, session);
+	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,PskStore pskStore) {
+		super(endpointAddress, true, session, pskStore);
 		this.message = message;
 	}
 
@@ -432,7 +435,7 @@ public class ClientHandshaker extends Handshaker {
 		case PSK:
 			String identity = ScProperties.std.getProperty("PSK_IDENTITY");
 			clientKeyExchange = new PSKClientKeyExchange(identity);
-			byte[] psk = sharedKeys.get(identity);
+			byte[] psk = pskStore.getKey(identity);
 			
 			if (psk == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
