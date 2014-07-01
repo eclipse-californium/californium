@@ -206,10 +206,10 @@ public class BlockwiseLayer extends AbstractLayer {
 			
 			if (status.isComplete()) {
 				// clean up blockwise status
-				LOGGER.severe("Ongoing is complete "+status);
+				LOGGER.fine("Ongoing is complete "+status);
 				exchange.setResponseBlockStatus(null);
 			} else {
-				LOGGER.severe("Ongoing is continuing "+status);
+				LOGGER.fine("Ongoing is continuing "+status);
 			}
 			
 			exchange.setCurrentResponse(block);
