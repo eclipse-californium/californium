@@ -139,9 +139,12 @@ public class Matcher {
 			throw new NullPointerException("Response hsa no destination port set");
 		
 		// Insert CON and NON to match ACKs and RSTs to the exchange
-		KeyMID idByMID = new KeyMID(response.getMID(), 
-				response.getDestination().getAddress(), response.getDestinationPort());
-		exchangesByMID.put(idByMID, exchange);
+		// Do not insert ACKs and RSTs (
+		if (response.getType() == Type.CON || response.getType() == Type.NON) {
+			KeyMID idByMID = new KeyMID(response.getMID(), 
+			response.getDestination().getAddress(), response.getDestinationPort());
+			exchangesByMID.put(idByMID, exchange);
+		}
 		
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getRequest();
