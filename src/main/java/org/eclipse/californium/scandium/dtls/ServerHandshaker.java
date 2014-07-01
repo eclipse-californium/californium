@@ -576,6 +576,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to get right preshared key
 		String identity = message.getIdentity();
+		session.setPskIdentity(identity);
 
 		byte[] psk = pskStore.getKey(identity);
 		

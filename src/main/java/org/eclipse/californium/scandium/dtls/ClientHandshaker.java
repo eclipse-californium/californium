@@ -434,9 +434,10 @@ public class ClientHandshaker extends Handshaker {
 
 		case PSK:
 			String identity = ScProperties.std.getProperty("PSK_IDENTITY");
+			session.setPskIdentity(identity);
+
 			clientKeyExchange = new PSKClientKeyExchange(identity);
 			byte[] psk = pskStore.getKey(identity);
-			
 			if (psk == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
