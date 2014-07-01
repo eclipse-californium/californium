@@ -316,6 +316,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					int szx = block2.getSzx();
 					boolean m = false;
 					Request block = new Request(request.getCode());
+					block.setToken(response.getToken());
 					block.setOptions(new OptionSet(request.getOptions()));
 					block.setDestination(request.getDestination());
 					block.setDestinationPort(request.getDestinationPort());
