@@ -298,10 +298,11 @@ public class Matcher {
 		} else {
 			// There is no exchange with the given token.
 			if (response.getType() != Type.ACK) {
-				LOGGER.info("Response with unknown Token "+idByTok+": Rejecting "+response);
-				// This is a totally unexpected response.
-				EmptyMessage rst = EmptyMessage.newRST(response);
-				sendEmptyMessage(exchange, rst);
+				Exchange prev = deduplicator.find(idByMID);
+				if (prev != null) {
+					response.setDuplicate(true);
+					return prev;
+				}
 			}
 			// ignore response
 			return null;
