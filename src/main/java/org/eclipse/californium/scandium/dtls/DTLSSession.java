@@ -67,6 +67,14 @@ public class DTLSSession {
 	private boolean isResumable = false;
 
 	/**
+	 * The identity used for PSK authentication
+	 */
+	private String pskIdentity;
+	
+	
+
+
+    /**
 	 * Whether the session is active and application data can be sent to the
 	 * peer.
 	 */
@@ -277,4 +285,12 @@ public class DTLSSession {
 	public InetSocketAddress getPeer() {
 		return peer;
 	}
+	
+	public String getPskIdentity() {
+        return pskIdentity;
+    }
+
+    public void setPskIdentity(String pskIdentity) {
+        this.pskIdentity = pskIdentity;
+    }	
 }
