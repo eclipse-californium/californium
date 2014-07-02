@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,6 +39,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
+import org.eclipse.californium.core.observe.ObserveRelation;
 
 public class Matcher {
 
@@ -137,13 +139,13 @@ public class Matcher {
 			throw new NullPointerException("Response has no destination address set");
 		if (response.getDestinationPort() == 0)
 			throw new NullPointerException("Response hsa no destination port set");
-		
-		// Insert CON and NON to match ACKs and RSTs to the exchange
-		// Do not insert ACKs and RSTs (
-		if (response.getType() == Type.CON || response.getType() == Type.NON) {
-			KeyMID idByMID = new KeyMID(response.getMID(), 
-			response.getDestination().getAddress(), response.getDestinationPort());
-			exchangesByMID.put(idByMID, exchange);
+
+		// If this is a CON notification we now can forget all previous NON notifications
+		if (response.getType() == Type.CON) {
+			ObserveRelation relation = exchange.getRelation();
+			if (relation != null) {
+				removeNotificatoinsOf(relation);
+			}
 		}
 		
 		if (response.getOptions().hasBlock2()) {
@@ -158,6 +160,14 @@ public class Matcher {
 				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + "\nOngoing " + request + "\nOngoing " + response);
 				ongoingExchanges.remove(idByUri);
 			}
+		}
+		
+		// Insert CON and NON to match ACKs and RSTs to the exchange
+		// Do not insert ACKs and RSTs (
+		if (response.getType() == Type.CON || response.getType() == Type.NON) {
+			KeyMID idByMID = new KeyMID(response.getMID(), 
+					response.getDestination().getAddress(), response.getDestinationPort());
+			exchangesByMID.put(idByMID, exchange);
 		}
 		
 		if (response.getType() == Type.ACK || response.getType() == Type.NON) {
@@ -337,6 +347,17 @@ public class Matcher {
 		deduplicator.clear();
 	}
 	
+	private void removeNotificatoinsOf(ObserveRelation relation) {
+		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
+		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+			Response previous = iterator.next();
+			KeyMID idByMID = new KeyMID(previous.getMID(), 
+					previous.getDestination().getAddress(), previous.getDestinationPort());
+			exchangesByMID.remove(idByMID);
+			iterator.remove();
+		}
+	}
+	
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override
@@ -378,6 +399,12 @@ public class Matcher {
 							response.getDestination().getAddress(), response.getDestinationPort());
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
 					exchangesByMID.remove(midKey);
+				}
+				
+				// Remove all remaining NON-notifications if this exchange is an observe relation
+				ObserveRelation relation = exchange.getRelation();
+				if (relation != null) {
+					removeNotificatoinsOf(relation);
 				}
 			}
 		}
