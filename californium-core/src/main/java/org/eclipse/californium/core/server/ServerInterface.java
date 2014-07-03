@@ -22,7 +22,6 @@ package org.eclipse.californium.core.server;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.resources.Resource;
 
@@ -77,7 +76,7 @@ public interface ServerInterface {
 	 * @param resource the resource
 	 * @return the server
 	 */
-	CoapServer add(Resource... resources);
+	ServerInterface add(Resource... resources);
 	
 	/**
 	 * Removes a resource from the server.
