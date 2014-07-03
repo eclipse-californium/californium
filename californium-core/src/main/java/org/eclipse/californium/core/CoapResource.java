@@ -378,7 +378,7 @@ public  class CoapResource implements Resource {
 	 * );
 	 * </pre>
 	 * 
-	 * @param child the child
+	 * @param child the child to add
 	 * @return this
 	 */
 	public synchronized CoapResource add(CoapResource child) {
@@ -407,7 +407,7 @@ public  class CoapResource implements Resource {
 	 * );
 	 * </pre>
 	 * 
-	 * @param child the child
+	 * @param children the child(ren) to add
 	 * @return this
 	 */
 	public synchronized CoapResource add(CoapResource... children) {

@@ -329,7 +329,7 @@ public class CoapServer implements ServerInterface {
 
 	/**
 	 * Add a resource to the server.
-	 * @param resource the resource
+	 * @param resources the resource(s)
 	 * @return the server
 	 */
 	@Override

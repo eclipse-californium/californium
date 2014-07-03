@@ -129,7 +129,7 @@ public class CoAPEndpoint implements Endpoint {
 	/** Indicates if the endpoint has been started */
 	private boolean started;
 	
-	/** THe list of endpoint observers (has nothing to do with CoAP observe relations) */
+	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
 	private List<EndpointObserver> observers = new ArrayList<EndpointObserver>(0);
 	
 	/** The list of interceptors */

@@ -98,7 +98,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return True iff the option is critical
+	 * @return {@code true} if the option is critical
 	 */
 	public static boolean isCritical(int optionNumber) {
 		return (optionNumber & 1) > 1;
@@ -109,7 +109,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return True iff the option is elective
+	 * @return {@code true} if the option is elective
 	 */
 	public static boolean isElective(int optionNumber) {
 		return (optionNumber & 1) == 0;
@@ -120,7 +120,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return <code>true</code> iff the option is unsafe
+	 * @return {@code true} if the option is unsafe
 	 */
 	public static boolean isUnsafe(int optionNumber) {
 		// When bit 6 is 1, an option is Unsafe
@@ -132,7 +132,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return <code>true</code> iff the option is safe
+	 * @return {@code true} if the option is safe
 	 */
 	public static boolean isSafe(int optionNumber) {
 		return !isUnsafe(optionNumber);
@@ -143,7 +143,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return <code>true</code> iff the option is not a cache-key
+	 * @return {@code true} if the option is not a cache-key
 	 */
 	public static boolean isNoCacheKey(int optionNumber) {
 		/*
@@ -159,7 +159,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            The option number to check
-	 * @return <code>true</code> iff the option is a cache-key
+	 * @return {@code true} if the option is a cache-key
 	 */
 	public static boolean isCacheKey(int optionNumber) {
 		return !isNoCacheKey(optionNumber);
@@ -170,7 +170,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            the option number
-	 * @return true, if is single value
+	 * @return {@code true} if is single value
 	 */
 	public static boolean isSingleValue(int optionNumber) {
 		switch (optionNumber) {
@@ -199,7 +199,7 @@ public final class OptionNumberRegistry {
 	 * 
 	 * @param optionNumber
 	 *            the option number
-	 * @return true, if is uri option
+	 * @return {@code true} if is uri option
 	 */
 	public static boolean isUriOption(int optionNumber) {
 		boolean result = optionNumber == URI_HOST || optionNumber == URI_PATH || optionNumber == URI_PORT || optionNumber == URI_QUERY;
@@ -209,9 +209,9 @@ public final class OptionNumberRegistry {
 	/**
 	 * Returns a string representation of the option number.
 	 * 
-	 * @param code
-	 *            The option number to describe
-	 * @return A string describing the option number
+	 * @param optionNumber
+	 *            the option number to describe
+	 * @return a string describing the option number
 	 */
 	public static String toString(int optionNumber) {
 		switch (optionNumber) {

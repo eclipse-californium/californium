@@ -161,7 +161,7 @@ public class DatagramWriter {
 	/**
 	 * Returns a byte array containing the sequence of bits written
 	 * 
-	 * @Return The byte array containing the written bits
+	 * @return The byte array containing the written bits
 	 */
 	public byte[] toByteArray() {
 

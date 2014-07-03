@@ -280,8 +280,6 @@ public class PlugtestChecker {
 		 *            the server uri
 		 * @param resourceUri
 		 *            the resource uri
-		 * @param payload
-		 *            the payload
 		 */
 		protected void executeRequest(Request request, String serverURI, String resourceUri) {
 

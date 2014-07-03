@@ -99,12 +99,6 @@ public class PlugtestServer extends CoapServer {
         
     }
     
-    /**
-     * Constructor for a new PlugtestServer. Call {@code super(...)} to configure
-     * the port, etc. according to the {@link LocalEndpoint} constructors.
-     * <p>
-     * Add all initial {@link LocalResource}s here.
-     */
     public PlugtestServer() throws SocketException {
     	
     	NetworkConfig.getStandard() // used for plugtest

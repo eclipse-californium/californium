@@ -69,7 +69,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	/**
 	 * Sets all required collaborators.
 	 * 
-	 * Invoking this constructor is equivalent to invoking {@link #ManagedServer(BundleContext, ServerInterfaceFactory)
+	 * Invoking this constructor is equivalent to invoking {@link #ManagedServer(BundleContext, EndpointFactory)}
 	 * with <code>null</code> as the server factory.
 	 * 
 	 * @param bundleContext the bundle context to be used for tracking {@code Resource}s
