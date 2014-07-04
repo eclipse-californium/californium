@@ -39,7 +39,6 @@ import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.Serializer;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
-import org.eclipse.californium.core.network.stack.ExchangeForwarder;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.network.stack.TokenLayer;
@@ -193,10 +192,10 @@ public class CoAPEndpoint implements Endpoint {
 		this.serializer = new Serializer();
 		
 		this.matcher = new Matcher(config);		
-		this.coapstack = new CoapStack(config, new ExchangeForwarderImpl());
+		this.coapstack = new CoapStack(config, new OutboxImpl());
 
 		// connector delivers bytes to CoAP stack
-		connector.setRawDataReceiver(new RawDataChannelImpl()); 
+		connector.setRawDataReceiver(new InboxImpl()); 
 	}
 	
 	/**
@@ -435,11 +434,11 @@ public class CoAPEndpoint implements Endpoint {
 	}
 
 	/**
-	 * The stack of layers uses this forwarder to send messages. The forwarder
-	 * will then give them to the matcher, the interceptors and finally send
+	 * The stack of layers uses this Outbox to send messages. The OutboxImpl
+	 * will then give them to the matcher, the interceptors, and finally send
 	 * them over the connector.
 	 */
-	private class ExchangeForwarderImpl implements ExchangeForwarder {
+	private class OutboxImpl implements Outbox {
 		
 		@Override
 		public void sendRequest(Exchange exchange, Request request) {
@@ -500,10 +499,10 @@ public class CoAPEndpoint implements Endpoint {
 	 * The connector uses this channel to forward messages (in form of
 	 * {@link RawData}) to the endpoint. The endpoint creates a new task to
 	 * process the message. The task consists of invoking the matcher to look
-	 * for an associated Exchange and then forwards the message with the
+	 * for an associated exchange and then forwards the message with the
 	 * exchange to the stack of layers.
 	 */
-	private class RawDataChannelImpl implements RawDataChannel {
+	private class InboxImpl implements RawDataChannel {
 
 		@Override
 		public void receiveData(final RawData raw) {

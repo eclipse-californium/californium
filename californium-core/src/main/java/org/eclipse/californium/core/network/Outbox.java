@@ -17,14 +17,13 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core.network.stack;
+package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange;
 
-public interface ExchangeForwarder {
+public interface Outbox {
 
 	/**
 	 * Sends the specified request over the connector that the stack is

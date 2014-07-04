@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -86,7 +87,7 @@ public class CoapStack {
 	private List<Layer> layers;
 	
 	/** The channel. */
-	private ExchangeForwarder forwarder;
+	private Outbox outbox;
 
 	/** The top of the stack. */
 	private StackTopAdapter top;
@@ -96,9 +97,9 @@ public class CoapStack {
 
 	private MessageDeliverer deliverer;
 	
-	public CoapStack(NetworkConfig config, ExchangeForwarder forwarder) {
+	public CoapStack(NetworkConfig config, Outbox outbox) {
 		this.top = new StackTopAdapter();
-		this.forwarder = forwarder;
+		this.outbox = outbox;
 		this.layers = 
 				new Layer.TopDownBuilder()
 				.add(top)
@@ -202,17 +203,17 @@ public class CoapStack {
 	
 		@Override
 		public void sendRequest(Exchange exchange, Request request) {
-			forwarder.sendRequest(exchange, request);
+			outbox.sendRequest(exchange, request);
 		}
 
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
-			forwarder.sendResponse(exchange, response);
+			outbox.sendResponse(exchange, response);
 		}
 
 		@Override
 		public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
-			forwarder.sendEmptyMessage(exchange, message);
+			outbox.sendEmptyMessage(exchange, message);
 		}
 		
 	}
