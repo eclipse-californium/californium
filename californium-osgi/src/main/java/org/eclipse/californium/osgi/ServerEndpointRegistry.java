@@ -16,6 +16,7 @@
 package org.eclipse.californium.osgi;
 
 import java.net.InetSocketAddress;
+import java.util.Set;
 
 import org.eclipse.californium.core.network.Endpoint;
 
@@ -39,5 +40,14 @@ public interface ServerEndpointRegistry {
 	 * server's endpoints is bound to the given port on any of its
 	 * network interfaces
 	 */
-	Endpoint getEndpoint(int port);	
+	Endpoint getEndpoint(int port);
+
+    /**
+     * Gets all endpoints in the registry.
+     * 
+     * @return the registered endpoints. Removing or adding endpoints from/to
+     *         the returned set does not remove or add the endpoint to this
+     *         registry.
+     */
+    Set<Endpoint> getAllEndpoints();
 }

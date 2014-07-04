@@ -17,8 +17,11 @@ package org.eclipse.californium.osgi;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
@@ -257,4 +260,10 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	public Endpoint getEndpoint(int port) {
 		return managedServer.getEndpoint(port);
 	}
+
+    @Override
+    public Set<Endpoint> getAllEndpoints() {
+
+        return Collections.unmodifiableSet(new HashSet<Endpoint>(managedServer.getEndpoints()));
+    }
 }
