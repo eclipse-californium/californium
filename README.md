@@ -7,6 +7,10 @@ Californium is a Java CoAP implementation for IoT Cloud services.
 Thus, the focus is on scalability and usability instead of resource-efficiency
 like for embedded devices. Yet Californium is also suitable for embedded JVMs.
 
+Contact
+-------
+
+A bug, an idea, an issue? Join the [Mailing list](https://dev.eclipse.org/mailman/listinfo/cf-dev)
 Maven
 -----
 
