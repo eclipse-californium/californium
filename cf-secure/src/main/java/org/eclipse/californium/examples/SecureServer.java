@@ -27,43 +27,50 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 public class SecureServer {
-	
-	// allows configuration via Californium.properties
-	public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
-	
-	static {
-		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.FINER);
-	}
 
-	public static void main(String[] args) {
-		
-		CoapServer server = new CoapServer();
-		server.add(new CoapResource("secure") {	
-				@Override
-				public void handleGET(CoapExchange exchange) {
-					exchange.respond(ResponseCode.CONTENT, "hello security");
-				}
-			});
+    // allows configuration via Californium.properties
+    public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
+
+    static {
+        ScandiumLogger.initialize();
+        ScandiumLogger.setLevel(Level.FINER);
+    }
+
+    public static void main(String[] args) {
+
+        CoapServer server = new CoapServer();
+        server.add(new CoapResource("secure") {
+            @Override
+            public void handleGET(CoapExchange exchange) {
+                exchange.respond(ResponseCode.CONTENT, "hello security");
+            }
+        });
         // ETSI Plugtest environment
-//		server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("::1", DTLS_PORT)), NetworkConfig.getStandard()));
-//		server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("127.0.0.1", DTLS_PORT)), NetworkConfig.getStandard()));
-//		server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("2a01:c911:0:2010::10", DTLS_PORT)), NetworkConfig.getStandard()));
-//		server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("10.200.1.2", DTLS_PORT)), NetworkConfig.getStandard()));
-		server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress(DTLS_PORT)), NetworkConfig.getStandard()));
-		server.start();
+        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("::1", DTLS_PORT)),
+        // NetworkConfig.getStandard()));
+        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("127.0.0.1", DTLS_PORT)),
+        // NetworkConfig.getStandard()));
+        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("2a01:c911:0:2010::10",
+        // DTLS_PORT)), NetworkConfig.getStandard()));
+        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("10.200.1.2", DTLS_PORT)),
+        // NetworkConfig.getStandard()));
+        InMemoryPskStore pskStore = new InMemoryPskStore();
+        pskStore.setKey("My_Identity", "TheSecretKey".getBytes());
+        server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress(DTLS_PORT), pskStore),
+                NetworkConfig.getStandard()));
+        server.start();
 
         // add special interceptor for message traces
-        for (Endpoint ep:server.getEndpoints()) {
-        	ep.addInterceptor(new MessageTracer());
+        for (Endpoint ep : server.getEndpoints()) {
+            ep.addInterceptor(new MessageTracer());
         }
-		
-		System.out.println("Secure CoAP server powered by Scandium (Sc) is listening on port "+DTLS_PORT);
-	}
+
+        System.out.println("Secure CoAP server powered by Scandium (Sc) is listening on port " + DTLS_PORT);
+    }
 
 }
