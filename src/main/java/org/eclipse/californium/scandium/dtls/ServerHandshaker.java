@@ -16,21 +16,17 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
-import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
@@ -38,11 +34,11 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
+import org.eclipse.californium.scandium.dtls.cfg.ServerConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ScProperties;
 
 
 /**
@@ -54,7 +50,7 @@ public class ServerHandshaker extends Handshaker {
 	// Members ////////////////////////////////////////////////////////
 
 	/** Is the client required to authenticate itself? */
-	private boolean clientAuthenticationRequired = ScProperties.std.getBool("CLIENT_AUTHENTICATION");
+	private boolean clientAuthenticationRequired = false;
 
 	/**
 	 * The client's public key from its certificate (only sent when
@@ -78,7 +74,10 @@ public class ServerHandshaker extends Handshaker {
 	protected CertificateVerify certificateVerify = null;
 	/** The client's {@link Finished} message. Mandatory. */
 	protected Finished clientFinished;
-
+	
+	/** Used to retrive pre-shared-key from a given client identity */
+	protected final PskStore pskStore;
+	
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -90,48 +89,31 @@ public class ServerHandshaker extends Handshaker {
 	 * @param pskStore
 	 *            the storage for pre-shared-keys
 	 */
-	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, PskStore pskStore) {
-		super(endpointAddress, false, session,pskStore);
+	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, ServerConnectorConfig config) { 
+		super(endpointAddress, false, session,rootCerts);
 
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();
 		this.supportedCipherSuites.add(CipherSuite.SSL_NULL_WITH_NULL_NULL);
 		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		
+		this.pskStore = config.pskStore;
+		
+		this.privateKey = config.privateKey;
+		this.certificates = config.certChain;
+		
+		this.clientAuthenticationRequired = config.requireClientAuth;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 	
-	/**
-	 * Loads the given keyStore (location specified in Californium.properties).
-	 * The keyStore must contain the private key and the corresponding
-	 * certificate (chain). The keyStore alias is expected to be "client".
-	 */
-	protected void loadKeyStore() {
-		try {
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = new FileInputStream(DTLSConnector.KEY_STORE_LOCATION);
-			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-
-			certificates = keyStore.getCertificateChain("server");
-			
-			
-//			StringBuilder sb = new StringBuilder();
-//			for (Certificate cert : certificates) {
-//				sb.append("\t\t\tCertificate: " + cert.toString() + "\n");
-//			}
-//			LOG.log(Level.SEVERE,"*********LOADED *******: " + sb.toString(),e);
-			privateKey = (PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray());
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE, "Could not load the keystore.", e);
-		}
-	}
 
 	@Override
 	public synchronized DTLSFlight processMessage(Record record) throws HandshakeException {
 		if (lastFlight != null) {
 			// we already sent the last flight, but the client did not receive
 			// it, since we received its finished message again, so we
-			// retransmit our last fligh
+			// retransmit our last flight
 		    if (LOGGER.isLoggable(Level.FINER)) {
 		        LOGGER.finer("Received client's (" + endpointAddress.toString() + ") finished message again, retransmit the last flight.");
 		    }
@@ -255,7 +237,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		clientCertificate = message;
-		clientCertificate.verifyCertificate(loadTrustedCertificates());
+		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
 		
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
@@ -522,7 +504,7 @@ public class ServerHandshaker extends Handshaker {
 				// TODO make this variable, reasonable values
 				certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 				certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
-				certificateRequest.addCertificateAuthorities(loadTrustedCertificates());
+				certificateRequest.addCertificateAuthorities(rootCertificates);
 
 				flight.addMessage(wrapMessage(certificateRequest));
 				md.update(certificateRequest.toByteArray());

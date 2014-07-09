@@ -19,10 +19,11 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.cfg.ServerConnectorConfig;
 
 
 /**
@@ -41,8 +42,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, PskStore pskStore) {
-		super(endpointAddress, session, pskStore);
+	
+	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, ServerConnectorConfig config) {
+		super(endpointAddress, session, rootCerts, config);
 		setSessionToResume(session);
 	}
 	

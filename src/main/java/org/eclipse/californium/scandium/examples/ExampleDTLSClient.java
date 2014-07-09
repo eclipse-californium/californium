@@ -16,19 +16,21 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ScProperties;
-
 
 
 public class ExampleDTLSClient {
@@ -38,14 +40,41 @@ public class ExampleDTLSClient {
 		ScandiumLogger.setLevel(Level.FINE);
 	}
 
-	public static final int DEFAULT_PORT = ScProperties.std.getInt("DEFAULT_PORT");
+	private static final int DEFAULT_PORT = 5684;
 	
+	private static final String TRUST_STORE_PASSWORD = "rootPass";
+	private final static String KEY_STORE_PASSWORD = "endPass";
+	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+
 	private DTLSConnector dtlsConnector;
 	
 	public ExampleDTLSClient() {
-	    PskStore pskStore = new InMemoryPskStore();
-		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), pskStore);
-		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
+	    try {
+	        // load key store
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+            keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+    
+            // load trust store
+            KeyStore trustStore = KeyStore.getInstance("JKS");
+            InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+            trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
+            
+            // You can load multiple certificates if needed
+            Certificate[] trustedCertificates = new Certificate[1];
+            trustedCertificates[0] = trustStore.getCertificate("root");
+    
+    		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), trustedCertificates);
+    		dtlsConnector.getConfig().setClientPsk("PSK_Identity","secretPSK".getBytes());
+    		dtlsConnector.getConfig().setClientPrivateKey((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("client"), true);
+    		
+    		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
+    		
+	    } catch (GeneralSecurityException | IOException e) {
+            System.err.println("Could not load the keystore");
+            e.printStackTrace();
+        }
 	}
 	
 	public void test() {
@@ -53,7 +82,6 @@ public class ExampleDTLSClient {
 			dtlsConnector.start();
 			dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), InetAddress.getByName("localhost") , DEFAULT_PORT));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
