@@ -27,7 +27,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
-import org.eclipse.californium.scandium.util.ScProperties;
 
 
 /**
@@ -95,7 +94,8 @@ public class ClientHello extends HandshakeMessage {
 	 * @param version
 	 * @param secureRandom
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom) {
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey) {
+	    
 		this.clientVersion = version;
 		this.random = new Random(secureRandom);
 		this.sessionId = new SessionId(new byte[] {});
@@ -117,7 +117,7 @@ public class ClientHello extends HandshakeMessage {
 		
 		// the certificate types the client is able to provide to the server
 		CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
-		if (ScProperties.std.getBool("USE_RAW_PUBLIC_KEY")) {
+		if (useRawPublicKey) {
 			clientCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
 		} else {
 			// the client supports rawPublicKeys but prefers X.509 certificates
@@ -130,7 +130,7 @@ public class ClientHello extends HandshakeMessage {
 		
 		// the type of certificates the client is able to process when provided by the server
 		CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(true);
-		if (ScProperties.std.getBool("USE_RAW_PUBLIC_KEY")) {
+		if (useRawPublicKey) {
 			serverCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
 			serverCertificateType.addCertificateType(CertificateType.X_509);
 		} else {

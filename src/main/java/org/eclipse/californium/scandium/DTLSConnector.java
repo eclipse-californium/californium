@@ -13,28 +13,32 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Julien Vermillard - Sierra Wireless
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.ConnectorBase;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
@@ -51,15 +55,14 @@ import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHello;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ScProperties;
 
 
+/**
+ * A {@link Connector} implementation for securing the inner datagrams using the DTLS standard.	
+ * 
+ */
 public class DTLSConnector extends ConnectorBase {
-	
 	/*
 	 * Note: DTLSConnector can also implement the interface Connector instead of
 	 * extending ConnectorBase
@@ -67,19 +70,8 @@ public class DTLSConnector extends ConnectorBase {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 
-	public static final String KEY_STORE_LOCATION = ScProperties.std.getProperty("KEY_STORE_LOCATION".replace("/", File.pathSeparator));
-	public static final String TRUST_STORE_LOCATION = ScProperties.std.getProperty("TRUST_STORE_LOCATION".replace("/", File.pathSeparator));
-	
-	private int maxFragmentLength = ScProperties.std.getInt("MAX_FRAGMENT_LENGTH");
-	
-	/** The overhead for the record header (13 bytes) and the handshake header (12 bytes) is 25 bytes */
-	private int maxPayloadSize = maxFragmentLength + 25;
-
-	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
-	private int retransmission_timeout = ScProperties.std.getInt("RETRANSMISSION_TIMEOUT");
-	
-	/** Maximal number of retransmissions before the attempt to transmit a message is canceled */
-	private int max_retransmit = ScProperties.std.getInt("MAX_RETRANSMIT");
+	/** all the configuration options for the DTLS connector */ 
+	private final DTLSConnectorConfig config = new DTLSConnectorConfig(this);
 	
 	private final InetSocketAddress address;
 	
@@ -97,19 +89,20 @@ public class DTLSConnector extends ConnectorBase {
 	/** Storing flights according to peer-addresses. */
 	private Map<String, DTLSFlight> flights = new ConcurrentHashMap<String, DTLSFlight>();
 	
-	/** Storage for the pre-shared keys */
-	private final PskStore pskStore;
+	/** root authorities certificates */
+	private final Certificate[] rootCerts;
 	
 	/**
 	 * Create a DTLS connector.
-	 * @param address the address to binf
-	 * @param pskStore the storage for pre-shared keys
+	 * @param address the address to bind
+	 * @param rootCertificates list of trusted self-signed root certificates
 	 */
-	public DTLSConnector(InetSocketAddress address, PskStore pskStore) {
+	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
 		super(address);
 		this.address = address;
-		this.pskStore = pskStore;
+		this.rootCerts = rootCertificates;
 	}
+	
 	
 	/**
 	 * Close the DTLS session with all peers.
@@ -171,7 +164,7 @@ public class DTLSConnector extends ConnectorBase {
 	// TODO: We should not return null
 	@Override
 	protected RawData receiveNext() throws Exception {
-		byte[] buffer = new byte[maxPayloadSize];
+		byte[] buffer = new byte[config.getMaxPayloadSize()];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		socket.receive(packet);
 		
@@ -289,9 +282,12 @@ public class DTLSConnector extends ConnectorBase {
 								if (LOGGER.isLoggable(Level.INFO)) {
 								    LOGGER.info("Created new session as client with peer: " + peerAddress.toString());
 								}
-							}
-							handshaker = new ClientHandshaker(peerAddress, null, session, pskStore);
+							};
+							handshaker = new ClientHandshaker(peerAddress, null, session, rootCerts, config.clientConfig);
+							handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
+							
 							handshakers.put(addressToKey(peerAddress), handshaker);
+							
 							if (LOGGER.isLoggable(Level.FINEST)) {
 							    LOGGER.finest("Stored re-handshaker: " + handshaker.toString() + " for " + peerAddress.toString());
 							}
@@ -322,9 +318,11 @@ public class DTLSConnector extends ConnectorBase {
 								if (LOGGER.isLoggable(Level.INFO)) {
 								    LOGGER.info("Created new session as server with peer: " + peerAddress.toString());
 								}
-								handshaker = new ServerHandshaker(peerAddress, session, pskStore);
+								handshaker = new ServerHandshaker(peerAddress, session, rootCerts, config.serverConfig);
+								handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 							} else {
-								handshaker = new ResumingServerHandshaker(peerAddress, session, pskStore);
+								handshaker = new ResumingServerHandshaker(peerAddress, session, rootCerts, config.serverConfig);
+								handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 							}
 							handshakers.put(addressToKey(peerAddress), handshaker);
 							if (LOGGER.isLoggable(Level.FINEST)) {
@@ -425,8 +423,9 @@ public class DTLSConnector extends ConnectorBase {
 			// start fresh handshake
 			session = new DTLSSession(peerAddress, true);
 			dtlsSessions.put(addressToKey(peerAddress), session);
-			handshaker = new ClientHandshaker(peerAddress, message, session,pskStore);
-
+			handshaker = new ClientHandshaker(peerAddress, message, session, rootCerts, config.clientConfig);
+			handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
+			
 		} else {
 
 			if (session.isActive()) {
@@ -436,8 +435,10 @@ public class DTLSConnector extends ConnectorBase {
 				
 			} else {
 				// try resuming session
-				handshaker = new ResumingClientHandshaker(peerAddress, message, session,pskStore);
+				handshaker = new ResumingClientHandshaker(peerAddress, message, session, rootCerts, config.clientConfig);
+				handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 			}
+			
 		}
 		
 		DTLSFlight flight = new DTLSFlight();
@@ -525,7 +526,7 @@ public class DTLSConnector extends ConnectorBase {
 			}
 			
 			byte[] recordBytes = record.toByteArray();
-			if (payload.length + recordBytes.length > maxPayloadSize) {
+			if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
 				// can't add the next record, send current payload as datagram
 				DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 				datagrams.add(datagram);
@@ -552,7 +553,7 @@ public class DTLSConnector extends ConnectorBase {
 	private void handleTimeout(DTLSFlight flight) {
 
 		// set DTLS retransmission maximum
-		final int max = max_retransmit;
+		final int max = config.getMaxRetransmit();
 
 		// check if limit of retransmissions reached
 		if (flight.getTries() < max) {
@@ -583,7 +584,7 @@ public class DTLSConnector extends ConnectorBase {
 			// calculate timeout using exponential back-off
 			if (flight.getTimeout() == 0) {
 				// use initial timeout
-				flight.setTimeout(retransmission_timeout);
+				flight.setTimeout(config.getRetransmissionTimeout());
 			} else {
 				// double timeout
 				flight.incrementTimeout();
@@ -637,4 +638,8 @@ public class DTLSConnector extends ConnectorBase {
 		return address.toString().split("/")[1];
 	}
 
+
+    public DTLSConnectorConfig getConfig() {
+        return config;
+    }
 }

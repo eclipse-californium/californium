@@ -16,29 +16,24 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.cfg.ClientConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ScProperties;
 
 
 /**
@@ -61,6 +56,18 @@ public class ClientHandshaker extends Handshaker {
 	/** The client's hello handshake message. Store it, to add the cookie in the second flight. */
 	protected ClientHello clientHello = null;
 
+	/** the preferred cipher suite, to be placed first in the advertised list of supported chiper suite */
+	private final CipherSuite preferredCipherSuite;
+	
+	/** the identity to use for PSK based cipher suites */
+	private final String pskIdentity;
+	
+	/** the secret key to use for PSK based cipher suites */
+	private final byte[] pskSecret;
+	
+	/** whether the certificate message should only contain the peer's public key or the full X.509 certificate */
+	private final boolean useRawPublicKey;
+	
 	/*
 	 * Store all the message which can possibly be sent by the server.
 	 * We need these to compute the handshake hash.
@@ -79,6 +86,9 @@ public class ClientHandshaker extends Handshaker {
 	/** The hash of all received handshake messages sent in the finished message. */
 	protected byte[] handshakeHash = null;
 
+
+	
+	
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -93,30 +103,19 @@ public class ClientHandshaker extends Handshaker {
 	 * @param pskStore
 	 *            storage for the pre-shared-keys 
 	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,PskStore pskStore) {
-		super(endpointAddress, true, session, pskStore);
+	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,Certificate[] rootCerts, ClientConnectorConfig config) {
+		super(endpointAddress, true, session,rootCerts);
 		this.message = message;
+		this.privateKey = config.privateKey;
+		this.certificates = config.certChain;
+		this.pskIdentity = config.pskIdentity;
+		this.pskSecret = config.pskSecret;
+		this.useRawPublicKey = config.sendRawKey;
+		this.preferredCipherSuite = config.preferredCipherSuite;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 	
-	/**
-	 * Loads the given keyStore (location specified in Californium.properties).
-	 * The keyStore must contain the private key and the corresponding
-	 * certificate (chain). The keyStore alias is expected to be "client".
-	 */
-	protected void loadKeyStore() {
-		try {
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = new FileInputStream(DTLSConnector.KEY_STORE_LOCATION);
-			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-
-			certificates = keyStore.getCertificateChain("client");
-			privateKey = (PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray());
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE, "Could not load the keystore.", e);
-		}
-	}
 
 	@Override
 	public synchronized DTLSFlight processMessage(Record record) throws HandshakeException {
@@ -348,7 +347,7 @@ public class ClientHandshaker extends Handshaker {
 
 		serverCertificate = message;
 		serverPublicKey = serverCertificate.getPublicKey();
-		serverCertificate.verifyCertificate(loadTrustedCertificates());
+		serverCertificate.verifyCertificate(rootCertificates);
 	}
 
 	/**
@@ -433,19 +432,14 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case PSK:
-			String identity = ScProperties.std.getProperty("PSK_IDENTITY");
-			session.setPskIdentity(identity);
+			session.setPskIdentity(pskIdentity);
 
-			clientKeyExchange = new PSKClientKeyExchange(identity);
-			byte[] psk = pskStore.getKey(identity);
-			if (psk == null) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
-			}
+			clientKeyExchange = new PSKClientKeyExchange(pskIdentity);
+			
 			if (LOGGER.isLoggable(Level.INFO)) {	
-			    LOGGER.info("Using PSK identity: " + identity);
+			    LOGGER.info("Using PSK identity: " + pskIdentity);
 			}
-			premasterSecret = generatePremasterSecretFromPSK(psk);
+			premasterSecret = generatePremasterSecretFromPSK(pskSecret);
 			generateKeys(premasterSecret);
 
 			break;
@@ -549,13 +543,13 @@ public class ClientHandshaker extends Handshaker {
 
 	@Override
 	public DTLSFlight getStartHandshakeMessage() {
-		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom());
+		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey);
 
 		// store client random for later calculations
 		clientRandom = message.getRandom();
 
 		// the mandatory to implement ciphersuites, the preferred one should be first in the list
-		if (ScProperties.std.getStr("PREFERRED_CIPHER_SUITE").equals(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.toString())) {
+		if (preferredCipherSuite == CipherSuite.TLS_PSK_WITH_AES_128_CCM_8) {
 			message.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			message.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		} else {
