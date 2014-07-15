@@ -114,7 +114,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				exchange.setRelation(relation);
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
-			} else if (request.getOptions().getObserve()==1) {
+			} else if (request.getOptions().getObserve() != 0) {
 				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
 				if (relation!=null) relation.cancel();
 			}
