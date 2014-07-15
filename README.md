@@ -36,12 +36,12 @@ and Maven repositories to your pom.xml:
   <repositories>
     ...
     <repository>
-      <id>repo.eclipse.org</id>
+      <id>californium-releases</id>
       <name>Californium Repository - Releases</name>
       <url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
     </repository>
     <repository>
-      <id>repo.eclipse.org</id>
+      <id>californium-snapshots</id>
       <name>Californium Repository - Snapshots</name>
       <url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
     </repository>
