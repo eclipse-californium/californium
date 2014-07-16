@@ -187,11 +187,13 @@ public class ManagedServerTest {
 	@Test
 	public void testEndpointRegistryRetrievesEndpointsFromManagedServer() throws Exception {
 		
-		managedServer.updated(null);
-		managedServer.getEndpoint(standardAddress);
-		managedServer.getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
-		
-		verify(server).getEndpoint(standardAddress);
-		verify(server).getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
+        managedServer.updated(null);
+        managedServer.getEndpoint(standardAddress);
+        managedServer.getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
+        managedServer.getAllEndpoints();
+
+        verify(server).getEndpoint(standardAddress);
+        verify(server).getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
+        verify(server).getEndpoints();
 	}
 }
