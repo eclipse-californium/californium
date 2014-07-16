@@ -113,9 +113,10 @@ public class ObserveRelation {
 	 */
 	public void cancel() {
 		LOGGER.info("Cancel observe relation from "+endpoint.getAddress()+" with "+resource.getURI());
-		this.established = false;
+		setEstablished(false);
 		resource.removeObserveRelation(this);
 		endpoint.removeObserveRelation(this);
+		exchange.setComplete();
 	}
 	
 	/**

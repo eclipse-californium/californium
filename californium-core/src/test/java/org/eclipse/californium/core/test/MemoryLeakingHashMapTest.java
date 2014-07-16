@@ -24,6 +24,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
@@ -131,7 +132,7 @@ public class MemoryLeakingHashMapTest {
 	}
 	
 	private void testObserve(final String uri) throws Exception {
-		System.out.println("Test observe relation to "+uri);
+		System.out.println("Test observe relation with a reactive cancelation to "+uri);
 		
 		// We use a semaphore to return after the test has completed
 		final Semaphore semaphore = new Semaphore(0);
@@ -149,14 +150,14 @@ public class MemoryLeakingHashMapTest {
 				System.out.println("Client received notification "+notificationCounter+": "+response.getResponseText());
 				
 				if (notificationCounter == HOW_MANY_NOTIFICATION_WE_WAIT_FOR) {
-					System.out.println("Client cancels observe relation to "+uri);
-					// This sends a get without observe and we receive one MORE response!
+					System.out.println("Client forgets observe relation to "+uri);
 					relation.proactiveCancel();
-				
+					
 				} else if (notificationCounter == HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) {
 					// Now we received the response to the canceling GET request
 					semaphore.release();
 				}
+				
 			}
 			
 			public void onError() {
@@ -174,7 +175,7 @@ public class MemoryLeakingHashMapTest {
 		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVALL + 100);
 		
 		boolean success = semaphore.tryAcquire();
-		Assert.assertTrue(success);
+		Assert.assertTrue("Client has not received all expected responses", success);
 		
 		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
 		serverSurveillant.assertHashMapsEmpty();
@@ -196,6 +197,7 @@ public class MemoryLeakingHashMapTest {
 		
 		// Create the endpoint for the server and create surveillant
 		serverEndpoint = new CoAPEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
+		serverEndpoint.addInterceptor(new MessageTracer());
 		serverSurveillant = new EndpointSurveillant("server", serverEndpoint);
 		
 		clientEndpoint = new CoAPEndpoint(config);

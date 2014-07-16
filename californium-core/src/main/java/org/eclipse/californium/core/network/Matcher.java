@@ -141,7 +141,7 @@ public class Matcher {
 			throw new NullPointerException("Response hsa no destination port set");
 
 		// If this is a CON notification we now can forget all previous NON notifications
-		if (response.getType() == Type.CON) {
+		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
 			ObserveRelation relation = exchange.getRelation();
 			if (relation != null) {
 				removeNotificatoinsOf(relation);
