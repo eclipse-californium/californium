@@ -28,6 +28,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -35,6 +36,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
@@ -726,8 +728,19 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	private CoapResponse synchronous(Request request) {
+		return synchronous(request, getEffectiveEndpoint(request));
+	}
+	
+	/*
+	 * Synchronously sends the specified request over the specified endpoint.
+	 *
+	 * @param request the request
+	 * @param endpoint the endpoint
+	 * @return the CoAP response
+	 */
+	private CoapResponse synchronous(Request request, Endpoint outEndpoint) {
 		try {
-			Response response = send(request).waitForResponse(getTimeout());
+			Response response = send(request, outEndpoint).waitForResponse(getTimeout());
 			if (response == null) return null;
 			else return new CoapResponse(response);
 		} catch (InterruptedException e) {
@@ -808,9 +821,10 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	private CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
-		CoapObserveRelation relation = new CoapObserveRelation(request);
+		Endpoint outEndpoint = getEffectiveEndpoint(request);
+		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
 		request.addMessageObserver(new ObserveMessageObserveImpl(handler, relation));
-		CoapResponse response = synchronous(request);
+		CoapResponse response = synchronous(request, outEndpoint);
 		if (response == null || !response.advanced().getOptions().hasObserve())
 			relation.setCanceled(true);
 		relation.setCurrent(response);
@@ -826,9 +840,10 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	private CoapObserveRelation observe(Request request, CoapHandler handler) {
-		CoapObserveRelation relation = new CoapObserveRelation(request);
+		Endpoint outEndpoint = getEffectiveEndpoint(request);
+		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
 		request.addMessageObserver(new ObserveMessageObserveImpl(handler, relation));
-		send(request);
+		send(request, outEndpoint);
 		return relation;
 	}
 	
@@ -840,7 +855,17 @@ public class CoapClient {
 	 * @return the request
 	 */
 	protected Request send(Request request) {
-		
+		return send(request, getEffectiveEndpoint(request));
+	}
+	
+	/**
+	 * Sends the specified request over the specified endpoint.
+	 * 
+	 * @param request the request
+	 * @param outEndpoint the endpoint
+	 * @return the request
+	 */
+	protected Request send(Request request, Endpoint outEndpoint) {
 		// use the specified message type
 		request.setType(this.type);
 
@@ -848,10 +873,29 @@ public class CoapClient {
 			request.getOptions().setBlock2(new BlockOption(BlockOption.size2Szx(this.blockwise), false, 0));
 		}
 		
-		if (endpoint != null)
-			endpoint.sendRequest(request);
-		else request.send();
+		outEndpoint.sendRequest(request);
 		return request;
+	}
+	
+	/**
+	 * Returns the effective endpoint that the specified request is supposed to
+	 * be sent over. If an endpoint has explicitly been set to this CoapClient,
+	 * this endpoint will be used. If no endpoint has been set, the client will
+	 * effectively use an endpoint of the {@link EndpointManager}.
+	 * 
+	 * @param request the request to be sent
+	 * @return the effective endpoint that the request is going o be sent over.
+	 */
+	protected Endpoint getEffectiveEndpoint(Request request) {
+		Endpoint myEndpoint = getEndpoint();
+		if (myEndpoint != null) return myEndpoint;
+		if (CoAP.COAP_SECURE_URI_SCHEME.equals(request.getScheme())) {
+			// This is the case when secure coap is supposed to be used
+			return EndpointManager.getEndpointManager().getDefaultSecureEndpoint();
+		} else {
+			// This is the normal case
+			return EndpointManager.getEndpointManager().getDefaultEndpoint();
+		}
 	}
 	
 	/**
