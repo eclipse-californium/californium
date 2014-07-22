@@ -47,6 +47,19 @@
 		</developer>
 	</developers>
 	
+	<repositories>
+		<repository>
+			<id>californium-releases</id>
+			<name>Californium Repository - Releases</name>
+			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
+		</repository>
+		<repository>
+			<id>californium-snapshots</id>
+			<name>Californium Repository - Snapshots</name>
+			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
+		</repository>
+	</repositories>
+	
 	<distributionManagement>
 		<repository>
 			<id>repo.eclipse.org</id>
