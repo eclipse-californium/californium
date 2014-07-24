@@ -103,7 +103,23 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	@Override
 	public void sendRequest(Exchange exchange, Request request) {
-		if (requiresBlockwise(request)) {
+		if (request.getOptions().hasBlock2()
+				&& request.getOptions().getBlock2().getNum() > 0) {
+			// This is the case if the user has explicitly added a block option
+			// for random access.
+			// Note: We do not regard it as random access when the block num is
+			// 0. This is because the user might just want to do early block
+			// size negotiation but actually wants to receive all blocks.
+			LOGGER.fine("Request carries explicit defined block2 option: create random access blockwise status");
+			BlockwiseStatus status = new BlockwiseStatus(request.getOptions().getContentFormat());
+			BlockOption block2 = request.getOptions().getBlock2();
+			status.setCurrentSzx(block2.getSzx());
+			status.setCurrentNum(block2.getNum());
+			status.setRandomAccess(true);
+			exchange.setResponseBlockStatus(status);
+			super.sendRequest(exchange, request);
+			
+		} else if (requiresBlockwise(request)) {
 			// This must be a large POST or PUT request
 			LOGGER.fine("Request payload "+request.getPayloadSize()+"/"+maxMsgSize+" requires Blockwise");
 			BlockwiseStatus status = findRequestBlockStatus(exchange, request);
@@ -306,7 +322,12 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (response.getOptions().hasObserve())
 					status.setObserve(response.getOptions().getObserve());
 				
-				if (block2.isM()) {
+				if (status.isRandomAccess()) {
+					// The client has requested this specifc block and we deliver it
+					exchange.setResponse(response);
+					super.receiveResponse(exchange, response);
+				
+				} else if (block2.isM()) {
 					LOGGER.finer("Request the next response block");
 					// TODO: If this is a notification, do we have to use
 					// another token now?
@@ -456,10 +477,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		block.setToken(response.getToken());
 		block.setOptions(new OptionSet(response.getOptions()));
 		block.addMessageObserver(new TimeoutForwarder(response));
+
+		int payloadsize = response.getPayloadSize();
+		int currentSize = 1 << (4 + szx);
+		int from = num * currentSize;
 		
-		if (response.getPayloadSize() > 0) {
-			int currentSize = 1 << (4 + szx);
-			int from = num * currentSize;
+		if (0 < payloadsize && from < payloadsize) {
 			int to = Math.min((num + 1) * currentSize, response.getPayloadSize());
 			int length = to - from;
 			byte[] blockPayload = new byte[length];
@@ -472,7 +495,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			
 			status.setComplete(!m);
 		} else {
-			block.getOptions().setBlock2(szx, false, 0);
+			block.getOptions().setBlock2(szx, false, num);
 			block.setLast(true);
 			status.setComplete(true);
 		}
