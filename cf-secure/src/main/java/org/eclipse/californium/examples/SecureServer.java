@@ -61,8 +61,10 @@ public class SecureServer {
         // NetworkConfig.getStandard()));
         InMemoryPskStore pskStore = new InMemoryPskStore();
         pskStore.setKey("My_Identity", "TheSecretKey".getBytes());
-        server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress(DTLS_PORT), pskStore),
-                NetworkConfig.getStandard()));
+
+        DTLSConnector connector = new DTLSConnector(new InetSocketAddress(DTLS_PORT), null);
+        connector.getConfig().setServerPsk(pskStore);
+        server.addEndpoint(new CoAPEndpoint(connector, NetworkConfig.getStandard()));
         server.start();
 
         // add special interceptor for message traces
