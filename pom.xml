@@ -7,7 +7,6 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
-		<exclude.integration.tests>**/*Integration*</exclude.integration.tests>
 	</properties>
 
 	<groupId>org.eclipse.californium</groupId>
@@ -60,20 +59,6 @@
 			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
 		</repository>
 	</repositories>
-	
-
-	<profiles>
-		<profile>
-			<!-- This profile includes all the tests, even the integration ones -->
-			<id>integration</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-			</activation>
-			<properties>
-				<exclude.integration.tests>nada</exclude.integration.tests>
-			</properties>
-		</profile>
-	</profiles>
 
 	<distributionManagement>
 		<repository>
@@ -134,7 +119,6 @@
 					<argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/Scandium-logging.properties</argLine>
 					<excludes>
 						<exclude>**/*$*</exclude>
-						<exclude>${exclude.integration.tests}</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
