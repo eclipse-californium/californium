@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 
 public class ExampleDTLSClient {
@@ -66,8 +67,8 @@ public class ExampleDTLSClient {
             trustedCertificates[0] = trustStore.getCertificate("root");
     
     		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), trustedCertificates);
-    		dtlsConnector.getConfig().setClientPsk("PSK_Identity","secretPSK".getBytes());
-    		dtlsConnector.getConfig().setClientPrivateKey((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("client"), true);
+    		dtlsConnector.getConfig().setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+    		dtlsConnector.getConfig().setPrivateKey((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("client"), true);
     		
     		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
     		
