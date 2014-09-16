@@ -27,12 +27,13 @@ import java.security.spec.ECParameterSpec;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.scandium.DTLSConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.dtls.cfg.ClientConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -58,13 +59,7 @@ public class ClientHandshaker extends Handshaker {
 
 	/** the preferred cipher suite, to be placed first in the advertised list of supported chiper suite */
 	private final CipherSuite preferredCipherSuite;
-	
-	/** the identity to use for PSK based cipher suites */
-	private final String pskIdentity;
-	
-	/** the secret key to use for PSK based cipher suites */
-	private final byte[] pskSecret;
-	
+
 	/** whether the certificate message should only contain the peer's public key or the full X.509 certificate */
 	private final boolean useRawPublicKey;
 	
@@ -86,6 +81,8 @@ public class ClientHandshaker extends Handshaker {
 	/** The hash of all received handshake messages sent in the finished message. */
 	protected byte[] handshakeHash = null;
 
+	/** Used to retrieve identity/pre-shared-key for a given destination */
+	protected final PskStore pskStore;
 
 	
 	
@@ -103,13 +100,12 @@ public class ClientHandshaker extends Handshaker {
 	 * @param pskStore
 	 *            storage for the pre-shared-keys 
 	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,Certificate[] rootCerts, ClientConnectorConfig config) {
+	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,Certificate[] rootCerts, DTLSConnectorConfig config) {
 		super(endpointAddress, true, session,rootCerts);
 		this.message = message;
 		this.privateKey = config.privateKey;
 		this.certificates = config.certChain;
-		this.pskIdentity = config.pskIdentity;
-		this.pskSecret = config.pskSecret;
+		this.pskStore = config.pskStore;
 		this.useRawPublicKey = config.sendRawKey;
 		this.preferredCipherSuite = config.preferredCipherSuite;
 	}
@@ -432,14 +428,23 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case PSK:
-			session.setPskIdentity(pskIdentity);
-
-			clientKeyExchange = new PSKClientKeyExchange(pskIdentity);
-			
-			if (LOGGER.isLoggable(Level.INFO)) {	
-			    LOGGER.info("Using PSK identity: " + pskIdentity);
+			String identity = pskStore.getIdentity(endpointAddress);
+			if (identity == null) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+				throw new HandshakeException("No Identity found for peer: "	+ endpointAddress, alert);
 			}
-			premasterSecret = generatePremasterSecretFromPSK(pskSecret);
+			session.setPskIdentity(identity);
+
+			byte[] psk = pskStore.getKey(identity);
+			if (psk == null) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE);
+				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
+			}
+			clientKeyExchange = new PSKClientKeyExchange(psk);
+			if (LOGGER.isLoggable(Level.INFO)) {
+				LOGGER.info("Using PSK identity: " + identity);
+			}
+			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
 			break;
