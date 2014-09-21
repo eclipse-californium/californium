@@ -132,7 +132,7 @@ public abstract class Handshaker {
 	 */
 	protected MessageDigest md;
 
-	/** All the handshake messages sent before the CertificateVerify message. */
+	/** All the handshake messages exchanged before the CertificateVerify message. */
 	protected byte[] handshakeMessages = new byte[] {};
 
 	/**
