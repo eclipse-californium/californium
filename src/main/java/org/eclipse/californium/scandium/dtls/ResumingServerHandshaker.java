@@ -132,14 +132,13 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	private DTLSFlight receivedClientHello(ClientHello message) {
 
 		DTLSFlight flight = new DTLSFlight();
-		clientHello = message;
 		
-		md.update(clientHello.toByteArray());
+		md.update(message.toByteArray());
 
-		clientRandom = clientHello.getRandom();
+		clientRandom = message.getRandom();
 		serverRandom = new Random(new SecureRandom());
 
-		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(), session.getCipherSuite(), session.getCompressionMethod(), null);
+		ServerHello serverHello = new ServerHello(message.getClientVersion(), serverRandom, session.getSessionIdentifier(), session.getCipherSuite(), session.getCompressionMethod(), null);
 		flight.addMessage(wrapMessage(serverHello));
 		md.update(serverHello.toByteArray());
 
@@ -178,8 +177,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-
-		clientFinished = message;
 
 		message.verifyData(getMasterSecret(), false, handshakeHash);
 	}

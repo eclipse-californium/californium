@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla - Bosch Software Innovations GmbH
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -37,7 +38,7 @@ import org.junit.Test;
 
 public class RecordTest {
 
-	static final int SEQUENCE_NO = 5;
+	static final long SEQUENCE_NO = 5;
 	static final int TYPE_APPL_DATA = 23;
 	static final int EPOCH = 0;
 	// byte representation of a 128 bit AES symmetric key
@@ -71,7 +72,7 @@ public class RecordTest {
 	@Test
 	public void testFromByteArrayAcceptsKnownTypeCode() {
 		
-		byte[] application_record = newDTLSRecord(TYPE_APPL_DATA);
+		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		List<Record> recordList = Record.fromByteArray(application_record);
 		assertEquals(recordList.size(), 1);
 		Record record = recordList.get(0);
@@ -85,7 +86,7 @@ public class RecordTest {
 	@Test
 	public void testFromByteArrayRejectsUnknownTypeCode() {
 		
-		byte[] unsupported_dtls_record = newDTLSRecord(55);
+		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		List<Record> recordList = Record.fromByteArray(unsupported_dtls_record);
 		assertTrue(recordList.isEmpty());
 	}
@@ -109,7 +110,7 @@ public class RecordTest {
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	
-	private byte[] newGenericAEADCipherFragment() {
+	byte[] newGenericAEADCipherFragment() {
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)
 		byte[] seq_num = new byte[]{0x00, (byte) EPOCH, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) SEQUENCE_NO};
 		
@@ -127,16 +128,5 @@ public class RecordTest {
 		
 		// prepend the "explicit" part of nonce to the encrypted data to form the GenericAEADCipher struct
 		return ByteArrayUtils.concatenate(explicitNonce, encryptedData);
-	}
-
-	private byte[] newDTLSRecord(int typeCode) {
-		
-		byte[] fragment = newGenericAEADCipherFragment();
-		
-		// the record header contains a type code, version, epoch, sequenceNo, length
-		byte[] dtls_record_header = new byte[]{(byte) typeCode, (byte) protocolVer.getMajor(), (byte) protocolVer.getMinor(),
-				0, EPOCH, 0, 0, 0, 0, 0, SEQUENCE_NO, 0, (byte) fragment.length};
-		
-		return ByteArrayUtils.concatenate(dtls_record_header, fragment);
 	}
 }
