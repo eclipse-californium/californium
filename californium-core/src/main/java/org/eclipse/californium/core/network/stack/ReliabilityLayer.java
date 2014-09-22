@@ -135,7 +135,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param exchange the exchange
 	 * @param task the retransmission task
 	 */
-	private void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
+	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
 		/*
 		 * For a new confirmable message, the initial timeout is set to a
 		 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
@@ -275,7 +275,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * but where the retransmission method calls sendRequest and sendResponse
 	 * respectively.
 	 */
-	private abstract class RetransmissionTask implements Runnable {
+	 protected abstract class RetransmissionTask implements Runnable {
 		
 		private Exchange exchange;
 		private Message message;
