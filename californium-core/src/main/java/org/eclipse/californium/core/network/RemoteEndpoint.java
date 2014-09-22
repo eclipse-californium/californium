@@ -26,13 +26,13 @@ public class RemoteEndpoint {
 	private long[] xRTT;
 	private long[] xRTTVAR;
 
-	/* Linux algorithm variables */
+	/* Linux algorithm variables FOR TESTING ONLY*/
 	public long SRTT;
 	public long RTTVAR;
 	public long mdev;
 	public long mdev_max;
 	
-	/* Peakhopper algorithm variables */
+	/* Peakhopper algorithm variables FOR TESTING ONLY*/
 	public double delta;
 	public double D_value;
 	public long F_value;
@@ -177,8 +177,7 @@ public class RemoteEndpoint {
 		for(i=0; i < RTOARRAYSIZE; i++)
 			meanRTO += overallRTO[i];
 		
-		meanOverallRTO = meanRTO/RTOARRAYSIZE;
-		//setRTOtimestamp(System.currentTimeMillis(), 0);			
+		meanOverallRTO = meanRTO/RTOARRAYSIZE;		
 	}
 	
 	public void setProcessingNON(boolean value){
@@ -190,7 +189,7 @@ public class RemoteEndpoint {
 	}
 	
 	/**
-	 * Obtains either blind RTO value for the next transmission (if no RTT measurements have been done so far) or gets the overall RTO
+	 * Obtains either blind RTO value for the next transmission (if no RTT measurements have been done so far) or gets the overall RTO (CoCoA)
 	 * @return
 	 */
 	public long getRTO(){
@@ -232,17 +231,17 @@ public class RemoteEndpoint {
 		}
 		
 		/*if(exchange.getFailedTransmissionCount() == 5){
-			//TODO: If all retransmissions expired, do delete exchange (use config file to get this value or use another method to delete exchange?)
+			//TODO: If all retransmissions expired, do delete exchange (use config file to get this value "5" or use another method to delete exchange?)
 				removeExchangeInfo(exchange);
 				return;
 		}*/
 		if(exchange.getFailedTransmissionCount() == 1 || exchange.getFailedTransmissionCount() == 2){
 			//Only allow weak estimator updates from the first or second retransmission
-			//System.out.println("Remote Endpoint: WEAK (" + exchange.getFailedTransmissionCount() + ")");
+			System.out.println("Remote Enpdoint: WEAK");
 			exchangeInfoMap.get(exchange).setTypeWeakEstimator();
 		}else{
 			//If more than 1 retransmission was applied to the exchange, mark this entry as not updatable
-			//System.out.println("Remote Endpoint: NO (" + exchange.getFailedTransmissionCount() + ")");
+			System.out.println("Remote Enpdoint: NO");
 			exchangeInfoMap.get(exchange).setTypeNoEstimator();
 		}
 	}
@@ -255,7 +254,6 @@ public class RemoteEndpoint {
 	public void registerExchange(Exchange exchange, double vbf){
 		exchangeInfo newExchange = new exchangeInfo(System.currentTimeMillis(), vbf);
 		exchangeInfoMap.put(exchange, newExchange);
-		//System.out.println("Amount of exchanges towards " + Address.toString() + " increased by 1. (" + exchangeInfoMap.size()+ ")");
 	}
 	
 	/**
@@ -266,13 +264,11 @@ public class RemoteEndpoint {
 	public long getExchangeTimestamp(Exchange exchange){	
 		long storedTimestamp = 0;	
 		if(exchangeInfoMap.isEmpty()){
-			//System.out.println("No exchanges stored");
 			return 0;
 		}
 		
 		if(exchangeInfoMap.get(exchange) != null){
 			storedTimestamp = exchangeInfoMap.get(exchange).getTimestamp();
-			//System.out.println("Found timestamp value:"+storedTimestamp);
 		}
 		return storedTimestamp;
 	}
@@ -285,13 +281,11 @@ public class RemoteEndpoint {
 	public double getExchangeVBF(Exchange exchange){	
 		double vbf = 2;	
 		if(exchangeInfoMap.isEmpty()){
-			//System.out.println("No exchanges stored (VBF request)");
 			return 0;
 		}
 		
 		if(exchangeInfoMap.get(exchange) != null){
 			vbf = exchangeInfoMap.get(exchange).getVBF();
-			//System.out.println("Found VBF value:"+ vbf);
 		}
 		return vbf;
 	}
@@ -318,10 +312,9 @@ public class RemoteEndpoint {
 	 */
 	public boolean removeExchangeInfo(Exchange exchange){
 		if(exchangeInfoMap.remove(exchange) == null){
-			//System.out.println("Exchange requested to remove not found!");
 			return false;
 		}else{
-		//System.out.println("Deleted exchange. Amount of ongoing exchanges towards " + Address.toString() + " decreased by 1. (" + exchangeInfoMap.size()+")");
+		//deleted exchange!
 		return true;
 		}
 	}

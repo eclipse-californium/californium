@@ -26,6 +26,9 @@ public class BasicRto extends CongestionControlLayer {
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		int rtoType = endpoint.getExchangeEstimatorState(exchange);
 		
+		// The basic rto algorithm does not care for the blind estimator, set weak/strong to false
+		endpoint.setBlindStrong(false);
+		endpoint.setBlindWeak(false);
 		//Perform normal update of the RTO
 		updateEstimator(measuredRTT, rtoType, endpoint);
 
