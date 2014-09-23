@@ -248,11 +248,11 @@ public class RemoteEndpoint {
 		}*/
 		if(exchange.getFailedTransmissionCount() == 1 || exchange.getFailedTransmissionCount() == 2){
 			//Only allow weak estimator updates from the first or second retransmission
-			System.out.println("Remote Enpdoint: WEAK");
+			//System.out.println("Remote Enpdoint: WEAK");
 			exchangeInfoMap.get(exchange).setTypeWeakEstimator();
 		}else{
 			//If more than 1 retransmission was applied to the exchange, mark this entry as not updatable
-			System.out.println("Remote Enpdoint: NO");
+			//System.out.println("Remote Enpdoint: NO");
 			exchangeInfoMap.get(exchange).setTypeNoEstimator();
 		}
 	}
@@ -349,12 +349,12 @@ public class RemoteEndpoint {
 	 * @return
 	 */
 	public int getNumberOfOngoingExchanges(Exchange exchange){	
-		System.out.println("Amount of exchanges: " + exchangeInfoMap.size() );
+		//System.out.println("Amount of exchanges: " + exchangeInfoMap.size() );
 		return exchangeInfoMap.size();
 	}
 	
 	private void printRTO(){
-		System.out.println("meanrto:" + meanOverallRTO + ";" + System.currentTimeMillis());
+		//System.out.println("meanrto:" + meanOverallRTO + ";" + System.currentTimeMillis());
 	}
 	
 	public void printLinuxStats(){
