@@ -124,7 +124,6 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					// TODO: Drop packet -> Notify upper layers?
 			}else{
 				getRemoteEndpoint(exchange).getNonConfirmableQueue().add(exchange);
-				System.out.println("NON QUEUE++: " + getRemoteEndpoint(exchange).getNonConfirmableQueue().size());
 				
 				// Check if NONs are already processed, if not, start bucket Thread
 				if(!getRemoteEndpoint(exchange).getProcessingNON()){	 
@@ -146,7 +145,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	private boolean checkNSTART(Exchange exchange){	
 		getRemoteEndpoint(exchange).checkForDeletedExchanges();
 		if(getRemoteEndpoint(exchange).getNumberOfOngoingExchanges(exchange) < config.getInt("NSTART")){
-			System.out.println("Processing exchange (NSTART OK!)");
+			//System.out.println("Processing exchange (NSTART OK!)");
 			
 			// NSTART allows to start the exchange, proceed normally
 			getRemoteEndpoint(exchange).registerExchange(exchange, calculateVBF(getRemoteEndpoint(exchange).getRTO()));
@@ -156,17 +155,17 @@ public class CongestionControlLayer extends ReliabilityLayer {
 			return true;
 		}else{
 			// NSTART does not allow any further parallel exchanges towards the remote endpoint
-			System.out.println("Nstart does not allow further exchanges with " + getRemoteEndpoint(exchange).getRemoteAddress().toString());
+			//System.out.println("Nstart does not allow further exchanges with " + getRemoteEndpoint(exchange).getRemoteAddress().toString());
 			
 			// Check if the queue limit for exchanges is already reached
 			if(getRemoteEndpoint(exchange).getConfirmableQueue().size() == EXCHANGELIMIT){
 				// Request cannot be queued TODO: does this trigger some feedback for other layers?
-				System.out.println("Confirmable exchange queue limit reached! Message dropped...");
+				//System.out.println("Confirmable exchange queue limit reached! Message dropped...");
 				
 			}else{
 				// Queue exchange in the CON-Queue
 				getRemoteEndpoint(exchange).getConfirmableQueue().add(exchange);		
-				System.out.println("Added exchange to the queue (NSTART limit reached)");		
+				//System.out.println("Added exchange to the queue (NSTART limit reached)");		
 			}
 		}		
 		return false;
@@ -298,7 +297,6 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
 		int timeout, expectedmaxduration;
-		System.out.println("TRXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
 			
@@ -308,7 +306,6 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		}
 		exchange.setCurrentTimeout(timeout);
 		expectedmaxduration = calculateMaxTransactionDuration(exchange);
-		System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);	
 	}
@@ -374,11 +371,9 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
 					if(exchange.getCurrentRequest().getDestinationPort() != 0){
 						//it's a response
-						System.out.println("Bucketing Request");
 						sendBucketRequest(exchange, exchange.getCurrentRequest());
 					}else if(exchange.getCurrentResponse() != null){
 						//it's a request
-						System.out.println("Bucketing Response");
 						sendBucketResponse(exchange, exchange.getCurrentResponse());
 					}
 				}
