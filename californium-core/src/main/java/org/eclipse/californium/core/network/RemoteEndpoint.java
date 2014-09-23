@@ -34,17 +34,23 @@ public class RemoteEndpoint {
 	
 	/* Peakhopper algorithm variables FOR TESTING ONLY*/
 	public double delta;
-	public double D_value;
-	public long F_value;
+	
+	
 	public double B_value;
+	public final static double F_value = 24;
+	public final static double B_max_value = 1;
+	public final static double D_value = (double)(1 - (double)(1/F_value));
+	public final static int RTT_HISTORY_SIZE = 2;
 	public long RTT_max;
-	public long RTT_sample;
+	public long[] RTT_sample = new long[2];
 	public long RTT_previous;
+	public long RTO_min;
 	
 	
 	private int currentArrayElement;
 	private int nonConfirmableCounter;
 	
+	private boolean usesBlindEstimator;
 	private boolean isBlindStrong; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
 	private boolean isBlindWeak; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
 	
@@ -86,6 +92,7 @@ public class RemoteEndpoint {
 		currentArrayElement = 0;
 		nonConfirmableCounter = 7;
 		
+		usesBlindEstimator = true;
 		isBlindStrong = true;
 		isBlindWeak = true;
 		
@@ -135,6 +142,10 @@ public class RemoteEndpoint {
 	
 	public long getxRTTVAR(int rttvarType){
 		return xRTTVAR[rttvarType];
+	}
+	
+	public void useBlindEstimator(){
+		usesBlindEstimator = true;
 	}
 	
 	public boolean isBlindWeak(){
@@ -194,7 +205,7 @@ public class RemoteEndpoint {
 	 */
 	public long getRTO(){
 		long rto;
-		if(isBlindStrong && isBlindWeak && exchangeInfoMap.size() > 1){
+		if(usesBlindEstimator && isBlindStrong && isBlindWeak && exchangeInfoMap.size() > 1 ){
 			//No RTT measurements have been possible so far => apply blind estimator rule
 			//System.out.println("Blind Rule applying, RTO: "+ (exchangeInfoMap.size())*2000);
 			rto = (long) (exchangeInfoMap.size())*2000;	
@@ -205,7 +216,8 @@ public class RemoteEndpoint {
 	}
 	
 	/**
-	 * Very small RTOs are "boosted" if they are not updated 
+	 * Very small RTOs are "boosted" if they are not updated. In the current configuration this
+	 * is achieved by doubling the current overall RTO.
 	 */
 	public void boostRTOvalue(){
 		meanOverallRTO *= 2;
@@ -220,9 +232,8 @@ public class RemoteEndpoint {
 		printRTO();
 	}
 	
-	/** This method allows to set the state of the remote endpoint.
-	 *  The first time this method is called, set the state to STRONG
-	 *  The second time this mehotd is called set the state to WEAK
+	/** This method allows to set the state of the exchange (WEAK/STRONG/notvalid RTT measurement).
+	 * 
 	 */
 	public void setEstimatorState(Exchange exchange){
 		//When no CC layer is used, the entries are all null, check here if this is the case
@@ -355,9 +366,9 @@ public class RemoteEndpoint {
 	}
 	
 	/** Object that stores exchange related information 
-	 * 1.) timestamp
+	 * 1.) Timestamp
 	 * 2.) Variable Backoff Factor
-	 * 3.) Estimator Tzpe (weak/strong/none)
+	 * 3.) Estimator Type (weak/strong/none)
 	 */ 
 	private class exchangeInfo{
 		

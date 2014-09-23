@@ -15,9 +15,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 /**
- * The optional Congestion Control (CC) Layer for the Californium CoAP implementation provides the methods for advanced congestion control methods.
- * The RTO calculations and other mechanisms are implemented in the correspondent child classes. The alternatives to CoCoA are implemented 
- * for testing purposes and are not maintained/updated.  
+ * The optional Congestion Control (CC) Layer for the Californium CoAP implementation provides the methods for advanced congestion 
+ * control mechanisms. The RTO calculations and other mechanisms are implemented in the correspondent child classes. 
+ * The alternatives to CoCoA are implemented for testing purposes and are not maintained/updated.  
  * 
  * BASICRTO = Use previously measured RTT and mutliply it by 1.5 to calculate the RTO for the next transmission
  * COCOA = CoCoA algorithm as defined in draft-bormann-cocoa-02
@@ -68,9 +68,11 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	
 	/** 
 	 * Calculate how long the maximum transmission duration will be when no ACK is received
-	 * */
-	private long calculateMaxTransactionDuration(Exchange exchange){
-		return (long) (config.getInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE)*getRemoteEndpoint(exchange).getRTO()* Math.pow(getRemoteEndpoint(exchange).getExchangeVBF(exchange), 5));
+	 * @param exchange
+	 * @return
+	 */
+	private int calculateMaxTransactionDuration(Exchange exchange){
+		return (int)(config.getInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE)*getRemoteEndpoint(exchange).getRTO()* Math.pow(getRemoteEndpoint(exchange).getExchangeVBF(exchange), 5));
 	}
 	
 	/**
@@ -80,6 +82,10 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	 * 	   the bucket thread is not running, it is started
 	 * 3.) Checks if message is confirmable and if the NSTART rule is followed. If more than NSTART exchanges are running, the Request is enqueued.
 	 *     If the NSTART limit is respected, the message is passed on to the reliability layer.
+	 *     
+	 * @param exchange
+	 * @param message
+	 * @return
 	 */
 	private boolean processMessage(Exchange exchange, Object message){
 		Type messageType;
@@ -167,13 +173,15 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	}
 	
 	/** 
-	 * When a response or an ACK/RST was received, update the RTO values with the measured RTT
-	 * */
-	private void updateRemoteEndpointRTO(Exchange exchange){	
+	 * When a response or an ACK was received, update the RTO values with the measured RTT
+	 * @param exchange
+	 */
+	private void calculateRTT(Exchange exchange){	
 		long timestamp, measuredRTT;
 		timestamp = getRemoteEndpoint(exchange).getExchangeTimestamp(exchange);
 		if(timestamp != 0){
 			measuredRTT = System.currentTimeMillis() - timestamp;
+			// process the RTT measurement
 			processRTTmeasurement(measuredRTT, exchange, exchange.getFailedTransmissionCount());
 			getRemoteEndpoint(exchange).removeExchangeInfo(exchange);
 		}
@@ -181,21 +189,25 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	
 	/** 
 	 * Received a new RTT measurement, evaluate it and update correspondent estimators 
-	 * */
+	 * 
+	 * @param measuredRTT			- The round-trip time of a CON-ACK pair
+	 * @param exchange				- The exchange that was used for the RTT measurement
+	 * @param retransmissionCount	- The number of retransmissions that were applied to the transmission of the CON message
+	 */
 	protected void processRTTmeasurement(long measuredRTT, Exchange exchange, int retransmissionCount){		
 		//Default CoAP does not use RTT info, so do nothing
 		return;
 	}
 	
 	/**
-	 * Use this method in RTO algorithms that implement congestion control to check RTO aging
+	 * Override this method in RTO algorithms that implement some sort of RTO aging
 	 * @param exchange
 	 */
 	protected void checkAging(Exchange exchange){
 		return;
 	}
 	
-	/** This method is only called if there hasn't been an RTO update yet. 
+	/** This method is only called if there hasn't been an RTO update yet. Initializes the 
 	 * 
 	 * @param measuredRTT   - Time it took to get an ACK for a CON message
 	 * @param estimatorType - Estimatortype indicates if the measurement was a strong or a weak one
@@ -281,16 +293,11 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	
 	/**
 	 * The following method overrides the method provided by the reliability layer to include the advanced RTO calculation values
-	 * when determining the RTO
+	 * when determining the RTO.
 	 */
 	@Override
 	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
-		/*
-		 * For a new confirmable message, the initial timeout is set to a
-		 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
-		 * ACK_RANDOM_FACTOR)
-		 */
-		int timeout;
+		int timeout, expectedmaxduration;
 		System.out.println("TRXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
@@ -300,6 +307,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 				timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
 		}
 		exchange.setCurrentTimeout(timeout);
+		expectedmaxduration = calculateMaxTransactionDuration(exchange);
 		System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);	
@@ -313,7 +321,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		}
 		super.receiveResponse(exchange, response);
 		
-		updateRemoteEndpointRTO(exchange);	
+		calculateRTT(exchange);	
 		checkRemoteEndpointQueue(exchange);	
 	}
 	
@@ -328,7 +336,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		}
 		super.receiveEmptyMessage(exchange, message);
 		
-		updateRemoteEndpointRTO(exchange);
+		calculateRTT(exchange);
 		checkRemoteEndpointQueue(exchange);
 	}	
 	
@@ -374,8 +382,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 						sendBucketResponse(exchange, exchange.getCurrentResponse());
 					}
 				}
-				
-				// schedule next transmission of a NON based on the RTO value 
+				// schedule next transmission of a NON based on the RTO value (rate = 1/RTO)
 				executor.schedule(new bucketThread(getRemoteEndpoint(exchange)), getRemoteEndpoint(exchange).getRTO(), TimeUnit.MILLISECONDS);
 				
 			}else{
@@ -403,10 +410,8 @@ public class CongestionControlLayer extends ReliabilityLayer {
 			}else{
 				// Entry was removed, check if there are more messages in the queue
 				checkRemoteEndpointQueue(exchange);
-			}
-			
+			}		
 		}	
-
 	}
 }
 
