@@ -67,11 +67,11 @@ public class ResourceAttributesTest {
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, new LinkedList<String>());
 		System.out.println(serialized);
-		Assert.assertEquals(serialized,
-				"</sensors>;title=\"Sensor Index\"," +
-				"</sensors/light>;if=\"sensor\";rt=\"light-lux\"," +
-				"</sensors/temp>;if=\"sensor\";foo;rt=\"temperature-c\";bar=\"one two\""
-				);
+		Assert.assertEquals(
+		        "</sensors>;title=\"Sensor Index\","
+		        + "</sensors/light>;if=\"sensor\";rt=\"light-lux\","
+		        + "</sensors/temp>;bar=\"one two\";foo;if=\"sensor\";rt=\"temperature-c\"",
+				serialized);
 	}
 	
 	@Test
@@ -82,9 +82,9 @@ public class ResourceAttributesTest {
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, request.getOptions().getURIQueries());
 		System.out.println(serialized);
-		Assert.assertEquals(serialized, 
-				"</sensors/light>;if=\"sensor\";rt=\"light-lux\""
-				);
+		Assert.assertEquals(
+		        "</sensors/light>;if=\"sensor\";rt=\"light-lux\"",
+		        serialized);
 	}
 	
 }

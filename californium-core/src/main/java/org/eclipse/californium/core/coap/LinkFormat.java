@@ -19,7 +19,9 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -72,7 +74,7 @@ public class LinkFormat {
 			buffer.delete(buffer.length()-1, buffer.length());
 		return buffer.toString();
 	}
-	
+
 	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
 		// add the current resource to the buffer
 		if (resource.isVisible()
@@ -80,7 +82,16 @@ public class LinkFormat {
 			buffer.append(LinkFormat.serializeResource(resource));
 		}
 		
-		for (Resource child:resource.getChildren()) {
+		// sort by resource name
+		List<Resource> childs = new ArrayList<Resource>(resource.getChildren());
+		Collections.sort(childs, new Comparator<Resource>() {
+		    @Override
+		    public int compare(Resource o1, Resource o2) {
+		        return o1.getName().compareTo(o2.getName());
+		    }
+		});
+		
+		for (Resource child:childs) {
 			serializeTree(child, queries, buffer);
 		}
 	}
@@ -98,7 +109,11 @@ public class LinkFormat {
 	
 	public static StringBuilder serializeAttributes(ResourceAttributes attributes) {
 		StringBuilder buffer = new StringBuilder();
-		for (String attr:attributes.getAttributeKeySet()) {
+		
+
+		List<String> attributesList = new ArrayList<String>(attributes.getAttributeKeySet());
+		Collections.sort(attributesList);
+		for (String attr : attributesList) {
 			List<String> values = attributes.getAttributeValues(attr);
 			if (values == null) continue;
 			buffer.append(";");
