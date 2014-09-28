@@ -232,7 +232,7 @@ public class LinkFormat {
 		if (linkFormat!=null) {
 			Scanner scanner = new Scanner(linkFormat);
 			String path = null;
-			while ((path = scanner.findInLine("</[^>]*>")) != null) {
+			while ((path = scanner.findInLine("<[^>]*>")) != null) {
 				
 				// Trim <...>
 				path = path.substring(1, path.length() - 1);
