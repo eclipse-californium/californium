@@ -29,6 +29,7 @@ public class Cocoa extends CongestionControlLayer{
 	
 	public Cocoa(NetworkConfig config) {
 		super(config);
+		setDithering(true);
 	}
 
 	

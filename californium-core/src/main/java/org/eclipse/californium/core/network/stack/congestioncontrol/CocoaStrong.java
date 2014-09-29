@@ -8,6 +8,7 @@ public class CocoaStrong extends Cocoa{
 
 	public CocoaStrong(NetworkConfig config) {
 		super(config);
+		setDithering(true);
 	}
 	
 	@Override

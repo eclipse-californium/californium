@@ -50,6 +50,8 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	
 	private final static int MAX_RTO = 60000;
 	 
+	private boolean appliesDithering; // In CoAP, dithering is applied to the initial RTO of a transmission; set to true to apply dithering
+	
 	private RemoteEndpointManager remoteEndpointmanager;
 	
 	/**
@@ -60,10 +62,19 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		super(config);
 		this.config = config;
 	    this.remoteEndpointmanager = new RemoteEndpointManager(config);
+	    setDithering(false);
 	}
 	
 	protected RemoteEndpoint getRemoteEndpoint(Exchange exchange){
 		return remoteEndpointmanager.getRemoteEndpoint(exchange);
+	}
+	
+	public boolean appliesDithering(){
+		return appliesDithering;
+	}
+	
+	public void setDithering(boolean mode){
+		this.appliesDithering = mode;
 	}
 	
 	/** 
@@ -301,9 +312,11 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
-			// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
-			float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
-			timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
+			if(appliesDithering()){
+				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
+				float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
+				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
+			}
 			System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
 		} else {
 				int tempTimeout= (int)(getRemoteEndpoint(exchange).getExchangeVBF(exchange) * exchange.getCurrentTimeout());
