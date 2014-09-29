@@ -71,9 +71,12 @@ public class Cocoa extends CongestionControlLayer{
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		int rtoType = endpoint.getExchangeEstimatorState(exchange);
 		
+		endpoint.matchCurrentRTO();
+		
 		if(rtoType == NOESTIMATOR)
 			return;
-		
+	
+		System.out.println("Measured RTT:" + measuredRTT);
 		// System.out.println("Endpoint status: blindweak/blindstrong/state : " + endpoint.isBlindWeak() + "/" + endpoint.isBlindStrong() + "/" + endpoint.getExchangeEstimatorState(exchange));
 		if(endpoint.isBlindWeak() && rtoType  == WEAKRTOTYPE){
 			//Received a weak RTT for the first time, apply weak RTO update

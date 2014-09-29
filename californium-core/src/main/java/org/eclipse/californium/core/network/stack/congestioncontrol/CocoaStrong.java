@@ -16,9 +16,12 @@ public class CocoaStrong extends Cocoa{
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		int rtoType = endpoint.getExchangeEstimatorState(exchange);
 		
+		endpoint.matchCurrentRTO();
+		
 		if(rtoType == NOESTIMATOR || rtoType == WEAKRTOTYPE)
 			return;
 		
+		System.out.println("Measured RTT:" + measuredRTT);
 		// System.out.println("Endpoint status: blindweak/blindstrong/state : " + endpoint.isBlindWeak() + "/" + endpoint.isBlindStrong() + "/" + endpoint.getExchangeEstimatorState(exchange));
 		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
 			// Received a strong RTT measurement for the first time, apply strong RTO update

@@ -66,6 +66,8 @@ public class PeakhopperRto extends CongestionControlLayer{
 			return;
 		}
 		
+		System.out.println("Measured RTT:" + measuredRTT);
+		endpoint.matchCurrentRTO();
 		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
 			// Received a strong RTT measurement for the first time, apply strong RTO update
 			endpoint.setBlindStrong(false); 
