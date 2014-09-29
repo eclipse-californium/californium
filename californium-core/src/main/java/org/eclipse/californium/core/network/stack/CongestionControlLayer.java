@@ -308,7 +308,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
 		int timeout, expectedmaxduration;
-		System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
+		//System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
 			if(appliesDithering()){
@@ -316,16 +316,16 @@ public class CongestionControlLayer extends ReliabilityLayer {
 				float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
 				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
 			}
-			System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
+			//System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
 		} else {
 				int tempTimeout= (int)(getRemoteEndpoint(exchange).getExchangeVBF(exchange) * exchange.getCurrentTimeout());
 				timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
 				getRemoteEndpoint(exchange).setCurrentRTO(timeout);
-				System.out.println("RTX");
+				//System.out.println("RTX");
 		}
 		exchange.setCurrentTimeout(timeout);
 		expectedmaxduration = calculateMaxTransactionDuration(exchange);
-		System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
+		//System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);	
 	}
@@ -391,11 +391,9 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
 					if(exchange.getCurrentRequest().getDestinationPort() != 0){
 						//it's a response
-						System.out.println("Bucketing Request");
 						sendBucketRequest(exchange, exchange.getCurrentRequest());
 					}else if(exchange.getCurrentResponse() != null){
 						//it's a request
-						System.out.println("Bucketing Response");
 						sendBucketResponse(exchange, exchange.getCurrentResponse());
 					}
 				}
