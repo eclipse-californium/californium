@@ -21,6 +21,9 @@ public class RemoteEndpoint {
 	private long[] overallRTO;
 	private long[] RTOupdateTimestamp;
 	
+	//Current RTO stores the latest updated value
+	private long currentRTO;
+	
 	private long meanOverallRTO;
 	private long[] xRTO;
 	private long[] xRTT;
@@ -77,6 +80,7 @@ public class RemoteEndpoint {
 		for(int i=0; i < RTOARRAYSIZE; i++){
 			overallRTO[i] = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT) ;
 		}
+		currentRTO =  config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
 
 		xRTO = new long[3];
 		xRTT = new long[3];
@@ -191,6 +195,18 @@ public class RemoteEndpoint {
 		meanOverallRTO = meanRTO/RTOARRAYSIZE;		
 	}
 	
+	public void setCurrentRTO(long currentRTO){
+		this.currentRTO = currentRTO;
+	}
+	
+	public long getCurrentRTO(){
+		return currentRTO;
+	}
+	
+	// Once a valid measurement is received, the currentRTO needs to be the same as the last updated overall RTO
+	public void matchCurrentRTO(){
+		currentRTO = meanOverallRTO;
+	}
 	public void setProcessingNON(boolean value){
 		processingNON = value;
 	}
@@ -210,7 +226,12 @@ public class RemoteEndpoint {
 			//System.out.println("Blind Rule applying, RTO: "+ (exchangeInfoMap.size())*2000);
 			rto = (long) (exchangeInfoMap.size())*2000;	
 		}else{
-			rto = meanOverallRTO;
+			if(meanOverallRTO != currentRTO){
+				// If current RTO was not updated, there was no successful RTO update, use the one that has backed offs
+				rto = currentRTO;
+			}else{
+				rto = meanOverallRTO;
+			}
 		}	
 		return (rto < 32000) ? rto : 32000;
 	}
@@ -229,7 +250,7 @@ public class RemoteEndpoint {
 		overallRTO[currentArrayElement] = newRTO; 		
 		currentArrayElement = (currentArrayElement + 1)%RTOARRAYSIZE;
 		calculateMeanOverallRTO();
-		printRTO();
+		setCurrentRTO(newRTO);
 	}
 	
 	/** This method allows to set the state of the exchange (WEAK/STRONG/notvalid RTT measurement).
