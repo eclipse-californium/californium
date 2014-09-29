@@ -43,31 +43,10 @@ public class RemoteEndpointManager {
 			RemoteEndpoint unusedRemoteEndpoint = new RemoteEndpoint(remotePort, remoteAddress, config);
 			remoteEndpointsList.put(remoteAddress,unusedRemoteEndpoint);
 			
-			System.out.println("Number of RemoteEndpoint objects stored:" + remoteEndpointsList.size());
+			//System.out.println("Number of RemoteEndpoint objects stored:" + remoteEndpointsList.size());
 		}
 		
 		return remoteEndpointsList.get(remoteAddress);
-		
-		
-		//Check if this combination of InetAddress and Port is available and return the remote endpoint if so
-//			for (int i = 0; i < remoteEndpointsList.size(); i++) {		
-//				if(remoteAddress.equals(remoteEndpointsList.get(i).getRemoteAddress())){
-//					if(remotePort ==  remoteEndpointsList.get(i).getRemotePort()){
-//						//System.out.println("Found matching port: " + remotePort);
-//						//System.out.println("Found matching Address: " + remoteAddress.toString());
-//						return remoteEndpointsList.get(i);
-//				    }
-//				}
-//			}			
-			
-		// No remoteEndpoint with this combination of Address and Port available -> Create a new entry
-//			RemoteEndpoint unusedRemoteEndpoint = new RemoteEndpoint(remotePort, remoteAddress, config);
-//			remoteEndpointsList.add(unusedRemoteEndpoint);
-//			
-//			//System.out.println("Created remote Endpoint for address " + unusedRemoteEndpoint.getRemoteAddress().toString());
-//			//System.out.println("Amount of stored remote endpoints: " + remoteEndpointsList.size());
-//		
-//			return unusedRemoteEndpoint;
 	}
 	
 	public class LimitedRemoteEndpointHashmap<K, V> extends LinkedHashMap<K, V> {
