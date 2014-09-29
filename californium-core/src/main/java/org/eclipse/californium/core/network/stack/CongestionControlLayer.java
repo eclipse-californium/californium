@@ -135,8 +135,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					// TODO: Drop packet -> Notify upper layers?
 			}else{
 				getRemoteEndpoint(exchange).getNonConfirmableQueue().add(exchange);
-				System.out.println("NON QUEUE++: " + getRemoteEndpoint(exchange).getNonConfirmableQueue().size());
-				
+
 				// Check if NONs are already processed, if not, start bucket Thread
 				if(!getRemoteEndpoint(exchange).getProcessingNON()){	 
 					executor.schedule(new bucketThread(getRemoteEndpoint(exchange)), 0, TimeUnit.MILLISECONDS);
