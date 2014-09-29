@@ -50,6 +50,8 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	
 	private final static int MAX_RTO = 60000;
 	 
+	private boolean appliesDithering; // In CoAP, dithering is applied to the initial RTO of a transmission; set to true to apply dithering
+	
 	private RemoteEndpointManager remoteEndpointmanager;
 	
 	/**
@@ -60,10 +62,19 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		super(config);
 		this.config = config;
 	    this.remoteEndpointmanager = new RemoteEndpointManager(config);
+	    setDithering(false);
 	}
 	
 	protected RemoteEndpoint getRemoteEndpoint(Exchange exchange){
 		return remoteEndpointmanager.getRemoteEndpoint(exchange);
+	}
+	
+	public boolean appliesDithering(){
+		return appliesDithering;
+	}
+	
+	public void setDithering(boolean mode){
+		this.appliesDithering = mode;
 	}
 	
 	/** 
@@ -124,7 +135,7 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					// TODO: Drop packet -> Notify upper layers?
 			}else{
 				getRemoteEndpoint(exchange).getNonConfirmableQueue().add(exchange);
-				
+
 				// Check if NONs are already processed, if not, start bucket Thread
 				if(!getRemoteEndpoint(exchange).getProcessingNON()){	 
 					executor.schedule(new bucketThread(getRemoteEndpoint(exchange)), 0, TimeUnit.MILLISECONDS);
@@ -297,15 +308,24 @@ public class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
 		int timeout, expectedmaxduration;
+		System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
-			
+			if(appliesDithering()){
+				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
+				float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
+				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
+			}
+			System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
 		} else {
 				int tempTimeout= (int)(getRemoteEndpoint(exchange).getExchangeVBF(exchange) * exchange.getCurrentTimeout());
 				timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
+				getRemoteEndpoint(exchange).setCurrentRTO(timeout);
+				System.out.println("RTX");
 		}
 		exchange.setCurrentTimeout(timeout);
 		expectedmaxduration = calculateMaxTransactionDuration(exchange);
+		System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);	
 	}
@@ -371,9 +391,11 @@ public class CongestionControlLayer extends ReliabilityLayer {
 					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
 					if(exchange.getCurrentRequest().getDestinationPort() != 0){
 						//it's a response
+						System.out.println("Bucketing Request");
 						sendBucketRequest(exchange, exchange.getCurrentRequest());
 					}else if(exchange.getCurrentResponse() != null){
 						//it's a request
+						System.out.println("Bucketing Response");
 						sendBucketResponse(exchange, exchange.getCurrentResponse());
 					}
 				}
