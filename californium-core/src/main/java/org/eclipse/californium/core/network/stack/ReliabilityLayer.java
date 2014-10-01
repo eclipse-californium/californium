@@ -264,7 +264,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param max the max
 	 * @return a random value between min and max
 	 */
-	private int getRandomTimeout(int min, int max) {
+	protected int getRandomTimeout(int min, int max) {
 		if (min == max) return min;
 		return min + rand.nextInt(max - min);
 	}
