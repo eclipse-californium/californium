@@ -1,3 +1,20 @@
+/*******************************************************************************
+ * Copyright (c) 2014 Wireless Networks Group, UPC Barcelona and i2CAT.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    August Betzler    – CoCoA implementation
+ *    Matthias Kovatsch - Embedding of CoCoA in Californium
+ ******************************************************************************/
+ 
 package org.eclipse.californium.core.network.stack.congestioncontrol;
 
 import org.eclipse.californium.core.network.Exchange;
@@ -64,7 +81,7 @@ public class LinuxRto extends CongestionControlLayer{
 		if(rtoType == NOESTIMATOR || rtoType == WEAKRTOTYPE )
 			return;
 		
-		System.out.println("Measured RTT:" + measuredRTT);
+		//System.out.println("Measured RTT:" + measuredRTT);
 		endpoint.matchCurrentRTO();
 		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
 			// Received a strong RTT measurement for the first time, apply strong RTO update
