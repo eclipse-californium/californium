@@ -91,6 +91,14 @@
 			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
+	
+	<repositories>
+		<repository>
+			<id>repo.eclipse.org</id>
+			<name>Californium Repository</name>
+			<url>https://repo.eclipse.org/content/repositories/californium/</url>
+		</repository>
+  	</repositories>
 
 	<dependencies>
 		<dependency>

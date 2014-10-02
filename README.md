@@ -7,10 +7,15 @@ Californium is a Java CoAP implementation for IoT Cloud services.
 Thus, the focus is on scalability and usability instead of resource-efficiency
 like for embedded devices. Yet Californium is also suitable for embedded JVMs.
 
+More information can be found at
+[http://www.eclipse.org/californium/](http://www.eclipse.org/californium/)
+and [http://coap.technology/](http://coap.technology/).
+
 Contact
 -------
 
 A bug, an idea, an issue? Join the [Mailing list](https://dev.eclipse.org/mailman/listinfo/cf-dev)
+
 Maven
 -----
 
@@ -20,7 +25,7 @@ Executable JARs of the examples with all dependencies are copied to ./run/.
 ### Californium in Maven Project
 
 To use Californium as library in your projects, add the following dependencies
-and Maven repositories to your pom.xml:
+and Maven repository to your pom.xml (without the dots):
 
 ```xml
   <dependencies>
@@ -32,18 +37,13 @@ and Maven repositories to your pom.xml:
     </dependency>
     ...
   </dependencies>
-  
+  ...
   <repositories>
     ...
     <repository>
-      <id>californium-releases</id>
-      <name>Californium Repository - Releases</name>
-      <url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
-    </repository>
-    <repository>
-      <id>californium-snapshots</id>
-      <name>Californium Repository - Snapshots</name>
-      <url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
+      <id>repo.eclipse.org</id>
+      <name>Californium Repository</name>
+      <url>https://repo.eclipse.org/content/repositories/californium/</url>
     </repository>
     ...
   </repositories>
@@ -72,8 +72,7 @@ Interop Server
 --------------
 
 A test server is running at [coap://iot.eclipse.org:5683/](coap://iot.eclipse.org:5683/).
-The root resource responds with its current version. More information
-can be found at [https://projects.eclipse.org/projects/technology.californium](https://projects.eclipse.org/projects/technology.californium).
+The root resource responds with its current version.
 
 Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).
