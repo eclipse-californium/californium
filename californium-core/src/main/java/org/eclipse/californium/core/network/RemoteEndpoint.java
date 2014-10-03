@@ -222,7 +222,6 @@ public class RemoteEndpoint {
 	
 	// Once a valid measurement is received, the currentRTO needs to be the same as the last updated overall RTO
 	public void matchCurrentRTO(){
-		System.out.println("Match RTO with currentRTO");
 		currentRTO = meanOverallRTO;
 	}
 	public void setProcessingNON(boolean value){
@@ -241,12 +240,12 @@ public class RemoteEndpoint {
 		long rto;
 		if(usesBlindEstimator && isBlindStrong && isBlindWeak && exchangeInfoMap.size() > 1 ){
 			//No RTT measurements have been possible so far => apply blind estimator rule
-			System.out.println("Blind Rule applying, RTO: "+ (exchangeInfoMap.size())*2000);
+			//System.out.println("Blind Rule applying, RTO: "+ (exchangeInfoMap.size())*2000);
 			rto = (long) (exchangeInfoMap.size())*2000;	
 		}else{
 			if(meanOverallRTO != currentRTO){
 				// If current RTO was not updated, there was no successful RTO update, use the one that has backed offs
-				System.out.println("Old RTO! (mean/current) = (" + meanOverallRTO+ "/" + currentRTO +")");
+				//System.out.println("Old RTO! (mean/current) = (" + meanOverallRTO+ "/" + currentRTO +")");
 				rto = currentRTO;
 			}else{
 				rto = meanOverallRTO;
