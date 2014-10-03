@@ -63,6 +63,7 @@ public class Cocoa extends CongestionControlLayer{
 		endpoint.setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
 		
 		//System.out.println("RTO:" + RTO + " RTT:" + RTT + " RTTVAR:" + RTTVAR + " (Type:" + estimatorType + ")");
+
 		//long newRTO = Math.round((double)meanOverallRTO*0.5) + Math.round((double)(getxRTO(estimatorType)*0.5));
 
 		endpoint.updateRTO(newRTO);
@@ -78,8 +79,9 @@ public class Cocoa extends CongestionControlLayer{
 		endpoint.setEstimatorValues(RTO, RTT, RTTVAR, estimatorType);
 		endpoint.setRTOtimestamp(System.currentTimeMillis(), estimatorType);
 		endpoint.setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
-		
+
 		//System.out.println("RTO:" + RTO + " RTT:" + RTT + " RTTVAR:" + RTTVAR + " (Type:" + estimatorType + ")");
+
 		endpoint.updateRTO(newRTO);
 	}	
 	
@@ -88,13 +90,14 @@ public class Cocoa extends CongestionControlLayer{
 		//System.out.println("Measured an RTT of " + measuredRTT + " after using " + retransmissionCount + " retries." );	
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		int rtoType = endpoint.getExchangeEstimatorState(exchange);
-		
-		endpoint.matchCurrentRTO();
-		
+	
 		if(rtoType == NOESTIMATOR)
 			return;
+
+		endpoint.matchCurrentRTO();
 	
 		//System.out.println("Measured RTT:" + measuredRTT);
+		
 		// System.out.println("Endpoint status: blindweak/blindstrong/state : " + endpoint.isBlindWeak() + "/" + endpoint.isBlindStrong() + "/" + endpoint.getExchangeEstimatorState(exchange));
 		if(endpoint.isBlindWeak() && rtoType  == WEAKRTOTYPE){
 			//Received a weak RTT for the first time, apply weak RTO update
@@ -143,7 +146,7 @@ public class Cocoa extends CongestionControlLayer{
 				overallDifference -= (16*getRemoteEndpoint(exchange).getRTO());
 				getRemoteEndpoint(exchange).boostRTOvalue();
 				getRemoteEndpoint(exchange).setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
-				//System.out.println("RTO after:" + exchange.getRemoteEndpoint().getRTO());			
+				System.out.println("Boosted RTO:" + getRemoteEndpoint(exchange).getRTO());			
 			}else{
 				break;
 			}
@@ -153,9 +156,9 @@ public class Cocoa extends CongestionControlLayer{
 			if(overallDifference > (4*getRemoteEndpoint(exchange).getRTO()) && getRemoteEndpoint(exchange).getRTO() > UPPERVBFLIMIT){
 				//System.out.println("RTO before:" + exchange.getRemoteEndpoint().getRTO());
 				overallDifference -= (4*getRemoteEndpoint(exchange).getRTO());
-				getRemoteEndpoint(exchange).boostRTOvalue();
+				getRemoteEndpoint(exchange).reduceRTOvalue();
 				getRemoteEndpoint(exchange).setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
-				//System.out.println("RTO after:" + exchange.getRemoteEndpoint().getRTO());			
+				System.out.println("Decayed RTO:" + getRemoteEndpoint(exchange).getRTO());			
 			}else{
 				break;
 			}

@@ -56,7 +56,7 @@ public class PeakhopperRto extends CongestionControlLayer{
 	
 	@Override
 	protected void updateEstimator(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){
-		
+
 		storeRttValue(endpoint, measuredRTT);
 		endpoint.delta = Math.abs((double)(measuredRTT - endpoint.RTT_previous)/measuredRTT);	
 		endpoint.B_value = Math.min(Math.max(endpoint.delta * 2, RemoteEndpoint.D_value*endpoint.B_value),RemoteEndpoint.B_max_value);
@@ -81,8 +81,9 @@ public class PeakhopperRto extends CongestionControlLayer{
 		if(rtoType == NOESTIMATOR || rtoType == WEAKRTOTYPE ){
 			return;
 		}
-		
+
 		//System.out.println("Measured RTT:" + measuredRTT);
+
 		endpoint.matchCurrentRTO();
 		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
 			// Received a strong RTT measurement for the first time, apply strong RTO update

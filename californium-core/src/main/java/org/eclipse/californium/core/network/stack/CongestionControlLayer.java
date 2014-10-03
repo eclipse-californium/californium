@@ -329,6 +329,10 @@ public class CongestionControlLayer extends ReliabilityLayer {
 		if (exchange.getFailedTransmissionCount() == 0) {
 			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
 			if(appliesDithering()){
+				//TODO: Workaround to force CoCoA (-Strong) not to use the same RTO after backing off several times
+				System.out.println("Applying dithering, matching RTO");
+				getRemoteEndpoint(exchange).matchCurrentRTO();
+				timeout = (int)getRemoteEndpoint(exchange).getRTO();
 				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
 				float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
 				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
