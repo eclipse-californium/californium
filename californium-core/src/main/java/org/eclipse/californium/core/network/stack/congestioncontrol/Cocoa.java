@@ -146,7 +146,7 @@ public class Cocoa extends CongestionControlLayer{
 				overallDifference -= (16*getRemoteEndpoint(exchange).getRTO());
 				getRemoteEndpoint(exchange).boostRTOvalue();
 				getRemoteEndpoint(exchange).setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
-				System.out.println("Boosted RTO:" + getRemoteEndpoint(exchange).getRTO());			
+				//System.out.println("Boosted RTO:" + getRemoteEndpoint(exchange).getRTO());			
 			}else{
 				break;
 			}
@@ -158,7 +158,7 @@ public class Cocoa extends CongestionControlLayer{
 				overallDifference -= (4*getRemoteEndpoint(exchange).getRTO());
 				getRemoteEndpoint(exchange).reduceRTOvalue();
 				getRemoteEndpoint(exchange).setRTOtimestamp(System.currentTimeMillis(), OVERALLRTOTYPE);
-				System.out.println("Decayed RTO:" + getRemoteEndpoint(exchange).getRTO());			
+				//System.out.println("Decayed RTO:" + getRemoteEndpoint(exchange).getRTO());			
 			}else{
 				break;
 			}
