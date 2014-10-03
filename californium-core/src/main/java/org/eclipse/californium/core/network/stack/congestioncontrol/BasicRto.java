@@ -11,7 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    August Betzler    – CoCoA implementation
+ *    August Betzler    - CoCoA implementation
  *    Matthias Kovatsch - Embedding of CoCoA in Californium
  ******************************************************************************/
  
