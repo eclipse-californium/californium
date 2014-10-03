@@ -45,7 +45,7 @@ public class LinuxRto extends CongestionControlLayer{
 	
 	@Override
 	protected void updateEstimator(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){
-		System.out.println("Measured RTT:" + measuredRTT);
+		//System.out.println("Measured RTT:" + measuredRTT);
 		long RTT = measuredRTT;		
 		
 		endpoint.SRTT = endpoint.SRTT + Math.round((double)(0.125 * (RTT - endpoint.SRTT)));
