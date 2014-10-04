@@ -21,6 +21,7 @@ package org.eclipse.californium.core;
 
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.network.Endpoint;
 
 /**
  * A CoapObserveRelation represents a CoAP observe relation between a CoAP
@@ -39,13 +40,18 @@ public class CoapObserveRelation {
 	/** The current notification. */
 	private CoapResponse current = null;
 	
+	/** The endpoint. */
+	private Endpoint endpoint;
+	
 	/**
 	 * Constructs a new CoapObserveRelation with the specified request.
 	 *
 	 * @param request the request
+	 * @param endpoint the endpoint
 	 */
-	protected CoapObserveRelation(Request request) {
+	protected CoapObserveRelation(Request request, Endpoint endpoint) {
 		this.request = request;
+		this.endpoint = endpoint;
 	}
 	
 	/**
@@ -64,7 +70,7 @@ public class CoapObserveRelation {
 		// dispatch final response to the same message observers
 		for (MessageObserver mo: request.getMessageObservers())
 			cancel.addMessageObserver(mo);
-		cancel.send();
+		endpoint.sendRequest(cancel);
 		// cancel old ongoing request
 		request.cancel();
 		this.canceled = true;

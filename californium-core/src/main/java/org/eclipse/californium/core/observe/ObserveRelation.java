@@ -20,6 +20,8 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.Response;
@@ -63,6 +65,10 @@ public class ObserveRelation {
 	
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
+
+	// The matcher must find the NON-notifications (MIDs) to remove from its hashmaps
+	/** The notifications that have been sent */
+	private ConcurrentLinkedQueue<Response> notifications = new ConcurrentLinkedQueue<Response>();
 	
 	/**
 	 * Constructs a new observe relation.
@@ -107,9 +113,10 @@ public class ObserveRelation {
 	 */
 	public void cancel() {
 		LOGGER.info("Cancel observe relation from "+endpoint.getAddress()+" with "+resource.getURI());
-		this.established = false;
+		setEstablished(false);
 		resource.removeObserveRelation(this);
 		endpoint.removeObserveRelation(this);
+		exchange.setComplete();
 	}
 	
 	/**
@@ -185,4 +192,13 @@ public class ObserveRelation {
 	public void setNextControlNotification(Response nextControlNotification) {
 		this.nextControlNotification = nextControlNotification;
 	}
+	
+	public void addNotification(Response notification) {
+		notifications.add(notification);
+	}
+	
+	public Iterator<Response> getNotificationIterator() {
+		return notifications.iterator();
+	}
+	
 }
