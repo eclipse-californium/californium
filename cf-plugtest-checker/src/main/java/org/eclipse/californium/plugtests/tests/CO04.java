@@ -108,7 +108,7 @@ public class CO04 extends TestClientAbstract {
 		                
 						// checking the response
 						if (response != null) {
-							System.out.println("Received notification " + l);
+							System.out.println("+++++++ Received notification " + l + " +++++++");
 		                	
 		                    // print response info
 		                    if (verbose) {
@@ -146,13 +146,7 @@ public class CO04 extends TestClientAbstract {
 							timedOut = true;
 							l = observeLoop / 2;
 							System.out.println("PASS: Max-Age timed out");
-							System.out.println("+++++ Re-registering +++++");
-							Request reregister = Request.newGet();
-							reregister.setURI(uri);
-							reregister.setToken(request.getToken());
-							reregister.setObserve();
-							request = reregister;
-							request.send();
+							System.out.println("+++++ Re-registering on ObserveLayer +++++");
 							
 							response = request.waitForResponse(time);
 				            if (response != null) {
@@ -186,10 +180,12 @@ public class CO04 extends TestClientAbstract {
 			            
 			            request.cancel();
 	
-						response = request.waitForResponse(time + time/2);
+						Thread.sleep(time + time/2);
+						response = request.getResponse();
 	
 						if (response != null) {
-				            System.out.println("+++++++ Sent RST +++++++");
+							System.out.println("FAIL: Notification after cancelling");
+							success = false;
 						} else {
 				            System.out.println("+++++++ No notification +++++++");
 						}
