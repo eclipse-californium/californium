@@ -102,9 +102,9 @@ public class Matcher {
 			request.setMID(currendMID.getAndIncrement()%(1<<16));
 
 		/*
-		 * The request is a CON or NCON and must be prepared for these responses
-		 * - CON  => ACK/RST/ACK+response/CON+response/NCON+response
-		 * - NCON => RST/CON+response/NCON+response
+		 * The request is a CON or NON and must be prepared for these responses
+		 * - CON  => ACK/RST/ACK+response/CON+response/NON+response
+		 * - NON => RST/CON+response/NON+response
 		 * If this request goes lost, we do not get anything back.
 		 */
 		
@@ -128,11 +128,11 @@ public class Matcher {
 		/*
 		 * The response is a CON or NON or ACK and must be prepared for these
 		 * - CON  => ACK/RST // we only care to stop retransmission
-		 * - NCON => RST // we don't care
+		 * - NON => RST // we don't care
 		 * - ACK  => nothing!
 		 * If this response goes lost, we must be prepared to get the same 
-		 * CON/NCON request with same MID again. We then find the corresponding
-		 * exchange and the retransmissionlayer resends this response.
+		 * CON/NON request with same MID again. We then find the corresponding
+		 * exchange and the ReliabilityLayer resends this response.
 		 */
 		
 		if (response.getDestination() == null)
@@ -162,8 +162,8 @@ public class Matcher {
 			}
 		}
 		
-		// Insert CON and NON to match ACKs and RSTs to the exchange
-		// Do not insert ACKs and RSTs (
+		// Insert CON and NON to match ACKs and RSTs to the exchange.
+		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON || response.getType() == Type.NON) {
 			KeyMID idByMID = new KeyMID(response.getMID(), 
 					response.getDestination().getAddress(), response.getDestinationPort());
@@ -175,7 +175,7 @@ public class Matcher {
 			if (response.isLast()) {
 				exchange.setComplete();
 			}
-		} // else this is a CON and we need to wait for the ACK or RST
+		} // else this is a CON and we need to wait for the ACK or RST.
 	}
 
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {

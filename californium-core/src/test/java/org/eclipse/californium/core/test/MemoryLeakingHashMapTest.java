@@ -69,6 +69,7 @@ public class MemoryLeakingHashMapTest {
 		server.destroy();
 		System.out.println("End "+getClass().getSimpleName());
 	}
+	
 	@Test
 	public void testServer() throws Exception {
 		testSimpleNONGet(uriOf(PIGGY));

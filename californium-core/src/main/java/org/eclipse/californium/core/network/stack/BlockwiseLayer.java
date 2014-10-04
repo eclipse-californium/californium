@@ -88,7 +88,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	public BlockwiseLayer(NetworkConfig config) {
 		this.maxMsgSize = config.getInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE);
 		this.defaultBlockSize = config.getInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE);
-		LOGGER.config("Blockwise14 layer uses MAX_MESSAGE_SIZE: "+maxMsgSize+" and DEFAULT_BLOCK_SIZE:"+defaultBlockSize);
+		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE: "+maxMsgSize+" and DEFAULT_BLOCK_SIZE:"+defaultBlockSize);
 		
 		config.addConfigObserver(new NetworkConfigObserverAdapter() {
 			@Override
