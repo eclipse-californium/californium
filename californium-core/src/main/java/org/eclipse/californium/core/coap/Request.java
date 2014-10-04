@@ -474,7 +474,7 @@ public class Request extends Message {
 			if (payload.indexOf("\n")!=-1) payload = payload.substring(0, payload.indexOf("\n"));
 			if (payload.length() > 24) payload = payload.substring(0,20);
 			payload = "\""+payload+"\"";
-			if (payload.length() != len+2) payload += ".. " + payload.length() + " bytes";
+			if (payload.length() != len+2) payload += ".. " + len + " bytes";
 		}
 		return String.format("%s-%-6s MID=%5d, Token=[%s], %s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
 	}

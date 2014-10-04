@@ -210,9 +210,10 @@ public  class CoapResource implements Resource {
 	}
 	
 	/**
-	 * Handles the GET request in the given CoAPExchange. By default it
-	 * responds with a 4.05 (Method Not Allowed). Override this method to
-	 * respond differently to GET requests.
+	 * Handles the GET request in the given CoAPExchange. By default it responds
+	 * with a 4.05 (Method Not Allowed). Override this method to respond
+	 * differently to GET requests. Possible response codes for GET requests are
+	 * Content (2.05) and Valid (2.03).
 	 * 
 	 * @param exchange the CoapExchange for the simple API
 	 */
@@ -223,7 +224,8 @@ public  class CoapResource implements Resource {
 	/**
 	 * Handles the POST request in the given CoAPExchange. By default it
 	 * responds with a 4.05 (Method Not Allowed). Override this method to
-	 * respond differently to POST requests.
+	 * respond differently to POST requests. Possible response codes for POST
+	 * requests are Created (2.01), Changed (2.04), and Deleted (2.02).
 	 *
 	 * @param exchange the CoapExchange for the simple API
 	 */
@@ -232,9 +234,10 @@ public  class CoapResource implements Resource {
 	}
 	
 	/**
-	 * Handles the PUT request in the given CoAPExchange. By default it
-	 * responds with a 4.05 (Method Not Allowed). Override this method to
-	 * respond differently to PUT requests.
+	 * Handles the PUT request in the given CoAPExchange. By default it responds
+	 * with a 4.05 (Method Not Allowed). Override this method to respond
+	 * differently to PUT requests. Possible response codes for PUT requests are
+	 * Created (2.01) and Changed (2.04).
 	 *
 	 * @param exchange the CoapExchange for the simple API
 	 */
@@ -245,7 +248,8 @@ public  class CoapResource implements Resource {
 	/**
 	 * Handles the DELETE request in the given CoAPExchange. By default it
 	 * responds with a 4.05 (Method Not Allowed). Override this method to
-	 * respond differently to DELETE requests.
+	 * respond differently to DELETE requests. The response code to a DELETE
+	 * request should be a Deleted (2.02).
 	 *
 	 * @param exchange the CoapExchange for the simple API
 	 */

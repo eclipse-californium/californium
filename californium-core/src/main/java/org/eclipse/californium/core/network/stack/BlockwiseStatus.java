@@ -39,6 +39,8 @@ public class BlockwiseStatus {
 	/** The current szx. */
 	private int currentSzx;
 	
+	private boolean randomAccess;
+	
 	private final int contentFormat;
 	
 	/** Indicates whether the blockwise transfer has completed. */
@@ -194,7 +196,15 @@ public class BlockwiseStatus {
 	 */
 	@Override
 	public String toString() {
-		return String.format("[currentNum=%d, currentSzx=%d, complete=%b]",
-				currentNum, currentSzx, complete);
+		return String.format("[currentNum=%d, currentSzx=%d, complete=%b, random access=%b]",
+				currentNum, currentSzx, complete, randomAccess);
+	}
+
+	public boolean isRandomAccess() {
+		return randomAccess;
+	}
+
+	public void setRandomAccess(boolean randomAccess) {
+		this.randomAccess = randomAccess;
 	}
 }

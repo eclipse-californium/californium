@@ -165,7 +165,13 @@ public class CoapExchange {
 	}
 	
 	/**
-	 * Respond the specified response code and no payload.
+	 * Respond the specified response code and no payload. Allowed response codes are:
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param code the code
 	 */
@@ -175,7 +181,13 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with response code 2.05 (Content) and the specified payload.
-	 * 
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
+	 *
 	 * @param payload the payload as string
 	 */
 	public void respond(String payload) {
@@ -184,6 +196,12 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with the specified response code and the specified payload.
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param code the response code
 	 * @param payload the payload
@@ -197,6 +215,12 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with the specified response code and the specified payload.
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param code the response code
 	 * @param payload the payload
@@ -209,6 +233,12 @@ public class CoapExchange {
 
 	/**
 	 * Respond with the specified response code and the specified payload.
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param code the response code
 	 * @param payload the payload
@@ -223,6 +253,12 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with the specified response code and the specified payload.
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param code the response code
 	 * @param payload the payload
@@ -237,6 +273,12 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with the specified response.
+	 * <ul>
+	 *   <li>GET: Content (2.05), Valid (2.03)</li>
+	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
+	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
+	 *   <li>DELETE: Deleted (2.02)</li>
+	 * </ul>
 	 *
 	 * @param response the response
 	 */

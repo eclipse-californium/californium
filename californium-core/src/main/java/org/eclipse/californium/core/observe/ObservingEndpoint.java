@@ -88,34 +88,4 @@ public class ObservingEndpoint {
 		}
 		return null;
 	}
-	
-	/*
-	 * This class is obsolete now since observe-09 where a client can have
-	 * multiple observe relations with the same resource. Furthermore, the
-	 * methods above have become much simpler since there is close to no
-	 * bookkeeping required.
-	 */
-//	private static class ResourcePath {
-//		
-//		private final List<String> path;
-//		
-//		private ResourcePath(List<String> path) {
-//			if (path == null)
-//				throw new NullPointerException();
-//			this.path = path;
-//		}
-//		
-//		@Override
-//		public boolean equals(Object o) {
-//			if (! (o instanceof ResourcePath))
-//				return false;
-//			ResourcePath rp = (ResourcePath) o;
-//			return path.equals(rp.path);
-//		}
-//		
-//		@Override
-//		public int hashCode() {
-//			return path.hashCode();
-//		}
-//	}
 }

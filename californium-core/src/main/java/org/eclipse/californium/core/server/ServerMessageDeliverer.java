@@ -107,14 +107,16 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 			
 			if (request.getOptions().getObserve()==0) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.info("Initiate an observe relation between " + request.getSource() + ":" + request.getSourcePort() + " and resource " + resource.getURI());
+				LOGGER.finer("Initiate an observe relation between " + request.getSource() + ":" + request.getSourcePort() + " and resource " + resource.getURI());
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
 				exchange.setRelation(relation);
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
-			} else if (request.getOptions().getObserve()==1) {
+				
+			} else if (request.getOptions().getObserve() == 1) {
+				// Observe defines 1 for canceling
 				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
 				if (relation!=null) relation.cancel();
 			}

@@ -64,9 +64,11 @@ public class ObserveLayer extends AbstractLayer {
 					if (relation.check()) {
 						LOGGER.fine("The observe relation requires the notification to be sent as CON");
 						response.setType(Type.CON);
-					// By default use NON, but do not override resource decision
-					} else if (response.getType()==null) {
-						response.setType(Type.NON);
+					} else {
+						// By default use NON, but do not override resource decision
+						if (response.getType()==null)
+							response.setType(Type.NON);
+						relation.addNotification(response);
 					}
 				}
 			}
@@ -146,6 +148,7 @@ public class ObserveLayer extends AbstractLayer {
 			ObserveRelation relation = exchange.getRelation();
 			if (relation != null) {
 				relation.cancel();
+				exchange.setComplete();
 			} // else there was no observe relation ship and this layer ignores the rst
 		}
 		super.receiveEmptyMessage(exchange, message);
@@ -219,7 +222,7 @@ public class ObserveLayer extends AbstractLayer {
 		@Override
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
-			LOGGER.info("Notification timed out. Cancel all relations with source "+relation.getSource());
+			LOGGER.info("Notification "+ relation.getExchange().getRequest().getTokenString() +" timed out. Cancel all relations with source "+relation.getSource());
 			relation.cancelAll();
 		}
 		

@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,6 +39,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
+import org.eclipse.californium.core.observe.ObserveRelation;
 
 public class Matcher {
 
@@ -100,9 +102,9 @@ public class Matcher {
 			request.setMID(currendMID.getAndIncrement()%(1<<16));
 
 		/*
-		 * The request is a CON or NCON and must be prepared for these responses
-		 * - CON  => ACK/RST/ACK+response/CON+response/NCON+response
-		 * - NCON => RST/CON+response/NCON+response
+		 * The request is a CON or NON and must be prepared for these responses
+		 * - CON  => ACK/RST/ACK+response/CON+response/NON+response
+		 * - NON => RST/CON+response/NON+response
 		 * If this request goes lost, we do not get anything back.
 		 */
 		
@@ -126,22 +128,25 @@ public class Matcher {
 		/*
 		 * The response is a CON or NON or ACK and must be prepared for these
 		 * - CON  => ACK/RST // we only care to stop retransmission
-		 * - NCON => RST // we don't care
+		 * - NON => RST // we don't care
 		 * - ACK  => nothing!
 		 * If this response goes lost, we must be prepared to get the same 
-		 * CON/NCON request with same MID again. We then find the corresponding
-		 * exchange and the retransmissionlayer resends this response.
+		 * CON/NON request with same MID again. We then find the corresponding
+		 * exchange and the ReliabilityLayer resends this response.
 		 */
 		
 		if (response.getDestination() == null)
 			throw new NullPointerException("Response has no destination address set");
 		if (response.getDestinationPort() == 0)
 			throw new NullPointerException("Response hsa no destination port set");
-		
-		// Insert CON and NON to match ACKs and RSTs to the exchange
-		KeyMID idByMID = new KeyMID(response.getMID(), 
-				response.getDestination().getAddress(), response.getDestinationPort());
-		exchangesByMID.put(idByMID, exchange);
+
+		// If this is a CON notification we now can forget all previous NON notifications
+		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
+			ObserveRelation relation = exchange.getRelation();
+			if (relation != null) {
+				removeNotificatoinsOf(relation);
+			}
+		}
 		
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getRequest();
@@ -157,12 +162,20 @@ public class Matcher {
 			}
 		}
 		
+		// Insert CON and NON to match ACKs and RSTs to the exchange.
+		// Do not insert ACKs and RSTs.
+		if (response.getType() == Type.CON || response.getType() == Type.NON) {
+			KeyMID idByMID = new KeyMID(response.getMID(), 
+					response.getDestination().getAddress(), response.getDestinationPort());
+			exchangesByMID.put(idByMID, exchange);
+		}
+		
 		if (response.getType() == Type.ACK || response.getType() == Type.NON) {
 			// Since this is an ACK or NON, the exchange is over with sending this response.
 			if (response.isLast()) {
 				exchange.setComplete();
 			}
-		} // else this is a CON and we need to wait for the ACK or RST
+		} // else this is a CON and we need to wait for the ACK or RST.
 	}
 
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
@@ -298,10 +311,11 @@ public class Matcher {
 		} else {
 			// There is no exchange with the given token.
 			if (response.getType() != Type.ACK) {
-				LOGGER.info("Response with unknown Token "+idByTok+": Rejecting "+response);
-				// This is a totally unexpected response.
-				EmptyMessage rst = EmptyMessage.newRST(response);
-				sendEmptyMessage(exchange, rst);
+				Exchange prev = deduplicator.find(idByMID);
+				if (prev != null) {
+					response.setDuplicate(true);
+					return prev;
+				}
 			}
 			// ignore response
 			return null;
@@ -331,6 +345,17 @@ public class Matcher {
 		this.exchangesByToken.clear();
 		this.ongoingExchanges.clear();
 		deduplicator.clear();
+	}
+	
+	private void removeNotificatoinsOf(ObserveRelation relation) {
+		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
+		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+			Response previous = iterator.next();
+			KeyMID idByMID = new KeyMID(previous.getMID(), 
+					previous.getDestination().getAddress(), previous.getDestinationPort());
+			exchangesByMID.remove(idByMID);
+			iterator.remove();
+		}
 	}
 	
 	private class ExchangeObserverImpl implements ExchangeObserver {
@@ -374,6 +399,12 @@ public class Matcher {
 							response.getDestination().getAddress(), response.getDestinationPort());
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
 					exchangesByMID.remove(midKey);
+				}
+				
+				// Remove all remaining NON-notifications if this exchange is an observe relation
+				ObserveRelation relation = exchange.getRelation();
+				if (relation != null) {
+					removeNotificatoinsOf(relation);
 				}
 			}
 		}
