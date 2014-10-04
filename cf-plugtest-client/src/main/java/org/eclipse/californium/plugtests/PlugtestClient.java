@@ -98,10 +98,10 @@ public class PlugtestClient {
 			}
 		}
 		
-//		testCC(uri);
-//		testCB(uri);
+		testCC(uri);
+		testCB(uri);
 		testCO(uri);
-//		testCL(uri);
+		testCL(uri);
 		
 		
 		System.exit(0);

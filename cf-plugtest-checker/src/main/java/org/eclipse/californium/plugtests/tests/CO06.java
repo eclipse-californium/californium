@@ -133,7 +133,7 @@ public class CO06 extends TestClientAbstract {
 					
 					if (response!=null) {
 						
-			            System.out.println("+++++++ Cancelling +++++++");
+			            System.out.println("+++++++ Canceling +++++++");
 			            request.cancel(); // stack should send RST
 	
 			            Thread.sleep(time + time/2);

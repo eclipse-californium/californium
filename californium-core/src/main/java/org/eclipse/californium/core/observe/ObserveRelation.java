@@ -55,6 +55,8 @@ public class ObserveRelation {
 	
 	private Response recentControlNotification;
 	private Response nextControlNotification;
+	
+	private String key = null;
 
 	/*
 	 * This value is false at first and must be set to true by the resource if
@@ -88,8 +90,10 @@ public class ObserveRelation {
 		this.resource = resource;
 		this.exchange = exchange;
 		this.established = false;
+		
+		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
 	}
-	
+				
 	/**
 	 * Returns true if this relation has been established.
 	 * @return true if this relation has been established
@@ -112,7 +116,7 @@ public class ObserveRelation {
 	 * the resource and the endpoint.
 	 */
 	public void cancel() {
-		LOGGER.info("Cancel observe relation from "+endpoint.getAddress()+" with "+resource.getURI());
+		LOGGER.info("Canceling observe relation "+getKey()+" with "+resource.getURI());
 		setEstablished(false);
 		resource.removeObserveRelation(this);
 		endpoint.removeObserveRelation(this);
@@ -201,4 +205,7 @@ public class ObserveRelation {
 		return notifications.iterator();
 	}
 	
+	public String getKey() {
+		return this.key;
+	}
 }

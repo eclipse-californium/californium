@@ -287,7 +287,6 @@ public  class CoapResource implements Resource {
 			response.getOptions().setObserve(notificationOrderer.getCurrent());
 			
 			if (!relation.isEstablished()) {
-				LOGGER.info("Successfully established observe relation between "+relation.getSource()+" and resource "+getURI());
 				relation.setEstablished(true);
 				addObserveRelation(relation);
 			} else if (observeType != null) {
@@ -665,7 +664,11 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
-		observeRelations.add(relation);
+		if (observeRelations.add(relation)) {
+			LOGGER.info("Replacing observe relation between "+relation.getKey()+" and resource "+getURI());
+		} else {
+			LOGGER.info("Successfully established observe relation between "+relation.getKey()+" and resource "+getURI());
+		}
 		for (ResourceObserver obs:observers)
 			obs.addedObserveRelation(relation);
 	}

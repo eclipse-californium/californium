@@ -2,17 +2,12 @@ package org.eclipse.californium.core.test;
 
 import junit.framework.Assert;
 
-import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoAPEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;

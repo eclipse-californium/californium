@@ -19,9 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,14 +31,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	
 	/** The set of observe relations */
-	private Set<ObserveRelation> observeRelations;
+	private ConcurrentHashMap<String, ObserveRelation> observeRelations;
 	
 	/**
 	 * Constructs a container for observe relations.
 	 */
 	public ObserveRelationContainer() {
-		this.observeRelations = Collections.newSetFromMap(
-				new ConcurrentHashMap<ObserveRelation,Boolean>());
+		this.observeRelations = new ConcurrentHashMap<String, ObserveRelation>();
 	}
 	
 	/**
@@ -52,7 +49,8 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	public boolean add(ObserveRelation relation) {
 		if (relation == null)
 			throw new NullPointerException();
-		return observeRelations.add(relation);
+		
+		return (observeRelations.put(relation.getKey(), relation) != null);
 	}
 	
 	/**
@@ -64,7 +62,7 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	public boolean remove(ObserveRelation relation) {
 		if (relation == null)
 			throw new NullPointerException();
-		return observeRelations.remove(relation);
+		return observeRelations.remove(relation.getKey())!=null;
 	}
 	
 	/**
@@ -81,7 +79,7 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	 */
 	@Override
 	public Iterator<ObserveRelation> iterator() {
-		return observeRelations.iterator();
+		return observeRelations.values().iterator();
 	}
 	
 }

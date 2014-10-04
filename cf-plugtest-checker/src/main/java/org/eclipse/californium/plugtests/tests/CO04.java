@@ -176,7 +176,7 @@ public class CO04 extends TestClientAbstract {
 					if (response!=null) {
 		            
 			            // RST to cancel
-			            System.out.println("+++++++ Cancelling +++++++");
+			            System.out.println("+++++++ Canceling +++++++");
 			            
 			            request.cancel();
 	
@@ -184,7 +184,7 @@ public class CO04 extends TestClientAbstract {
 						response = request.getResponse();
 	
 						if (response != null) {
-							System.out.println("FAIL: Notification after cancelling");
+							System.out.println("FAIL: Notification after canceling");
 							success = false;
 						} else {
 				            System.out.println("+++++++ No notification +++++++");
