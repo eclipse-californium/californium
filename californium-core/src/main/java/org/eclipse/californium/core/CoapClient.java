@@ -291,6 +291,11 @@ public class CoapClient {
 		}
 		CoapResponse links = synchronous(discover);
 		
+		// if no response, return null (e.g., timeout)
+		if (links == null) {
+			return null;
+		}
+
 		// check if Link Format
 		if (links.getOptions().getContentFormat()!=MediaTypeRegistry.APPLICATION_LINK_FORMAT)
 			return Collections.emptySet();
