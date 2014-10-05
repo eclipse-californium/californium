@@ -291,8 +291,8 @@ public class CoapClient {
 		}
 		CoapResponse links = synchronous(discover);
 		
-		// if the response is null return null (if timeout occurred)
-		if(links == null){
+		// if no response, return null (e.g., timeout)
+		if (links == null) {
 			return null;
 		}
 
