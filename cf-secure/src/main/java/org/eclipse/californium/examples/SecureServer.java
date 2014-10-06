@@ -63,7 +63,7 @@ public class SecureServer {
         pskStore.setKey("My_Identity", "TheSecretKey".getBytes());
 
         DTLSConnector connector = new DTLSConnector(new InetSocketAddress(DTLS_PORT), null);
-        connector.getConfig().setServerPsk(pskStore);
+        connector.getConfig().setPskStore(pskStore);
         server.addEndpoint(new CoAPEndpoint(connector, NetworkConfig.getStandard()));
         server.start();
 
