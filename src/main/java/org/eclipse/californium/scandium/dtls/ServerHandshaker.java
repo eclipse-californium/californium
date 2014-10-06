@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
+import org.eclipse.californium.scandium.DTLSConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
@@ -34,7 +35,6 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
-import org.eclipse.californium.scandium.dtls.cfg.ServerConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -89,7 +89,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @param pskStore
 	 *            the storage for pre-shared-keys
 	 */
-	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, ServerConnectorConfig config) { 
+	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) { 
 		super(endpointAddress, false, session,rootCerts);
 
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();

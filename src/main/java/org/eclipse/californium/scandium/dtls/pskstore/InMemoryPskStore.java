@@ -15,18 +15,27 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.pskstore;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * An in-memory pre-shared-key storage. To be used only for testing and evaluation. 
+ * An in-memory pre-shared-key storage. 
+ * If you don't need to initiate connection,
+ * you could just add identity/key with {@link #setKey(String, byte[])}.
+ * If you need to initiate connection, 
+ * you should add known peers with {@link #addKnownPeer(InetSocketAddress, String, byte[])}.
+ * 
+ * To be used only for testing and evaluation. 
  * You are supposed to store your key in a secure way: 
  * keeping them in-memory is not a good idea.
  */
 public class InMemoryPskStore implements PskStore {
 
     private Map<String, byte[]> keys = new ConcurrentHashMap<>();
+
+    private Map<InetSocketAddress, String> knownPeers = new ConcurrentHashMap<>();
 
     @Override
     public byte[] getKey(String identity) {
@@ -47,5 +56,22 @@ public class InMemoryPskStore implements PskStore {
      */
     public void setKey(String identity, byte[] key) {
         keys.put(identity, key);
+    }
+
+    /**
+     * Add a known peer. Used when we need to initiate a connection.
+     * 
+     * @param peerAddress address of known peer we need to connect to
+     * @param identity identity used for this peer
+     * @param key the key used for this the peer
+     */
+    public void addKnownPeer(InetSocketAddress peerAddress, String identity, byte[] key) {
+        knownPeers.put(peerAddress, identity);
+        keys.put(identity, key);
+    }
+
+    @Override
+    public String getIdentity(InetSocketAddress inetAddress) {
+        return knownPeers.get(inetAddress);		
     }
 }

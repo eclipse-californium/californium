@@ -21,10 +21,9 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 
+import org.eclipse.californium.scandium.DTLSConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.cfg.ServerConnectorConfig;
-
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -43,7 +42,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Constructor ////////////////////////////////////////////////////
 
 	
-	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, ServerConnectorConfig config) {
+	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) {
 		super(endpointAddress, session, rootCerts, config);
 		setSessionToResume(session);
 	}

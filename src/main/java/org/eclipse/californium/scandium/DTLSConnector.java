@@ -291,7 +291,7 @@ public class DTLSConnector extends ConnectorBase {
 									LOGGER.info("Created new session as client with peer: " + peerAddress.toString());
 								}
 							};
-							handshaker = new ClientHandshaker(peerAddress, null, session, rootCerts, config.clientConfig);
+							handshaker = new ClientHandshaker(peerAddress, null, session, rootCerts, config);
 							handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 							
 							handshakers.put(addressToKey(peerAddress), handshaker);
@@ -326,10 +326,10 @@ public class DTLSConnector extends ConnectorBase {
 								if (LOGGER.isLoggable(Level.INFO)) {
 									LOGGER.info("Created new session as server with peer: " + peerAddress.toString());
 								}
-								handshaker = new ServerHandshaker(peerAddress, session, rootCerts, config.serverConfig);
+								handshaker = new ServerHandshaker(peerAddress, session, rootCerts, config);
 								handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 							} else {
-								handshaker = new ResumingServerHandshaker(peerAddress, session, rootCerts, config.serverConfig);
+								handshaker = new ResumingServerHandshaker(peerAddress, session, rootCerts, config);
 								handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 							}
 							handshakers.put(addressToKey(peerAddress), handshaker);
@@ -432,7 +432,7 @@ public class DTLSConnector extends ConnectorBase {
 			// start fresh handshake
 			session = new DTLSSession(peerAddress, true);
 			dtlsSessions.put(addressToKey(peerAddress), session);
-			handshaker = new ClientHandshaker(peerAddress, message, session, rootCerts, config.clientConfig);
+			handshaker = new ClientHandshaker(peerAddress, message, session, rootCerts, config);
 			handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 			
 		} else {
@@ -444,7 +444,7 @@ public class DTLSConnector extends ConnectorBase {
 				
 			} else {
 				// try resuming session
-				handshaker = new ResumingClientHandshaker(peerAddress, message, session, rootCerts, config.clientConfig);
+				handshaker = new ResumingClientHandshaker(peerAddress, message, session, rootCerts, config);
 				handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
 			}
 			
