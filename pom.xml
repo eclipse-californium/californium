@@ -11,7 +11,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>scandium</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0-M1</version>
 	<packaging>jar</packaging>
 
 	<name>Scandium (Sc)</name>
@@ -83,7 +83,7 @@
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>element-connector</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.0.0-M1</version>
 		</dependency>
 	</dependencies>
 
