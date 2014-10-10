@@ -16,9 +16,12 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -84,7 +87,7 @@ public class CertificateVerify extends HandshakeMessage {
 	 * @param signatureBytes
 	 *            the signature.
 	 */
-	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes) {
+	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes) {
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 		this.signatureBytes = signatureBytes;
 	}
@@ -185,8 +188,8 @@ public class CertificateVerify extends HandshakeMessage {
 
 			verified = signature.verify(signatureBytes);
 
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not verify the client's signature.",e);
+		} catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException e) {
+			LOGGER.log(Level.SEVERE,"Could not verify the client's signature.", e);
 		}
 		
 		if (!verified) {

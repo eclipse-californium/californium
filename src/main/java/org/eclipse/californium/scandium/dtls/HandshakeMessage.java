@@ -61,11 +61,19 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	private int fragmentOffset = -1;
 
 	/**
-	 * The length of this fragment. An unfragmented message is a degenerate case
+	 * The length of this fragment. A non-fragmented message is a degenerate case
 	 * with fragment_offset=0 and fragment_length=length.
 	 */
 	private int fragmentLength = -1;
-
+	
+    /**
+     * Used to store the message this instance has been created from.
+     * Only set if this message has been received from a client, i.e. we're the server
+     * in the handshake. The rawMessage is used to calculate the hash/message digest value
+     * sent in the <em>Finished</em> message.
+     */
+    private byte[] rawMessage;
+    
 	// Abstract methods ///////////////////////////////////////////////
 
 	/**
@@ -132,7 +140,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		writer.write(fragmentOffset, FRAGMENT_OFFSET_BITS);
 		
 		if (fragmentLength < 0) {
-			// unfragmented message is a degenerate case with fragment_offset=0
+			// non-fragmented message is a degenerate case with fragment_offset=0
 			// and fragment_length=length
 			fragmentLength = getMessageLength();
 		}
@@ -240,7 +248,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			LOGGER.severe("Unknown handshake type: " + type);
 			break;
 		}
-
+		
+		body.rawMessage = byteArray;
 		body.setFragmentLength(fragmentLength);
 		body.setFragmentOffset(fragmentOffset);
 		body.setMessageSeq(messageSeq);
@@ -277,5 +286,18 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	public void setFragmentOffset(int fragmentOffset) {
 		this.fragmentOffset = fragmentOffset;
 	}
+
+	/**
+	 * Gets the raw bytes of the message received from a client that this instance
+	 * has been created from.
+	 * The raw message is used for calculating the handshake hash sent in the
+	 * <em>Finished</em> message.
+	 * 
+	 * @return the message or <code>null</code> if this instance has not been
+	 * created from a message received from a client.
+	 */
+    protected byte[] getRawMessage() {
+        return rawMessage;
+    }
 
 }

@@ -83,7 +83,8 @@ public class Random {
 		byte b1 = randomBytes[1];
 		byte b2 = randomBytes[2];
 		byte b3 = randomBytes[3];
-		int gmtUnixTime = ((0xFF & b0) << 24) | ((0xFF & b1) << 16) | ((0xFF & b2) << 8) | (0xFF & b3);
+		
+		long gmtUnixTime = ((0xFF & b0) << 24) | ((0xFF & b1) << 16) | ((0xFF & b2) << 8) | (0xFF & b3);
 
 		Date date = new Date(gmtUnixTime * 1000L);
 
