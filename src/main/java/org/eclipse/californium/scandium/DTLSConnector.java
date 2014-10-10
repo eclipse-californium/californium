@@ -226,13 +226,10 @@ public class DTLSConnector extends ConnectorBase {
 						if (LOGGER.isLoggable(Level.FINE)) {
 							LOGGER.fine("Received CLOSE_NOTIFY from " + peerAddress.toString());
 						}
-						// server must reply with CLOSE_NOTIFY
-						if (!session.isClient()) {
-							DTLSMessage closeNotify = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
-							flight = new DTLSFlight();
-							flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), closeNotify, session));
-							flight.setRetransmissionNeeded(false);
-						}
+						DTLSMessage closeNotify = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
+						flight = new DTLSFlight();
+						flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), closeNotify, session));
+						flight.setRetransmissionNeeded(false);
 						
 						if (dtlsSessions.remove(addressToKey(peerAddress))!=null) {
 							if (LOGGER.isLoggable(Level.INFO)) {
