@@ -117,7 +117,7 @@ public abstract class Handshaker {
 	/** The next expected handshake message sequence number. */
 	private int nextReceiveSeq = 0;
 
-	/** The CoAP {@link Message} that needs encryption. */
+	/** The raw UDP message that needs encryption. */
 	protected RawData message = null;
 
 	/** Queue for messages, that can not yet be processed. */

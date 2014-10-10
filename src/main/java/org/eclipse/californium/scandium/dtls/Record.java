@@ -89,7 +89,7 @@ public class Record {
 	/**
 	 * Creates a record representing a DTLSCiphertext struct received from the network.
 	 * Called when reconstructing the record from a byte array. The fragment
-	 * will remain in its binary representation up to the {@link DTLSLayer}.
+	 * will remain in its binary representation up to the DTLS Layer.
 	 * 
 	 * @param type
 	 * @param version
