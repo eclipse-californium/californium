@@ -27,11 +27,11 @@ import java.util.logging.Logger;
  * ConnectorBase is a partial implementation of a {@link Connector}. It connects
  * a server to a network interface and a port. ConnectorBase contains two
  * separate threads for sending and receiving. The receiver thread constantly
- * calls {@link #receiveNext()} which is supposed to listen on a socket until a
- * datagram arrives and forward it to the {@link RawDataChannel2}. The sender
- * thread constantly calls {@link #sendNext() which is supposed to wait on the
+ * calls #receiveNext() which is supposed to listen on a socket until a
+ * datagram arrives and forward it to the {@link RawDataChannel}. The sender
+ * thread constantly calls #sendNext() which is supposed to wait on the
  * outgoing queue for a {@link RawData} message to send. Both
- * {@link #sendNext()} and {@link #receiveNext()} are expected to be blocking.
+ * #sendNext() and #receiveNext() are expected to be blocking.
  */
 public abstract class ConnectorBase implements Connector {
 	
@@ -159,9 +159,6 @@ public abstract class ConnectorBase implements Connector {
 		senderThread.start();
 	}
 
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.connector.Connector#stop()
-	 */
 	@Override
 	public synchronized void stop() {
 		if (!running) return;
@@ -179,9 +176,6 @@ public abstract class ConnectorBase implements Connector {
 	@Override
 	public synchronized void destroy() { }
 
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.connector.Connector#send(ch.inf.vs.californium.network.RawData)
-	 */
 	@Override
 	public void send(RawData msg) {
 		if (msg == null)
@@ -189,9 +183,6 @@ public abstract class ConnectorBase implements Connector {
 		outgoing.add(msg);
 	}
 
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.connector.Connector#setRawDataReceiver(ch.inf.vs.californium.network.RawDataChannel)
-	 */
 	@Override
 	public void setRawDataReceiver(RawDataChannel receiver) {
 		this.receiver = receiver;
@@ -215,9 +206,6 @@ public abstract class ConnectorBase implements Connector {
 			setDaemon(true);
 		}
 
-		/* (non-Javadoc)
-		 * @see java.lang.Thread#run()
-		 */
 		public void run() {
 			try {
 				LOGGER.info("Start "+getName()+", (running = "+running+")");
