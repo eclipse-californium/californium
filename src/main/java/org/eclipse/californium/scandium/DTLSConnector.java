@@ -473,7 +473,20 @@ public class DTLSConnector extends ConnectorBase {
 		flight.setSession(session);
 		sendFlight(flight);
 	}
-	
+
+	/**
+	 * Returns the {@link DTLSSession} related to the given peer address.
+	 * 
+	 * @param address the peer address
+	 * @return the {@link DTLSSession} or <code>null</code> if no session found.
+	 */
+	public DTLSSession getSessionByAddress(InetSocketAddress address) {
+		if (address == null) {
+			return null;
+		}
+		return dtlsSessions.get(addressToKey(address));
+	}
+
 	/**
 	 * Searches through all stored sessions and returns that session which
 	 * matches the session identifier or <code>null</code> if no such session
