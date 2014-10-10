@@ -90,9 +90,12 @@ public class ClientHello extends HandshakeMessage {
 	// Constructors ///////////////////////////////////////////////////////////
 
 	/**
-	 * 
-	 * @param version
-	 * @param secureRandom
+	 * Creates a <em>Client Hello</em> message to be sent to a server.
+	 *  
+	 * @param version the protocol version to use
+	 * @param secureRandom a function to use for creating random values included in the message
+	 * @param <code>true</code> if this client prefers <em>raw public keys</em> over <em>X.509</em>
+	 * certificates to be used for (mutual) authentication 
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey) {
 	    
@@ -147,14 +150,15 @@ public class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Constructor used when resuming a session; session ID must be known.
+	 * Creates a <em>Client Hello</em> message to be used for resuming an existing
+	 * DTLS session.
 	 * 
 	 * @param version
-	 *            the version
+	 *            the protocol version to use
 	 * @param secureRandom
-	 *            the secure random
+	 *            a function to use for creating random values included in the message
 	 * @param session
-	 *            the session
+	 *            the (already existing) DTLS session to resume
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session) {
 		this.clientVersion = version;
@@ -166,92 +170,79 @@ public class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Constructor used when reconstructing from byteArray.
-	 * 
-	 * @param clientVersion
-	 *            the requested version.
-	 * @param random
-	 *            the client the client's random.
-	 * @param sessionId
-	 *            the session id (potentially empty).
-	 * @param cookie
-	 *            the cookie (potentially empty).
-	 * @param cipherSuites
-	 *            the available cipher suites.
-	 * @param compressionMethods
-	 *            the available compression methods.
-	 * @param extensions
-	 *            the extensions (potentially empty).
+	 * Creates an empty message instance.
+	 * This constructor is only used by the {@link #fromByteArray(byte[]) method.
 	 */
-	public ClientHello(ProtocolVersion clientVersion, Random random, SessionId sessionId, Cookie cookie, List<CipherSuite> cipherSuites, List<CompressionMethod> compressionMethods, HelloExtensions extensions) {
-		this.clientVersion = clientVersion;
-		this.random = random;
-		this.sessionId = sessionId;
-		this.cookie = cookie;
-		this.cipherSuites = cipherSuites;
-		this.compressionMethods = compressionMethods;
-		this.extensions = extensions;
+	private ClientHello() {
+	    
 	}
+	
 
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
 
-		DatagramWriter writer = new DatagramWriter();
+        DatagramWriter writer = new DatagramWriter();
 
-		writer.write(clientVersion.getMajor(), VERSION_BITS);
-		writer.write(clientVersion.getMinor(), VERSION_BITS);
+        writer.write(clientVersion.getMajor(), VERSION_BITS);
+        writer.write(clientVersion.getMinor(), VERSION_BITS);
 
-		writer.writeBytes(random.getRandomBytes());
+        writer.writeBytes(random.getRandomBytes());
 
-		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getSessionId());
+        writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
+        writer.writeBytes(sessionId.getSessionId());
 
-		writer.write(cookie.length(), COOKIE_LENGTH);
-		writer.writeBytes(cookie.getCookie());
+        writer.write(cookie.length(), COOKIE_LENGTH);
+        writer.writeBytes(cookie.getCookie());
 
-		writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
-		writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
+        writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
+        writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
 
-		writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
-		writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
+        writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
+        writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
 
-		if (extensions != null) {
-			writer.writeBytes(extensions.toByteArray());
-		}
+        if (extensions != null) {
+            writer.writeBytes(extensions.toByteArray());
+        }
 
-		return writer.toByteArray();
+        return writer.toByteArray();
 	}
 
+	/**
+	 * Creates a new ClientObject instance from its byte representation.
+	 * 
+	 * @param byteArray the bytes representing the message
+	 * @return the ClientHello object
+	 * @throws HandshakeException if any of the extensions included in the message is of an unsupported type
+	 */
 	public static HandshakeMessage fromByteArray(byte[] byteArray) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
+		ClientHello result = new ClientHello();
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
-		ProtocolVersion clientVersion = new ProtocolVersion(major, minor);
-
-		Random random = new Random(reader.readBytes(RANDOM_BYTES));
+		result.clientVersion = new ProtocolVersion(major, minor);
+		
+		result.random = new Random(reader.readBytes(RANDOM_BYTES));
 
 		int sessionIdLength = reader.read(SESSION_ID_LENGTH_BITS);
-		SessionId sessionId = new SessionId(reader.readBytes(sessionIdLength));
+		result.sessionId = new SessionId(reader.readBytes(sessionIdLength));
 
 		int cookieLength = reader.read(COOKIE_LENGTH);
-		Cookie cookie = new Cookie(reader.readBytes(cookieLength));
+		result.cookie = new Cookie(reader.readBytes(cookieLength));
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		List<CipherSuite> cipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength), cipherSuitesLength / 2); // 2
+		result.cipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength), cipherSuitesLength / 2); // 2
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
-		List<CompressionMethod> compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength), compressionMethodsLength);
+		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength), compressionMethodsLength);
 
 		byte[] bytesLeft = reader.readBytesLeft();
-		HelloExtensions extensions = null;
 		if (bytesLeft.length > 0) {
-			extensions = HelloExtensions.fromByteArray(bytesLeft);
+			result.extensions = HelloExtensions.fromByteArray(bytesLeft);
 		}
-
-		return new ClientHello(clientVersion, random, sessionId, cookie, cipherSuites, compressionMethods, extensions);
+		return result;
 
 	}
 

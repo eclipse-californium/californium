@@ -64,18 +64,14 @@ public class ServerHandshaker extends Handshaker {
 	 * Store all the messages which can possibly be sent by the client. We
 	 * need these to compute the handshake hash.
 	 */
-	/** The client's {@link ClientHello}. Mandatory. */
-	protected ClientHello clientHello;
 	/** The client's {@link CertificateMessage}. Optional. */
 	protected CertificateMessage clientCertificate = null;
 	/** The client's {@link ClientKeyExchange}. mandatory. */
 	protected ClientKeyExchange clientKeyExchange;
 	/** The client's {@link CertificateVerify}. Optional. */
 	protected CertificateVerify certificateVerify = null;
-	/** The client's {@link Finished} message. Mandatory. */
-	protected Finished clientFinished;
 	
-	/** Used to retrive pre-shared-key from a given client identity */
+	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
 	
 	// Constructors ///////////////////////////////////////////////////
@@ -176,7 +172,7 @@ public class ServerHandshaker extends Handshaker {
 					AlertMessage alertMessage = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 					throw new HandshakeException("Unknown key exchange algorithm: " + keyExchange, alertMessage);
 				}
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
+				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.getRawMessage());
 				break;
 
 			case CERTIFICATE_VERIFY:
@@ -238,11 +234,12 @@ public class ServerHandshaker extends Handshaker {
 		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
 		
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
+		// TODO why don't we also update the MessageDigest at this point?
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
 	}
 
 	/**
-	 * Verifies the clien's CertificateVerify message and if verification fails,
+	 * Verifies the client's CertificateVerify message and if verification fails,
 	 * aborts and sends Alert message.
 	 * 
 	 * @param message
@@ -284,17 +281,16 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		DTLSFlight flight = new DTLSFlight();
-		clientFinished = message;
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
-			md.update(clientCertificate.toByteArray());
+			md.update(clientCertificate.getRawMessage());
 		}
 
-		md.update(clientKeyExchange.toByteArray()); // mandatory
+		md.update(clientKeyExchange.getRawMessage()); // mandatory
 
 		if (certificateVerify != null) { // optional
-			md.update(certificateVerify.toByteArray());
+			md.update(certificateVerify.getRawMessage());
 		}
 
 		MessageDigest mdWithClientFinished = null;
@@ -306,14 +302,14 @@ public class ServerHandshaker extends Handshaker {
 			 * the prior one.
 			 */
 			mdWithClientFinished = (MessageDigest) md.clone();
-			mdWithClientFinished.update(clientFinished.toByteArray());
+			mdWithClientFinished.update(message.toByteArray());
 		} catch (CloneNotSupportedException e) {
-			LOGGER.log(Level.SEVERE,"Clone not supported.",e);
+			LOGGER.log(Level.SEVERE, "Cannot compute digest for server's Finish handshake message", e);
 		}
 
 		// Verify client's data
 		byte[] handshakeHash = md.digest();
-		clientFinished.verifyData(getMasterSecret(), true, handshakeHash);
+		message.verifyData(getMasterSecret(), true, handshakeHash);
 
 		/*
 		 * First, send ChangeCipherSpec
@@ -362,15 +358,14 @@ public class ServerHandshaker extends Handshaker {
 			// client has set a cookie, so it is a response to
 			// HelloVerifyRequest
 
-			// store the message and update the handshake hash
-			clientHello = message;
-			md.update(clientHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.toByteArray());
+			// update the handshake hash
+			md.update(message.getRawMessage());
+			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, message.getRawMessage());
 
 			/*
 			 * First, send ServerHello (mandatory)
 			 */
-			ProtocolVersion serverVersion = negotiateProtocolVersion(clientHello.getClientVersion());
+			ProtocolVersion serverVersion = negotiateProtocolVersion(message.getClientVersion());
 
 			// store client and server random
 			clientRandom = message.getRandom();
@@ -379,7 +374,7 @@ public class ServerHandshaker extends Handshaker {
 			SessionId sessionId = new SessionId();
 			session.setSessionIdentifier(sessionId);
 
-			CipherSuite cipherSuite = negotiateCipherSuite(clientHello.getCipherSuites());
+			CipherSuite cipherSuite = negotiateCipherSuite(message.getCipherSuites());
 			setCipherSuite(cipherSuite);
 
 			// currently only NULL compression supported, no negotiation needed
@@ -388,7 +383,7 @@ public class ServerHandshaker extends Handshaker {
 			
 			
 			HelloExtensions extensions = null;
-			ClientCertificateTypeExtension clientCertificateTypeExtension = clientHello.getClientCertificateTypeExtension();
+			ClientCertificateTypeExtension clientCertificateTypeExtension = message.getClientCertificateTypeExtension();
 			if (clientCertificateTypeExtension != null) {
 				// choose certificate type from client's list
 				CertificateType certType = negotiateCertificateType(clientCertificateTypeExtension);
@@ -404,7 +399,7 @@ public class ServerHandshaker extends Handshaker {
 				}
 			}
 			
-			CertificateTypeExtension serverCertificateTypeExtension = clientHello.getServerCertificateTypeExtension();
+			CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
 			if (serverCertificateTypeExtension != null) {
 				// choose certificate type from client's list
 				CertificateType certType = negotiateCertificateType(serverCertificateTypeExtension);
@@ -445,10 +440,10 @@ public class ServerHandshaker extends Handshaker {
 			/*
 			 * Second, send Certificate (if required by key exchange algorithm)
 			 */
-			CertificateMessage certificate = null;
+			CertificateMessage certificateMessage = null;
 			switch (keyExchange) {
 			case EC_DIFFIE_HELLMAN:
-				certificate = new CertificateMessage(certificates, session.sendRawPublicKey());
+				certificateMessage = new CertificateMessage(certificates, session.sendRawPublicKey());
 				break;
 
 			default:
@@ -456,10 +451,10 @@ public class ServerHandshaker extends Handshaker {
 				// See http://tools.ietf.org/html/rfc4279#section-2
 				break;
 			}
-			if (certificate != null) {
-				flight.addMessage(wrapMessage(certificate));
-				md.update(certificate.toByteArray());
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificate.toByteArray());
+			if (certificateMessage != null) {
+				flight.addMessage(wrapMessage(certificateMessage));
+				md.update(certificateMessage.toByteArray());
+				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
 			}
 
 			/*
@@ -472,7 +467,7 @@ public class ServerHandshaker extends Handshaker {
 			case EC_DIFFIE_HELLMAN:
 				// TODO SHA256withECDSA is default but should be configurable
 				signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-				int namedCurveId = negotiateNamedCurve(clientHello.getSupportedEllipticCurvesExtension());
+				int namedCurveId = negotiateNamedCurve(message.getSupportedEllipticCurvesExtension());
 				ecdhe = new ECDHECryptography(namedCurveId);
 				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom, namedCurveId);
 				break;
@@ -495,7 +490,7 @@ public class ServerHandshaker extends Handshaker {
 			/*
 			 * Fourth, send CertificateRequest for client (if required)
 			 */
-			if (clientAuthenticationRequired && signatureAndHashAlgorithm!=null) {
+			if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
 
 				CertificateRequest certificateRequest = new CertificateRequest();
 				
