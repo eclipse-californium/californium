@@ -68,11 +68,9 @@ public class ProxyHttpServer {
 	/**
 	 * Instantiates a new proxy endpoint.
 	 * 
-	 * @param udpPort
-	 *            the udp port
 	 * @param httpPort
 	 *            the http port
-	 * @throws SocketException
+	 * @throws IOException
 	 *             the socket exception
 	 */
 	public ProxyHttpServer(int httpPort) throws IOException {

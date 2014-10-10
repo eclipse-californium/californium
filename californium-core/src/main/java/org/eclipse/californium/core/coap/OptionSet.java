@@ -33,7 +33,7 @@ import org.eclipse.californium.core.Utils;
  * the CoAP, blockwise CoAP, observing CoAP and supports arbitrary defined
  * options.
  * <p>
- * Noteice that this class is not entirely thread-safe: hasObserve => (int) getObserve()
+ * Noteice that this class is not entirely thread-safe: hasObserve =&gt; (int) getObserve()
  */
 public class OptionSet {
 

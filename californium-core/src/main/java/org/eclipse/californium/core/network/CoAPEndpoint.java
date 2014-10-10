@@ -70,7 +70,7 @@ import org.eclipse.californium.elements.UDPConnector;
  * 
  * <pre>
  * +-----------------------+
- * |   {@link MessageDeliverer}    +--> (Resource Tree)
+ * |   {@link MessageDeliverer}    +--&gt; (Resource Tree)
  * +-------------A---------+
  *               |
  *             * A            

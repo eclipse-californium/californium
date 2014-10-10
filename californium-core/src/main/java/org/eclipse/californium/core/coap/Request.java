@@ -176,11 +176,10 @@ public class Request extends Message {
 	/**
 	 * This is a convenience method to set the reques's options for host, port
 	 * and path with a string of the form
-	 * <code>[scheme]://[host]:[port]{/resource}*?{&query}*</code>
+	 * <code>[scheme]://[host]:[port]{/resource}*?{&amp;query}*</code>
 	 * 
 	 * @param uri the URI defining the target resource
 	 * @return this request
-	 * @throws IllegalAccessException if the URI is not valid
 	 */
 	public Request setURI(String uri) {
 		try {

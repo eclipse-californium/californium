@@ -77,7 +77,7 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
  *   public void handlePOST(CoapExchange exchange) {
  *     exchange.accept();
  * 
- *     List<String> queries = exchange.getRequestOptions().getURIQueries();
+ *     List&lt;String&gt; queries = exchange.getRequestOptions().getURIQueries();
  *     // ...
  *     exchange.respond(ResponseCode.CREATED);
  *   }

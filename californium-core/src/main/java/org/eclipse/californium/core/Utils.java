@@ -75,7 +75,7 @@ public class Utils {
 	}
 
 	/**
-	 * Formats a {@link CoapReponse} into a readable String representation. 
+	 * Formats a {@link CoapResponse} into a readable String representation. 
 	 * 
 	 * @param r the CoapResponse
 	 * @return the pretty print

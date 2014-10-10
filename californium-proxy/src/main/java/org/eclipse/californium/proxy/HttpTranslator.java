@@ -189,7 +189,6 @@ public final class HttpTranslator {
 	 * 
 	 * @param headers
 	 * 
-	 * @return List<Option>
 	 */
 	public static List<Option> getCoapOptions(Header[] headers) {
 		if (headers == null) {

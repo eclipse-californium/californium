@@ -37,9 +37,9 @@ import java.util.Arrays;
  * For a given option number {@code onum} we can compute
  * 
  * <hr><blockquote><pre>
- * Critical = (onum & 1);
- * UnSafe = (onum & 2);
- * NoCacheKey = ((onum & 0x1e) == 0x1c);
+ * Critical = (onum &amp; 1);
+ * UnSafe = (onum &amp; 2);
+ * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
  * </pre></blockquote><hr>
  * 
  * CoAP defines several option numbers {@link CoAP.OptionRegistry}.

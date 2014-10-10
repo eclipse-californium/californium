@@ -73,7 +73,7 @@ public interface ServerInterface {
 	/**
 	 * Adds one or more resources to the server.
 	 * 
-	 * @param resource the resource
+	 * @param resources the resources
 	 * @return the server
 	 */
 	ServerInterface add(Resource... resources);
