@@ -97,8 +97,6 @@ public class ClientHandshaker extends Handshaker {
 	 *            the message
 	 * @param session
 	 *            the session
-	 * @param pskStore
-	 *            storage for the pre-shared-keys 
 	 */
 	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,Certificate[] rootCerts, DTLSConnectorConfig config) {
 		super(endpointAddress, true, session,rootCerts);

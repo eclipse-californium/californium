@@ -86,8 +86,6 @@ public class ServerHandshaker extends Handshaker {
 	 *            the peer's address.
 	 * @param session
 	 *            the {@link DTLSSession}.
-	 * @param pskStore
-	 *            the storage for pre-shared-keys
 	 */
 	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) { 
 		super(endpointAddress, false, session,rootCerts);

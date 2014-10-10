@@ -48,7 +48,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 
 	/**
 	 * For the client: a list of certificate types the client supports, sorted
-	 * by client preference.<br />
+	 * by client preference.<br>
 	 * For the server: the certificate selected by the server out of the
 	 * client's list.
 	 */

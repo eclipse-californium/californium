@@ -46,7 +46,7 @@ public class Finished extends HandshakeMessage {
 
 	/**
 	 * Generates the verify data according to <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>:<br />
+	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>:<br>
 	 * <code>PRF(master_secret,
 	 * finished_label, Hash(handshake_messages))</code>.
 	 * 
