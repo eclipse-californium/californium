@@ -8,7 +8,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>root</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.0.0-M2</version>
 	</parent>
 	<artifactId>cf-plugtest-server</artifactId>
 	<packaging>jar</packaging>
