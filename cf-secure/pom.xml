@@ -25,7 +25,7 @@
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>scandium</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 	</dependencies>
@@ -90,5 +90,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
 </project>
