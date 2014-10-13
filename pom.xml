@@ -7,12 +7,12 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.6</project.build.javaVersion>
-		<element.connector.version>1.0.0-SNAPSHOT</element.connector.version>
+		<element.connector.version>${project.version}</element.connector.version>
 	</properties>
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>root</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0-M2</version>
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Root</name>
