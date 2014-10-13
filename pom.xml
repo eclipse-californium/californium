@@ -11,7 +11,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>element-connector</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0-M2</version>
 	<packaging>jar</packaging>
 
 	<name>element-connector</name>
@@ -84,6 +84,12 @@
 			<activation>
 				<activeByDefault>false</activeByDefault>
 			</activation>
+			<distributionManagement>
+				<repository>
+					<id>ossrh</id>
+					<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+				</repository>
+			</distributionManagement>
 			<build>
 				<plugins>
 					<plugin>
@@ -113,7 +119,6 @@
 							</execution>
 						</executions>
 					</plugin>
-
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
