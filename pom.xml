@@ -32,7 +32,11 @@
 			<url>http://www.eclipse.org/org/documents/edl-v10.php</url>
 		</license>
 	</licenses>
-
+    <scm>
+        <developerConnection>scm:git:ssh://git@github.com/eclipse/californium.git</developerConnection>
+		<url>https://github.com/eclipse/californium</url>
+        <tag>HEAD</tag>
+    </scm>
 	<developers>
 		<developer>
 			<id>mkovatsch</id>
