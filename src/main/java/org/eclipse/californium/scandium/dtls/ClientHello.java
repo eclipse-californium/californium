@@ -94,7 +94,7 @@ public class ClientHello extends HandshakeMessage {
 	 *  
 	 * @param version the protocol version to use
 	 * @param secureRandom a function to use for creating random values included in the message
-	 * @param <code>true</code> if this client prefers <em>raw public keys</em> over <em>X.509</em>
+	 * @param useRawPublicKey <code>true</code> if this client prefers <em>raw public keys</em> over <em>X.509</em>
 	 * certificates to be used for (mutual) authentication 
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey) {
