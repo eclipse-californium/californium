@@ -16,11 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
-import javax.xml.ws.Endpoint;
-import javax.xml.ws.Response;
-
-import org.omg.CORBA.Request;
-
 /**
  * This is the interface needed between a CoAP stack and a connector. The
  * connector forwards raw data to the method receiveData() and the CoAP stack
