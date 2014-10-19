@@ -42,7 +42,7 @@ import java.util.Arrays;
  * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
  * </pre></blockquote><hr>
  * 
- * CoAP defines several option numbers {@link CoAP.OptionRegistry}.
+ * CoAP defines several option numbers {@link OptionNumberRegistry}.
  */
 public class Option implements Comparable<Option> {
 
@@ -308,6 +308,56 @@ public class Option implements Comparable<Option> {
 	 */
 	@Override
 	public String toString() {
-		return "("+OptionNumberRegistry.toString(number)+":"+Arrays.toString(value)+")";
+		StringBuilder sb = new StringBuilder();
+		sb.append(OptionNumberRegistry.toString(number));
+		sb.append(": ");
+		sb.append(toValueString());
+		return sb.toString();
+	}
+	
+	/**
+	 * Renders the option value as string.
+	 * 
+	 * @return the option value as string
+	 */
+	public String toValueString() {
+		switch (OptionNumberRegistry.getFormatByNr(number)) {
+		case INTEGER:
+			if (number==OptionNumberRegistry.ACCEPT || number==OptionNumberRegistry.CONTENT_FORMAT) return "\""+MediaTypeRegistry.toString(getIntegerValue())+"\"";
+			else return Integer.toString(getIntegerValue());
+		case STRING:
+			return "\""+this.getStringValue()+"\"";
+		default:
+			return toHexString(this.getValue());
+		}
+	}
+	
+	/*
+	 * Converts the specified byte array to a hexadecimal string.
+	 *
+	 * @param bytes the byte array
+	 * @return the hexadecimal code string
+	 */
+	private String toHexString(byte[] bytes) {
+		   StringBuilder sb = new StringBuilder();
+		   sb.append("0x");
+		   for(byte b:bytes)
+		      sb.append(String.format("%02x", b & 0xFF));
+		   return sb.toString();
+	}
+	
+	public static int bytes2int(byte[] array) {
+		int ret = 0;
+		for (int i=0;i<array.length;i++) {
+			ret += (array[array.length - i - 1] & 0xFF) << (i*8);
+		}
+		return ret;
+	}
+	public static long bytes2long(byte[] array) {
+		long ret = 0;
+		for (int i=0;i<array.length;i++) {
+			ret += (array[array.length - i - 1] & 0xFF) << (i*8);
+		}
+		return ret;
 	}
 }

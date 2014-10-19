@@ -60,7 +60,6 @@ import org.apache.http.message.BasicRequestLine;
 import org.apache.http.message.BasicStatusLine;
 import org.apache.http.util.EntityUtils;
 import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.OptionRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Message;
@@ -217,7 +216,7 @@ public final class HttpTranslator {
 				}
 	
 				// get the option number
-				int optionNumber = OptionRegistry.RESERVED_0;
+				int optionNumber = OptionNumberRegistry.RESERVED_0;
 				try {
 					optionNumber = Integer.parseInt(optionCodeString.trim());
 				} catch (Exception e) {
@@ -228,7 +227,7 @@ public final class HttpTranslator {
 	
 				// ignore the content-type because it will be handled within the
 				// payload
-				if (optionNumber == OptionRegistry.CONTENT_FORMAT) {
+				if (optionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
 					continue;
 				}
 	
@@ -237,7 +236,7 @@ public final class HttpTranslator {
 	
 				// if the option is accept, it needs to translate the
 				// values
-				if (optionNumber == OptionRegistry.ACCEPT) {
+				if (optionNumber == OptionNumberRegistry.ACCEPT) {
 					// remove the part where the client express the weight of each
 					// choice
 					headerValue = headerValue.trim().split(";")[0].trim();
@@ -262,7 +261,7 @@ public final class HttpTranslator {
 							}
 						}
 					}
-				} else if (optionNumber == OptionRegistry.MAX_AGE) {
+				} else if (optionNumber == OptionNumberRegistry.MAX_AGE) {
 					int maxAge = 0;
 					if (!headerValue.contains("no-cache")) {
 						headerValue = headerValue.split(",")[0];
@@ -458,9 +457,6 @@ public final class HttpTranslator {
 				}
 
 				// the uri will be set as a proxy-uri option
-				// set the proxy-uri option to allow the lower layers to underes
-//				Option proxyUriOption = new Option(uriString, OptionRegistry.PROXY_URI);
-//				coapRequest.addOption(proxyUriOption);
 				coapRequest.getOptions().setProxyURI(uriString);
 			} else {
 				coapRequest.setURI(uriString);
@@ -470,8 +466,6 @@ public final class HttpTranslator {
 			try {
 				// TODO check with multihomed hosts
 				InetAddress localHostAddress = InetAddress.getLocalHost();
-//				InetSocketAddress localHostEndpoint = new InetSocketAddress(localHostAddress);
-//				coapRequest.setPeerAddress(localHostEndpoint);
 				coapRequest.setDestination(localHostAddress);
 				// TODO: setDestinationPort???
 			} catch (UnknownHostException e) {
@@ -483,8 +477,6 @@ public final class HttpTranslator {
 			// request is local to the proxy and it shouldn't be forwarded
 
 			// set the uri string as uri-path option
-//			Option uriPathOption = new Option(uriString, OptionRegistry.URI_PATH);
-//			coapRequest.setOption(uriPathOption);
 			coapRequest.getOptions().setURIPath(uriString);
 		}
 
@@ -577,13 +569,12 @@ public final class HttpTranslator {
 		for (Option option:coapOptions)
 			coapResponse.getOptions().addOption(option);
 
-		// the response should indicate a max-age value (CoAP 10.1.1)
-//		if (coapResponse.getFirstOption(OptionRegistry.MAX_AGE) == null) {
+		// the response should indicate a max-age value (RFC 7252, Section 10.1.1)
 		if (!coapResponse.getOptions().hasMaxAge()) {
 			// The Max-Age Option for responses to POST, PUT or DELETE requests
 			// should always be set to 0 (draft-castellani-core-http-mapping).
 			if (coapMethod == Code.GET) {
-				coapResponse.getOptions().setMaxAge(OptionNumberRegistry.DEFAULT_MAX_AGE);
+				coapResponse.getOptions().setMaxAge(OptionNumberRegistry.Defaults.MAX_AGE);
 			} else {
 				coapResponse.getOptions().setMaxAge(0);
 			}
@@ -743,7 +734,7 @@ public final class HttpTranslator {
 			// the payload; skip proxy-uri because it has to be translated in a
 			// different way
 			int optionNumber = option.getNumber();
-			if (optionNumber != OptionRegistry.CONTENT_FORMAT && optionNumber != OptionRegistry.PROXY_URI) {
+			if (optionNumber != OptionNumberRegistry.CONTENT_FORMAT && optionNumber != OptionNumberRegistry.PROXY_URI) {
 				// get the mapping from the property file
 				String headerName = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_OPTION + optionNumber);
 
@@ -764,7 +755,7 @@ public final class HttpTranslator {
 
 					// custom handling for max-age
 					// format: cache-control: max-age=60
-					if (optionNumber == OptionRegistry.MAX_AGE) {
+					if (optionNumber == OptionNumberRegistry.MAX_AGE) {
 						stringOptionValue = "max-age=" + stringOptionValue;
 					}
 
@@ -919,7 +910,7 @@ public final class HttpTranslator {
 
 		// set max-age if not already set
 		if (!httpResponse.containsHeader("cache-control")) {
-			httpResponse.setHeader("cache-control", "max-age=" + Integer.toString(OptionNumberRegistry.DEFAULT_MAX_AGE));
+			httpResponse.setHeader("cache-control", "max-age=" + Long.toString(OptionNumberRegistry.Defaults.MAX_AGE));
 		}
 
 		// get the http entity if the request was not HEAD

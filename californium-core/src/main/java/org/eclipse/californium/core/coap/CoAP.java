@@ -29,6 +29,7 @@ package org.eclipse.californium.core.coap;
  * <li>Option numbers</li>
  * <li>Message format</li>
  * </ul>
+ * @see OptionNumberRegistry
  * @see MediaTypeRegistry
  */
 public class CoAP {
@@ -43,8 +44,8 @@ public class CoAP {
 	}
 	
 	/**
-	 * CoAP defines four types of messages: Confirmable, Non-confirmable,
-	 * Acknowledgment, Reset;.
+	 * CoAP defines four types of messages:
+	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
 	 */
 	public enum Type {
 		
@@ -54,7 +55,7 @@ public class CoAP {
 		/** The Non-confirmable. */
 		NON(1),
 		
-		/** The Acknowledgment */
+		/** The Acknowledgment. */
 		ACK(2),
 		
 		/** The Reject. */
@@ -235,50 +236,6 @@ public class CoAP {
 		
 		public static boolean isServerError(ResponseCode code) {
 			return INTERNAL_SERVER_ERROR.value <= code.value;
-		}
-	}
-
-	/**
-	 * CoAP Option Number Registry.
-	 */
-	public static class OptionRegistry {
-		
-		// draft-ietf-core-coap-14
-		public static final int RESERVED_0 =      0;
-		public static final int IF_MATCH =        1;
-		public static final int URI_HOST =        3;
-		public static final int ETAG =            4;
-		public static final int IF_NONE_MATCH =   5;
-		public static final int URI_PORT =        7;
-		public static final int LOCATION_PATH =   8;
-		public static final int URI_PATH =       11;
-		public static final int CONTENT_FORMAT = 12;
-		public static final int MAX_AGE =        14;
-		public static final int URI_QUERY =      15;
-		public static final int ACCEPT =         17;
-		public static final int LOCATION_QUERY = 20;
-		public static final int PROXY_URI =      35;
-		public static final int PROXY_SCHEME =   39;
-		public static final int RESERVED_1 =    128;
-		public static final int RESERVED_2 =    132;
-		public static final int RESERVED_3 =    136;
-		public static final int RESERVED_4 =    140;
-
-		// draft-ietf-core-observe-08
-		public static final int OBSERVE = 6;
-	
-		// draft-ietf-core-block-10
-		public static final int BLOCK2 = 23;
-		public static final int BLOCK1 = 27;
-		public static final int SIZE =   28;
-		
-		/**
-		 * Option Number Registry default values.
-		 */
-		public static class Default {
-			
-			/** The default MAX_AGE. */
-			public static final long MAX_AGE = 60L;
 		}
 	}
 	

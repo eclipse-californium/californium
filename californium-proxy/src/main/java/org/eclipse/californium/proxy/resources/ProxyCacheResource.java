@@ -51,7 +51,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	/**
 	 * The time after which an entry is removed. Since it is not possible to set
 	 * the expiration for the single instances, this constant represent the
-	 * upper bound for the cache. The real lifetime will be handled explicitely
+	 * upper bound for the cache. The real lifetime will be handled explicitly
 	 * with the max-age option.
 	 */
 	private static final int CACHE_RESPONSE_MAX_AGE = 
@@ -149,10 +149,9 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 					// calculate the new parameters
 					long newCurrentTime = response.getTimestamp();
-					int newMaxAge = maxAgeOption.intValue();
+					long newMaxAge = maxAgeOption.longValue();
 
 					// set the new parameters
-//					cachedResponse.getFirstOption(OptionNumberRegistry.MAX_AGE).setIntValue(newMaxAge);
 					cachedResponse.getOptions().setMaxAge(newMaxAge);
 					cachedResponse.setTimestamp(newCurrentTime);
 
@@ -165,7 +164,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 //				Option maxAgeOption = response.getFirstOption(OptionNumberRegistry.MAX_AGE);
 				Long maxAgeOption = response.getOptions().getMaxAge();
 				if (maxAgeOption == null) {
-					response.getOptions().setMaxAge(OptionNumberRegistry.DEFAULT_MAX_AGE);
+					response.getOptions().setMaxAge(OptionNumberRegistry.Defaults.MAX_AGE);
 				}
 
 				if (maxAgeOption > 0) {
@@ -240,7 +239,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 			// check if the response is expired
 			long currentTime = System.nanoTime();
-			int nanosLeft = getRemainingLifetime(response, currentTime);
+			long nanosLeft = getRemainingLifetime(response, currentTime);
 			if (nanosLeft > 0) {
 				// if the response can be used, then update its max-age to
 				// consider the aging of the response while in the cache
@@ -304,7 +303,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		exchange.respond(ResponseCode.CHANGED, content);
 	}
 
-	private int getRemainingLifetime(Response response) {
+	private long getRemainingLifetime(Response response) {
 		return getRemainingLifetime(response, System.nanoTime());
 	}
 
@@ -320,15 +319,14 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 * @param currentTime
 	 * @return true, if is expired
 	 */
-	private int getRemainingLifetime(Response response, long currentTime) {
+	private long getRemainingLifetime(Response response, long currentTime) {
 		// get the timestamp
 		long arriveTime = response.getTimestamp();
-
-//		Option maxAgeOption = response.getFirstOption(OptionNumberRegistry.MAX_AGE);
+		
 		Long maxAgeOption = response.getOptions().getMaxAge();
-		int oldMaxAge = OptionNumberRegistry.DEFAULT_MAX_AGE;
+		long oldMaxAge = OptionNumberRegistry.Defaults.MAX_AGE;
 		if (maxAgeOption != null) {
-			oldMaxAge = maxAgeOption.intValue();
+			oldMaxAge = maxAgeOption.longValue();
 		}
 
 		// calculate the time that the response has spent in the cache

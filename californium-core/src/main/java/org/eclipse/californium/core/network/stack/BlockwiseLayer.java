@@ -538,7 +538,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	/**
 	 * Encodes a block size into a 3-bit SZX value as specified by
-	 * draft-ietf-core-block-03, section-2.1:
+	 * draft-ietf-core-block-14, Section-2.2:
 	 * 
 	 * 16 bytes = 2^4 --> 0
 	 * ... 

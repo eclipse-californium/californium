@@ -138,7 +138,7 @@ public class ProxyProperties extends java.util.Properties {
 
 		/* CoAP Protocol constants */
 
-		// default CoAP port as defined in draft-ietf-core-coap-05, section 7.1:
+		// default CoAP port as defined in RFC 7252, Section 6.1:
 		// MUST be supported by a server for resource discovery and
 		// SHOULD be supported for providing access to other resources.
 		set("DEFAULT_PORT", 5683);
@@ -230,7 +230,7 @@ public class ProxyProperties extends java.util.Properties {
 		// the maximum fragment size before DTLS fragmentation must be applied
 		set("MAX_FRAGMENT_LENGTH", 200); // [bytes]
 
-		// the initial timer value for retransmission; rfc6347, section: 4.2.4.1
+		// the initial timer value for retransmission; RFC 6347, Section: 4.2.4.1
 		set("RETRANSMISSION_TIMEOUT", 1000); // [milliseconds]
 
 		// the identity hint when using the pre-shared key mode

@@ -19,44 +19,87 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-
 /**
  * This class describes the CoAP Option Number Registry as defined in
- * draft-ietf-core-coap-18, section 12.2.
- * 
+ * RFC 7252, Section 12.2 and other CoAP extensions.
  */
 public final class OptionNumberRegistry {
+	public static final int UNKNOWN			= -1;
 	
-	public static final int DEFAULT_MAX_AGE = 60;
-	
-	// draft-ietf-core-coap-18
-	public static final int RESERVED_0 = 0;
-	public static final int IF_MATCH = 1;
-	public static final int URI_HOST = 3;
-	public static final int ETAG = 4;
-	public static final int IF_NONE_MATCH = 5;
-	public static final int URI_PORT = 7;
-	public static final int LOCATION_PATH = 8;
-	public static final int URI_PATH = 11;
-	public static final int CONTENT_TYPE = 12;
-	public static final int MAX_AGE = 14;
-	public static final int URI_QUERY = 15;
-	public static final int ACCEPT = 16;
-	public static final int LOCATION_QUERY = 20;
-	public static final int PROXY_URI = 35;
-	public static final int PROXY_SCHEME = 39;
+	// RFC 7252
+	public static final int RESERVED_0		= 0;
+	public static final int IF_MATCH		= 1;
+	public static final int URI_HOST		= 3;
+	public static final int ETAG			= 4;
+	public static final int IF_NONE_MATCH	= 5;
+	public static final int URI_PORT		= 7;
+	public static final int LOCATION_PATH	= 8;
+	public static final int URI_PATH		= 11;
+	public static final int CONTENT_FORMAT	= 12;
+	public static final int MAX_AGE			= 14;
+	public static final int URI_QUERY		= 15;
+	public static final int ACCEPT			= 17;
+	public static final int LOCATION_QUERY	= 20;
+	public static final int PROXY_URI		= 35;
+	public static final int PROXY_SCHEME	= 39;
+	public static final int SIZE1			= 60;
+	public static final int RESERVED_1		= 128;
+	public static final int RESERVED_2		= 132;
+	public static final int RESERVED_3		= 136;
+	public static final int RESERVED_4		= 140;
 
-	// draft-ietf-core-observe-13
-	public static final int OBSERVE = 6;
+	// draft-ietf-core-observe-14
+	public static final int OBSERVE			= 6;
 
 	// draft-ietf-core-block-14
-	public static final int BLOCK2 = 23;
-	public static final int BLOCK1 = 27;
-	public static final int SIZE = 28;
+	public static final int BLOCK2			= 23;
+	public static final int BLOCK1			= 27;
+	public static final int SIZE2			= 28;
 
-	// derived constant
-	public static final int TOKEN_LEN = 8;
-	public static final int ETAG_LEN = 8;
+	/**
+	 * Option names.
+	 */
+	public static class Names {
+		public static final String Reserved 		= "Reserved";
+		
+		public static final String If_Match 		= "If-Match";
+		public static final String Uri_Host 		= "Uri-Host";
+		public static final String ETag 			= "ETag";
+		public static final String If_None_Match 	= "If-None-Match";
+		public static final String Uri_Port 		= "Uri-Port";
+		public static final String Location_Path 	= "Location-Path";
+		public static final String Uri_Path 		= "Uri-Path";
+		public static final String Content_Format	= "Content-Format";
+		public static final String Max_Age 			= "Max-Age";
+		public static final String Uri_Query 		= "Uri-Query";
+		public static final String Accept 			= "Accept";
+		public static final String Location_Query 	= "Location-Query";
+		public static final String Proxy_Uri 		= "Proxy-Uri";
+		public static final String Proxy_Scheme		= "Proxy-Scheme";
+		public static final String Size1			= "Size1";
+
+		public static final String Observe			= "Observe";
+
+		public static final String Block2			= "Block2";
+		public static final String Block1			= "Block1";
+		public static final String Size2			= "Size2";
+	}
+	
+	/**
+	 * Option default values.
+	 */
+	public static class Defaults {
+		
+		/** The default Max-Age. */
+		public static final long MAX_AGE = 60L;
+	}
+
+	/**
+	 * The format types of CoAP options.
+	 */
+	public static enum optionFormats {
+		INTEGER, STRING, OPAQUE, UNKNOWN
+	}
 
 	/**
 	 * Returns the option format based on the option number.
@@ -67,13 +110,14 @@ public final class OptionNumberRegistry {
 	 */
 	public static optionFormats getFormatByNr(int optionNumber) {
 		switch (optionNumber) {
-		case CONTENT_TYPE:
+		case CONTENT_FORMAT:
 		case MAX_AGE:
 		case URI_PORT:
 		case OBSERVE:
 		case BLOCK2:
 		case BLOCK1:
-		case SIZE:
+		case SIZE2:
+		case SIZE1:
 		case IF_NONE_MATCH:
 		case ACCEPT:
 			return optionFormats.INTEGER;
@@ -174,7 +218,7 @@ public final class OptionNumberRegistry {
 	 */
 	public static boolean isSingleValue(int optionNumber) {
 		switch (optionNumber) {
-		case CONTENT_TYPE:
+		case CONTENT_FORMAT:
 		case MAX_AGE:
 		case PROXY_URI:
 		case PROXY_SCHEME:
@@ -216,56 +260,77 @@ public final class OptionNumberRegistry {
 	public static String toString(int optionNumber) {
 		switch (optionNumber) {
 		case RESERVED_0:
-			return "Reserved (0)";
-		case CONTENT_TYPE:
-			return "Content-Type";
-		case MAX_AGE:
-			return "Max-Age";
-		case PROXY_URI:
-			return "Proxy-Uri";
-		case ETAG:
-			return "ETag";
-		case URI_HOST:
-			return "Uri-Host";
-		case LOCATION_PATH:
-			return "Location-Path";
-		case URI_PORT:
-			return "Uri-Port";
-		case LOCATION_QUERY:
-			return "Location-Query";
-		case URI_PATH:
-			return "Uri-Path";
-		case OBSERVE:
-			return "Observe";
-		case ACCEPT:
-			return "Accept";
+		case RESERVED_1:
+		case RESERVED_2:
+		case RESERVED_3:
+		case RESERVED_4:
+			return Names.Reserved;
 		case IF_MATCH:
-			return "If-Match";
-		case URI_QUERY:
-			return "Uri-Query";
-		case BLOCK2:
-			return "Block2";
-		case BLOCK1:
-			return "Block1";
-		case SIZE:
-			return "Size";
+			return Names.If_Match;
+		case URI_HOST:
+			return Names.Uri_Host;
+		case ETAG:
+			return Names.ETag;
 		case IF_NONE_MATCH:
-			return "If-None-Match";
+			return Names.If_None_Match;
+		case URI_PORT:
+			return Names.Uri_Port;
+		case LOCATION_PATH:
+			return Names.Location_Path;
+		case URI_PATH:
+			return Names.Uri_Path;
+		case CONTENT_FORMAT:
+			return Names.Content_Format;
+		case MAX_AGE:
+			return Names.Max_Age;
+		case URI_QUERY:
+			return Names.Uri_Query;
+		case ACCEPT:
+			return Names.Accept;
+		case LOCATION_QUERY:
+			return Names.Location_Query;
+		case PROXY_URI:
+			return Names.Proxy_Uri;
 		case PROXY_SCHEME:
-			return "Proxy-Scheme";
+			return Names.Proxy_Scheme;
+		case OBSERVE:
+			return Names.Observe;
+		case BLOCK2:
+			return Names.Block2;
+		case BLOCK1:
+			return Names.Block1;
+		case SIZE2:
+			return Names.Size2;
+		case SIZE1:
+			return Names.Size1;
 		default:
-			return String.format("Unknown option [%d]", optionNumber);
+			return String.format("Unknown (%d)", optionNumber);
 		}
+	}
+	
+	public static int toNumber(String name) {
+		if (Names.If_Match.equals(name))			return IF_MATCH;
+		else if (Names.Uri_Host.equals(name))		return URI_HOST;
+		else if (Names.ETag.equals(name)) 			return ETAG;
+		else if (Names.If_None_Match.equals(name)) return IF_NONE_MATCH;
+		else if (Names.Uri_Port.equals(name))		return URI_PORT;
+		else if (Names.Location_Path.equals(name))	return LOCATION_PATH;
+		else if (Names.Uri_Path.equals(name))		return URI_PATH;
+		else if (Names.Content_Format.equals(name))return CONTENT_FORMAT;
+		else if (Names.Max_Age.equals(name)) 		return MAX_AGE;
+		else if (Names.Uri_Query.equals(name))		return URI_QUERY;
+		else if (Names.Accept.equals(name))		return ACCEPT;
+		else if (Names.Location_Query.equals(name))return LOCATION_QUERY;
+		else if (Names.Proxy_Uri.equals(name)) 	return PROXY_URI;
+		else if (Names.Proxy_Scheme.equals(name)) 	return PROXY_SCHEME;
+		else if (Names.Observe.equals(name))		return OBSERVE;
+		else if (Names.Block2.equals(name))		return BLOCK2;
+		else if (Names.Block1.equals(name))		return BLOCK1;
+		else if (Names.Size2.equals(name))			return SIZE2;
+		else if (Names.Size1.equals(name))			return SIZE1;
+		else return UNKNOWN;
 	}
 
 	private OptionNumberRegistry() {
 	}
-
-	/**
-	 * The Enum optionFormats.
-	 */
-	public static enum optionFormats {
-		INTEGER, STRING, OPAQUE, UNKNOWN
-	}
-
 }

@@ -70,7 +70,7 @@ public class Response extends Message {
 			payload = "\""+payload+"\"";
 			if (payload.length() != len+2) payload += ".. " + payload.length() + " bytes";
 		}
-		return String.format("%s-%-6s MID=%5d, Token=[%s], %s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
+		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
 	}
 	
 	/**

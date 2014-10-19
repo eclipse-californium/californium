@@ -35,7 +35,6 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -147,7 +146,7 @@ public class DataParser {
 				option.setValue(reader.readBytes(optionLength));
 				
 				// add option to message
-				addOptionToSet(option, message.getOptions());
+				message.getOptions().addOption(option);
 			} else break;
 		}
 		
@@ -163,33 +162,9 @@ public class DataParser {
 		}
 	}
 	
-	// TODO: Can we optimize this a little by not creating new option objects for known options
-	private void addOptionToSet(Option option, OptionSet optionSet) {
-		switch (option.getNumber()) {
-			case CoAP.OptionRegistry.IF_MATCH:       optionSet.addIfMatch(option.getValue()); break;
-			case CoAP.OptionRegistry.URI_HOST:       optionSet.setURIHost(option.getStringValue()); break;
-			case CoAP.OptionRegistry.ETAG:           optionSet.addETag(option.getValue()); break;
-			case CoAP.OptionRegistry.IF_NONE_MATCH:  optionSet.setIfNoneMatch(true); break;
-			case CoAP.OptionRegistry.URI_PORT:       optionSet.setURIPort(option.getIntegerValue()); break;
-			case CoAP.OptionRegistry.LOCATION_PATH:  optionSet.addLocationPath(option.getStringValue()); break;
-			case CoAP.OptionRegistry.URI_PATH:       optionSet.addURIPath(option.getStringValue()); break;
-			case CoAP.OptionRegistry.CONTENT_FORMAT: optionSet.setContentFormat(option.getIntegerValue()); break;
-			case CoAP.OptionRegistry.MAX_AGE:        optionSet.setMaxAge(option.getLongValue()); break;
-			case CoAP.OptionRegistry.URI_QUERY:      optionSet.addURIQuery(option.getStringValue()); break;
-			case CoAP.OptionRegistry.ACCEPT:         optionSet.setAccept(option.getIntegerValue()); break;
-			case CoAP.OptionRegistry.LOCATION_QUERY: optionSet.addLocationQuery(option.getStringValue()); break;
-			case CoAP.OptionRegistry.PROXY_URI:      optionSet.setProxyURI(option.getStringValue()); break;
-			case CoAP.OptionRegistry.PROXY_SCHEME:   optionSet.setProxyScheme(option.getStringValue()); break;
-			case CoAP.OptionRegistry.BLOCK1:         optionSet.setBlock1(option.getValue()); break;
-			case CoAP.OptionRegistry.BLOCK2:         optionSet.setBlock2(option.getValue()); break;
-			case CoAP.OptionRegistry.OBSERVE:        optionSet.setObserve(option.getIntegerValue()); break;
-			default: optionSet.addOption(option);
-		}
-	}
-	
 	/**
 	 * Calculates the value used in the extended option fields as specified in
-	 * draft-ietf-core-coap-14, section 3.1
+	 * RFC 7252, Section 3.1
 	 * 
 	 * @param nibble
 	 *            the 4-bit option header value.

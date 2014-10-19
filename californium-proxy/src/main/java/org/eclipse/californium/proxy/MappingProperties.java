@@ -224,7 +224,7 @@ public class MappingProperties extends java.util.Properties {
 		
 
 		/* HTTP header options */
-		set("http.message.header.content-type", OptionNumberRegistry.CONTENT_TYPE);
+		set("http.message.header.content-type", OptionNumberRegistry.CONTENT_FORMAT);
 		set("http.message.header.accept", OptionNumberRegistry.ACCEPT);
 		set("http.message.header.if-match", OptionNumberRegistry.IF_MATCH);
 		set("http.message.header.if-none-match", OptionNumberRegistry.IF_NONE_MATCH);
@@ -232,7 +232,7 @@ public class MappingProperties extends java.util.Properties {
 		set("http.message.header.cache-control", OptionNumberRegistry.MAX_AGE);
 		
 		/* CoAP header options */
-		set("coap.message.option."+OptionNumberRegistry.CONTENT_TYPE, "Content-Type");
+		set("coap.message.option."+OptionNumberRegistry.CONTENT_FORMAT, "Content-Type");
 		set("coap.message.option."+OptionNumberRegistry.MAX_AGE, "Cache-Control");
 		set("coap.message.option."+OptionNumberRegistry.ETAG, "Etag");
 		set("coap.message.option."+OptionNumberRegistry.LOCATION_PATH, "Location");

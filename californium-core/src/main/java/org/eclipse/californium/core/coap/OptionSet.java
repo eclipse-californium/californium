@@ -58,6 +58,8 @@ public class OptionSet {
 	private String       proxy_scheme;
 	private BlockOption  block1;
 	private BlockOption  block2;
+	private Integer      size1;
+	private Integer      size2;
 	private Integer      observe;
 	
 	// Arbitrary options
@@ -85,6 +87,8 @@ public class OptionSet {
 		proxy_scheme        = null;
 		block1              = null;
 		block2              = null;
+		size1               = null;
+		size2               = null;
 		observe             = null;
 		
 		others              = null; // new LinkedList<>();
@@ -436,7 +440,8 @@ public class OptionSet {
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setContentFormat(int format) {
-		content_format = format;
+		if (format > MediaTypeRegistry.UNDEFINED) content_format = format;
+		else content_format = null;
 		return this;
 	}
 	
@@ -452,7 +457,7 @@ public class OptionSet {
 	 */
 	public Long getMaxAge() {
 		Long m = max_age;
-		return m != null ? m : OptionNumberRegistry.DEFAULT_MAX_AGE;
+		return m != null ? m : OptionNumberRegistry.Defaults.MAX_AGE;
 	}
 	
 	// Remember that the absence of a Max-Age option means its
@@ -700,6 +705,38 @@ public class OptionSet {
 	public void removeBlock2() {
 		this.block2 = null;
 	}
+
+	public Integer getSize1() {
+		return size1;
+	}
+	
+	public boolean hasSize1() {
+		return size1 != null;
+	}
+
+	public void setSize1(int size) {
+		this.size1 = size;
+	}
+	
+	public void removeSize1() {
+		this.size1 = null;
+	}
+	
+	public Integer getSize2() {
+		return size2;
+	}
+	
+	public boolean hasSize2() {
+		return size2 != null;
+	}
+
+	public void setSize2(int size) {
+		this.size2 = size;
+	}
+	
+	public void removeSize2() {
+		this.size2 = null;
+	}
 	
 	public Integer getObserve() {
 		return observe;
@@ -741,127 +778,125 @@ public class OptionSet {
 	 */
 	public List<Option> asSortedList() {
 		ArrayList<Option> options = new ArrayList<Option>();
-		if (if_match_list != null) for (byte[] value:if_match_list)
-			options.add(new Option(CoAP.OptionRegistry.IF_MATCH, value));
-		if (hasURIHost())
-			options.add(new Option(CoAP.OptionRegistry.URI_HOST, getURIHost()));
-		if (etag_list != null) for (byte[] value:etag_list)
-			options.add(new Option(CoAP.OptionRegistry.ETAG, value));
-		if (hasIfNoneMatch())
-			options.add(new Option(CoAP.OptionRegistry.IF_NONE_MATCH));
-		if (hasURIPort())
-			options.add(new Option(CoAP.OptionRegistry.URI_PORT, getURIPort()));
-		if (location_path_list != null) for (String str:location_path_list)
-			options.add(new Option(CoAP.OptionRegistry.LOCATION_PATH, str));
-		if (uri_path_list != null) for (String str:uri_path_list)
-			options.add(new Option(CoAP.OptionRegistry.URI_PATH, str));
-		if (hasContentFormat())
-			options.add(new Option(CoAP.OptionRegistry.CONTENT_FORMAT, getContentFormat()));
-		if (hasMaxAge())
-			options.add(new Option(CoAP.OptionRegistry.MAX_AGE, getMaxAge()));
-		if (uri_query_list != null) for (String str:uri_query_list)
-			options.add(new Option(CoAP.OptionRegistry.URI_QUERY, str));
-		if (hasAccept())
-			options.add(new Option(CoAP.OptionRegistry.ACCEPT, getAccept()));
-		if (location_query_list != null) for (String str:location_query_list)
-			options.add(new Option(CoAP.OptionRegistry.LOCATION_QUERY, str));
-		if (hasProxyURI())
-			options.add(new Option(CoAP.OptionRegistry.PROXY_URI, getProxyURI()));
-		if (hasProxyScheme())
-			options.add(new Option(CoAP.OptionRegistry.PROXY_SCHEME, getProxyScheme()));
 		
-		if (hasBlock1())
-			options.add(new Option(CoAP.OptionRegistry.BLOCK1, getBlock1().getValue()));
-		if (hasBlock2())
-			options.add(new Option(CoAP.OptionRegistry.BLOCK2, getBlock2().getValue()));
+		if (if_match_list != null) for (byte[] value:if_match_list)
+			options.add(new Option(OptionNumberRegistry.IF_MATCH, value));
+		if (hasURIHost())
+			options.add(new Option(OptionNumberRegistry.URI_HOST, getURIHost()));
+		if (etag_list != null) for (byte[] value:etag_list)
+			options.add(new Option(OptionNumberRegistry.ETAG, value));
+		if (hasIfNoneMatch())
+			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH));
+		if (hasURIPort())
+			options.add(new Option(OptionNumberRegistry.URI_PORT, getURIPort()));
+		if (location_path_list != null) for (String str:location_path_list)
+			options.add(new Option(OptionNumberRegistry.LOCATION_PATH, str));
+		if (uri_path_list != null) for (String str:uri_path_list)
+			options.add(new Option(OptionNumberRegistry.URI_PATH, str));
+		if (hasContentFormat())
+			options.add(new Option(OptionNumberRegistry.CONTENT_FORMAT, getContentFormat()));
+		if (hasMaxAge())
+			options.add(new Option(OptionNumberRegistry.MAX_AGE, getMaxAge()));
+		if (uri_query_list != null) for (String str:uri_query_list)
+			options.add(new Option(OptionNumberRegistry.URI_QUERY, str));
+		if (hasAccept())
+			options.add(new Option(OptionNumberRegistry.ACCEPT, getAccept()));
+		if (location_query_list != null) for (String str:location_query_list)
+			options.add(new Option(OptionNumberRegistry.LOCATION_QUERY, str));
+		if (hasProxyURI())
+			options.add(new Option(OptionNumberRegistry.PROXY_URI, getProxyURI()));
+		if (hasProxyScheme())
+			options.add(new Option(OptionNumberRegistry.PROXY_SCHEME, getProxyScheme()));
 		
 		if (hasObserve())
-			options.add(new Option(CoAP.OptionRegistry.OBSERVE, getObserve()));
+			options.add(new Option(OptionNumberRegistry.OBSERVE, getObserve()));
+		
+		if (hasBlock1())
+			options.add(new Option(OptionNumberRegistry.BLOCK1, getBlock1().getValue()));
+		if (hasBlock2())
+			options.add(new Option(OptionNumberRegistry.BLOCK2, getBlock2().getValue()));
+		if (hasSize1())
+			options.add(new Option(OptionNumberRegistry.SIZE1, getSize1()));
+		if (hasSize2())
+			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
 		
 		if (others != null)
 			options.addAll(others);
-
+		
 		Collections.sort(options);
 		return options;
 	}
 
-	// Arbitrary or CoAP defined option
-	public OptionSet addOption(Option o) {
-		getOthers().add(o);
+	/**
+	 * Allows adding arbitrary options. Known options are checked
+	 * if they repeatable.
+	 * 
+	 * @param option
+	 * @return this OptionSet
+	 */
+	public OptionSet addOption(Option option) {
+		switch (option.getNumber()) {
+			case OptionNumberRegistry.IF_MATCH:       addIfMatch(option.getValue()); break;
+			case OptionNumberRegistry.URI_HOST:       setURIHost(option.getStringValue()); break;
+			case OptionNumberRegistry.ETAG:           addETag(option.getValue()); break;
+			case OptionNumberRegistry.IF_NONE_MATCH:  setIfNoneMatch(true); break;
+			case OptionNumberRegistry.URI_PORT:       setURIPort(option.getIntegerValue()); break;
+			case OptionNumberRegistry.LOCATION_PATH:  addLocationPath(option.getStringValue()); break;
+			case OptionNumberRegistry.URI_PATH:       addURIPath(option.getStringValue()); break;
+			case OptionNumberRegistry.CONTENT_FORMAT: setContentFormat(option.getIntegerValue()); break;
+			case OptionNumberRegistry.MAX_AGE:        setMaxAge(option.getLongValue()); break;
+			case OptionNumberRegistry.URI_QUERY:      addURIQuery(option.getStringValue()); break;
+			case OptionNumberRegistry.ACCEPT:         setAccept(option.getIntegerValue()); break;
+			case OptionNumberRegistry.LOCATION_QUERY: addLocationQuery(option.getStringValue()); break;
+			case OptionNumberRegistry.PROXY_URI:      setProxyURI(option.getStringValue()); break;
+			case OptionNumberRegistry.PROXY_SCHEME:   setProxyScheme(option.getStringValue()); break;
+			case OptionNumberRegistry.BLOCK1:         setBlock1(option.getValue()); break;
+			case OptionNumberRegistry.BLOCK2:         setBlock2(option.getValue()); break;
+			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
+			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
+			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
+			default: getOthers().add(option);
+		}
 		return this;
 	}
 	
 	@Override
 	public String toString() {
-		List<String> os = new ArrayList<String>();
-		if (if_match_list != null && getIfMatchCount() > 0)
-			os.add("If-Match="+toHexString(if_match_list));
-		if (hasURIHost())
-			os.add("URI-Host="+uri_host);
-		if (etag_list != null && getETagCount() > 0)
-			os.add("ETag="+toHexString(etag_list));
-		if (hasIfNoneMatch())
-			os.add("If-None-Match="+if_none_match);
-		if (hasURIPort())
-			os.add("URI-Port="+uri_port);
-		if (location_path_list != null && getLocationPathCount() > 0)
-			os.add("Location-Path="+Arrays.toString(location_path_list.toArray()));
-		if (uri_path_list != null && getURIPathCount() > 0)
-			os.add("URI-Path="+Arrays.toString(uri_path_list.toArray()));
-		if (hasContentFormat())
-			os.add("Content-Format="+content_format);
-		if (hasMaxAge() /*&& max_age != CoAP.OptionRegistry.Default.MAX_AGE*/)
-			os.add("Max-Age="+max_age);
-		if (uri_query_list != null && getURIQueryCount() > 0)
-			os.add("URI-Query="+Arrays.toString(uri_query_list.toArray()));
-		if (hasAccept())
-			os.add("Accept="+accept);
-		if (location_query_list != null && getLocationQueryCount() > 0)
-			os.add("Location-Query="+Arrays.toString(location_query_list.toArray()));
-		if (hasProxyURI())
-			os.add("Proxy-URI="+proxy_uri);
-		if (hasProxyScheme())
-			os.add("Proxy-Scheme="+proxy_scheme);
+		StringBuilder sb = new StringBuilder();
+		StringBuilder sbv = new StringBuilder();
+		int oldNr = -1;
+		boolean list = false;
+
+		sb.append('{');
 		
-		if (hasBlock1())
-			os.add("Block1="+block1);
-		if (hasBlock2())
-			os.add("Block2="+block2);
+		for (Option opt : asSortedList()) {
+			if (opt.getNumber()!=oldNr) {
+				if (oldNr!=-1) {
+					if (list) sbv.append(']');
+					sb.append(sbv.toString());
+					sbv = new StringBuilder();
+					sb.append(", ");
+				} else {
+				}
+				list = false;
+				
+				sb.append('"');
+				sb.append(OptionNumberRegistry.toString(opt.getNumber()));
+				sb.append('"');
+				sb.append(':');
+			} else {
+				if (!list) sbv.insert(0, '[');
+				list = true;
+				sbv.append(",");
+			}
+			sbv.append(opt.toValueString());
+			
+			oldNr = opt.getNumber();
+		}
+		if (list) sbv.append(']');
+		sb.append(sbv.toString());
+		sb.append('}');
 		
-		if (hasObserve())
-			os.add("Observe="+observe);
-		
-		if (others != null)
-			for (Option o:others)
-				os.add(o.toString());
-		
-		return "OptionSet="+Arrays.toString(os.toArray());
-	}
-		
-	/**
-	 * Converts a list of byte arrays to a string where each byte array is
-	 * represented in hexadecimal code.
-	 * 
-	 * @param list the list of byte arrays
-	 * @return the string with hexadecimal encoding.
-	 */
-	private String toHexString(List<byte[]> list) {
-		List<String> hexs = new ArrayList<String>(list.size());
-		for (byte[] bytes:list)
-			hexs.add(toHexString(bytes));
-		return Arrays.toString(hexs.toArray());
-	}
-	
-	/**
-	 * Converts the specified byte array to a hexadecimal string.
-	 *
-	 * @param bytes the byte array
-	 * @return the hexadecimal code string
-	 */
-	private String toHexString(byte[] bytes) {
-		   StringBuilder sb = new StringBuilder();
-		   for(byte b:bytes)
-		      sb.append(String.format("%02x", b & 0xFF));
-		   return sb.toString();
+		return sb.toString();
 	}
 }

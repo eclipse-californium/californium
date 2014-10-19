@@ -297,6 +297,7 @@ public abstract class Message {
 	 * empty string.
 	 * 
 	 * @param payload the payload
+	 * @param mediaType the Internet Media Type
 	 * @throws NullPointerException if the payload is null
 	 * @see MediaTypeRegistry
 	 */

@@ -24,7 +24,7 @@ import junit.framework.Assert;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.CoAP.OptionRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -144,8 +144,8 @@ public class OptionTest {
 		options.addOption(new Option(17));
 
 		// Check that options are in the set
-		Assert.assertTrue(options.hasOption(OptionRegistry.ETAG));
-		Assert.assertTrue(options.hasOption(OptionRegistry.LOCATION_PATH));
+		Assert.assertTrue(options.hasOption(OptionNumberRegistry.ETAG));
+		Assert.assertTrue(options.hasOption(OptionNumberRegistry.LOCATION_PATH));
 		Assert.assertTrue(options.hasOption(7));
 		Assert.assertTrue(options.hasOption(17));
 		Assert.assertTrue(options.hasOption(33));
@@ -157,6 +157,21 @@ public class OptionTest {
 		
 		// Check that we can remove options
 		options.clearETags();
-		Assert.assertFalse(options.hasOption(OptionRegistry.ETAG));
+		Assert.assertFalse(options.hasOption(OptionNumberRegistry.ETAG));
+	}
+	
+	@Test
+	public void testToString() {
+		OptionSet options = new OptionSet();
+		options.addETag(new byte[] {1, 2, 3});
+		options.addETag(new byte[] {(byte)0xBE, (byte)0xEF});
+		options.addLocationPath("abc");
+		options.setURIPath("/this/is/a/test");
+		
+		Assert.assertEquals("{\"ETag\":[0x010203,0xbeef], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"]}", options.toString());
+
+		options.setMaxAge(77);
+		
+		Assert.assertEquals("{\"ETag\":[0x010203,0xbeef], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"], \"Max-Age\":77}", options.toString());
 	}
 }

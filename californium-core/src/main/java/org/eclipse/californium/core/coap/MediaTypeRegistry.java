@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 
 /**
  * This class describes the CoAP Media Type Registry as defined in
- * draft-ietf-core-coap-18, section 12.3.
+ * RFC 7252, Section 12.3.
  */
 public class MediaTypeRegistry {
 
@@ -89,24 +89,6 @@ public class MediaTypeRegistry {
 	}
 
 	// Static Functions ////////////////////////////////////////////////////////
-
-//	public static int contentNegotiation(int defaultCt, List<Integer> supported, List<Option> accepted) {
-//
-//		if (accepted.size() == 0) {
-//			return defaultCt;
-//		}
-//
-//		// get prioritized
-//		for (Option accept : accepted) {
-//
-//			if (supported.contains(accept.getIntValue())) {
-//				return accept.getIntValue();
-//			}
-//		}
-//
-//		// not acceptable
-//		return UNDEFINED;
-//	}
 
 	public static Set<Integer> getAllMediaTypes() {
 		return registry.keySet();
@@ -180,7 +162,7 @@ public class MediaTypeRegistry {
 		if (texts != null) {
 			return texts[1];
 		} else {
-			return "unknown";
+			return "unknown_" + mediaType;
 		}
 	}
 
@@ -190,7 +172,7 @@ public class MediaTypeRegistry {
 		if (texts != null) {
 			return texts[0];
 		} else {
-			return "Unknown media type: " + mediaType;
+			return "unknown/" + mediaType;
 		}
 	}
 
