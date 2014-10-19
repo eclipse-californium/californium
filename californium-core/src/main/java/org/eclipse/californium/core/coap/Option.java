@@ -162,7 +162,7 @@ public class Option implements Comparable<Option> {
 	 * @return the string value
 	 */
 	public String getStringValue() {
-		return new String(value);
+		return new String(value, CoAP.UTF8_CHARSET);
 	}
 	
 	/**
@@ -210,7 +210,7 @@ public class Option implements Comparable<Option> {
 	public void setStringValue(String str) {
 		if (str == null)
 			throw new NullPointerException();
-		value = str.getBytes();
+		value = str.getBytes(CoAP.UTF8_CHARSET);
 	}
 	
 	/**
@@ -344,20 +344,5 @@ public class Option implements Comparable<Option> {
 		   for(byte b:bytes)
 		      sb.append(String.format("%02x", b & 0xFF));
 		   return sb.toString();
-	}
-	
-	public static int bytes2int(byte[] array) {
-		int ret = 0;
-		for (int i=0;i<array.length;i++) {
-			ret += (array[array.length - i - 1] & 0xFF) << (i*8);
-		}
-		return ret;
-	}
-	public static long bytes2long(byte[] array) {
-		long ret = 0;
-		for (int i=0;i<array.length;i++) {
-			ret += (array[array.length - i - 1] & 0xFF) << (i*8);
-		}
-		return ret;
 	}
 }

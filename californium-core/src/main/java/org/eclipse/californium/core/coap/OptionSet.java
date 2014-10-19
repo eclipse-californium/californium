@@ -829,7 +829,7 @@ public class OptionSet {
 
 	/**
 	 * Allows adding arbitrary options. Known options are checked
-	 * if they repeatable.
+	 * if they are repeatable.
 	 * 
 	 * @param option
 	 * @return this OptionSet

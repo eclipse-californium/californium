@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.nio.charset.Charset;
+
 
 /**
  * CoAP defines several constants.
@@ -33,6 +35,8 @@ package org.eclipse.californium.core.coap;
  * @see MediaTypeRegistry
  */
 public class CoAP {
+	
+	public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 	
 	public static final int VERSION = 0x01;
 	

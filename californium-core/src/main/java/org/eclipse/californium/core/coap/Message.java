@@ -264,7 +264,7 @@ public abstract class Message {
 	public String getPayloadString() {
 		if (payload==null)
 			return null;
-		this.payloadString = new String(payload);
+		this.payloadString = new String(payload, CoAP.UTF8_CHARSET);
 		return payloadString;
 	}
 	
@@ -287,7 +287,7 @@ public abstract class Message {
 	public Message setPayload(String payload) {
 		if (payload == null)
 			throw new NullPointerException();
-		setPayload(payload.getBytes());
+		setPayload(payload.getBytes(CoAP.UTF8_CHARSET));
 		return this;
 	}
 	

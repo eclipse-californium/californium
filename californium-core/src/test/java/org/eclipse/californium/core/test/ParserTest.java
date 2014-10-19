@@ -23,6 +23,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -86,5 +87,30 @@ public class ParserTest {
 		assertEquals(response.getMID(), result.getMID());
 		assertArrayEquals(response.getToken(), result.getToken());
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
+	}
+	
+	@Test
+	public void testUTF8Encoding() {
+		Response response = new Response(ResponseCode.CONTENT);
+		response.setType(Type.NON);
+		response.setMID(9);
+		response.setToken(new byte[] {});
+		response.getOptions().addLocationPath("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ")
+							.addLocationPath("γλώσσα")
+							.addLocationPath("пустынных")
+							.addLocationQuery("ვეპხის=யாமறிந்த")
+							.addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
+		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", MediaTypeRegistry.TEXT_PLAIN);
+		
+		DataSerializer serializer = new DataSerializer();
+		byte[] bytes = serializer.serializeResponse(response);
+		
+		DataParser parser = new DataParser(bytes);
+		assertTrue(parser.isResponse());
+		
+		Response result = parser.parseResponse();
+		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
+		assertEquals("ვეპხის=யாமறிந்த&⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎", response.getOptions().getLocationQueryString());
+		assertEquals("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", result.getPayloadString());
 	}
 }
