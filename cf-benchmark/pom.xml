@@ -40,7 +40,7 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>org.eclipse.californium.examples.BenchmarkServer</mainClass>
+							<mainClass>org.eclipse.californium.benchmark.BenchmarkServer</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>
