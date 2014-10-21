@@ -16,7 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -35,7 +35,7 @@ public class PSKClientKeyExchange extends ClientKeyExchange {
 
 	private static final int IDENTITY_LENGTH_BITS = 16;
 	
-	private static final String CHAR_SET = "UTF8";
+	private static final Charset CHAR_SET = Charset.forName("UTF8");
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -53,20 +53,12 @@ public class PSKClientKeyExchange extends ClientKeyExchange {
 	
 	public PSKClientKeyExchange(String identity) {
 		this.identity = identity;
-		try {
-			this.identityEncoded = identity.getBytes(CHAR_SET);
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
+		this.identityEncoded = identity.getBytes(CHAR_SET);
 	}
 	
 	public PSKClientKeyExchange(byte[] identityEncoded) {
 		this.identityEncoded = identityEncoded;
-		try {
-			this.identity = new String(identityEncoded, CHAR_SET);
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
+		this.identity = new String(identityEncoded, CHAR_SET);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
