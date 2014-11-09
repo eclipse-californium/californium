@@ -135,7 +135,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param exchange the exchange
 	 * @param task the retransmission task
 	 */
-	private void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
+	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
 		/*
 		 * For a new confirmable message, the initial timeout is set to a
 		 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
@@ -264,7 +264,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param max the max
 	 * @return a random value between min and max
 	 */
-	private int getRandomTimeout(int min, int max) {
+	protected int getRandomTimeout(int min, int max) {
 		if (min == max) return min;
 		return min + rand.nextInt(max - min);
 	}
@@ -275,7 +275,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * but where the retransmission method calls sendRequest and sendResponse
 	 * respectively.
 	 */
-	private abstract class RetransmissionTask implements Runnable {
+	 protected abstract class RetransmissionTask implements Runnable {
 		
 		private Exchange exchange;
 		private Message message;
