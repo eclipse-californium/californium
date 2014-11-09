@@ -55,7 +55,7 @@ public class GETClient {
 				
 				System.out.println("\nADVANCED\n");
 				// access advanced API with access to more details through .advanced()
-				System.out.println(Utils.prettyPrint(response.advanced()));
+				System.out.println(Utils.prettyPrint(response));
 				
 			} else {
 				System.out.println("No response received.");
