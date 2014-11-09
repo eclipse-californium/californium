@@ -34,7 +34,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 public class SecureServer {
 
     // allows configuration via Californium.properties
-    public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
+    public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_SECURE_PORT);
 
     static {
         ScandiumLogger.initialize();

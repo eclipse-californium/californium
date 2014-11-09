@@ -39,6 +39,7 @@ public class NetworkConfigDefaults {
 	 * bearing a prefix like VALUE_ ...
 	 */
 	public static final String DEFAULT_COAP_PORT = "DEFAULT_COAP_PORT";
+	public static final String DEFAULT_COAP_SECURE_PORT = "DEFAULT_COAP_SECURE_PORT";
 	public static final String PROPERTY_DEFAULT_COAPS_PORT = "DEFAULT_COAPS_PORT";
 	public static final String ACK_TIMEOUT = "ACK_TIMEOUT";
 	public static final String ACK_RANDOM_FACTOR = "ACK_RANDOM_FACTOR";
@@ -85,6 +86,8 @@ public class NetworkConfigDefaults {
 	
 	public static void setDefaults(NetworkConfig config) {
 		config.setInt(DEFAULT_COAP_PORT, EndpointManager.DEFAULT_COAP_PORT);
+		config.setInt(DEFAULT_COAP_SECURE_PORT, EndpointManager.DEFAULT_COAP_SECURE_PORT);
+		
 		config.setInt(ACK_TIMEOUT, 2000);
 		config.setFloat(ACK_RANDOM_FACTOR, 1.5f);
 		config.setInt(ACK_TIMEOUT_SCALE, 2);
