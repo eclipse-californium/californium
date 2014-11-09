@@ -31,6 +31,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 
@@ -100,13 +101,21 @@ public class CoapStack {
 	public CoapStack(NetworkConfig config, Outbox outbox) {
 		this.top = new StackTopAdapter();
 		this.outbox = outbox;
+		
+		ReliabilityLayer reliabilityLayer;
+		if (config.getBoolean(NetworkConfigDefaults.USE_COCOA) == true) {
+			reliabilityLayer = new CongestionControlLayer(config);
+		} else {
+			reliabilityLayer = new ReliabilityLayer(config);
+		}
+		
 		this.layers = 
 				new Layer.TopDownBuilder()
 				.add(top)
 				.add(new ObserveLayer(config))
 				.add(new BlockwiseLayer(config))
 				.add(new TokenLayer(config))
-				.add(new ReliabilityLayer(config))
+				.add(reliabilityLayer)
 				.add(bottom = new StackBottomAdapter())
 				.create();
 		this.deliverer = new EndpointManager.ClientMessageDeliverer();

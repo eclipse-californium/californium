@@ -90,7 +90,7 @@ public class EndpointManager {
 	/** The default endpoint for CoAP (port 5683) */
 	private Endpoint default_endpoint;
 	
-	/** The default endpoint for secure CoAP (port 5684)*/
+	/** The default endpoint for secure CoAP (port 5684) */
 	private Endpoint default_dtls_endpoint;
 	
 	/**
@@ -154,7 +154,23 @@ public class EndpointManager {
 	}
 	
 	public void setDefaultEndpoint(Endpoint endpoint) {
+		
+		if (this.default_endpoint!=null) {
+			this.default_endpoint.stop();
+			this.default_endpoint.destroy();
+		}
+		
 		this.default_endpoint = endpoint;
+		
+		if (!this.default_endpoint.isStarted()) {
+			try {
+				default_endpoint.start();
+				LOGGER.log(Level.INFO, "Started set default endpoint " + default_endpoint.getAddress());
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not set and start default endpoint", e);
+			}
+			
+		}
 	}
 	
 	/**
@@ -183,7 +199,7 @@ public class EndpointManager {
 	private synchronized void createDefaultSecureEndpoint() {
 		if (default_dtls_endpoint != null) return;
 		
-		LOGGER.severe("Secure endpoint must be injected via setDefaultSecureEndpoint()");	
+		LOGGER.config("Secure endpoint must be injected via setDefaultSecureEndpoint()");	
 	}
 	
 	public void setDefaultSecureEndpoint(Endpoint endpoint) {

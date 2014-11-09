@@ -78,6 +78,7 @@
 		<module>cf-plugtest-server</module>
 		<module>cf-helloworld-client</module>
 		<module>cf-helloworld-server</module>
+		<module>cf-cocoa</module>
 		<module>cf-secure</module>
 		<module>cf-proxy</module>
 		<module>cf-benchmark</module>

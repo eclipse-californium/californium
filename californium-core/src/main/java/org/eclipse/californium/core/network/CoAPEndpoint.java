@@ -227,8 +227,17 @@ public class CoAPEndpoint implements Endpoint {
 		}
 		
 		if (executor == null) {
-			LOGGER.fine("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
-			setExecutor(Executors.newSingleThreadScheduledExecutor(new EndpointManager.DaemonThreadFactory()));
+			LOGGER.config("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
+			
+			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new EndpointManager.DaemonThreadFactory());
+			setExecutor(executor);
+			addObserver(new EndpointObserver() {
+				public void started(Endpoint endpoint) { }
+				public void stopped(Endpoint endpoint) { }
+				public void destroyed(Endpoint endpoint) {
+					executor.shutdown();
+				}
+			});
 		}
 		
 		try {
