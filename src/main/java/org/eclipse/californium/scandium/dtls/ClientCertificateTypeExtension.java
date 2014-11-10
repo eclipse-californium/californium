@@ -16,11 +16,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
-import org.eclipse.californium.scandium.util.DatagramReader;
 
 
 public class ClientCertificateTypeExtension extends CertificateTypeExtension {
@@ -64,23 +62,9 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 		return sb.toString();
 	};
 	
-	public static HelloExtension fromByteArray(byte[] byteArray) {
-		DatagramReader reader = new DatagramReader(byteArray);
-		
-		List<CertificateType> certificateTypes = new ArrayList<CertificateType>();
-		
-		// the client's extension needs at least 2 bytes, while the server's is exactly 1 byte long
-		boolean isClientExtension = true;
-		if (byteArray.length > 1) {
-			int length = reader.read(LIST_FIELD_LENGTH_BITS);
-			for (int i = 0; i < length; i++) {
-				certificateTypes.add(CertificateType.getTypeFromCode(reader.read(EXTENSION_TYPE_BITS)));
-			}
-		} else {
-			certificateTypes.add(CertificateType.getTypeFromCode(reader.read(EXTENSION_TYPE_BITS)));
-			isClientExtension = false;
-		}
-
-		return new ClientCertificateTypeExtension(isClientExtension, certificateTypes);
+	public static ClientCertificateTypeExtension fromByteArray(byte[] byteArray) {
+		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(byteArray.length > 1);
+		ext.addCertiticateTypes(byteArray);
+		return ext;
 	}
 }

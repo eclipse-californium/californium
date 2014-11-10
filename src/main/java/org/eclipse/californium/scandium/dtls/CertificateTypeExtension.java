@@ -18,8 +18,11 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
+import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
@@ -30,6 +33,8 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  */
 public abstract class CertificateTypeExtension extends HelloExtension {
 
+	private static final Logger LOG = Logger.getLogger(CertificateTypeExtension.class.getName());
+	
 	// DTLS-specific constants ////////////////////////////////////////
 	
 	protected static final int LIST_FIELD_LENGTH_BITS = 8;
@@ -119,9 +124,14 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		writer.writeBytes(super.toByteArray());
 		
 		if (isClientExtension) {
-			int listLength = certificateTypes.size();			
-			writer.write(listLength + 1, LENGTH_BITS);
+			int listLength = certificateTypes.size();
+			// write overall number of bytes
+			// 1 byte for the number of certificate types +
+			// 1 byte for each certificate type
+			writer.write(1 + listLength, LENGTH_BITS);
+			// write number of certificate types
 			writer.write(listLength, LIST_FIELD_LENGTH_BITS);
+			// write one byte for each certificate type 
 			for (CertificateType type : certificateTypes) {
 				writer.write(type.getCode(), EXTENSION_TYPE_BITS);
 			}
@@ -137,13 +147,12 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	// Enums //////////////////////////////////////////////////////////
 
 	/**
-	 * See <a href=
-	 * "http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.1"
-	 * >3.1. ClientHello</a> for the definition. Note: The RawPublicKey code is
-	 * <tt>TBD</tt>, but we assumed for now the reasonable value 2.
+	 * Certificate types as defined in the
+	 * < href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml">
+	 * IANA registry</a>.
 	 */
 	public enum CertificateType {
-		// TODO this maybe change in the future
+		// values as defined by IANA TLS Certificate Types registry
 		X_509(0), OPEN_PGP(1), RAW_PUBLIC_KEY(2);
 
 		private int code;
@@ -185,4 +194,40 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		return certificateTypes;
 	}
 
+	protected void addCertiticateTypes(byte[] byteArray) {
+		DatagramReader reader = new DatagramReader(byteArray);
+		boolean containsPreferences = byteArray.length > 1;
+		if (containsPreferences) {
+			// an extension containing preferred certificate types is at least 2 bytes long
+			int length = reader.read(LIST_FIELD_LENGTH_BITS);
+			for (int i = 0; i < length; i++) {
+				int typeCode = reader.read(EXTENSION_TYPE_BITS);
+				CertificateType certType = CertificateType.getTypeFromCode(typeCode);
+				if (certType != null) {
+					certificateTypes.add(certType);
+				} else {
+					// client indicates a preference for an unknown certificate
+					// type
+					LOG.log(Level.FINER, String.format(
+							"Client indicated preference for unknown %s certificate type code [%d]",
+							getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
+							typeCode));
+				}
+			}
+		} else {
+			// an extension containing the negotiated certificate type is exactly 1 byte long
+			int typeCode = reader.read(EXTENSION_TYPE_BITS);
+			CertificateType certType = CertificateType.getTypeFromCode(typeCode);
+			if (certType != null) {
+				certificateTypes.add(certType);
+			} else {
+				// server selected a certificate type that is unknown to this
+				// client
+				LOG.log(Level.FINER, String.format(
+						"Server selected an unknown %s certificate type code [%d]",
+						getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
+						typeCode));
+			}
+		}
+	}
 }

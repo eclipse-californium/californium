@@ -90,4 +90,8 @@ public abstract class HelloExtension {
 
 		return sb.toString();
 	}
+	
+	protected ExtensionType getType() {
+		return type;
+	}
 }
