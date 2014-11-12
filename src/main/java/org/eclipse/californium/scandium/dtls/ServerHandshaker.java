@@ -58,7 +58,20 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private PublicKey clientPublicKey;
 
+	/**
+	 * The cryptographic options this server supports, e.g. for exchanging keys,
+	 * digital signatures etc.
+	 */
 	private List<CipherSuite> supportedCipherSuites;
+
+	/**
+	 * The certificate types this server supports for client authentication.
+	 */
+	private List<CertificateType> supportedClientCertificateTypes;
+	/**
+	 * The certificate types this server supports for server authentication.
+	 */
+	private List<CertificateType> supportedServerCertificateTypes;
 
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
@@ -97,6 +110,16 @@ public class ServerHandshaker extends Handshaker {
 		this.certificates = config.certChain;
 		
 		this.clientAuthenticationRequired = config.requireClientAuth;
+
+		this.supportedClientCertificateTypes = new ArrayList<>();
+		this.supportedClientCertificateTypes.add(CertificateType.X_509);
+		this.supportedClientCertificateTypes
+				.add(CertificateType.RAW_PUBLIC_KEY);
+
+		this.supportedServerCertificateTypes = new ArrayList<>();
+		this.supportedServerCertificateTypes.add(CertificateType.X_509);
+		this.supportedServerCertificateTypes
+				.add(CertificateType.RAW_PUBLIC_KEY);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -382,18 +405,22 @@ public class ServerHandshaker extends Handshaker {
 			setCompressionMethod(compressionMethod);
 			
 			
-			HelloExtensions extensions = null;
-			ClientCertificateTypeExtension clientCertificateTypeExtension = message.getClientCertificateTypeExtension();
+			HelloExtensions serverHelloExtensions = null;
+			ClientCertificateTypeExtension clientCertificateTypeExtension = message
+					.getClientCertificateTypeExtension();
 			if (clientCertificateTypeExtension != null) {
 				// choose certificate type from client's list
-				CertificateType certType = negotiateCertificateType(clientCertificateTypeExtension);
-				extensions = new HelloExtensions();
+				// of preferred client certificate types
+				CertificateType certType = negotiateCertificateType(
+						clientCertificateTypeExtension,
+						supportedClientCertificateTypes);
+				serverHelloExtensions = new HelloExtensions();
 				// the certificate type requested from the client
 				CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
 				ext1.addCertificateType(certType);
-				
-				extensions.addExtension(ext1);
-				
+
+				serverHelloExtensions.addExtension(ext1);
+
 				if (certType == CertificateType.RAW_PUBLIC_KEY) {
 					session.setReceiveRawPublicKey(true);
 				}
@@ -402,35 +429,38 @@ public class ServerHandshaker extends Handshaker {
 			CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
 			if (serverCertificateTypeExtension != null) {
 				// choose certificate type from client's list
-				CertificateType certType = negotiateCertificateType(serverCertificateTypeExtension);
-				if (extensions == null) {
-					extensions = new HelloExtensions();
+				// of preferred server certificate types
+				CertificateType certType = negotiateCertificateType(
+						serverCertificateTypeExtension,
+						supportedServerCertificateTypes);
+				if (serverHelloExtensions == null) {
+					serverHelloExtensions = new HelloExtensions();
 				}
-				// the certificate type found in the attached certificate payload
+				// the certificate type found in the attached certificate
+				// payload
 				CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
 				ext2.addCertificateType(certType);
-				
-				extensions.addExtension(ext2);
-				
+
+				serverHelloExtensions.addExtension(ext2);
+
 				if (certType == CertificateType.RAW_PUBLIC_KEY) {
 					session.setSendRawPublicKey(true);
 				}
 			}
 			
-			
 			if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
-				// if we chose a ECC cipher suite, the server should send the supported point formats extension in its ServerHello
+				// if we chose a ECC cipher suite, the server should send the
+				// supported point formats extension in its ServerHello
 				List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-				
-				if (extensions == null) {
-					extensions = new HelloExtensions();
+
+				if (serverHelloExtensions == null) {
+					serverHelloExtensions = new HelloExtensions();
 				}
 				HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
-				extensions.addExtension(ext3);
+				serverHelloExtensions.addExtension(ext3);
 			}
 			
-			
-			ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod, extensions);
+			ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod, serverHelloExtensions);
 			flight.addMessage(wrapMessage(serverHello));
 			
 			// update the handshake hash
@@ -737,16 +767,26 @@ public class ServerHandshaker extends Handshaker {
 	 * handshake.
 	 * 
 	 * @param extension
-	 *            the certificate type extension.
-	 * @return the certificate type in which the client will send its
-	 *         certificate.
+	 *            the certificate types preferred by the client
+	 * @param supportedTypes
+	 *            the certificate types supported by this server
+	 * @return the certificate type selected (and supported) by this server
+	 * @throws HandshakeException
+	 *             if none of the client's preferred types is supported by this
+	 *             server
 	 */
-	private CertificateType negotiateCertificateType(CertificateTypeExtension extension) {
-		CertificateType certType = CertificateType.X_509;
-		for (CertificateType type : extension.getCertificateTypes()) {
-			return type;
+	private CertificateType negotiateCertificateType(
+			CertificateTypeExtension extension,
+			List<CertificateType> supportedTypes) throws HandshakeException {
+		for (CertificateType preferredType : extension.getCertificateTypes()) {
+			if (supportedTypes.contains(preferredType)) {
+				return preferredType;
+			}
 		}
-		return certType;
+		throw new HandshakeException("No supported certificate type found",
+				new AlertMessage(AlertLevel.FATAL,
+						AlertDescription.UNSUPPORTED_CERTIFICATE));
+
 	}
 
 }
