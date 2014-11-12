@@ -62,8 +62,9 @@ public class NetworkConfigDefaults {
 	public static final String MAX_RETRANSMIT = "MAX_RETRANSMIT";
 	public static final String DEFAULT_ENDPOINT_THREAD_COUNT = "DEFAULT_ENDPOINT_THREAD_COUNT";
 	public static final String SERVER_THRESD_NUMER = "SERVER_THRESD_NUMER";
+	public static final String CONGESTION_CONTROL_ALGORITHM = "CONGESTION_CONTROL_ALGORITHM";
 	
-	public static final String USE_COCOA = "USE_COCOA";
+	public static final String USE_CONGESTION_CONTROL = "USE_CONGESTION_CONTROL";
 	public static final String USE_RANDOM_TOKEN_START = "USE_RANDOM_TOKEN_START";
 	public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 	
@@ -95,7 +96,8 @@ public class NetworkConfigDefaults {
 		config.setFloat(PROBING_RATE, 1f);
 		config.setInt(MAX_RETRANSMIT, 4);
 		config.setLong(EXCHANGE_LIFECYCLE, 247 * 1000); // in ms
-		config.setBoolean(USE_COCOA, false);
+		config.setString(CONGESTION_CONTROL_ALGORITHM, "Cocoa"); // see org.eclipse.californium.core.network.stack.congestioncontrol
+		config.setBoolean(USE_CONGESTION_CONTROL, false);
 		config.setBoolean(USE_RANDOM_TOKEN_START, true);
 		config.setBoolean(USE_RANDOM_MID_START, true);
 		

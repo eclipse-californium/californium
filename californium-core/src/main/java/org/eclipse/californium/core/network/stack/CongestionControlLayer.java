@@ -19,7 +19,6 @@ package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -30,6 +29,7 @@ import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.RemoteEndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.network.stack.congestioncontrol.*;
 
 /**
  * The optional Congestion Control (CC) Layer for the Californium CoAP implementation provides the methods for advanced congestion 
@@ -46,10 +46,7 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
  *
  */
 
-public class CongestionControlLayer extends ReliabilityLayer {
-
-	/** The logger. */
-	protected final static Logger LOGGER = Logger.getLogger(CongestionControlLayer.class.getCanonicalName());
+public abstract class CongestionControlLayer extends ReliabilityLayer {
 	
 	/** The configuration */ 
 	protected NetworkConfig config;
@@ -456,6 +453,19 @@ public class CongestionControlLayer extends ReliabilityLayer {
 				checkRemoteEndpointQueue(exchange);
 			}		
 		}	
+	}
+	
+	public static CongestionControlLayer newImplementation(NetworkConfig config) {
+		final String implementation = config.getString(NetworkConfigDefaults.CONGESTION_CONTROL_ALGORITHM);
+		if ("Cocoa".equals(implementation)) return new Cocoa(config);
+		else if ("CocoaStrong".equals(implementation)) return new CocoaStrong(config);
+		else if ("BasicRto".equals(implementation)) return new BasicRto(config);
+		else if ("LinuxRto".equals(implementation)) return new LinuxRto(config);
+		else if ("PeakhopperRto".equals(implementation)) return new PeakhopperRto(config);
+		else {
+			LOGGER.config("Unknown CONGESTION_CONTROL_ALGORITHM (" + implementation + "), using Cocoa");
+			return new Cocoa(config);
+		}
 	}
 }
 

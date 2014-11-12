@@ -84,18 +84,10 @@ public class CoapStack {
 	/** The LOGGER. */
 	final static Logger LOGGER = Logger.getLogger(CoapStack.class.getCanonicalName());
 
-	/** The list of layers. */
 	private List<Layer> layers;
-	
-	/** The channel. */
 	private Outbox outbox;
-
-	/** The top of the stack. */
 	private StackTopAdapter top;
-	
-	/** The bottom of the stack. */
 	private StackBottomAdapter bottom;
-
 	private MessageDeliverer deliverer;
 	
 	public CoapStack(NetworkConfig config, Outbox outbox) {
@@ -103,8 +95,9 @@ public class CoapStack {
 		this.outbox = outbox;
 		
 		ReliabilityLayer reliabilityLayer;
-		if (config.getBoolean(NetworkConfigDefaults.USE_COCOA) == true) {
-			reliabilityLayer = new CongestionControlLayer(config);
+		if (config.getBoolean(NetworkConfigDefaults.USE_CONGESTION_CONTROL) == true) {
+			reliabilityLayer = CongestionControlLayer.newImplementation(config);
+			LOGGER.config("Enabling congestion control: " + reliabilityLayer.getClass().getSimpleName());
 		} else {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}

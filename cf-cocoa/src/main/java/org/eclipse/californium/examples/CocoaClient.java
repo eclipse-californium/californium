@@ -15,10 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 
 import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapClient;
@@ -28,18 +29,18 @@ import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
 
 public class CocoaClient {
 	
 	static {
 		CaliforniumLogger.initialize();
-		// For more information in lossy environments
-		//CaliforniumLogger.setLevel(Level.FINER);
+		CaliforniumLogger.setLevel(Level.CONFIG);
 	}
 
     public static void main(String[] args) {
     	
-		// input URI from command line arguments
+		// get URI from command line arguments
     	URI uri = null;
 		try {
     		if (args.length > 0) {
@@ -53,38 +54,45 @@ public class CocoaClient {
 		}
     	
     	NetworkConfig config = new NetworkConfig();
-    	config.setBoolean(NetworkConfigDefaults.USE_COCOA, true);
+    	// enable congestion control (can also be done cia Californium.properties)
+    	config.setBoolean(NetworkConfigDefaults.USE_CONGESTION_CONTROL, true);
+    	// see class names in org.eclipse.californium.core.network.stack.congestioncontrol
+    	config.setString(NetworkConfigDefaults.CONGESTION_CONTROL_ALGORITHM, Cocoa.class.getSimpleName());
+    	// set NSTART to four
     	config.setInt(NetworkConfigDefaults.NSTART, 4);
     	
+    	// create an endpoint with this configuration
     	CoAPEndpoint cocoaEndpoint = new CoAPEndpoint(config);
+    	// all CoapClients will use the default endpoint (unless CoapClient#setEndpoint() is used)
     	EndpointManager.getEndpointManager().setDefaultEndpoint(cocoaEndpoint);
-    	
-        System.out.println("Using Congestion Control Advanced (CoCoA)");
         
 		CoapClient client = new CoapClient(uri);
 		
+		final int NUMBER = 50;
 		final AtomicInteger count = new AtomicInteger();
+		final Semaphore semaphore = new Semaphore(0);
 		
-		for (int i=0; i<50; ++i) {
-		client.get(new CoapHandler() {
+		for (int i=0; i<NUMBER; ++i) {
+			client.get(new CoapHandler() {
 				@Override
 				public void onLoad(CoapResponse response) {
 					System.out.println("Received " + count.incrementAndGet());
+					semaphore.release();
 				}
 				
 				@Override
 				public void onError() {
 					System.out.println("Failed");
+					semaphore.release();
 				}
 			});
 		}
 		
+		// wait until all requests finished
 		try {
-			System.in.read();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    }
-
+			semaphore.acquire(NUMBER);
+		} catch (InterruptedException e) {}
+		
+		System.exit(0);
+	}
 }
