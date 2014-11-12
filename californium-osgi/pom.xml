@@ -71,14 +71,14 @@
 							org.eclipse.californium.core.server,
 							org.eclipse.californium.core.server.resources,
 							org.eclipse.californium.osgi,
-							org.eclipse.californium.elements;version="${element.connector.version}"
+							org.eclipse.californium.elements;version="${element.connector.version}",
+							org.eclipse.californium.core.observe,
+							org.eclipse.californium.core.network.interceptors
 						</Export-Package>
 						<Private-Package>
 							org.eclipse.californium.core.network.deduplication,
-							org.eclipse.californium.core.network.interceptors,
 							org.eclipse.californium.core.network.serialization,
-							org.eclipse.californium.core.network.stack,
-							org.eclipse.californium.core.observe
+							org.eclipse.californium.core.network.stack
 						</Private-Package>
 						<Import-Package>
 							*
