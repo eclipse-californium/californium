@@ -40,7 +40,6 @@ public class NetworkConfigDefaults {
 	 */
 	public static final String DEFAULT_COAP_PORT = "DEFAULT_COAP_PORT";
 	public static final String DEFAULT_COAP_SECURE_PORT = "DEFAULT_COAP_SECURE_PORT";
-	public static final String PROPERTY_DEFAULT_COAPS_PORT = "DEFAULT_COAPS_PORT";
 	public static final String ACK_TIMEOUT = "ACK_TIMEOUT";
 	public static final String ACK_RANDOM_FACTOR = "ACK_RANDOM_FACTOR";
 	public static final String ACK_TIMEOUT_SCALE = "ACK_TIMEOUT_SCALE";

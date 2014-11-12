@@ -134,6 +134,62 @@ public class OptionTest {
 	}
 	
 	@Test
+	public void testUriOptions() {
+		OptionSet options = new OptionSet();
+		
+		options.setUriPath("/foo/bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getUriPathString());
+
+		options.setUriPath("foo/bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getUriPathString());
+
+		options.setUriPath("//foo/bar");
+		Assert.assertEquals("Uri-Path", "/foo/bar", options.getUriPathString());
+
+		options.setUriPath("/foo//bar");
+		Assert.assertEquals("Uri-Path", "foo//bar", options.getUriPathString());
+		
+		options.clearUriPath();
+		options.addUriPath("foo");
+		options.addUriPath("bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getUriPathString());
+
+		options.clearUriPath();
+		options.addUriPath("foo");
+		options.addUriPath("");
+		options.addUriPath("bar");
+		Assert.assertEquals("Uri-Path", "foo//bar", options.getUriPathString());
+	}
+	
+	@Test
+	public void testLocationOptions() {
+		OptionSet options = new OptionSet();
+		
+		options.setLocationPath("/foo/bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getLocationPathString());
+
+		options.setLocationPath("foo/bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getLocationPathString());
+
+		options.setLocationPath("//foo/bar");
+		Assert.assertEquals("Uri-Path", "/foo/bar", options.getLocationPathString());
+
+		options.setLocationPath("/foo//bar");
+		Assert.assertEquals("Uri-Path", "foo//bar", options.getLocationPathString());
+		
+		options.clearLocationPath();
+		options.addLocationPath("foo");
+		options.addLocationPath("bar");
+		Assert.assertEquals("Uri-Path", "foo/bar", options.getLocationPathString());
+
+		options.clearLocationPath();
+		options.addLocationPath("foo");
+		options.addLocationPath("");
+		options.addLocationPath("bar");
+		Assert.assertEquals("Uri-Path", "foo//bar", options.getLocationPathString());
+	}
+	
+	@Test
 	public void testArbitraryOptions() {
 		OptionSet options = new OptionSet();
 		options.addETag(new byte[] {1, 2, 3});
@@ -166,7 +222,7 @@ public class OptionTest {
 		options.addETag(new byte[] {1, 2, 3});
 		options.addETag(new byte[] {(byte)0xBE, (byte)0xEF});
 		options.addLocationPath("abc");
-		options.setURIPath("/this/is/a/test");
+		options.setUriPath("/this/is/a/test");
 		
 		Assert.assertEquals("{\"ETag\":[0x010203,0xbeef], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"]}", options.toString());
 

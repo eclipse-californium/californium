@@ -64,10 +64,10 @@ public class StatsResource extends CoapResource {
 	public void updateStatistics(Request request, boolean cachedResponse) {
 		URI proxyUri = null;
 		try {
-			proxyUri = new URI(request.getOptions().getProxyURI());
+			proxyUri = new URI(request.getOptions().getProxyUri());
 		} catch (URISyntaxException e) {
 			LOGGER.warning(String.format("Proxy-uri malformed: %s", 
-					request.getOptions().getProxyURI()));
+					request.getOptions().getProxyUri()));
 		}
 
 		if (proxyUri == null) {
@@ -101,7 +101,7 @@ public class StatsResource extends CoapResource {
 	/**
 	 * Builds a pretty print from the statistics gathered.
 	 * 
-	 * @return
+	 * @return the statistics as string
 	 */
 	private String getStatString() {
 		StringBuilder builder = new StringBuilder();

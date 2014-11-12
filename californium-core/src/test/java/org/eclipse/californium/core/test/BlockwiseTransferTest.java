@@ -279,7 +279,7 @@ public class BlockwiseTransferTest {
 			buffer.append(
 					String.format("\n%s [MID=%d], %s, /%s%s%s%s    ----->",
 					request.getType(), request.getMID(), request.getCode(),
-					request.getOptions().getURIPathString(),
+					request.getOptions().getUriPathString(),
 					blockOptionString(1, request.getOptions().getBlock1()),
 					blockOptionString(2, request.getOptions().getBlock2()),
 					observeOptionString(request.getOptions()) ));

@@ -173,7 +173,7 @@ public class ClientSynchronousTest {
 		
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			List<String> queries = exchange.getRequestOptions().getURIQueries();
+			List<String> queries = exchange.getRequestOptions().getUriQuery();
 			String c = content;
 			for (String q:queries)
 				if (QUERY_UPPER_CASE.equals(q))

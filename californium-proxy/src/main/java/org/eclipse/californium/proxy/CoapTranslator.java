@@ -94,7 +94,7 @@ public final class CoapTranslator {
 			 * code segment has changed.
 			 */
 			String proxyUriString = URLDecoder.decode(
-					incomingRequest.getOptions().getProxyURI(), "UTF-8");
+					incomingRequest.getOptions().getProxyUri(), "UTF-8");
 			serverUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.warning("UTF-8 do not support this encoding: " + e);
@@ -114,11 +114,11 @@ public final class CoapTranslator {
 		// do not copy the uri-* options because they are already filled in
 		// the new message
 		OptionSet options = new OptionSet(incomingRequest.getOptions());
-		options.removeProxyURI();
+		options.removeProxyUri();
 		options.removeBlock1();
 		options.removeBlock2();
-		options.clearURIPaths();
-		options.clearURIQuery();
+		options.clearUriPath();
+		options.clearUriQuery();
 		outgoingRequest.setOptions(options);
 		
 		// set the proxy-uri as the outgoing uri

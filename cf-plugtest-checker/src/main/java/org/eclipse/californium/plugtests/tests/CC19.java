@@ -62,7 +62,7 @@ public class CC19 extends TestClientAbstract {
 		// success &= checkOption(new Option("second=2",
 		// OptionNumberRegistry.LOCATION_QUERY), options.get(1));
 
-		List<String> query = response.getOptions().getLocationQueries();
+		List<String> query = response.getOptions().getLocationQuery();
 		List<String> expec = Arrays.asList("first=1", "second=2");
 		success &= checkOption(expec, query, "Location Query");
 

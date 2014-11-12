@@ -47,7 +47,7 @@ public class Query extends CoapResource {
 									 request.getCode(),
 									 request.getMID()
 									));
-		payload.append("?").append(request.getOptions().getURIQueryString());
+		payload.append("?").append(request.getOptions().getUriQueryString());
 		if (payload.length()>64) {
 			payload.delete(63, payload.length());
 			payload.append('»');

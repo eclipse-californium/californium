@@ -285,9 +285,9 @@ public class CoapClient {
 	public Set<WebLink> discover(String query) {
 		Request discover = Request.newGet();
 		discover.setURI(uri);
-		discover.getOptions().clearURIPaths().clearURIQuery().setURIPath("/.well-known/core");
+		discover.getOptions().clearUriPath().clearUriQuery().setUriPath("/.well-known/core");
 		if (query!=null) {
-			discover.getOptions().setURIQuery(query);
+			discover.getOptions().setUriQuery(query);
 		}
 		CoapResponse links = synchronous(discover);
 		

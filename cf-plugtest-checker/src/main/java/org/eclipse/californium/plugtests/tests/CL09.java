@@ -44,7 +44,7 @@ public class CL09 extends TestClientAbstract {
 
 		// create the request
 		Request request = new Request(Code.GET, Type.CON);
-		request.getOptions().addURIQuery(URI_QUERY);
+		request.getOptions().addUriQuery(URI_QUERY);
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}
 

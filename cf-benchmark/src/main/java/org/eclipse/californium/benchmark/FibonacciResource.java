@@ -43,7 +43,7 @@ public class FibonacciResource extends CoapResource {
 		int n = 20;
 		if (exchange.getRequestOptions().getURIQueryCount() > 0) {
 			try {
-				List<String> queries = exchange.getRequestOptions().getURIQueries();
+				List<String> queries = exchange.getRequestOptions().getUriQuery();
 				for (String query:queries) {
 					if (pattern.matcher(query).matches()) {
 						n = Integer.parseInt(query.split("=")[1]);

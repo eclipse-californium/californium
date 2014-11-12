@@ -457,7 +457,7 @@ public final class HttpTranslator {
 				}
 
 				// the uri will be set as a proxy-uri option
-				coapRequest.getOptions().setProxyURI(uriString);
+				coapRequest.getOptions().setProxyUri(uriString);
 			} else {
 				coapRequest.setURI(uriString);
 			}
@@ -477,7 +477,7 @@ public final class HttpTranslator {
 			// request is local to the proxy and it shouldn't be forwarded
 
 			// set the uri string as uri-path option
-			coapRequest.getOptions().setURIPath(uriString);
+			coapRequest.getOptions().setUriPath(uriString);
 		}
 
 		// translate the http headers in coap options
@@ -809,7 +809,7 @@ public final class HttpTranslator {
 			 * code segment has changed.
 			 */
 			String proxyUriString = URLDecoder.decode(
-					coapRequest.getOptions().getProxyURI(), "UTF-8");
+					coapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.warning("UTF-8 do not support this encoding: " + e);

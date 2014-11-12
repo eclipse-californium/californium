@@ -38,17 +38,16 @@ public class RemoteEndpointManager {
 	 * The RemoteEndpointManager is responsible for creating a new RemoteEndpoint object when exchanges with a 
 	 * new destination endpoint are initiated and managing existing ones.
 	 * 
-	 * @param config : The network parameter configuration
+	 * @param config the network parameter configuration
 	 */
 	public RemoteEndpointManager(NetworkConfig config) {
 		this.config = config;
 	}
 		
 	/**
-	 * 
-	 * @param remotePort	The port associated to the destination endpoint 
-	 * @param remoteAddress The IP-Address associated to the destination endpoint
-	 * @return
+	 * Returns the endpoint responsible for the given exchange.
+	 * @param exchange the exchange
+	 * @return the endpoint for the exchange
 	 */
 	public RemoteEndpoint getRemoteEndpoint(Exchange exchange){ //int remotePort, InetAddress remoteAddress){
 		
@@ -67,7 +66,9 @@ public class RemoteEndpointManager {
 	}
 	
 	public class LimitedRemoteEndpointHashmap<K, V> extends LinkedHashMap<K, V> {
-	    private final int maxSize;
+
+		private static final long serialVersionUID = -7855412701242966797L;
+		private final int maxSize;
 
 	    public LimitedRemoteEndpointHashmap(int maxSize) {
 	        this.maxSize = maxSize;

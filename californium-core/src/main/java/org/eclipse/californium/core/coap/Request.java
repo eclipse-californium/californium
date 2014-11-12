@@ -207,7 +207,7 @@ public class Request extends Message {
 		// set Uri-Host option if not IP literal
 		if (host != null && !host.toLowerCase().matches("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})")) {
 			if (!host.equals("localhost"))
-				getOptions().setURIHost(host);
+				getOptions().setUriHost(host);
 		}
 
 		try {
@@ -230,7 +230,7 @@ public class Request extends Message {
 		int port = uri.getPort();
 		if (port >= 0) {
 			if (port != EndpointManager.DEFAULT_COAP_PORT)
-				getOptions().setURIPort(port);
+				getOptions().setUriPort(port);
 			setDestinationPort(port);
 		} else if (getDestinationPort() == 0) {
 			if (scheme == null || scheme.equals(CoAP.COAP_URI_SCHEME))
@@ -242,31 +242,37 @@ public class Request extends Message {
 		// set Uri-Path options
 		String path = uri.getPath();
 		if (path != null && path.length() > 1) {
-			getOptions().setURIPath(path);
+			getOptions().setUriPath(path);
 		}
 
 		// set Uri-Query options
 		String query = uri.getQuery();
 		if (query != null) {
-			getOptions().setURIQuery(query);
+			getOptions().setUriQuery(query);
 		}
 		return this;
 	}
 	
 	// TODO: test this method.
+	/**
+	 * Returns the absolute Request-URI as string.
+	 * To support virtual servers, it either uses the Uri-Host option
+	 * or "localhost" if the option is not present.
+	 * @return the absolute URI string
+	 */
 	public String getURI() {
 		StringBuilder builder = new StringBuilder();
 		String scheme = getScheme();
 		if (scheme != null) builder.append(scheme).append("://");
 		else builder.append("coap://");
-		String host = getOptions().getURIHost();
+		String host = getOptions().getUriHost();
 		if (host != null) builder.append(host);
 		else builder.append("localhost");
-		Integer port = getOptions().getURIPort();
+		Integer port = getOptions().getUriPort();
 		if (port != null) builder.append(":").append(port);
-		String path = getOptions().getURIPathString();
+		String path = getOptions().getUriPathString();
 		builder.append("/").append(path);
-		String query = getOptions().getURIQueryString();
+		String query = getOptions().getUriQueryString();
 		if (query.length()>0) builder.append("?").append(query);
 		// TODO: Query as well?
 		return builder.toString();

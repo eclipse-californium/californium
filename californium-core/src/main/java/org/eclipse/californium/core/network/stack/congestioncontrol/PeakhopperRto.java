@@ -22,7 +22,7 @@ import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 
-public class PeakhopperRto extends CongestionControlLayer{
+public class PeakhopperRto extends CongestionControlLayer {
 
 	private int currentRtt;
 	

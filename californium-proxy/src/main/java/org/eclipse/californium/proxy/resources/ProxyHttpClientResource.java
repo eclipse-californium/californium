@@ -105,19 +105,19 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		final Request incomingCoapRequest = request;
 		
 		// check the invariant: the request must have the proxy-uri set
-		if (!incomingCoapRequest.getOptions().hasProxyURI()) {
+		if (!incomingCoapRequest.getOptions().hasProxyUri()) {
 			LOGGER.warning("Proxy-uri option not set.");
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
 		// remove the fake uri-path // TODO: why? still necessary in new Cf?
-		incomingCoapRequest.getOptions().clearURIPaths();; // HACK
+		incomingCoapRequest.getOptions().clearUriPath();; // HACK
 
 		// get the proxy-uri set in the incoming coap request
 		URI proxyUri;
 		try {
 			String proxyUriString = URLDecoder.decode(
-					incomingCoapRequest.getOptions().getProxyURI(), "UTF-8");
+					incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());

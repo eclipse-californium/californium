@@ -37,9 +37,9 @@ public class CC14 extends TestClientAbstract {
 		// create the request
 		Request request = new Request(Code.GET, Type.CON);
 		// add query
-		request.getOptions().addURIQuery("first=1");
-		request.getOptions().addURIQuery("second=2");
-		request.getOptions().addURIQuery("third=3");
+		request.getOptions().addUriQuery("first=1");
+		request.getOptions().addUriQuery("second=2");
+		request.getOptions().addUriQuery("third=3");
 
 		// set the parameters and execute the request
 		executeRequest(request, serverURI, RESOURCE_URI);

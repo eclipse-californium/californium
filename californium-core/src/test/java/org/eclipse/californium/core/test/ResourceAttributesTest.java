@@ -80,7 +80,7 @@ public class ResourceAttributesTest {
 		request.setURI("/.well-known/core?rt=light-lux");
 		
 		DiscoveryResource discovery = new DiscoveryResource(root);
-		String serialized = discovery.discoverTree(root, request.getOptions().getURIQueries());
+		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
 		System.out.println(serialized);
 		Assert.assertEquals(
 		        "</sensors/light>;if=\"sensor\";rt=\"light-lux\"",

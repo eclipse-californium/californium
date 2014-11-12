@@ -63,7 +63,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	@Override
 	public void deliverRequest(final Exchange exchange) {
 		Request request = exchange.getRequest();
-		List<String> path = request.getOptions().getURIPaths();
+		List<String> path = request.getOptions().getUriPath();
 		final Resource resource = findResource(path);
 		if (resource != null) {
 			checkForObserveOption(exchange, resource);

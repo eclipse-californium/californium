@@ -384,7 +384,7 @@ public class LockstepEndpoint {
 		public RequestExpectation path(final String path) {
 			expectations.add(new Expectation<Request>() {
 				public void check(Request request) {
-					Assert.assertEquals(path, request.getOptions().getURIPathString());
+					Assert.assertEquals(path, request.getOptions().getUriPathString());
 					print("Correct URI path: "+path);
 				}
 			});
@@ -730,7 +730,7 @@ public class LockstepEndpoint {
 		public RequestProperty path(final String path) {
 			properties.add(new Property<Request>() {
 				public void set(Request request) {
-					request.getOptions().setURIPath(path);
+					request.getOptions().setUriPath(path);
 				}
 			});
 			return this;
@@ -800,7 +800,7 @@ public class LockstepEndpoint {
 		public ResponseProperty path(final String path) {
 			properties.add(new Property<Response>() {
 				public void set(Response response) {
-					response.getOptions().setURIPath(path);
+					response.getOptions().setUriPath(path);
 				}
 			});
 			return this;

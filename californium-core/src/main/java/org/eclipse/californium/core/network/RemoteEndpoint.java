@@ -82,10 +82,10 @@ public class RemoteEndpoint {
 	private final static int WEAKRTOTYPE = 2;
 	private final static int NOESTIMATOR = 3;
 	
-	/** A queue for confirmable exchanges that need to be delayed due to the NSTART limitation*/
+	/* A queue for confirmable exchanges that need to be delayed due to the NSTART limitation*/
 	private Queue<Exchange> confirmableQueue; 
 	
-	/** A queue for non-confirmable exchanges that need to be rate-controlled */
+	/* A queue for non-confirmable exchanges that need to be rate-controlled */
 	private Queue<Exchange> nonConfirmableQueue; 
 	
 	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, NetworkConfig config){
@@ -234,23 +234,25 @@ public class RemoteEndpoint {
 	
 	/**
 	 * Obtains either blind RTO value for the next transmission (if no RTT measurements have been done so far) or gets the overall RTO (CoCoA)
-	 * @return
+	 * @return the RTO in milliseconds
 	 */
-	public long getRTO(){
+	public long getRTO() {
 		long rto;
-		if(usesBlindEstimator && isBlindStrong && isBlindWeak && exchangeInfoMap.size() > 1 ){
-			//No RTT measurements have been possible so far => apply blind estimator rule
-			//System.out.println("Blind Rule applying, RTO: "+ (exchangeInfoMap.size())*2000);
-			rto = (long) (exchangeInfoMap.size())*2000;	
-		}else{
-			if(meanOverallRTO != currentRTO){
-				// If current RTO was not updated, there was no successful RTO update, use the one that has backed offs
-				//System.out.println("Old RTO! (mean/current) = (" + meanOverallRTO+ "/" + currentRTO +")");
+		if (usesBlindEstimator && isBlindStrong && isBlindWeak && exchangeInfoMap.size() > 1) {
+			// No RTT measurements have been possible so far => apply blind
+			// estimator rule
+			// System.out.println("Blind Rule applying, RTO: "+(exchangeInfoMap.size())*2000);
+			rto = (long) (exchangeInfoMap.size()) * 2000;
+		} else {
+			if (meanOverallRTO != currentRTO) {
+				// If current RTO was not updated, there was no successful RTO
+				// update, use the one that has backed offs
+				// System.out.println("Old RTO! (mean/current) = (" +meanOverallRTO+ "/" + currentRTO +")");
 				rto = currentRTO;
-			}else{
+			} else {
 				rto = meanOverallRTO;
 			}
-		}	
+		}
 		return (rto < 32000) ? rto : 32000;
 	}
 	
@@ -271,7 +273,10 @@ public class RemoteEndpoint {
 	}
 	
 	
-	/** Update stored RTO value */
+	/**
+	 * Update stored RTO value.
+	 * @param newRTO the new RTO value
+	 */
 	public void updateRTO(long newRTO){
 		overallRTO[currentArrayElement] = newRTO; 		
 		currentArrayElement = (currentArrayElement + 1)%RTOARRAYSIZE;
@@ -279,8 +284,9 @@ public class RemoteEndpoint {
 		setCurrentRTO(newRTO);
 	}
 	
-	/** This method allows to set the state of the exchange (WEAK/STRONG/notvalid RTT measurement).
-	 * 
+	/**
+	 * This method allows to set the state of the exchange (WEAK/STRONG/notvalid RTT measurement).
+	 * @param exchange the exchange
 	 */
 	public void setEstimatorState(Exchange exchange){
 		//When no CC layer is used, the entries are all null, check here if this is the case
@@ -306,8 +312,8 @@ public class RemoteEndpoint {
 	
 	/**
 	 * Confirmable exchanges are registered at the remote endpoint 
-	 * @param exchange
-	 * @param vbf 
+	 * @param exchange the exchange to register
+	 * @param vbf the variable back-off factor
 	 */
 	public void registerExchange(Exchange exchange, double vbf){
 		exchangeInfo newExchange = new exchangeInfo(System.currentTimeMillis(), vbf);
@@ -316,8 +322,8 @@ public class RemoteEndpoint {
 	
 	/**
 	 * Get timestamp of transmission of the message
-	 * @param exchange
-	 * @return
+	 * @param exchange the exchange
+	 * @return the timestamp in 
 	 */
 	public long getExchangeTimestamp(Exchange exchange){	
 		long storedTimestamp = 0;	
@@ -332,9 +338,9 @@ public class RemoteEndpoint {
 	}
 	
 	/**
-	 * Get VBF for this exchange
-	 * @param exchange
-	 * @return
+	 * Returns the variable back-off factor for this exchange.
+	 * @param exchange the exchange
+	 * @return the VBF
 	 */
 	public double getExchangeVBF(Exchange exchange){	
 		double vbf = 2;	
@@ -350,8 +356,8 @@ public class RemoteEndpoint {
 	
 	/**
 	 * Gets state (Strong/Weak/NoValidRTT) for this exchange
-	 * @param exchange
-	 * @return
+	 * @param exchange the exchange
+	 * @return the estimator ID
 	 */
 	public int getExchangeEstimatorState(Exchange exchange){	
 		if(exchangeInfoMap.isEmpty()){
@@ -365,8 +371,8 @@ public class RemoteEndpoint {
 	}
 	/**
 	 * Removes all information of a finished exchange
-	 * @param exchange
-	 * @return
+	 * @param exchange the exchange to remove
+	 * @return true if removed
 	 */
 	public boolean removeExchangeInfo(Exchange exchange){
 		if(exchangeInfoMap.remove(exchange) == null){
@@ -392,16 +398,12 @@ public class RemoteEndpoint {
 	
 	/**
 	 * Gets amount of currently active exchanges
-	 * @param exchange
-	 * @return
+	 * @param exchange the exchange
+	 * @return the count
 	 */
 	public int getNumberOfOngoingExchanges(Exchange exchange){	
 		//System.out.println("Amount of exchanges: " + exchangeInfoMap.size() );
 		return exchangeInfoMap.size();
-	}
-	
-	private void printRTO(){
-		//System.out.println("meanrto:" + meanOverallRTO + ";" + System.currentTimeMillis());
 	}
 	
 	public void printLinuxStats(){
@@ -412,7 +414,8 @@ public class RemoteEndpoint {
 	    System.out.println("Delta: " + delta + " D: " + D_value + " B: " + B_value + " RTT_max: " + RTT_max);
 	}
 	
-	/** Object that stores exchange related information 
+	/**
+	 * Object that stores exchange related information 
 	 * 1.) Timestamp
 	 * 2.) Variable Backoff Factor
 	 * 3.) Estimator Type (weak/strong/none)

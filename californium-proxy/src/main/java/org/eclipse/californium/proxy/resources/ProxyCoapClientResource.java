@@ -46,14 +46,14 @@ public class ProxyCoapClientResource extends ForwardingResource {
 		Request incomingRequest = request;
 
 		// check the invariant: the request must have the proxy-uri set
-		if (!incomingRequest.getOptions().hasProxyURI()) {
+		if (!incomingRequest.getOptions().hasProxyUri()) {
 			LOGGER.warning("Proxy-uri option not set.");
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
 		// remove the fake uri-path
 		// FIXME: HACK // TODO: why? still necessary in new Cf?
-		incomingRequest.getOptions().clearURIPaths();
+		incomingRequest.getOptions().clearUriPath();
 
 		// create a new request to forward to the requested coap server
 		Request outgoingRequest = null;

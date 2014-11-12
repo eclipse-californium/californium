@@ -66,7 +66,7 @@ public class DiscoveryResource extends CoapResource {
 	 */
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		String tree = discoverTree(root, exchange.getRequestOptions().getURIQueries());
+		String tree = discoverTree(root, exchange.getRequestOptions().getUriQuery());
 		exchange.respond(ResponseCode.CONTENT, tree, MediaTypeRegistry.APPLICATION_LINK_FORMAT);
 	}
 	

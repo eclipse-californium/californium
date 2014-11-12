@@ -158,7 +158,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 		managedServer = serverFactory.newServer(networkConfig);
 		
 		// add secure endpoint if configured
-		int securePort = networkConfig.getInt(NetworkConfigDefaults.PROPERTY_DEFAULT_COAPS_PORT);
+		int securePort = networkConfig.getInt(NetworkConfigDefaults.DEFAULT_COAP_SECURE_PORT);
 		if ( securePort > 0 ) {
 			Endpoint secureEndpoint = endpointFactory.getSecureEndpoint(
 					networkConfig, new InetSocketAddress((InetAddress) null, securePort));

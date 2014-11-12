@@ -57,7 +57,7 @@ public class CC18 extends TestClientAbstract {
 
 		if (success) {
 
-			List<String> path = response.getOptions().getLocationPaths();
+			List<String> path = response.getOptions().getLocationPath();
 			List<String> expc = Arrays.asList("location1", "location2",
 					"location3");
 			success &= checkOption(expc, path, "Location path");

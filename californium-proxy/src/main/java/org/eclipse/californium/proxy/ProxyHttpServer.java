@@ -108,7 +108,7 @@ public class ProxyHttpServer {
 		// ignore the request if it is reset or acknowledge
 		// check if the proxy-uri is defined
 		if (request.getType() != Type.RST && request.getType() != Type.ACK 
-				&& request.getOptions().hasProxyURI()) {
+				&& request.getOptions().hasProxyUri()) {
 			// get the response from the cache
 			response = cacheResource.getResponse(request);
 
@@ -128,13 +128,13 @@ public class ProxyHttpServer {
 
 			// edit the request to be correctly forwarded if the proxy-uri is
 			// set
-			if (request.getOptions().hasProxyURI()) {
+			if (request.getOptions().hasProxyUri()) {
 				try {
 					manageProxyUriRequest(request);
 					LOGGER.info("after manageProxyUriRequest: "+request);
 
 				} catch (URISyntaxException e) {
-					LOGGER.warning(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyURI()));
+					LOGGER.warning(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
 
 					exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
 				}
@@ -162,7 +162,7 @@ public class ProxyHttpServer {
 	 */
 	private void manageProxyUriRequest(Request request) throws URISyntaxException {
 		// check which schema is requested
-		URI proxyUri = new URI(request.getOptions().getProxyURI());
+		URI proxyUri = new URI(request.getOptions().getProxyUri());
 
 		// the local resource that will abstract the client part of the
 		// proxy
@@ -180,13 +180,13 @@ public class ProxyHttpServer {
 		LOGGER.info("Chose "+clientPath+" as clientPath");
 
 		// set the path in the request to be forwarded correctly
-		request.getOptions().setURIPath(clientPath);
+		request.getOptions().setUriPath(clientPath);
 		
 	}
 
 	protected void responseProduced(Request request, Response response) {
 		// check if the proxy-uri is defined
-		if (request.getOptions().hasProxyURI()) {
+		if (request.getOptions().hasProxyUri()) {
 				LOGGER.info("Cache response");
 			// insert the response in the cache
 			cacheResource.cacheResponse(request, response);

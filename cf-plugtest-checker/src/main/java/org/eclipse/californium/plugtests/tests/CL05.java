@@ -40,7 +40,7 @@ public class CL05 extends TestClientAbstract {
 		// create the request
 		Request request = new Request(Code.GET, Type.CON);
 		// set query
-		request.getOptions().addURIQuery(EXPECTED_IF);
+		request.getOptions().addUriQuery(EXPECTED_IF);
 		// set the parameters and execute the request
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}
