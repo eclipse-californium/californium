@@ -19,10 +19,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -60,8 +61,8 @@ public class CoapClient {
 	
 	private int blockwise = 0;
 	
-	/** The executor. */
-	private Executor executor;
+	/** The client-specific executor service. */
+	private ExecutorService executor;
 	
 	/** The endpoint. */
 	private Endpoint endpoint;
@@ -151,37 +152,33 @@ public class CoapClient {
 	
 	/**
 	 * Sets a single-threaded executor to this client. All handlers will be
-	 * invoked by this executor.
+	 * invoked by this executor. Note that the client executor uses a
+	 * user thread (not a daemon thread) that needs to be stopped to
+	 * exit the program.
 	 *
 	 * @return the CoAP client
 	 */
 	public CoapClient useExecutor() {
 		this.executor = Executors.newSingleThreadExecutor();
+		
+		// activates the executor so that the user thread appear deterministically
+		executor.execute(new Runnable() {
+			public void run() {
+				LOGGER.config("Using a SingleThreadExecutor for the CoapClient");
+			};
+		});
+		
 		return this;
 	}
 
 	/**
-	 * Gets the executor of this client.
+	 * Sets the executor service for this client.
+	 * All handlers will be invoked by this executor.
 	 *
-	 * @return the executor
-	 */
-	public Executor getExecutor() {
-		if (executor == null)
-			synchronized(this) {
-			if (executor == null)
-				executor = Executors.newSingleThreadExecutor();
-		}
-		return executor;
-	}
-
-	/**
-	 * Sets the executor to this client. All handlers will be invoked by this
-	 * executor.
-	 *
-	 * @param executor the executor
+	 * @param executor the executor service
 	 * @return the CoAP client
 	 */
-	public CoapClient setExecutor(Executor executor) {
+	public CoapClient setExecutor(ExecutorService executor) {
 		this.executor = executor;
 		return this;
 	}
@@ -202,7 +199,19 @@ public class CoapClient {
 	 * @return the CoAP client
 	 */
 	public CoapClient setEndpoint(Endpoint endpoint) {
+				
 		this.endpoint = endpoint;
+		
+		if (!endpoint.isStarted()) {
+			try {
+				endpoint.start();
+				LOGGER.log(Level.INFO, "Started set client endpoint " + endpoint.getAddress());
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not set and start client endpoint", e);
+			}
+			
+		}
+		
 		return this;
 	}
 	
@@ -712,6 +721,15 @@ public class CoapClient {
 		return observe(accept(request, accept), handler);
 	}
 	
+	/**
+	 * Stops the client-specific executor service to cleanly exit programs.
+	 * Only needed if {@link #useExecutor() or #setExecutor(ExecutorService)
+	 * are used (i.e., a client-specific executor service was set).
+	 */
+	public void shutdown() {
+		if (this.executor!=null) this.executor.shutdownNow();
+	}
+	
 	// Implementation
 	
 	/*
@@ -828,7 +846,7 @@ public class CoapClient {
 	private CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
 		Endpoint outEndpoint = getEffectiveEndpoint(request);
 		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserveImpl(handler, relation));
+		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
 		CoapResponse response = synchronous(request, outEndpoint);
 		if (response == null || !response.advanced().getOptions().hasObserve())
 			relation.setCanceled(true);
@@ -847,7 +865,7 @@ public class CoapClient {
 	private CoapObserveRelation observe(Request request, CoapHandler handler) {
 		Endpoint outEndpoint = getEffectiveEndpoint(request);
 		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserveImpl(handler, relation));
+		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
 		send(request, outEndpoint);
 		return relation;
 	}
@@ -886,7 +904,7 @@ public class CoapClient {
 	 * Returns the effective endpoint that the specified request is supposed to
 	 * be sent over. If an endpoint has explicitly been set to this CoapClient,
 	 * this endpoint will be used. If no endpoint has been set, the client will
-	 * effectively use an endpoint of the {@link EndpointManager}.
+	 * effectively use a default endpoint of the {@link EndpointManager}.
 	 * 
 	 * @param request the request to be sent
 	 * @return the effective endpoint that the request is going o be sent over.
@@ -946,11 +964,10 @@ public class CoapClient {
 		 * @param response the response
 		 */
 		protected void succeeded(final CoapResponse response) {
-			Executor exe = getExecutor();
 			// use thread from the protocol stage
-			if (exe == null) deliver(response);
+			if (executor == null) deliver(response);
 			// use thread from the client executer
-			else exe.execute(new Runnable() {				
+			else executor.execute(new Runnable() {				
 				public void run() {
 					try {
 						deliver(response);
@@ -976,9 +993,10 @@ public class CoapClient {
 		 * Invokes the handler's method failed() on the executor.
 		 */
 		protected void failed() {
-			Executor exe = getExecutor();
-			if (exe == null) handler.onError();
-			else exe.execute(new Runnable() { 
+			// use thread from the protocol stage
+			if (executor == null) handler.onError();
+			// use thread from the client executer
+			else executor.execute(new Runnable() { 
 				public void run() { 
 					try {
 						handler.onError(); 
@@ -989,11 +1007,11 @@ public class CoapClient {
 	}
 	
 	/**
-	 * The ObserveMessageObserveImpl is called whenever a notification of an
+	 * The ObserveMessageObserverImpl is called whenever a notification of an
 	 * observed resource arrives. It wraps the response into a CoapResponse and
 	 * lets the executor invoke the handler's method.
 	 */
-	private class ObserveMessageObserveImpl extends MessageObserverImpl {
+	private class ObserveMessageObserverImpl extends MessageObserverImpl {
 		
 		/** The observer relation relation. */
 		private final CoapObserveRelation relation;
@@ -1008,7 +1026,7 @@ public class CoapClient {
 		 * @param handler the Response handler
 		 * @param relation the Observe relation
 		 */
-		public ObserveMessageObserveImpl(CoapHandler handler, CoapObserveRelation relation) {
+		public ObserveMessageObserverImpl(CoapHandler handler, CoapObserveRelation relation) {
 			super(handler);
 			this.relation = relation;
 			this.orderer = new ObserveNotificationOrderer();

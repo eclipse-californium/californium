@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Logger;
 
@@ -703,15 +704,13 @@ public  class CoapResource implements Resource {
 	 */
 	public void changed() {
 		Executor executor = getExecutor();
-		if (executor != null) {
-			executor.execute(new Runnable() {
-				public void run() {
-					notifyObserverRelations();
-				}
-			});
-		} else {
-			notifyObserverRelations();
-		}
+		// use thread from the protocol stage
+		if (executor == null) notifyObserverRelations();
+		// use thread from the resource pool
+		else executor.execute(new Runnable() {
+			public void run() {
+				notifyObserverRelations();
+			}});
 	}
 	
 	/**
@@ -737,7 +736,7 @@ public  class CoapResource implements Resource {
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getExecutor()
 	 */
-	public Executor getExecutor() {
+	public ExecutorService getExecutor() {
 		return parent != null ? parent.getExecutor() : null;
 	}
 	
@@ -750,9 +749,10 @@ public  class CoapResource implements Resource {
 	 */
 	public void execute(Runnable task) {
 		Executor executor = getExecutor();
-		if (executor != null)
-			executor.execute(task);
-		else task.run();
+		// use thread from the protocol stage
+		if (executor == null) task.run();
+		// use thread from the resource pool
+		else executor.execute(task);
 	}
 	
 	/**

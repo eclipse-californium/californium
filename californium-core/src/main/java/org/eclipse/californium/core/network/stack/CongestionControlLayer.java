@@ -299,9 +299,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	public void sendRequest(Exchange exchange, Request request) {
 		// Check if exchange is already running into a retransmission; if so, don't call processMessage
-		if(exchange.getFailedTransmissionCount() > 0){
+		if (exchange.getFailedTransmissionCount() > 0) {
 			super.sendRequest(exchange, request);
-		}else if(processMessage(exchange, request)){	
+		} else if (processMessage(exchange, request)) {
 			checkAging(exchange);
 			super.sendRequest(exchange, request);
 		}
@@ -315,9 +315,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	public void sendResponse(Exchange exchange, Response response) {
 		// Check if exchange is already running into a retransmission; if so, don't call processMessage, since this is a retransmission
-		if(exchange.getFailedTransmissionCount() > 0){
+		if (exchange.getFailedTransmissionCount() > 0) {
 			super.sendResponse(exchange, response);
-		}else if(processMessage(exchange, response)){	
+		} else if (processMessage(exchange, response)) {
 			checkAging(exchange);
 			super.sendResponse(exchange, response);
 		}
@@ -359,8 +359,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
 		//August: change the state of the remote endpoint (STRONG/WEAK/NOESTIMATOR) if failedTransmissionCount = 0;
-		if(exchange.getFailedTransmissionCount() != 0){
-			getRemoteEndpoint(exchange).setEstimatorState(exchange);;
+		if (exchange.getFailedTransmissionCount() != 0) {
+			getRemoteEndpoint(exchange).setEstimatorState(exchange);
 		}
 		super.receiveResponse(exchange, response);
 		
@@ -374,8 +374,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
 		// If retransmissions were used, update the estimator state (WEAK / NO)
-		if(exchange.getFailedTransmissionCount() != 0){
-			getRemoteEndpoint(exchange).setEstimatorState(exchange);;
+		if (exchange.getFailedTransmissionCount() != 0) {
+			getRemoteEndpoint(exchange).setEstimatorState(exchange);
 		}
 		super.receiveEmptyMessage(exchange, message);
 		
@@ -408,27 +408,30 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		
 		@Override
 		public void run() {
-			if(!endpoint.getNonConfirmableQueue().isEmpty()){
+			if (!endpoint.getNonConfirmableQueue().isEmpty()) {
 				endpoint.setProcessingNON(true);
 
 				Exchange exchange = endpoint.getNonConfirmableQueue().poll();
-				
-				if(getRemoteEndpoint(exchange).getNonConfirmableCounter() <= MAX_SUCCESSIVE_NONS){
+
+				if (getRemoteEndpoint(exchange).getNonConfirmableCounter() <= MAX_SUCCESSIVE_NONS) {
 					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
-					if(exchange.getCurrentRequest().getDestinationPort() != 0){
-						//it's a response
+					if (exchange.getCurrentRequest().getDestinationPort() != 0) {
+						// it's a response
 						sendBucketRequest(exchange, exchange.getCurrentRequest());
-					}else if(exchange.getCurrentResponse() != null){
-						//it's a request
+					} else if (exchange.getCurrentResponse() != null) {
+						// it's a request
 						sendBucketResponse(exchange, exchange.getCurrentResponse());
 					}
 				}
 				// schedule next transmission of a NON based on the RTO value (rate = 1/RTO)
-				executor.schedule(new bucketThread(getRemoteEndpoint(exchange)), getRemoteEndpoint(exchange).getRTO(), TimeUnit.MILLISECONDS);
-				
-			}else{
+				executor.schedule(
+						new bucketThread(getRemoteEndpoint(exchange)),
+						getRemoteEndpoint(exchange).getRTO(),
+						TimeUnit.MILLISECONDS);
+
+			} else {
 				endpoint.setProcessingNON(false);
-			}		
+			}
 		}		
 	}
 	
@@ -439,20 +442,22 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		
 		RemoteEndpoint endpoint;
 		Exchange exchange;
+
 		public SweepCheckTask(RemoteEndpoint endpoint, Exchange exchange) {
 			this.endpoint = endpoint;
 			this.exchange = exchange;
 		}
-		
+
 		@Override
-		public void run() {	
-			if( endpoint.removeExchangeInfo(exchange) == false){
+		public void run() {
+			if (endpoint.removeExchangeInfo(exchange) == false) {
 				// The entry already was removed
-			}else{
-				// Entry was removed, check if there are more messages in the queue
+			} else {
+				// Entry was removed, check if there are more messages in the
+				// queue
 				checkRemoteEndpointQueue(exchange);
-			}		
-		}	
+			}
+		}
 	}
 	
 	public static CongestionControlLayer newImplementation(NetworkConfig config) {

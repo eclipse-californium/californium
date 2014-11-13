@@ -20,6 +20,7 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.eclipse.californium.core.CoapResource;
@@ -89,7 +90,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	private int threads;
 	
 	/** The executor of this resource or null */
-	private Executor executor;
+	private ExecutorService executor;
 
 	/**
 	 * Constructs a new resource that uses an executor with as many threads as
@@ -117,11 +118,11 @@ public class ConcurrentCoapResource extends CoapResource {
 	}
 	
 	/**
-	 * Sets the specified executor to the resource.
+	 * Sets the specified executor service to the resource.
 	 * 
-	 * @param executor the executor
+	 * @param executor the executor service
 	 */
-	public void setExecutor(Executor executor) {
+	public void setExecutor(ExecutorService executor) {
 		this.executor = executor;
 	}
 	
@@ -129,7 +130,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * @see org.eclipse.californium.core.server.resources.CoapResource#getExecutor()
 	 */
 	@Override
-	public Executor getExecutor() {
+	public ExecutorService getExecutor() {
 		if (executor != null) return executor;
 		else return super.getExecutor();
 	}

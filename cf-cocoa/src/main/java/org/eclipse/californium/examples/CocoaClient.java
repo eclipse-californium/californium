@@ -18,7 +18,6 @@ package org.eclipse.californium.examples;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import org.eclipse.californium.core.CaliforniumLogger;
@@ -69,21 +68,19 @@ public class CocoaClient {
 		CoapClient client = new CoapClient(uri);
 		
 		final int NUMBER = 50;
-		final AtomicInteger count = new AtomicInteger();
 		final Semaphore semaphore = new Semaphore(0);
 		
 		for (int i=0; i<NUMBER; ++i) {
 			client.get(new CoapHandler() {
 				@Override
 				public void onLoad(CoapResponse response) {
-					System.out.println("Received " + count.incrementAndGet());
 					semaphore.release();
+					System.out.println("Received " + semaphore.availablePermits());
 				}
 				
 				@Override
 				public void onError() {
 					System.out.println("Failed");
-					semaphore.release();
 				}
 			});
 		}
@@ -92,7 +89,5 @@ public class CocoaClient {
 		try {
 			semaphore.acquire(NUMBER);
 		} catch (InterruptedException e) {}
-		
-		System.exit(0);
 	}
 }

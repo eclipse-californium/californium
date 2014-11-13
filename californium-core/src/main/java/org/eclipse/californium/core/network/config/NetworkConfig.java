@@ -93,15 +93,16 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public static NetworkConfig createStandardWithFile(File file) {
-		LOGGER.info("Create standard properties with file "+file);
 		standard = new NetworkConfig();
 		if (file.exists()) {
+			LOGGER.info("Loading standard properties from file "+file);
 			try {
 				standard.load(file);
 			} catch (IOException e) {
 				LOGGER.log(Level.WARNING, "Error while loading properties from "+file.getAbsolutePath(), e);
 			}
 		} else {
+			LOGGER.info("Storing standard properties in file "+file);
 			try {
 				standard.store(file);
 			} catch (IOException e) {

@@ -22,6 +22,7 @@ package org.eclipse.californium.core.server.resources;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Endpoint;
@@ -250,7 +251,7 @@ public interface Resource /*extends RequestProcessor*/ {
 	 *
 	 * @return the executor
 	 */
-	public Executor getExecutor();
+	public ExecutorService getExecutor();
 	
 	/**
 	 * Gets the endpoints this resource is bound to. As long as a resource is
