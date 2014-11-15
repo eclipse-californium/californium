@@ -207,8 +207,8 @@ public class Record {
 	 * Encrypts the fragment, if a ciphersuite is available that supports
 	 * encryption.
 	 * 
-	 * @param byteArray
-	 * @return
+	 * @param byteArray the fragment to encrypt
+	 * @return the encrypted fragment
 	 */
 	private byte[] encryptFragment(byte[] byteArray) {
 		if (session == null) {

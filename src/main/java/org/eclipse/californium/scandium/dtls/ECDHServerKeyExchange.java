@@ -379,7 +379,10 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		sb.append("\t\t" + getPublicKey().toString() + "\n");
+		sb.append("\t\tDiffie-Hellman public key: ");
+		sb.append(getPublicKey().toString());
+		// bug in ECPublicKey.toString() gives object pointer
+		sb.append("\n");
 
 		return sb.toString();
 	}

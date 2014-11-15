@@ -473,7 +473,13 @@ public class ServerHandshaker extends Handshaker {
 				break;
 
 			case PSK:
-				// serverKeyExchange = new PSKServerKeyExchange("TEST");
+				/*
+				 * If the identity is based on the domain name, servers SHOULD
+				 * NOT send an identity hint and clients MUST ignore it.
+				 * Are there use cases that different PSKs are used for different
+				 * actions or time periods? How to configure the hint then? 
+				 */
+				// serverKeyExchange = new PSKServerKeyExchange("TODO");
 				break;
 
 			default:
