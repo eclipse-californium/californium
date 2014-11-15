@@ -119,26 +119,26 @@ public class DTLSConnector extends ConnectorBase {
 	 * @param peerAddress the remote endpoint of the session to close
 	 */
 	public void close(InetSocketAddress peerAddress) {
-	   String addrKey = addressToKey(peerAddress); 
+		String addrKey = addressToKey(peerAddress);
 		try {
 			DTLSSession session = dtlsSessions.get(addrKey);
-			
+
 			if (session != null) {
 				DTLSMessage closeNotify = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
-				
+
 				DTLSFlight flight = new DTLSFlight();
 				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), closeNotify, session));
 				flight.setRetransmissionNeeded(false);
-				
+
 				cancelPreviousFlight(peerAddress);
-		
+
 				flight.setPeerAddress(peerAddress);
 				flight.setSession(session);
 
 				if (LOGGER.isLoggable(Level.FINE)) {
 					LOGGER.fine("Sending CLOSE_NOTIFY to " + peerAddress.toString());
 				}
-				
+
 				sendFlight(flight);
 			} else {
 				if (LOGGER.isLoggable(Level.WARNING)) {
@@ -146,7 +146,7 @@ public class DTLSConnector extends ConnectorBase {
 				}
 			}
 		} finally {
-			//clear sessions
+			// clear session
 			dtlsSessions.remove(addrKey);
 			handshakers.remove(addrKey);
 			flights.remove(addrKey);
@@ -169,9 +169,8 @@ public class DTLSConnector extends ConnectorBase {
 		super.stop();
 	}
 	
-	// TODO: We should not return null
 	@Override
-	protected RawData receiveNext() throws Exception {
+	protected RawData receiveNext() throws IOException {
 		byte[] buffer = new byte[config.getMaxPayloadSize()];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		socket.receive(packet);
@@ -211,6 +210,7 @@ public class DTLSConnector extends ConnectorBase {
 					}
 					// at this point, the current handshaker is not needed
 					// anymore, remove it
+					//FIXME what about parallel sessions with different credentials?
 					handshakers.remove(addressToKey(peerAddress));
 
 					ApplicationMessage applicationData = (ApplicationMessage) record.getFragment();
@@ -371,36 +371,32 @@ public class DTLSConnector extends ConnectorBase {
 				}
 			}
 
-		} catch (Exception e) {
+		} catch (HandshakeException e) {
 			/*
 			 * If it is a known handshake failure, send the specific Alert,
 			 * otherwise the general Handshake_Failure Alert. 
 			 */
-			DTLSFlight flight = new DTLSFlight();
-			flight.setRetransmissionNeeded(false);
-			flight.setPeerAddress(peerAddress);
-			flight.setSession(session);
+			LOGGER.warning("Handshake Exception (" + peerAddress.toString() + "): " + e.getMessage()+" We close the session.");
 			
-			AlertMessage alert;
-			if (e instanceof HandshakeException) {
-				alert = ((HandshakeException) e).getAlert();
-				LOGGER.severe("Handshake Exception (" + peerAddress.toString() + "): " + e.getMessage()+" we close the session");
-				close(session.getPeer());
+			if (session != null) {
+				DTLSFlight flight = new DTLSFlight();
+				flight.setRetransmissionNeeded(false);
+				flight.setPeerAddress(peerAddress);
+				flight.setSession(session);
+			
+				cancelPreviousFlight(peerAddress);
+				
+				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), e.getAlert(), session));
+				sendFlight(flight);
+				
+				// clear session
+				String addrKey = addressToKey(peerAddress);
+				dtlsSessions.remove(addrKey);
+				handshakers.remove(addrKey);
+				flights.remove(addrKey);
 			} else {
-				alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-				LOGGER.log(Level.SEVERE, "Unknown Exception (" + peerAddress + ").", e);
+				LOGGER.severe("Handshake Exception without session (" + peerAddress.toString() + "): " + e.getMessage());
 			}
-
-			LOGGER.log(Level.SEVERE, "Datagram which lead to exception (" + peerAddress + "): " + ByteArrayUtils.toHexString(data), e);
-			
-			if (session == null) {
-				// if the first received message failed, no session has been set
-				session = new DTLSSession(peerAddress, false);
-			}
-			cancelPreviousFlight(peerAddress);
-			
-			flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
-			sendFlight(flight);
 		} // receive()
 		return null;
 	}
