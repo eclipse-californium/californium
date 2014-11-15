@@ -32,7 +32,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
 
@@ -62,7 +61,7 @@ public class ProxyHttpServer {
 	 *             the socket exception
 	 */
 	public ProxyHttpServer(CoapServer server) throws IOException {
-		this(NetworkConfig.getStandard().getInt(NetworkConfigDefaults.HTTP_PORT));
+		this(NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
 	}
 
 	/**

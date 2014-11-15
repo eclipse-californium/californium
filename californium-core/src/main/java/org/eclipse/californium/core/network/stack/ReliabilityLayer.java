@@ -32,7 +32,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
 
 
 /**
@@ -46,15 +46,41 @@ public class ReliabilityLayer extends AbstractLayer {
 	/** The random numbers generator for the back-off timer */
 	private Random rand = new Random();
 	
-	/** The configuration */ 
-	private NetworkConfig config;
+	private int ack_timeout;
+	private float ack_random_factor;
+	private float ack_timeout_scale;
+	private int max_retransmit;
 	
 	/**
 	 * Constructs a new reliability layer.
+	 * Changes to the configuration are observed and automatically applied.
 	 * @param config the configuration
 	 */
 	public ReliabilityLayer(NetworkConfig config) {
-		this.config = config;
+		
+		ack_timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
+		ack_timeout_scale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+		max_retransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
+		
+		LOGGER.config("ReliabilityLayer uses ACK_TIMEOUT: "+ack_timeout+", ACK_RANDOM_FACTOR:"+ack_random_factor+", and ACK_TIMEOUT_SCALE:"+ack_timeout_scale);
+		
+		config.addConfigObserver(new NetworkConfigObserverAdapter() {
+			@Override
+			public void changed(String key, int value) {
+				if (NetworkConfig.Keys.ACK_TIMEOUT.equals(key))
+					ack_timeout = value;
+				if (NetworkConfig.Keys.MAX_RETRANSMIT.equals(key))
+					max_retransmit = value;
+			}
+			@Override
+			public void changed(String key, float value) {
+				if (NetworkConfig.Keys.ACK_RANDOM_FACTOR.equals(key))
+					ack_random_factor = value;
+				if (NetworkConfig.Keys.ACK_TIMEOUT_SCALE.equals(key))
+					ack_timeout_scale = value;
+			}
+		});
 	}
 	
 	/**
@@ -143,12 +169,9 @@ public class ReliabilityLayer extends AbstractLayer {
 		 */
 		int timeout;
 		if (exchange.getFailedTransmissionCount() == 0) {
-			int ack_timeout = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
-			float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
 			timeout = getRandomTimeout(ack_timeout, (int) (ack_timeout*ack_random_factor));
 		} else {
-			int ack_timeout_scale = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE);
-			timeout = ack_timeout_scale * exchange.getCurrentTimeout();
+			timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
 		}
 		exchange.setCurrentTimeout(timeout);
 		
@@ -308,7 +331,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.finest("Timeout: canceled (MID="+message.getMID()+"), do not retransmit");
 					return;
 					
-				} else if (failedCount <= config.getInt(NetworkConfigDefaults.MAX_RETRANSMIT)) {
+				} else if (failedCount <= max_retransmit) {
 					LOGGER.finer("Timeout: retransmit message, failed: "+failedCount+", message: "+message);
 					
 					// Trigger MessageObservers

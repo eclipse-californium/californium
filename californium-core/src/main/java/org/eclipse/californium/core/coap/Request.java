@@ -223,20 +223,19 @@ public class Request extends Message {
 		}
 		
 		/*
-		 * The Uri-Port is only for special cases where it differs from the UDP port.
-		 * (Tell me when that happens...)
+		 * The Uri-Port is only for special cases where it differs from the UDP port,
+		 * usually when Proxy-Scheme is used.
 		 */
-		// set uri-port option
 		int port = uri.getPort();
 		if (port >= 0) {
-			if (port != EndpointManager.DEFAULT_COAP_PORT)
+			if (port != CoAP.DEFAULT_COAP_PORT)
 				getOptions().setUriPort(port);
 			setDestinationPort(port);
 		} else if (getDestinationPort() == 0) {
 			if (scheme == null || scheme.equals(CoAP.COAP_URI_SCHEME))
-				setDestinationPort(EndpointManager.DEFAULT_COAP_PORT);
+				setDestinationPort(CoAP.DEFAULT_COAP_PORT);
 			else if (scheme.equals(CoAP.COAP_SECURE_URI_SCHEME))
-				setDestinationPort(EndpointManager.DEFAULT_COAP_SECURE_PORT);
+				setDestinationPort(CoAP.DEFAULT_COAP_SECURE_PORT);
 		}
 
 		// set Uri-Path options

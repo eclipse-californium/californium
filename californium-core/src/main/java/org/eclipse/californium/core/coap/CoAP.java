@@ -36,12 +36,23 @@ import java.nio.charset.Charset;
  */
 public class CoAP {
 	
-	public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
-	
+	/** RFC 7252 CoAP version */
 	public static final int VERSION = 0x01;
 	
+	/** The CoAP URI scheme */
 	public static final String COAP_URI_SCHEME = "coap";
+	
+	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
+	
+	/** The default CoAP port for normal CoAP communication (coap) */
+	public static final int DEFAULT_COAP_PORT = 5683;
+	
+	/** The default CoAP port for secure CoAP communication (coaps) */
+	public static final int DEFAULT_COAP_SECURE_PORT = 5684;
+	
+	/** The CoAP charset is always UTF-8 */
+	public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 	
 	private CoAP() {
 		// prevent initialization

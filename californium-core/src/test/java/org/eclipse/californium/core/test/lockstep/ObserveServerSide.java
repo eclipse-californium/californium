@@ -39,7 +39,6 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.eclipse.californium.elements.UDPConnector;
@@ -74,11 +73,11 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		testObsResource = new TestObserveResource("obs");
 		
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfigDefaults.ACK_TIMEOUT, timeout)
-			.setFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR, 1.0f)
-			.setInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE, 1)
-			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 32)
-			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 32);
+			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, timeout)
+			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
+			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 		
 		server = new CoapServer(config, 0);
 		server.add(testObsResource);

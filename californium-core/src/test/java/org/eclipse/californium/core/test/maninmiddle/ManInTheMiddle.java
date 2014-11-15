@@ -24,7 +24,7 @@ import java.net.DatagramSocket;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+
 
 /**
  * The man in the middle is between the server and client and monitors the
@@ -45,7 +45,7 @@ public class ManInTheMiddle implements Runnable {
 	private int current = 0;
 	
 	// drop bursts longer than MAX_RETRANSMIT must be avoided
-	private static final int MAX = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.MAX_RETRANSMIT);
+	private static final int MAX = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 	private int last = -3;
 	private int burst = 1;
 

@@ -20,10 +20,10 @@ package org.eclipse.californium.core.network.stack.congestioncontrol;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 
-public class Cocoa extends CongestionControlLayer{
+
+public class Cocoa extends CongestionControlLayer {
 	
 	private final static int KSTRONG		= 4;
 	private final static int KWEAK			= 1;
@@ -52,7 +52,7 @@ public class Cocoa extends CongestionControlLayer{
 	
 	/** This method is only called if there hasn't been an RTO update yet. It sets the weak/strong RTOs and calculates a new overall RTO.*/
 	@Override
-	public void initializeRTOEstimators(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){
+	public void initializeRTOEstimators(long measuredRTT, int estimatorType, RemoteEndpoint endpoint) {
 				
 		long RTT = measuredRTT;
 		long RTTVAR = measuredRTT/2;
@@ -120,13 +120,13 @@ public class Cocoa extends CongestionControlLayer{
 	 * @return the new VBF
 	 */
 	public double calculateVBF(long rto){
-			if(rto > UPPERVBFLIMIT){
-				return VBFHIGH;
-			}
-			if(rto < LOWERVBFLIMIT){
-				return VBFLOW;
-			}
-		return config.getInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE);
+		if(rto > UPPERVBFLIMIT){
+			return VBFHIGH;
+		}
+		if(rto < LOWERVBFLIMIT){
+			return VBFLOW;
+		}
+		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 	}
 	
 	/**

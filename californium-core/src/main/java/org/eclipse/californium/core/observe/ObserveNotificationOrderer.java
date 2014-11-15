@@ -22,8 +22,6 @@ package org.eclipse.californium.core.observe;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -105,11 +103,9 @@ public class ObserveNotificationOrderer {
 		long T2 = System.currentTimeMillis();
 		int V1 = getCurrent();
 		int V2 = response.getOptions().getObserve();
-		int notifMaxAge = NetworkConfig.getStandard()
-				.getInt(NetworkConfigDefaults.NOTIFICATION_MAX_AGE);
 		if (V1 < V2 && V2 - V1 < 1<<23
 				|| V1 > V2 && V1 - V2 > 1<<23
-				|| T2 > T1 + notifMaxAge) {
+				|| T2 > T1 + 128000) {
 
 			setTimestamp(T2);
 			number.set(V2);

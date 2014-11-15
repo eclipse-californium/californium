@@ -69,8 +69,8 @@ public class PlugtestClient {
 		
 		// Config used for plugtest
 		NetworkConfig.getStandard()
-				.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 64) 
-				.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 64);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64);
 		
 		int first = 0;
 		if (args[first].equals("-s")) ++first;

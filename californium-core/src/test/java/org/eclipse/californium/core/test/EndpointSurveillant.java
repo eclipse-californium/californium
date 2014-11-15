@@ -16,7 +16,6 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
 
 
@@ -35,8 +34,8 @@ public class EndpointSurveillant {
 	
 	public EndpointSurveillant(String name, CoAPEndpoint endpoint) {
 		NetworkConfig config = endpoint.getConfig();
-		this.exchangeLifecycle = config.getInt(NetworkConfigDefaults.EXCHANGE_LIFECYCLE);
-		this.sweepDuplicatorInterval = config.getInt(NetworkConfigDefaults.MARK_AND_SWEEP_INTERVAL);
+		this.exchangeLifecycle = config.getInt(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+		this.sweepDuplicatorInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		this.name = name;
 		
 		extractHashmaps(endpoint);

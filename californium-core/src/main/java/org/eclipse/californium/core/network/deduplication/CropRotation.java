@@ -29,7 +29,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -65,7 +64,7 @@ public class CropRotation implements Deduplicator {
 		maps[2] = new ExchangeMap();
 		first = 0;
 		second = 1;
-		period = config.getInt(NetworkConfigDefaults.CROP_ROTATION_PERIOD);
+		period = config.getInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
 	}
 	
 	@Override

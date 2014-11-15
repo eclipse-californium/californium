@@ -33,7 +33,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
 
 
@@ -49,7 +48,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	// TODO: How should our client deal with a server that handles blocks non-atomic?
 	// TODO: Forward cancellation and timeouts of a request to its blocks.
 	
-	/**
+	/*
 	 * What if a request contains a Block2 option with size 128 but the response
 	 * is only 10 bytes long? Should we still add the block2 option to the
 	 * response? Currently, we do.
@@ -82,21 +81,26 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * matches the example in the draft.
 	 */
 	
-	private int maxMsgSize;
-	private int defaultBlockSize;
+	private int max_message_size;
+	private int preferred_block_size;
 	
+	/**
+	 * Constructs a new blockwise layer.
+	 * Changes to the configuration are observed and automatically applied.
+	 * @param config the configuration
+	 */
 	public BlockwiseLayer(NetworkConfig config) {
-		this.maxMsgSize = config.getInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE);
-		this.defaultBlockSize = config.getInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE);
-		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE: "+maxMsgSize+" and DEFAULT_BLOCK_SIZE:"+defaultBlockSize);
+		this.max_message_size = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE);
+		this.preferred_block_size = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE);
+		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE: "+max_message_size+" and DEFAULT_BLOCK_SIZE:"+preferred_block_size);
 		
 		config.addConfigObserver(new NetworkConfigObserverAdapter() {
 			@Override
 			public void changed(String key, int value) {
-				if (NetworkConfigDefaults.MAX_MESSAGE_SIZE.equals(key))
-					maxMsgSize = value;
-				if (NetworkConfigDefaults.DEFAULT_BLOCK_SIZE.equals(key))
-					defaultBlockSize = value;
+				if (NetworkConfig.Keys.MAX_MESSAGE_SIZE.equals(key))
+					max_message_size = value;
+				if (NetworkConfig.Keys.PREFERRED_BLOCK_SIZE.equals(key))
+					preferred_block_size = value;
 			}
 		});
 	}
@@ -121,7 +125,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			
 		} else if (requiresBlockwise(request)) {
 			// This must be a large POST or PUT request
-			LOGGER.fine("Request payload "+request.getPayloadSize()+"/"+maxMsgSize+" requires Blockwise");
+			LOGGER.fine("Request payload "+request.getPayloadSize()+"/"+max_message_size+" requires Blockwise");
 			BlockwiseStatus status = findRequestBlockStatus(exchange, request);
 			
 			Request block = getNextRequestBlock(request, status);
@@ -247,7 +251,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		
 		if (requireBlockwise(exchange, response)) {
 			// This must be a large response to a GET or POST request (PUT?)
-			LOGGER.fine("Response payload "+response.getPayloadSize()+"/"+maxMsgSize+" requires Blockwise");
+			LOGGER.fine("Response payload "+response.getPayloadSize()+"/"+max_message_size+" requires Blockwise");
 			
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
 			
@@ -420,7 +424,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		BlockwiseStatus status = exchange.getRequestBlockStatus();
 		if (status == null) {
 			status = new BlockwiseStatus(request.getOptions().getContentFormat());
-			status.setCurrentSzx( computeSZX(defaultBlockSize) );
+			status.setCurrentSzx( computeSZX(preferred_block_size) );
 			exchange.setRequestBlockStatus(status);
 			LOGGER.finer("There is no assembler status yet. Create and set new block1 status: "+status);
 		}
@@ -433,7 +437,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		BlockwiseStatus status = exchange.getResponseBlockStatus();
 		if (status == null) {
 			status = new BlockwiseStatus(response.getOptions().getContentFormat());
-			status.setCurrentSzx( computeSZX(defaultBlockSize) );
+			status.setCurrentSzx( computeSZX(preferred_block_size) );
 			exchange.setResponseBlockStatus(status);
 			LOGGER.finer("There is no blockwise status yet. Create and set new block2 status: "+status);
 		} else {
@@ -527,12 +531,12 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	private boolean requiresBlockwise(Request request) {
 		if (request.getCode() == Code.PUT || request.getCode() == Code.POST) {
-			return request.getPayloadSize() > maxMsgSize;
+			return request.getPayloadSize() > max_message_size;
 		} else return false;
 	}
 	
 	private boolean requireBlockwise(Exchange exchange, Response response) {
-		return response.getPayloadSize() > maxMsgSize
+		return response.getPayloadSize() > max_message_size
 				|| exchange.getResponseBlockStatus() != null;
 	}
 	

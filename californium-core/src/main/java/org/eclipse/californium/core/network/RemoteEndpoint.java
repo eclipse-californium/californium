@@ -23,7 +23,6 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 public class RemoteEndpoint {
 	
@@ -95,9 +94,9 @@ public class RemoteEndpoint {
 		// Fill Array with initial values
 		overallRTO = new long[RTOARRAYSIZE];
 		for(int i=0; i < RTOARRAYSIZE; i++){
-			overallRTO[i] = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT) ;
+			overallRTO[i] = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT) ;
 		}
-		currentRTO =  config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
+		currentRTO =  config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 
 		xRTO = new long[3];
 		xRTT = new long[3];
@@ -105,10 +104,10 @@ public class RemoteEndpoint {
 		RTOupdateTimestamp = new long[3];	
 		
 		for(int i=0; i <= 2; i++){
-			setEstimatorValues(config.getInt(NetworkConfigDefaults.ACK_TIMEOUT), 0, 0, i);
+			setEstimatorValues(config.getInt(NetworkConfig.Keys.ACK_TIMEOUT), 0, 0, i);
 			setRTOtimestamp(System.currentTimeMillis(), i);
 		}
-		meanOverallRTO = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
+		meanOverallRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		
 		currentArrayElement = 0;
 		nonConfirmableCounter = 7;

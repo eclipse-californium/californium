@@ -22,8 +22,8 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
@@ -33,11 +33,11 @@ import org.junit.Test;
 public class MemoryLeakingHashMapTest {
 
 	// Configuration for this test
-	public static final int TEST_EXCHANGE_LIFECYCLE = 247; // 0.247 seconds
+	public static final int TEST_EXCHANGE_LIFETIME = 247; // 0.247 seconds
 	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // 1 second
 	public static final int TEST_BLOCK_SIZE = 16; // 16 bytes
 
-	public static final int OBS_NOTIFICATION_INTERVALL = 50; // send one notification per 500 ms
+	public static final int OBS_NOTIFICATION_INTERVAL = 50; // send one notification per 500 ms
 	public static final int HOW_MANY_NOTIFICATION_WE_WAIT_FOR = 3;
 
 	// The names of the two resources of the server
@@ -173,7 +173,7 @@ public class MemoryLeakingHashMapTest {
 		handler.relation = rel;
 		
 		// Wait until we have received all the notifications and canceled the relation
-		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVALL + 100);
+		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 100);
 		
 		boolean success = semaphore.tryAcquire();
 		Assert.assertTrue("Client has not received all expected responses", success);
@@ -184,17 +184,17 @@ public class MemoryLeakingHashMapTest {
 	}
 	
 	private void createServerAndClientEntpoints() throws Exception {
-		timer = new Timer(OBS_NOTIFICATION_INTERVALL, null);
+		timer = new Timer(OBS_NOTIFICATION_INTERVAL, null);
 		
 		NetworkConfig config = new NetworkConfig()
 			// We make sure that the sweep deduplicator is used
-			.setString(NetworkConfigDefaults.DEDUPLICATOR, NetworkConfigDefaults.DEDUPLICATOR_MARK_AND_SWEEP)
-			.setInt(NetworkConfigDefaults.MARK_AND_SWEEP_INTERVAL, TEST_EXCHANGE_LIFECYCLE)
-			.setLong(NetworkConfigDefaults.EXCHANGE_LIFECYCLE, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)
+			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_EXCHANGE_LIFETIME)
+			.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 			
 			// We set the block size to 16 bytes
-			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, TEST_BLOCK_SIZE)
-			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, TEST_BLOCK_SIZE);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, TEST_BLOCK_SIZE)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 		
 		// Create the endpoint for the server and create surveillant
 		serverEndpoint = new CoAPEndpoint(new InetSocketAddress((InetAddress) null, 0), config);

@@ -67,10 +67,10 @@ import org.apache.http.protocol.ResponseConnControl;
 import org.apache.http.protocol.ResponseContent;
 import org.apache.http.protocol.ResponseDate;
 import org.apache.http.protocol.ResponseServer;
+
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -85,9 +85,9 @@ public class HttpStack {
 	private static final Response Response_NULL = new Response(null); // instead of Response.NULL // TODO
 	
 	private static final int SOCKET_TIMEOUT = NetworkConfig.getStandard().getInt(
-			NetworkConfigDefaults.HTTP_SERVER_SOCKET_TIMEOUT);
+			NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT);
 	private static final int SOCKET_BUFFER_SIZE = NetworkConfig.getStandard().getInt(
-			NetworkConfigDefaults.HTTP_SERVER_SOCKET_BUFFER_SIZE);
+			NetworkConfig.Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE);
 	private static final int GATEWAY_TIMEOUT = SOCKET_TIMEOUT * 3 / 4;
 	private static final String SERVER_NAME = "Californium Http Proxy";
 	

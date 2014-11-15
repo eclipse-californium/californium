@@ -23,7 +23,6 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -63,10 +62,10 @@ public class DeduplicatorFactory {
 	 * @return the deduplicator
 	 */
 	public Deduplicator createDeduplicator(NetworkConfig config) {
-		String type = config.getString(NetworkConfigDefaults.DEDUPLICATOR);
-		if (NetworkConfigDefaults.DEDUPLICATOR_MARK_AND_SWEEP.equals(type)) return new SweepDeduplicator(config);
-		else if (NetworkConfigDefaults.DEDUPLICATOR_CROP_ROTATION.equals(type)) return new CropRotation(config);
-		else if (NetworkConfigDefaults.NO_DEDUPLICATOR.equals(type)) return new NoDeduplicator();
+		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR);
+		if (NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP.equals(type)) return new SweepDeduplicator(config);
+		else if (NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION.equals(type)) return new CropRotation(config);
+		else if (NetworkConfig.Keys.NO_DEDUPLICATOR.equals(type)) return new NoDeduplicator();
 		else {
 			LOGGER.warning("Unknown deduplicator type: " + type);
 			return new NoDeduplicator();

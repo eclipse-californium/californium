@@ -20,7 +20,6 @@
 package org.eclipse.californium.core;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +32,8 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -48,8 +47,8 @@ import org.eclipse.californium.core.server.resources.Resource;
  * A server hosts a tree of {@link Resource}s which are exposed to clients by
  * means of one or more {@link Endpoint}s which are bound to a network interface.
  * 
- * A server can be started and stopped, when the server stops the endpoint should
- * free the port it is listening on.
+ * A server can be started and stopped. When the server stops the endpoint
+ * frees the port it is listening on, but keeps the executors running to resume.
  * <p>
  * The following code snippet provides an example of a server with a resource
  * that responds with a <em>"hello world"</em> to any incoming GET request.
@@ -136,15 +135,16 @@ public class CoapServer implements ServerInterface {
 	 * @param ports the ports to bind to
 	 */
 	public CoapServer(NetworkConfig config, int... ports) {
-		this.root = createRoot();
-		this.endpoints = new ArrayList<Endpoint>();
+		
+		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
 		} else {
 			this.config = NetworkConfig.getStandard();
 		}
-		this.executor = Executors.newScheduledThreadPool(
-				config.getInt(NetworkConfigDefaults.SERVER_THRESD_NUMER));
+		
+		// resources
+		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
 		
 		CoapResource well_known = new CoapResource(".well-known");
@@ -152,47 +152,19 @@ public class CoapServer implements ServerInterface {
 		well_known.add(new DiscoveryResource(root));
 		root.add(well_known);
 		
+		// endpoints
+		this.endpoints = new ArrayList<Endpoint>();
+		// sets the central thread pool for the protocol stage over all endpoints
+		this.executor = Executors.newScheduledThreadPool( config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT) );
+		// create endpoint for each port
 		for (int port:ports)
-			bind(port);
-	}
-	
-	/**
-	 * Binds the server to the specified port.
-	 *
-	 * @param port the port
-	 */
-	private void bind(int port) {
-		//TODO Martin: That didn't work out well :-/
-//		if (port == EndpointManager.DEFAULT_PORT) {
-//			for (Endpoint ep:EndpointManager.getEndpointManager().getDefaultEndpointsFromAllInterfaces())
-//					addEndpoint(ep);
-//		} else if (port == EndpointManager.DEFAULT_DTLS_PORT) {
-//			for (Endpoint ep:EndpointManager.getEndpointManager().getDefaultSecureEndpointsFromAllInterfaces())
-//					addEndpoint(ep);
-//		} else {
-//			for (InetAddress addr:EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-//				addEndpoint(new Endpoint(new InetSocketAddress(addr, port)));
-//			}
-//		}
-//		addEndpoint(new Endpoint(port));
-		
-		// This endpoint binds to all interfaces. But there is no way (in Java)
-		// of knowing to which interface address the packet actually has been
-		// sent.
-		bind(new InetSocketAddress((InetAddress) null, port));
-	}
-
-	/**
-	 * Binds the server to a ephemeral port on the specified address.
-	 *
-	 * @param address the address
-	 */
-	private void bind(InetSocketAddress address) {
-		Endpoint endpoint = new CoAPEndpoint(address, this.config);
-		addEndpoint(endpoint);
+			addEndpoint(new CoAPEndpoint(port, this.config));
 	}
 	
 	public void setExecutor(ScheduledExecutorService executor) {
+		
+		if (this.executor!=null) this.executor.shutdown();
+		
 		this.executor = executor;
 		for (Endpoint ep:endpoints)
 			ep.setExecutor(executor);
@@ -207,9 +179,13 @@ public class CoapServer implements ServerInterface {
 	public void start() {
 		LOGGER.info("Starting server");
 		if (endpoints.isEmpty()) {
-			int port = config.getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
+			// servers should bind to the configured port (while clients should use an ephemeral port)
+			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.info("No endpoints have been defined for server, setting up default endpoint at port " + port);
-			bind(port);
+			Endpoint serverEndpoint = new CoAPEndpoint(port, this.config);
+			addEndpoint(serverEndpoint);
+			// call after addEndpoint() to use correct executor
+			EndpointManager.getEndpointManager().setDefaultEndpoint(serverEndpoint);
 		}
 		int started = 0;
 		for (Endpoint ep:endpoints) {
@@ -226,8 +202,8 @@ public class CoapServer implements ServerInterface {
 	}
 	
 	/**
-	 * Stops the server, i.e. unbinds it from all ports. Frees as much system
-	 * resources as possible to still be able to be started.
+	 * Stops the server, i.e., unbinds it from all ports. Frees as much system
+	 * resources as possible to still be able to be re-started with the previous binds.
 	 */
 	@Override
 	public void stop() {
@@ -237,8 +213,7 @@ public class CoapServer implements ServerInterface {
 	}
 	
 	/**
-	 * Destroys the server, i.e. unbinds from all ports and frees all system
-	 * resources.
+	 * Destroys the server, i.e., unbinds from all ports and frees all system resources.
 	 */
 	@Override
 	public void destroy() {
@@ -301,6 +276,28 @@ public class CoapServer implements ServerInterface {
 		return endpoints;
 	}
 
+	/**
+	 * Returns the endpoint with a specific port.
+	 * @param port the port
+	 * @return the endpoint 
+	 */
+	@Override
+	public Endpoint getEndpoint(int port) {
+		Endpoint endpoint = null;
+
+		for (Endpoint ep : endpoints) {
+			if (ep.getAddress().getPort() == port) {
+				endpoint = ep;
+			}
+		}
+		return endpoint;
+	}
+
+	/**
+	 * Returns the endpoint with a specific socket address.
+	 * @param address the socket address
+	 * @return the endpoint 
+	 */
 	@Override
 	public Endpoint getEndpoint(InetSocketAddress address) {
 		Endpoint endpoint = null;
@@ -312,18 +309,6 @@ public class CoapServer implements ServerInterface {
 			}
 		}
 
-		return endpoint;
-	}
-
-	@Override
-	public Endpoint getEndpoint(int port) {
-		Endpoint endpoint = null;
-
-		for (Endpoint ep : endpoints) {
-			if (ep.getAddress().getPort() == port) {
-				endpoint = ep;
-			}
-		}
 		return endpoint;
 	}
 

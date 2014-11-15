@@ -31,7 +31,6 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.observe.ObserveRelation;
 
 
@@ -40,7 +39,7 @@ public class ObserveLayer extends AbstractLayer {
 	private long backoff = 0; // additional time to wait until re-registration
 	
 	public ObserveLayer(NetworkConfig config) {
-		this.backoff = config.getInt(NetworkConfigDefaults.NOTIFICATION_REREGISTRATION_BACKOFF);
+		this.backoff = config.getInt(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
 	}
 	
 	@Override

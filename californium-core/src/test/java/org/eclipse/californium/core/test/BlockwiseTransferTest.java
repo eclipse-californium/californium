@@ -41,7 +41,6 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.junit.After;
@@ -80,10 +79,9 @@ public class BlockwiseTransferTest {
 		EndpointManager.clear();
 		server = createSimpleServer();
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 32)
-			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 32);
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		clientEndpoint = new CoAPEndpoint(config);
-		clientEndpoint.setMessageDeliverer(new ClientMessageDeliverer());
 		clientEndpoint.start();
 	}
 	
@@ -202,8 +200,8 @@ public class BlockwiseTransferTest {
 	private CoapServer createSimpleServer() {
 		CoapServer server = new CoapServer();
 		NetworkConfig config = new NetworkConfig();
-		config.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 32);
-		config.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 32);
+		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
+		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		
 		CoAPEndpoint endpoind = new CoAPEndpoint(new InetSocketAddress(7777), config);
 		endpoind.addInterceptor(interceptor);

@@ -4,6 +4,9 @@
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
+	<properties>
+		<project.build.javaVersion>1.7</project.build.javaVersion>
+	</properties>
 	
 	<parent>
 		<groupId>org.eclipse.californium</groupId>

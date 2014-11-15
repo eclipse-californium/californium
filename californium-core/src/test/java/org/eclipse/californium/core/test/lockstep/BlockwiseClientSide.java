@@ -44,7 +44,6 @@ import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -74,12 +73,11 @@ public class BlockwiseClientSide {
 		System.out.println("\nStart "+getClass().getSimpleName());
 		
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 128)
-			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 128)
-			.setInt(NetworkConfigDefaults.ACK_TIMEOUT, 200) // client retransmits after 200 ms
-			.setInt(NetworkConfigDefaults.ACK_RANDOM_FACTOR, 1);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
+			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
+			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
 		client = new CoAPEndpoint(new InetSocketAddress(0), config);
-		client.setMessageDeliverer(new ClientMessageDeliverer());
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		clientPort = client.getAddress().getPort();

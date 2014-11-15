@@ -20,7 +20,6 @@ import java.io.IOException;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import org.eclipse.californium.proxy.DirectProxyCoAPResolver;
@@ -43,7 +42,7 @@ import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
  */
 public class ExampleCrossProxy {
 	
-	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
+	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
 
 	private CoapServer targetServerA;
 	

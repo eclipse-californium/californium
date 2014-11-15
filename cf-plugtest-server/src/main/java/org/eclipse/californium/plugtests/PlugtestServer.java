@@ -22,7 +22,6 @@ import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 
 import org.eclipse.californium.plugtests.resources.Create;
@@ -68,7 +67,7 @@ public class PlugtestServer extends CoapServer {
     public static final int ERR_INIT_FAILED = 1;
     
     // allows port configuration in Californium.properties
-    private static final int port = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);
+    private static final int port = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
     
     public static void main(String[] args) {
     	
@@ -102,10 +101,10 @@ public class PlugtestServer extends CoapServer {
     public PlugtestServer() throws SocketException {
     	
     	NetworkConfig.getStandard() // used for plugtest
-    			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 64)
-    			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 64)
-    			.setInt(NetworkConfigDefaults.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
-    			.setInt(NetworkConfigDefaults.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64) 
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
+    		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
+    		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
         
         // add resources to the server
         add(new DefaultTest());

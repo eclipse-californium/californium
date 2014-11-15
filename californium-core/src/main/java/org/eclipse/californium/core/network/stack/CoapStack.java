@@ -26,12 +26,10 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 
@@ -95,7 +93,7 @@ public class CoapStack {
 		this.outbox = outbox;
 		
 		ReliabilityLayer reliabilityLayer;
-		if (config.getBoolean(NetworkConfigDefaults.USE_CONGESTION_CONTROL) == true) {
+		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
 			reliabilityLayer = CongestionControlLayer.newImplementation(config);
 			LOGGER.config("Enabling congestion control: " + reliabilityLayer.getClass().getSimpleName());
 		} else {
@@ -111,7 +109,8 @@ public class CoapStack {
 				.add(reliabilityLayer)
 				.add(bottom = new StackBottomAdapter())
 				.create();
-		this.deliverer = new EndpointManager.ClientMessageDeliverer();
+		
+		// make sure the endpoint sets a MessageDeliverer
 	}
 	
 	// delegate to top

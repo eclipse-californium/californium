@@ -28,7 +28,6 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.RemoteEndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.stack.congestioncontrol.*;
 
 /**
@@ -243,7 +242,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @param endpoint      the Remote Endpoint for which the RTO update is done
 	 */
 	protected void initializeRTOEstimators(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){		
-		long newRTO = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
+		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 
 		endpoint.updateRTO(newRTO);
 	}
@@ -258,7 +257,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 */
 	protected void updateEstimator(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){
 		// Default CoAP always uses the default timeout
-		long newRTO = config.getInt(NetworkConfigDefaults.ACK_TIMEOUT);
+		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		endpoint.updateRTO(newRTO);
 	}	
 	
@@ -269,7 +268,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @return the new VBF
 	 */
 	protected double calculateVBF(long rto){
-		return config.getInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE);
+		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 	}
 	
 	/*
@@ -339,7 +338,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				getRemoteEndpoint(exchange).matchCurrentRTO();
 				timeout = (int)getRemoteEndpoint(exchange).getRTO();
 				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
-				float ack_random_factor = config.getFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR);
+				float ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
 				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
 			}
 			//System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
@@ -461,7 +460,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	}
 	
 	public static CongestionControlLayer newImplementation(NetworkConfig config) {
-		final String implementation = config.getString(NetworkConfigDefaults.CONGESTION_CONTROL_ALGORITHM);
+		final String implementation = config.getString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM);
 		if ("Cocoa".equals(implementation)) return new Cocoa(config);
 		else if ("CocoaStrong".equals(implementation)) return new CocoaStrong(config);
 		else if ("BasicRto".equals(implementation)) return new BasicRto(config);

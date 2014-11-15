@@ -27,7 +27,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -39,7 +38,7 @@ public class TokenLayer extends AbstractLayer {
 	private AtomicInteger counter;
 	
 	public TokenLayer(NetworkConfig config) {
-		if (config.getBoolean(NetworkConfigDefaults.USE_RANDOM_TOKEN_START))
+		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_TOKEN_START))
 			counter = new AtomicInteger(new Random().nextInt());
 		else counter = new AtomicInteger(0);
 	}
@@ -48,8 +47,6 @@ public class TokenLayer extends AbstractLayer {
 	public void sendRequest(Exchange exchange, Request request) {
 		if (request.getToken() == null)
 			request.setToken(createNewToken());
-//		if (exchange.getCurrentRequest().getToken() == null)
-//			throw new NullPointerException("Sending request's token cannot be null, use byte[0] for empty tokens");
 		super.sendRequest(exchange, request);
 	}
 
@@ -88,7 +85,7 @@ public class TokenLayer extends AbstractLayer {
 	}
 	
 	/**
-	 * Create a new token
+	 * Creates a new token.
 	 * @return the new token
 	 */
 	private byte[] createNewToken() {

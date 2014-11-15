@@ -39,7 +39,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 
 /**
@@ -51,7 +50,7 @@ public class CoapClient {
 	private static final Logger LOGGER = Logger.getLogger(CoapClient.class.getCanonicalName());
 	
 	/** The timeout. */
-	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfigDefaults.MAX_TRANSMIT_WAIT);
+	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.ACK_TIMEOUT);
 	
 	/** The destination URI */
 	private String uri;

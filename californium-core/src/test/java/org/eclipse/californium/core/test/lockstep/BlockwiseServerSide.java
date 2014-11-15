@@ -41,7 +41,6 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.junit.After;
@@ -76,8 +75,8 @@ public class BlockwiseServerSide {
 		testResource = new TestResource("test");
 		
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 128)
-			.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 128);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128);
 		server = new CoapServer(config, 0);
 		server.add(testResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);

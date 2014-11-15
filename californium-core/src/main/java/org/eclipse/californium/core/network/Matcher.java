@@ -36,7 +36,6 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -72,7 +71,7 @@ public class Matcher {
 		DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 		this.deduplicator = factory.createDeduplicator(config);
 		
-		if (config.getBoolean(NetworkConfigDefaults.USE_RANDOM_MID_START))
+		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START))
 			currendMID = new AtomicInteger(new Random().nextInt(1<<16));
 		else currendMID = new AtomicInteger(0);
 	}

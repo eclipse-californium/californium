@@ -32,8 +32,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.Serializer;
@@ -141,7 +141,7 @@ public class CoAPEndpoint implements Endpoint {
 	private Serializer serializer;
 	
 	/**
-	 * Instantiates a new endpoint.
+	 * Instantiates a new endpoint with an ephemeral port.
 	 */
 	public CoAPEndpoint() {
 		this(0);
@@ -155,7 +155,7 @@ public class CoAPEndpoint implements Endpoint {
 	public CoAPEndpoint(int port) {
 		this(new InetSocketAddress(port));
 	}
-	
+
 	/**
 	 * Instantiates a new endpoint with the specified address.
 	 *
@@ -167,6 +167,15 @@ public class CoAPEndpoint implements Endpoint {
 	
 	public CoAPEndpoint(NetworkConfig config) {
 		this(new InetSocketAddress(0), config);
+	}
+	
+	/**
+	 * Instantiates a new endpoint with the specified port and configuration.
+	 *
+	 * @param address the address
+	 */
+	public CoAPEndpoint(int port, NetworkConfig config) {
+		this(new InetSocketAddress(port), config);
 	}
 	
 	/**
@@ -190,12 +199,9 @@ public class CoAPEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 		this.serializer = new Serializer();
-		
 		this.matcher = new Matcher(config);		
 		this.coapstack = new CoapStack(config, new OutboxImpl());
-
-		// connector delivers bytes to CoAP stack
-		connector.setRawDataReceiver(new InboxImpl()); 
+		this.connector.setRawDataReceiver(new InboxImpl());
 	}
 	
 	/**
@@ -207,12 +213,15 @@ public class CoAPEndpoint implements Endpoint {
 	 */
 	private static Connector createUDPConnector(InetSocketAddress address, NetworkConfig config) {
 		UDPConnector c = new UDPConnector(address);
-		c.setReceiverThreadCount(config.getInt(NetworkConfigDefaults.UDP_CONNECTOR_RECEIVER_THREAD_COUNT));
-		c.setSenderThreadCount(config.getInt(NetworkConfigDefaults.UDP_CONNECTOR_SENDER_THREAD_COUNT));
-		c.setReceiveBufferSize(config.getInt(NetworkConfigDefaults.UDP_CONNECTOR_RECEIVE_BUFFER));
-		c.setSendBufferSize(config.getInt(NetworkConfigDefaults.UDP_CONNECTOR_SEND_BUFFER));
-		c.setLogPackets(config.getBoolean(NetworkConfigDefaults.UDP_CONNECTOR_LOG_PACKETS));
-		c.setReceiverPacketSize(config.getInt(NetworkConfigDefaults.UDP_CONNECTOR_DATAGRAM_SIZE));
+		
+		c.setReceiverThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT));
+		c.setSenderThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT));
+		
+		c.setReceiveBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER));
+		c.setSendBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER));
+		c.setLogPackets(config.getBoolean(NetworkConfig.Keys.UDP_CONNECTOR_LOG_PACKETS));
+		c.setReceiverPacketSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE));
+		
 		return c;
 	}
 	
@@ -226,7 +235,10 @@ public class CoAPEndpoint implements Endpoint {
 			return;
 		}
 		
-		if (executor == null) {
+		if (!this.coapstack.hasDeliverer())
+			this.coapstack.setDeliverer(new ClientMessageDeliverer());
+		
+		if (this.executor == null) {
 			LOGGER.config("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
 			
 			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new EndpointManager.DaemonThreadFactory());

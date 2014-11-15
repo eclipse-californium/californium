@@ -30,10 +30,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.osgi.EndpointFactory;
@@ -57,8 +56,8 @@ public class ManagedServerTest {
 	Endpoint standardEndpoint;
 	Endpoint secureEndpoint;
 	
-	InetSocketAddress standardAddress = new InetSocketAddress(EndpointManager.DEFAULT_COAP_PORT);
-	InetSocketAddress secureAddress = new InetSocketAddress(EndpointManager.DEFAULT_COAP_PORT);
+	InetSocketAddress standardAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_PORT);
+	InetSocketAddress secureAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT);
 	
 	@Before
 	public void setUp() {
@@ -76,7 +75,7 @@ public class ManagedServerTest {
 			
 			@Override
 			public ServerInterface newServer(NetworkConfig config) {
-				return newServer(config, EndpointManager.DEFAULT_COAP_PORT);
+				return newServer(config, CoAP.DEFAULT_COAP_PORT);
 			}
 
 			@Override
@@ -164,7 +163,7 @@ public class ManagedServerTest {
 	@Test
 	public void testSecureEndpointRequiresSecureEndpointFactory() throws Exception {
 		Dictionary<String, String> props = new Hashtable<String, String>();
-		props.put(NetworkConfigDefaults.DEFAULT_COAP_SECURE_PORT, Integer.toString(EndpointManager.DEFAULT_COAP_SECURE_PORT));
+		props.put(NetworkConfig.Keys.COAP_SECURE_PORT, Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
 		managedServer.updated(props);
 		assertFalse(server.getEndpoints().isEmpty());
 		// verify that the secure CoAP endpoint has not been registered 
@@ -175,7 +174,7 @@ public class ManagedServerTest {
 	public void testServiceRegistersEndpoints() throws Exception {
 
 		Dictionary<String, String> props = new Hashtable<String, String>();
-		props.put(NetworkConfigDefaults.DEFAULT_COAP_SECURE_PORT, Integer.toString(EndpointManager.DEFAULT_COAP_SECURE_PORT));
+		props.put(NetworkConfig.Keys.COAP_SECURE_PORT, Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
 		
 		managedServer = new ManagedServer(bundleContext, serverFactory, secureEndpointFactory);
 		managedServer.updated(props);
@@ -189,11 +188,11 @@ public class ManagedServerTest {
 		
         managedServer.updated(null);
         managedServer.getEndpoint(standardAddress);
-        managedServer.getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
+        managedServer.getEndpoint(CoAP.DEFAULT_COAP_PORT);
         managedServer.getAllEndpoints();
 
         verify(server).getEndpoint(standardAddress);
-        verify(server).getEndpoint(EndpointManager.DEFAULT_COAP_PORT);
+        verify(server).getEndpoint(CoAP.DEFAULT_COAP_PORT);
         verify(server).getEndpoints();
 	}
 }

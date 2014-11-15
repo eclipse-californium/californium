@@ -30,7 +30,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 
 
 /**
@@ -129,7 +128,7 @@ public class SweepDeduplicator implements Deduplicator {
 		 * Iterate through all entries and remove the obsolete ones.
 		 */
 		private void sweep() {
-			int lifecycle = config.getInt(NetworkConfigDefaults.EXCHANGE_LIFECYCLE);
+			int lifecycle = config.getInt(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 			long oldestAllowed = System.currentTimeMillis() - lifecycle;
 			
 			// Notice that the guarantees from the ConcurrentHashMap guarantee
@@ -137,10 +136,7 @@ public class SweepDeduplicator implements Deduplicator {
 			for (Map.Entry<?,Exchange> entry:incommingMessages.entrySet()) {
 				Exchange exchange = entry.getValue();
 				if (exchange.getTimestamp() < oldestAllowed) {
-					
-					// TODO: Only remove if no observe option!!! Should we take ts of last message?
-					// Use exchange.isCompleted()
-					
+					//TODO check if exchange of observe relationship is periodically created and sweeped
 					LOGGER.finer("Mark-And-Sweep removes "+entry.getKey());
 					incommingMessages.remove(entry.getKey());
 				}
@@ -151,7 +147,7 @@ public class SweepDeduplicator implements Deduplicator {
 		 * Reschedule this task again.
 		 */
 		private void schedule() {
-			long period = config.getLong(NetworkConfigDefaults.MARK_AND_SWEEP_INTERVAL);
+			long period = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 			future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
 		}
 		

@@ -28,7 +28,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.UDPConnector;
 
 
@@ -48,7 +47,7 @@ public class BenchmarkServer {
 	public static final String DEFAULT_ADDRESS = null;
 	public static final int DEFAULT_PORT = 5683;
 	
-	public static final int DEFAULT_ENDPOINT_THREAD_COUNT = CORES;
+	public static final int DEFAULT_PROTOCOL_STAGE_THREAD_COUNT = CORES;
 	
 	public static final int DEFAULT_SENDER_COUNT = WINDOWS ? CORES : 1;
 	public static final int DEFAULT_RECEIVER_COUNT = WINDOWS ? CORES : 1;
@@ -64,7 +63,7 @@ public class BenchmarkServer {
 		int port = DEFAULT_PORT;
 		int udp_sender = DEFAULT_SENDER_COUNT;
 		int udp_receiver = DEFAULT_RECEIVER_COUNT;
-		int endpoint_threads = DEFAULT_ENDPOINT_THREAD_COUNT;
+		int protocol_threads = DEFAULT_PROTOCOL_STAGE_THREAD_COUNT;
 		boolean verbose = false;
 		boolean use_workers = false;
 		
@@ -76,7 +75,7 @@ public class BenchmarkServer {
 				if ("-usage".equals(arg) || "-help".equals(arg) || "-h".equals(arg) || "-?".equals(arg)) {
 					printUsage();
 				} else if ("-t".equals(arg)) {
-					endpoint_threads = Integer.parseInt(args[index+1]);
+					protocol_threads = Integer.parseInt(args[index+1]);
 				} else if ("-s".equals(arg)) {
 					udp_sender = Integer.parseInt(args[index+1]);
 				} else if ("-r".equals(arg)) {
@@ -101,17 +100,16 @@ public class BenchmarkServer {
 		InetAddress addr = address!=null ? InetAddress.getByName(address) : null;
 		InetSocketAddress sockAddr = new InetSocketAddress((InetAddress) addr, port);
 		
-		
 		setBenchmarkConfiguration(udp_sender, udp_receiver, verbose);
 		
 		// Create server
 		CoapServer server = new CoapServer();
 		if (use_workers) {
-			System.out.println("Use queues with "+endpoint_threads+" workers");
-			server.setExecutor(new WorkQueueExecutor(endpoint_threads));
+			System.out.println("Use queues with "+protocol_threads+" workers");
+			server.setExecutor(new WorkQueueExecutor(protocol_threads));
 		} else {
-			System.out.println("Endpoint thread-pool size: "+endpoint_threads);
-			server.setExecutor(Executors.newScheduledThreadPool(endpoint_threads));
+			System.out.println("Endpoint thread-pool size: "+protocol_threads);
+			server.setExecutor(Executors.newScheduledThreadPool(protocol_threads));
 		}
 		System.out.println("Number of receiver/sender threads: "+udp_receiver+"/"+udp_sender);
 			
@@ -141,20 +139,19 @@ public class BenchmarkServer {
 		// Network configuration optimal for performance benchmarks
 		NetworkConfig.createStandardWithoutFile()
 			// Disable deduplication OR strongly reduce lifetime
-			.setString(NetworkConfigDefaults.DEDUPLICATOR, NetworkConfigDefaults.NO_DEDUPLICATOR)
-			.setInt(NetworkConfigDefaults.EXCHANGE_LIFECYCLE, 1500)
-			.setInt(NetworkConfigDefaults.MARK_AND_SWEEP_INTERVAL, 2000)
+			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR)
+			.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, 1500)
 			
 			// Increase buffer for network interface to 10 MB
-			.setInt(NetworkConfigDefaults.UDP_CONNECTOR_RECEIVE_BUFFER, 10*1024*1024)
-			.setInt(NetworkConfigDefaults.UDP_CONNECTOR_SEND_BUFFER, 10*1024*1024)
+			.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 10*1024*1024)
+			.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, 10*1024*1024)
 		
 			// Increase threads for receiving and sending packets through the socket
-			.setInt(NetworkConfigDefaults.UDP_CONNECTOR_RECEIVER_THREAD_COUNT, udp_receiver)
-			.setInt(NetworkConfigDefaults.UDP_CONNECTOR_SENDER_THREAD_COUNT, udp_sender)
+			.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, udp_receiver)
+			.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, udp_sender)
 			
 			// Disable message logging
-			.setBoolean(NetworkConfigDefaults.UDP_CONNECTOR_LOG_PACKETS, verbose);
+			.setBoolean(NetworkConfig.Keys.UDP_CONNECTOR_LOG_PACKETS, verbose);
 	}
 	
 	private static void printUsage() {

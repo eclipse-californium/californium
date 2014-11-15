@@ -36,7 +36,6 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
@@ -160,9 +159,9 @@ public class ObserveTest {
 	private void createServer() {
 		// retransmit constantly all 2 seconds
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfigDefaults.ACK_TIMEOUT, 200)
-			.setFloat(NetworkConfigDefaults.ACK_RANDOM_FACTOR, 1.0f)
-			.setInt(NetworkConfigDefaults.ACK_TIMEOUT_SCALE, 1);
+			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
+			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 		
 		CoAPEndpoint endpoint = new CoAPEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
 		

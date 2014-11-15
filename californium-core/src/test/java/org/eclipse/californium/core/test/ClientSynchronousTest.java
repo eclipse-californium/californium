@@ -34,7 +34,6 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
@@ -62,7 +61,7 @@ public class ClientSynchronousTest {
 	
 	@Before
 	public void startupServer() {
-		NetworkConfig.getStandard().setLong(NetworkConfigDefaults.MAX_TRANSMIT_WAIT, 100);
+		NetworkConfig.getStandard().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		createServer();
 		System.out.println("\nStart "+getClass().getSimpleName() + " on port " + serverPort);
 	}

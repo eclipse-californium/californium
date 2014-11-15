@@ -27,7 +27,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.Resource;
 
 
@@ -42,8 +41,8 @@ public class ObserveRelation {
 
 	private final ObserveNotificationOrderer orderer = new ObserveNotificationOrderer();
 	
-	private final long CHECK_INTERVAL_TIME = NetworkConfig.getStandard().getLong(NetworkConfigDefaults.NOTIFICATION_CHECK_INTERVAL_TIME);
-	private final int CHECK_INTERVAL_COUNT = NetworkConfig.getStandard().getInt(NetworkConfigDefaults.NOTIFICATION_CHECK_INTERVAL_COUNT);
+	private final long CHECK_INTERVAL_TIME = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
+	private final int CHECK_INTERVAL_COUNT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
 	
 	private final ObservingEndpoint endpoint;
 

@@ -25,8 +25,8 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.ServerInterface;
@@ -110,10 +110,10 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 				
 				@Override
 				public ServerInterface newServer(NetworkConfig config) {
-					int port = config.getInt(NetworkConfigDefaults.DEFAULT_COAP_PORT);		
+					int port = config.getInt(NetworkConfig.Keys.COAP_PORT);		
 					if ( port == 0 )
 					{
-						port = EndpointManager.DEFAULT_COAP_PORT;
+						port = CoAP.DEFAULT_COAP_PORT;
 					}
 					return newServer(config, port);
 				}
@@ -158,7 +158,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 		managedServer = serverFactory.newServer(networkConfig);
 		
 		// add secure endpoint if configured
-		int securePort = networkConfig.getInt(NetworkConfigDefaults.DEFAULT_COAP_SECURE_PORT);
+		int securePort = networkConfig.getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
 		if ( securePort > 0 ) {
 			Endpoint secureEndpoint = endpointFactory.getSecureEndpoint(
 					networkConfig, new InetSocketAddress((InetAddress) null, securePort));

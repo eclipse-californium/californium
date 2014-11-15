@@ -27,7 +27,6 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
 
 public class CocoaClient {
@@ -52,13 +51,13 @@ public class CocoaClient {
 			System.exit(-1);
 		}
     	
-    	NetworkConfig config = new NetworkConfig();
-    	// enable congestion control (can also be done cia Californium.properties)
-    	config.setBoolean(NetworkConfigDefaults.USE_CONGESTION_CONTROL, true);
-    	// see class names in org.eclipse.californium.core.network.stack.congestioncontrol
-    	config.setString(NetworkConfigDefaults.CONGESTION_CONTROL_ALGORITHM, Cocoa.class.getSimpleName());
-    	// set NSTART to four
-    	config.setInt(NetworkConfigDefaults.NSTART, 4);
+    	NetworkConfig config = new NetworkConfig()
+    		// enable congestion control (can also be done cia Californium.properties)
+    		.setBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL, true)
+	    	// see class names in org.eclipse.californium.core.network.stack.congestioncontrol
+	    	.setString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, Cocoa.class.getSimpleName())
+	    	// set NSTART to four
+	    	.setInt(NetworkConfig.Keys.NSTART, 4);
     	
     	// create an endpoint with this configuration
     	CoAPEndpoint cocoaEndpoint = new CoAPEndpoint(config);

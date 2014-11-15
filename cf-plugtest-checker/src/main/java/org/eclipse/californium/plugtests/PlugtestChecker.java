@@ -43,7 +43,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.Resource;
 
 
@@ -199,8 +198,8 @@ public class PlugtestChecker {
 		
 		// Config used for plugtest
 		NetworkConfig.getStandard()
-				.setInt(NetworkConfigDefaults.MAX_MESSAGE_SIZE, 64) 
-				.setInt(NetworkConfigDefaults.DEFAULT_BLOCK_SIZE, 64);
+				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64) 
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64);
 		
 		if (first==1) {
 			if (ping(uri)) {

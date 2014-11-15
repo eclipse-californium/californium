@@ -33,7 +33,6 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import com.google.common.cache.CacheBuilder;
@@ -55,13 +54,13 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 * with the max-age option.
 	 */
 	private static final int CACHE_RESPONSE_MAX_AGE = 
-			NetworkConfig.getStandard().getInt(NetworkConfigDefaults.HTTP_CACHE_RESPONSE_MAX_AGE);
+			NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE);
 
 	/**
 	 * Maximum size for the cache.
 	 */
 	private static final long CACHE_SIZE = 
-			NetworkConfig.getStandard().getInt(NetworkConfigDefaults.HTTP_CACHE_SIZE);
+			NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_CACHE_SIZE);
 
 	/**
 	 * The cache. http://code.google.com/p/guava-libraries/wiki/CachesExplained

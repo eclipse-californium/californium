@@ -21,7 +21,6 @@ package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -29,8 +28,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,8 +35,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
 /**
@@ -54,7 +49,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  * <p>
  * To make a server listen for requests on the default endpoint, call
  * <pre>{@code
- *  CoapServer server = new CoapServer(EndpointManager.DEFAULT_PORT);
+ *  CoapServer server = new CoapServer();
  * }</pre>
  * or more explicit
  * <pre>{@code
@@ -67,13 +62,6 @@ public class EndpointManager {
 	
 	/** The logger */
 	private final static Logger LOGGER = Logger.getLogger(EndpointManager.class.getCanonicalName());
-
-//	/** The default CoAP port for normal CoAP communication (not secure) */
-	public static final int DEFAULT_COAP_PORT = 5683;
-	
-	/** The default CoAP port for secure CoAP communication (coaps) */
-	/* Will be chosen by the system and will be different between different runs of the program*/
-	public static final int DEFAULT_COAP_SECURE_PORT = 5684;
 	
 	/** The singleton manager instance */
 	private static EndpointManager manager = new EndpointManager();
@@ -87,14 +75,14 @@ public class EndpointManager {
 		return manager;
 	}
 	
-	/** The default endpoint for CoAP (port 5683) */
+	/** The default endpoint for CoAP */
 	private Endpoint default_endpoint;
 	
-	/** The default endpoint for secure CoAP (port 5684) */
-	private Endpoint default_dtls_endpoint;
+	/** The default endpoint for secure CoAP */
+	private Endpoint default_secure_endpoint;
 	
 	/**
-	 * Gets the default endpoint (listening on port 5683). By default, the
+	 * Gets the default endpoint for implicit use by clients. By default, the
 	 * endpoint has a single-threaded executor and is started. It is possible to
 	 * send requests over the endpoint and receive responses. It is not possible
 	 * to receive requests by default. If a request arrives at the endpoint, the
@@ -115,48 +103,33 @@ public class EndpointManager {
 		}
 		return default_endpoint;
 	}
-	
+
+	/*
+	 * Creates an endpoint with the wildcard adress (::0) and an ephemeral port.
+	 * The new endpoint gets a client message deliverer and is started.
+	 * To listen on specific interfaces or ports, set the default endpoint manually.
+	 * To distinguish different interfaces, one endpoint per interface must be added.
+	 */
 	private synchronized void createDefaultEndpoint() throws UnknownHostException {
 		if (default_endpoint != null) return;
 		
-		int threadCount = NetworkConfig.getStandard().getInt(
-				NetworkConfigDefaults.DEFAULT_ENDPOINT_THREAD_COUNT);
-		final ScheduledExecutorService executor = 
-				Executors.newScheduledThreadPool(threadCount, new DaemonThreadFactory());
-		/*
-		 * FIXME: With host=null, the default endpoint binds to 0.0.0.0. When
-		 * sending it chooses to send over 192.168.1.37. A server that binds
-		 * itself explicitly to .37 might send packets as well. If they both use
-		 * the same MIDs they will interfere with each other. However, if we use
-		 * host=getLocalHost(), the endpoint binds explicitly to 192.168.1.37.
-		 * If we then try to send a packet to localhost, an exception raises. It
-		 * seems that we cannot send a packet over .37 to localhost.
-		 */
-		InetAddress localhost = null;
-		int port = 0;
-		InetSocketAddress address = new InetSocketAddress(localhost, port);
-		default_endpoint = new CoAPEndpoint(address);
-		default_endpoint.setMessageDeliverer(new ClientMessageDeliverer());
-		default_endpoint.setExecutor(executor);
-		default_endpoint.addObserver(new EndpointObserver() {
-			public void started(Endpoint endpoint) { }
-			public void stopped(Endpoint endpoint) { }
-			public void destroyed(Endpoint endpoint) {
-				executor.shutdown();
-			}
-		});
+		default_endpoint = new CoAPEndpoint();
+		
 		try {
 			default_endpoint.start();
-			LOGGER.log(Level.INFO, "Created default endpoint " + default_endpoint.getAddress());
+			LOGGER.log(Level.INFO, "Created implicit default endpoint " + default_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create default endpoint", e);
 		}
 	}
 	
+	/**
+	 * Configures a new default endpoint. Any old default endpoint is destroyed.
+	 * @param endpoint the new default endpoint
+	 */
 	public void setDefaultEndpoint(Endpoint endpoint) {
 		
 		if (this.default_endpoint!=null) {
-			this.default_endpoint.stop();
 			this.default_endpoint.destroy();
 		}
 		
@@ -165,16 +138,15 @@ public class EndpointManager {
 		if (!this.default_endpoint.isStarted()) {
 			try {
 				default_endpoint.start();
-				LOGGER.log(Level.INFO, "Started set default endpoint " + default_endpoint.getAddress());
+				LOGGER.log(Level.INFO, "Started new default endpoint " + default_endpoint.getAddress());
 			} catch (IOException e) {
-				LOGGER.log(Level.SEVERE, "Could not set and start default endpoint", e);
+				LOGGER.log(Level.SEVERE, "Could not start new default endpoint", e);
 			}
-			
 		}
 	}
 	
 	/**
-	 * Gets the default endpoint for coaps (listening on a system chosen port).
+	 * Gets the default endpoint for coaps for implicit use by clients.
 	 * By default, the endpoint has a single-threaded executor and is started.
 	 * It is possible to send requests over the endpoint and receive responses.
 	 * It is not possible to receive requests by default. If a request arrives
@@ -187,23 +159,41 @@ public class EndpointManager {
 	 */
 	public Endpoint getDefaultSecureEndpoint() {
 		try {
-			if (default_dtls_endpoint == null) {
+			if (default_secure_endpoint == null) {
 				createDefaultSecureEndpoint();
 			}
 		} catch (Exception e) {
 			LOGGER.log(Level.SEVERE, "Exception while getting the default secure endpoint", e);
 		}
-		return default_dtls_endpoint;
+		return default_secure_endpoint;
 	}
 	
 	private synchronized void createDefaultSecureEndpoint() {
-		if (default_dtls_endpoint != null) return;
+		if (default_secure_endpoint != null) return;
 		
 		LOGGER.config("Secure endpoint must be injected via setDefaultSecureEndpoint()");	
 	}
-	
+
+	/**
+	 * Configures a new default secure endpoint. Any old default endpoint is destroyed.
+	 * @param endpoint the new default endpoint
+	 */
 	public void setDefaultSecureEndpoint(Endpoint endpoint) {
-		this.default_dtls_endpoint = endpoint;
+
+		if (this.default_secure_endpoint!=null) {
+			this.default_secure_endpoint.destroy();
+		}
+		
+		this.default_secure_endpoint = endpoint;
+
+		if (!this.default_secure_endpoint.isStarted()) {
+			try {
+				default_secure_endpoint.start();
+				LOGGER.log(Level.INFO, "Started new default secure endpoint " + default_endpoint.getAddress());
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not start new default secure endpoint", e);
+			}
+		}
 	}
 
 	public Collection<InetAddress> getNetworkInterfaces() {
@@ -229,8 +219,8 @@ public class EndpointManager {
 		EndpointManager it = getEndpointManager();
 		if (it.default_endpoint != null)
 			it.default_endpoint.clear();
-		if (it.default_dtls_endpoint != null)
-			it.default_dtls_endpoint.clear();
+		if (it.default_secure_endpoint != null)
+			it.default_secure_endpoint.clear();
 	}
 	
 	/**
@@ -246,7 +236,7 @@ public class EndpointManager {
 		 */
 		@Override
 		public void deliverRequest(Exchange exchange) {
-			LOGGER.severe("Default endpoint has received a request. What should happen now?");
+			LOGGER.severe("Default endpoint without CoapServer has received a request.");
 			exchange.sendReject();
 		}
 		
@@ -258,7 +248,6 @@ public class EndpointManager {
 			if (exchange == null) throw new NullPointerException();
 			if (exchange.getRequest() == null) throw new NullPointerException();
 			if (response == null) throw new NullPointerException();
-			LOGGER.fine("Deliver response to request");
 			exchange.getRequest().setResponse(response);
 		}
 	}
