@@ -172,8 +172,9 @@ public class CertificateMessage extends HandshakeMessage {
 				index++;
 			}
 		} else {
-			sb.append("\t\tRaw Public Key:\n");
-			sb.append("\t\t\t" + getPublicKey().toString() + "\n");
+			sb.append("\t\tRaw Public Key: ");
+			sb.append(getPublicKey().toString());
+			sb.append("\n");
 		}
 
 		return sb.toString();
