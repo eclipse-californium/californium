@@ -438,7 +438,7 @@ public class ClientHandshaker extends Handshaker {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE);
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
-			clientKeyExchange = new PSKClientKeyExchange(psk);
+			clientKeyExchange = new PSKClientKeyExchange(identity);
 			if (LOGGER.isLoggable(Level.INFO)) {
 				LOGGER.info("Using PSK identity: " + identity);
 			}
