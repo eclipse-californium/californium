@@ -21,6 +21,8 @@ target/
 
 # Eclipse #
 ###########
+.project
+.classpath
 .settings/
 .externalToolBuilders/
 *.launch
@@ -56,6 +58,7 @@ target/
 
 # Logs and databases #
 ######################
+Californium.properties
 *.log
 *.sql
 *.sqlite
