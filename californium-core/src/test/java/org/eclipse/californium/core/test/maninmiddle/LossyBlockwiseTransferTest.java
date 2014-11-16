@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
-import java.net.InetSocketAddress;
 import java.util.Random;
 
 import junit.framework.Assert;
@@ -30,7 +29,6 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
