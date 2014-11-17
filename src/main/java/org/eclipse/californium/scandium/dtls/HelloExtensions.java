@@ -18,10 +18,9 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -106,18 +105,24 @@ public class HelloExtensions {
 		int length = reader.read(LENGTH_BITS);
 
 		while (length > 0) {
-
-			ExtensionType type = ExtensionType.getExtensionTypeById(reader.read(TYPE_BITS));
+			int typeId = reader.read(TYPE_BITS);
+			ExtensionType type = ExtensionType.getExtensionTypeById(typeId);
 			int extensionLength = reader.read(EXTENSION_LENGTH_BITS);
-			
-			if (type != null) {
-				HelloExtension helloExtension = HelloExtension.fromByteArray(reader.readBytes(extensionLength), type);
-				extensions.add(helloExtension);
-			}
 
-			// the extensions length + 2 bytes for type field and 2 bytes for
-			// length field
-			length -= extensionLength + 4;
+			if (type != null) {
+				HelloExtension helloExtension = HelloExtension.fromByteArray(
+						reader.readBytes(extensionLength), type);
+				extensions.add(helloExtension);
+			} else {
+				LOGGER.log(Level.FINER,	String.format(
+								"Client included an unknown extension type code in its Hello message [%d]",
+								typeId));
+			}
+			// reduce by (type field length + length field length +
+			// extension's length)
+			length -= TYPE_BITS / 8 + EXTENSION_LENGTH_BITS / 8
+					+ extensionLength;
+
 		}
 
 		return new HelloExtensions(extensions);
@@ -242,9 +247,7 @@ public class HelloExtensions {
 				return ExtensionType.SERVER_CERT_TYPE;
 
 			default:
-				LOGGER.severe("Unknown extension type code: " + id);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION);
-				throw new HandshakeException("Unknown extension type code received: " + id, alert);
+				return null;
 			}
 		}
 
