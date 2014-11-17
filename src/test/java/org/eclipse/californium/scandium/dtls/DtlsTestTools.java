@@ -66,4 +66,20 @@ public class DtlsTestTools {
         return cookie;
     }
 
+    public static byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
+    	return newHelloExtension(19, certificateTypes);
+    }
+    
+    public static byte[] newServerCertificateTypesExtension(byte[] certificateTypes) {
+    	return newHelloExtension(20, certificateTypes);
+    }
+    
+    public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
+    	DatagramWriter writer = new DatagramWriter();
+    	writer.write(typeCode, 16);
+    	writer.write(extensionBytes.length, 16);
+    	writer.writeBytes(extensionBytes);
+    	return writer.toByteArray();
+    }
+    
 }
