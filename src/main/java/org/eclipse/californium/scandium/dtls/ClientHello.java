@@ -122,6 +122,7 @@ public class ClientHello extends HandshakeMessage {
 		CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
 		if (useRawPublicKey) {
 			clientCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
+			clientCertificateType.addCertificateType(CertificateType.X_509);
 		} else {
 			// the client supports rawPublicKeys but prefers X.509 certificates
 			
