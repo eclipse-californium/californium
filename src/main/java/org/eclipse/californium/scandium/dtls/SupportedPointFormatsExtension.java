@@ -19,7 +19,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
