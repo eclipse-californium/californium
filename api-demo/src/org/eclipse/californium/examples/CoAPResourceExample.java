@@ -38,7 +38,7 @@ public class CoAPResourceExample extends CoapResource {
 	public void handlePOST(CoapExchange exchange) {
 		exchange.accept();
 		
-		if (exchange.getRequestOptions().hasContentFormat(MediaTypeRegistry.TEXT_XML)) {
+		if (exchange.getRequestOptions().isContentFormat(MediaTypeRegistry.TEXT_XML)) {
 			String xml = exchange.getRequestText();
 			exchange.respond(CREATED, xml.toUpperCase());
 			

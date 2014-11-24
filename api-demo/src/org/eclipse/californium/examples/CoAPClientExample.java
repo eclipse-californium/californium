@@ -30,7 +30,7 @@ public class CoAPClientExample {
 
 	public static void main(String[] args) {
 		
-		CoapClient client = new CoapClient("coap://vs0.inf.ethz.ch:5683/obs");
+		CoapClient client = new CoapClient("coap://iot.eclipse.org:5683/obs");
 
 		System.out.println("SYNCHRONOUS");
 		
@@ -72,7 +72,7 @@ public class CoAPClientExample {
 					}
 					
 					@Override public void onError() {
-						System.err.println("FAILED");
+						System.err.println("OBSERVING FAILED");
 					}
 				});
 		
