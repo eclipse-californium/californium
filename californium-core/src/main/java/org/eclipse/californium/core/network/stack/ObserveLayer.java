@@ -23,6 +23,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -254,6 +255,10 @@ public class ObserveLayer extends AbstractLayer {
 				refresh.setToken(exchange.getRequest().getToken());
 				refresh.setDestination(exchange.getRequest().getDestination());
 				refresh.setDestinationPort(exchange.getRequest().getDestinationPort());
+				// use same handler
+				for (MessageObserver mo : exchange.getRequest().getMessageObservers()) {
+					refresh.addMessageObserver(mo);
+				}
 				LOGGER.info("Re-registering for " + exchange.getRequest());
 				sendRequest(exchange, refresh);
 			} else {
