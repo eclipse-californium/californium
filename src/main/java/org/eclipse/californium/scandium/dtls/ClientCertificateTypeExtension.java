@@ -18,8 +18,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.HelloExtensions.ExtensionType;
-
 
 public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 	
