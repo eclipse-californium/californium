@@ -75,7 +75,7 @@ public class ServerHandshakerTest {
     public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() {
     	List<byte[]> extensions = new LinkedList<>();
     	// certificate type 0x05 is not defined by IANA
-    	extensions.add(newClientCertificateTypesExtension(new byte[]{(byte) 0x05}));
+    	extensions.add(DtlsTestTools.newClientCertificateTypesExtension(new byte[]{(byte) 0x05}));
     	
     	try {
         	byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
@@ -90,7 +90,7 @@ public class ServerHandshakerTest {
     public void testReceiveClientHelloAbortsOnNonMatchingClientCertificateTypes() {
     	List<byte[]> extensions = new LinkedList<>();
     	// certificate type OpenPGP is not supported by Scandium
-    	extensions.add(newClientCertificateTypesExtension(
+    	extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
     			new byte[]{(byte) CertificateType.OPEN_PGP.getCode()}));
     	
     	try {
@@ -108,7 +108,7 @@ public class ServerHandshakerTest {
     	List<byte[]> extensions = new LinkedList<>();
     	// certificate type OpenPGP is not supported by Scandium
     	// certificate type X.509 is supported by Scandium
-    	extensions.add(newClientCertificateTypesExtension(
+    	extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
     			new byte[]{(byte) CertificateType.OPEN_PGP.getCode(),
     					(byte) CertificateType.X_509.getCode()}));
     	
@@ -124,7 +124,7 @@ public class ServerHandshakerTest {
     public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() {
     	List<byte[]> extensions = new LinkedList<>();
     	// certificate type 0x05 is not defined by IANA
-    	extensions.add(newServerCertificateTypesExtension(new byte[]{(byte) 0x05}));
+    	extensions.add(DtlsTestTools.newServerCertificateTypesExtension(new byte[]{(byte) 0x05}));
     	
     	try {
         	byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
@@ -133,21 +133,6 @@ public class ServerHandshakerTest {
     	} catch(HandshakeException e) {
     		// all is well
     	}
-    }
-    
-    @Test
-    public void testReceiveClientHelloIgnoresUnknownHelloExtensionType() throws HandshakeException {
-    	List<byte[]> extensions = new LinkedList<>();
-    	// extension type 0x50 is not defined by IANA
-    	DatagramWriter writer = new DatagramWriter();
-    	writer.writeBytes(newHelloExtension(0x50, new byte[]{(byte) 0x12}));
-    	extensions.add(writer.toByteArray());
-    	
-    	byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
-		DTLSFlight flight = processClientHello(1, cookie, supportedCiphers, extensions);
-		Assert.assertFalse(flight.getMessages().isEmpty());
-		ServerHello serverHello = (ServerHello) flight.getMessages().get(0).getFragment();
-		Assert.assertNull(serverHello.getExtensions());
     }
     
     private byte[] getCookieForClientHello(int messageSeqNo, byte[] supportedCiphers,
@@ -230,21 +215,5 @@ public class ServerHandshakerTest {
         }
         
         return writer.toByteArray();
-    }
-
-    private byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
-    	return newHelloExtension(19, certificateTypes);
-    }
-    
-    private byte[] newServerCertificateTypesExtension(byte[] certificateTypes) {
-    	return newHelloExtension(20, certificateTypes);
-    }
-    
-    private byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
-    	DatagramWriter writer = new DatagramWriter();
-    	writer.write(typeCode, 16);
-    	writer.write(extensionBytes.length, 16);
-    	writer.writeBytes(extensionBytes);
-    	return writer.toByteArray();
     }
 }
