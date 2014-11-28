@@ -256,6 +256,7 @@ public class ServerHandshaker extends Handshaker {
 		clientCertificate = message;
 		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
+		session.setPeerRawPublicKey(clientPublicKey);
 		
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
