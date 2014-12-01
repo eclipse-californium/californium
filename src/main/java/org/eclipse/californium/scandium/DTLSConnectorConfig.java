@@ -19,6 +19,7 @@
 package org.eclipse.californium.scandium;
 
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -59,6 +60,9 @@ public class DTLSConnectorConfig {
 	/** the private key for RPK and X509 mode */
 	public PrivateKey privateKey = null;
 
+	/** the public key for RPK mode */
+	public PublicKey publicKey = null;
+
 	/** the certificate for RPK and X509 mode */
 	public Certificate[] certChain = null;
 
@@ -90,7 +94,24 @@ public class DTLSConnectorConfig {
 	}
 
 	/**
-	 * Sets the private key and corresponding issuer certificate chain. In
+	 * Sets the private key and public key for RPK mode.
+	 * Use to configure RPK only, if you want to configure RPK and certificate 
+	 * authentication mode use {@link #setPrivateKey(PrivateKey, Certificate[], boolean)} instead.
+	 * @param private key
+	 *            the private key
+	 * @param public key
+	 *            the public key associate to the private key
+	 * @see #setPrivateKey(PrivateKey, Certificate[], boolean) if you want to use X509 certification too.
+	 */
+	public void setPrivateKey(PrivateKey privateKey, PublicKey publicKey) {
+		assertNotStarted();
+		this.privateKey = privateKey;
+		this.publicKey = publicKey;
+		this.sendRawKey = true;
+	}
+
+	/**
+	 * Sets the private key and corresponding issuer certificate chain for RPK and X509 mode. In
 	 * server mode the key and certificates are used to prove the server's
 	 * identity to the client. In client mode the key and certificates are used
 	 * to prove the client's identity to the server.
@@ -104,6 +125,7 @@ public class DTLSConnectorConfig {
 	 *            <code>true</code> if only the <em>RawPublicKey</em> for the
 	 *            private key should be exchanged with a peer instead of the
 	 *            X.509 certificate chain
+	 * @see #setPrivateKey(PrivateKey, PublicKey) if you don't need X509 authentication.
 	 */
 	public void setPrivateKey(PrivateKey key, Certificate[] certChain,
 			boolean sendRawKey) {

@@ -97,9 +97,10 @@ public class CertificateMessage extends HandshakeMessage {
 	 *            needed.
 	 */
 	public CertificateMessage(Certificate[] certificateChain, boolean useRawPublicKey) {
-		this.certificateChain = certificateChain;
 		if (useRawPublicKey) {
 			this.rawPublicKeyBytes = certificateChain[0].getPublicKey().getEncoded();
+		}else{
+			this.certificateChain = certificateChain;
 		}
 	}
 
