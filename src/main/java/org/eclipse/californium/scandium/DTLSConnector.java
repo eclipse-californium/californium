@@ -496,7 +496,7 @@ public class DTLSConnector extends ConnectorBase {
 	 *         <code>null</code> if no such session exists.
 	 */
 	private DTLSSession getSessionByIdentifier(byte[] sessionID) {
-		if (sessionID == null) {
+		if (sessionID == null || sessionID.length == 0) {
 			return null;
 		}
 		
