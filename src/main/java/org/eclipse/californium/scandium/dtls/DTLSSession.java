@@ -17,6 +17,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,11 +71,13 @@ public class DTLSSession {
 	 * The identity used for PSK authentication
 	 */
 	private String pskIdentity;
-	
-	
 
+	/**
+	 * The peer public key for RPK authentication
+	 */
+	private PublicKey peerRawPublicKey;	
 
-    /**
+	/**
 	 * Whether the session is active and application data can be sent to the
 	 * peer.
 	 */
@@ -142,6 +145,14 @@ public class DTLSSession {
 
 	public void setPeerCertificate(X509Certificate peerCertificate) {
 		this.peerCertificate = peerCertificate;
+	}
+
+	public PublicKey getPeerRawPublicKey() {
+		return peerRawPublicKey;
+	}
+
+	public void setPeerRawPublicKey(PublicKey key) {
+		peerRawPublicKey = key;
 	}
 
 	public CompressionMethod getCompressionMethod() {
