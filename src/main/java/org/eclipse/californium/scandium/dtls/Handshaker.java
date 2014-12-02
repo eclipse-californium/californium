@@ -171,7 +171,8 @@ public abstract class Handshaker {
 		this.isClient = isClient;
 		this.session = session;
 		this.queuedMessages = new HashSet<Record>();
-		this.rootCertificates = rootCertificates;
+		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
+
 		try {
 			this.md = MessageDigest.getInstance("SHA-256");
 		} catch (NoSuchAlgorithmException e) {
