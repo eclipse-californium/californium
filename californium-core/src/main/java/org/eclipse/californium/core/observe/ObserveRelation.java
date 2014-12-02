@@ -31,15 +31,13 @@ import org.eclipse.californium.core.server.resources.Resource;
 
 
 /**
- * The ObserveRelation represents a relation between a client endpoint and a
- * resource on this server.
+ * The ObserveRelation is a server-side control structure. It represents a
+ * relation between a client endpoint and a resource on this server.
  */
 public class ObserveRelation {
 
 	/** The logger. */
 	private final static Logger LOGGER = Logger.getLogger(ObserveRelation.class.getCanonicalName());
-
-	private final ObserveNotificationOrderer orderer = new ObserveNotificationOrderer();
 	
 	private final long CHECK_INTERVAL_TIME = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
 	private final int CHECK_INTERVAL_COUNT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
@@ -92,7 +90,7 @@ public class ObserveRelation {
 		
 		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
 	}
-				
+	
 	/**
 	 * Returns true if this relation has been established.
 	 * @return true if this relation has been established
@@ -152,10 +150,6 @@ public class ObserveRelation {
 	 *
 	 * @return the exchange
 	 */
-	public ObserveNotificationOrderer getOrderer() {
-		return orderer;
-	}
-
 	public Exchange getExchange() {
 		return exchange;
 	}

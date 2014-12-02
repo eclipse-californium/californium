@@ -146,7 +146,16 @@ public class CO04 extends TestClientAbstract {
 							timedOut = true;
 							l = observeLoop / 2;
 							System.out.println("PASS: Max-Age timed out");
-							System.out.println("+++++ Re-registering on ObserveLayer +++++");
+							
+							// automatic re-registration is done through CoapClient
+							// with "advanced" (i.e., raw) Requests we need to do it manually
+							System.out.println("+++++ Re-registering +++++");
+							Request reregister = Request.newGet();
+							reregister.setURI(uri);
+							reregister.setToken(request.getToken());
+							reregister.setObserve();
+							request = reregister;
+							request.send();
 							
 							response = request.waitForResponse(time);
 				            if (response != null) {
@@ -179,7 +188,8 @@ public class CO04 extends TestClientAbstract {
 			            System.out.println("+++++++ Canceling +++++++");
 			            
 			            request.cancel();
-	
+			            
+			            // wait here and let ReliabilityLayer send RST for canceled request
 						Thread.sleep(time + time/2);
 						response = request.getResponse();
 	

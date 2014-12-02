@@ -58,7 +58,7 @@ public class CoAPClientExample {
 		
 		// wait for user
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-		try { br.readLine(); } catch (IOException e) { System.err.println("FAILED");}
+		try { br.readLine(); } catch (IOException e) { }
 		
 		// observe
 
@@ -72,12 +72,12 @@ public class CoAPClientExample {
 					}
 					
 					@Override public void onError() {
-						System.err.println("OBSERVING FAILED");
+						System.err.println("OBSERVING FAILED (press enter to exit)");
 					}
 				});
 		
 		// wait for user
-		try { br.readLine(); } catch (IOException e) { System.err.println("FAILED");}
+		try { br.readLine(); } catch (IOException e) { }
 		
 		System.out.println("CANCELLATION");
 		

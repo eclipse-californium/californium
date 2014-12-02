@@ -39,7 +39,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 
 /**
  * The Class CoapClient.
@@ -160,7 +159,7 @@ public class CoapClient {
 	public CoapClient useExecutor() {
 		this.executor = Executors.newSingleThreadExecutor();
 		
-		// activates the executor so that the user thread appear deterministically
+		// activates the executor so that this user thread starts deterministically
 		executor.execute(new Runnable() {
 			public void run() {
 				LOGGER.config("Using a SingleThreadExecutor for the CoapClient");
@@ -1015,9 +1014,6 @@ public class CoapClient {
 		/** The observer relation relation. */
 		private final CoapObserveRelation relation;
 		
-		/** The orderer. */
-		private final ObserveNotificationOrderer orderer;
-		
 		/**
 		 * Constructs a new message observer with the specified handler and the
 		 * specified relation.
@@ -1028,17 +1024,19 @@ public class CoapClient {
 		public ObserveMessageObserverImpl(CoapHandler handler, CoapObserveRelation relation) {
 			super(handler);
 			this.relation = relation;
-			this.orderer = new ObserveNotificationOrderer();
 		}
 		
 		/**
 		 * Checks if the specified response truly is a new notification and if,
 		 * invokes the handler's method or drops the notification otherwise.
+		 * Ordering and delivery must be done synchronized here to deal with
+		 * race conditions in the stack.
 		 */
 		@Override protected void deliver(CoapResponse response) {
-			synchronized (orderer) {
-				if (orderer.isNew(response.advanced())) {
+			synchronized (relation) {
+				if (relation.getOrderer().isNew(response.advanced())) {
 					relation.setCurrent(response);
+					relation.prepareReregistration(response, 2000);
 					handler.onLoad(response);
 				} else {
 					LOGGER.finer("Dropping old notification: "+response.advanced());
