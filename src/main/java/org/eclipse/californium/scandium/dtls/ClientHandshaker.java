@@ -103,7 +103,7 @@ public class ClientHandshaker extends Handshaker {
 		this.message = message;
 		this.privateKey = config.privateKey;
 		this.certificates = config.certChain;
-		this.publicKey = config.publicKey;
+		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
 		this.pskStore = config.pskStore;
 		this.useRawPublicKey = config.sendRawKey;
 		this.preferredCipherSuite = config.preferredCipherSuite;
@@ -408,11 +408,10 @@ public class ClientHandshaker extends Handshaker {
 		if (certificateRequest != null) {
 			// TODO load the client's certificate according to the allowed
 			// parameters in the CertificateRequest
-			if (session.sendRawPublicKey() && publicKey != null)
-			{
+			if (session.sendRawPublicKey()){
 				clientCertificate = new CertificateMessage(publicKey.getEncoded());
-			}else{
-				clientCertificate = new CertificateMessage(certificates ,session.sendRawPublicKey());
+			} else {
+				clientCertificate = new CertificateMessage(certificates);
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}
