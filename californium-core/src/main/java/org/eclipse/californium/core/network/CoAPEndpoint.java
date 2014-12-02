@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -241,7 +242,7 @@ public class CoAPEndpoint implements Endpoint {
 		if (this.executor == null) {
 			LOGGER.config("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
 			
-			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new EndpointManager.DaemonThreadFactory());
+			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
 			setExecutor(executor);
 			addObserver(new EndpointObserver() {
 				public void started(Endpoint endpoint) { }

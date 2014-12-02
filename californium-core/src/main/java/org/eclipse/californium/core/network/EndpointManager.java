@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
-import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -250,13 +249,5 @@ public class EndpointManager {
 			if (response == null) throw new NullPointerException();
 			exchange.getRequest().setResponse(response);
 		}
-	}
-	
-	public static class DaemonThreadFactory implements ThreadFactory {
-	    public Thread newThread(Runnable r) {
-	        Thread thread = new Thread(r);
-	        thread.setDaemon(true);
-	        return thread;
-	    }
 	}
 }

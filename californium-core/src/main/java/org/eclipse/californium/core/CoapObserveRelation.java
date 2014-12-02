@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 
 /**
@@ -39,7 +38,7 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 public class CoapObserveRelation {
 	
 	/** A executor service to schedule re-registrations */
-	private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new EndpointManager.DaemonThreadFactory());
+	private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
 
 	/** The request. */
 	private Request request;

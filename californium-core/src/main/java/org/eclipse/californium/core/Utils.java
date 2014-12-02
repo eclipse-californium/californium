@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
+import java.util.concurrent.ThreadFactory;
+
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -109,5 +111,16 @@ public class Utils {
 	        sb.append("===============================================================");
 	
 	        return sb.toString();
+	}
+	
+	/**
+	 * A factory to create executor services with daemon threads.
+	 */
+	public static class DaemonThreadFactory implements ThreadFactory {
+	    public Thread newThread(Runnable r) {
+	        Thread thread = new Thread(r);
+	        thread.setDaemon(true);
+	        return thread;
+	    }
 	}
 }
