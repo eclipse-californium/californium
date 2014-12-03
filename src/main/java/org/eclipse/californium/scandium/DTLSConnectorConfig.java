@@ -60,7 +60,7 @@ public class DTLSConnectorConfig {
 	/** the private key for RPK and X509 mode */
 	public PrivateKey privateKey = null;
 
-	/** the public key for RPK mode */
+	/** the public key for both RPK and X.509 mode */
 	public PublicKey publicKey = null;
 
 	/** the certificate for RPK and X509 mode */
