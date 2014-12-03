@@ -108,7 +108,8 @@ public class ServerHandshaker extends Handshaker {
 		
 		this.privateKey = config.privateKey;
 		this.certificates = config.certChain;
-		
+		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
+
 		this.clientAuthenticationRequired = config.requireClientAuth;
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
@@ -474,7 +475,11 @@ public class ServerHandshaker extends Handshaker {
 			CertificateMessage certificateMessage = null;
 			switch (keyExchange) {
 			case EC_DIFFIE_HELLMAN:
-				certificateMessage = new CertificateMessage(certificates, session.sendRawPublicKey());
+				if (session.sendRawPublicKey()){
+					certificateMessage = new CertificateMessage(publicKey.getEncoded());
+				} else {
+					certificateMessage = new CertificateMessage(certificates);
+				}
 				break;
 
 			default:
