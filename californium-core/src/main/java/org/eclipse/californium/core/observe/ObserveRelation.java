@@ -65,8 +65,7 @@ public class ObserveRelation {
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
 
-	// The matcher must find the NON-notifications (MIDs) to remove from its hashmaps
-	/** The notifications that have been sent */
+	/** The notifications that have been sent, so they can be removed from the Matcher */
 	private ConcurrentLinkedQueue<Response> notifications = new ConcurrentLinkedQueue<Response>();
 	
 	/**

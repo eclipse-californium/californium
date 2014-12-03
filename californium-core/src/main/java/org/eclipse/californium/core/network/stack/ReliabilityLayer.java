@@ -335,7 +335,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.finer("Timeout: retransmit message, failed: "+failedCount+", message: "+message);
 					
 					// Trigger MessageObservers
-					message.retransmitting(); // TODO by Martin: Do not set next notification if max reached!
+					message.retransmitting();
 					
 					// MessageObserver might have canceled
 					if (!message.isCanceled())

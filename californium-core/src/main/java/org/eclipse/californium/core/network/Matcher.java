@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -80,8 +81,16 @@ public class Matcher {
 		if (started) return;
 		else started = true;
 		if (executor == null)
-			throw new IllegalStateException("Matcher has no executor to schedule exchnage removal");
+			throw new IllegalStateException("Matcher has no executor to schedule exchange removal");
 		deduplicator.start();
+		
+		// this is a useful health metric that could later be exported to some kind of monitoring interface
+		executor.scheduleAtFixedRate(new Runnable() {
+			@Override
+			public void run() {
+				LOGGER.finer("Matcher state: " + exchangesByMID.size() + " exchangesByMID, " + exchangesByToken.size() + " exchangesByToken, " + ongoingExchanges.size() + " ongoingExchanges");
+			}
+		}, 60, 60, TimeUnit.SECONDS);
 	}
 	
 	public synchronized void stop() {
