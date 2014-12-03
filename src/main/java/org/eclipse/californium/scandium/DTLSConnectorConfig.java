@@ -105,6 +105,10 @@ public class DTLSConnectorConfig {
 	 */
 	public void setPrivateKey(PrivateKey privateKey, PublicKey publicKey) {
 		assertNotStarted();
+		if (privateKey == null)
+			throw new IllegalArgumentException("the privateKey should not be null");
+		if (publicKey == null)
+			throw new IllegalArgumentException("the publicKey should not be null");
 		this.privateKey = privateKey;
 		this.publicKey = publicKey;
 		this.sendRawKey = true;
@@ -130,8 +134,13 @@ public class DTLSConnectorConfig {
 	public void setPrivateKey(PrivateKey key, Certificate[] certChain,
 			boolean sendRawKey) {
 		assertNotStarted();
+		if (key == null)
+			throw new IllegalArgumentException("the key should not be null");
+		if (certChain == null || certChain.length < 1)
+			throw new IllegalArgumentException("the certChain should not be null or empty");
 		this.privateKey = key;
 		this.certChain = certChain;
+		this.publicKey =  certChain[0].getPublicKey();
 		this.sendRawKey = sendRawKey;
 	}
 
