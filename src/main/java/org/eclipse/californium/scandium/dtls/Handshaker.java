@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -143,6 +144,9 @@ public abstract class Handshaker {
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
+
+	/** The handshaker's public key. */
+	protected PublicKey publicKey;
 
 	/** The handshaker's certificate chain. */
 	protected Certificate[] certificates;

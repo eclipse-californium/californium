@@ -92,15 +92,9 @@ public class CertificateMessage extends HandshakeMessage {
 	 * @param certificateChain
 	 *            the certificate chain (first certificate must be the
 	 *            server's).
-	 * @param useRawPublicKey
-	 *            whether only the raw public key (SubjectPublicKeyInfo) is
-	 *            needed.
 	 */
-	public CertificateMessage(Certificate[] certificateChain, boolean useRawPublicKey) {
+	public CertificateMessage(Certificate[] certificateChain) {
 		this.certificateChain = certificateChain;
-		if (useRawPublicKey) {
-			this.rawPublicKeyBytes = certificateChain[0].getPublicKey().getEncoded();
-		}
 	}
 
 	/**
@@ -365,7 +359,7 @@ public class CertificateMessage extends HandshakeMessage {
 				}
 			}
 
-			message = new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]), useRawPublicKey);
+			message = new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]));
 		}
 		
 		return message;
