@@ -426,9 +426,11 @@ public class CertificateRequest extends HandshakeMessage {
 	 *            trusted certificates.
 	 */
 	public void addCertificateAuthorities(Certificate[] certificateAuthorities) {
-		for (Certificate certificate : certificateAuthorities) {
-			byte[] ca = ((X509Certificate) certificate).getSubjectX500Principal().getEncoded();
-			addCertificateAuthority(new DistinguishedName(ca));
+		if (certificateAuthorities != null){
+			for (Certificate certificate : certificateAuthorities) {
+				byte[] ca = ((X509Certificate) certificate).getSubjectX500Principal().getEncoded();
+				addCertificateAuthority(new DistinguishedName(ca));
+			}
 		}
 	}
 

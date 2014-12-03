@@ -95,12 +95,20 @@ public class DTLSConnector extends ConnectorBase {
 	/**
 	 * Create a DTLS connector.
 	 * @param address the address to bind
+	 */
+	public DTLSConnector(InetSocketAddress address) {
+		this(address,null);
+	}
+
+	/**
+	 * Create a DTLS connector.
+	 * @param address the address to bind
 	 * @param rootCertificates list of trusted self-signed root certificates
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
 		super(address);
 		this.address = address;
-		this.rootCerts = rootCertificates;
+		this.rootCerts = rootCertificates == null ? new Certificate[0] : rootCertificates;
 	}
 	
 	
