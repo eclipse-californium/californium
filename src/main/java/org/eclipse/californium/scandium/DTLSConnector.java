@@ -165,15 +165,15 @@ public class DTLSConnector extends ConnectorBase {
 	public synchronized void start() throws IOException {
 		socket = new DatagramSocket(address.getPort(), address.getAddress());
 		super.start();
-		if (LOGGER.isLoggable(Level.INFO)) {
-			LOGGER.info("DLTS connector listening on "+address);
+		if (LOGGER.isLoggable(Level.CONFIG)) {
+			LOGGER.config("DLTS connector listening on "+address);
 		}
 	}
 	
 	@Override
 	public synchronized void stop() {
 		this.close();
-		this.socket.close();
+		if (this.socket!=null) this.socket.close();
 		super.stop();
 	}
 	
