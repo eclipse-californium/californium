@@ -25,6 +25,7 @@ import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.logging.Level;
 
+import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -40,6 +41,13 @@ import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 public class SecureServer {
 
+    static {
+        CaliforniumLogger.initialize();
+        CaliforniumLogger.setLevel(Level.CONFIG);
+        ScandiumLogger.initialize();
+        ScandiumLogger.setLevel(Level.FINER);
+    }
+
     // allows configuration via Californium.properties
     public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
 
@@ -47,11 +55,6 @@ public class SecureServer {
 	private final static String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
     private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-
-    static {
-        ScandiumLogger.initialize();
-        ScandiumLogger.setLevel(Level.FINER);
-    }
 
     public static void main(String[] args) {
 

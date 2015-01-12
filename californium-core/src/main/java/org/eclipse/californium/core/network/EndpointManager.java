@@ -137,7 +137,6 @@ public class EndpointManager {
 		if (!this.default_endpoint.isStarted()) {
 			try {
 				default_endpoint.start();
-				LOGGER.log(Level.INFO, "Started new default endpoint " + default_endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not start new default endpoint", e);
 			}

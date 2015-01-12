@@ -186,18 +186,19 @@ public class CoapServer implements ServerInterface {
 			addEndpoint(serverEndpoint);
 			// call after addEndpoint() to use correct executor
 			EndpointManager.getEndpointManager().setDefaultEndpoint(serverEndpoint);
-		}
-		int started = 0;
-		for (Endpoint ep:endpoints) {
-			try {
-				ep.start();
-				++started;
-			} catch (IOException e) {
-				LOGGER.log(Level.SEVERE, "Could not start endpoint", e);
+		} else {
+			int started = 0;
+			for (Endpoint ep:endpoints) {
+				try {
+					ep.start();
+					++started;
+				} catch (IOException e) {
+					LOGGER.log(Level.SEVERE, "Cannot start endpoint at " + ep.getAddress(), e);
+				}
 			}
-		}
-		if (started==0) {
-			throw new IllegalStateException("None of the server's endpoints could be started");
+			if (started==0) {
+				throw new IllegalStateException("None of the server's endpoints could be started");
+			}
 		}
 	}
 	

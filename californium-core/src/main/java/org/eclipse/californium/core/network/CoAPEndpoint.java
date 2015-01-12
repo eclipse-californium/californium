@@ -232,7 +232,7 @@ public class CoAPEndpoint implements Endpoint {
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
-			LOGGER.log(Level.FINE, "Endpoint bound to " + getAddress().toString() + " is already started");
+			LOGGER.log(Level.FINE, "Endpoint at " + getAddress().toString() + " is already started");
 			return;
 		}
 		
@@ -254,7 +254,7 @@ public class CoAPEndpoint implements Endpoint {
 		}
 		
 		try {
-			LOGGER.log(Level.INFO, "Starting Endpoint bound to " + getAddress());
+			LOGGER.log(Level.INFO, "Starting endpoint at " + getAddress());
 			started = true;
 			matcher.start();
 			connector.start();
@@ -262,7 +262,7 @@ public class CoAPEndpoint implements Endpoint {
 				obs.started(this);
 			startExecutor();
 		} catch (IOException e) {
-			LOGGER.log(Level.SEVERE, "Cannot start Endpoint at " + getAddress(), e);
+			// free partially acquired resources
 			stop();
 			throw e;
 		}
