@@ -102,12 +102,12 @@ public class UDPConnector implements Connector {
 		
 		receiverThreads = new LinkedList<Thread>();
 		for (int i=0;i<receiverCount;i++) {
-			receiverThreads.add(new Receiver("UDP-Receiver "+localAddr+"["+i+"]"));
+			receiverThreads.add(new Receiver("UDP-Receiver-"+localAddr+"["+i+"]"));
 		}
 		
 		senderThreads = new LinkedList<Thread>();
 		for (int i=0;i<senderCount;i++) {
-			senderThreads.add(new Sender("UDP-Sender "+localAddr+"["+i+"]"));
+			senderThreads.add(new Sender("UDP-Sender-"+localAddr+"["+i+"]"));
 		}
 
 		for (Thread t:receiverThreads)
@@ -123,7 +123,7 @@ public class UDPConnector implements Connector {
 		 */
 		
 		LOGGER.config("UDP connector listening on "+socket.getLocalSocketAddress()+", recv buf = "+receiveBuffer+", send buf = "+sendBuffer
-				+", recv packet size = " +receiverPacketSize+  ", log packets = "+logPackets);
+				+", recv packet size = "+receiverPacketSize+", log packets = "+logPackets);
 	}
 
 	@Override
@@ -181,7 +181,7 @@ public class UDPConnector implements Connector {
 		 * @see java.lang.Thread#run()
 		 */
 		public void run() {
-			LOGGER.config("Start "+getName());
+			LOGGER.fine("Starting "+getName());
 			while (running) {
 				try {
 					work();
@@ -189,7 +189,7 @@ public class UDPConnector implements Connector {
 					if (running)
 						LOGGER.log(Level.WARNING, "Exception \""+t+"\" in thread " + getName()+": running="+running, t);
 					else
-						LOGGER.info(getName()+" has successfully stopped");
+						LOGGER.fine(getName()+" has successfully stopped");
 				}
 			}
 		}

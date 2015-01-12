@@ -145,13 +145,13 @@ public abstract class ConnectorBase implements Connector {
 
 		int senderCount = getSenderThreadCount();
 		int receiverCount = getReceiverThreadCount();
-		LOGGER.fine(getName()+"-connector starts "+senderCount+" sender threads and "+receiverCount+" receiver threads");
+		LOGGER.config(getName()+"-connector starts "+senderCount+" sender threads and "+receiverCount+" receiver threads");
 		
-		senderThread = new Worker(getName()+"-Sender"+localAddr) {
+		senderThread = new Worker(getName()+"-Sender-"+localAddr) {
 				public void work() throws Exception { sendNextMessageOverNetwork(); }
 			};
 
-		receiverThread = new Worker(getName()+"-Receiver"+localAddr) {
+		receiverThread = new Worker(getName()+"-Receiver-"+localAddr) {
 				public void work() throws Exception { receiveNextMessageFromNetwork(); }
 			};
 		
@@ -208,19 +208,19 @@ public abstract class ConnectorBase implements Connector {
 
 		public void run() {
 			try {
-				LOGGER.info("Start "+getName()+", (running = "+running+")");
+				LOGGER.fine("Starting thread "+getName());
 				while (running) {
 					try {
 						work();
 					} catch (Throwable t) {
 						if (running)
-							LOGGER.log(Level.WARNING, "Exception \""+t+"\" in thread " + getName()+": running="+running, t);
+							LOGGER.log(Level.WARNING, "Exception \""+t+"\" in thread "+getName(), t);
 						else
-							LOGGER.info("Exception \""+t+"\" in thread " + getName()+" has successfully stopped socket thread");
+							LOGGER.fine("Exception \""+t+"\" stopped thread "+getName() );
 					}
 				}
 			} finally {
-				LOGGER.info(getName()+" has terminated (running = "+running+")");
+				LOGGER.fine("Thread "+getName()+" has terminated");
 			}
 		}
 
