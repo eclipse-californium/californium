@@ -104,7 +104,8 @@ public class PlugtestServer extends CoapServer {
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64) 
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
     		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
-    		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
+    		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000)
+    		.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "INFO");
         
         // add resources to the server
         add(new DefaultTest());

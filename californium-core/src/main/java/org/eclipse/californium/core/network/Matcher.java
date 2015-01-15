@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -63,6 +64,10 @@ public class Matcher {
 	private Deduplicator deduplicator;
 	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
 	
+	/** Health status output */
+	private Level healthStatusLevel;
+	private int healthStatusInterval; // seconds
+	
 	public Matcher(NetworkConfig config) {
 		this.started = false;
 		this.exchangesByMID = new ConcurrentHashMap<KeyMID, Exchange>();
@@ -75,6 +80,9 @@ public class Matcher {
 		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START))
 			currendMID = new AtomicInteger(new Random().nextInt(1<<16));
 		else currendMID = new AtomicInteger(0);
+		
+		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
+		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
 	}
 	
 	public synchronized void start() {
@@ -85,12 +93,14 @@ public class Matcher {
 		deduplicator.start();
 		
 		// this is a useful health metric that could later be exported to some kind of monitoring interface
-		executor.scheduleAtFixedRate(new Runnable() {
-			@Override
-			public void run() {
-				LOGGER.finer("Matcher state: " + exchangesByMID.size() + " exchangesByMID, " + exchangesByToken.size() + " exchangesByToken, " + ongoingExchanges.size() + " ongoingExchanges");
-			}
-		}, 60, 60, TimeUnit.SECONDS);
+		if (LOGGER.isLoggable(healthStatusLevel)) {
+			executor.scheduleAtFixedRate(new Runnable() {
+				@Override
+				public void run() {
+					LOGGER.log(healthStatusLevel, "Matcher state: " + exchangesByMID.size() + " exchangesByMID, " + exchangesByToken.size() + " exchangesByToken, " + ongoingExchanges.size() + " ongoingExchanges");
+				}
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		}
 	}
 	
 	public synchronized void stop() {
