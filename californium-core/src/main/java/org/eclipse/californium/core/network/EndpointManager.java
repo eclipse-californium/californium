@@ -93,12 +93,8 @@ public class EndpointManager {
 	 * @return the default endpoint
 	 */
 	public Endpoint getDefaultEndpoint() {
-		try {
-			if (default_endpoint == null) {
-				createDefaultEndpoint();
-			}
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE, "Exception while getting the default endpoint", e);
+		if (default_endpoint == null) {
+			createDefaultEndpoint();
 		}
 		return default_endpoint;
 	}
@@ -109,7 +105,7 @@ public class EndpointManager {
 	 * To listen on specific interfaces or ports, set the default endpoint manually.
 	 * To distinguish different interfaces, one endpoint per interface must be added.
 	 */
-	private synchronized void createDefaultEndpoint() throws UnknownHostException {
+	private synchronized void createDefaultEndpoint() {
 		if (default_endpoint != null) return;
 		
 		default_endpoint = new CoAPEndpoint();
@@ -131,6 +127,8 @@ public class EndpointManager {
 		if (this.default_endpoint!=null) {
 			this.default_endpoint.destroy();
 		}
+
+		LOGGER.config(endpoint.getAddress()+" becomes default endpoint");
 		
 		this.default_endpoint = endpoint;
 		

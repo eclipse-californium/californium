@@ -255,6 +255,7 @@ public class CoAPEndpoint implements Endpoint {
 		
 		try {
 			LOGGER.log(Level.INFO, "Starting endpoint at " + getAddress());
+			
 			started = true;
 			matcher.start();
 			connector.start();
@@ -288,7 +289,7 @@ public class CoAPEndpoint implements Endpoint {
 	@Override
 	public synchronized void stop() {
 		if (!started) {
-			LOGGER.log(Level.INFO, "Endpoint at address " + getAddress() + " is already stopped");
+			LOGGER.log(Level.INFO, "Endpoint at " + getAddress() + " is already stopped");
 		} else {
 			LOGGER.log(Level.INFO, "Stopping endpoint at address " + getAddress());
 			started = false;

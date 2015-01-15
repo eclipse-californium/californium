@@ -49,7 +49,7 @@ import org.eclipse.californium.plugtests.resources.Validate;
 
 // ETSI Plugtest environment
 //import java.net.InetSocketAddress;
-//import org.eclipse.californium.network.CoAPEndpoint;
+//import org.eclipse.californium.core.network.CoAPEndpoint;
 
 
 /**

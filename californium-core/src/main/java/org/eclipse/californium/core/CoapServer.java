@@ -32,7 +32,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoAPEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
@@ -173,32 +172,32 @@ public class CoapServer implements ServerInterface {
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
-	 * server, the server binds to CoAP0's default port 5683.
+	 * server, an endpoint is started on the port defined in the config.
 	 */
 	@Override
 	public void start() {
+		
 		LOGGER.info("Starting server");
+		
 		if (endpoints.isEmpty()) {
-			// servers should bind to the configured port (while clients should use an ephemeral port)
+			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
-			LOGGER.info("No endpoints have been defined for server, setting up default endpoint at port " + port);
-			Endpoint serverEndpoint = new CoAPEndpoint(port, this.config);
-			addEndpoint(serverEndpoint);
-			// call after addEndpoint() to use correct executor
-			EndpointManager.getEndpointManager().setDefaultEndpoint(serverEndpoint);
-		} else {
-			int started = 0;
-			for (Endpoint ep:endpoints) {
-				try {
-					ep.start();
-					++started;
-				} catch (IOException e) {
-					LOGGER.log(Level.SEVERE, "Cannot start endpoint at " + ep.getAddress(), e);
-				}
+			LOGGER.info("No endpoints have been defined for server, setting up server endpoint on default port " + port);
+			addEndpoint(new CoAPEndpoint(port, this.config));
+		}
+		
+		int started = 0;
+		for (Endpoint ep:endpoints) {
+			try {
+				ep.start();
+				// only reached on success
+				++started;
+			} catch (IOException e) {
+				LOGGER.severe(e.getMessage() + " at " + ep.getAddress());
 			}
-			if (started==0) {
-				throw new IllegalStateException("None of the server's endpoints could be started");
-			}
+		}
+		if (started==0) {
+			throw new IllegalStateException("None of the server endpoints could be started");
 		}
 	}
 	
