@@ -56,6 +56,7 @@ public class ServerHandshakerTest {
         }
         random = writer.toByteArray();
         
+        System.out.println("Expect 'Unknown cipher suite code' warnings during this test.");
     }
     
     @Test
