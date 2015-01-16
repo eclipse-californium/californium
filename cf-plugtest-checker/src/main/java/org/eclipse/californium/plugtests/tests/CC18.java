@@ -42,7 +42,8 @@ public class CC18 extends TestClientAbstract {
 		// create the request
 		Request request = new Request(Code.POST, Type.CON);
 		// add payload
-		request.setPayload("TD_COAP_CORE_18", MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload("TD_COAP_CORE_18");
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		// set the parameters and execute the request
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}

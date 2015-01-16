@@ -126,7 +126,8 @@ public class CO09 extends TestClientAbstract {
 			// Client is requested to update the /obs resource on Server
 			System.out.println("+++++ Sending PUT +++++");
 			Request asyncRequest = new Request(Code.PUT, Type.CON);
-			asyncRequest.setPayload(newValue, contentType);
+			asyncRequest.setPayload(newValue);
+			asyncRequest.getOptions().setContentFormat(contentType);
 			asyncRequest.setURI(uri);
 			asyncRequest.send();
 

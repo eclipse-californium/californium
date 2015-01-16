@@ -134,8 +134,8 @@ public class CC21 extends TestClientAbstract {
 
 					request = new Request(Code.PUT, Type.CON);
 					request.setURI(uri);
-					request.setPayload("It should change",
-							MediaTypeRegistry.TEXT_PLAIN);
+					request.setPayload("It should change");
+					request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 					request.send();
 
 					Thread.sleep(1000);

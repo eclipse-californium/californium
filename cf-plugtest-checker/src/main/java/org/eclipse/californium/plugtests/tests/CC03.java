@@ -38,7 +38,8 @@ public class CC03 extends TestClientAbstract {
 		// create the request
 		Request request = Request.newPut();
 		// add payload
-		request.setPayload("TD_COAP_CORE_03", MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload("TD_COAP_CORE_03");
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		// set the parameters and execute the request
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}

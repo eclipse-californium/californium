@@ -40,7 +40,8 @@ public class CC08 extends TestClientAbstract {
 		Request request = new Request(Code.POST);
 		request.setConfirmable(false);
 		// add payload
-		request.setPayload("TD_COAP_CORE_08", MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload("TD_COAP_CORE_08");
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		// set the parameters and execute the request
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}

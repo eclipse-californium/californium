@@ -70,9 +70,6 @@ public abstract class Message {
 	/** The payload of this message. */
 	private byte[] payload;
 	
-	/** The payload as string. */
-	private String payloadString; // lazy-initialized.
-	
 	/** The destination address of this message. */
 	private InetAddress destination;
 	
@@ -144,12 +141,15 @@ public abstract class Message {
 	}
 	
 	/**
-	 * Sets the type.
+	 * Sets the CoAP message type.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param type the new type
+	 * @return this Message
 	 */
-	public void setType(CoAP.Type type) {
+	public Message setType(CoAP.Type type) {
 		this.type = type;
+		return this;
 	}
 	
 	/**
@@ -162,12 +162,16 @@ public abstract class Message {
 	}
 	
 	/**
-	 * Makes this message a confirmable message with type CON.
+	 * Chooses between confirmable and non-confirmable message.
+	 * Pass true for CON, false for NON.
+	 * Provides a fluent API to chain setters.
 	 *
-	 * @param con the new confirmable
+	 * @param con true for CON, false for NON
+	 * @return this Message
 	 */
-	public void setConfirmable(boolean con) {
+	public Message setConfirmable(boolean con) {
 		setType(con?Type.CON:Type.NON);
+		return this;
 	}
 
 	/**
@@ -181,32 +185,40 @@ public abstract class Message {
 
 	/**
 	 * Sets the 16-bit message identification.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param mid the new mid
+	 * @return this Message
 	 */
-	public void setMID(int mid) {
+	public Message setMID(int mid) {
 		if (mid >= 1<<16 || mid < NONE)
 			throw new IllegalArgumentException("The MID must be a 16-bit number between 0 and "+((1<<16)-1)+" inclusive but was "+mid);
 		this.mid = mid;
+		return this;
 	}
 	
 	public void removeMID() {
 		setMID(NONE);
 	}
 	
+	public boolean hasEmptyToken() {
+		return token == null || token.length == 0;
+	}
+
 	/**
-	 * Gets the 0-8 byte token.
+	 * Gets the 0--8 byte token.
 	 *
 	 * @return the token
 	 */
 	public byte[] getToken() {
 		return token;
 	}
-	
-	public boolean hasEmptyToken() {
-		return token == null || token.length == 0;
-	}
-	
+
+	/**
+	 * Gets the 0--8 byte token as string representation.
+	 *
+	 * @return the token as string
+	 */
 	public String getTokenString() {
 		StringBuffer tok = new StringBuffer(getToken()==null?"null":"");
 		if (getToken()!=null) for(byte b:getToken()) tok.append(String.format("%02x", b&0xff));
@@ -214,14 +226,17 @@ public abstract class Message {
 	}
 
 	/**
-	 * Sets the 0-8 byte token.
+	 * Sets the token, which can be 0--8 bytes.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param token the new token
+	 * @return this Message
 	 */
-	public void setToken(byte[] token) {
+	public Message setToken(byte[] token) {
 		if (token != null && token.length > 8)
 			throw new IllegalArgumentException("Token length must be between 0 and 8 inclusive");
 		this.token = token;
+		return this;
 	}
 	
 	/**
@@ -239,37 +254,19 @@ public abstract class Message {
 	/**
 	 * Sets the set of options. This function makes a defensive copy of the
 	 * specified set of options.
+	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param options the new options
+	 * @return this Message
 	 */
-	public void setOptions(OptionSet options) {
-		this.options = options;
+	public Message setOptions(OptionSet options) {
+		this.options = new OptionSet(options);
+		return this;
 	}
 	
 	/**
-	 * Gets the payload.
-	 *
-	 * @return the payload
-	 */
-	public byte[] getPayload() {
-		return payload;
-	}
-	
-	/**
-	 * Gets the payload in the form of a string. Returns null if no payload is
-	 * defined.
-	 * 
-	 * @return the payload as string
-	 */
-	public String getPayloadString() {
-		if (payload==null)
-			return null;
-		this.payloadString = new String(payload, CoAP.UTF8_CHARSET);
-		return payloadString;
-	}
-	
-	/**
-	 * Gets the size (amount of bytes) of the payload.
+	 * Gets the size (amount of bytes) of the payload. Be aware that this might
+	 * differ from the payload string length due to the UTF-8 encoding.
 	 *
 	 * @return the payload size
 	 */
@@ -278,43 +275,51 @@ public abstract class Message {
 	}
 	
 	/**
-	 * Sets the bytes from the specified string as payload. To clear the payload
-	 * from a message, do not use null but an empty string.
-	 * 
-	 * @param payload the payload
-	 * @throws NullPointerException if the payload is null
+	 * Gets the raw payload.
+	 *
+	 * @return the payload
 	 */
-	public Message setPayload(String payload) {
-		if (payload == null)
-			throw new NullPointerException();
-		setPayload(payload.getBytes(CoAP.UTF8_CHARSET));
-		return this;
+	public byte[] getPayload() {
+		return payload;
 	}
 	
 	/**
-	 * Sets the bytes from the specified string as payload and the specified
-	 * media type. To clear the payload from a message, do not use null but an
-	 * empty string.
+	 * Gets the payload in the form of a string. Returns an empty string if no
+	 * payload is defined.
 	 * 
-	 * @param payload the payload
-	 * @param mediaType the Internet Media Type
-	 * @throws NullPointerException if the payload is null
-	 * @see MediaTypeRegistry
+	 * @return the payload as string
 	 */
-	public Message setPayload(String payload, int mediaType) {
-		setPayload(payload);
-		getOptions().setContentFormat(mediaType);
+	public String getPayloadString() {
+		if (payload==null)
+			return "";
+		return new String(payload, CoAP.UTF8_CHARSET);
+	}
+	
+	/**
+	 * Sets the UTF-8 bytes from the specified string as payload.
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param payload the payload as sting
+	 * @return this Message
+	 */
+	public Message setPayload(String payload) {
+		if (payload == null) {
+			this.payload = null;
+		} else {
+			setPayload(payload.getBytes(CoAP.UTF8_CHARSET));
+		}
 		return this;
 	}
 	
 	/**
 	 * Sets the payload.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param payload the new payload
+	 * @return this Message
 	 */
 	public Message setPayload(byte[] payload) {
 		this.payload = payload;
-		this.payloadString = null; // reset lazy-initialized variable
 		return this;
 	}
 
@@ -329,29 +334,14 @@ public abstract class Message {
 
 	/**
 	 * Sets the destination address.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param destination the new destination
+	 * @return this Message
 	 */
-	public void setDestination(InetAddress destination) {
+	public Message setDestination(InetAddress destination) {
 		this.destination = destination;
-	}
-
-	/**
-	 * Gets the source address.
-	 *
-	 * @return the source
-	 */
-	public InetAddress getSource() {
-		return source;
-	}
-
-	/**
-	 * Sets the source address.
-	 *
-	 * @param source the new source
-	 */
-	public void setSource(InetAddress source) {
-		this.source = source;
+		return this;
 	}
 
 	/**
@@ -365,11 +355,33 @@ public abstract class Message {
 
 	/**
 	 * Sets the destination port.
+	 * Provides a fluent API to chain setters.
 	 *
 	 * @param destinationPort the new destination port
+	 * @return this Message
 	 */
-	public void setDestinationPort(int destinationPort) {
+	public Message setDestinationPort(int destinationPort) {
 		this.destinationPort = destinationPort;
+		return this;
+	}
+
+	/**
+	 * Gets the source address.
+	 *
+	 * @return the source
+	 */
+	public InetAddress getSource() {
+		return source;
+	}
+
+	/**
+	 * Sets the source address.
+	 * Not part of the fluent API.
+	 *
+	 * @param source the new source
+	 */
+	public void setSource(InetAddress source) {
+		this.source = source;
 	}
 
 	/**
@@ -383,6 +395,7 @@ public abstract class Message {
 
 	/**
 	 * Sets the source port.
+	 * Not part of the fluent API.
 	 *
 	 * @param sourcePort the new source port
 	 */
@@ -401,6 +414,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as acknowledged.
+	 * Not part of the fluent API.
 	 *
 	 * @param acknowledged if acknowledged
 	 */
@@ -422,6 +436,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as rejected.
+	 * Not part of the fluent API.
 	 *
 	 * @param rejected if rejected
 	 */
@@ -469,6 +484,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as canceled.
+	 * Not part of the fluent API.
 	 * 
 	 * @param canceled if canceled
 	 */
@@ -490,6 +506,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as a duplicate
+	 * Not part of the fluent API.
 	 *
 	 * @param duplicate if a duplicate
 	 */
@@ -508,6 +525,7 @@ public abstract class Message {
 
 	/**
 	 * Sets the bytes of the serialized message.
+	 * Not part of the fluent API.
 	 *
 	 * @param bytes the serialized bytes
 	 */
@@ -515,7 +533,6 @@ public abstract class Message {
 		this.bytes = bytes;
 	}
 
-	
 	/**
 	 * Gets the timestamp.
 	 *
@@ -527,6 +544,7 @@ public abstract class Message {
 
 	/**
 	 * Sets the timestamp.
+	 * Not part of the fluent API.
 	 *
 	 * @param timestamp the new timestamp
 	 */

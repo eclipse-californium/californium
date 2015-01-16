@@ -100,7 +100,7 @@ public class ParserTest {
 							.addLocationPath("пустынных")
 							.addLocationQuery("ვეპხის=யாமறிந்த")
 							.addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
-		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", MediaTypeRegistry.TEXT_PLAIN);
+		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");
 		
 		DataSerializer serializer = new DataSerializer();
 		byte[] bytes = serializer.serializeResponse(response);

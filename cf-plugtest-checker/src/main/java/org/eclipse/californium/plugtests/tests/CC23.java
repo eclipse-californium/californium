@@ -44,8 +44,8 @@ public class CC23 extends TestClientAbstract {
 		Request request = new Request(Code.PUT, Type.CON);
 		// request.setIfNoneMatch();
 		request.getOptions().setIfNoneMatch(true);
-		request.setPayload("TD_COAP_CORE_23 Part A",
-				MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload("TD_COAP_CORE_23 Part A");
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		executeRequest(request, serverURI, RESOURCE_URI);
 
 	}
@@ -107,8 +107,8 @@ public class CC23 extends TestClientAbstract {
 				request = new Request(Code.PUT, Type.CON);
 				// request.setIfNoneMatch();
 				request.getOptions().setIfNoneMatch(true);
-				request.setPayload("TD_COAP_CORE_23 Part B",
-						MediaTypeRegistry.TEXT_PLAIN);
+				request.setPayload("TD_COAP_CORE_23 Part B");
+				request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 
 				request.setURI(uri);
 
