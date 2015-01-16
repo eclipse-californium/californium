@@ -182,6 +182,8 @@ public class CertificateMessage extends HandshakeMessage {
 	 * Tries to verify the peer's certificate. Checks its validity and verifies
 	 * that it was signed with the stated private key.
 	 * 
+	 * @param trustedCertificates the list of trusted certificates
+	 * 
 	 * @throws HandshakeException
 	 *             if the certificate could not be verified.
 	 */

@@ -70,7 +70,7 @@ public abstract class HelloExtension {
 	 * This (lenient) approach seems feasible for the server to follow in general when
 	 * a client sends an extension of a type that the server does not know or support (yet).
 	 * 
-	 * @param type the extension type id
+	 * @param typeCode the extension type code
 	 * @param extension the serialized extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
@@ -196,13 +196,13 @@ public abstract class HelloExtension {
 		}
 		
 		/**
-		 * Gets an extension type by its numeric id as defined by
-		 * <a href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xml">
-		 * IANA</a>
+		 * Gets an extension type by its numeric id as defined by <a href=
+		 * "http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xml">IANA</a>
 		 * 
 		 * @param id
+		 *            the numeric id of the extension
 		 * @return the corresponding extension type or <code>null</code> if the
-		 * given id is unsupported.
+		 *         given id is unsupported.
 		 */
 		public static ExtensionType getExtensionTypeById(int id) {
 			switch (id) {

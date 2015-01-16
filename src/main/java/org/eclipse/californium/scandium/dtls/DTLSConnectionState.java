@@ -54,12 +54,18 @@ public class DTLSConnectionState {
 	}
 
 	/**
+	 * Called when setting read and write state.
 	 * 
 	 * @param cipherSuite
+	 *            the cipher suite used
 	 * @param compressionMethod
+	 *            the compression used
 	 * @param encryptionKey
+	 *            the secret encryption key used
 	 * @param iv
+	 *            the initialization vector used
 	 * @param macKey
+	 *            the MAC key used
 	 */
 	public DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey, IvParameterSpec iv, SecretKey macKey) {
 		this.cipherSuite = cipherSuite;

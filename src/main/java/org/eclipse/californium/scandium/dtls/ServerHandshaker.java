@@ -90,11 +90,16 @@ public class ServerHandshaker extends Handshaker {
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
+	 * Called upon a CLIENT_HELLO.
 	 * 
 	 * @param endpointAddress
 	 *            the peer's address.
 	 * @param session
 	 *            the {@link DTLSSession}.
+	 * @param rootCerts
+	 *            the trusted root certificates
+	 * @param config
+	 *            the DTLS configuration
 	 */
 	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) { 
 		super(endpointAddress, false, session,rootCerts);

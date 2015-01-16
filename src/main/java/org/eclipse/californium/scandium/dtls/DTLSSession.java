@@ -117,7 +117,9 @@ public class DTLSSession {
 
 	/**
 	 * Called when initializing a fresh session.
-	 * 
+	 *
+	 * @param peerAddress
+	 *            the remote address
 	 * @param isClient
 	 *            whether the entity represents a client or a server.
 	 */

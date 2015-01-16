@@ -91,10 +91,10 @@ public class Record {
 	 * Called when reconstructing the record from a byte array. The fragment
 	 * will remain in its binary representation up to the DTLS Layer.
 	 * 
-	 * @param type
-	 * @param version
-	 * @param epoch
-	 * @param sequenceNumber
+	 * @param type the content type
+	 * @param version the version
+	 * @param epoch the epoch
+	 * @param sequenceNumber the sequence number
 	 * @param length the number of bytes of encrypted data 
 	 * @param fragmentBytes the encrypted data
 	 */
@@ -204,7 +204,7 @@ public class Record {
 	// Cryptography /////////////////////////////////////////////////////////
 
 	/**
-	 * Encrypts the fragment, if a ciphersuite is available that supports
+	 * Encrypts the fragment, if a cipher suite is available that supports
 	 * encryption.
 	 * 
 	 * @param byteArray the fragment to encrypt
