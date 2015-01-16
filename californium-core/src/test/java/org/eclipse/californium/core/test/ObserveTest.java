@@ -26,7 +26,11 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -93,23 +97,28 @@ public class ObserveTest {
 	private String uriX;
 	private String uriY;
 	
+	private int notificationCounter = 0;
+	private int resetCounter = 0;
+	
 	@Before
 	public void startupServer() {
 		System.out.println("\nStart "+getClass().getSimpleName());
 		createServer();
-		this.interceptor = new ClientMessageInterceptor();
-		EndpointManager.getEndpointManager().getDefaultEndpoint().addInterceptor(interceptor);
 	}
 	
 	@After
 	public void shutdownServer() {
-		server.destroy();
 		EndpointManager.getEndpointManager().getDefaultEndpoint().removeInterceptor(interceptor);
+		server.destroy();
 		System.out.println("End "+getClass().getSimpleName());
 	}
 	
 	@Test
 	public void testObserveLifecycle() throws Exception {
+		
+		this.interceptor = new ClientMessageInterceptor();
+		EndpointManager.getEndpointManager().getDefaultEndpoint().addInterceptor(interceptor);
+		
 		// setup observe relation to resource X and Y
 		Request requestA = Request.newGet();
 		requestA.setURI(uriX);
@@ -141,7 +150,7 @@ public class ObserveTest {
 		// => trigger notification (which will go lost, see ClientMessageInterceptor)
 		
 		// wait for the server to timeout, see ClientMessageInterceptor.
-		while(waitforit) {
+		while (waitforit) {
 			Thread.sleep(1000);
 		}
 		
@@ -155,7 +164,44 @@ public class ObserveTest {
 		assertTrue(resourceX.getObserverCount() == 0);
 		assertTrue(resourceY.getObserverCount() == 0);
 	}
+	
+	@Test
+	public void testObserveClient() throws Exception {
 		
+		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(Type.NON);
+		
+		notificationCounter = 0;
+		resetCounter = 0;
+		
+		int repeat = 3;
+		
+		CoapClient client = new CoapClient(uriX);
+		
+		CoapObserveRelation rel = client.observeAndWait(new CoapHandler() {
+			@Override
+			public void onLoad(CoapResponse response) {
+				System.out.println("Received Notification: "+response.advanced().getMID());
+				++notificationCounter;
+			}
+			@Override
+			public void onError() { }
+		});
+		
+		rel.reactiveCancel();
+		Thread.sleep(50);
+
+		for (int i=0; i<repeat; ++i) {
+			resourceX.changed();
+			Thread.sleep(50);
+		}
+		
+		assertEquals(1, notificationCounter); // only one notification received
+		assertEquals(repeat, resetCounter); // repeat RST received
+		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered (interceptor)
+		
+	}
+	
 	private void createServer() {
 		// retransmit constantly all 2 seconds
 		NetworkConfig config = new NetworkConfig()
@@ -235,6 +281,22 @@ public class ObserveTest {
 		@Override public void sendEmptyMessage(EmptyMessage message) { }
 		@Override public void receiveRequest(Request request) { }
 		@Override public void receiveEmptyMessage(EmptyMessage message) { }
+	}
+	
+	private class ServerMessageInterceptor implements MessageInterceptor {
+		
+		@Override public void receiveResponse(Response response) { }
+		@Override public void sendRequest(Request request) { }
+		@Override public void sendResponse(Response response) { }
+		@Override public void sendEmptyMessage(EmptyMessage message) { }
+		@Override public void receiveRequest(Request request) { }
+		@Override public void receiveEmptyMessage(EmptyMessage message) {
+			if (message.getType()==Type.RST) {
+				++resetCounter;
+				System.out.println("Received RST: "+message.getMID());
+				message.cancel();
+			}
+		}
 	}
 	
 	private static class MyResource extends CoapResource {

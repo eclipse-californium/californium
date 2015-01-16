@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
@@ -615,6 +616,9 @@ public class CoAPEndpoint implements Endpoint {
 						exchange.setEndpoint(CoAPEndpoint.this);
 						response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
 						coapstack.receiveResponse(exchange, response);
+					} else if (response.getType() != Type.ACK) {
+						LOGGER.fine("Rejecting unmatchable response from " + raw.getInetSocketAddress());
+						reject(response);
 					}
 				}
 				
@@ -637,14 +641,8 @@ public class CoAPEndpoint implements Endpoint {
 				if (!message.isCanceled()) {
 					// CoAP Ping
 					if (message.getType() == Type.CON || message.getType() == Type.NON) {
-						EmptyMessage rst = EmptyMessage.newRST(message);
-						
 						LOGGER.info("Responding to ping by " + raw.getInetSocketAddress());
-						
-						for (MessageInterceptor interceptor:interceptors)
-							interceptor.sendEmptyMessage(rst);
-						connector.send(serializer.serialize(rst));
-					
+						reject(message);
 					} else {
 						Exchange exchange = matcher.receiveEmptyMessage(message);
 						if (exchange != null) {
@@ -656,6 +654,13 @@ public class CoAPEndpoint implements Endpoint {
 			} else {
 				LOGGER.finest("Silently ignoring non-CoAP message from " + raw.getInetSocketAddress());
 			}
+		}
+		
+		private void reject(Message message) {
+			EmptyMessage rst = EmptyMessage.newRST(message);
+			for (MessageInterceptor interceptor:interceptors)
+				interceptor.sendEmptyMessage(rst);
+			connector.send(serializer.serialize(rst));
 		}
 
 	}
