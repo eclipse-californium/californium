@@ -11,7 +11,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>scandium</artifactId>
-	<version>1.0.0-M3</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>bundle</packaging>
 
 	<name>Scandium (Sc)</name>
