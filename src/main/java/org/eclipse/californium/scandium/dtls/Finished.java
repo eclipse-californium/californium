@@ -64,7 +64,7 @@ public class Finished extends HandshakeMessage {
 	/**
 	 * Called when reconstructing byteArray.
 	 * 
-	 * @param verifyData
+	 * @param verifyData the raw verify data
 	 */
 	public Finished(byte[] verifyData) {
 		this.verifyData = verifyData;

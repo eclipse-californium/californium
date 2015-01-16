@@ -97,8 +97,12 @@ public class ClientHandshaker extends Handshaker {
 	 *            the message
 	 * @param session
 	 *            the session
+	 * @param rootCerts
+	 *            the trusted root certificates
+	 * @param config
+	 *            the DTLS configuration
 	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,Certificate[] rootCerts, DTLSConnectorConfig config) {
+	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) {
 		super(endpointAddress, true, session,rootCerts);
 		this.message = message;
 		this.privateKey = config.privateKey;
@@ -556,7 +560,7 @@ public class ClientHandshaker extends Handshaker {
 		// store client random for later calculations
 		clientRandom = message.getRandom();
 
-		// the mandatory to implement ciphersuites, the preferred one should be first in the list
+		// the mandatory to implement cipher suites, the preferred one should be first in the list
 		if (preferredCipherSuite == CipherSuite.TLS_PSK_WITH_AES_128_CCM_8) {
 			message.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			message.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);

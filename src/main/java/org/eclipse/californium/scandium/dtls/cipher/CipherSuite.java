@@ -111,7 +111,7 @@ public enum CipherSuite {
 	/**
 	 * Returns the cipher suite to a given code.
 	 * 
-	 * @param code
+	 * @param code the numeric code of the cipher suite (usually hexadecimal)
 	 * @return the according cipher suite.
 	 */
 	public static CipherSuite getTypeByCode(int code) {

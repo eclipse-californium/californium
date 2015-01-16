@@ -97,9 +97,9 @@ public class DTLSConnectorConfig {
 	 * Sets the private key and public key for RPK mode.
 	 * Use to configure RPK only, if you want to configure RPK and certificate 
 	 * authentication mode use {@link #setPrivateKey(PrivateKey, Certificate[], boolean)} instead.
-	 * @param private key
+	 * @param privateKey
 	 *            the private key
-	 * @param public key
+	 * @param publicKey
 	 *            the public key associate to the private key
 	 * @see #setPrivateKey(PrivateKey, Certificate[], boolean) if you want to use X509 certification too.
 	 */
@@ -160,7 +160,7 @@ public class DTLSConnectorConfig {
 	 * Sets the favorite cipher suite which is going to be placed at the top of
 	 * the advertised supported cipher suites.
 	 * 
-	 * @param suite
+	 * @param suite the preferred cipher suite
 	 */
 	public void setPreferredCipherSuite(CipherSuite suite) {
 		assertNotStarted();

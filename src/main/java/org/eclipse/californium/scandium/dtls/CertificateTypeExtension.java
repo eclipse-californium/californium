@@ -147,8 +147,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 
 	/**
 	 * Certificate types as defined in the
-	 * < href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml">
-	 * IANA registry</a>.
+	 * <a href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml">IANA registry</a>.
 	 */
 	public enum CertificateType {
 		// values as defined by IANA TLS Certificate Types registry

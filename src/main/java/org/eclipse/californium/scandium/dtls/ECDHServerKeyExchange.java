@@ -105,16 +105,18 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	/**
 	 * Called by server, generates ephemeral keys and signature.
 	 * 
+	 * @param signatureAndHashAlgorithm
+	 *            the algorithm to use
 	 * @param ecdhe
-	 *            the ECDHE helper class.
+	 *            the ECDHE helper class
 	 * @param serverPrivateKey
-	 *            the server's private key.
+	 *            the server's private key
 	 * @param clientRandom
-	 *            the client's random (used for signature).
+	 *            the client's random (used for signature)
 	 * @param serverRandom
-	 *            the server's random (used for signature).
+	 *            the server's random (used for signature)
 	 * @param namedCurveId
-	 *            the named curve's id which will be used for the ECDH.
+	 *            the named curve's id which will be used for the ECDH
 	 */
 	public ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, ECDHECryptography ecdhe, PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, int namedCurveId) {
 
@@ -146,6 +148,8 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	/**
 	 * Called when reconstructing the byte array.
 	 * 
+	 * @param signatureAndHashAlgorithm
+	 *            the algorithm to use
 	 * @param curveId
 	 *            the named curve index
 	 * @param pointEncoded
@@ -348,6 +352,8 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	 * Called by the client after receiving the {@link ServerKeyExchange}
 	 * message and verification.
 	 * 
+	 * @param params
+	 *            the elliptic curve parameters
 	 * @return the server's ephemeral public key.
 	 */
 	public ECPublicKey getPublicKey(ECParameterSpec params) {

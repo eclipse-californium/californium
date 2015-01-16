@@ -169,6 +169,8 @@ public abstract class Handshaker {
 	 *            server.
 	 * @param session
 	 *            the session belonging to this handshake.
+	 * @param rootCertificates
+	 *            the trusted root certificates
 	 */
 	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session, Certificate[] rootCertificates) {
 		this.endpointAddress = peerAddress;
@@ -194,6 +196,8 @@ public abstract class Handshaker {
 	 *            the received {@link HandshakeMessage}.
 	 * @return the list all handshake messages that need to be sent triggered by
 	 *         this message.
+	 * @throws HandshakeException
+	 *             if DTLS handshake fails
 	 */
 	public abstract DTLSFlight processMessage(Record message) throws HandshakeException;
 
@@ -603,11 +607,11 @@ public abstract class Handshaker {
 	 * Determines, using the epoch and sequence number, whether this record is
 	 * the next one which needs to be processed by the handshake protocol.
 	 * 
-	 * @param record
-	 *            the current received message.
+	 * @param record the current received message.
 	 * @return <tt>true</tt> if the current message is the next to process,
 	 *         <tt>false</tt> otherwise.
-	 * @throws HandshakeException 
+	 * @throws HandshakeException
+	 *             if DTLS handshake fails 
 	 */
 	protected boolean processMessageNext(Record record) throws HandshakeException {
 
@@ -667,6 +671,7 @@ public abstract class Handshaker {
 	 * @return the reassembled handshake message (if all fragements available),
 	 *         <code>null</code> otherwise.
 	 * @throws HandshakeException
+	 *             if DTLS handshake fails
 	 */
 	protected HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 		HandshakeMessage reassembledMessage = null;
@@ -702,6 +707,7 @@ public abstract class Handshaker {
 	 * @return the reassembled handshake message (if all fragements available),
 	 *         <code>null</code> otherwise.
 	 * @throws HandshakeException
+	 *             if DTLS handshake fails
 	 */
 	protected HandshakeMessage reassembleFragments(int messageSeq, int totalLength, HandshakeType type, DTLSSession session) throws HandshakeException {
 		List<FragmentedHandshakeMessage> fragments = fragmentedMessages.get(messageSeq);
