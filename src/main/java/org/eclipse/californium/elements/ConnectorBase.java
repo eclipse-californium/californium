@@ -82,12 +82,17 @@ public abstract class ConnectorBase implements Connector {
 	public abstract String getName();
 	
 	/**
-	 * @throws Exception
-	 *             any exceptions that should be properly logged
+	 * Receives data from the socket queue.
+	 * 
+	 * @throws Exception any exceptions that should be properly logged
+	 * @return the received raw data with metadata
 	 */
 	protected abstract RawData receiveNext() throws Exception;
 	
 	/**
+	 * Sends data over the socket.
+	 * 
+	 * @param raw the raw data with metadata
 	 * @throws Exception any exception that should be properly logged
 	 */
 	protected abstract void sendNext(RawData raw) throws Exception;
