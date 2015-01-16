@@ -64,7 +64,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * not only a block as defined in the CoAP draft (<a
  * href="http://tools.ietf.org/html/draft-ietf-core-block-12">
  * http://tools.ietf.org/html/draft-ietf-core-block-12</a>)
- * <p>
+ * </p><p>
  * When a request arrives at the server, the {@link ServerMessageDeliverer}
  * searches in the resource tree for the destination resource. It travels down
  * the resource tree by looking for one element of the destination URI after
@@ -72,7 +72,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * It is allowed to override this method and to return an arbitrary resource.
  * This allows for instance to serve URIs with wildcards or delegate requests to
  * any sub-URI to the same resource.
- * <p>
+ * </p><p>
  * A resource can have its own {@link Executor}. If a resource has such an
  * executor, all requests will be handled by it. Otherwise, the request will
  * be executed on the executor of the parent or transitively the first ancestor
@@ -81,7 +81,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * that implements this interface can export further methods to allow the
  * execution of code on the resource's executor. See {@link CoapResource} for an
  * example.
- * <p>
+ * </p>
  */
 public interface Resource /*extends RequestProcessor*/ {
 	

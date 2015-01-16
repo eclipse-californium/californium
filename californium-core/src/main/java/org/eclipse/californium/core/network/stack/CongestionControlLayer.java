@@ -229,13 +229,14 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	
 	/**
 	 * Override this method in RTO algorithms that implement some sort of RTO aging
-	 * @param exchange
+	 * @param exchange the exchange
 	 */
-	protected void checkAging(Exchange exchange){
+	protected void checkAging(Exchange exchange) {
 		return;
 	}
 	
-	/** This method is only called if there hasn't been an RTO update yet. Initializes the 
+	/**
+	 * This method is only called if there hasn't been an RTO update yet. 
 	 * 
 	 * @param measuredRTT   the time it took to get an ACK for a CON message
 	 * @param estimatorType the type indicating if the measurement was a strong or a weak one
@@ -382,14 +383,23 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		checkRemoteEndpointQueue(exchange);
 	}	
 	
-	/** 
-	 * Methods to send NON packets chosen by the bucket Thread (no reliability)
+	/**
+	 * Method to send NON packets chosen by the bucket Thread (no reliability)
+	 * 
+	 * @param exchange the exchange
+	 * @param request the request
 	 */
-	public void sendBucketRequest(Exchange exchange, Request request){
+	public void sendBucketRequest(Exchange exchange, Request request) {
 		super.sendRequest(exchange, request);
 	}
 	
-	public void sendBucketResponse(Exchange exchange, Response response){
+	/**
+	 * Method to send NON packets chosen by the bucket Thread (no reliability)
+	 * 
+	 * @param exchange the exchange
+	 * @param response the response
+	 */
+	public void sendBucketResponse(Exchange exchange, Response response) {
 		super.sendResponse(exchange, response);
 	}
 	

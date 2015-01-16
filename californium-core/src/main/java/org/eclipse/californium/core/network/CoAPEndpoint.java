@@ -174,7 +174,8 @@ public class CoAPEndpoint implements Endpoint {
 	/**
 	 * Instantiates a new endpoint with the specified port and configuration.
 	 *
-	 * @param address the address
+	 * @param port the UDP port
+	 * @param config the network configuration
 	 */
 	public CoAPEndpoint(int port, NetworkConfig config) {
 		this(new InetSocketAddress(port), config);
@@ -184,7 +185,7 @@ public class CoAPEndpoint implements Endpoint {
 	 * Instantiates a new endpoint with the specified address and configuration.
 	 *
 	 * @param address the address
-	 * @param config the configuration
+	 * @param config the network configuration
 	 */
 	public CoAPEndpoint(InetSocketAddress address, NetworkConfig config) {
 		this(createUDPConnector(address, config), config);

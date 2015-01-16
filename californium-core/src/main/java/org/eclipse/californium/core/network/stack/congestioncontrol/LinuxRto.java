@@ -28,7 +28,6 @@ public class LinuxRto extends CongestionControlLayer{
 		super(config);
 	}
 	
-	/** This method is only called if there hasn't been an RTO update yet. It sets the weak/strong RTOs and calculates a new overall RTO.*/
 	@Override
 	public void initializeRTOEstimators(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){		
 			
@@ -72,7 +71,6 @@ public class LinuxRto extends CongestionControlLayer{
 		endpoint.updateRTO(newRTO);
 	}	
 	
-	/** Received a new RTT measurement, evaluate it and update correspondent estimators */
 	@Override
 	public void processRTTmeasurement(long measuredRTT, Exchange exchange, int retransmissionCount){		
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
@@ -81,14 +79,15 @@ public class LinuxRto extends CongestionControlLayer{
 		if(rtoType == NOESTIMATOR || rtoType == WEAKRTOTYPE )
 			return;
 		
-		//System.out.println("Measured RTT:" + measuredRTT);
+		// System.out.println("Measured RTT:" + measuredRTT);
 		endpoint.matchCurrentRTO();
-		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
-			// Received a strong RTT measurement for the first time, apply strong RTO update
-			endpoint.setBlindStrong(false); 
-			initializeRTOEstimators(measuredRTT, rtoType, endpoint);					
-		}else{
-			//Perform normal update of the RTO
+		if (endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE) {
+			// Received a strong RTT measurement for the first time, apply
+			// strong RTO update
+			endpoint.setBlindStrong(false);
+			initializeRTOEstimators(measuredRTT, rtoType, endpoint);
+		} else {
+			// Perform normal update of the RTO
 			updateEstimator(measuredRTT, rtoType, endpoint);
 		}
 	}

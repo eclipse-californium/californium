@@ -70,7 +70,7 @@ public class Cocoa extends CongestionControlLayer {
 	}
 
 	@Override
-	protected void updateEstimator(long measuredRTT, int estimatorType, RemoteEndpoint endpoint){
+	protected void updateEstimator(long measuredRTT, int estimatorType, RemoteEndpoint endpoint) {
 		
 		long RTTVAR = Math.round((double)(1-BETA)*endpoint.getxRTTVAR(estimatorType)) + Math.round((double)(BETA*Math.abs(endpoint.getxRTT(estimatorType)-measuredRTT)));
 		long RTT =  Math.round((double)(endpoint.getxRTT(estimatorType)*(1-ALPHA))) + Math.round((double)(measuredRTT*ALPHA));
@@ -86,7 +86,7 @@ public class Cocoa extends CongestionControlLayer {
 	}	
 	
 	@Override
-	public void processRTTmeasurement(long measuredRTT, Exchange exchange, int retransmissionCount){		
+	public void processRTTmeasurement(long measuredRTT, Exchange exchange, int retransmissionCount) {		
 		//System.out.println("Measured an RTT of " + measuredRTT + " after using " + retransmissionCount + " retries." );	
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		int rtoType = endpoint.getExchangeEstimatorState(exchange);
@@ -99,16 +99,16 @@ public class Cocoa extends CongestionControlLayer {
 		//System.out.println("Measured RTT:" + measuredRTT);
 		
 		// System.out.println("Endpoint status: blindweak/blindstrong/state : " + endpoint.isBlindWeak() + "/" + endpoint.isBlindStrong() + "/" + endpoint.getExchangeEstimatorState(exchange));
-		if(endpoint.isBlindWeak() && rtoType  == WEAKRTOTYPE){
-			//Received a weak RTT for the first time, apply weak RTO update
+		if (endpoint.isBlindWeak() && rtoType == WEAKRTOTYPE) {
+			// Received a weak RTT for the first time, apply weak RTO update
 			endpoint.setBlindWeak(false);
 			initializeRTOEstimators(measuredRTT, WEAKRTOTYPE, endpoint);
-		}else if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
+		} else if (endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE) {
 			// Received a strong RTT measurement for the first time, apply strong RTO update
-			endpoint.setBlindStrong(false); 
-			initializeRTOEstimators(measuredRTT, STRONGRTOTYPE, endpoint);					
-		}else{
-			//Perform normal update of the RTO
+			endpoint.setBlindStrong(false);
+			initializeRTOEstimators(measuredRTT, STRONGRTOTYPE, endpoint);
+		} else {
+			// Perform normal update of the RTO
 			updateEstimator(measuredRTT, rtoType, endpoint);
 		}	
 	}
@@ -119,11 +119,11 @@ public class Cocoa extends CongestionControlLayer {
 	 * @param rto the initial RTO
 	 * @return the new VBF
 	 */
-	public double calculateVBF(long rto){
-		if(rto > UPPERVBFLIMIT){
+	public double calculateVBF(long rto) {
+		if (rto > UPPERVBFLIMIT) {
 			return VBFHIGH;
 		}
-		if(rto < LOWERVBFLIMIT){
+		if (rto < LOWERVBFLIMIT) {
 			return VBFLOW;
 		}
 		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);

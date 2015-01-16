@@ -234,10 +234,12 @@ public class CoapClient {
 	}
 
 	/**
-	 * Let the client use early negotiation for the blocksize
-	 * (16, 32, 64, 128, 256, 512, or 1024). Other values will
-	 * be matched to the closest logarithm dualis.
+	 * Let the client use early negotiation for the blocksize (16, 32, 64, 128,
+	 * 256, 512, or 1024). Other values will be matched to the closest logarithm
+	 * dualis.
 	 * 
+	 * @param size
+	 *            the preferred block size
 	 * @return the CoAP client
 	 */
 	public CoapClient useEarlyNegotiation(int size) {
@@ -721,7 +723,7 @@ public class CoapClient {
 	
 	/**
 	 * Stops the client-specific executor service to cleanly exit programs.
-	 * Only needed if {@link #useExecutor() or #setExecutor(ExecutorService)
+	 * Only needed if {@link #useExecutor()} or {@link #setExecutor(ExecutorService)}
 	 * are used (i.e., a client-specific executor service was set).
 	 */
 	public void shutdown() {

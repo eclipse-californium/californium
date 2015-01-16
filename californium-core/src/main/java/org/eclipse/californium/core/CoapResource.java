@@ -465,6 +465,10 @@ public  class CoapResource implements Resource {
 	/**
 	 * Remove all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
+	 * 
+	 * @param code
+	 *            the error code why the relation was terminated
+	 *            (e.g., 4.04 after deletion)
 	 */
 	public void clearAndNotifyObserveRelations(ResponseCode code) {
 		/*

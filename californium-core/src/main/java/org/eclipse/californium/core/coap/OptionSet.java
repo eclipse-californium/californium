@@ -734,7 +734,8 @@ public class OptionSet {
 	/**
 	 * Sets the complete Uri-Query through a &amp;-separated list of arguments.
 	 * Returns the current OptionSet object for a fluent API.
-	 * @param query
+	 * 
+	 * @param query the Query string
 	 * @return this Optionset
 	 */
 	public OptionSet setUriQuery(String query) {
@@ -875,7 +876,7 @@ public class OptionSet {
 	/**
 	 * Sets the complete Location-Query through a &amp;-separated list of arguments.
 	 * Returns the current OptionSet object for a fluent API.
-	 * @param query
+	 * @param query the Location-Query string
 	 * @return this Optionset
 	 */
 	public OptionSet setLocationQuery(String query) {
@@ -1027,20 +1028,26 @@ public class OptionSet {
 
 	/**
 	 * Sets the Block1 option based on its components.
+	 * Returns the current OptionSet object for a fluent API.
 	 * @param szx the block size
 	 * @param m the more flag
 	 * @param num the block number
+	 * @return this OptionSet
 	 */
-	public void setBlock1(int szx, boolean m, int num) {
+	public OptionSet setBlock1(int szx, boolean m, int num) {
 		this.block1 = new BlockOption(szx, m, num);
+		return this;
 	}
 
 	/**
 	 * Sets the Block1 option based on its encoded blob.
+	 * Returns the current OptionSet object for a fluent API.
 	 * @param value the encoded value
+	 * @return this OptionSet
 	 */
-	public void setBlock1(byte[] value) {
+	public OptionSet setBlock1(byte[] value) {
 		this.block1 = new BlockOption(value);
+		return this;
 	}
 
 	/**
@@ -1082,18 +1089,23 @@ public class OptionSet {
 
 	/**
 	 * Sets the Block2 option based on its components.
+	 * Returns the current OptionSet object for a fluent API.
 	 * @param szx the block size
 	 * @param m the more flag
 	 * @param num the block number
+	 * @return this OptionSet
 	 */
-	public void setBlock2(int szx, boolean m, int num) {
+	public OptionSet setBlock2(int szx, boolean m, int num) {
 		this.block2 = new BlockOption(szx, m, num);
+		return this;
 	}
 
 	/**
 	 * Sets the Block1 option based on its encoded blob.
 	 * Returns the current OptionSet object for a fluent API.
+	 * 
 	 * @param value the encoded value
+	 * @return this OptionSet
 	 */
 	public OptionSet setBlock2(byte[] value) {
 		this.block2 = new BlockOption(value);
@@ -1310,7 +1322,7 @@ public class OptionSet {
 
 	/**
 	 * Allows adding arbitrary options. Known options are checked if they are repeatable.
-	 * @param option
+	 * @param option the Option object to add
 	 * @return this OptionSet
 	 */
 	public OptionSet addOption(Option option) {

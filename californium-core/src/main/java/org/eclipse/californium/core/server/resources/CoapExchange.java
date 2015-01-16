@@ -138,6 +138,7 @@ public class CoapExchange {
 	
 	/**
 	 * Set the Location-Path for the response.
+	 * @param path the Location-Path value
 	 */
 	public void setLocationPath(String path) {
 		locationPath = path;
@@ -145,6 +146,7 @@ public class CoapExchange {
 	
 	/**
 	 * Set the Location-Query for the response.
+	 * @param query the Location-Query value
 	 */
 	public void setLocationQuery(String query) {
 		locationQuery = query;
@@ -152,6 +154,7 @@ public class CoapExchange {
 	
 	/**
 	 * Set the Max-Age for the response body.
+	 * @param age the Max-Age value
 	 */
 	public void setMaxAge(long age) {
 		maxAge = age;
@@ -159,6 +162,7 @@ public class CoapExchange {
 
 	/**
 	 * Set the ETag for the response.
+	 * @param tag the ETag of the current response
 	 */
 	public void setETag(byte[] tag) {
 		eTag = tag;
@@ -173,7 +177,7 @@ public class CoapExchange {
 	 *   <li>DELETE: Deleted (2.02)</li>
 	 * </ul>
 	 *
-	 * @param code the code
+	 * @param code the response code
 	 */
 	public void respond(ResponseCode code) {
 		respond(new Response(code));
@@ -181,12 +185,6 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with response code 2.05 (Content) and the specified payload.
-	 * <ul>
-	 *   <li>GET: Content (2.05), Valid (2.03)</li>
-	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
-	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
-	 *   <li>DELETE: Deleted (2.02)</li>
-	 * </ul>
 	 *
 	 * @param payload the payload as string
 	 */
@@ -273,13 +271,6 @@ public class CoapExchange {
 	
 	/**
 	 * Respond with the specified response.
-	 * <ul>
-	 *   <li>GET: Content (2.05), Valid (2.03)</li>
-	 *   <li>POST: Created (2.01), Changed (2.04), Deleted (2.02) </li>
-	 *   <li>PUT: Created (2.01), Changed (2.04)</li>
-	 *   <li>DELETE: Deleted (2.02)</li>
-	 * </ul>
-	 *
 	 * @param response the response
 	 */
 	public void respond(Response response) {
@@ -301,7 +292,6 @@ public class CoapExchange {
 	
 	/**
 	 * Provides access to the internal Exchange object.
-	 * 
 	 * @return the Exchange object
 	 */
 	public Exchange advanced() {

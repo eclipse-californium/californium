@@ -30,7 +30,7 @@ public interface ExchangeObserver {
 	/**
 	 * Invoked when the exchange has completed.
 	 * 
-	 * @param exchange
+	 * @param exchange the exchange
 	 */
 	public void completed(Exchange exchange);
 	

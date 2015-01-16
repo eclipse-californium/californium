@@ -163,11 +163,21 @@ public class Request extends Message {
 		this.multicast = multicast;
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Required in Request to keep class for fluent API.
+	 */
 	public Request setPayload(String payload) {
 		super.setPayload(payload);
 		return this;
 	}
-	
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Required in Request to keep class for fluent API.
+	 */
 	public Request setPayload(byte[] payload) {
 		super.setPayload(payload);
 		return this;
@@ -280,6 +290,7 @@ public class Request extends Message {
 	/**
 	 * Sends the request over the default endpoint to its destination and
 	 * expects a response back.
+	 * @return this request
 	 */
 	public Request send() {
 		validateBeforeSending();
@@ -298,6 +309,7 @@ public class Request extends Message {
 	 * expects a response back.
 	 * 
 	 * @param endpoint the endpoint
+	 * @return this request
 	 */
 	public Request send(Endpoint endpoint) {
 		validateBeforeSending();
@@ -319,6 +331,8 @@ public class Request extends Message {
 	 * Sets CoAP's observe option. If the target resource of this request
 	 * responds with a success code and also sets the observe option, it will
 	 * send more responses in the future whenever the resource's state changes.
+	 * 
+	 * @return this Request
 	 */
 	public Request setObserve() {
 		getOptions().setObserve(0);
@@ -327,6 +341,8 @@ public class Request extends Message {
 	
 	/**
 	 * Sets CoAP's observe option to the value of 1 to proactively cancel.
+	 * 
+	 * @return this Request
 	 */
 	public Request setObserveCancel() {
 		getOptions().setObserve(1);

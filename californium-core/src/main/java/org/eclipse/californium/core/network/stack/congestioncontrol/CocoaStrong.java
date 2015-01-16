@@ -41,12 +41,13 @@ public class CocoaStrong extends Cocoa{
 		//System.out.println("Measured RTT:" + measuredRTT);
 		
 		// System.out.println("Endpoint status: blindweak/blindstrong/state : " + endpoint.isBlindWeak() + "/" + endpoint.isBlindStrong() + "/" + endpoint.getExchangeEstimatorState(exchange));
-		if(endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE){		
-			// Received a strong RTT measurement for the first time, apply strong RTO update
-			endpoint.setBlindStrong(false); 
-			initializeRTOEstimators(measuredRTT, STRONGRTOTYPE, endpoint);					
-		}else{
-			//Perform normal update of the RTO
+		if (endpoint.isBlindStrong() && rtoType == STRONGRTOTYPE) {
+			// Received a strong RTT measurement for the first time, apply
+			// strong RTO update
+			endpoint.setBlindStrong(false);
+			initializeRTOEstimators(measuredRTT, STRONGRTOTYPE, endpoint);
+		} else {
+			// Perform normal update of the RTO
 			updateEstimator(measuredRTT, rtoType, endpoint);
 		}
 	}

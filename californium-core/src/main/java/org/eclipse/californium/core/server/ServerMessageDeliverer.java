@@ -52,6 +52,8 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	/**
 	 * Constructs a default message deliverer that delivers requests to the
 	 * resources rooted at the specified root.
+	 * 
+	 * @param root the root resource
 	 */
 	public ServerMessageDeliverer(Resource root) {
 		this.root = root;
