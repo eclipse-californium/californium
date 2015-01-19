@@ -18,6 +18,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -29,6 +31,10 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 public enum CompressionMethod {
 	NULL(0x00);
 	
+	// Logging ////////////////////////////////////////////////////////
+
+	private static final Logger LOGGER = Logger.getLogger(CompressionMethod.class.getCanonicalName());
+
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int COMPRESSION_METHOD_BITS = 8;
@@ -55,6 +61,9 @@ public enum CompressionMethod {
 			return CompressionMethod.NULL;
 
 		default:
+			if (LOGGER.isLoggable(Level.FINE)) {
+			    LOGGER.fine("Unknown compression method code: " + code);
+			}
 			return null;
 		}
 	}
@@ -96,7 +105,10 @@ public enum CompressionMethod {
 
 		for (int i = 0; i < numElements; i++) {
 			int code = reader.read(COMPRESSION_METHOD_BITS);
-			compressionMethods.add(CompressionMethod.getMethodByCode(code));
+			CompressionMethod method = CompressionMethod.getMethodByCode(code);
+			if (method != null) {
+				compressionMethods.add(method);
+			}
 		}
 		return compressionMethods;
 	}
