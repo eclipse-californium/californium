@@ -105,7 +105,6 @@ public class ServerHandshaker extends Handshaker {
 		super(endpointAddress, false, session,rootCerts);
 
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();
-		this.supportedCipherSuites.add(CipherSuite.SSL_NULL_WITH_NULL_NULL);
 		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		
@@ -733,23 +732,34 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Selects one of the client's proposed cipher suites.
 	 * 
+	 * Iterates through the provided (ordered) list of the client's
+	 * preferred ciphers until one is found that is also contained
+	 * in the {@link #supportedCipherSuites}.
+	 * 
+	 * The <em>SSL_NULL_WITH_NULL_NULL</em> cipher suite is <em>never</em>
+	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5">
+	 * RFC 5246 Appendix A.5</a>
+	 * 
 	 * @param cipherSuites
-	 *            the client's cipher suites.
+	 *            the list of cipher suites the client supports
+	 *            (ordered by preference)
 	 * @return The single cipher suite selected by the server from the list
 	 *         which will be used after handshake completion.
 	 * @throws HandshakeException
-	 *             if no suitable cipher suite can be found.
+	 *             if this server does not support any of
+	 *             the cipher suites proposed by the client
 	 */
 	private CipherSuite negotiateCipherSuite(List<CipherSuite> cipherSuites) throws HandshakeException {
-		// the client's list is sorted by preference
 		for (CipherSuite cipherSuite : cipherSuites) {
-			if (supportedCipherSuites.contains(cipherSuite) && cipherSuite != CipherSuite.SSL_NULL_WITH_NULL_NULL) {
+			// NEVER negotiate NULL cipher suite
+			if (cipherSuite != CipherSuite.SSL_NULL_WITH_NULL_NULL &&
+					supportedCipherSuites.contains(cipherSuite)) {
 				return cipherSuite;
 			}
 		}
 		// if none of the client's proposed cipher suites matches throw exception
 		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-		throw new HandshakeException("No supported cipher suite proposed by the client", alert);
+		throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
 	}
 
 	/**

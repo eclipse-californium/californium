@@ -39,6 +39,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -783,8 +785,14 @@ public abstract class Handshaker {
 	 * 
 	 * @param cipherSuite
 	 *            the cipher suite.
+	 * @throws HandshakeException if the given cipher suite is <code>null</code>
+	 * 	or {@link CipherSuite#SSL_NULL_WITH_NULL_NULL}
 	 */
-	public void setCipherSuite(CipherSuite cipherSuite) {
+	void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
+		if (cipherSuite == null || CipherSuite.SSL_NULL_WITH_NULL_NULL == cipherSuite) {
+			throw new HandshakeException("Negotiated cipher suite must not be null",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		}
 		this.cipherSuite = cipherSuite;
 		this.keyExchange = cipherSuite.getKeyExchange();
 		this.session.setKeyExchange(keyExchange);

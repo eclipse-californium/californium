@@ -36,7 +36,8 @@ public class ServerHandshakerTest {
     DTLSSession session;
     InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
     byte[] sessionId = new byte[]{(byte) 0x0A, (byte) 0x0B, (byte) 0x0C, (byte) 0x0D, (byte) 0x0E, (byte) 0x0F};
-	byte[] supportedCiphers = new byte[]{(byte) 0xFF, (byte) 0xA8, (byte) 0xC0, (byte) 0xA8};
+    // ciphers supported by client: 0xFFA8 = fantasy cipher (non-existent), 0xC0A8 = TLS_PSK_WITH_AES_128_CCM_8
+    byte[] supportedCiphers = new byte[]{(byte) 0xFF, (byte) 0xA8, (byte) 0xC0, (byte) 0xA8};
     byte[] random;
     byte[] clientHelloMsg;
     
@@ -55,12 +56,10 @@ public class ServerHandshakerTest {
             writer.write(i, 8);
         }
         random = writer.toByteArray();
-        
-        System.out.println("Expect 'Unknown cipher suite code' warnings during this test.");
     }
     
     @Test
-    public void testReceiveClientHelloSupportsUnknownCiphers() throws HandshakeException {
+    public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws HandshakeException {
         
     	byte[] cookie = getCookieForClientHello(0, supportedCiphers, null);
         
@@ -68,8 +67,29 @@ public class ServerHandshakerTest {
         processClientHello(1, cookie, supportedCiphers, null);
         
         byte[] loggedMsg = new byte[clientHelloMsg.length];
+        // copy the received ClientHello message from the handshakeMessages buffer
         System.arraycopy(handshaker.handshakeMessages, 0, loggedMsg, 0, clientHelloMsg.length);
+        // and verify that it is equal to the original ClientHello message
+        // sent by the client
         Assert.assertArrayEquals(clientHelloMsg, loggedMsg);
+    }
+    
+    @Test
+    public void testReceiveClientHelloDoesNotNegotiateNullCipher() throws HandshakeException {
+    	// 0x0000 = TLS_NULL_WITH_NULL_NULL
+        supportedCiphers = new byte[]{(byte) 0x00, (byte) 0x00};
+    	byte[] cookie = getCookieForClientHello(0, supportedCiphers, null);
+        
+        try {
+	    	// process Client Hello including Cookie
+	        processClientHello(1, cookie, supportedCiphers, null);
+	        Assert.fail("Server should have aborted cipher negotiation");
+        } catch (HandshakeException e) {
+        	// server has aborted handshake as required
+        	Assert.assertEquals(AlertMessage.AlertLevel.FATAL, e.getAlert().getLevel());
+        }
+        
+    	
     }
 
     @Test
