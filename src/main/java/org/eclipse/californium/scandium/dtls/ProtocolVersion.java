@@ -13,11 +13,20 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla - documentation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 /**
- * Represents the protocol version.
+ * Represents the DTLS protocol version.
+ * 
+ * Note that the major and minor version numbers are represented
+ * as the 1's complement of the corresponding DTLS version numbers,
+ * e.g. DTLS version 1.2 is represented as bytes {254, 253}.
+ * 
+ * See <a href="http://tools.ietf.org/html/rfc6347#section-4.1">
+ * Datagram Transport Layer Security Version 1.2 (RFC 6347), Section 4.1</a>
+ * for details.
  */
 public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	
@@ -28,7 +37,9 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	private int major;
 	
 	/**
-	 * The latest version supported.
+	 * Creates an instance representing DTLS version 1.2.
+	 * 
+	 * The version is represented as {254, 253} (1's complement of {1, 2}).
 	 */
 	public ProtocolVersion() {
 		this.major = 254;
@@ -55,7 +66,20 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 		return major;
 	}
 
-	//@Override
+	/**
+	 * Compares this protocol version to another one.
+	 * 
+	 * Note that the comparison is done based on the <em>semantic</em> version,
+	 * i.e. DTLS protocol version 1.0 (represented as major 254, minor 255) is considered
+	 * <em>lower</em> than 1.2 (represented as major 254, minor 253) whereas the
+	 * byte values representing version 1.0 are actually larger.
+	 * 
+	 * @param o the protocol version to compare to
+	 * @return <em>0</em> if this version is exactly the same as the other version,
+	 *         <em>-1</em> if this version is lower than the other version or
+	 *         <em>1</em> if this version is higher than the other version
+	 */
+	@Override
 	public int compareTo(ProtocolVersion o) {
 		/*
 		 * Example, version 1.0 (254,255) is smaller than version 1.2 (254,253)
