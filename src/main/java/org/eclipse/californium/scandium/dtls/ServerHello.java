@@ -13,11 +13,14 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla - fixes & additions
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.List;
 
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -25,6 +28,9 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
+ * A TLS handshake message sent by a server in response to a {@link ClientHello}
+ * message received from a client.
+ * 
  * The server will send this message in response to a {@link ClientHello}
  * message when it was able to find an acceptable set of algorithms. If it
  * cannot find such a match, it will respond with a handshake failure alert. See
@@ -85,10 +91,9 @@ public class ServerHello extends HandshakeMessage {
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
-	 * Constructs a full ServerHello message. Only the HelloExtensions are
-	 * optional. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3">7.4.1.3. Server
-	 * Hello</a> for details.
+	 * Constructs a full <em>ServerHello</em> message.
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3">
+	 * RFC 5246 (TLS 1.2), Section 7.4.1.3. Server Hello</a> for details.
 	 * 
 	 * @param version
 	 *            the negotiated version (highest supported by server).
@@ -101,10 +106,26 @@ public class ServerHello extends HandshakeMessage {
 	 * @param compressionMethod
 	 *            the negotiated compression method.
 	 * @param extensions
-	 *            a list of extensions supported by the client (potentially
-	 *            empty).
+	 *            a list of extensions supported by the client (may be <code>null</code>).
+	 * @throws NullPointerException if any of the mandatory parameters is <code>null</code>
 	 */
-	public ServerHello(ProtocolVersion version, Random random, SessionId sessionId, CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions) {
+	public ServerHello(ProtocolVersion version, Random random, SessionId sessionId,
+			CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions) {
+		if (version == null) {
+			throw new NullPointerException("Negotiated protocol version must not be null");
+		}
+		if (random == null) {
+			throw new NullPointerException("ServerHello message must contain a random");
+		}
+		if (sessionId == null) {
+			throw new NullPointerException("ServerHello must be associated with a session ID");
+		}
+		if (cipherSuite == null) {
+			throw new NullPointerException("Negotiated cipher suite must not be null");
+		}
+		if (compressionMethod == null) {
+			throw new NullPointerException("Negotiated compression method must not be null");
+		}
 		this.serverVersion = version;
 		this.random = random;
 		this.sessionId = sessionId;
@@ -137,6 +158,16 @@ public class ServerHello extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
+	/**
+	 * Creates a <em>Server Hello</em> object from its binary encoding as used on
+	 * the wire.
+	 * 
+	 * @param byteArray the binary encoded message
+	 * @return the object representation
+	 * @throws HandshakeException if the cipher suite code selected by the server is either
+	 *           unknown, i.e. not defined in {@link CipherSuite} at all, or
+	 *           {@link CipherSuite#SSL_NULL_WITH_NULL_NULL}
+	 */
 	public static HandshakeMessage fromByteArray(byte[] byteArray) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 
@@ -149,7 +180,16 @@ public class ServerHello extends HandshakeMessage {
 		int sessionIdLength = reader.read(SESSION_ID_LENGTH_BITS);
 		SessionId sessionId = new SessionId(reader.readBytes(sessionIdLength));
 
-		CipherSuite cipherSuite = CipherSuite.getTypeByCode(reader.read(CIPHER_SUITE_BITS));
+		int code = reader.read(CIPHER_SUITE_BITS);
+		CipherSuite cipherSuite = CipherSuite.getTypeByCode(code);
+		if (cipherSuite == null) {
+			throw new HandshakeException(
+					String.format("Server selected unknown cipher suite [{0}]", Integer.toHexString(code)),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		} else if ( cipherSuite == CipherSuite.SSL_NULL_WITH_NULL_NULL) {
+			throw new HandshakeException("Server tries to negotiate NULL cipher suite",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		}
 		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
 
 		byte[] bytesLeft = reader.readBytesLeft();
@@ -191,50 +231,26 @@ public class ServerHello extends HandshakeMessage {
 		return serverVersion;
 	}
 
-	public void setServerVersion(ProtocolVersion serverVersion) {
-		this.serverVersion = serverVersion;
-	}
-
 	public Random getRandom() {
 		return random;
-	}
-
-	public void setRandom(Random random) {
-		this.random = random;
 	}
 
 	public SessionId getSessionId() {
 		return sessionId;
 	}
 
-	public void setSessionId(SessionId sessionId) {
-		this.sessionId = sessionId;
-	}
-
 	public CipherSuite getCipherSuite() {
 		return cipherSuite;
-	}
-
-	public void setCipherSuite(CipherSuite cipherSuite) {
-		this.cipherSuite = cipherSuite;
 	}
 
 	public CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
-	public void setCompressionMethod(CompressionMethod compressionMethod) {
-		this.compressionMethod = compressionMethod;
-	}
-	
 	public HelloExtensions getExtensions() {
 		return extensions;
 	}
 
-	public void setExtensions(HelloExtensions extensions) {
-		this.extensions = extensions;
-	}
-	
 	/**
 	 * Gets the client's certificate type.
 	 * 

@@ -26,12 +26,14 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
- * A cipher suite defines key exchange algorithm, the bulk cipher algorithm, the
- * mac algorithm, the prf algorithm and the cipher type. See <a
- * href="http://tools.ietf.org/html/rfc5246#appendix-A.6">RFC 5246</a> for
- * details. See <a
- * href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xml"
- * >IANA</a> for Transport Layer Security Parameters.
+ * A cipher suite defines a key exchange algorithm, a bulk cipher algorithm, a
+ * MAC algorithm, a pseudo random number (PRF) algorithm and a cipher type.
+ * 
+ * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.6">RFC 5246</a>
+ * for details.
+ * See <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml">
+ * Transport Layer Security Parameters</a> for the official codes for the cipher
+ * suites.
  */
 public enum CipherSuite {
 	
@@ -109,10 +111,10 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Returns the cipher suite to a given code.
+	 * Gets a cipher suite by its numeric code.
 	 * 
-	 * @param code the numeric code of the cipher suite (usually hexadecimal)
-	 * @return the according cipher suite.
+	 * @param code the cipher's <a href="">IANA assigned code</a>
+	 * @return the cipher suite or <code>null</code> if the code is unknown
 	 */
 	public static CipherSuite getTypeByCode(int code) {
 		switch (code) {
@@ -124,10 +126,12 @@ public enum CipherSuite {
 			return CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 
 		default:
-			if (LOGGER.isLoggable(Level.WARNING)) {
-			    LOGGER.warning("Unknown cipher suite code, fallback to SSL_NULL_WITH_NULL_NULL: " + code);
+			if (LOGGER.isLoggable(Level.FINE)) {
+			    LOGGER.log(Level.FINE,
+			    		"Cannot resolve cipher suite code [{0}]",
+			    		Integer.toHexString(code));
 			}
-			return CipherSuite.SSL_NULL_WITH_NULL_NULL;
+			return null;
 		}
 	}
 
@@ -156,7 +160,12 @@ public enum CipherSuite {
 
 		for (int i = 0; i < numElements; i++) {
 			int code = reader.read(CIPHER_SUITE_BITS);
-			cipherSuites.add(CipherSuite.getTypeByCode(code));
+			CipherSuite cipher = CipherSuite.getTypeByCode(code);
+			// simply ignore unknown cipher suites as mandated by
+			// RFC 5246, Section 7.4.1.2 Client Hello
+			if (cipher != null) {
+				cipherSuites.add(cipher);
+			}
 		}
 		return cipherSuites;
 	}
