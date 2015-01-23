@@ -300,8 +300,10 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the {@link ServerHello} message.
+	 * @throws HandshakeException if the ServerHello message cannot be processed,
+	 * 	e.g. because the server selected an unknown or unsupported cipher suite
 	 */
-	private void receivedServerHello(ServerHello message) {
+	private void receivedServerHello(ServerHello message) throws HandshakeException {
 		if (serverHello != null && (message.getMessageSeq() == serverHello.getMessageSeq())) {
 			// received duplicate version (retransmission), discard it
 			return;
