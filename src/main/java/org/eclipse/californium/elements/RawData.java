@@ -20,9 +20,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 /**
- * Serves as container for the primitive bytes we retrieve or send over a
- * connector. The RawData consists of the serialized message and the source or
- * destination address and port.
+ * A container object for the data received or sent via a <code>Connector</code>.
+ * 
+ * In addition to the raw bytes the source or destination address and port are contained as well.
  */
 public class RawData {
 
@@ -42,6 +42,7 @@ public class RawData {
 	 * Instantiates a new raw data.
 	 *
 	 * @param bytes the bytes
+	 * @deprecated Use one of the other constructors instead.
 	 */
 	public RawData(byte[] bytes) {
 		this(bytes, null, 0);
@@ -50,16 +51,54 @@ public class RawData {
 	/**
 	 * Instantiates a new raw data.
 	 *
-	 * @param bytes the bytes
-	 * @param address the address
-	 * @param port the port
+	 * @param data the data that is to be sent or has been received
+	 * @param address the IP address and port the data is to be sent to or has been received from
+	 * @throws NullPointerException if any of the given parameters is <code>null</code>
 	 */
-	public RawData(byte[] bytes, InetAddress address, int port) {
-		if (bytes == null)
+	public RawData(byte[] data, InetSocketAddress address) {
+		this(data, address.getAddress(), address.getPort());
+	}
+	
+	/**
+	 * Instantiates a new raw data.
+	 *
+	 * @param data the data that is to be sent or has been received
+	 * @param address the IP address the data is to be sent to or has been received from
+	 * @param port the port the data is to be sent to or has been received from
+	 * @throws NullPointerException if data is <code>null</code>
+	 */
+	public RawData(byte[] data, InetAddress address, int port) {
+		this(data, address, port, false);
+	}
+	
+	/**
+	 * Instantiates a new raw data.
+	 *
+	 * @param data the data that is to be sent or has been received
+	 * @param address the IP address and port the data is to be sent to or has been received from
+	 * @param multicast indicates whether the data represents a multicast message
+	 * @throws NullPointerException if data or address is <code>null</code>
+	 */
+	public RawData(byte[] data, InetSocketAddress address, boolean multicast) {
+		this(data, address.getAddress(), address.getPort(), multicast);
+	}
+
+	/**
+	 * Instantiates a new raw data.
+	 *
+	 * @param data the data that is to be sent or has been received
+	 * @param address the IP address the data is to be sent to or has been received from
+	 * @param port the port the data is to be sent to or has been received from
+	 * @param multicast indicates whether the data represents a multicast message
+	 * @throws NullPointerException if data is <code>null</code>
+	 */
+	public RawData(byte[] data, InetAddress address, int port, boolean multicast) {
+		if (data == null)
 			throw new NullPointerException();
-		this.bytes = bytes;
+		this.bytes = data;
 		this.address = address;
 		this.port = port;
+		this.multicast = multicast;
 	}
 	
 	/**
@@ -93,6 +132,7 @@ public class RawData {
 	 * Sets the address.
 	 *
 	 * @param address the new address
+	 * @deprecated Use constructor instead.
 	 */
 	public void setAddress(InetAddress address) {
 		this.address = address;
@@ -111,6 +151,7 @@ public class RawData {
 	 * Sets the port.
 	 *
 	 * @param port the new port
+	 * @deprecated Use constructor instead.
 	 */
 	public void setPort(int port) {
 		this.port = port;
@@ -129,6 +170,7 @@ public class RawData {
 	 * Marks this message as a multicast message.
 	 *
 	 * @param multicast whether this message is a multicast message
+	 * @deprecated Use constructor instead.
 	 */
 	public void setMulticast(boolean multicast) {
 		this.multicast = multicast;
