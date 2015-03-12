@@ -20,19 +20,27 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 /**
- * A connector connects a server to the network. A connector might listen on a
- * port on a network interface for instance. Only primitive data wrapped in a
- * {@link RawData} flows through the send and receive methods of a connector.
- * <p>
- * The send method of a connector should be non-blocking to allow the server to
- * continue with another task. Usually this can be achieved by using separate
- * thread for sending and receiving data, e.g., to a socket.
+ * A managed interface for exchanging messages between networked clients and a
+ * server application.
+ * 
+ * An implementation usually binds to a socket on a local network interface in order
+ * to communicate with clients. After the {@link #start()} method has been invoked,
+ * applications can use the {@link #send(RawData)} method to send messages
+ * (wrapped in a {@link RawData} object) to a client via the network. Processing of
+ * messages received from clients is delegated to the handler registered via the
+ * {@link #setRawDataReceiver(RawDataChannel) method.
+ * 
+ * Implementations of the {@link #send(RawData)} method should be non-blocking
+ * to allow the server application to continue working on other tasks. This could
+ * be achieved by buffering outbound messages in a queue and off-loading the sending
+ * of messages via the network to a separate <code>Thread</code>.
  */
 public interface Connector {
 
 	/**
-	 * Starts the connector. The connector might bind to a network interface and
-	 * a port for instance.
+	 * Starts the connector.
+	 * 
+	 * The connector might bind to a socket for instance.
 	 * 
 	 * @throws IOException
 	 *             Signals that an I/O exception has occurred.
@@ -40,37 +48,45 @@ public interface Connector {
 	public void start() throws IOException;
 
 	/**
-	 * Stops the connector. All resources such as threads or ports on network
-	 * interfaces should be stopped and released. A stopped connector should be
-	 * able to be started again.
+	 * Stops the connector.
+	 * 
+	 * All resources such as threads or bound sockets on network
+	 * interfaces should be stopped and released. A connector that has
+	 * been stopped using this method can be started again using the
+	 * {@link #start()} method.
 	 */
 	public void stop();
 
 	/**
-	 * Stops the connector and cleans up any leftovers. A destroyed connector
-	 * cannot be expected to be able to start again.
+	 * Stops the connector and cleans up any leftovers.
+	 * 
+	 * A destroyed connector cannot be expected to be able to start again.
 	 */
 	public void destroy();
 
 	/**
-	 * Send the specified data over the connector. This should be a non-blocking
-	 * function.
+	 * Sends a raw message to a client via the network.
 	 * 
-	 * @param msg the msg
+	 * This should be a non-blocking operation.
+	 * 
+	 * @param msg the message to be sent
 	 */
 	public void send(RawData msg);
 
 	/**
-	 * Sets the raw data receiver. This receiver will be called whenever a new
-	 * message has arrived.
+	 * Sets the handler for incoming messages.
 	 * 
-	 * @param receiver the new raw data receiver
+	 * The handler's {@link RawDataChannel#receiveData(RawData)} method
+	 * will be called whenever a new message from a client has been received
+	 * via the network.
+	 * 
+	 * @param messageHandler the message handler
 	 */
-	public void setRawDataReceiver(RawDataChannel receiver);
+	public void setRawDataReceiver(RawDataChannel messageHandler);
 	
 	
 	/**
-	 * Gets the address of this connector.
+	 * Gets the address of the socket this connector is bound to.
 	 *
 	 * @return the address
 	 */
