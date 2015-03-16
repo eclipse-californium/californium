@@ -481,7 +481,7 @@ public class DTLSConnector extends ConnectorBase {
 	 * @param address the peer address
 	 * @return the {@link DTLSSession} or <code>null</code> if no session found.
 	 */
-	private DTLSSession getSessionByAddress(InetSocketAddress address) {
+	public DTLSSession getSessionByAddress(InetSocketAddress address) {
 		if (address == null) {
 			return null;
 		}
