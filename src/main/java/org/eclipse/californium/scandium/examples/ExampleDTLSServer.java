@@ -107,7 +107,7 @@ public class ExampleDTLSServer {
 			if (raw.getPort() == 0)
 				throw new NullPointerException();
 			
-			System.out.println(new String(raw.getBytes()));
+			System.out.println("Received request: " + new String(raw.getBytes()));
 			connector.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
 		}
 	}

@@ -92,9 +92,9 @@ public class ExampleDTLSClient {
 		// @Override
 		public void receiveData(final RawData raw) {
 			
-			System.out.println(new String(raw.getBytes()));
+			System.out.println("Received response: " + new String(raw.getBytes()));
 			
-			dtlsConnector.close(new InetSocketAddress("localhost" , DEFAULT_PORT));
+			dtlsConnector.destroy();
 			
 			// notify main thread to exit
 			synchronized (ExampleDTLSClient.class) {
