@@ -148,10 +148,7 @@ public class BenchmarkServer {
 		
 			// Increase threads for receiving and sending packets through the socket
 			.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, udp_receiver)
-			.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, udp_sender)
-			
-			// Disable message logging
-			.setBoolean(NetworkConfig.Keys.UDP_CONNECTOR_LOG_PACKETS, verbose);
+			.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, udp_sender);
 	}
 	
 	private static void printUsage() {
