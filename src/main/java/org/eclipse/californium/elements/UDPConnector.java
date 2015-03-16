@@ -28,15 +28,16 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.xml.ws.Endpoint;
-
 /**
- * The UDPConnector connects a server to the network using the UDP protocol. The
- * <code>UDPConnector</code> is bound to an {@link Endpoint} by a
- * {@link RawDataChannel}. An <code>Endpoint</code> sends messages encapsulated
- * within a {@link RawData} by calling the method {@link #send(RawData)} on the
- * connector. When the connector receives a message, it invokes
- * {@link RawDataChannel#receiveData(RawData)}. UDP broadcast is allowed.
+ * A {@link Connector} employing UDP as the transport protocol for exchanging data
+ * between networked clients and a server application.
+ *  
+ * In order to process data received from the network via UDP, client code can register
+ * a {@link RawDataChannel} instance by means of the {@link #setRawDataReceiver(RawDataChannel)}
+ * method. Sending data out to connected clients can be achieved by means of the
+ * {@link #send(RawData)} method.
+ * 
+ * UDP broadcast is allowed.
  * // TODO: describe that we can make many threads
  */
 public class UDPConnector implements Connector {
@@ -54,14 +55,14 @@ public class UDPConnector implements Connector {
 	private List<Thread> receiverThreads;
 	private List<Thread> senderThreads;
 
-	/** The queue of outgoing block (for sending). */
-	private final BlockingQueue<RawData> outgoing; // Messages to send
+	/** The outbound message queue. */
+	private final BlockingQueue<RawData> outgoing;
 	
-	/** The receiver of incoming messages */
-	private RawDataChannel receiver; // Receiver of messages
+	/** The receiver of incoming messages. */
+	private RawDataChannel receiver;
 	
-	private int receiveBuffer = UNDEFINED;
-	private int sendBuffer = UNDEFINED;
+	private int receiveBufferSize = UNDEFINED;
+	private int sendBufferSize = UNDEFINED;
 	
 	private int senderCount = 1;
 	private int receiverCount = 1;
@@ -69,14 +70,32 @@ public class UDPConnector implements Connector {
 	private int receiverPacketSize = 2048;
 	private boolean logPackets = false;
 	
+	/**
+	 * Creates a connector on the wildcard address listening on an
+	 * ephemeral port, i.e. a port chosen by the system.
+	 * 
+	 * The effect of this constructor is the same as invoking
+	 * <code>UDPConnector(null)</code>.
+	 */
 	public UDPConnector() {
-		this(new InetSocketAddress(0));
+		this(null);
 	}
 	
+	/**
+	 * Creates a connector bound to a given IP address and port.
+	 *  
+	 * @param address the IP address and port, if <code>null</code>
+	 * the connector is bound to an ephemeral port on the wildcard address
+	 */
 	public UDPConnector(InetSocketAddress address) {
-		this.localAddr = address;
+		if (address == null) {
+			this.localAddr = new InetSocketAddress(0);
+		} else {
+			this.localAddr = address;
+		}
 		this.running = false;
 		
+		//TODO: think about restricting the outbound queue's capacity
 		this.outgoing = new LinkedBlockingQueue<RawData>();
 	}
 	
@@ -89,16 +108,19 @@ public class UDPConnector implements Connector {
 
 		this.running = true;
 		
-		if (receiveBuffer != UNDEFINED)
-			socket.setReceiveBufferSize(receiveBuffer);
-		receiveBuffer = socket.getReceiveBufferSize();
+		if (receiveBufferSize != UNDEFINED) {
+			socket.setReceiveBufferSize(receiveBufferSize);
+		}
+		receiveBufferSize = socket.getReceiveBufferSize();
 		
-		if (sendBuffer != UNDEFINED)
-			socket.setSendBufferSize(sendBuffer);
-		sendBuffer = socket.getSendBufferSize();
+		if (sendBufferSize != UNDEFINED) {
+			socket.setSendBufferSize(sendBufferSize);
+		}
+		sendBufferSize = socket.getSendBufferSize();
 		
 		// start receiver and sender threads
-		LOGGER.config("UDP-connector starts "+senderCount+" sender threads and "+receiverCount+" receiver threads");
+		LOGGER.log(Level.CONFIG, "UDPConnector starts up {0} sender threads and {1} receiver threads",
+				new Object[]{senderCount, receiverCount});
 		
 		receiverThreads = new LinkedList<Thread>();
 		for (int i=0;i<receiverCount;i++) {
@@ -122,8 +144,11 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 		
-		LOGGER.config("UDP connector listening on "+socket.getLocalSocketAddress()+", recv buf = "+receiveBuffer+", send buf = "+sendBuffer
-				+", recv packet size = "+receiverPacketSize+", log packets = "+logPackets);
+		String startupMsg = new StringBuffer("UDPConnector listening on ")
+			.append(socket.getLocalSocketAddress()).append(", recv buf = ")
+			.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
+			.append(", recv packet size = ").append(receiverPacketSize).toString();
+		LOGGER.log(Level.CONFIG, startupMsg);
 	}
 
 	@Override
@@ -132,15 +157,19 @@ public class UDPConnector implements Connector {
 		this.running = false;
 		// stop all threads
 		if (senderThreads!= null)
-			for (Thread t:senderThreads)
+			for (Thread t:senderThreads) {
 				t.interrupt();
+			}
 		if (receiverThreads!= null)
-			for (Thread t:receiverThreads)
+			for (Thread t:receiverThreads) {
 				t.interrupt();
+			}
 		outgoing.clear();
+		String address = socket.getLocalSocketAddress().toString();
 		if (socket != null)
 			socket.close();
 		socket = null;
+		LOGGER.log(Level.CONFIG, "UDPConnector on [{0}] has stopped.", address);
 	}
 
 	@Override
@@ -181,15 +210,16 @@ public class UDPConnector implements Connector {
 		 * @see java.lang.Thread#run()
 		 */
 		public void run() {
-			LOGGER.fine("Starting "+getName());
+			LOGGER.log(Level.FINE, "Starting worker [{0}]", getName());
 			while (running) {
 				try {
 					work();
 				} catch (Throwable t) {
 					if (running)
-						LOGGER.log(Level.WARNING, "Exception \""+t+"\" in thread " + getName()+": running="+running, t);
+						LOGGER.log(Level.WARNING, "Exception occurred in Worker [" + getName() + "] (running="
+								+ running + "): ", t);
 					else
-						LOGGER.fine(getName()+" has successfully stopped");
+						LOGGER.log(Level.FINE, "Worker [{0}] has been stopped successfully", getName());
 				}
 			}
 		}
@@ -214,13 +244,12 @@ public class UDPConnector implements Connector {
 		protected void work() throws IOException {
 			datagram.setLength(size);
 			socket.receive(datagram);
-			if (logPackets)
-				LOGGER.fine("Connector ("+socket.getLocalSocketAddress()+") received "+datagram.getLength()+" bytes from "+datagram.getAddress()+":"+datagram.getPort());
+			LOGGER.log(Level.FINER, "UDPConnector ({0}) received {1} bytes from {2}:{3}",
+					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
+						datagram.getAddress(), datagram.getPort()});
 
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-			RawData msg = new RawData(bytes);
-			msg.setAddress(datagram.getAddress());
-			msg.setPort(datagram.getPort());
+			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
 			
 			receiver.receiveData(msg);
 		}
@@ -241,26 +270,27 @@ public class UDPConnector implements Connector {
 			datagram.setData(raw.getBytes());
 			datagram.setAddress(raw.getAddress());
 			datagram.setPort(raw.getPort());
-			if (logPackets)
-				LOGGER.fine("Connector ("+socket.getLocalSocketAddress()+") sends "+datagram.getLength()+" bytes to "+datagram.getSocketAddress());
+			LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
+					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
+						datagram.getAddress(), datagram.getPort()});
 			socket.send(datagram);
 		}
 	}
 	
 	public void setReceiveBufferSize(int size) {
-		this.receiveBuffer = size;
+		this.receiveBufferSize = size;
 	}
 	
 	public int getReceiveBufferSize() {
-		return receiveBuffer;
+		return receiveBufferSize;
 	}
 	
 	public void setSendBufferSize(int size) {
-		this.sendBuffer = size;
+		this.sendBufferSize = size;
 	}
 	
 	public int getSendBufferSize() {
-		return sendBuffer;
+		return sendBufferSize;
 	}
 	
 	public void setReceiverThreadCount(int count) {
@@ -287,10 +317,22 @@ public class UDPConnector implements Connector {
 		return receiverPacketSize;
 	}
 	
+	/**
+	 * Sets whether sent and received datagram packets should be logged.
+	 * 
+	 * @param b <code>true</code> if packets should be logged
+	 * @deprecated Packets sent and received are always logged at {@link Level#FINER}
+	 */
 	public void setLogPackets(boolean b) {
 		this.logPackets = b;
 	}
 	
+	/**
+	 * Checks whether sent and received datagram packets are logged.
+	 * 
+	 * @param b <code>true</code> if packets are logged
+	 * @deprecated Packets sent and received are always logged at {@link Level#FINER}
+	 */
 	public boolean isLogPackets() {
 		return logPackets;
 	}
