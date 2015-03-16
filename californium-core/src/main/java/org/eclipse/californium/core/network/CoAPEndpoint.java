@@ -222,7 +222,6 @@ public class CoAPEndpoint implements Endpoint {
 		
 		c.setReceiveBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER));
 		c.setSendBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER));
-		c.setLogPackets(config.getBoolean(NetworkConfig.Keys.UDP_CONNECTOR_LOG_PACKETS));
 		c.setReceiverPacketSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE));
 		
 		return c;
