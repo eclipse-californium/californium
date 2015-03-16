@@ -59,7 +59,9 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
 /**
- * A {@link Connector} implementation for securing the inner datagrams using the DTLS standard.	
+ * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
+ * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
+ * exchanged between networked clients and a server application.	
  * 
  */
 public class DTLSConnector extends ConnectorBase {
@@ -97,13 +99,15 @@ public class DTLSConnector extends ConnectorBase {
 	 * @param address the address to bind
 	 */
 	public DTLSConnector(InetSocketAddress address) {
-		this(address,null);
+		this(address, null);
 	}
 
 	/**
 	 * Create a DTLS connector.
+	 * 
 	 * @param address the address to bind
-	 * @param rootCertificates list of trusted self-signed root certificates
+	 * @param rootCertificates list of trusted root certificates, e.g. from well known
+	 * Certificate Authorities or self-signed certificates.
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
 		super(address);
@@ -115,7 +119,7 @@ public class DTLSConnector extends ConnectorBase {
 	/**
 	 * Close the DTLS session with all peers.
 	 */
-	public void close() {
+	private void close() {
 		for (DTLSSession session : dtlsSessions.values()) {
 			this.close(session.getPeer());
 		}
@@ -126,7 +130,7 @@ public class DTLSConnector extends ConnectorBase {
 	 * 
 	 * @param peerAddress the remote endpoint of the session to close
 	 */
-	public void close(InetSocketAddress peerAddress) {
+	private void close(InetSocketAddress peerAddress) {
 		String addrKey = addressToKey(peerAddress);
 		try {
 			DTLSSession session = dtlsSessions.get(addrKey);
@@ -173,7 +177,7 @@ public class DTLSConnector extends ConnectorBase {
 	@Override
 	public synchronized void stop() {
 		this.close();
-		if (this.socket!=null) this.socket.close();
+		if (this.socket != null) this.socket.close();
 		super.stop();
 	}
 	
@@ -222,7 +226,7 @@ public class DTLSConnector extends ConnectorBase {
 					handshakers.remove(addressToKey(peerAddress));
 
 					ApplicationMessage applicationData = (ApplicationMessage) record.getFragment();
-					raw = new RawData(applicationData.getData());
+					raw = new RawData(applicationData.getData(), packet.getAddress(), packet.getPort());
 					break;
 
 				case ALERT:
@@ -371,10 +375,6 @@ public class DTLSConnector extends ConnectorBase {
 				}
 
 				if (raw != null) {
-
-					raw.setAddress(packet.getAddress());
-					raw.setPort(packet.getPort());
-
 					return raw;
 				}
 			}
@@ -481,7 +481,7 @@ public class DTLSConnector extends ConnectorBase {
 	 * @param address the peer address
 	 * @return the {@link DTLSSession} or <code>null</code> if no session found.
 	 */
-	public DTLSSession getSessionByAddress(InetSocketAddress address) {
+	private DTLSSession getSessionByAddress(InetSocketAddress address) {
 		if (address == null) {
 			return null;
 		}
