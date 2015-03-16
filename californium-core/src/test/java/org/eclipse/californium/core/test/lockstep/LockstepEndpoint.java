@@ -152,14 +152,8 @@ public class LockstepEndpoint {
 	}
 	
 	public void send(RawData raw) {
-		if (raw.getAddress() == null)
-			if (destination != null)
-				raw.setAddress(destination.getAddress());
-			else throw new RuntimeException("Message has no destination address");
-		if (raw.getPort() == 0)
-			if (destination != null)
-				raw.setPort(destination.getPort());
-			else throw new RuntimeException("Message has no destination port");
+		if (raw.getAddress() == null || raw.getPort() == 0)
+			throw new RuntimeException("Message has no destination address/port");
 		
 		connector.send(raw);
 	}
@@ -683,6 +677,10 @@ public class LockstepEndpoint {
 		@Override 
 		public void go() {
 			EmptyMessage message = new EmptyMessage(null);
+			if (destination != null) {
+				message.setDestination(destination.getAddress());
+				message.setDestinationPort(destination.getPort());
+			}
 			setProperties(message);
 			
 			Serializer serializer = new Serializer();
@@ -745,6 +743,10 @@ public class LockstepEndpoint {
 		@Override 
 		public void go() {
 			Request request = new Request(code);
+			if (destination != null) {
+				request.setDestination(destination.getAddress());
+				request.setDestinationPort(destination.getPort());
+			}
 			setProperties(request);
 			
 			Serializer serializer = new Serializer();
@@ -828,6 +830,10 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			Response response = new Response(code);
+			if (destination != null) {
+				response.setDestination(destination.getAddress());
+				response.setDestinationPort(destination.getPort());
+			}
 			setProperties(response);
 			
 			Serializer serializer = new Serializer();
