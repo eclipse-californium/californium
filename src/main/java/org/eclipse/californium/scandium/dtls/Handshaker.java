@@ -55,6 +55,8 @@ public abstract class Handshaker {
 
 	// Logging ////////////////////////////////////////////////////////
 
+	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
+
 	protected static final Logger LOGGER = Logger.getLogger(Handshaker.class.getCanonicalName());
 
 	// Static members /////////////////////////////////////////////////
@@ -173,8 +175,15 @@ public abstract class Handshaker {
 	 *            the session belonging to this handshake.
 	 * @param rootCertificates
 	 *            the trusted root certificates
+	 * @throws HandshakeException if the message digest required for computing
+	 *            the handshake hash cannot be instantiated
+	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session, Certificate[] rootCertificates) {
+	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session,
+			Certificate[] rootCertificates) throws HandshakeException {
+		if (session == null) {
+			throw new NullPointerException("DTLS Session must not be null");
+		}
 		this.endpointAddress = peerAddress;
 		this.isClient = isClient;
 		this.session = session;
@@ -182,9 +191,11 @@ public abstract class Handshaker {
 		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
 
 		try {
-			this.md = MessageDigest.getInstance("SHA-256");
+			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not initialize the message digest algorithm.",e);
+			LOGGER.log(Level.SEVERE,"Could not initialize the message digest algorithm.", e);
+			throw new HandshakeException("Could not initialize handshake",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 	}
 
@@ -335,7 +346,7 @@ public abstract class Handshaker {
 	 */
 	public static byte[] doPRF(byte[] secret, int labelId, byte[] seed) {
 		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			MessageDigest md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 
 			String label;
 			switch (labelId) {
@@ -827,14 +838,15 @@ public abstract class Handshaker {
 		return serverWriteKey;
 	}
 
-	public DTLSSession getSession() {
+	/**
+	 * Gets the session this handshaker is used to establish.
+	 * 
+	 * @return the session
+	 */
+	DTLSSession getSession() {
 		return session;
 	}
-
-	public void setSession(DTLSSession session) {
-		this.session = session;
-	}
-
+	
 	/**
 	 * Add the smallest available message sequence to the handshake message.
 	 * 

@@ -38,7 +38,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) {
+	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
+			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
 		super(endpointAddress, message, session, rootCerts, config);
 	}
 	

@@ -100,8 +100,11 @@ public class ServerHandshaker extends Handshaker {
 	 *            the trusted root certificates
 	 * @param config
 	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) { 
+	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts,
+			DTLSConnectorConfig config) throws HandshakeException { 
 		super(endpointAddress, false, session,rootCerts);
 
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();
