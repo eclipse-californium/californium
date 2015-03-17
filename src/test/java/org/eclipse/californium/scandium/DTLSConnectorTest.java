@@ -80,8 +80,8 @@ public class DTLSConnectorTest {
 			
 			@Override
 			public void receiveData(RawData raw) {
-				latch.countDown();
 				client.destroy();
+				latch.countDown();
 			}
 		});
 		client.start();
@@ -92,7 +92,6 @@ public class DTLSConnectorTest {
 			Assert.assertTrue("Request/response roundtrip did not finish within 5 secs",
 					0 == latch.getCount());
 		} catch (InterruptedException e) {
-			e.printStackTrace();
 		} finally {
 			server.destroy();
 		}
