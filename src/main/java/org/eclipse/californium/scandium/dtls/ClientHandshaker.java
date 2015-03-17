@@ -101,8 +101,11 @@ public class ClientHandshaker extends Handshaker {
 	 *            the trusted root certificates
 	 * @param config
 	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) {
+	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
+			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
 		super(endpointAddress, true, session,rootCerts);
 		this.message = message;
 		this.privateKey = config.privateKey;

@@ -42,7 +42,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Constructor ////////////////////////////////////////////////////
 
 	
-	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts, DTLSConnectorConfig config) {
+	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session,
+			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
 		super(endpointAddress, session, rootCerts, config);
 		setSessionToResume(session);
 	}
