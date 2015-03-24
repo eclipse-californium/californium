@@ -33,6 +33,7 @@ import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -86,9 +87,12 @@ public class RecordTest {
 	@Test
 	public void testFromByteArrayRejectsUnknownTypeCode() {
 		
+		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
-		List<Record> recordList = Record.fromByteArray(unsupported_dtls_record);
-		assertTrue(recordList.isEmpty());
+		
+		List<Record> recordList = Record.fromByteArray(ByteArrayUtils.concatenate(unsupported_dtls_record, application_record));
+		Assert.assertTrue(recordList.size() == 1);
+		Assert.assertEquals(ContentType.APPLICATION_DATA, recordList.get(0).getType());
 	}
 	
 	/**
