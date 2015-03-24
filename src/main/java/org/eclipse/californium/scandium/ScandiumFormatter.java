@@ -77,7 +77,7 @@ public class ScandiumFormatter extends Formatter {
 			b.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_MESSAGE)) {
-			b.append(record.getMessage());
+			b.append(formatMessage(record));
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
 			b.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
