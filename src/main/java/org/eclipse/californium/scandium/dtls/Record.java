@@ -174,15 +174,6 @@ public class Record {
 		while (reader.bytesAvailable()) {
 
 			int type = reader.read(CONTENT_TYPE_BITS);
-			ContentType contentType = ContentType.getTypeByValue(type);
-			
-			if (contentType==null) {
-				if (LOGGER.isLoggable(Level.WARNING)) {
-				    LOGGER.warning(String.format("Received illegal record content type: %s", type));
-				}
-				break;
-			}
-	
 			int major = reader.read(VERSION_BITS);
 			int minor = reader.read(VERSION_BITS);
 			ProtocolVersion version = new ProtocolVersion(major, minor);
@@ -195,7 +186,12 @@ public class Record {
 			// delay decryption/interpretation of fragment
 			byte[] fragmentBytes = reader.readBytes(length);
 	
-			records.add(new Record(contentType, version, epoch, sequenceNumber, length, fragmentBytes));
+			ContentType contentType = ContentType.getTypeByValue(type);
+			if (contentType == null) {
+				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
+			} else {
+				records.add(new Record(contentType, version, epoch, sequenceNumber, length, fragmentBytes));
+			}	
 		}
 		
 		return records;
@@ -604,12 +600,13 @@ public class Record {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("==[ DTLS Message  ]============================================\n");
-		sb.append("Content Type: " + type.toString() + "\n");
-		sb.append("Version: " + version.getMajor() + ", " + version.getMinor() + "\n");
-		sb.append("Epoch: " + epoch + "\n");
-		sb.append("Sequence Number: " + sequenceNumber + "\n");
-		sb.append("Length: " + length + "\n");
+		sb.append("==[ DTLS Record ]==============================================\n");
+		sb.append("Content Type: ").append(type.toString()).append("\n");
+		sb.append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor()).append("\n");
+		sb.append("Epoch: ").append(epoch).append("\n");
+		sb.append("Sequence Number: ").append(sequenceNumber).append("\n");
+		sb.append("Length: ").append(length).append("\n");
+		sb.append("Fragment:\n");
 		sb.append(fragment.toString());
 		sb.append("===============================================================");
 
