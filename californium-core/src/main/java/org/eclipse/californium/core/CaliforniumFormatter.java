@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,7 +15,7 @@
  *    Martin Lanter - architect and re-implementation
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - logging improvements
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -80,7 +80,7 @@ public class CaliforniumFormatter extends Formatter {
 			b.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_MESSAGE)) {
-			b.append(record.getMessage());
+			b.append(formatMessage(record));
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
 			b.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
