@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,8 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add duplicate record
+ *                                                    detection functionality
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -21,6 +23,8 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -31,6 +35,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
  * pending read/write states, the current epoch and sequence number, etc.
  */
 public class DTLSSession {
+	
+	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
+	private static final int RECEIVE_WINDOW_SIZE = 64;
 	
 	/**
 	 * The remote peer of this session.
@@ -81,7 +88,7 @@ public class DTLSSession {
 	 * Whether the session is active and application data can be sent to the
 	 * peer.
 	 */
-	private boolean isActive = false;
+	private boolean active = false;
 
 	/**
 	 * Whether this entity is considered the "client" or the "server" in this
@@ -113,6 +120,10 @@ public class DTLSSession {
 	 */
 	private boolean receiveRawPublicKey = false;
 
+	private long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+	private long receivedRecordsVector = 0;
+	
+	
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
@@ -182,11 +193,11 @@ public class DTLSSession {
 	}
 
 	public boolean isActive() {
-		return isActive;
+		return active;
 	}
 
 	public void setActive(boolean isActive) {
-		this.isActive = isActive;
+		this.active = isActive;
 	}
 
 	public boolean isClient() {
@@ -210,10 +221,12 @@ public class DTLSSession {
 	}
 	
 	public void setReadEpoch(int epoch) {
+		resetReceiveWindow();
 		this.readEpoch = epoch;
 	}
 
 	public void incrementReadEpoch() {
+		resetReceiveWindow();
 		this.readEpoch++;
 	}
 
@@ -305,5 +318,114 @@ public class DTLSSession {
 
     public void setPskIdentity(String pskIdentity) {
         this.pskIdentity = pskIdentity;
-    }	
+    }
+
+    /**
+     * Checks whether a given record can be processed within the context
+     * of this session.
+     * 
+     * This is the case if
+     * <ul>
+     * <li>the record is from the same epoch as session's current read epoch</li>
+     * <li>the record has not been received before</li>
+     * </ul>
+     *  
+     * @param epoch the record's epoch
+     * @param sequenceNo the record's sequence number
+     * @return <code>true</code> if the record satisfies the conditions above
+     */
+    public final boolean isRecordProcessable(long epoch, long sequenceNo) {
+		if (epoch < getReadEpoch()) {
+			// record is from a previous epoch
+			// discard record as proposed in DTLS 1.2
+			// http://tools.ietf.org/html/rfc6347#section-4.1
+			return false;
+		} else if (epoch > getReadEpoch()) {
+			// record is from future epoch
+			// discard record as allowed in DTLS 1.2
+			// http://tools.ietf.org/html/rfc6347#section-4.1
+			return false;
+		} else {
+			synchronized (this) {
+				if (sequenceNo < getLowerBoundary()) {
+					// record lies out of receive window's "left" edge
+					// discard
+					return false;
+				} else {
+					return !isDuplicate(sequenceNo);
+				}
+			}
+		}
+    }
+    
+    /**
+     * Checks whether a given record has already been received during the
+     * current epoch.
+     * 
+     * The check is done based on a <em>sliding window</em> as described in
+     * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
+     * section 4.1.2.6 of the DTLS 1.2 spec</a>.
+     * 
+     * @param sequenceNo the record's sequence number
+     * @return <code>true</code> if the record has already been received
+     */
+	private synchronized boolean isDuplicate(long sequenceNo) {
+		if (sequenceNo > receiveWindowUpperBoundary) {
+			return false;
+		} else {
+			
+			// determine (zero based) index of record's sequence number within receive window
+			long idx = sequenceNo - getLowerBoundary();
+			// create bit mask for probing the bit representing position "idx" 
+			long bitMask = 1L << idx;
+			LOGGER.log(Level.FINE,
+					"Checking sequence no [{0}] using bit mask [{1}] against received records [{2}] with lower boundary [{3}]",
+					new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector), getLowerBoundary()});
+			return (receivedRecordsVector & bitMask) == bitMask;
+		}
+	}
+		
+	private synchronized long getLowerBoundary() {
+		return Math.max(0, receiveWindowUpperBoundary - RECEIVE_WINDOW_SIZE + 1);
+	}
+
+	/**
+	 * Marks a record as having been received so that it can be detected
+	 * as a duplicate if it is received again, e.g. if a client re-transmits
+	 * the record because it runs into a timeout.
+	 * 
+	 * The record is marked as received only if it belongs to this session's
+	 * current read epoch as indicated by {@link #getReadEpoch()}.
+	 * 
+	 * @param epoch the record's epoch
+	 * @param sequenceNo the record's sequence number
+	 */
+	public final synchronized void markRecordAsRead(long epoch, long sequenceNo) {
+
+		if (epoch == getReadEpoch()) {
+			if (sequenceNo > receiveWindowUpperBoundary) {
+				long incr = sequenceNo - receiveWindowUpperBoundary;
+				receiveWindowUpperBoundary = sequenceNo;
+				// slide receive window to the right
+				receivedRecordsVector = receivedRecordsVector >>> incr;
+			}
+			long bitMask = 1L << (sequenceNo - getLowerBoundary());
+			// mark sequence number as "received" in receive window
+			receivedRecordsVector |= bitMask;
+			LOGGER.log(Level.FINE, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
+					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
+		}
+	}
+	
+	/**
+	 * Re-initializes the receive window to detect duplicates for a new epoch.
+	 * 
+	 * The receive window is reset to sequence number zero and all
+	 * information about received records is cleared.
+	 */
+	private synchronized void resetReceiveWindow() {
+		receivedRecordsVector = 0;
+		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+	}
+    
 }
