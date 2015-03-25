@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -20,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.logging.Level;
 
 import org.eclipse.californium.scandium.DTLSConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -27,9 +29,11 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
- * receiving a ClientHello with a set session identifier. It checks whether such
- * a session still exists and if so, generates the new keys from the previously
- * established master secret. The message flow is depicted in <a
+ * receiving a ClientHello with a set session identifier.
+ * 
+ * It checks whether such a session still exists and if so,
+ * generates the new keys from the previously established master secret.
+ * The message flow is depicted in <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
 public class ResumingServerHandshaker extends ServerHandshaker {
@@ -41,7 +45,15 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
+	public ResumingServerHandshaker(DTLSSession session, Certificate[] rootCerts,
+			DTLSConnectorConfig config) throws HandshakeException {
+		super(session, rootCerts, config);
+		setSessionToResume(session);
+	}
 	
+	/**
+	 * @deprecated Use the other constructor instead.
+	 */
 	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session,
 			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
 		super(endpointAddress, session, rootCerts, config);
@@ -116,7 +128,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
 		return flight;
 	}
 	
@@ -131,7 +143,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 */
 	private DTLSFlight receivedClientHello(ClientHello message) {
 
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		
 		md.update(message.toByteArray());
 

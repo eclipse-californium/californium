@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -90,6 +91,46 @@ public class ServerHandshaker extends Handshaker {
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
+	 * Creates a handshaker for negotiating a DTLS session with a client
+	 * following the full DTLS handshake protocol. 
+	 * 
+	 * @param session
+	 *            the session to negotiate with the client
+	 * @param rootCerts
+	 *            the root certificates to use for authenticating the client 
+	 * @param config
+	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
+	 */
+	public ServerHandshaker(DTLSSession session, Certificate[] rootCerts,
+			DTLSConnectorConfig config) throws HandshakeException { 
+		super(false, session, rootCerts, config.getMaxFragmentLength());
+
+		this.supportedCipherSuites = new ArrayList<CipherSuite>();
+		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		
+		this.pskStore = config.pskStore;
+		
+		this.privateKey = config.privateKey;
+		this.certificates = config.certChain;
+		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
+
+		this.clientAuthenticationRequired = config.requireClientAuth;
+
+		this.supportedClientCertificateTypes = new ArrayList<>();
+		this.supportedClientCertificateTypes.add(CertificateType.X_509);
+		this.supportedClientCertificateTypes
+				.add(CertificateType.RAW_PUBLIC_KEY);
+
+		this.supportedServerCertificateTypes = new ArrayList<>();
+		this.supportedServerCertificateTypes.add(CertificateType.X_509);
+		this.supportedServerCertificateTypes
+				.add(CertificateType.RAW_PUBLIC_KEY);
+	}
+	
+	/**
 	 * Called upon a CLIENT_HELLO.
 	 * 
 	 * @param endpointAddress
@@ -102,6 +143,7 @@ public class ServerHandshaker extends Handshaker {
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session is <code>null</code>
+	 * @deprecated Use other constructor instead
 	 */
 	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts,
 			DTLSConnectorConfig config) throws HandshakeException { 
@@ -139,10 +181,9 @@ public class ServerHandshaker extends Handshaker {
 			// we already sent the last flight, but the client did not receive
 			// it, since we received its finished message again, so we
 			// retransmit our last flight
-		    if (LOGGER.isLoggable(Level.FINER)) {
-		        LOGGER.finer("Received client's (" + endpointAddress.toString() + ") finished message again, retransmit the last flight.");
-		    }
-		    return lastFlight;
+			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
+					getPeerAddress().toString());
+			return lastFlight;
 		}
 
 		DTLSFlight flight = null;
@@ -240,9 +281,8 @@ public class ServerHandshaker extends Handshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		if (LOGGER.isLoggable(Level.FINE)) {
-		    LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
-		}
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
+		
 		return flight;
 	}
 	
@@ -312,7 +352,7 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
@@ -384,10 +424,15 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 */
 	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 
-		if (message.getCookie().length() > 0 && isValidCookie(message)) {
-			// client has set a cookie, so it is a response to
+		if (message.getCookie().length() == 0 || !isValidCookie(message)) {
+			// either first time, or cookies did not match
+			HelloVerifyRequest helloVerifyRequest = new HelloVerifyRequest(new ProtocolVersion(), generateCookie(message));
+			flight.addMessage(wrapMessage(helloVerifyRequest));
+			flight.setRetransmissionNeeded(false);
+		} else {
+			// client has included a cookie, so it is a response to
 			// HelloVerifyRequest
 
 			// update the handshake hash
@@ -561,11 +606,6 @@ public class ServerHandshaker extends Handshaker {
 			md.update(serverHelloDone.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
 
-		} else {
-			// either first time, or cookies did not match
-			HelloVerifyRequest helloVerifyRequest = new HelloVerifyRequest(new ProtocolVersion(), generateCookie(message));
-			flight.addMessage(wrapMessage(helloVerifyRequest));
-			flight.setRetransmissionNeeded(false);
 		}
 		return flight;
 	}
@@ -604,9 +644,8 @@ public class ServerHandshaker extends Handshaker {
 
 		byte[] psk = pskStore.getKey(identity);
 		
-		if (LOGGER.isLoggable(Level.INFO)) {
-		    LOGGER.info("Client " + endpointAddress.toString() + " used PSK identity: " + identity);
-		}
+		LOGGER.log(Level.FINE, "Client [{0}] uses PSK identity [{1}]",
+				new Object[]{getPeerAddress(), identity});
 		
 		if (psk == null) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
@@ -656,7 +695,7 @@ public class ServerHandshaker extends Handshaker {
 			byte[] secret = "generate cookie".getBytes();
 
 			// Client-IP
-			md.update(endpointAddress.toString().getBytes());
+			md.update(getPeerAddress().toString().getBytes());
 
 			// Client-Parameters
 			md.update((byte) clientHello.getClientVersion().getMajor());
@@ -694,8 +733,10 @@ public class ServerHandshaker extends Handshaker {
 		boolean valid = Arrays.equals(expected.getCookie(), actual.getCookie());
 
 		if (!valid) {
-			if (LOGGER.isLoggable(Level.INFO)) {
-			    LOGGER.info("Client's (" + endpointAddress.toString() + ") cookie did not match expected cookie:\n" + "Expected: " + ByteArrayUtils.toHexString(expected.getCookie()) + "\n" + "Actual: " + ByteArrayUtils.toHexString(actual.getCookie()));
+			if (LOGGER.isLoggable(Level.FINE)) {
+				LOGGER.log(Level.FINE, "Cookie provided by client ({0}) did not match expected cookie.\nExpected: {1}\nActual: {2}",
+						new Object[]{getPeerAddress().toString(), ByteArrayUtils.toHexString(expected.getCookie()),
+						ByteArrayUtils.toHexString(actual.getCookie())});
 			}
 		}
 
@@ -706,7 +747,7 @@ public class ServerHandshaker extends Handshaker {
 	public DTLSFlight getStartHandshakeMessage() {
 		HelloRequest helloRequest = new HelloRequest();
 
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(helloRequest));
 		return flight;
 	}

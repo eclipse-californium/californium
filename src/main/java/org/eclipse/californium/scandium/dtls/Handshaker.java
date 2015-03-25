@@ -38,7 +38,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -48,8 +47,9 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
 /**
- * The base class for the handshake protocol logic. Contains all the
- * functionality and fields which is needed by all types of hand-shakers.
+ * A base class for the DTLS handshake protocol.
+ * 
+ * Contains all functionality and fields needed by all types of handshakers.
  */
 public abstract class Handshaker {
 
@@ -80,14 +80,12 @@ public abstract class Handshaker {
 	// Members ////////////////////////////////////////////////////////
 
 	/**
-	 * Indicates, whether the handshake protocol is performed from the client's
-	 * side or the server's.
+	 * Indicates whether this handshaker performs the client or server part of
+	 * the  protocol.
 	 */
 	protected boolean isClient;
 
 	protected int state = -1;
-
-	protected InetSocketAddress endpointAddress;
 
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
@@ -122,10 +120,7 @@ public abstract class Handshaker {
 	/** The next expected handshake message sequence number. */
 	private int nextReceiveSeq = 0;
 
-	/** The raw UDP message that needs encryption. */
-	protected RawData message = null;
-
-	/** Queue for messages, that can not yet be processed. */
+	/** Buffer for received records that can not be processed immediately. */
 	protected Collection<Record> queuedMessages;
 	
 	/** Store the fragmented messages until we are able to reassemble the handshake message. */
@@ -165,26 +160,65 @@ public abstract class Handshaker {
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
+	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
+	 * 
+	 * @param isClient
+	 *            indicates whether this handshaker plays the client or server role
+	 * @param session
+	 *            the session this handshaker is negotiating
+	 * @param rootCertificates
+	 *            the trusted root certificates
+	 * @param maxFragmentLength the maximum length of message fragments this handshaker
+	 *            may send to the peer
+	 * @throws HandshakeException if the message digest required for computing
+	 *            the handshake hash cannot be instantiated
+	 * @throws NullPointerException if session is <code>null</code>
+	 */
+	public Handshaker(boolean isClient, DTLSSession session, Certificate[] rootCertificates,
+			int maxFragmentLength) throws HandshakeException {
+		if (session == null) {
+			throw new NullPointerException("DTLS Session must not be null");
+		}
+		this.isClient = isClient;
+		this.session = session;
+		this.queuedMessages = new HashSet<Record>();
+		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
+		this.maxFragmentLength = maxFragmentLength;
+
+		try {
+			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
+		} catch (NoSuchAlgorithmException e) {
+			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
+			throw new HandshakeException("Could not initialize handshake",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+		}
+	}
+	
+	
+	/**
 	 * 
 	 * @param peerAddress
 	 *            the peer's address.
 	 * @param isClient
-	 *            indicating whether this instance represents a client or a
-	 *            server.
+	 *            indicates whether this handshaker plays the client or server role
 	 * @param session
-	 *            the session belonging to this handshake.
+	 *            the session this handshaker is negotiating
 	 * @param rootCertificates
 	 *            the trusted root certificates
 	 * @throws HandshakeException if the message digest required for computing
 	 *            the handshake hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
+	 * @throws IllegalArgumentException if the given peer address differs from the one
+	 *            contained in the session
+	 * @deprecated Use one of the other constructors
 	 */
 	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session,
 			Certificate[] rootCertificates) throws HandshakeException {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
+		} else if (!session.getPeer().equals(peerAddress)) {
+			throw new IllegalArgumentException("Peer address must be the same as in session");
 		}
-		this.endpointAddress = peerAddress;
 		this.isClient = isClient;
 		this.session = session;
 		this.queuedMessages = new HashSet<Record>();
@@ -193,7 +227,7 @@ public abstract class Handshaker {
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not initialize the message digest algorithm.", e);
+			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
 			throw new HandshakeException("Could not initialize handshake",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
@@ -234,7 +268,7 @@ public abstract class Handshaker {
 	 * @param premasterSecret
 	 *            the shared premaster secret.
 	 */
-	protected void generateKeys(byte[] premasterSecret) {
+	protected final void generateKeys(byte[] premasterSecret) {
 		masterSecret = generateMasterSecret(premasterSecret);
 		session.setMasterSecret(masterSecret);
 
@@ -314,7 +348,7 @@ public abstract class Handshaker {
 	 *            the preshared key as byte array.
 	 * @return the premaster secret.
 	 */
-	protected byte[] generatePremasterSecretFromPSK(byte[] psk) {
+	protected final byte[] generatePremasterSecretFromPSK(byte[] psk) {
 		/*
 		 * What we are building is the following with length fields in between:
 		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
@@ -626,14 +660,12 @@ public abstract class Handshaker {
 	 * @throws HandshakeException
 	 *             if DTLS handshake fails 
 	 */
-	protected boolean processMessageNext(Record record) throws HandshakeException {
+	protected final boolean processMessageNext(Record record) throws HandshakeException {
 
 		int epoch = record.getEpoch();
 		if (epoch < session.getReadEpoch()) {
 			// discard old message
-			if (LOGGER.isLoggable(Level.INFO)) {
-			    LOGGER.info("Discarded message from " + endpointAddress.toString() + " due to older epoch.");
-			}
+		    LOGGER.log(Level.FINE, "Discarding message from previous epoch from peer [{0}]", getPeerAddress().toString());
 			return false;
 		} else if (epoch == session.getReadEpoch()) {
 			DTLSMessage fragment = record.getFragment();
@@ -652,15 +684,13 @@ public abstract class Handshaker {
 					}
 					return true;
 				} else if (messageSeq > nextReceiveSeq) {
-					if (LOGGER.isLoggable(Level.INFO)) {
-					    LOGGER.info("Queued newer message from same epoch, message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
-					}
+					LOGGER.log(Level.FINE, "Queued newer message from same epoch, message_seq [{0}], next_receive_seq [{1}]",
+							new Object[]{messageSeq, nextReceiveSeq});
 					queuedMessages.add(record);
 					return false;
 				} else {
-					if (LOGGER.isLoggable(Level.INFO)) {
-					    LOGGER.info("Discarded message due to older message_seq: " + messageSeq + ", next_receive_seq: " + nextReceiveSeq);
-					}
+					LOGGER.log(Level.FINE, "Discarding message old message, message_seq [{0}], next_receive_seq [{1}]",
+							new Object[]{messageSeq, nextReceiveSeq});
 					return false;
 				}
 			} else {
@@ -722,7 +752,7 @@ public abstract class Handshaker {
 	 * @throws HandshakeException
 	 *             if DTLS handshake fails
 	 */
-	protected HandshakeMessage reassembleFragments(int messageSeq, int totalLength, HandshakeType type, DTLSSession session) throws HandshakeException {
+	protected final HandshakeMessage reassembleFragments(int messageSeq, int totalLength, HandshakeType type, DTLSSession session) throws HandshakeException {
 		List<FragmentedHandshakeMessage> fragments = fragmentedMessages.get(messageSeq);
 		HandshakeMessage message = null;
 
@@ -786,7 +816,7 @@ public abstract class Handshaker {
 
 	// Getters and Setters ////////////////////////////////////////////
 
-	public CipherSuite getCipherSuite() {
+	final CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
@@ -799,7 +829,7 @@ public abstract class Handshaker {
 	 * @throws HandshakeException if the given cipher suite is <code>null</code>
 	 * 	or {@link CipherSuite#SSL_NULL_WITH_NULL_NULL}
 	 */
-	void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
+	final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
 		if (cipherSuite == null || CipherSuite.SSL_NULL_WITH_NULL_NULL == cipherSuite) {
 			throw new HandshakeException("Negotiated cipher suite must not be null",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
@@ -810,31 +840,31 @@ public abstract class Handshaker {
 		this.session.setCipherSuite(cipherSuite);
 	}
 
-	public byte[] getMasterSecret() {
+	final byte[] getMasterSecret() {
 		return masterSecret;
 	}
 
-	public SecretKey getClientWriteMACKey() {
+	final SecretKey getClientWriteMACKey() {
 		return clientWriteMACKey;
 	}
 
-	public SecretKey getServerWriteMACKey() {
+	final SecretKey getServerWriteMACKey() {
 		return serverWriteMACKey;
 	}
 
-	public IvParameterSpec getClientWriteIV() {
+	final IvParameterSpec getClientWriteIV() {
 		return clientWriteIV;
 	}
 
-	public IvParameterSpec getServerWriteIV() {
+	final IvParameterSpec getServerWriteIV() {
 		return serverWriteIV;
 	}
 
-	public SecretKey getClientWriteKey() {
+	final SecretKey getClientWriteKey() {
 		return clientWriteKey;
 	}
 
-	public SecretKey getServerWriteKey() {
+	final SecretKey getServerWriteKey() {
 		return serverWriteKey;
 	}
 
@@ -843,9 +873,20 @@ public abstract class Handshaker {
 	 * 
 	 * @return the session
 	 */
-	DTLSSession getSession() {
+	public final DTLSSession getSession() {
 		return session;
 	}
+	
+	/**
+	 * Gets the IP address and port of the peer this handshaker is used to
+	 * negotiate a session with.
+	 * 
+	 * @return the peer address
+	 */
+	public final InetSocketAddress getPeerAddress() {
+		return session.getPeer();
+	}
+	
 	
 	/**
 	 * Add the smallest available message sequence to the handshake message.
@@ -853,41 +894,40 @@ public abstract class Handshaker {
 	 * @param message
 	 *            the {@link HandshakeMessage}.
 	 */
-	public void setSequenceNumber(HandshakeMessage message) {
+	private void setSequenceNumber(HandshakeMessage message) {
 		message.setMessageSeq(sequenceNumber);
 		sequenceNumber++;
 	}
 
-	public RawData getMessage() {
-		return message;
-	}
-
-	public void setMessage(RawData message) {
-		this.message = message;
-	}
-
-	public int getNextReceiveSeq() {
+	final int getNextReceiveSeq() {
 		return nextReceiveSeq;
 	}
 
-	public void incrementNextReceiveSeq() {
+	final void incrementNextReceiveSeq() {
 		this.nextReceiveSeq++;
 	}
 
-	public CompressionMethod getCompressionMethod() {
+	final CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
-	public void setCompressionMethod(CompressionMethod compressionMethod) {
+	final void setCompressionMethod(CompressionMethod compressionMethod) {
 		this.compressionMethod = compressionMethod;
 		this.session.setCompressionMethod(compressionMethod);
 	}
 
-    public int getMaxFragmentLength() {
-        return maxFragmentLength;
-    }
+	final int getMaxFragmentLength() {
+		return maxFragmentLength;
+	}
 
-    public void setMaxFragmentLength(int maxFragmentLength) {
-        this.maxFragmentLength = maxFragmentLength;
-    }
+	/**
+	 * Sets the maximum length of handshake messages that this handshaker
+	 * may send in a single fragment.
+	 * 
+	 * @param maxFragmentLength the number of bytes
+	 * @deprecated set this value using the constructor instead
+	 */
+	public final void setMaxFragmentLength(int maxFragmentLength) {
+		this.maxFragmentLength = maxFragmentLength;
+	}
 }
