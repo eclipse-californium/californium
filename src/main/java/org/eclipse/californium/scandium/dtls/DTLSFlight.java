@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add convenience constructor for setting the DTLS session
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -65,8 +66,28 @@ public class DTLSFlight {
 	/**
 	 * Initializes an empty, fresh flight. The timeout is set to 0, it will be
 	 * set later by the standard duration.
+	 * 
+	 * @deprecated use other constructor
 	 */
 	public DTLSFlight() {
+		this.messages = new ArrayList<Record>();
+		this.tries = 0;
+		this.timeout = 0;
+	}
+	
+	/**
+	 * Initializes an empty, fresh flight. The timeout is set to 0, it will be
+	 * set later by the standard duration.
+	 * 
+	 * @param session the session to get record sequence numbers from
+	 *                 when sending out the flight
+	 */
+	public DTLSFlight(DTLSSession session) {
+		if (session == null) {
+			throw new NullPointerException("Session must not be null");
+		}
+		this.session = session;
+		this.peerAddress = session.getPeer();
 		this.messages = new ArrayList<Record>();
 		this.tries = 0;
 		this.timeout = 0;
@@ -88,6 +109,13 @@ public class DTLSFlight {
 		return peerAddress;
 	}
 
+	/**
+	 * Sets the IP address and port to send the flight's messages to.
+	 * 
+	 * @param peerAddress the peer address
+	 * @deprecated use the constructor to implicitly set the peer address
+	 *                   as part of the provided session 
+	 */
 	public void setPeerAddress(InetSocketAddress peerAddress) {
 		this.peerAddress = peerAddress;
 	}
@@ -96,6 +124,13 @@ public class DTLSFlight {
 		return session;
 	}
 
+	/**
+	 * Sets the session to get sequence numbers from when sending the
+	 * flight's messages.
+	 * 
+	 * @param session the session
+	 * @deprecated use the constructor to set the session
+	 */
 	public void setSession(DTLSSession session) {
 		this.session = session;
 	}
