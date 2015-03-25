@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -20,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.DTLSConnectorConfig;
@@ -38,6 +40,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
+	public ResumingClientHandshaker(RawData message, DTLSSession session, Certificate[] rootCerts,
+			DTLSConnectorConfig config) throws HandshakeException {
+		super(message, session, rootCerts, config);
+	}
+	
+	/**
+	 * 
+	 * @deprecated Use the other constructor instead
+	 */
 	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
 			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
 		super(endpointAddress, message, session, rootCerts, config);
@@ -108,7 +119,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
 		return flight;
 	}
 
@@ -129,7 +140,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// this last flight
 			return null;
 		}
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 
 		// update the handshake hash
 		md.update(clientHello.toByteArray());
@@ -184,7 +195,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		state = message.getMessageType().getCode();
 		clientHello = message;
 
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(message));
 
 		return flight;

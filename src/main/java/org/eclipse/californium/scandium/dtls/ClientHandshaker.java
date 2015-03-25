@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -63,6 +64,11 @@ public class ClientHandshaker extends Handshaker {
 	/** whether the certificate message should only contain the peer's public key or the full X.509 certificate */
 	private final boolean useRawPublicKey;
 	
+	/** The raw message that triggered the start of the handshake
+	 * and needs to be sent once the session is established.
+	 * */
+	private RawData message;
+
 	/*
 	 * Store all the message which can possibly be sent by the server.
 	 * We need these to compute the handshake hash.
@@ -89,12 +95,38 @@ public class ClientHandshaker extends Handshaker {
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
+	 * Creates a new handshaker for negotiating a DTLS session with a server.
+	 * 
+	 * @param message
+	 *            the first application data message to be sent after the handshake is finished 
+	 * @param session
+	 *            the session to negotiate with the server
+	 * @param rootCerts
+	 *            the root certificates to use for authenticating the server 
+	 * @param config
+	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
+	 */
+	public ClientHandshaker(RawData message, DTLSSession session, Certificate[] rootCerts,
+			DTLSConnectorConfig config) throws HandshakeException {
+		super(true, session, rootCerts, config.getMaxFragmentLength());
+		this.message = message;
+		this.privateKey = config.privateKey;
+		this.certificates = config.certChain;
+		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
+		this.pskStore = config.pskStore;
+		this.useRawPublicKey = config.sendRawKey;
+		this.preferredCipherSuite = config.preferredCipherSuite;
+	}
+	
+	/**
 	 * 
 	 * 
 	 * @param endpointAddress
 	 *            the endpoint address
 	 * @param message
-	 *            the message
+	 *            the first application data message to be sent after the handshake is finished 
 	 * @param session
 	 *            the session
 	 * @param rootCerts
@@ -103,6 +135,7 @@ public class ClientHandshaker extends Handshaker {
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session is <code>null</code>
+	 * @deprecated Use other constructor instead
 	 */
 	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
 			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
@@ -227,10 +260,8 @@ public class ClientHandshaker extends Handshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		if (LOGGER.isLoggable(Level.FINE)) {
-		    LOGGER.fine("DTLS Message processed (" + endpointAddress.toString() + "):\n" + record.toString());
-		}
-		    return flight;
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
+		return flight;
 	}
 
 	/**
@@ -243,7 +274,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException 
 	 */
 	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException {
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 
 		message.verifyData(getMasterSecret(), false, handshakeHash);
 
@@ -292,7 +323,7 @@ public class ClientHandshaker extends Handshaker {
 		// update the length (cookie added)
 		clientHello.setFragmentLength(clientHello.getMessageLength());
 
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(clientHello));
 
 		return flight;
@@ -396,7 +427,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 */
 	private DTLSFlight receivedServerHelloDone(ServerHelloDone message) throws HandshakeException {
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
 			// discard duplicate message
 			return flight;
@@ -440,10 +471,10 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case PSK:
-			String identity = pskStore.getIdentity(endpointAddress);
+			String identity = pskStore.getIdentity(getPeerAddress());
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-				throw new HandshakeException("No Identity found for peer: "	+ endpointAddress, alert);
+				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
 			session.setPskIdentity(identity);
 
@@ -581,7 +612,7 @@ public class ClientHandshaker extends Handshaker {
 
 		// store for later calculations
 		clientHello = message;
-		DTLSFlight flight = new DTLSFlight();
+		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(message));
 
 		return flight;

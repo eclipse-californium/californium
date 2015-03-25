@@ -45,7 +45,7 @@ public class ServerHandshakerTest {
     public void setup() throws Exception {
         session = new DTLSSession(endpoint, false);
         session.setReadEpoch(EPOCH);
-        handshaker = new ServerHandshaker(endpoint, session, new Certificate[]{}, new DTLSConnectorConfig(null));
+        handshaker = new ServerHandshaker(session, new Certificate[]{}, new DTLSConnectorConfig(null));
 
         DatagramWriter writer = new DatagramWriter();
         // uint32 gmt_unix_time
