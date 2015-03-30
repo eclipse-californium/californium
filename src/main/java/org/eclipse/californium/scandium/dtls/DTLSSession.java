@@ -369,7 +369,7 @@ public class DTLSSession {
      * @param sequenceNo the record's sequence number
      * @return <code>true</code> if the record has already been received
      */
-	private synchronized boolean isDuplicate(long sequenceNo) {
+	synchronized boolean isDuplicate(long sequenceNo) {
 		if (sequenceNo > receiveWindowUpperBoundary) {
 			return false;
 		} else {

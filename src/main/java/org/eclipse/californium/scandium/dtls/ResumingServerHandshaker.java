@@ -75,7 +75,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	}
 	
 	@Override
-	public synchronized DTLSFlight processMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
 		DTLSFlight flight = null;
 
 		if (!processMessageNext(record)) {

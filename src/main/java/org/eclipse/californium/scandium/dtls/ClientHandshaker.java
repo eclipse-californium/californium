@@ -153,7 +153,7 @@ public class ClientHandshaker extends Handshaker {
 	
 
 	@Override
-	public synchronized DTLSFlight processMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
 		DTLSFlight flight = null;
 		if (!processMessageNext(record)) {
 			return null;
