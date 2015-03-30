@@ -378,7 +378,7 @@ public class DTLSSession {
 			long idx = sequenceNo - getLowerBoundary();
 			// create bit mask for probing the bit representing position "idx" 
 			long bitMask = 1L << idx;
-			LOGGER.log(Level.FINE,
+			LOGGER.log(Level.FINER,
 					"Checking sequence no [{0}] using bit mask [{1}] against received records [{2}] with lower boundary [{3}]",
 					new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector), getLowerBoundary()});
 			return (receivedRecordsVector & bitMask) == bitMask;
@@ -412,7 +412,7 @@ public class DTLSSession {
 			long bitMask = 1L << (sequenceNo - getLowerBoundary());
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
-			LOGGER.log(Level.FINE, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
+			LOGGER.log(Level.FINER, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
 					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
 		}
 	}
