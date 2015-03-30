@@ -236,21 +236,58 @@ public abstract class Handshaker {
 	// Abstract Methods ///////////////////////////////////////////////
 
 	/**
-	 * Processes the handshake message according to its {@link HandshakeType}
-	 * and reacts according to the protocol specification.
+	 * Processes a handshake record received from a peer based on the
+	 * handshake's current state.
 	 * 
+	 * This method only does a duplicate check as described in
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
+     * section 4.1.2.6 of the DTLS 1.2 spec</a> and then delegates
+     * processing of the record to the {@link #doProcessMessage(Record)}
+     * method.
+     * 
 	 * @param message
-	 *            the received {@link HandshakeMessage}.
-	 * @return the list all handshake messages that need to be sent triggered by
-	 *         this message.
+	 *            the handshake record
+	 * @return the handshake messages that need to be sent to the peer in
+	 *            response to the record received or <code>null</code> if
+	 *            the received record does not require a response to be sent
 	 * @throws HandshakeException
-	 *             if DTLS handshake fails
+	 *             if the handshake cannot be completed successfully
 	 */
-	public abstract DTLSFlight processMessage(Record message) throws HandshakeException;
+	public final DTLSFlight processMessage(Record message) throws HandshakeException {
+		DTLSFlight nextFlight = null;
+		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
+		// before MAC validation based on the record's sequence numbers
+		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
+		if (!getSession().isDuplicate(message.getSequenceNumber())) {
+			nextFlight = doProcessMessage(message);
+			getSession().markRecordAsRead(message.getEpoch(), message.getSequenceNumber());
+		}
+		return nextFlight;
+	}
+	
+	/**
+	 * Does the specific processing of a record received from a peer in
+	 * the course of an ongoing handshake.
+	 * 
+	 * This method does not do anything. Concrete handshaker implementations should
+	 * override this method in order to do prepare the response to the received
+	 * record.
+	 * 
+	 * @param record the record received from the peer
+	 * @return the handshake messages to send to the peer in response to the
+	 *            received record
+	 * @throws HandshakeException if the handshake cannot be completed successfully
+	 */
+	protected DTLSFlight doProcessMessage(Record record) throws HandshakeException {
+		return null;
+	}
 
 	/**
 	 * Gets the handshake flight which needs to be sent first to initiate
-	 * handshake. This differs from client side to server side.
+	 * handshake.
+	 * 
+	 * The particular message to be sent depends on the role a peer plays in the
+	 * handshake.
 	 * 
 	 * @return the handshake message to start off the handshake protocol.
 	 */
@@ -282,7 +319,7 @@ public abstract class Handshaker {
 	 * @param masterSecret
 	 *            the master secret.
 	 */
-	private void calculateKeys(byte[] masterSecret) {
+	private final void calculateKeys(byte[] masterSecret) {
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.3:
 		 * key_block = PRF(SecurityParameters.master_secret, "key expansion", SecurityParameters.server_random + SecurityParameters.client_random);
@@ -333,7 +370,7 @@ public abstract class Handshaker {
 	 *            the shared premaster secret.
 	 * @return the master secret.
 	 */
-	private byte[] generateMasterSecret(byte[] premasterSecret) {
+	private final byte[] generateMasterSecret(byte[] premasterSecret) {
 		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
 		return doPRF(premasterSecret, MASTER_SECRET_LABEL, randomSeed);
 	}
@@ -378,7 +415,7 @@ public abstract class Handshaker {
 	 *            the seed
 	 * @return the byte[]
 	 */
-	public static byte[] doPRF(byte[] secret, int labelId, byte[] seed) {
+	public static final byte[] doPRF(byte[] secret, int labelId, byte[] seed) {
 		try {
 			MessageDigest md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 
@@ -449,7 +486,7 @@ public abstract class Handshaker {
 	 *            the length of the expansion in <tt>bytes</tt>.
 	 * @return the expanded array with given length.
 	 */
-	protected static byte[] doExpansion(MessageDigest md, byte[] secret, byte[] data, int length) {
+	protected static final byte[] doExpansion(MessageDigest md, byte[] secret, byte[] data, int length) {
 		/*
 		 * P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
 		 * HMAC_hash(secret, A(2) + seed) + HMAC_hash(secret, A(3) + seed) + ...
@@ -487,7 +524,7 @@ public abstract class Handshaker {
 	 *            the data.
 	 * @return the hash after HMAC has been applied.
 	 */
-	public static byte[] doHMAC(MessageDigest md, byte[] secret, byte[] data) {
+	public static final byte[] doHMAC(MessageDigest md, byte[] secret, byte[] data) {
 		// the block size of the hash function, always 64 bytes (for SHA-512 it
 		// would be 128 bytes, but not needed right now, except for test
 		// purpose)
@@ -566,7 +603,7 @@ public abstract class Handshaker {
 		return step7;
 	}
 
-	protected void setCurrentReadState() {
+	protected final void setCurrentReadState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
 			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, serverWriteKey, serverWriteIV, serverWriteMACKey);
@@ -576,7 +613,7 @@ public abstract class Handshaker {
 		session.setReadState(connectionState);
 	}
 
-	protected void setCurrentWriteState() {
+	protected final void setCurrentWriteState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
 			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, clientWriteKey, clientWriteIV, clientWriteMACKey);
@@ -594,7 +631,7 @@ public abstract class Handshaker {
 	 *            the {@link DTLSMessage} fragment.
 	 * @return the fragment wrapped into (multiple) record layers.
 	 */
-	protected List<Record> wrapMessage(DTLSMessage fragment) {
+	protected final List<Record> wrapMessage(DTLSMessage fragment) {
 		
 		List<Record> records = new ArrayList<Record>();
 
@@ -650,6 +687,7 @@ public abstract class Handshaker {
 		return records;
 	}
 
+	
 	/**
 	 * Determines, using the epoch and sequence number, whether this record is
 	 * the next one which needs to be processed by the handshake protocol.
@@ -716,7 +754,7 @@ public abstract class Handshaker {
 	 * @throws HandshakeException
 	 *             if DTLS handshake fails
 	 */
-	protected HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
+	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 		HandshakeMessage reassembledMessage = null;
 		
 		int messageSeq = fragment.getMessageSeq();

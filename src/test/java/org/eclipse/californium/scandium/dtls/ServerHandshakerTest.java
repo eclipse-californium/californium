@@ -31,7 +31,7 @@ import org.junit.Test;
 
 public class ServerHandshakerTest {
 
-    private final int EPOCH = 1;
+    private final int EPOCH = 0;
     ServerHandshaker handshaker;
     DTLSSession session;
     InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
@@ -45,6 +45,7 @@ public class ServerHandshakerTest {
     public void setup() throws Exception {
         session = new DTLSSession(endpoint, false);
         session.setReadEpoch(EPOCH);
+        session.setWriteEpoch(EPOCH);
         handshaker = new ServerHandshaker(session, new Certificate[]{}, new DTLSConnectorConfig(null));
 
         DatagramWriter writer = new DatagramWriter();
@@ -156,7 +157,7 @@ public class ServerHandshakerTest {
     	}
     }
     
-    private byte[] getCookieForClientHello(int messageSeqNo, byte[] supportedCiphers,
+    private byte[] getCookieForClientHello(int messageSeqNo, byte[] supportedCiphers, 
     		List<byte[]> helloExtensions) throws HandshakeException {
         // process initial Client Hello without cookie
         DTLSFlight flight = processClientHello(messageSeqNo, null, supportedCiphers, helloExtensions);
@@ -167,24 +168,33 @@ public class ServerHandshakerTest {
         return verifyReq.getCookie().getCookie();
     }
     
-    private DTLSFlight processClientHello(int messageSeq, byte[] cookie, byte[] supportedCiphers,
-    		List<byte[]> helloExtensions) throws HandshakeException {
+    private DTLSFlight processClientHello(int messageSeq, byte[] cookie,
+	byte[] supportedCiphers, List<byte[]> helloExtensions) throws HandshakeException {
+    	
+    	return processClientHello(session.getWriteEpoch(), session.getSequenceNumber(),
+    			messageSeq, cookie, supportedCiphers, helloExtensions);
+    }
+    
+    private DTLSFlight processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,
+    		byte[] supportedCiphers, List<byte[]> helloExtensions) throws HandshakeException {
+    	
         byte[] clientHelloFragment = newClientHelloFragment(cookie, supportedCiphers, helloExtensions);
-        clientHelloMsg = newHandshakeMessage(1, messageSeq, clientHelloFragment);
-        byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(22, EPOCH, 0, clientHelloMsg);
+        clientHelloMsg = newHandshakeMessage(HandshakeType.CLIENT_HELLO, messageSeq, clientHelloFragment);
+        byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), epoch,
+        		sequenceNo, clientHelloMsg);
         List<Record> list = Record.fromByteArray(dtlsRecord);
         Assert.assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
         Record record = list.get(0);
         return handshaker.processMessage(record);
     }
     
-    private byte[] newHandshakeMessage(int type, int messageSeq, byte[] fragment) {
+    private byte[] newHandshakeMessage(HandshakeType type, int messageSeq, byte[] fragment) {
         int length = 8 + 24 + 16 + 24 + 24 + fragment.length;
         DatagramWriter writer = new DatagramWriter();
-        writer.write(type, 8);
+        writer.write(type.getCode(), 8);
         writer.write(length, 24);
         writer.write(messageSeq, 16);
-        writer.write(0, 24);
+        writer.write(0, 24); // fragment offset is always 0
         writer.write(length, 24);
         writer.writeBytes(fragment);
         return writer.toByteArray();
