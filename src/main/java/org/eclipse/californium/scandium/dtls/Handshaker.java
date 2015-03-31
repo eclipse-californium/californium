@@ -261,6 +261,9 @@ public abstract class Handshaker {
 		if (!getSession().isDuplicate(message.getSequenceNumber())) {
 			nextFlight = doProcessMessage(message);
 			getSession().markRecordAsRead(message.getEpoch(), message.getSequenceNumber());
+		} else {
+			LOGGER.log(Level.FINER, "Discarding duplicate HANDSHAKE message received from peer [{0}]\n{1}",
+					new Object[]{getPeerAddress(), message});
 		}
 		return nextFlight;
 	}
@@ -703,7 +706,7 @@ public abstract class Handshaker {
 		int epoch = record.getEpoch();
 		if (epoch < session.getReadEpoch()) {
 			// discard old message
-		    LOGGER.log(Level.FINE, "Discarding message from previous epoch from peer [{0}]", getPeerAddress().toString());
+			LOGGER.log(Level.FINER, "Discarding message from previous epoch from peer [{0}]", getPeerAddress());
 			return false;
 		} else if (epoch == session.getReadEpoch()) {
 			DTLSMessage fragment = record.getFragment();
@@ -722,21 +725,24 @@ public abstract class Handshaker {
 					}
 					return true;
 				} else if (messageSeq > nextReceiveSeq) {
-					LOGGER.log(Level.FINE, "Queued newer message from same epoch, message_seq [{0}], next_receive_seq [{1}]",
+					LOGGER.log(Level.FINER, "Queued newer message from same epoch, message_seq [{0}], next_receive_seq [{1}]",
 							new Object[]{messageSeq, nextReceiveSeq});
 					queuedMessages.add(record);
 					return false;
 				} else {
-					LOGGER.log(Level.FINE, "Discarding message old message, message_seq [{0}], next_receive_seq [{1}]",
+					LOGGER.log(Level.FINER, "Discarding message old message, message_seq [{0}], next_receive_seq [{1}]",
 							new Object[]{messageSeq, nextReceiveSeq});
 					return false;
 				}
 			} else {
+				LOGGER.log(Level.FINER, "Cannot process HANDSHAKE message of unknwon type");
 				return false;
 			}
 		} else {
 			// newer epoch, queue message
 			queuedMessages.add(record);
+			LOGGER.log(Level.FINER, "Queueing HANDSHAKE message from epoch [{0}] > current epoch [{1}]",
+					new Object[]{record.getEpoch(), getSession().getReadEpoch()});
 			return false;
 		}
 	}
