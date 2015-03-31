@@ -600,15 +600,19 @@ public class Record {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("==[ DTLS Record ]==============================================\n");
-		sb.append("Content Type: ").append(type.toString()).append("\n");
-		sb.append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor()).append("\n");
-		sb.append("Epoch: ").append(epoch).append("\n");
-		sb.append("Sequence Number: ").append(sequenceNumber).append("\n");
-		sb.append("Length: ").append(length).append("\n");
-		sb.append("Fragment:\n");
-		sb.append(fragment.toString());
-		sb.append("===============================================================");
+		sb.append("==[ DTLS Record ]==============================================");
+		sb.append("\nContent Type: ").append(type.toString());
+		sb.append("\nVersion: ").append(version.getMajor()).append(", ").append(version.getMinor());
+		sb.append("\nEpoch: ").append(epoch);
+		sb.append("\nSequence Number: ").append(sequenceNumber);
+		sb.append("\nLength: ").append(length);
+		sb.append("\nFragment:");
+		if (fragment != null) {
+			sb.append("\n").append(fragment);
+		} else {
+			sb.append("\nfragment is not decrypted yet\n");
+		}
+		sb.append("\n===============================================================");
 
 		return sb.toString();
 	}
