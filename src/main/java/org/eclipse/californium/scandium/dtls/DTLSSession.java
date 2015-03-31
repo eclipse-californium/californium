@@ -281,14 +281,39 @@ public class DTLSSession {
 		this.keyExchange = keyExchange;
 	}
 
-	public byte[] getMasterSecret() {
+	/**
+	 * Gets the master secret used for encrypting application layer data
+	 * exchanged in this session.
+	 * 
+	 * @return the secret or <code>null</code> if it has not yet been
+	 * created
+	 */
+	byte[] getMasterSecret() {
 		return masterSecret;
 	}
 
-	public void setMasterSecret(byte[] masterSecret) {
+	/**
+	 * Sets the master secret to use for encrypting application layer data
+	 * exchanged in this session.
+	 * 
+	 * Once the master secret has been set, it cannot be changed.
+	 * 
+	 * @param masterSecret the secret
+	 * @throws NullPointerException if the secret is <code>null</code>
+	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
+	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
+	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 */
+	void setMasterSecret(byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
-		if (this.masterSecret != null) {
-			this.masterSecret = masterSecret;
+		if (this.masterSecret == null) {
+			if (masterSecret == null) {
+				throw new NullPointerException("Master secret must not be null");
+			} else if (masterSecret.length != 48) {
+				throw new IllegalArgumentException("Master secret must consist of 48 bytes");
+			} else {
+				this.masterSecret = masterSecret;
+			}
 		}
 	}
 
