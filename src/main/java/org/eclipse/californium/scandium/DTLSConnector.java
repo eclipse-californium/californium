@@ -15,6 +15,7 @@
  *    Stefan Jucker - DTLS implementation
  *    Julien Vermillard - Sierra Wireless
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add duplicate record detection
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 462463
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -26,7 +27,6 @@ import java.nio.channels.ClosedByInterruptException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -54,11 +54,14 @@ import org.eclipse.californium.scandium.dtls.FragmentedHandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
+import org.eclipse.californium.scandium.dtls.InMemorySessionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionId;
+import org.eclipse.californium.scandium.dtls.SessionListener;
+import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -88,12 +91,11 @@ public class DTLSConnector implements Connector {
 	/** The thread that sends messages */
 	private Worker sender;
 	
+	private final SessionStore sessionStore;
+	
 	/** The queue of outgoing block (for sending). */
 	private final BlockingQueue<RawData> outboundMessages; // Messages to send
 	
-	/** Storing sessions according to peer-addresses */
-	private Map<InetSocketAddress, DTLSSession> dtlsSessions = new ConcurrentHashMap<>();
-
 	/** Storing handshakers according to peer-addresses. */
 	private Map<InetSocketAddress, Handshaker> handshakers = new ConcurrentHashMap<>();
 
@@ -108,8 +110,11 @@ public class DTLSConnector implements Connector {
 	
 	private RawDataChannel messageHandler;
 	
+	private SessionListener sessionListener;
+	
+	
 	/**
-	 * Create a DTLS connector.
+	 * Creates a DTLS connector for PSK based authentication only.
 	 * 
 	 * @param address the IP address and port to bind to
 	 */
@@ -118,37 +123,56 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
-	 * Create a DTLS connector.
+	 * Creates a DTLS connector that can also do certificate based authentication.
 	 * 
 	 * @param address the address to bind
 	 * @param rootCertificates list of trusted root certificates, e.g. from well known
 	 * Certificate Authorities or self-signed certificates.
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
+		this(address, rootCertificates, null);
+	}
+	
+	/**
+	 * Creates a DTLS connector that can also do certificate based authentication.
+	 * 
+	 * @param address the address to bind
+	 * @param rootCertificates list of trusted root certificates, e.g. from well known
+	 * Certificate Authorities or self-signed certificates (may be <code>null</code>)
+	 * @param sessionStore the store to use for keeping track of session information,
+	 *       if <code>null</code> session information is kept in-memory
+	 */
+	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates, SessionStore sessionStore) {
 		this.address = address;
 		this.rootCerts = rootCertificates == null ? new Certificate[0] : rootCertificates;
-		// Optionally define maximal capacity
+		// TODO define maximum capacity
 		this.outboundMessages = new LinkedBlockingQueue<RawData>();
-	}
-	
-	private DTLSSession removeSession(InetSocketAddress peerAddress) {
-		if (peerAddress != null) {
-			return dtlsSessions.remove(peerAddress);
+		if (sessionStore != null) {
+			this.sessionStore = sessionStore;
 		} else {
-			return null;
+			this.sessionStore = new InMemorySessionStore();
 		}
-	}
-	
-	private Collection<DTLSSession> getAllSessions() {
-		return dtlsSessions.values();
-	}
-	
-	private DTLSSession storeSession(DTLSSession session) {
-		if (session != null) {
-			return dtlsSessions.put(session.getPeer(), session);
-		} else {
-			return null;
-		}
+		this.sessionListener = new SessionListener() {
+			
+			@Override
+			public void handshakeCompleted(Handshaker handshaker) {
+				if (handshaker != null) {
+					DTLSSession session = handshaker.getSession();
+					if (session != null && session.isActive()) {
+						DTLSSession existingSession = DTLSConnector.this.sessionStore.store(session);
+						removeHandshaker(handshaker.getPeerAddress());
+						if (existingSession == null) {
+							LOGGER.log(Level.FINER, "Putting newly established session with peer [{0}] into session store",
+									handshaker.getPeerAddress());
+						} else {
+							LOGGER.log(Level.FINER, "Replacing existing session with peer [{0}] in session store",
+									handshaker.getPeerAddress());
+						}
+					}
+				}
+			}
+		};
+		
 	}
 	
 	private Handshaker getHandshaker(InetSocketAddress peerAddress) {
@@ -198,21 +222,29 @@ public class DTLSConnector implements Connector {
 	 * message is sent to each of the peers.
 	 */
 	private void close() {
-		for (DTLSSession session : getAllSessions()) {
+		// while this certainly is nice behavior
+		// I wonder how long this takes if we have
+		// millions of active sessions ...
+		for (DTLSSession session : sessionStore.getAll()) {
 			this.close(session.getPeer());
 		}
 	}
 	
 	/**
-	 * Close the DTLS session with the given peer.
+	 * Closes a connection with a given peer.
 	 * 
-	 * @param peerAddress the remote endpoint of the session to close
+	 * The connection is gracefully shut down, i.e. a final
+	 * <em>CLOSE_NOTIFY</em> alert message is sent to the peer
+	 * prior to removing all session state.
+	 * 
+	 * @param peerAddress the address of the peer to close the connection to
 	 */
-	public void close(InetSocketAddress peerAddress) {
+	public final void close(InetSocketAddress peerAddress) {
 		// (Kai Hudalla) I think this method should be made private because managing sessions
 		// should be the sole responsibility of the DTLSConnector. We should probably
 		// add a housekeeping thread that closes stale sessions after a certain time.
 		try {
+			cancelPreviousFlight(peerAddress);
 			DTLSSession session = getSessionByAddress(peerAddress);
 
 			if (session != null) {
@@ -221,11 +253,8 @@ public class DTLSConnector implements Connector {
 				DTLSFlight flight = new DTLSFlight(session);
 				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), closeNotify, session));
 				flight.setRetransmissionNeeded(false);
-
-				cancelPreviousFlight(peerAddress);
-
+				
 				LOGGER.log(Level.FINE, "Sending CLOSE_NOTIFY to peer [{0}]", peerAddress);
-
 				sendFlight(flight);
 			} else {
 				LOGGER.log(Level.FINE, "Session with peer [{0}] not found. Maybe already closed by peer?",
@@ -233,9 +262,7 @@ public class DTLSConnector implements Connector {
 			}
 		} finally {
 			// clear session
-			removeSession(peerAddress);
-			removeHandshaker(peerAddress);
-			removeFlight(peerAddress);
+			connectionClosed(peerAddress);
 		}
 	}
 	
@@ -279,6 +306,7 @@ public class DTLSConnector implements Connector {
 		if (!running) {
 			return;
 		}
+		// TODO re-consider graceful closing (millions of) connections since this might take some time
 		this.close();
 		releaseSocket();
 	}
@@ -372,9 +400,7 @@ public class DTLSConnector implements Connector {
 			session.setActive(false);
 		}
 		// clear session & (pending) handshaker
-		removeSession(peerAddress);
-		removeHandshaker(peerAddress);
-
+		connectionClosed(peerAddress);
 	}
 	
 	
@@ -560,20 +586,14 @@ public class DTLSConnector implements Connector {
 				// no longer know about the existing association
 				// DTLS 1.2, section 4.2.8 describes how to handle this case
 				// see http://tools.ietf.org/html/rfc6347#section-4.2.8
-				// TODO implement behavior as described in DTLS spec
-				// for now we simply start a new handshake
-				// WARNING this makes us vulnerable to attackers tricking us
-				// into terminating existing connections
 				DTLSSession newSession = new DTLSSession(peerAddress, false);
-				storeSession(newSession);
-				Handshaker handshaker = new ServerHandshaker(newSession, rootCerts, config);
+				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, rootCerts, config);
 				storeHandshaker(handshaker);
 				nextFlight = handshaker.processMessage(record);
 			} else {
 				// this is the standard case, we simply start a new handshake
 				DTLSSession newSession = new DTLSSession(peerAddress, false);
-				storeSession(newSession);
-				Handshaker handshaker = new ServerHandshaker(newSession, rootCerts, config);
+				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, rootCerts, config);
 				storeHandshaker(handshaker);
 				nextFlight = handshaker.processMessage(record);
 			}
@@ -598,7 +618,6 @@ public class DTLSConnector implements Connector {
 					// we also don't have a cached session for client's address
 					// so we simply start a new handshake
 					DTLSSession newSession = new DTLSSession(peerAddress, false);
-					storeSession(newSession);
 					Handshaker handshaker = new ServerHandshaker(newSession, rootCerts, config);
 					storeHandshaker(handshaker);
 					nextFlight = handshaker.processMessage(record);
@@ -656,7 +675,7 @@ public class DTLSConnector implements Connector {
 			// no session with peer available, create new empty session &
 			// start fresh handshake
 			session = new DTLSSession(peerAddress, true);
-			storeSession(session);
+			sessionStore.store(session);
 			handshaker = new ClientHandshaker(message, session, rootCerts, config);
 			
 		} else {
@@ -695,7 +714,7 @@ public class DTLSConnector implements Connector {
 		if (address == null) {
 			return null;
 		}
-		return dtlsSessions.get(address);
+		return sessionStore.get(address);
 	}
 
 	/**
@@ -718,29 +737,8 @@ public class DTLSConnector implements Connector {
 	 * @return the corresponding session or <code>null</code> if none of
 	 *            the cached sessions has the given identifier
 	 */
-	private DTLSSession getSessionByIdentifier(byte[] sessionId) {
-		if (sessionId == null || sessionId.length == 0) {
-			return null;
-		}
-		
-		for (DTLSSession session:dtlsSessions.values()) {
-			SessionId sessionIdentifier = session.getSessionIdentifier();
-			if (sessionIdentifier != null) {
-				if (Arrays.equals(sessionId, sessionIdentifier.getSessionId())) {
-					return session;
-				}
-			}
-		}
-		
-		return null;
-	}
-	
 	private DTLSSession getSessionByIdentifier(SessionId sessionId) {
-		if (sessionId != null) {
-			return getSessionByIdentifier(sessionId.getSessionId());
-		} else {
-			return null;
-		}
+		return sessionStore.find(sessionId);
 	}
 	
 	private void sendFlight(DTLSFlight flight) {
@@ -928,4 +926,10 @@ public class DTLSConnector implements Connector {
 		this.messageHandler = messageHandler;
 	}
 
+	private void connectionClosed(InetSocketAddress peerAddress) {
+		if (peerAddress != null) {
+			sessionStore.remove(peerAddress);
+			removeHandshaker(peerAddress);
+		}
+	}
 }

@@ -88,6 +88,8 @@ public class ServerHandshaker extends Handshaker {
 	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
 	
+	private SessionListener sessionListener;
+	
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -104,9 +106,30 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public ServerHandshaker(DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException { 
+			DTLSConnectorConfig config) throws HandshakeException {
+		this(session, null, rootCerts, config);
+	}
+	
+	/**
+	 * Creates a handshaker for negotiating a DTLS session with a client
+	 * following the full DTLS handshake protocol. 
+	 * 
+	 * @param session
+	 *            the session to negotiate with the client
+	 * @param sessionListener
+	 *            the listener to notify when the session has been established
+	 * @param rootCerts
+	 *            the root certificates to use for authenticating the client 
+	 * @param config
+	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
+	 */
+	public ServerHandshaker(DTLSSession session, SessionListener sessionListener,
+			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException { 
 		super(false, session, rootCerts, config.getMaxFragmentLength());
 
+		this.sessionListener = sessionListener;
 		this.supportedCipherSuites = new ArrayList<CipherSuite>();
 		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
@@ -405,6 +428,7 @@ public class ServerHandshaker extends Handshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
+		handshakeCompleted();
 		return flight;
 
 	}
@@ -859,5 +883,11 @@ public class ServerHandshaker extends Handshaker {
 						AlertDescription.UNSUPPORTED_CERTIFICATE));
 
 	}
+
+	private void handshakeCompleted() {
+		if (sessionListener != null) {
+			sessionListener.handshakeCompleted(this);
+		}
+	}	
 
 }
