@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
@@ -104,6 +105,8 @@ public class ClientHello extends HandshakeMessage {
 		this.sessionId = new SessionId(new byte[] {});
 		this.cookie = new Cookie();
 		this.extensions = new HelloExtensions();
+		this.cipherSuites = new ArrayList<>();
+		this.compressionMethods = new ArrayList<>();
 		
 		// the supported elliptic curves
 		List<Integer> curves = Arrays.asList(
@@ -268,35 +271,36 @@ public class ClientHello extends HandshakeMessage {
 		 * cookie length (1) + cipher suites length (2) + compression methods
 		 * length (1) = 39
 		 */
-		return 39 + sessionId.length() + cookie.length() + cipherSuites.size() * 2 + compressionMethods.size() + extensionsLength;
+		return 39 + sessionId.length() + cookie.length() + cipherSuites.size() * 2 +
+				compressionMethods.size() + extensionsLength;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		sb.append("\t\tVersion: " + clientVersion.getMajor() + ", " + clientVersion.getMinor() + "\n");
-		sb.append("\t\tRandom: \n" + random.toString());
-		sb.append("\t\tSession ID Length: " + sessionId.length() + "\n");
+		sb.append("\t\tVersion: ").append(clientVersion.getMajor()).append(", ").append(clientVersion.getMinor());
+		sb.append("\n\t\tRandom: \n").append(random);
+		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append("\t\tSession ID: " + sessionId.getSessionId() + "\n");
+			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getSessionId()));
 		}
-		sb.append("\t\tCookie Length: " + cookie.length() + "\n");
+		sb.append("\n\t\tCookie Length: ").append(cookie.length());
 		if (cookie.length() > 0) {
-			sb.append("\t\tCookie: " + ByteArrayUtils.toHexString(cookie.getCookie()) + "\n");
+			sb.append("\n\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie.getCookie()));
 		}
-		sb.append("\t\tCipher Suites Length: " + cipherSuites.size() * 2 + "\n");
-		sb.append("\t\tCipher Suites (" + cipherSuites.size() + " suites)\n");
+		sb.append("\n\t\tCipher Suites Length: ").append(cipherSuites.size() * 2);
+		sb.append("\n\t\tCipher Suites (").append(cipherSuites.size()).append(" suites)");
 		for (CipherSuite cipher : cipherSuites) {
-			sb.append("\t\t\tCipher Suite: " + cipher.toString() + "\n");
+			sb.append("\n\t\t\tCipher Suite: ").append(cipher);
 		}
-		sb.append("\t\tCompression Methods Length: " + compressionMethods.size() + "\n");
-		sb.append("\t\tCompression Methods (" + compressionMethods.size() + " method)" + "\n");
+		sb.append("\n\t\tCompression Methods Length: ").append(compressionMethods.size());
+		sb.append("\n\t\tCompression Methods (").append(compressionMethods.size()).append(" method)");
 		for (CompressionMethod method : compressionMethods) {
-			sb.append("\t\t\tCompression Method: " + method.toString() + "\n");
+			sb.append("\n\t\t\tCompression Method: ").append(method);
 		}
 		if (extensions != null) {
-			sb.append(extensions.toString());
+			sb.append("\n").append(extensions);
 		}
 
 		return sb.toString();
@@ -337,11 +341,11 @@ public class ClientHello extends HandshakeMessage {
 	}
 
 	public List<CipherSuite> getCipherSuites() {
-		return cipherSuites;
+		return Collections.unmodifiableList(cipherSuites);
 	}
 
 	public void setCipherSuits(List<CipherSuite> cipherSuits) {
-		this.cipherSuites = cipherSuits;
+		this.cipherSuites.addAll(cipherSuits);
 	}
 
 	public void addCipherSuite(CipherSuite cipherSuite) {
@@ -352,11 +356,11 @@ public class ClientHello extends HandshakeMessage {
 	}
 
 	public List<CompressionMethod> getCompressionMethods() {
-		return compressionMethods;
+		return Collections.unmodifiableList(compressionMethods);
 	}
 
 	public void setCompressionMethods(List<CompressionMethod> compressionMethods) {
-		this.compressionMethods = compressionMethods;
+		this.compressionMethods.addAll(compressionMethods);
 	}
 
 	public void addCompressionMethod(CompressionMethod compressionMethod) {
