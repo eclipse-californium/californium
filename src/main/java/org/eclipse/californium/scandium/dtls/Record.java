@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,9 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - expose sequence number as
+ *                   property of type long in order to prevent tedious conversions
+ *                   in client code
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,6 +54,8 @@ public class Record {
 
 	private static final int LENGTH_BITS = 16;
 
+	private static final long MAX_SEQUENCE_NO = 2^SEQUENCE_NUMBER_BITS - 1;
+	
 	// Members ////////////////////////////////////////////////////////
 
 	/** The higher-level protocol used to process the enclosed fragment */
@@ -115,14 +120,19 @@ public class Record {
 	 * @param epoch
 	 *            the epoch
 	 * @param sequenceNumber
-	 *            the sequence number
+	 *            the 48-bit sequence number
 	 * @param fragment
 	 *            the fragment
 	 * @param session
 	 *            the session
+	 * @throws IllegalArgumentException if the given sequence number is longer than 48 bits
 	 */
 
-	public Record(ContentType type, int epoch, int sequenceNumber, DTLSMessage fragment, DTLSSession session) {
+	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session) 
+		throws IllegalArgumentException {
+		if (sequenceNumber > MAX_SEQUENCE_NO) {
+			throw new IllegalArgumentException("Sequence number must be 48 bits only");
+		}
 		this.type = type;
 		this.epoch = epoch;
 		this.sequenceNumber = sequenceNumber;
@@ -467,7 +477,10 @@ public class Record {
 		return sequenceNumber;
 	}
 
-	public void setSequenceNumber(int sequenceNumber) {
+	public void setSequenceNumber(long sequenceNumber) {
+		if (sequenceNumber > MAX_SEQUENCE_NO) {
+			throw new IllegalArgumentException("Sequence number must have max 48 bits");
+		}
 		this.sequenceNumber = sequenceNumber;
 	}
 
