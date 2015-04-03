@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,8 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - turn into an immutable, reduce visibility
+ *                                                    to improve encapsulation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -22,7 +24,9 @@ import javax.crypto.spec.IvParameterSpec;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
- * Represents a connection state. It specifies a compression algorithm, an
+ * Represents the state of a DTLS connection.
+ * 
+ * It specifies a compression algorithm, an
  * encryption algorithm, and a MAC algorithm. For a connection, there are always
  * for connection states outstanding: the current read and write states, and the
  * pending read and write states. All records are processed under the current
@@ -30,7 +34,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * href="http://tools.ietf.org/html/rfc5246#section-6.1">RFC 5246</a> for
  * details.
  */
-public class DTLSConnectionState {
+class DTLSConnectionState {
 	
 	// Members ////////////////////////////////////////////////////////
 
@@ -43,18 +47,20 @@ public class DTLSConnectionState {
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
-	 * Constructor for the initial state.
+	 * Convenience constructor for creating an instance representing
+	 * the initial connection state.
+	 * 
+	 * Simply invokes 
+	 * {@link #DTLSConnectionState(CipherSuite, CompressionMethod, SecretKey, IvParameterSpec, SecretKey)}
+	 * with the default {@link CipherSuite#SSL_NULL_WITH_NULL_NULL} and default
+	 * {@link CompressionMethod#NULL} and <code>null</code> for all other parameters.
 	 */
-	public DTLSConnectionState() {
-		this.cipherSuite = CipherSuite.SSL_NULL_WITH_NULL_NULL;
-		this.compressionMethod = CompressionMethod.NULL;
-		this.encryptionKey = null;
-		this.iv = null;
-		this.macKey = null;
+	DTLSConnectionState() {
+		this(CipherSuite.SSL_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
 	}
 
 	/**
-	 * Called when setting read and write state.
+	 * Initializes all fields with given values.
 	 * 
 	 * @param cipherSuite
 	 *            the cipher suite used
@@ -67,7 +73,7 @@ public class DTLSConnectionState {
 	 * @param macKey
 	 *            the MAC key used
 	 */
-	public DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey, IvParameterSpec iv, SecretKey macKey) {
+	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey, IvParameterSpec iv, SecretKey macKey) {
 		this.cipherSuite = cipherSuite;
 		this.compressionMethod = compressionMethod;
 		this.encryptionKey = encryptionKey;
@@ -75,45 +81,25 @@ public class DTLSConnectionState {
 		this.macKey = macKey;
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
+	// Getters ////////////////////////////////////////////
 
-	public CipherSuite getCipherSuite() {
+	CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
-	public void setCipherSuite(CipherSuite cipherSuite) {
-		this.cipherSuite = cipherSuite;
-	}
-
-	public CompressionMethod getCompressionMethod() {
+	CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
-	public void setCompressionMethod(CompressionMethod compressionMethod) {
-		this.compressionMethod = compressionMethod;
-	}
-
-	public SecretKey getEncryptionKey() {
+	SecretKey getEncryptionKey() {
 		return encryptionKey;
 	}
 
-	public void setEncryptionKey(SecretKey encryptionKey) {
-		this.encryptionKey = encryptionKey;
-	}
-
-	public IvParameterSpec getIv() {
+	IvParameterSpec getIv() {
 		return iv;
 	}
 
-	public void setIv(IvParameterSpec iv) {
-		this.iv = iv;
-	}
-
-	public SecretKey getMacKey() {
+	SecretKey getMacKey() {
 		return macKey;
-	}
-
-	public void setMacKey(SecretKey macKey) {
-		this.macKey = macKey;
 	}
 }

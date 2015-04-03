@@ -65,9 +65,9 @@ public class RecordTest {
 			payloadData[i] = 0x34;
 		}
 		session = new DTLSSession(new InetSocketAddress("10.192.10.1", 7000), true);
-		session.getReadState().setIv(new IvParameterSpec(client_iv));
-		session.getReadState().setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		session.getReadState().setEncryptionKey(key);
+		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
+		session.setReadState(readState);
 	}
 
 	@Test
