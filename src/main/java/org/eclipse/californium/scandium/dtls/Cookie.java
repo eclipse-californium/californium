@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,12 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add equals && hashCode for
+ *                 easier comparison
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.util.Arrays;
 
 
 /**
@@ -59,7 +63,38 @@ public class Cookie {
 		return cookie;
 	}
 
-	public void setCookie(byte[] cookie) {
-		this.cookie = cookie;
+	/**
+	 * Creates a hash code based on the <em>cookie</em> property.
+	 * 
+	 * @return the hash code
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + Arrays.hashCode(cookie);
+		return result;
 	}
+
+	/**
+	 * Checks if this instance is equal to another <code>Cookie</code>
+	 * object.
+	 * 
+	 * @return <code>true</code> if the other object is also a Cookie and
+	 * its <em>cookie</em> property has the same value as this instance
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Cookie other = (Cookie) obj;
+		if (!Arrays.equals(cookie, other.cookie))
+			return false;
+		return true;
+	}
+
 }
