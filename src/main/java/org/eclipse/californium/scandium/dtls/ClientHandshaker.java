@@ -17,18 +17,16 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.scandium.DTLSConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
@@ -49,6 +47,7 @@ public class ClientHandshaker extends Handshaker {
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
 
+	
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
 
@@ -58,8 +57,8 @@ public class ClientHandshaker extends Handshaker {
 	/** The client's hello handshake message. Store it, to add the cookie in the second flight. */
 	protected ClientHello clientHello = null;
 
-	/** the preferred cipher suite, to be placed first in the advertised list of supported chiper suite */
-	private final CipherSuite preferredCipherSuite;
+	/** the preferred cipher suites ordered by preference */
+	private final CipherSuite[] preferredCipherSuites;
 
 	/** whether the certificate message should only contain the peer's public key or the full X.509 certificate */
 	private final boolean useRawPublicKey;
@@ -67,7 +66,7 @@ public class ClientHandshaker extends Handshaker {
 	/** The raw message that triggered the start of the handshake
 	 * and needs to be sent once the session is established.
 	 * */
-	private RawData message;
+	private final RawData message;
 
 	/*
 	 * Store all the message which can possibly be sent by the server.
@@ -101,54 +100,22 @@ public class ClientHandshaker extends Handshaker {
 	 *            the first application data message to be sent after the handshake is finished 
 	 * @param session
 	 *            the session to negotiate with the server
-	 * @param rootCerts
-	 *            the root certificates to use for authenticating the server 
 	 * @param config
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session is <code>null</code>
+	 * @throws NullPointerException if session or config is <code>null</code>
 	 */
-	public ClientHandshaker(RawData message, DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException {
-		super(true, session, rootCerts, config.getMaxFragmentLength());
+	public ClientHandshaker(RawData message, DTLSSession session, DtlsConnectorConfig config) throws HandshakeException {
+		super(true, session, config.getTrustStore(), config.getMaxFragmentLength());
 		this.message = message;
-		this.privateKey = config.privateKey;
-		this.certificates = config.certChain;
-		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
-		this.pskStore = config.pskStore;
-		this.useRawPublicKey = config.sendRawKey;
-		this.preferredCipherSuite = config.preferredCipherSuite;
+		this.privateKey = config.getPrivateKey();
+		this.certificates = config.getCertificateChain();
+		this.publicKey = config.getPublicKey();
+		this.pskStore = config.getPskStore();
+		this.useRawPublicKey = config.isSendRawKey();
+		this.preferredCipherSuites = config.getSupportedCipherSuites();
 	}
 	
-	/**
-	 * 
-	 * 
-	 * @param endpointAddress
-	 *            the endpoint address
-	 * @param message
-	 *            the first application data message to be sent after the handshake is finished 
-	 * @param session
-	 *            the session
-	 * @param rootCerts
-	 *            the trusted root certificates
-	 * @param config
-	 *            the DTLS configuration
-	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session is <code>null</code>
-	 * @deprecated Use other constructor instead
-	 */
-	public ClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
-			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
-		super(endpointAddress, true, session,rootCerts);
-		this.message = message;
-		this.privateKey = config.privateKey;
-		this.certificates = config.certChain;
-		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
-		this.pskStore = config.pskStore;
-		this.useRawPublicKey = config.sendRawKey;
-		this.preferredCipherSuite = config.preferredCipherSuite;
-	}
-
 	// Methods ////////////////////////////////////////////////////////
 	
 
@@ -596,13 +563,9 @@ public class ClientHandshaker extends Handshaker {
 		// store client random for later calculations
 		clientRandom = message.getRandom();
 
-		// the mandatory to implement cipher suites, the preferred one should be first in the list
-		if (preferredCipherSuite == CipherSuite.TLS_PSK_WITH_AES_128_CCM_8) {
-			message.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-			message.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		} else {
-			message.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-			message.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+		// the preferred cipher suites in order of preference
+		for (CipherSuite supportedSuite : preferredCipherSuites) {
+			message.addCipherSuite(supportedSuite);
 		}
 		
 		message.addCompressionMethod(CompressionMethod.NULL);

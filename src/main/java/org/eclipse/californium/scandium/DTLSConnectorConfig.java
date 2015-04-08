@@ -27,6 +27,9 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 /**
  * A class centralizing configuration options for the DTLS connector.
+ * 
+ * @deprecated Use <code>org.eclipse.californium.scandium.config.DtlsConnectorConfig</code>
+ * instead.
  */
 public class DTLSConnectorConfig {
 

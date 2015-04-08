@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 
@@ -42,42 +43,44 @@ public class ExampleDTLSClient {
 	}
 
 	private static final int DEFAULT_PORT = 5684;
-	
+
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private final static String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
 	private DTLSConnector dtlsConnector;
-	
+
 	public ExampleDTLSClient() {
-	    try {
-	        // load key store
-            KeyStore keyStore = KeyStore.getInstance("JKS");
-            InputStream in = new FileInputStream(KEY_STORE_LOCATION);
-            keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-    
-            // load trust store
-            KeyStore trustStore = KeyStore.getInstance("JKS");
-            InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
-            trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
-            
-            // You can load multiple certificates if needed
-            Certificate[] trustedCertificates = new Certificate[1];
-            trustedCertificates[0] = trustStore.getCertificate("root");
-    
-    		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), trustedCertificates);
-    		dtlsConnector.getConfig().setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-    		dtlsConnector.getConfig().setPrivateKey((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("client"), true);
-    		
-    		dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
-    		
-	    } catch (GeneralSecurityException | IOException e) {
-            System.err.println("Could not load the keystore");
-            e.printStackTrace();
-        }
+		try {
+			// load key store
+			KeyStore keyStore = KeyStore.getInstance("JKS");
+			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+
+			// load trust store
+			KeyStore trustStore = KeyStore.getInstance("JKS");
+			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
+
+			// You can load multiple certificates if needed
+			Certificate[] trustedCertificates = new Certificate[1];
+			trustedCertificates[0] = trustStore.getCertificate("root");
+
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(0));
+			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+			builder.setIdentity((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
+					keyStore.getCertificateChain("client"), true);
+			builder.setTrustStore(trustedCertificates);
+			dtlsConnector = new DTLSConnector(builder.build(), null);
+			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl());
+
+		} catch (GeneralSecurityException | IOException e) {
+			System.err.println("Could not load the keystore");
+			e.printStackTrace();
+		}
 	}
-	
+
 	public void test() {
 		try {
 			dtlsConnector.start();
@@ -86,28 +89,28 @@ public class ExampleDTLSClient {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private class RawDataChannelImpl implements RawDataChannel {
 
 		// @Override
 		public void receiveData(final RawData raw) {
-			
+
 			System.out.println("Received response: " + new String(raw.getBytes()));
-			
+
 			dtlsConnector.destroy();
-			
+
 			// notify main thread to exit
 			synchronized (ExampleDTLSClient.class) {
 				ExampleDTLSClient.class.notify();
 			}
 		}
 	}
-	
+
 	public static void main(String[] args) throws InterruptedException {
-		
+
 		ExampleDTLSClient client = new ExampleDTLSClient();
 		client.test();
-		
+
 		// Connector threads run as daemons so wait in main thread until handshake is done
 		synchronized (ExampleDTLSClient.class) {
 			ExampleDTLSClient.class.wait();
