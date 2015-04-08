@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 
@@ -71,10 +72,12 @@ public class ExampleDTLSServer {
             Certificate[] trustedCertificates = new Certificate[1];
             trustedCertificates[0] = trustStore.getCertificate("root");
             
-            dtlsConnector = new DTLSConnector(new InetSocketAddress(DEFAULT_PORT),trustedCertificates);
-            dtlsConnector.getConfig().setPrivateKey((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("server"),true);
-            dtlsConnector.getConfig().setPskStore(pskStore);
-            
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(DEFAULT_PORT));
+			builder.setPskStore(pskStore);
+			builder.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+					keyStore.getCertificateChain("server"), true);
+			builder.setTrustStore(trustedCertificates);
+            dtlsConnector = new DTLSConnector(builder.build(), null);
             dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
         } catch (GeneralSecurityException | IOException e) {

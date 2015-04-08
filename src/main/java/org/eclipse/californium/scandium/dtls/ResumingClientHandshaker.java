@@ -17,14 +17,12 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.scandium.DTLSConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -40,18 +38,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingClientHandshaker(RawData message, DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException {
-		super(message, session, rootCerts, config);
-	}
-	
-	/**
-	 * 
-	 * @deprecated Use the other constructor instead
-	 */
-	public ResumingClientHandshaker(InetSocketAddress endpointAddress, RawData message, DTLSSession session,
-			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
-		super(endpointAddress, message, session, rootCerts, config);
+	public ResumingClientHandshaker(RawData message, DTLSSession session, DtlsConnectorConfig config)
+			throws HandshakeException {
+		super(message, session, config);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////

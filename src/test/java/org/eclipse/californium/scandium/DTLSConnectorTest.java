@@ -22,7 +22,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -60,18 +60,15 @@ public class DTLSConnectorTest {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 	
+	DtlsConnectorConfig serverConfig;
 	DTLSConnector server;
+	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
 	InetSocketAddress serverEndpoint;
 	InetSocketAddress clientEndpoint;
-	PrivateKey serverPrivateKey;
-	Certificate[] serverKeyChain;
-	PrivateKey clientPrivateKey;
-	Certificate[] clientKeyChain;
-	Certificate[] trustedCertificates;
 	LatchDecrementingRawDataChannel rawDataChannel;
 	DTLSSession establishedSession;
-	
+
 	@Before
 	public void setUp() throws Exception {
 
@@ -81,22 +78,32 @@ public class DTLSConnectorTest {
 		KeyStore keyStore = KeyStore.getInstance("JKS");
 		InputStream in = new FileInputStream(KEY_STORE_LOCATION);
 		keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-		serverPrivateKey = (PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray());
-		serverKeyChain = keyStore.getCertificateChain("server");
-		clientPrivateKey = (PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray());
-		clientKeyChain = keyStore.getCertificateChain("client");
 
 		// load the trust store
 		KeyStore trustStore = KeyStore.getInstance("JKS");
 		InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
 		trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
-
+		
 		// You can load multiple certificates if needed
-		trustedCertificates = new Certificate[1];
+		Certificate[] trustedCertificates = new Certificate[1];
 		trustedCertificates[0] = trustStore.getCertificate("root");
+		
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
+		builder.setIdentity((PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("client"), false);
+		builder.setTrustStore(trustedCertificates);
+		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+		clientConfig = builder.build();
+		
+		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
+		builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("server"), false);
+		builder.setTrustStore(trustedCertificates);
+		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+		serverConfig = builder.build();
 
-		server = createConnector(serverEndpoint, serverPrivateKey, serverKeyChain);
-		client = createConnector(clientEndpoint, clientPrivateKey, clientKeyChain);
+		server = new DTLSConnector(serverConfig, null);
+		client = new DTLSConnector(clientConfig, null);
 		
 		rawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -144,7 +151,7 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, client.getConfig());
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
 		rawClient.start();
 		
 		rawClient.sendRecord(serverEndpoint,
@@ -196,7 +203,7 @@ public class DTLSConnectorTest {
 		// same IP address and port again
 		final CountDownLatch latch = new CountDownLatch(1);
 		rawDataChannel.setLatch(latch);
-		client = createConnector(clientEndpoint, clientPrivateKey, clientKeyChain);
+		client = new DTLSConnector(clientConfig, null);
 		client.setRawDataReceiver(rawDataChannel);
 		client.start();
 		
@@ -222,7 +229,7 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, client.getConfig());
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
 		rawClient.start();
 		
 		ClientHello clientHello = createClientHello();
@@ -277,15 +284,6 @@ public class DTLSConnectorTest {
 		client.releaseSocket();
 	}
 	
-	private DTLSConnector createConnector(InetSocketAddress endpoint, PrivateKey privateKey,
-			Certificate[] keyChain) throws IOException, GeneralSecurityException {
-		DTLSConnector dtlsConnector = new DTLSConnector(endpoint, trustedCertificates);
-		dtlsConnector.getConfig().setPrivateKey(privateKey, keyChain, true);
-		dtlsConnector.getConfig().setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-
-		return dtlsConnector;
-	}
-
 	private class LatchDecrementingRawDataChannel implements RawDataChannel {
 		private CountDownLatch latch;
 		
@@ -313,7 +311,7 @@ public class DTLSConnectorTest {
 		DataHandler handler;
 		Thread receiver;
 		
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DTLSConnectorConfig config) {
+		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DtlsConnectorConfig config) {
 			this.address = bindToAddress;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {

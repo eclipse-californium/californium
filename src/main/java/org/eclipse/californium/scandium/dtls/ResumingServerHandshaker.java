@@ -17,13 +17,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.logging.Level;
 
-import org.eclipse.californium.scandium.DTLSConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -45,18 +43,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException {
-		super(session, rootCerts, config);
-		setSessionToResume(session);
-	}
-	
-	/**
-	 * @deprecated Use the other constructor instead.
-	 */
-	public ResumingServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session,
-			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException {
-		super(endpointAddress, session, rootCerts, config);
+	public ResumingServerHandshaker(DTLSSession session, DtlsConnectorConfig config) throws HandshakeException {
+		super(session, null, config);
 		setSessionToResume(session);
 	}
 	

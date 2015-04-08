@@ -17,18 +17,16 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
-import org.eclipse.californium.scandium.DTLSConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
@@ -98,24 +96,6 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param session
 	 *            the session to negotiate with the client
-	 * @param rootCerts
-	 *            the root certificates to use for authenticating the client 
-	 * @param config
-	 *            the DTLS configuration
-	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session is <code>null</code>
-	 */
-	public ServerHandshaker(DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException {
-		this(session, null, rootCerts, config);
-	}
-	
-	/**
-	 * Creates a handshaker for negotiating a DTLS session with a client
-	 * following the full DTLS handshake protocol. 
-	 * 
-	 * @param session
-	 *            the session to negotiate with the client
 	 * @param sessionListener
 	 *            the listener to notify when the session has been established
 	 * @param rootCerts
@@ -126,75 +106,37 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public ServerHandshaker(DTLSSession session, SessionListener sessionListener,
-			Certificate[] rootCerts, DTLSConnectorConfig config) throws HandshakeException { 
-		super(false, session, rootCerts, config.getMaxFragmentLength());
+			DtlsConnectorConfig config) throws HandshakeException { 
+		super(false, session, config.getTrustStore(), config.getMaxFragmentLength());
 
 		this.sessionListener = sessionListener;
-		this.supportedCipherSuites = new ArrayList<CipherSuite>();
-		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		
-		this.pskStore = config.pskStore;
+		this.pskStore = config.getPskStore();
 		
-		this.privateKey = config.privateKey;
-		this.certificates = config.certChain;
-		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
+		this.privateKey = config.getPrivateKey();
+		this.certificates = config.getCertificateChain();
+		this.publicKey = config.getPublicKey();
 
-		this.clientAuthenticationRequired = config.requireClientAuth;
+		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
-		this.supportedClientCertificateTypes.add(CertificateType.X_509);
-		this.supportedClientCertificateTypes
-				.add(CertificateType.RAW_PUBLIC_KEY);
+		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+		if (rootCertificates != null) {
+			this.supportedClientCertificateTypes.add(CertificateType.X_509);
+		}
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes.add(CertificateType.X_509);
-		this.supportedServerCertificateTypes
-				.add(CertificateType.RAW_PUBLIC_KEY);
+		if (privateKey != null && publicKey != null) {
+			if (config.isSendRawKey()) {
+				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			}
+			if (certificates != null) {
+				this.supportedServerCertificateTypes.add(CertificateType.X_509);
+			}
+		}
 	}
 	
-	/**
-	 * Called upon a CLIENT_HELLO.
-	 * 
-	 * @param endpointAddress
-	 *            the peer's address.
-	 * @param session
-	 *            the {@link DTLSSession}.
-	 * @param rootCerts
-	 *            the trusted root certificates
-	 * @param config
-	 *            the DTLS configuration
-	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session is <code>null</code>
-	 * @deprecated Use other constructor instead
-	 */
-	public ServerHandshaker(InetSocketAddress endpointAddress, DTLSSession session, Certificate[] rootCerts,
-			DTLSConnectorConfig config) throws HandshakeException { 
-		super(endpointAddress, false, session,rootCerts);
-
-		this.supportedCipherSuites = new ArrayList<CipherSuite>();
-		this.supportedCipherSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-		this.supportedCipherSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		
-		this.pskStore = config.pskStore;
-		
-		this.privateKey = config.privateKey;
-		this.certificates = config.certChain;
-		this.publicKey = certificates != null && certificates.length > 0 ? certificates[0].getPublicKey() : config.publicKey;
-
-		this.clientAuthenticationRequired = config.requireClientAuth;
-
-		this.supportedClientCertificateTypes = new ArrayList<>();
-		this.supportedClientCertificateTypes.add(CertificateType.X_509);
-		this.supportedClientCertificateTypes
-				.add(CertificateType.RAW_PUBLIC_KEY);
-
-		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes.add(CertificateType.X_509);
-		this.supportedServerCertificateTypes
-				.add(CertificateType.RAW_PUBLIC_KEY);
-	}
-
 	// Methods ////////////////////////////////////////////////////////
 	
 
@@ -668,12 +610,12 @@ public class ServerHandshaker extends Handshaker {
 
 		byte[] psk = pskStore.getKey(identity);
 		
-		LOGGER.log(Level.FINE, "Client [{0}] uses PSK identity [{1}]",
+		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
 				new Object[]{getPeerAddress(), identity});
 		
 		if (psk == null) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-			throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
+			throw new HandshakeException("No pre-shared secret found for identity: " + identity, alert);
 		}
 		
 		return generatePremasterSecretFromPSK(psk);

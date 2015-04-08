@@ -16,6 +16,7 @@
  *    Julien Vermillard - Sierra Wireless
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add duplicate record detection
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 462463
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - re-factor configuration
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -40,6 +41,8 @@ import java.util.logging.Logger;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -76,10 +79,8 @@ public class DTLSConnector implements Connector {
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 
 	/** all the configuration options for the DTLS connector */ 
-	private final DTLSConnectorConfig config = new DTLSConnectorConfig(this);
-	
-	private final InetSocketAddress address;
-	
+	private final DtlsConnectorConfig config;
+
 	private DatagramSocket socket;
 	
 	/** The timer daemon to schedule retransmissions. */
@@ -102,9 +103,6 @@ public class DTLSConnector implements Connector {
 	/** Storing flights according to peer-addresses. */
 	private Map<InetSocketAddress, DTLSFlight> flights = new ConcurrentHashMap<>();
 	
-	/** root authorities certificates */
-	private final Certificate[] rootCerts;
-	
 	/** Indicates whether the connector has started and not stopped yet */
 	private boolean running;
 	
@@ -112,11 +110,36 @@ public class DTLSConnector implements Connector {
 	
 	private SessionListener sessionListener;
 	
+	/**
+	 * Creates a DTLS connector from a given configuration object.
+	 * 
+	 * @param configuration the configuration options
+	 * @param sessionStore the store to use for keeping track of session information,
+	 *       if <code>null</code> session information is kept in-memory
+	 * @throws NullPointerException if the configuration is <code>null</code>
+	 */
+	public DTLSConnector(DtlsConnectorConfig configuration, SessionStore sessionStore) {
+		if (configuration == null) {
+			throw new NullPointerException("Configuration must not be null");
+		} else {
+			this.config = configuration;
+		}
+		// TODO define maximum capacity
+		this.outboundMessages = new LinkedBlockingQueue<RawData>();
+		if (sessionStore != null) {
+			this.sessionStore = sessionStore;
+		} else {
+			this.sessionStore = new InMemorySessionStore();
+		}
+		
+		setSessionListener();
+	}
 	
 	/**
 	 * Creates a DTLS connector for PSK based authentication only.
 	 * 
 	 * @param address the IP address and port to bind to
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address) {
 		this(address, null);
@@ -128,9 +151,10 @@ public class DTLSConnector implements Connector {
 	 * @param address the address to bind
 	 * @param rootCertificates list of trusted root certificates, e.g. from well known
 	 * Certificate Authorities or self-signed certificates.
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
-		this(address, rootCertificates, null);
+		this(address, rootCertificates, null, null);
 	}
 	
 	/**
@@ -141,10 +165,28 @@ public class DTLSConnector implements Connector {
 	 * Certificate Authorities or self-signed certificates (may be <code>null</code>)
 	 * @param sessionStore the store to use for keeping track of session information,
 	 *       if <code>null</code> session information is kept in-memory
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
 	 */
-	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates, SessionStore sessionStore) {
-		this.address = address;
-		this.rootCerts = rootCertificates == null ? new Certificate[0] : rootCertificates;
+	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,
+			SessionStore sessionStore, DTLSConnectorConfig config) {
+		Builder builder = new Builder(address);
+		if (config != null) {
+			builder.setMaxFragmentLength(config.getMaxFragmentLength());
+			builder.setMaxPayloadSize(config.getMaxPayloadSize());
+			builder.setMaxRetransmissions(config.getMaxRetransmit());
+			builder.setRetransmissionTimeout(config.getRetransmissionTimeout());
+			if (rootCertificates != null) {
+				builder.setTrustStore(rootCertificates);
+			}
+			if (config.pskStore != null) {
+				builder.setPskStore(config.pskStore);
+			} else if (config.certChain != null) {
+				builder.setIdentity(config.privateKey, config.certChain, config.sendRawKey);
+			} else {
+				builder.setIdentity(config.privateKey, config.publicKey);
+			}
+		}
+		this.config = builder.build();
 		// TODO define maximum capacity
 		this.outboundMessages = new LinkedBlockingQueue<RawData>();
 		if (sessionStore != null) {
@@ -152,6 +194,10 @@ public class DTLSConnector implements Connector {
 		} else {
 			this.sessionStore = new InMemorySessionStore();
 		}
+		setSessionListener();
+	}
+	
+	private void setSessionListener() {
 		this.sessionListener = new SessionListener() {
 			
 			@Override
@@ -172,7 +218,6 @@ public class DTLSConnector implements Connector {
 				}
 			}
 		};
-		
 	}
 	
 	private Handshaker getHandshaker(InetSocketAddress peerAddress) {
@@ -271,20 +316,20 @@ public class DTLSConnector implements Connector {
 		if (running) {
 			return;
 		}
-		socket = new DatagramSocket(address.getPort(), address.getAddress());
+		socket = new DatagramSocket(config.getAddress().getPort(), config.getAddress().getAddress());
 		running = true;
 
-		sender = new Worker("DTLS-Sender-" + address) {
+		sender = new Worker("DTLS-Sender-" + config.getAddress()) {
 				public void doWork() throws Exception { sendNextMessageOverNetwork(); }
 			};
 
-		receiver = new Worker("DTLS-Receiver-" + address) {
+		receiver = new Worker("DTLS-Receiver-" + config.getAddress()) {
 				public void doWork() throws Exception { receiveNextDatagramFromNetwork(); }
 			};
 		
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.CONFIG, "DLTS connector listening on [{0}]", address);
+		LOGGER.log(Level.CONFIG, "DLTS connector listening on [{0}]", config.getAddress());
 	}
 	
 	/**
@@ -553,7 +598,7 @@ public class DTLSConnector implements Connector {
 		if (session == null) {
 			session = new DTLSSession(peerAddress, true);
 		}
-		Handshaker handshaker = new ClientHandshaker(null, session, rootCerts, config);
+		Handshaker handshaker = new ClientHandshaker(null, session, config);
 		storeHandshaker(handshaker);
 		return handshaker.getStartHandshakeMessage();
 	}
@@ -587,13 +632,13 @@ public class DTLSConnector implements Connector {
 				// DTLS 1.2, section 4.2.8 describes how to handle this case
 				// see http://tools.ietf.org/html/rfc6347#section-4.2.8
 				DTLSSession newSession = new DTLSSession(peerAddress, false);
-				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, rootCerts, config);
+				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, config);
 				storeHandshaker(handshaker);
 				nextFlight = handshaker.processMessage(record);
 			} else {
 				// this is the standard case, we simply start a new handshake
 				DTLSSession newSession = new DTLSSession(peerAddress, false);
-				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, rootCerts, config);
+				Handshaker handshaker = new ServerHandshaker(newSession, sessionListener, config);
 				storeHandshaker(handshaker);
 				nextFlight = handshaker.processMessage(record);
 			}
@@ -607,7 +652,7 @@ public class DTLSConnector implements Connector {
 			if (session != null) {
 				// session has been found in cache, resume session
 				// TODO check if client still has same address
-				Handshaker handshaker = new ResumingServerHandshaker(session, rootCerts, config);
+				Handshaker handshaker = new ResumingServerHandshaker(session, config);
 				storeHandshaker(handshaker);
 				nextFlight = handshaker.processMessage(record);
 			} else {
@@ -618,7 +663,7 @@ public class DTLSConnector implements Connector {
 					// we also don't have a cached session for client's address
 					// so we simply start a new handshake
 					DTLSSession newSession = new DTLSSession(peerAddress, false);
-					Handshaker handshaker = new ServerHandshaker(newSession, rootCerts, config);
+					Handshaker handshaker = new ServerHandshaker(newSession, null, config);
 					storeHandshaker(handshaker);
 					nextFlight = handshaker.processMessage(record);
 				} else {
@@ -676,19 +721,21 @@ public class DTLSConnector implements Connector {
 			// start fresh handshake
 			session = new DTLSSession(peerAddress, true);
 			sessionStore.store(session);
-			handshaker = new ClientHandshaker(message, session, rootCerts, config);
+			handshaker = new ClientHandshaker(message, session, config);
 			
 		} else {
 
 			if (session.isActive()) {
 				// session to peer is active, send encrypted message
+				
+				// TODO What about PMTU? 
 				DTLSMessage fragment = new ApplicationMessage(message.getBytes());
 				Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
 				flight = new DTLSFlight(session);
 				flight.addMessage(record);				
 			} else {
 				// try to resume the existing session
-				handshaker = new ResumingClientHandshaker(message, session, rootCerts, config);
+				handshaker = new ResumingClientHandshaker(message, session, config);
 			}
 			
 		}
@@ -755,7 +802,7 @@ public class DTLSConnector implements Connector {
 				record.setSequenceNumber(flight.getSession().getSequenceNumber(epoch));
 			}
 			
-			LOGGER.log(Level.FINER, "Sending record to peer [{0}]:\n{1}", new Object[]{flight.getPeerAddress(), record});
+			LOGGER.log(Level.FINEST, "Sending record to peer [{0}]:\n{1}", new Object[]{flight.getPeerAddress(), record});
 			
 			byte[] recordBytes = record.toByteArray();
 			if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
@@ -768,7 +815,8 @@ public class DTLSConnector implements Connector {
 			// retrieve payload
 			payload = ByteArrayUtils.concatenate(payload, recordBytes);
 		}
-		DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
+		DatagramPacket datagram = new DatagramPacket(payload, payload.length,
+				flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 		datagrams.add(datagram);
 
 		// send it over the UDP socket
@@ -777,7 +825,7 @@ public class DTLSConnector implements Connector {
 				if (!socket.isClosed()) {
 					socket.send(datagramPacket);
 				} else {
-					LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", address.toString());
+					LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
 				}
 			}
 			
@@ -789,14 +837,14 @@ public class DTLSConnector implements Connector {
 	private void handleTimeout(DTLSFlight flight) {
 
 		// set DTLS retransmission maximum
-		final int max = config.getMaxRetransmit();
+		final int max = config.getMaxRetransmissions();
 
 		// check if limit of retransmissions reached
 		if (flight.getTries() < max) {
 
 			flight.incrementTries();
 
-			sendFlight(flight);
+		sendFlight(flight);
 
 			// schedule next retransmission
 			scheduleRetransmission(flight);
@@ -812,11 +860,11 @@ public class DTLSConnector implements Connector {
 		if (flight.getRetransmitTask() != null) {
 			flight.getRetransmitTask().cancel();
 		}
-		
+
 		if (flight.isRetransmissionNeeded()) {
 			// create new retransmission task
 			flight.setRetransmitTask(new RetransmitTask(flight));
-	
+			
 			// calculate timeout using exponential back-off
 			if (flight.getTimeout() == 0) {
 				// use initial timeout
@@ -848,7 +896,7 @@ public class DTLSConnector implements Connector {
 	@Override
 	public final InetSocketAddress getAddress() {
 		if (socket == null) {
-			return address;
+			return config.getAddress();
 		} else {
 			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		}
@@ -872,11 +920,6 @@ public class DTLSConnector implements Connector {
 		}
 	}
 	
-
-    public final DTLSConnectorConfig getConfig() {
-        return config;
-    }
-    
 	/**
 	 * A worker thread for continuously doing repetitive tasks.
 	 */
