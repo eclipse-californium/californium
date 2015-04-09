@@ -762,7 +762,7 @@ public class ServerHandshaker extends Handshaker {
 	private CipherSuite negotiateCipherSuite(List<CipherSuite> cipherSuites) throws HandshakeException {
 		for (CipherSuite cipherSuite : cipherSuites) {
 			// NEVER negotiate NULL cipher suite
-			if (cipherSuite != CipherSuite.SSL_NULL_WITH_NULL_NULL &&
+			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL &&
 					supportedCipherSuites.contains(cipherSuite)) {
 				return cipherSuite;
 			}

@@ -257,11 +257,11 @@
 						<Export-Package>
 							org.eclipse.californium.scandium,
 							org.eclipse.californium.scandium.dtls,
+							org.eclipse.californium.scandium.dtls.cipher,
 							org.eclipse.californium.scandium.dtls.pskstore,
 							org.eclipse.californium.scandium.config
 						</Export-Package>
 						<Private-Package>
-							org.eclipse.californium.scandium.dtls.cipher,
 							org.eclipse.californium.scandium.examples,
 							org.eclipse.californium.scandium.util
 						</Private-Package>

@@ -871,10 +871,10 @@ public abstract class Handshaker {
 	 * @param cipherSuite
 	 *            the cipher suite.
 	 * @throws HandshakeException if the given cipher suite is <code>null</code>
-	 * 	or {@link CipherSuite#SSL_NULL_WITH_NULL_NULL}
+	 * 	or {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
 	final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
-		if (cipherSuite == null || CipherSuite.SSL_NULL_WITH_NULL_NULL == cipherSuite) {
+		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
 			throw new HandshakeException("Negotiated cipher suite must not be null",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
