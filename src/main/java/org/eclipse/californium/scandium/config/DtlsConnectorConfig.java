@@ -73,7 +73,7 @@ public class DtlsConnectorConfig {
 	private PublicKey publicKey = null;
 
 	/** the certificate for RPK and X509 mode */
-	private Certificate[] certChain = new Certificate[0];
+	private Certificate[] certChain;
 
 	/** the favorite cipher suite */
 	private CipherSuite[] supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
@@ -130,12 +130,33 @@ public class DtlsConnectorConfig {
 		return address;
 	}
 	
+	/**
+	 * Gets the certificates forming the chain-of-trust from 
+	 * a root CA down to the certificate asserting the server's identity.
+	 * 
+	 * @return the certificates or <code>null</code> if the connector is
+	 * not supposed to support certificate based authentication
+	 */
 	public final Certificate[] getCertificateChain() {
-		return Arrays.copyOf(certChain, certChain.length);
+		if (certChain == null) {
+			return null;
+		} else {
+			return Arrays.copyOf(certChain, certChain.length);
+		}
 	}
 
+	/**
+	 * Gets the cipher suites the connector should advertise in a DTLS
+	 * handshake.
+	 * 
+	 * @return the supported cipher suites (ordered by preference)
+	 */
 	public final CipherSuite[] getSupportedCipherSuites() {
-		return Arrays.copyOf(supportedCipherSuites, supportedCipherSuites.length);
+		if (supportedCipherSuites == null) {
+			return null;
+		} else {
+			return Arrays.copyOf(supportedCipherSuites, supportedCipherSuites.length);
+		}
 	}
 
 	/**
@@ -188,6 +209,16 @@ public class DtlsConnectorConfig {
 		return clientAuthenticationRequired;
 	}
 
+	/**
+	 * Checks whether the connector will send a <em>raw public key</em>
+	 * instead of an X.509 certificate in order to authenticate to the peer
+	 * during a DTLS handshake.
+	 * 
+	 * Note that this property is only relevant for cipher suites using certificate
+	 * based authentication.
+	 * 
+	 * @return <code>true</code> if <em>RawPublicKey</em> is used by the connector
+	 */
 	public final boolean isSendRawKey() {
 		return sendRawKey;
 	}
@@ -444,17 +475,21 @@ public class DtlsConnectorConfig {
 		 */
 		public DtlsConnectorConfig build() {
 			for (CipherSuite suite : config.supportedCipherSuites) {
-				if (CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.equals(suite)) {
+				switch (suite) {
+				case TLS_PSK_WITH_AES_128_CCM_8:
 					if (config.pskStore == null) {
 						throw new IllegalStateException("PSK Store must be set when support for " +
 								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.getName() + " is configured");
 					}
-				}
-				if (CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.equals(suite)) {
+					break;
+				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
 					if (config.certChain == null) {
-						throw new IllegalStateException("Trust store must be set when support for " +
+						throw new IllegalStateException("Certiticate chain for server identity must be set when support for " +
 								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getName() + " is configured");
 					}
+					break;
+				default:
+					break;
 				}
 			}
 			return config;

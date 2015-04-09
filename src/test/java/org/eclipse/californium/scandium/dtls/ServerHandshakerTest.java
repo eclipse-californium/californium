@@ -49,11 +49,8 @@ public class ServerHandshakerTest {
 		session = new DTLSSession(endpoint, false);
 		session.setReadEpoch(EPOCH);
 		session.setWriteEpoch(EPOCH);
-		CipherSuite[] serverCiphers = new CipherSuite[2];
-		serverCiphers[0] = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		serverCiphers[1] = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
-		builder.setSupportedCipherSuites(serverCiphers);
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
 		builder.setPskStore(new StaticPskStore("client", "secret".getBytes()));
 		builder.setTrustStore(new Certificate[]{});
 		handshaker = new ServerHandshaker(session, null, builder.build());

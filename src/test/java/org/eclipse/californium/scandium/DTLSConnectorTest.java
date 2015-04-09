@@ -89,6 +89,7 @@ public class DTLSConnectorTest {
 		trustedCertificates[0] = trustStore.getCertificate("root");
 		
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 		builder.setIdentity((PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
 				keyStore.getCertificateChain("client"), false);
 		builder.setTrustStore(trustedCertificates);
@@ -96,6 +97,8 @@ public class DTLSConnectorTest {
 		clientConfig = builder.build();
 		
 		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
 		builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 				keyStore.getCertificateChain("server"), false);
 		builder.setTrustStore(trustedCertificates);
