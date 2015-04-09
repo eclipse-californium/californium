@@ -41,7 +41,7 @@ public class DTLSSession {
 	
 	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
 	private static final int RECEIVE_WINDOW_SIZE = 64;
-	private static final long MAX_SEQUENCE_NO = 2^48 - 1;
+	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	
 	/**
 	 * The remote peer of this session.
@@ -159,11 +159,17 @@ public class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
-		this.peer = peerAddress;
-		this.isClient = isClient;
-		this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
-		this.compressionMethod = CompressionMethod.NULL;
-		this.sequenceNumbers.put(0, initialSequenceNo);
+		if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
+			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
+		} else {
+			this.peer = peerAddress;
+			this.isClient = isClient;
+			this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
+			this.compressionMethod = CompressionMethod.NULL;
+			this.sequenceNumbers.put(0, initialSequenceNo);
+		}
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
@@ -264,27 +270,39 @@ public class DTLSSession {
 		this.sequenceNumbers.put(writeEpoch, 0L);
 	}
 
+	/**
+	 * Gets the smallest unused sequence number for outbound records
+	 * for the current epoch.
+	 * 
+	 * @return the next sequence number
+	 * @throws IllegalStateException if the maximum sequence number for the
+	 *     epoch has been reached (2^48 - 1)
+	 */
 	public long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
 	/**
-	 * Gets the smallest unused sequence number from this epoch.
+	 * Gets the smallest unused sequence number for for outbound records
+	 * for a given epoch.
 	 * 
 	 * @param epoch
-	 *            the epoch from which to get the sequence number.
-	 * @return the next sequence number.
+	 *            the epoch for which to get the sequence number
+	 * @return the next sequence number
+	 * @throws IllegalStateException if the maximum sequence number for the
+	 *     epoch has been reached (2^48 - 1)
 	 */
 	public long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
-		if (sequenceNumber <= MAX_SEQUENCE_NO) {
+		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
+			return sequenceNumber;
 		} else {
 			// maximum sequence number has been reached
 			// TODO force re-handshake with peer as mandated by DTLS spec
 			// see section 4.1 of RFC 6347 (DTLS 1.2)
+			throw new IllegalStateException("Maximum sequence number for epoch has been reached");
 		}
-		return sequenceNumber;
 	}
 
 	public DTLSConnectionState getReadState() {

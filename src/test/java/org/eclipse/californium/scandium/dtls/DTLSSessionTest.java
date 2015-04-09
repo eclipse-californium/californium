@@ -17,8 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -77,5 +76,22 @@ public class DTLSSessionTest {
 		Assert.assertTrue(session.isRecordProcessable(session.getReadEpoch(), 0));
 		Assert.assertTrue(session.isRecordProcessable(session.getReadEpoch(), 2));
 		
+	}
+	
+	@Test
+	public void testConstructorEnforcesMaxSequenceNo() {
+		session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
+		try {
+			session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
+			Assert.fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
+		} catch (IllegalArgumentException e) {
+			// ok
+		}
+	}
+	
+	@Test(expected = IllegalStateException.class)
+	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
+		session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO);
+		session.getSequenceNumber(); // should throw exception
 	}
 }
