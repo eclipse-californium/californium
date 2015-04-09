@@ -36,80 +36,86 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 
 public class SecureServer {
 
-    static {
-        CaliforniumLogger.initialize();
-        CaliforniumLogger.setLevel(Level.CONFIG);
-        ScandiumLogger.initialize();
-        ScandiumLogger.setLevel(Level.FINER);
-    }
+	static {
+		CaliforniumLogger.initialize();
+		CaliforniumLogger.setLevel(Level.CONFIG);
+		ScandiumLogger.initialize();
+		ScandiumLogger.setLevel(Level.FINER);
+	}
 
-    // allows configuration via Californium.properties
-    public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
+	// allows configuration via Californium.properties
+	public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
 
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private final static String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-    private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-    public static void main(String[] args) {
+	public static void main(String[] args) {
 
-        CoapServer server = new CoapServer();
-        server.add(new CoapResource("secure") {
-            @Override
-            public void handleGET(CoapExchange exchange) {
-                exchange.respond(ResponseCode.CONTENT, "hello security");
-            }
-        });
-        // ETSI Plugtest environment
-        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("::1", DTLS_PORT)), NetworkConfig.getStandard()));
-        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("127.0.0.1", DTLS_PORT)), NetworkConfig.getStandard()));
-        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("2a01:c911:0:2010::10", DTLS_PORT)), NetworkConfig.getStandard()));
-        // server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("10.200.1.2", DTLS_PORT)), NetworkConfig.getStandard()));
-        
-        try {
-	        // Pre-shared secrets
-	        InMemoryPskStore pskStore = new InMemoryPskStore();
-	        pskStore.setKey("password", "sesame".getBytes()); // from ETSI Plugtest test spec
-	
-	        // load the trust store
-	        KeyStore trustStore = KeyStore.getInstance("JKS");
-	        InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
-	        trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
-	
-	        // You can load multiple certificates if needed
-	        Certificate[] trustedCertificates = new Certificate[1];
-	        trustedCertificates[0] = trustStore.getCertificate("root");
-	        
-	        DTLSConnector connector = new DTLSConnector(new InetSocketAddress(DTLS_PORT), trustedCertificates);
-	        
-	        connector.getConfig().setPskStore(pskStore);
-	        
-	        // load the key store
-	        KeyStore keyStore = KeyStore.getInstance("JKS");
-	        InputStream in = new FileInputStream(KEY_STORE_LOCATION);
-	        keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-	        connector.getConfig().setPrivateKey((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("server"), true);
+		CoapServer server = new CoapServer();
+		server.add(new CoapResource("secure") {
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(ResponseCode.CONTENT, "hello security");
+			}
+		});
+		// ETSI Plugtest environment
+		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("::1", DTLS_PORT)), NetworkConfig.getStandard()));
+		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("127.0.0.1", DTLS_PORT)), NetworkConfig.getStandard()));
+		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("2a01:c911:0:2010::10", DTLS_PORT)), NetworkConfig.getStandard()));
+		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("10.200.1.2", DTLS_PORT)), NetworkConfig.getStandard()));
 
-	        
-	        server.addEndpoint(new CoAPEndpoint(connector, NetworkConfig.getStandard()));
-	        server.start();
-	        
-	    } catch (GeneralSecurityException | IOException e) {
-	        System.err.println("Could not load the keystore");
-	        e.printStackTrace();
-	    }
+		try {
+			// Pre-shared secrets
+			InMemoryPskStore pskStore = new InMemoryPskStore();
+			pskStore.setKey("password", "sesame".getBytes()); // from ETSI Plugtest test spec
 
-        // add special interceptor for message traces
-        for (Endpoint ep : server.getEndpoints()) {
-            ep.addInterceptor(new MessageTracer());
-        }
+			// load the trust store
+			KeyStore trustStore = KeyStore.getInstance("JKS");
+			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
-        System.out.println("Secure CoAP server powered by Scandium (Sc) is listening on port " + DTLS_PORT);
-    }
+			// You can load multiple certificates if needed
+			Certificate[] trustedCertificates = new Certificate[1];
+			trustedCertificates[0] = trustStore.getCertificate("root");
+
+			// load the key store
+			KeyStore keyStore = KeyStore.getInstance("JKS");
+			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+			
+			DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(new InetSocketAddress(DTLS_PORT));
+			config.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+			config.setPskStore(pskStore);
+			config.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+					keyStore.getCertificateChain("server"), true);
+			config.setTrustStore(trustedCertificates);
+			
+			DTLSConnector connector = new DTLSConnector(config.build(), null);
+
+			server.addEndpoint(new CoAPEndpoint(connector, NetworkConfig.getStandard()));
+			server.start();
+
+		} catch (GeneralSecurityException | IOException e) {
+			System.err.println("Could not load the keystore");
+			e.printStackTrace();
+		}
+
+		// add special interceptor for message traces
+		for (Endpoint ep : server.getEndpoints()) {
+			ep.addInterceptor(new MessageTracer());
+		}
+
+		System.out.println("Secure CoAP server powered by Scandium (Sc) is listening on port " + DTLS_PORT);
+	}
 
 }
