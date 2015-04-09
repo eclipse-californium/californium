@@ -49,6 +49,16 @@
 				<role>Lead</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>khudalla</id>
+			<name>Kai Hudalla</name>
+			<email>kai.hudalla@bosch-si.com</email>
+			<organization>Bosch Software Innovations GmbH</organization>
+			<organizationUrl>http://www.bosch-si.com</organizationUrl>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
 	</developers>
 	
 	<repositories>
@@ -237,31 +247,32 @@
 					</excludes>
 				</configuration>
 			</plugin>
-            <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.3.7</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <instructions>
-                        <Export-Package>
-                            org.eclipse.californium.scandium,
-                            org.eclipse.californium.scandium.dtls,
-                            org.eclipse.californium.scandium.dtls.pskstore
-                        </Export-Package>
-                        <Private-Package>
-                        	org.eclipse.californium.scandium.dtls.cipher,
-                        	org.eclipse.californium.scandium.examples,
-                        	org.eclipse.californium.scandium.util
-                        </Private-Package>
-                        <Import-Package>
-                            org.eclipse.californium.*;version="[1.0.0, 1.1)",
-                            *
-                        </Import-Package>
-                        <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
-                    </instructions>
-                </configuration>
-            </plugin>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>2.3.7</version>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.scandium,
+							org.eclipse.californium.scandium.dtls,
+							org.eclipse.californium.scandium.dtls.pskstore,
+							org.eclipse.californium.scandium.config
+						</Export-Package>
+						<Private-Package>
+							org.eclipse.californium.scandium.dtls.cipher,
+							org.eclipse.californium.scandium.examples,
+							org.eclipse.californium.scandium.util
+						</Private-Package>
+						<Import-Package>
+							org.eclipse.californium.*;version="[1.0.0, 1.1)",
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
