@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,13 +13,14 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- *    Kai Hudalla - Bosch Software Innovations GmbH
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add test cases for verifying sequence number handling
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -64,12 +65,35 @@ public class RecordTest {
 		for ( int i = 0; i < payloadLength; i++) {
 			payloadData[i] = 0x34;
 		}
-		session = new DTLSSession(new InetSocketAddress("10.192.10.1", 7000), true);
+		session = new DTLSSession(new InetSocketAddress(InetAddress.getLocalHost(), 7000), true);
 		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
 		session.setReadState(readState);
 	}
 
+	@Test
+	public void testConstructorEnforcesMaxSequenceNo() {
+		new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO, new HelloRequest(), session);
+		try {
+			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(), session);
+			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
+		} catch (IllegalArgumentException e) {
+			// all is well
+		}
+	}
+	
+	@Test
+	public void testSetSequenceNumberEnforcesMaxSequenceNo() {
+		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(), session);
+		record.setSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO);
+		try {
+			record.setSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO + 1);
+			Assert.fail("Method should have rejected sequence no > 2^48 - 1");
+		} catch (IllegalArgumentException e) {
+			// all is well
+		}
+	}
+	
 	@Test
 	public void testFromByteArrayAcceptsKnownTypeCode() {
 		

@@ -23,63 +23,65 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 public class DtlsTestTools {
-    
-    public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
-    	
-        ProtocolVersion protocolVer = new ProtocolVersion();
-    	// the record header contains a type code, version, epoch, sequenceNo, length
-        DatagramWriter writer = new DatagramWriter();
-        writer.write(typeCode, 8);
-        writer.write(protocolVer.getMajor(), 8);
-        writer.write(protocolVer.getMinor(), 8);
-        writer.write(epoch, 16);
-        writer.writeLong(sequenceNo, 48);
-        writer.write(fragment.length, 16);
-        writer.writeBytes(fragment);
-    	return writer.toByteArray();
-    }
 
-    public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello) throws NoSuchAlgorithmException {
+	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 
-        MessageDigest md;
-        byte[] cookie = null;
+	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
 
-        md = MessageDigest.getInstance("SHA-256");
+		ProtocolVersion protocolVer = new ProtocolVersion();
+		// the record header contains a type code, version, epoch, sequenceNo, length
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(typeCode, 8);
+		writer.write(protocolVer.getMajor(), 8);
+		writer.write(protocolVer.getMinor(), 8);
+		writer.write(epoch, 16);
+		writer.writeLong(sequenceNo, 48);
+		writer.write(fragment.length, 16);
+		writer.writeBytes(fragment);
+		return writer.toByteArray();
+	}
 
-        // Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-        byte[] secret = "generate cookie".getBytes();
+	public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello) throws NoSuchAlgorithmException {
 
-        // Client-IP
-        md.update(endpointAddress.toString().getBytes());
+		MessageDigest md;
+		byte[] cookie = null;
 
-        // Client-Parameters
-        md.update((byte) clientHello.getClientVersion().getMajor());
-        md.update((byte) clientHello.getClientVersion().getMinor());
-        md.update(clientHello.getRandom().getRandomBytes());
-        md.update(clientHello.getSessionId().getSessionId());
-        md.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-        md.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+		md = MessageDigest.getInstance("SHA-256");
 
-        byte[] data = md.digest();
+		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
+		byte[] secret = "generate cookie".getBytes();
 
-        cookie = Handshaker.doHMAC(md, secret, data);
-        return cookie;
-    }
+		// Client-IP
+		md.update(endpointAddress.toString().getBytes());
 
-    public static byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
-    	return newHelloExtension(19, certificateTypes);
-    }
-    
-    public static byte[] newServerCertificateTypesExtension(byte[] certificateTypes) {
-    	return newHelloExtension(20, certificateTypes);
-    }
-    
-    public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
-    	DatagramWriter writer = new DatagramWriter();
-    	writer.write(typeCode, 16);
-    	writer.write(extensionBytes.length, 16);
-    	writer.writeBytes(extensionBytes);
-    	return writer.toByteArray();
-    }
-    
+		// Client-Parameters
+		md.update((byte) clientHello.getClientVersion().getMajor());
+		md.update((byte) clientHello.getClientVersion().getMinor());
+		md.update(clientHello.getRandom().getRandomBytes());
+		md.update(clientHello.getSessionId().getSessionId());
+		md.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
+		md.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+
+		byte[] data = md.digest();
+
+		cookie = Handshaker.doHMAC(md, secret, data);
+		return cookie;
+	}
+
+	public static byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
+		return newHelloExtension(19, certificateTypes);
+	}
+
+	public static byte[] newServerCertificateTypesExtension(byte[] certificateTypes) {
+		return newHelloExtension(20, certificateTypes);
+	}
+
+	public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(typeCode, 16);
+		writer.write(extensionBytes.length, 16);
+		writer.writeBytes(extensionBytes);
+		return writer.toByteArray();
+	}
+
 }

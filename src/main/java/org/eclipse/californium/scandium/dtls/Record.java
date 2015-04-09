@@ -54,7 +54,7 @@ public class Record {
 
 	private static final int LENGTH_BITS = 16;
 
-	private static final long MAX_SEQUENCE_NO = 2^SEQUENCE_NUMBER_BITS - 1;
+	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1;
 	
 	// Members ////////////////////////////////////////////////////////
 
