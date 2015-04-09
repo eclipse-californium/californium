@@ -342,23 +342,55 @@ public class DtlsConnectorConfig {
 		/**
 		 * Sets the cipher suites supported by the connector.
 		 * 
-		 * The connector will use these cipher suites (in excatly the same order) during
+		 * The connector will use these cipher suites (in exactly the same order) during
 		 * the DTLS handshake when negotiating a cipher suite with a peer.
 		 * 
 		 * @param cipherSuites the supported cipher suites in the order of preference
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the given array contains
-		 *                             {@link CipherSuite#SSL_NULL_WITH_NULL_NULL}
+		 *                             {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 		 */
 		public Builder setSupportedCipherSuites(CipherSuite[] cipherSuites) {
 			if (cipherSuites != null) {
 				for (CipherSuite suite : cipherSuites) {
-					if (CipherSuite.SSL_NULL_WITH_NULL_NULL.equals(suite)) {
+					if (CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(suite)) {
 						throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 					}
 				}
 				config.supportedCipherSuites = Arrays.copyOf(cipherSuites, cipherSuites.length);
 			}
+			return this;
+		}
+		
+		/**
+		 * Sets the cipher suites supported by the connector.
+		 * 
+		 * The connector will use these cipher suites (in exactly the same order) during
+		 * the DTLS handshake when negotiating a cipher suite with a peer.
+		 * 
+		 * @param cipherSuites the names of supported cipher suites in the order of preference
+		 *     (see <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+		 *     IANA registry</a> for a list of cipher suite names)
+		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the given array contains <em>TLS_NULL_WITH_NULL_NULL</em>
+		 *     or if a name from the given list is unsupported (yet)  
+		 */
+		public Builder setSupportedCipherSuites(String[] cipherSuites) {
+			CipherSuite[] suites = new CipherSuite[cipherSuites.length];
+			for (int i = 0; i < cipherSuites.length; i++) {
+				if (CipherSuite.TLS_NULL_WITH_NULL_NULL.getName().equals(cipherSuites[i])) {
+					throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
+				} else {
+					CipherSuite knownSuite = CipherSuite.getTypeByName(cipherSuites[i]);
+					if (knownSuite != null) {
+						suites[i] = knownSuite;
+					} else {
+						throw new IllegalArgumentException(
+								String.format("Cipher suite [%s] is not (yet) supported", cipherSuites[i]));
+					}
+				}
+			}
+			config.supportedCipherSuites = suites;
 			return this;
 		}
 		

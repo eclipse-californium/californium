@@ -161,7 +161,7 @@ public class DTLSSession {
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
 		this.peer = peerAddress;
 		this.isClient = isClient;
-		this.cipherSuite = CipherSuite.SSL_NULL_WITH_NULL_NULL;
+		this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 		this.compressionMethod = CompressionMethod.NULL;
 		this.sequenceNumbers.put(0, initialSequenceNo);
 	}

@@ -52,11 +52,11 @@ class DTLSConnectionState {
 	 * 
 	 * Simply invokes 
 	 * {@link #DTLSConnectionState(CipherSuite, CompressionMethod, SecretKey, IvParameterSpec, SecretKey)}
-	 * with the default {@link CipherSuite#SSL_NULL_WITH_NULL_NULL} and default
+	 * with the default {@link CipherSuite#TLS_NULL_WITH_NULL_NULL} and default
 	 * {@link CompressionMethod#NULL} and <code>null</code> for all other parameters.
 	 */
 	DTLSConnectionState() {
-		this(CipherSuite.SSL_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
+		this(CipherSuite.TLS_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
 	}
 
 	/**

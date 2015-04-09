@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,8 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - adapt name of NULL cipher to match
+ *               official IANA name
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -39,7 +41,7 @@ public enum CipherSuite {
 	
 	// Cipher suites //////////////////////////////////////////////////
 	
-	SSL_NULL_WITH_NULL_NULL("SSL_NULL_WITH_NULL_NULL", 0x0000, KeyExchangeAlgorithm.NULL, BulkCipherAlgorithm.NULL, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.NULL),
+	TLS_NULL_WITH_NULL_NULL("TLS_NULL_WITH_NULL_NULL", 0x0000, KeyExchangeAlgorithm.NULL, BulkCipherAlgorithm.NULL, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.NULL),
 	TLS_PSK_WITH_AES_128_CCM_8("TLS_PSK_WITH_AES_128_CCM_8", 0xC0A8, KeyExchangeAlgorithm.PSK, BulkCipherAlgorithm.AES,	MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256,	CipherType.AEAD),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8("TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8", 0xC0AE, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, BulkCipherAlgorithm.AES, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.AEAD);
 	
@@ -113,13 +115,15 @@ public enum CipherSuite {
 	/**
 	 * Gets a cipher suite by its numeric code.
 	 * 
-	 * @param code the cipher's <a href="">IANA assigned code</a>
+	 * @param code the cipher's
+	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 *    IANA assigned code</a>
 	 * @return the cipher suite or <code>null</code> if the code is unknown
 	 */
 	public static CipherSuite getTypeByCode(int code) {
 		switch (code) {
 		case 0x0000:
-			return CipherSuite.SSL_NULL_WITH_NULL_NULL;
+			return CipherSuite.TLS_NULL_WITH_NULL_NULL;
 		case 0xC0A8:
 			return CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		case 0xC0AE:
@@ -127,12 +131,29 @@ public enum CipherSuite {
 
 		default:
 			if (LOGGER.isLoggable(Level.FINE)) {
-			    LOGGER.log(Level.FINE,
-			    		"Cannot resolve cipher suite code [{0}]",
-			    		Integer.toHexString(code));
+				LOGGER.log(Level.FINE,
+						"Cannot resolve cipher suite code [{0}]",
+						Integer.toHexString(code));
 			}
 			return null;
 		}
+	}
+	
+	/**
+	 * Gets a cipher suite by its (official) name.
+	 * 
+	 * @param name the cipher's
+	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 *    IANA assigned name</a>
+	 * @return the cipher suite or <code>null</code> if the name is unknown
+	 */
+	public static CipherSuite getTypeByName(String name) {
+		for (CipherSuite suite : values()) {
+			if (suite.getName().equals(name)) {
+				return suite;
+			}
+		}
+		return null;
 	}
 
 	// Serialization //////////////////////////////////////////////////

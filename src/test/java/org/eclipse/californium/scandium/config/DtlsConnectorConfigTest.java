@@ -36,7 +36,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetSupportedCiphersRejectsNullCipher() {
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.SSL_NULL_WITH_NULL_NULL});
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_NULL_WITH_NULL_NULL});
 	}
 
 	@Test(expected = IllegalStateException.class)
