@@ -35,7 +35,6 @@ import org.junit.Test;
 
 public class ServerHandshakerTest {
 
-	private final int EPOCH = 0;
 	ServerHandshaker handshaker;
 	DTLSSession session;
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
@@ -48,8 +47,6 @@ public class ServerHandshakerTest {
 	@Before
 	public void setup() throws Exception {
 		session = new DTLSSession(endpoint, false);
-		session.setReadEpoch(EPOCH);
-		session.setWriteEpoch(EPOCH);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
 		builder.setPskStore(new StaticPskStore("client", "secret".getBytes()));
