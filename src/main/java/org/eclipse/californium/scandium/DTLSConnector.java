@@ -143,8 +143,7 @@ public class DTLSConnector implements Connector {
 		} else {
 			this.config = configuration;
 		}
-		// TODO define maximum capacity
-		this.outboundMessages = new LinkedBlockingQueue<RawData>();
+		this.outboundMessages = new LinkedBlockingQueue<RawData>(config.getOutboundMessageBufferSize());
 		if (sessionStore != null) {
 			this.sessionStore = sessionStore;
 		} else {
@@ -334,7 +333,10 @@ public class DTLSConnector implements Connector {
 		if (running) {
 			return;
 		}
-		socket = new DatagramSocket(config.getAddress().getPort(), config.getAddress().getAddress());
+		socket = new DatagramSocket(null);
+		// make it easier to stop/start a server consecutively without delays
+		socket.setReuseAddress(true);
+		socket.bind(config.getAddress());
 		running = true;
 
 		sender = new Worker("DTLS-Sender-" + config.getAddress()) {
@@ -762,9 +764,13 @@ public class DTLSConnector implements Connector {
 	@Override
 	public final void send(RawData msg) {
 		if (msg == null) {
-			LOGGER.finest("Ignoring NULL msg");
+			LOGGER.finest("Ignoring NULL msg ...");
 		} else {
-			outboundMessages.add(msg);
+			boolean queueFull = !outboundMessages.offer(msg);
+			if (queueFull) {
+				LOGGER.log(Level.WARNING, "Outbound message queue is full! Dropping outbound message to peer [{0}]",
+						msg.getInetSocketAddress());
+			}
 		}
 	}
 	

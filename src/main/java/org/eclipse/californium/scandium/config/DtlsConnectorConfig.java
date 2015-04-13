@@ -75,9 +75,11 @@ public class DtlsConnectorConfig {
 	/** the certificate for RPK and X509 mode */
 	private Certificate[] certChain;
 
-	/** the favorite cipher suite */
+	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
 
+	private int outboundMessageBufferSize = 100000;
+	
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -121,6 +123,16 @@ public class DtlsConnectorConfig {
 		return maxRetransmissions;
 	}
 
+	/**
+	 * Gets the number of outbound messages that can be buffered in memory before
+	 * messages are dropped.
+	 * 
+	 * @return the number of messages
+	 */
+	public int getOutboundMessageBufferSize() {
+		return outboundMessageBufferSize;
+	}
+	
 	/**
 	 * Gets the IP address and port the connector is bound to.
 	 * 
@@ -249,6 +261,7 @@ public class DtlsConnectorConfig {
 		 * <li><em>retransmissionTimeout</em>: 1000ms</li>
 		 * <li><em>requireClientAuthentication</em>: <code>false</code></li>
 		 * <li><em>preferredCipherSuites</em>: <code>{TLS_PSK_WITH_AES_128_CCM_8}</code></li>
+		 * <li><em>outboundMessageBufferSize</em>: 100.000</li>
 		 * </ul>
 		 * 
 		 * Note that when using the defaults, at least the {@link #setPskStore(PskStore)}
@@ -306,6 +319,22 @@ public class DtlsConnectorConfig {
 				throw new IllegalArgumentException("Maximum payload size must not be negative");
 			} else {
 				config.maxPayloadSize = size;
+				return this;
+			}
+		}
+
+		/**
+		 * Sets the number of outbound messages that can be buffered in memory before
+		 * dropping messages.
+		 * 
+		 * @param capacity the number of messages to buffer
+		 * @return this builder for command chaining
+		 */
+		public Builder setOutboundMessageBufferSize(int capacity) {
+			if (capacity < 1) {
+				throw new IllegalArgumentException("Outbound message buffer size must be at least 1");
+			} else {
+				config.outboundMessageBufferSize = capacity;
 				return this;
 			}
 		}
