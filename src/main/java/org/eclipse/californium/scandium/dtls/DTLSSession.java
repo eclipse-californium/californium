@@ -18,6 +18,8 @@
  *                                                  - manage record sequence numbers
  *                                                    as Long values reducing the
  *                                                    need for type conversions
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - reduce method visibility to improve encapsulation,
+ *                                                    synchronize methods to allow for concurrent access
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -71,12 +73,6 @@ public class DTLSSession {
 
 	/** 48-byte secret shared between the client and server. */
 	private byte[] masterSecret = null;
-
-	/**
-	 * A flag indicating whether the session can be used to initiate new
-	 * connections.
-	 */
-	private boolean isResumable = false;
 
 	/**
 	 * The identity used for PSK authentication
@@ -178,23 +174,23 @@ public class DTLSSession {
 		return sessionIdentifier;
 	}
 
-	public void setSessionIdentifier(SessionId sessionIdentifier) {
+	final synchronized void setSessionIdentifier(SessionId sessionIdentifier) {
 		this.sessionIdentifier = sessionIdentifier;
 	}
 
-	public X509Certificate getPeerCertificate() {
+	final X509Certificate getPeerCertificate() {
 		return peerCertificate;
 	}
 
-	public void setPeerCertificate(X509Certificate peerCertificate) {
+	final synchronized void setPeerCertificate(X509Certificate peerCertificate) {
 		this.peerCertificate = peerCertificate;
 	}
 
-	public PublicKey getPeerRawPublicKey() {
+	final PublicKey getPeerRawPublicKey() {
 		return peerRawPublicKey;
 	}
 
-	public void setPeerRawPublicKey(PublicKey key) {
+	final synchronized void setPeerRawPublicKey(PublicKey key) {
 		peerRawPublicKey = key;
 	}
 
@@ -206,56 +202,58 @@ public class DTLSSession {
 		this.compressionMethod = compressionMethod;
 	}
 
-	public CipherSuite getCipherSuite() {
+	final CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
-	public void setCipherSuite(CipherSuite cipherSuite) {
+	/**
+	 * Sets the cipher suite to be used for this session.
+	 *  
+	 * @param cipherSuite the cipher suite
+	 */
+	final synchronized void setCipherSuite(CipherSuite cipherSuite) {
 		this.cipherSuite = cipherSuite;
+		this.keyExchange = cipherSuite.getKeyExchange();
 	}
 
-	public boolean isResumable() {
-		return isResumable;
-	}
-
-	public void setResumable(boolean isResumable) {
-		this.isResumable = isResumable;
-	}
-
-	public boolean isActive() {
+	public final boolean isActive() {
 		return active;
 	}
 
-	public void setActive(boolean isActive) {
+	public final synchronized void setActive(boolean isActive) {
 		this.active = isActive;
 	}
 
-	public boolean isClient() {
+	public final boolean isClient() {
 		return this.isClient;
 	}
 
-	public void setClient(boolean isClient) {
-		this.isClient = isClient;
-	}
-
-	public int getWriteEpoch() {
+	public final int getWriteEpoch() {
 		return writeEpoch;
 	}
 	
-	public void setWriteEpoch(int epoch) {
-		this.writeEpoch = epoch;
+	final synchronized void setWriteEpoch(int epoch) {
+		if (epoch < 0) {
+			throw new IllegalArgumentException("Write epoch must not be negative");
+		} else {
+			this.writeEpoch = epoch;
+		}
 	}
 
-	public int getReadEpoch() {
+	public final int getReadEpoch() {
 		return readEpoch;
 	}
 	
-	public void setReadEpoch(int epoch) {
-		resetReceiveWindow();
-		this.readEpoch = epoch;
+	final synchronized void setReadEpoch(int epoch) {
+		if (epoch < 0) {
+			throw new IllegalArgumentException("Read epoch must not be negative");
+		} else {
+			resetReceiveWindow();
+			this.readEpoch = epoch;
+		}
 	}
 
-	public void incrementReadEpoch() {
+	final synchronized void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
@@ -263,7 +261,7 @@ public class DTLSSession {
 	/**
 	 * Increments the epoch and sets the sequence number of the new epoch to 0.
 	 */
-	public void incrementWriteEpoch() {
+	final synchronized void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
@@ -278,12 +276,12 @@ public class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public long getSequenceNumber() {
+	public final synchronized long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
 	/**
-	 * Gets the smallest unused sequence number for for outbound records
+	 * Gets the smallest unused sequence number for outbound records
 	 * for a given epoch.
 	 * 
 	 * @param epoch
@@ -292,7 +290,7 @@ public class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public long getSequenceNumber(int epoch) {
+	public final synchronized long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
@@ -305,28 +303,72 @@ public class DTLSSession {
 		}
 	}
 
-	public DTLSConnectionState getReadState() {
+	/**
+	 * Gets the current read state of the connection.
+	 * 
+	 * The information in the current read state is used to de-crypt
+	 * messages received from a peer.
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
+	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * 
+	 * @return the current read state
+	 */
+	final DTLSConnectionState getReadState() {
 		return readState;
 	}
 
-	public void setReadState(DTLSConnectionState readState) {
+	/**
+	 * Sets the current read state of the connection.
+	 * 
+	 * The information in the current read state is used to de-crypt
+	 * messages received from a peer.
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
+	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * 
+	 * The <em>pending</em> read state becomes the <em>current</em>
+	 * read state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
+	 * received from a peer during a handshake.
+	 * 
+	 * @param readState the current read state
+	 */
+	final synchronized void setReadState(DTLSConnectionState readState) {
 		this.readState = readState;
 	}
 
-	public DTLSConnectionState getWriteState() {
+	/**
+	 * Gets the current write state of the connection.
+	 * 
+	 * The information in the current write state is used to en-crypt
+	 * messages sent to a peer.
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
+	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * 
+	 * @return the current read state
+	 */
+	final DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
-	public void setWriteState(DTLSConnectionState writeState) {
+	/**
+	 * Sets the current write state of the connection.
+	 * 
+	 * The information in the current write state is used to en-crypt
+	 * messages sent to a peer.
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
+	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * 
+	 * The <em>pending</em> write state becomes the <em>current</em>
+	 * write state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
+	 * received from a peer during a handshake.
+	 * 
+	 * @param writeState the current write state
+	 */
+	final synchronized void setWriteState(DTLSConnectionState writeState) {
 		this.writeState = writeState;
 	}
 
-	public KeyExchangeAlgorithm getKeyExchange() {
+	final KeyExchangeAlgorithm getKeyExchange() {
 		return keyExchange;
-	}
-
-	public void setKeyExchange(KeyExchangeAlgorithm keyExchange) {
-		this.keyExchange = keyExchange;
 	}
 
 	/**
@@ -336,7 +378,7 @@ public class DTLSSession {
 	 * @return the secret or <code>null</code> if it has not yet been
 	 * created
 	 */
-	byte[] getMasterSecret() {
+	final byte[] getMasterSecret() {
 		return masterSecret;
 	}
 
@@ -365,19 +407,19 @@ public class DTLSSession {
 		}
 	}
 
-	public boolean sendRawPublicKey() {
+	final boolean sendRawPublicKey() {
 		return sendRawPublicKey;
 	}
 
-	public void setSendRawPublicKey(boolean sendRawPublicKey) {
+	final synchronized void setSendRawPublicKey(boolean sendRawPublicKey) {
 		this.sendRawPublicKey = sendRawPublicKey;
 	}
 
-	public boolean receiveRawPublicKey() {
+	final boolean receiveRawPublicKey() {
 		return receiveRawPublicKey;
 	}
 
-	public void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
+	final synchronized void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
 		this.receiveRawPublicKey = receiveRawPublicKey;
 	}
 
@@ -385,28 +427,28 @@ public class DTLSSession {
 		return peer;
 	}
 	
-	public String getPskIdentity() {
-        return pskIdentity;
-    }
+	final String getPskIdentity() {
+		return pskIdentity;
+	}
 
-    public void setPskIdentity(String pskIdentity) {
-        this.pskIdentity = pskIdentity;
-    }
+	final synchronized void setPskIdentity(String pskIdentity) {
+		this.pskIdentity = pskIdentity;
+	}
 
-    /**
-     * Checks whether a given record can be processed within the context
-     * of this session.
-     * 
-     * This is the case if
-     * <ul>
-     * <li>the record is from the same epoch as session's current read epoch</li>
-     * <li>the record has not been received before</li>
-     * </ul>
-     *  
-     * @param epoch the record's epoch
-     * @param sequenceNo the record's sequence number
-     * @return <code>true</code> if the record satisfies the conditions above
-     */
+	/**
+	 * * Checks whether a given record can be processed within the context
+	 * of this session.
+	 * 
+	 * This is the case if
+	 * <ul>
+	 * <li>the record is from the same epoch as session's current read epoch</li>
+	 * <li>the record has not been received before</li>
+	 * </ul>
+	 *  
+	 * @param epoch the record's epoch
+	 * @param sequenceNo the record's sequence number
+	 * @return <code>true</code> if the record satisfies the conditions above
+	 */
     public final boolean isRecordProcessable(long epoch, long sequenceNo) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
@@ -429,19 +471,19 @@ public class DTLSSession {
 				}
 			}
 		}
-    }
-    
-    /**
-     * Checks whether a given record has already been received during the
-     * current epoch.
-     * 
-     * The check is done based on a <em>sliding window</em> as described in
-     * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
-     * section 4.1.2.6 of the DTLS 1.2 spec</a>.
-     * 
-     * @param sequenceNo the record's sequence number
-     * @return <code>true</code> if the record has already been received
-     */
+	}
+
+	/**
+	 * Checks whether a given record has already been received during the
+	 * current epoch.
+	 * 
+	 * The check is done based on a <em>sliding window</em> as described in
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
+	 * section 4.1.2.6 of the DTLS 1.2 spec</a>.
+	 * 
+	 * @param sequenceNo the record's sequence number
+	 * @return <code>true</code> if the record has already been received
+	 */
 	synchronized boolean isDuplicate(long sequenceNo) {
 		if (sequenceNo > receiveWindowUpperBoundary) {
 			return false;

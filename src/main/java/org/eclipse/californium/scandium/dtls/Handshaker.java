@@ -903,19 +903,17 @@ public abstract class Handshaker {
 	 * Sets the negotiated {@link CipherSuite} and the corresponding
 	 * {@link KeyExchangeAlgorithm}.
 	 * 
-	 * @param cipherSuite
-	 *            the cipher suite.
+	 * @param cipherSuite the cipher suite.
 	 * @throws HandshakeException if the given cipher suite is <code>null</code>
 	 * 	or {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
-	final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
+	protected final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
 		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
 			throw new HandshakeException("Negotiated cipher suite must not be null",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 		this.cipherSuite = cipherSuite;
 		this.keyExchange = cipherSuite.getKeyExchange();
-		this.session.setKeyExchange(keyExchange);
 		this.session.setCipherSuite(cipherSuite);
 	}
 
