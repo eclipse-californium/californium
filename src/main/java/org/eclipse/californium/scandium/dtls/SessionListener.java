@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -30,6 +31,9 @@ public interface SessionListener {
 	 * method) can now be used to exchange application layer data.
 	 * 
 	 * @param handshaker the finished handshaker
+	 * @param negotiatedSession the session that has been established by
+	 *          the handshaker
+	 * @throws NullPointerException if any of the parameters is <code>null</code>
 	 */
-	void handshakeCompleted(Handshaker handshaker);
+	void handshakeCompleted(Handshaker handshaker, DTLSSession negotiatedSession);
 }

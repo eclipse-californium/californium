@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -69,10 +70,7 @@ public class ServerHandshakerTest {
 	@Test
 	public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws HandshakeException {
 
-		byte[] cookie = getCookieForClientHello(0, supportedCiphers, null);
-
-		// process Client Hello including Cookie
-		processClientHello(1, cookie, supportedCiphers, null);
+		processClientHello(0, null, supportedCiphers, null);
 
 		byte[] loggedMsg = new byte[clientHelloMsg.length];
 		// copy the received ClientHello message from the handshakeMessages buffer
@@ -86,11 +84,10 @@ public class ServerHandshakerTest {
 	public void testReceiveClientHelloDoesNotNegotiateNullCipher() throws HandshakeException {
 		// 0x0000 = TLS_NULL_WITH_NULL_NULL
 		supportedCiphers = new byte[]{(byte) 0x00, (byte) 0x00};
-		byte[] cookie = getCookieForClientHello(0, supportedCiphers, null);
 
 		try {
 			// process Client Hello including Cookie
-			processClientHello(1, cookie, supportedCiphers, null);
+			processClientHello(0, null, supportedCiphers, null);
 			Assert.fail("Server should have aborted cipher negotiation");
 		} catch (HandshakeException e) {
 			// server has aborted handshake as required
@@ -100,19 +97,13 @@ public class ServerHandshakerTest {
 
 	}
 
-	@Test
-	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() {
+	@Test(expected = HandshakeException.class)
+	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() throws HandshakeException {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(new byte[]{(byte) 0x05}));
 
-		try {
-			byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
-			processClientHello(1, cookie, supportedCiphers, extensions);
-			Assert.fail("Should have thrown " + HandshakeException.class.getSimpleName());
-		} catch(HandshakeException e) {
-			// all is well
-		}
+		processClientHello(0, null, supportedCiphers, extensions);
 	}
 
 	@Test
@@ -123,8 +114,7 @@ public class ServerHandshakerTest {
 				new byte[]{(byte) CertificateType.OPEN_PGP.getCode()}));
 
 		try {
-			byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
-			processClientHello(1, cookie, supportedCiphers, extensions);
+			processClientHello(0, null, supportedCiphers, extensions);
 			Assert.fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
@@ -141,38 +131,20 @@ public class ServerHandshakerTest {
 				new byte[]{(byte) CertificateType.OPEN_PGP.getCode(),
 						(byte) CertificateType.X_509.getCode()}));
 
-		byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
-		DTLSFlight flight = processClientHello(1, cookie, supportedCiphers, extensions);
+		DTLSFlight flight = processClientHello(0, null, supportedCiphers, extensions);
 		ServerHello serverHello = (ServerHello) flight.getMessages().get(0).getFragment();
 		Assert.assertNotNull(serverHello.getExtensions());
 		ClientCertificateTypeExtension ext = (ClientCertificateTypeExtension) serverHello.getExtensions().getExtensions().get(0);
 		Assert.assertTrue(ext.getCertificateTypes().contains(CertificateType.X_509));
 	}
 
-	@Test
-	public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() {
+	@Test(expected = HandshakeException.class)
+	public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() throws HandshakeException {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
 		extensions.add(DtlsTestTools.newServerCertificateTypesExtension(new byte[]{(byte) 0x05}));
 
-		try {
-			byte[] cookie = getCookieForClientHello(0, supportedCiphers, extensions);
-			processClientHello(1, cookie, supportedCiphers, extensions);
-			Assert.fail("Should have thrown " + HandshakeException.class.getSimpleName());
-		} catch(HandshakeException e) {
-			// all is well
-		}
-	}
-
-	private byte[] getCookieForClientHello(int messageSeqNo, byte[] supportedCiphers, 
-			List<byte[]> helloExtensions) throws HandshakeException {
-		// process initial Client Hello without cookie
-		DTLSFlight flight = processClientHello(messageSeqNo, null, supportedCiphers, helloExtensions);
-
-		Assert.assertNotNull(flight);
-		Assert.assertFalse(flight.getMessages().isEmpty());
-		HelloVerifyRequest verifyReq = (HelloVerifyRequest) flight.getMessages().get(0).getFragment();
-		return verifyReq.getCookie().getCookie();
+		processClientHello(0, null, supportedCiphers, extensions);
 	}
 
 	private DTLSFlight processClientHello(int messageSeq, byte[] cookie,
