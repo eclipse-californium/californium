@@ -13,12 +13,12 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -106,8 +106,33 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public ServerHandshaker(DTLSSession session, SessionListener sessionListener,
+			DtlsConnectorConfig config) throws HandshakeException {
+		this(0, session, sessionListener, config);
+	}
+	
+	/**
+	 * Creates a handshaker for negotiating a DTLS session with a client
+	 * following the full DTLS handshake protocol. 
+	 * 
+	 * @param initialMessageSequenceNo
+	 *            the initial message sequence number to expect from the peer
+	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
+	 *            counter to another value than 0, e.g. if one or more cookie exchange round-trips
+	 *            have been performed with the peer before the handshake starts)
+	 * @param session
+	 *            the session to negotiate with the client
+	 * @param sessionListener
+	 *            the listener to notify when the session has been established
+	 * @param rootCerts
+	 *            the root certificates to use for authenticating the client 
+	 * @param config
+	 *            the DTLS configuration
+	 * @throws HandshakeException if the handshaker cannot be initialized
+	 * @throws NullPointerException if session is <code>null</code>
+	 */
+	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, SessionListener sessionListener,
 			DtlsConnectorConfig config) throws HandshakeException { 
-		super(false, session, config.getTrustStore(), config.getMaxFragmentLength());
+		super(false, initialMessageSequenceNo, session, config.getTrustStore(), config.getMaxFragmentLength());
 
 		this.sessionListener = sessionListener;
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
@@ -392,187 +417,177 @@ public class ServerHandshaker extends Handshaker {
 	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
 		DTLSFlight flight = new DTLSFlight(getSession());
 
-		if (message.getCookie().length() == 0 || !isValidCookie(message)) {
-			// either first time, or cookies did not match
-			HelloVerifyRequest helloVerifyRequest = new HelloVerifyRequest(new ProtocolVersion(), generateCookie(message));
-			flight.addMessage(wrapMessage(helloVerifyRequest));
-			flight.setRetransmissionNeeded(false);
-		} else {
-			// client has included a cookie, so it is a response to
-			// HelloVerifyRequest
+		// update the handshake hash
+		md.update(message.getRawMessage());
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, message.getRawMessage());
 
-			// update the handshake hash
-			md.update(message.getRawMessage());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, message.getRawMessage());
+		/*
+		 * First, send ServerHello (mandatory)
+		 */
+		ProtocolVersion serverVersion = negotiateProtocolVersion(message.getClientVersion());
 
-			/*
-			 * First, send ServerHello (mandatory)
-			 */
-			ProtocolVersion serverVersion = negotiateProtocolVersion(message.getClientVersion());
+		// store client and server random
+		clientRandom = message.getRandom();
+		serverRandom = new Random(new SecureRandom());
 
-			// store client and server random
-			clientRandom = message.getRandom();
-			serverRandom = new Random(new SecureRandom());
+		SessionId sessionId = new SessionId();
+		session.setSessionIdentifier(sessionId);
 
-			SessionId sessionId = new SessionId();
-			session.setSessionIdentifier(sessionId);
+		CipherSuite cipherSuite = negotiateCipherSuite(message.getCipherSuites());
+		setCipherSuite(cipherSuite);
 
-			CipherSuite cipherSuite = negotiateCipherSuite(message.getCipherSuites());
-			setCipherSuite(cipherSuite);
+		// currently only NULL compression supported, no negotiation needed
+		CompressionMethod compressionMethod = CompressionMethod.NULL;
+		setCompressionMethod(compressionMethod);
+		
+		
+		HelloExtensions serverHelloExtensions = null;
+		ClientCertificateTypeExtension clientCertificateTypeExtension = message
+				.getClientCertificateTypeExtension();
+		if (clientCertificateTypeExtension != null) {
+			// choose certificate type from client's list
+			// of preferred client certificate types
+			CertificateType certType = negotiateCertificateType(
+					clientCertificateTypeExtension,
+					supportedClientCertificateTypes);
+			serverHelloExtensions = new HelloExtensions();
+			// the certificate type requested from the client
+			CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
+			ext1.addCertificateType(certType);
 
-			// currently only NULL compression supported, no negotiation needed
-			CompressionMethod compressionMethod = CompressionMethod.NULL;
-			setCompressionMethod(compressionMethod);
-			
-			
-			HelloExtensions serverHelloExtensions = null;
-			ClientCertificateTypeExtension clientCertificateTypeExtension = message
-					.getClientCertificateTypeExtension();
-			if (clientCertificateTypeExtension != null) {
-				// choose certificate type from client's list
-				// of preferred client certificate types
-				CertificateType certType = negotiateCertificateType(
-						clientCertificateTypeExtension,
-						supportedClientCertificateTypes);
-				serverHelloExtensions = new HelloExtensions();
-				// the certificate type requested from the client
-				CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
-				ext1.addCertificateType(certType);
+			serverHelloExtensions.addExtension(ext1);
 
-				serverHelloExtensions.addExtension(ext1);
-
-				if (certType == CertificateType.RAW_PUBLIC_KEY) {
-					session.setReceiveRawPublicKey(true);
-				}
+			if (certType == CertificateType.RAW_PUBLIC_KEY) {
+				session.setReceiveRawPublicKey(true);
 			}
-			
-			CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
-			if (serverCertificateTypeExtension != null) {
-				// choose certificate type from client's list
-				// of preferred server certificate types
-				CertificateType certType = negotiateCertificateType(
-						serverCertificateTypeExtension,
-						supportedServerCertificateTypes);
-				if (serverHelloExtensions == null) {
-					serverHelloExtensions = new HelloExtensions();
-				}
-				// the certificate type found in the attached certificate
-				// payload
-				CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
-				ext2.addCertificateType(certType);
-
-				serverHelloExtensions.addExtension(ext2);
-
-				if (certType == CertificateType.RAW_PUBLIC_KEY) {
-					session.setSendRawPublicKey(true);
-				}
-			}
-			
-			if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
-				// if we chose a ECC cipher suite, the server should send the
-				// supported point formats extension in its ServerHello
-				List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-
-				if (serverHelloExtensions == null) {
-					serverHelloExtensions = new HelloExtensions();
-				}
-				HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
-				serverHelloExtensions.addExtension(ext3);
-			}
-			
-			ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod, serverHelloExtensions);
-			flight.addMessage(wrapMessage(serverHello));
-			
-			// update the handshake hash
-			md.update(serverHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
-
-			/*
-			 * Second, send Certificate (if required by key exchange algorithm)
-			 */
-			CertificateMessage certificateMessage = null;
-			switch (keyExchange) {
-			case EC_DIFFIE_HELLMAN:
-				if (session.sendRawPublicKey()){
-					certificateMessage = new CertificateMessage(publicKey.getEncoded());
-				} else {
-					certificateMessage = new CertificateMessage(certificates);
-				}
-				break;
-
-			default:
-				// NULL and PSK do not require the Certificate message
-				// See http://tools.ietf.org/html/rfc4279#section-2
-				break;
-			}
-			if (certificateMessage != null) {
-				flight.addMessage(wrapMessage(certificateMessage));
-				md.update(certificateMessage.toByteArray());
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
-			}
-
-			/*
-			 * Third, send ServerKeyExchange (if required by key exchange
-			 * algorithm)
-			 */
-			ServerKeyExchange serverKeyExchange = null;
-			SignatureAndHashAlgorithm signatureAndHashAlgorithm = null;
-			switch (keyExchange) {
-			case EC_DIFFIE_HELLMAN:
-				// TODO SHA256withECDSA is default but should be configurable
-				signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-				int namedCurveId = negotiateNamedCurve(message.getSupportedEllipticCurvesExtension());
-				ecdhe = new ECDHECryptography(namedCurveId);
-				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom, namedCurveId);
-				break;
-
-			case PSK:
-				/*
-				 * If the identity is based on the domain name, servers SHOULD
-				 * NOT send an identity hint and clients MUST ignore it.
-				 * Are there use cases that different PSKs are used for different
-				 * actions or time periods? How to configure the hint then? 
-				 */
-				// serverKeyExchange = new PSKServerKeyExchange("TODO");
-				break;
-
-			default:
-				// NULL does not require the server's key exchange message
-				break;
-			}
-			
-			if (serverKeyExchange != null) {
-				flight.addMessage(wrapMessage(serverKeyExchange));
-				md.update(serverKeyExchange.toByteArray());
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
-			}
-
-			/*
-			 * Fourth, send CertificateRequest for client (if required)
-			 */
-			if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
-
-				CertificateRequest certificateRequest = new CertificateRequest();
-				
-				// TODO make this variable, reasonable values
-				certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-				certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
-				certificateRequest.addCertificateAuthorities(rootCertificates);
-
-				flight.addMessage(wrapMessage(certificateRequest));
-				md.update(certificateRequest.toByteArray());
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
-			}
-
-			/*
-			 * Last, send ServerHelloDone (mandatory)
-			 */
-			ServerHelloDone serverHelloDone = new ServerHelloDone();
-			flight.addMessage(wrapMessage(serverHelloDone));
-			md.update(serverHelloDone.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
-
 		}
+		
+		CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
+		if (serverCertificateTypeExtension != null) {
+			// choose certificate type from client's list
+			// of preferred server certificate types
+			CertificateType certType = negotiateCertificateType(
+					serverCertificateTypeExtension,
+					supportedServerCertificateTypes);
+			if (serverHelloExtensions == null) {
+				serverHelloExtensions = new HelloExtensions();
+			}
+			// the certificate type found in the attached certificate
+			// payload
+			CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
+			ext2.addCertificateType(certType);
+
+			serverHelloExtensions.addExtension(ext2);
+
+			if (certType == CertificateType.RAW_PUBLIC_KEY) {
+				session.setSendRawPublicKey(true);
+			}
+		}
+		
+		if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+			// if we chose a ECC cipher suite, the server should send the
+			// supported point formats extension in its ServerHello
+			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
+
+			if (serverHelloExtensions == null) {
+				serverHelloExtensions = new HelloExtensions();
+			}
+			HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
+			serverHelloExtensions.addExtension(ext3);
+		}
+		
+		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod, serverHelloExtensions);
+		flight.addMessage(wrapMessage(serverHello));
+		
+		// update the handshake hash
+		md.update(serverHello.toByteArray());
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
+
+		/*
+		 * Second, send Certificate (if required by key exchange algorithm)
+		 */
+		CertificateMessage certificateMessage = null;
+		switch (keyExchange) {
+		case EC_DIFFIE_HELLMAN:
+			if (session.sendRawPublicKey()){
+				certificateMessage = new CertificateMessage(publicKey.getEncoded());
+			} else {
+				certificateMessage = new CertificateMessage(certificates);
+			}
+			break;
+
+		default:
+			// NULL and PSK do not require the Certificate message
+			// See http://tools.ietf.org/html/rfc4279#section-2
+			break;
+		}
+		if (certificateMessage != null) {
+			flight.addMessage(wrapMessage(certificateMessage));
+			md.update(certificateMessage.toByteArray());
+			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
+		}
+
+		/*
+		 * Third, send ServerKeyExchange (if required by key exchange
+		 * algorithm)
+		 */
+		ServerKeyExchange serverKeyExchange = null;
+		SignatureAndHashAlgorithm signatureAndHashAlgorithm = null;
+		switch (keyExchange) {
+		case EC_DIFFIE_HELLMAN:
+			// TODO SHA256withECDSA is default but should be configurable
+			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
+			int namedCurveId = negotiateNamedCurve(message.getSupportedEllipticCurvesExtension());
+			ecdhe = new ECDHECryptography(namedCurveId);
+			serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom, namedCurveId);
+			break;
+
+		case PSK:
+			/*
+			 * If the identity is based on the domain name, servers SHOULD
+			 * NOT send an identity hint and clients MUST ignore it.
+			 * Are there use cases that different PSKs are used for different
+			 * actions or time periods? How to configure the hint then? 
+			 */
+			// serverKeyExchange = new PSKServerKeyExchange("TODO");
+			break;
+
+		default:
+			// NULL does not require the server's key exchange message
+			break;
+		}
+		
+		if (serverKeyExchange != null) {
+			flight.addMessage(wrapMessage(serverKeyExchange));
+			md.update(serverKeyExchange.toByteArray());
+			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
+		}
+
+		/*
+		 * Fourth, send CertificateRequest for client (if required)
+		 */
+		if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
+
+			CertificateRequest certificateRequest = new CertificateRequest();
+			
+			// TODO make this variable, reasonable values
+			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
+			certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
+			certificateRequest.addCertificateAuthorities(rootCertificates);
+
+			flight.addMessage(wrapMessage(certificateRequest));
+			md.update(certificateRequest.toByteArray());
+			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
+		}
+
+		/*
+		 * Last, send ServerHelloDone (mandatory)
+		 */
+		ServerHelloDone serverHelloDone = new ServerHelloDone();
+		flight.addMessage(wrapMessage(serverHelloDone));
+		md.update(serverHelloDone.toByteArray());
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
+
 		return flight;
 	}
 
@@ -634,79 +649,6 @@ public class ServerHandshaker extends Handshaker {
 		// by current assumption we take an empty premaster secret
 		// to compute the master secret and the resulting keys
 		return new byte[] {};
-	}
-
-	/**
-	 * Generates a cookie in such a way that they can be verified without
-	 * retaining any per-client state on the server.
-	 * 
-	 * <pre>
-	 * Cookie = HMAC(Secret, Client - IP, Client - Parameters)
-	 * </pre>
-	 * 
-	 * as suggested <a
-	 * href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
-	 * 
-	 * @return the cookie generated from the client's parameters.
-	 */
-	private Cookie generateCookie(ClientHello clientHello) {
-
-		MessageDigest md;
-		byte[] cookie = null;
-
-		try {
-			md = MessageDigest.getInstance("SHA-256");
-
-			// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-			byte[] secret = "generate cookie".getBytes();
-
-			// Client-IP
-			md.update(getPeerAddress().toString().getBytes());
-
-			// Client-Parameters
-			md.update((byte) clientHello.getClientVersion().getMajor());
-			md.update((byte) clientHello.getClientVersion().getMinor());
-			md.update(clientHello.getRandom().getRandomBytes());
-			md.update(clientHello.getSessionId().getSessionId());
-			md.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-			md.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-
-			byte[] data = md.digest();
-
-			cookie = Handshaker.doHMAC(md, secret, data);
-		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not instantiate message digest algorithm.",e);
-		}
-		if (cookie == null) {
-			return new Cookie(new Random(new SecureRandom()).getRandomBytes());
-		} else {
-			return new Cookie(cookie);
-		}
-	}
-
-	/**
-	 * Checks whether the Cookie in the client's hello message matches the
-	 * expected cookie generated from the client's parameters.
-	 * 
-	 * @param clientHello
-	 *            the client's hello message containing the cookie.
-	 * @return <code>true</code> if the cookie matches, <code>false</code>
-	 *         otherwise.
-	 */
-	private boolean isValidCookie(ClientHello clientHello) {
-		Cookie expected = generateCookie(clientHello);
-		Cookie actual = clientHello.getCookie();
-		boolean valid = Arrays.equals(expected.getCookie(), actual.getCookie());
-
-		if (!valid) {
-			if (LOGGER.isLoggable(Level.FINE)) {
-				LOGGER.log(Level.FINE, "Cookie provided by client ({0}) did not match expected cookie.\nExpected: {1}\nActual: {2}",
-						new Object[]{getPeerAddress().toString(), ByteArrayUtils.toHexString(expected.getCookie()),
-						ByteArrayUtils.toHexString(actual.getCookie())});
-			}
-		}
-
-		return valid;
 	}
 
 	@Override
@@ -828,7 +770,7 @@ public class ServerHandshaker extends Handshaker {
 
 	private void handshakeCompleted() {
 		if (sessionListener != null) {
-			sessionListener.handshakeCompleted(this);
+			sessionListener.handshakeCompleted(this, this.getSession());
 		}
 	}	
 

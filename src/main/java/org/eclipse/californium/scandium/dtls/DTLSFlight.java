@@ -13,7 +13,9 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- *    Kai Hudalla (Bosch Software Innovations GmbH) - add convenience constructor for setting the DTLS session
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add convenience constructor for
+ *                                                    setting the DTLS session
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -23,11 +25,14 @@ import java.util.List;
 import java.util.TimerTask;
 
 /**
+ * A container for a set of DTLS records that are to be (re-)transmitted
+ * as a whole on a DTLS connection.
+ * 
  * DTLS messages are grouped into a series of message flights. One flight
- * contains of at least one message and needs to be retransmitted until the
- * peer's next flight has arrived in its total. A flight does not only exist of
- * {@link HandshakeMessage}, but also of {@link AlertMessage} and
- * {@link ChangeCipherSpecMessage}. See <a
+ * consists of at least one message and needs to be re-transmitted until the
+ * peer's next flight has arrived in its total. A flight needs not only consist of
+ * {@link HandshakeMessage}s but may also contain {@link AlertMessage}s
+ * and {@link ChangeCipherSpecMessage}s. See <a
  * href="http://tools.ietf.org/html/rfc6347#section-4.2.4">RFC 6347</a> for
  * details.
  */
@@ -52,13 +57,13 @@ public class DTLSFlight {
 	private int tries;
 
 	/** The current timeout (in milliseconds). */
-	private int timeout;
+	private int timeout = 0;
 
 	/**
 	 * Indicates, whether this flight needs retransmission (not every flight
 	 * needs retransmission, e.g. Alert).
 	 */
-	private boolean retransmissionNeeded = true;
+	private boolean retransmissionNeeded = false;
 
 	/** The retransmission task. Needed when to cancel the retransmission. */
 	private TimerTask retransmitTask;
@@ -76,21 +81,39 @@ public class DTLSFlight {
 	}
 	
 	/**
-	 * Initializes an empty, fresh flight. The timeout is set to 0, it will be
-	 * set later by the standard duration.
+	 * Creates an empty flight to be sent to a given peer.
+	 * 
+	 * Flights created using this constructor are <em>not</em>
+	 * eligible for re-transmission because there is no
+	 * <code>DTLSSession</code> available to obtain record sequence
+	 * numbers from.
+	 * 
+	 * @param peerAddress the IP address and port to send the records to
+	 * @throws NullPointerException if peerAddress is <code>null</code>
+	 */
+	public DTLSFlight(InetSocketAddress peerAddress) {
+		if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		}
+		this.peerAddress = peerAddress;
+		this.messages = new ArrayList<Record>();
+	}
+	
+	/**
+	 * Creates an empty flight to be sent within a session with a peer.
+	 * 
+	 * Flights created using this constructor are by default eligible for
+	 * re-transmission. Retransmission can be scheduled by invoking the
+	 * {@link #scheduleRetransmission(Timer, TimerTask, int, int)} method.
 	 * 
 	 * @param session the session to get record sequence numbers from
 	 *                 when sending out the flight
+	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public DTLSFlight(DTLSSession session) {
-		if (session == null) {
-			throw new NullPointerException("Session must not be null");
-		}
+		this(session.getPeer());
 		this.session = session;
-		this.peerAddress = session.getPeer();
-		this.messages = new ArrayList<Record>();
-		this.tries = 0;
-		this.timeout = 0;
+		retransmissionNeeded = true;
 	}
 	
 	public void addMessage(List<Record> message) {

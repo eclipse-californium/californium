@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -174,11 +175,43 @@ public abstract class Handshaker {
 	 *            the handshake hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public Handshaker(boolean isClient, DTLSSession session, Certificate[] rootCertificates,
+	protected Handshaker(boolean isClient, DTLSSession session, Certificate[] rootCertificates,
+			int maxFragmentLength) throws HandshakeException {
+		this(isClient, 0, session, rootCertificates, maxFragmentLength);
+	}
+	
+	/**
+	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
+	 * 
+	 * @param isClient
+	 *            indicates whether this handshaker plays the client or server role
+	 * @param initialMessageSeq
+	 *            the initial message sequence number to use and expect in the exchange
+	 *            of handshake messages with the peer. This parameter can be used to
+	 *            initialize the <em>message_seq</em> and <em>receive_next_seq</em>
+	 *            counters to a value larger than 0, e.g. if one or more cookie exchange
+	 *            round-trips have been performed with the peer before the handshake starts.
+	 * @param session
+	 *            the session this handshaker is negotiating
+	 * @param rootCertificates
+	 *            the trusted root certificates
+	 * @param maxFragmentLength the maximum length of message fragments this handshaker
+	 *            may send to the peer
+	 * @throws HandshakeException if the message digest required for computing
+	 *            the FINISHED message hash cannot be instantiated
+	 * @throws NullPointerException if session is <code>null</code>
+	 * @throws IllegalArgumentException if the initial message sequence number is negative
+	 */
+	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, Certificate[] rootCertificates,
 			int maxFragmentLength) throws HandshakeException {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		}
+		if (initialMessageSeq < 0) {
+			throw new IllegalArgumentException("Initial message sequence number must not be negative");
+		}
+		this.nextReceiveSeq = initialMessageSeq;
+		this.sequenceNumber = initialMessageSeq;
 		this.isClient = isClient;
 		this.session = session;
 		this.queuedMessages = new HashSet<Record>();
@@ -233,8 +266,6 @@ public abstract class Handshaker {
 		}
 	}
 
-	// Abstract Methods ///////////////////////////////////////////////
-
 	/**
 	 * Processes a handshake record received from a peer based on the
 	 * handshake's current state.
@@ -258,11 +289,12 @@ public abstract class Handshaker {
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		if (!getSession().isDuplicate(message.getSequenceNumber())) {
+		if (!session.isDuplicate(message.getSequenceNumber())) {
+			message.setSession(session);
 			nextFlight = doProcessMessage(message);
-			getSession().markRecordAsRead(message.getEpoch(), message.getSequenceNumber());
+			session.markRecordAsRead(message.getEpoch(), message.getSequenceNumber());
 		} else {
-			LOGGER.log(Level.FINER, "Discarding duplicate HANDSHAKE message received from peer [{0}]\n{1}",
+			LOGGER.log(Level.FINER, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
 					new Object[]{getPeerAddress(), message});
 		}
 		return nextFlight;
@@ -322,7 +354,7 @@ public abstract class Handshaker {
 	 * @param masterSecret
 	 *            the master secret.
 	 */
-	private final void calculateKeys(byte[] masterSecret) {
+	private void calculateKeys(byte[] masterSecret) {
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.3:
 		 * key_block = PRF(SecurityParameters.master_secret, "key expansion", SecurityParameters.server_random + SecurityParameters.client_random);
@@ -373,7 +405,7 @@ public abstract class Handshaker {
 	 *            the shared premaster secret.
 	 * @return the master secret.
 	 */
-	private final byte[] generateMasterSecret(byte[] premasterSecret) {
+	private byte[] generateMasterSecret(byte[] premasterSecret) {
 		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
 		return doPRF(premasterSecret, MASTER_SECRET_LABEL, randomSeed);
 	}
@@ -627,12 +659,15 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Wraps the message into (potentially multiple) record layers. Sets the
-	 * epoch, sequence number and handles fragmentation for handshake messages.
+	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records.
+	 * 
+	 * Sets the record's epoch, sequence number and handles fragmentation
+	 * for handshake messages.
 	 * 
 	 * @param fragment
-	 *            the {@link DTLSMessage} fragment.
-	 * @return the fragment wrapped into (multiple) record layers.
+	 *            the message fragment
+	 * @return the records containing the message fragment, ready to be sent to the
+	 *            peer
 	 */
 	protected final List<Record> wrapMessage(DTLSMessage fragment) {
 		
@@ -730,7 +765,7 @@ public abstract class Handshaker {
 					queuedMessages.add(record);
 					return false;
 				} else {
-					LOGGER.log(Level.FINER, "Discarding message old message, message_seq [{0}], next_receive_seq [{1}]",
+					LOGGER.log(Level.FINER, "Discarding old message, message_seq [{0}], next_receive_seq [{1}]",
 							new Object[]{messageSeq, nextReceiveSeq});
 					return false;
 				}
@@ -917,7 +952,7 @@ public abstract class Handshaker {
 	 * 
 	 * @return the session
 	 */
-	public final DTLSSession getSession() {
+	final DTLSSession getSession() {
 		return session;
 	}
 	
@@ -933,10 +968,12 @@ public abstract class Handshaker {
 	
 	
 	/**
-	 * Add the smallest available message sequence to the handshake message.
+	 * Sets the message sequence number on an outbound handshake message.
+	 * 
+	 * Also increases the sequence number counter afterwards.
 	 * 
 	 * @param message
-	 *            the {@link HandshakeMessage}.
+	 *            the handshake message to set the <em>message_seq</em> on
 	 */
 	private void setSequenceNumber(HandshakeMessage message) {
 		message.setMessageSeq(sequenceNumber);
@@ -957,6 +994,7 @@ public abstract class Handshaker {
 
 	final void setCompressionMethod(CompressionMethod compressionMethod) {
 		this.compressionMethod = compressionMethod;
+		// TODO is this right? Shouldn't this be done when pending state becomes current state only?
 		this.session.setCompressionMethod(compressionMethod);
 	}
 
