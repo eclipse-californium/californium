@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,10 +13,12 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add access to client identity
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.ByteArrayInputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
@@ -194,7 +196,7 @@ public class CertificateMessage extends HandshakeMessage {
 			X509Certificate peerCertificate = (X509Certificate) certificateChain[0];
 			try {
 				peerCertificate.checkValidity();
-			} catch (Exception e) {
+			} catch (CertificateException e) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED);
 				throw new HandshakeException("Certificate not valid.", alert);
 			}
@@ -205,12 +207,7 @@ public class CertificateMessage extends HandshakeMessage {
 				return;
 			}
 
-			try {
-				verified = validateKeyChain(peerCertificate, certificateChain, trustedCertificates);
-
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			verified = validateKeyChain(peerCertificate, certificateChain, trustedCertificates);
 
 			if (!verified) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
@@ -293,14 +290,13 @@ public class CertificateMessage extends HandshakeMessage {
 	 */
 	private boolean isSelfSigned(X509Certificate certificate) {
 		try {
-            certificate.verify(certificate.getPublicKey());
-            
-            return true;
-        } catch (Exception e) {
-        	// the certificate was not signed with this public key
-            return false;
-        }
-    }
+			certificate.verify(certificate.getPublicKey());
+			return true;
+		} catch (GeneralSecurityException e) {
+			// the certificate was not signed with this public key
+			return false;
+		}
+	}
 
 	// Serialization //////////////////////////////////////////////////
 
@@ -368,7 +364,13 @@ public class CertificateMessage extends HandshakeMessage {
 	}
 
 	/**
-	 * @return the peer's public contained in its certificate.
+	 * Gets the public key contained in this message.
+	 * 
+	 * The key is either extracted from the certificate chain contained
+	 * in the message or is instantiated from the <em>RawPublicKey</em>
+	 * bytes from the message.
+	 * 
+	 * @return the peer's public key
 	 */
 	public PublicKey getPublicKey() {
 		PublicKey publicKey = null;
@@ -381,7 +383,7 @@ public class CertificateMessage extends HandshakeMessage {
 			try {
 				// TODO make instance variable
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
-			} catch (Exception e) {
+			} catch (GeneralSecurityException e) {
 				LOGGER.log(Level.SEVERE,"Could not reconstruct the server's public key.",e);
 			}
 		}
