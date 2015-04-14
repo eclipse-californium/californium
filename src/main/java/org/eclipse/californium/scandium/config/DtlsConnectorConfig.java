@@ -376,19 +376,21 @@ public class DtlsConnectorConfig {
 		 * 
 		 * @param cipherSuites the supported cipher suites in the order of preference
 		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the given array contains
-		 *                             {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+		 * @throws IllegalArgumentException if the given array is <code>null</code>, is
+		 *           empty or contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 		 */
 		public Builder setSupportedCipherSuites(CipherSuite[] cipherSuites) {
-			if (cipherSuites != null) {
+			if (cipherSuites == null || cipherSuites.length == 0) {
+				throw new IllegalArgumentException("Connector must support at least one cipher suite");
+			} else {
 				for (CipherSuite suite : cipherSuites) {
 					if (CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(suite)) {
 						throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 					}
 				}
 				config.supportedCipherSuites = Arrays.copyOf(cipherSuites, cipherSuites.length);
+				return this;
 			}
-			return this;
 		}
 		
 		/**
@@ -535,6 +537,9 @@ public class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
+			if (config.getPrivateKey() == null || config.getPublicKey() == null) {
+				throw new IllegalStateException("Server identity must be set");
+			}
 			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
@@ -544,9 +549,11 @@ public class DtlsConnectorConfig {
 					}
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-					if (config.certChain == null) {
-						throw new IllegalStateException("Certiticate chain for server identity must be set when support for " +
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getName() + " is configured");
+					// test if private & public key are ECDSA capable
+					if (!(config.privateKey.getAlgorithm().equals("EC"))) {
+						throw new IllegalStateException("Server's private key must be ECDSA capable when support for " +
+								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getName() +
+								" is configured");
 					}
 					break;
 				default:

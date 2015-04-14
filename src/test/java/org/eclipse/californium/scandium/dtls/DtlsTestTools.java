@@ -15,15 +15,27 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.Key;
+import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 public class DtlsTestTools {
 
+	public static final String TRUST_STORE_PASSWORD = "rootPass";
+	public final static String KEY_STORE_PASSWORD = "endPass";
+	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 
 	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
@@ -83,5 +95,35 @@ public class DtlsTestTools {
 		writer.writeBytes(extensionBytes);
 		return writer.toByteArray();
 	}
+	
+	public static KeyStore loadKeyStore(String keyStoreLocation, String keyStorePassword)
+			throws IOException, GeneralSecurityException {
+		char[] passwd = keyStorePassword.toCharArray();
+		KeyStore keyStore = KeyStore.getInstance("JKS");
+		keyStore.load(new FileInputStream(keyStoreLocation), passwd);
+		return keyStore;
+	}
+	
+	public static Key getKeyFromStore(String keyStoreLocation, String keyStorePassword, String keyAlias)
+			throws IOException, GeneralSecurityException {
+		KeyStore keyStore = loadKeyStore(keyStoreLocation, keyStorePassword);
+		return keyStore.getKey(keyAlias, keyStorePassword.toCharArray());
+	}
 
+	public static Certificate[] getCertificateChainFromStore(String keyStoreLocation, String keyStorePassword, String alias)
+			throws IOException, GeneralSecurityException {
+		KeyStore keyStore = loadKeyStore(keyStoreLocation, keyStorePassword);
+		return keyStore.getCertificateChain(alias);
+	}
+
+	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
+		return (PrivateKey) DtlsTestTools.getKeyFromStore(DtlsTestTools.KEY_STORE_LOCATION,
+				DtlsTestTools.KEY_STORE_PASSWORD, "server");
+	}
+
+	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
+		Certificate[] certChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION,
+				DtlsTestTools.KEY_STORE_PASSWORD, "server");
+		return certChain[0].getPublicKey();
+	}
 }

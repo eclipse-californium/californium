@@ -16,9 +16,10 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import java.io.FileInputStream;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -50,9 +51,6 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-
-import static org.hamcrest.CoreMatchers.*;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -60,10 +58,6 @@ import org.junit.Test;
 
 public class DTLSConnectorTest {
 
-	private static final String TRUST_STORE_PASSWORD = "rootPass";
-	private final static String KEY_STORE_PASSWORD = "endPass";
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 	
 	DtlsConnectorConfig serverConfig;
@@ -86,14 +80,10 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10000);
 		serverEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10100);
 		// load the key store
-		KeyStore keyStore = KeyStore.getInstance("JKS");
-		InputStream in = new FileInputStream(KEY_STORE_LOCATION);
-		keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+		KeyStore keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
 
 		// load the trust store
-		KeyStore trustStore = KeyStore.getInstance("JKS");
-		InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
-		trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
+		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
 		
 		// You can load multiple certificates if needed
 		Certificate[] trustedCertificates = new Certificate[1];
@@ -101,7 +91,7 @@ public class DTLSConnectorTest {
 		
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-		builder.setIdentity((PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
+		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
 				keyStore.getCertificateChain("client"), false);
 		builder.setTrustStore(trustedCertificates);
 		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
@@ -110,7 +100,7 @@ public class DTLSConnectorTest {
 		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-		builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+		builder.setIdentity((PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
 				keyStore.getCertificateChain("server"), false);
 		builder.setTrustStore(trustedCertificates);
 		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
