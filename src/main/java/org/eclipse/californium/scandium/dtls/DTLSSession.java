@@ -186,7 +186,14 @@ public class DTLSSession {
 		this.peerCertificate = peerCertificate;
 	}
 
-	final PublicKey getPeerRawPublicKey() {
+	/**
+	 * Gets the public key presented by a peer during an ECDH based
+	 * handshake.
+	 * 
+	 * @return the public key or <code>null</code> if the peer has not
+	 * been authenticated or the handshake was PSK based
+	 */
+	public final PublicKey getPeerRawPublicKey() {
 		return peerRawPublicKey;
 	}
 
@@ -427,7 +434,14 @@ public class DTLSSession {
 		return peer;
 	}
 	
-	final String getPskIdentity() {
+	/**
+	 * Gets the identity presented by a peer during a <em>pre-shared key</em>
+	 * based handshake.
+	 * 
+	 * @return the (authenticated) identity or <code>null</code> if the peer
+	 * has not been authenticated at all or the handshake was ECDH based
+	 */
+	public final String getPskIdentity() {
 		return pskIdentity;
 	}
 
