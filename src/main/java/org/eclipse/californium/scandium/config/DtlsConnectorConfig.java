@@ -248,7 +248,7 @@ public class DtlsConnectorConfig {
 		 * Creates a new instance for setting configuration options
 		 * for a <code>DTLSConnector</code> instance.
 		 * 
-		 * Once all options are set clients should use the {@link #build()}
+		 * Once all options are set, clients should use the {@link #build()}
 		 * method to create an immutable <code>DTLSConfigurationConfig</code>
 		 * instance which can be passed into the <code>DTLSConnector</code>
 		 * constructor.
@@ -265,7 +265,7 @@ public class DtlsConnectorConfig {
 		 * </ul>
 		 * 
 		 * Note that when using the defaults, at least the {@link #setPskStore(PskStore)}
-		 * method needs to be used to set a registry for retrieving pre-shared keys from.
+		 * method needs to be used to set a registry for managing pre-shared keys.
 		 * 
 		 * @param address the IP address and port the connector should bind to
 		 */
@@ -537,21 +537,21 @@ public class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
-			if (config.getPrivateKey() == null || config.getPublicKey() == null) {
-				throw new IllegalStateException("Server identity must be set");
-			}
 			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 					if (config.pskStore == null) {
-						throw new IllegalStateException("PSK Store must be set when support for " +
+						throw new IllegalStateException("PSK store must be set when support for " +
 								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.getName() + " is configured");
 					}
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-					// test if private & public key are ECDSA capable
-					if (!(config.privateKey.getAlgorithm().equals("EC"))) {
-						throw new IllegalStateException("Server's private key must be ECDSA capable when support for " +
+					if (config.getPrivateKey() == null || config.getPublicKey() == null) {
+						throw new IllegalStateException("Identity must be set");
+					} else if (!(config.privateKey.getAlgorithm().equals("EC")) ||
+							!(config.getPublicKey().getAlgorithm().equals("EC"))) {
+						// test if private & public key are ECDSA capable
+						throw new IllegalStateException("Keys must be ECDSA capable when support for " +
 								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getName() +
 								" is configured");
 					}
