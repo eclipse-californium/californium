@@ -16,11 +16,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-
+import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -31,10 +34,13 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ServerHandshakerTest {
 
+	static PublicKey publicKey;
+	static PrivateKey privateKey;
 	ServerHandshaker handshaker;
 	DTLSSession session;
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
@@ -44,13 +50,20 @@ public class ServerHandshakerTest {
 	byte[] random;
 	byte[] clientHelloMsg;
 	
+	@BeforeClass
+	public static void loadKeys() throws IOException, GeneralSecurityException {
+		privateKey = DtlsTestTools.getPrivateKey();
+		publicKey = DtlsTestTools.getPublicKey();
+	}
+	
 	@Before
 	public void setup() throws Exception {
 		session = new DTLSSession(endpoint, false);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-		builder.setPskStore(new StaticPskStore("client", "secret".getBytes()));
-		builder.setTrustStore(new Certificate[]{});
+		builder.setIdentity(privateKey, publicKey)
+			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
+			.setPskStore(new StaticPskStore("client", "secret".getBytes()))
+			.setTrustStore(new Certificate[]{});
 		handshaker = new ServerHandshaker(session, null, builder.build());
 
 		DatagramWriter writer = new DatagramWriter();
