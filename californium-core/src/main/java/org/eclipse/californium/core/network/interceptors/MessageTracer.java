@@ -19,82 +19,48 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
+import java.util.logging.Logger;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
 
 /**
- * The MessageLogger logs all incoming and outgoing messages. The MessageLogger
- * is used by an {@link CoAPEndpoint} and is located between the serializer/parser
- * and the matcher. Each message comes or goes to the connector is logged.
+ * The MessageTracer logs all incoming and outgoing messages. MessageInterceptor
+ * are located between the serializer/parser and the matcher. Each message comes
+ * or goes through a connector is logged.
  */
 public class MessageTracer implements MessageInterceptor {
 	
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#sendRequest(ch.inf.vs.californium.coap.Request)
-	 */
+	private final static Logger LOGGER = Logger.getLogger(MessageTracer.class.getCanonicalName());
+	
 	@Override
 	public void sendRequest(Request request) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d <== req %s\n" +
-										 "----------------------------------------------------------------",
-				request.getDestination(), request.getDestinationPort(), request));
-	}
-
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#sendResponse(ch.inf.vs.californium.coap.Response)
-	 */
-	@Override
-	public void sendResponse(Response response) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d <== res %s\n" +
-										 "----------------------------------------------------------------",
-				response.getDestination(), response.getDestinationPort(), response));
-	}
-
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#sendEmptyMessage(ch.inf.vs.californium.coap.EmptyMessage)
-	 */
-	@Override
-	public void sendEmptyMessage(EmptyMessage message) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d <== emp %s\n" +
-										 "----------------------------------------------------------------",
-				message.getDestination(), message.getDestinationPort(), message));
-	}
-
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#receiveRequest(ch.inf.vs.californium.coap.Request)
-	 */
-	@Override
-	public void receiveRequest(Request request) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d ==> req %s\n" +
-										 "----------------------------------------------------------------",
-				request.getSource(), request.getSourcePort(), request));
-	}
-
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#receiveResponse(ch.inf.vs.californium.coap.Response)
-	 */
-	@Override
-	public void receiveResponse(Response response) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d ==> res %s\n" +
-										 "----------------------------------------------------------------",
-				response.getSource(), response.getSourcePort(), response));
-	}
-
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.MessageIntercepter#receiveEmptyMessage(ch.inf.vs.californium.coap.EmptyMessage)
-	 */
-	@Override
-	public void receiveEmptyMessage(EmptyMessage message) {
-		System.out.println(String.format("----------------------------------------------------------------\n" +
-										 "%s:%d ==> emp %s\n" +
-										 "----------------------------------------------------------------",
-				message.getSource(), message.getSourcePort(), message));
+		LOGGER.info(String.format("%s:%d <== req %s", request.getDestination(), request.getDestinationPort(), request));
 	}
 	
+	@Override
+	public void sendResponse(Response response) {
+		LOGGER.info(String.format("%s:%d <== res %s", response.getDestination(), response.getDestinationPort(), response));
+	}
+	
+	@Override
+	public void sendEmptyMessage(EmptyMessage message) {
+		LOGGER.info(String.format("%s:%d <== emp %s", message.getDestination(), message.getDestinationPort(), message));
+	}
+	
+	@Override
+	public void receiveRequest(Request request) {
+		LOGGER.info(String.format("%s:%d ==> req %s", request.getSource(), request.getSourcePort(), request));
+	}
+	
+	@Override
+	public void receiveResponse(Response response) {
+		LOGGER.info(String.format("%s:%d ==> res %s", response.getSource(), response.getSourcePort(), response));
+	}	
+
+	@Override
+	public void receiveEmptyMessage(EmptyMessage message) {
+		LOGGER.info(String.format("%s:%d ==> emp %s", message.getSource(), message.getSourcePort(), message));
+	}
 }

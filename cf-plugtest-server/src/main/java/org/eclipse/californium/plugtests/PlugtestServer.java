@@ -58,11 +58,6 @@ import org.eclipse.californium.plugtests.resources.Validate;
  */
 public class PlugtestServer extends CoapServer {
 
-	static {
-		CaliforniumLogger.initialize();
-		CaliforniumLogger.setLevel(Level.FINER);
-	}
-	
     // exit codes for runtime errors
     public static final int ERR_INIT_FAILED = 1;
     
