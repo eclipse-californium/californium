@@ -256,6 +256,7 @@
 					<instructions>
 						<Export-Package>
 							org.eclipse.californium.scandium,
+							org.eclipse.californium.scandium.auth,
 							org.eclipse.californium.scandium.dtls,
 							org.eclipse.californium.scandium.dtls.cipher,
 							org.eclipse.californium.scandium.dtls.pskstore,

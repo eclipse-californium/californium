@@ -14,6 +14,8 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - store peer's identity in session as a
+ *                                                    java.security.Principal (fix 464812)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -21,11 +23,14 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.util.logging.Level;
 
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -50,6 +55,9 @@ public class ClientHandshaker extends Handshaker {
 	
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
+	
+	/** The server's X.509 certificate */
+	private X509Certificate peerCertificate;
 
 	/** The server's ephemeral public key, used for key agreement */
 	private ECPublicKey ephemeralServerPublicKey;
@@ -227,7 +235,9 @@ public class ClientHandshaker extends Handshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
+
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}",
+				new Object[]{getPeerAddress(), record});
 		return flight;
 	}
 
@@ -348,9 +358,11 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		serverCertificate = message;
-		serverPublicKey = serverCertificate.getPublicKey();
-		session.setPeerRawPublicKey(serverPublicKey);
 		serverCertificate.verifyCertificate(rootCertificates);
+		serverPublicKey = serverCertificate.getPublicKey();
+		if (message.getCertificateChain() != null) {
+			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
+		}
 	}
 
 	/**
@@ -372,7 +384,14 @@ public class ClientHandshaker extends Handshaker {
 
 		serverKeyExchange = message;
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
-		
+		// server identity has been proven
+		if (peerCertificate != null) {
+			session.setPeerIdentity(peerCertificate.getSubjectX500Principal());
+		} else {
+			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
+		}
+		// for backwards compatibility only
+		session.setPeerRawPublicKey(serverPublicKey);
 		// get the curve parameter spec by the named curve id
 		ECParameterSpec params = ECDHServerKeyExchange.NAMED_CURVE_PARAMETERS.get(message.getCurveId());
 		if (params == null) {
@@ -443,6 +462,8 @@ public class ClientHandshaker extends Handshaker {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
+			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			// for backward compatibility only
 			session.setPskIdentity(identity);
 
 			byte[] psk = pskStore.getKey(identity);
@@ -451,9 +472,7 @@ public class ClientHandshaker extends Handshaker {
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
 			clientKeyExchange = new PSKClientKeyExchange(identity);
-			if (LOGGER.isLoggable(Level.INFO)) {
-				LOGGER.info("Using PSK identity: " + identity);
-			}
+			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 

@@ -484,7 +484,7 @@ public class DTLSConnector implements Connector {
 				try {
 					ApplicationMessage message = (ApplicationMessage) record.getFragment();
 					if (messageHandler != null) {
-						messageHandler.receiveData(new RawData(message.getData(), peerAddress));
+						messageHandler.receiveData(new RawData(message.getData(), peerAddress, session.getPeerIdentity()));
 					}
 					// the fragment could be processed
 					// thus, the session seems to have been established successfully with

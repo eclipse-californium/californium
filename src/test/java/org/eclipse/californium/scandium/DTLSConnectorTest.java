@@ -13,18 +13,22 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 464812
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
@@ -34,8 +38,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
@@ -54,11 +62,14 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class DTLSConnectorTest {
 
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
+	private static KeyStore keyStore;
+	private static KeyStore trustStore;
 	
 	DtlsConnectorConfig serverConfig;
 	DTLSConnector server;
@@ -71,6 +82,15 @@ public class DTLSConnectorTest {
 	SessionStore serverSessionStore;
 	SessionStore clientSessionStore;
 
+	@BeforeClass
+	public static void loadKeys() throws IOException, GeneralSecurityException {
+		// load the key store
+		keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
+
+		// load the trust store
+		trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
+	}
+	
 	@Before
 	public void setUp() throws Exception {
 
@@ -79,31 +99,23 @@ public class DTLSConnectorTest {
 		
 		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10000);
 		serverEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10100);
-		// load the key store
-		KeyStore keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
-
-		// load the trust store
-		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
-		
 		// You can load multiple certificates if needed
-		Certificate[] trustedCertificates = new Certificate[1];
-		trustedCertificates[0] = trustStore.getCertificate("root");
+		Certificate[] trustedCertificates = getTrustedCertificates(trustStore);
 		
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("client"), false);
+				keyStore.getCertificateChain("client"), true);
 		builder.setTrustStore(trustedCertificates);
-		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
 		clientConfig = builder.build();
 		
 		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
 		builder.setIdentity((PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("server"), false);
+				keyStore.getCertificateChain("server"), true);
 		builder.setTrustStore(trustedCertificates);
 		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+		builder.setClientAuthenticationRequired(true);
 		serverConfig = builder.build();
 
 		server = new DTLSConnector(serverConfig, serverSessionStore);
@@ -120,6 +132,13 @@ public class DTLSConnectorTest {
 		if (server != null) {
 			server.destroy();
 		}
+	}
+	
+	private Certificate[] getTrustedCertificates(KeyStore trustStore) throws KeyStoreException {
+		// You can load multiple certificates if needed
+		Certificate[] trustedCertificates = new Certificate[1];
+		trustedCertificates[0] = trustStore.getCertificate("root");
+		return trustedCertificates;
 	}
 	
 	@Test
@@ -317,6 +336,76 @@ public class DTLSConnectorTest {
 		// and try to establish a fresh session
 		givenAnEstablishedSession();
 		Assert.assertThat(establishedSession.getPeer(), is(clientEndpoint));
+	}
+	
+	@Test
+	public void testProcessApplicationMessageAddsRawPublicKeyIdentity() throws Exception {
+		
+		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+	
+	@Test
+	public void testProcessApplicationMessageAddsPreSharedKeyIdentity() throws Exception {
+		// verify Pre-shared Key identity
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
+		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+		clientConfig = builder.build();
+		client = new DTLSConnector(clientConfig, clientSessionStore);
+		assertClientIdentity(PreSharedKeyIdentity.class);
+	}
+	
+	@Test
+	public void testProcessApplicationMessageAddsX500Principal() throws Exception {
+		// verify X500 principal
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
+		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("client"), false);
+		builder.setTrustStore(getTrustedCertificates(trustStore));
+		clientConfig = builder.build();
+		client = new DTLSConnector(clientConfig, clientSessionStore);
+		assertClientIdentity(X500Principal.class);
+	}
+
+	@Test
+	public void testProcessApplicationUsesNullPrincipalForUnauthenticatedPeer() throws Exception {
+		
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(serverEndpoint);
+		builder.setIdentity((PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("server"), true);
+		builder.setClientAuthenticationRequired(false);
+		serverConfig = builder.build();
+		server = new DTLSConnector(serverConfig, serverSessionStore);
+		
+		assertClientIdentity(null);
+	}
+	
+	@SuppressWarnings("rawtypes")
+	private void assertClientIdentity(final Class principalType) throws Exception {
+		
+		server.setRawDataReceiver(new RawDataChannel() {
+
+			@Override
+			public void receiveData(RawData raw) {
+				if (principalType == null) {
+					Assert.assertNull(raw.getSenderIdentity());
+				} else {
+					Assert.assertThat(raw.getSenderIdentity(), instanceOf(principalType));
+				}
+				server.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
+			}
+		});
+		server.start();
+		Assert.assertTrue(server.isRunning());
+
+		CountDownLatch latch = new CountDownLatch(1);
+		rawDataChannel.setLatch(latch);
+		client.setRawDataReceiver(rawDataChannel);
+		client.start();
+		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
+
+		Assert.assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		establishedSession = serverSessionStore.get(clientEndpoint);
+		Assert.assertNotNull(establishedSession);
 	}
 	
 	private ClientHello createClientHello() {

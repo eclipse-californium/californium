@@ -20,12 +20,14 @@
  *                                                    need for type conversions
  *    Kai Hudalla (Bosch Software Innovations GmbH) - reduce method visibility to improve encapsulation,
  *                                                    synchronize methods to allow for concurrent access
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - provide access to peer's identity as a
+ *                                                    java.security.Principal (fix 464812)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.Principal;
 import java.security.PublicKey;
-import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -56,9 +58,8 @@ public class DTLSSession {
 	 */
 	private SessionId sessionIdentifier = null;
 
-	/** X509v3 certificate of the peer. This element of the state may be null. */
-	private X509Certificate peerCertificate = null;
-
+	private Principal peerIdentity;
+	
 	/** The algorithm used to compress data prior to encryption. */
 	private CompressionMethod compressionMethod;
 
@@ -178,25 +179,23 @@ public class DTLSSession {
 		this.sessionIdentifier = sessionIdentifier;
 	}
 
-	final X509Certificate getPeerCertificate() {
-		return peerCertificate;
-	}
-
-	final synchronized void setPeerCertificate(X509Certificate peerCertificate) {
-		this.peerCertificate = peerCertificate;
-	}
-
 	/**
 	 * Gets the public key presented by a peer during an ECDH based
 	 * handshake.
 	 * 
 	 * @return the public key or <code>null</code> if the peer has not
 	 * been authenticated or the handshake was PSK based
+	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
 	public final PublicKey getPeerRawPublicKey() {
 		return peerRawPublicKey;
 	}
 
+	/**
+	 * 
+	 * @param key
+	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
+	 */
 	final synchronized void setPeerRawPublicKey(PublicKey key) {
 		peerRawPublicKey = key;
 	}
@@ -435,16 +434,45 @@ public class DTLSSession {
 	}
 	
 	/**
+	 * Gets the authenticated peer's identity.
+	 * 
+	 * @return the identity or <code>null</code> if the peer has not been
+	 * authenticated
+	 */
+	public final Principal getPeerIdentity() {
+		return peerIdentity;
+	}
+	
+	/**
+	 * Sets the authenticated peer's identity.
+	 * 
+	 * @param the identity
+	 * @throws NullPointerException if the identity is <code>null</code>
+	 */
+	final synchronized void setPeerIdentity(Principal peerIdentity) {
+		if (peerIdentity == null) {
+			throw new NullPointerException("Peer identity must not be null");
+		}
+		this.peerIdentity = peerIdentity;
+	}
+	
+	/**
 	 * Gets the identity presented by a peer during a <em>pre-shared key</em>
 	 * based handshake.
 	 * 
 	 * @return the (authenticated) identity or <code>null</code> if the peer
 	 * has not been authenticated at all or the handshake was ECDH based
+	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
 	public final String getPskIdentity() {
 		return pskIdentity;
 	}
 
+	/**
+	 * 
+	 * @param pskIdentity
+	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
+	 */
 	final synchronized void setPskIdentity(String pskIdentity) {
 		this.pskIdentity = pskIdentity;
 	}
