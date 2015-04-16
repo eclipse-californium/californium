@@ -55,12 +55,12 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testBuilderDetectsMissingPskStore() {
+	public void testBuilderFailsWithDefaultConfiguration() {
 		builder.build();
 	}
 	
 	@Test
-	public void testBuilderAcceptsDefaultConfigWithPskStore() {
+	public void testBuilderSetsPskCipherSuiteWhenPskStoreIsSet() {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
 		Assert.assertThat(config.getSupportedCipherSuites()[0],
 				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
@@ -92,6 +92,11 @@ public class DtlsConnectorConfigTest {
 	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingIdentity() {
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8}).build();
+	}
+	
+	@Test(expected = IllegalStateException.class)
+	public void testBuilderDetectsMissingPskStore() {
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}).build();
 	}
 	
 	@Test(expected = NullPointerException.class)
