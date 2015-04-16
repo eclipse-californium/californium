@@ -76,7 +76,7 @@ public class DtlsConnectorConfig {
 	private Certificate[] certChain;
 
 	/** the supported cipher suites in order of preference */
-	private CipherSuite[] supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+	private CipherSuite[] supportedCipherSuites;
 
 	private int outboundMessageBufferSize = 100000;
 	
@@ -249,7 +249,7 @@ public class DtlsConnectorConfig {
 		 * for a <code>DTLSConnector</code> instance.
 		 * 
 		 * Once all options are set, clients should use the {@link #build()}
-		 * method to create an immutable <code>DTLSConfigurationConfig</code>
+		 * method to create an immutable <code>DtlsConfigurationConfig</code>
 		 * instance which can be passed into the <code>DTLSConnector</code>
 		 * constructor.
 		 * 
@@ -259,20 +259,20 @@ public class DtlsConnectorConfig {
 		 * <li><em>maxPayloadSize</em>: 4096 + 25 bytes (max fragment size + 25 bytes for headers)</li>
 		 * <li><em>maxRetransmissions</em>: 4</li>
 		 * <li><em>retransmissionTimeout</em>: 1000ms</li>
-		 * <li><em>requireClientAuthentication</em>: <code>false</code></li>
-		 * <li><em>preferredCipherSuites</em>: <code>{TLS_PSK_WITH_AES_128_CCM_8}</code></li>
+		 * <li><em>clientAuthenticationRequired</em>: <code>true</code></li>
 		 * <li><em>outboundMessageBufferSize</em>: 100.000</li>
+		 * <li><em>trustStore</em>: empty array</li>
 		 * </ul>
 		 * 
-		 * Note that when using the defaults, at least the {@link #setPskStore(PskStore)}
-		 * method needs to be used to set a registry for managing pre-shared keys.
+		 * Note that when using the defaults, at least one of the {@link #setPskStore(PskStore)}
+		 * or {@link #setIdentity(PrivateKey, PublicKey))} methods needs to be used to 
+		 * get a working configuration.
 		 * 
 		 * @param address the IP address and port the connector should bind to
 		 */
 		public Builder(InetSocketAddress address) {
 			config = new DtlsConnectorConfig();
 			config.address = address;
-			config.clientAuthenticationRequired = false;
 		}
 		
 		/**
@@ -537,14 +537,21 @@ public class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
-			if (config.pskStore != null && config.privateKey == null && config.publicKey == null) {
-				config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
-			} else if (config.pskStore == null && config.privateKey != null && config.publicKey != null) {
-				config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8};
-			} else if (config.pskStore != null && config.privateKey != null && config.publicKey != null) {
-				config.supportedCipherSuites = new CipherSuite[]{
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+			if (config.supportedCipherSuites == null) {
+				// user has not explicitly set cipher suites
+				// try to guess his intentions from properties he has set
+				if (config.pskStore != null && config.privateKey == null && config.publicKey == null) {
+					config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+				} else if (config.pskStore == null && config.privateKey != null && config.publicKey != null) {
+					config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8};
+				} else if (config.pskStore != null && config.privateKey != null && config.publicKey != null) {
+					config.supportedCipherSuites = new CipherSuite[]{
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+				} else {
+					throw new IllegalStateException("Supported cipher suites must be set either " +
+							"explicitly or implicitly by means of setting the identity or PSK store");
+				}
 			}
 			
 			for (CipherSuite suite : config.supportedCipherSuites) {
