@@ -652,7 +652,9 @@ public class DTLSConnector implements Connector {
 				HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie);
 				// because we do not have a handshaker in place yet that
 				// manages message_seq numbers, we need to set it explicitly
-				msg.setMessageSeq(0);
+				// use message_seq from CLIENT_HELLO in order to allow for
+				// multiple consequtive cookie exchanges with a client
+				msg.setMessageSeq(clientHello.getMessageSeq());
 				// use epoch 0 and sequence no from CLIENT_HELLO record as
 				// mandated by section 4.2.1 of the DTLS 1.2 spec
 				// see http://tools.ietf.org/html/rfc6347#section-4.2.1
@@ -671,8 +673,10 @@ public class DTLSConnector implements Connector {
 					// use the record sequence number from CLIENT_HELLO as initial sequence number
 					// for records sent to the client (see section 4.2.1 of RFC 6347 (DTLS 1.2))
 					DTLSSession newSession = new DTLSSession(peerAddress, false, record.getSequenceNumber());
-					// initialize handshaker to expect next message_seq = 1 
-					Handshaker handshaker = new ServerHandshaker(1, newSession, sessionListener, config);
+					// initialize handshaker based on CLIENT_HELLO (this accounts
+					// for the case that multiple cookie exchanges have taken place)
+					Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(),
+							newSession, sessionListener, config);
 					storeHandshaker(handshaker);
 					nextFlight = handshaker.processMessage(record);
 				}
