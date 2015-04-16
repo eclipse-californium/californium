@@ -15,17 +15,22 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - store peer's identity in session as a
+ *                                                    java.security.Principal (fix 464812)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
+import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -57,6 +62,12 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private PublicKey clientPublicKey;
 
+	/**
+	 * The client's X.509 certificate.
+	 */
+	private X509Certificate peerCertificate;
+	
+	
 	/**
 	 * The cryptographic options this server supports, e.g. for exchanging keys,
 	 * digital signatures etc.
@@ -172,7 +183,7 @@ public class ServerHandshaker extends Handshaker {
 			// it, since we received its finished message again, so we
 			// retransmit our last flight
 			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
-					getPeerAddress().toString());
+					getPeerAddress());
 			return lastFlight;
 		}
 
@@ -271,8 +282,9 @@ public class ServerHandshaker extends Handshaker {
 				flight = processMessage(nextMessage);
 			}
 		}
-		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}", new Object[]{getPeerAddress(), record});
 		
+		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}",
+				new Object[]{getPeerAddress(), record});
 		return flight;
 	}
 	
@@ -294,8 +306,9 @@ public class ServerHandshaker extends Handshaker {
 		clientCertificate = message;
 		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
-		session.setPeerRawPublicKey(clientPublicKey);
-		
+		if (message.getCertificateChain() != null) {
+			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
+		}	
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
 	}
@@ -314,6 +327,13 @@ public class ServerHandshaker extends Handshaker {
 		certificateVerify = message;
 
 		message.verifySignature(clientPublicKey, handshakeMessages);
+		// at this point we have successfully authenticated the client
+		if (peerCertificate != null) {
+			session.setPeerIdentity(peerCertificate.getSubjectX500Principal());
+		} else {
+			session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
+		}
+		session.setPeerRawPublicKey(clientPublicKey);
 	}
 
 	/**
@@ -621,7 +641,6 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to get right preshared key
 		String identity = message.getIdentity();
-		session.setPskIdentity(identity);
 
 		byte[] psk = pskStore.getKey(identity);
 		
@@ -632,6 +651,10 @@ public class ServerHandshaker extends Handshaker {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException("No pre-shared secret found for identity: " + identity, alert);
 		}
+		
+		session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+		// for backwards compatibility only
+		session.setPskIdentity(identity);
 		
 		return generatePremasterSecretFromPSK(psk);
 	}
