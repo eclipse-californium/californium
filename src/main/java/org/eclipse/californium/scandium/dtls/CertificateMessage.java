@@ -176,6 +176,16 @@ public class CertificateMessage extends HandshakeMessage {
 		return sb.toString();
 	}
 
+	/**
+	 * Gets the certificate chain provided by the peer.
+	 * 
+	 * This method only provides a result if the peer uses
+	 * <em>X.509</em> certificates. In that case the returned array
+	 * contains the peer's public key certificate at position 0.
+	 * 
+	 * @return the certificate chain or <code>null</code> if
+	 *        <em>RawPublicKey</em>s are used
+	 */
 	public Certificate[] getCertificateChain() {
 		return certificateChain;
 	}
@@ -384,7 +394,7 @@ public class CertificateMessage extends HandshakeMessage {
 				// TODO make instance variable
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.SEVERE,"Could not reconstruct the server's public key.",e);
+				LOGGER.log(Level.SEVERE, "Could not reconstruct the peer's public key.", e);
 			}
 		}
 		return publicKey;
