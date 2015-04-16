@@ -537,6 +537,16 @@ public class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
+			if (config.pskStore != null && config.privateKey == null && config.publicKey == null) {
+				config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+			} else if (config.pskStore == null && config.privateKey != null && config.publicKey != null) {
+				config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8};
+			} else if (config.pskStore != null && config.privateKey != null && config.publicKey != null) {
+				config.supportedCipherSuites = new CipherSuite[]{
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+			}
+			
 			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
