@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.config;
 
+import static org.hamcrest.CoreMatchers.is;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -23,7 +25,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -59,7 +61,32 @@ public class DtlsConnectorConfigTest {
 	
 	@Test
 	public void testBuilderAcceptsDefaultConfigWithPskStore() {
-		Assert.assertNotNull(builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build());
+		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
+		Assert.assertThat(config.getSupportedCipherSuites()[0],
+				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+		Assert.assertThat(config.getSupportedCipherSuites().length, is(1));
+	}
+	
+	@Test
+	public void testBuilderSetsEcdhCipherSuiteWhenKeysAreSet() throws Exception {
+		DtlsConnectorConfig config = builder.setIdentity(
+				DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()).build();
+		Assert.assertThat(config.getSupportedCipherSuites()[0],
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		Assert.assertThat(config.getSupportedCipherSuites().length, is(1));
+	}
+	
+	@Test
+	public void testBuilderSetsAllCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
+		DtlsConnectorConfig config = builder
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setPskStore(new StaticPskStore("ID", "KEY".getBytes()))
+				.build();
+		Assert.assertThat(config.getSupportedCipherSuites()[0],
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		Assert.assertThat(config.getSupportedCipherSuites()[1],
+				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+		Assert.assertThat(config.getSupportedCipherSuites().length, is(2));
 	}
 	
 	@Test(expected = IllegalStateException.class)
