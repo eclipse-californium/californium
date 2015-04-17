@@ -74,7 +74,7 @@ public class PSKServerKeyExchange extends ServerKeyExchange {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity Hint: " + hint + "\n");
+		sb.append("\t\tPSK Identity Hint: ").append(hint).append("\n");
 
 		return sb.toString();
 	}
