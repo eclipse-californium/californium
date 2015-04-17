@@ -29,7 +29,6 @@ import java.security.cert.Certificate;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Assert;
@@ -61,7 +60,6 @@ public class ServerHandshakerTest {
 		session = new DTLSSession(endpoint, false);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
 		builder.setIdentity(privateKey, publicKey)
-			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
 			.setPskStore(new StaticPskStore("client", "secret".getBytes()))
 			.setTrustStore(new Certificate[]{});
 		handshaker = new ServerHandshaker(session, null, builder.build());

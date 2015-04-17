@@ -193,6 +193,11 @@ public class ServerHandshaker extends Handshaker {
 			return flight;
 		}
 
+		// log record now (even if message is still encrypted) in case a HandshakeException
+		// is thrown during processing
+		LOGGER.log(Level.FINER, "Processing DTLS record from peer [{0}]:\n{1}",
+				new Object[]{getPeerAddress(), record});
+
 		switch (record.getType()) {
 		case CHANGE_CIPHER_SPEC:
 			record.getFragment();
@@ -461,57 +466,55 @@ public class ServerHandshaker extends Handshaker {
 		setCompressionMethod(compressionMethod);
 		
 		
-		HelloExtensions serverHelloExtensions = null;
-		ClientCertificateTypeExtension clientCertificateTypeExtension = message
-				.getClientCertificateTypeExtension();
-		if (clientCertificateTypeExtension != null) {
-			// choose certificate type from client's list
-			// of preferred client certificate types
-			CertificateType certType = negotiateCertificateType(
-					clientCertificateTypeExtension,
-					supportedClientCertificateTypes);
-			serverHelloExtensions = new HelloExtensions();
-			// the certificate type requested from the client
-			CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
-			ext1.addCertificateType(certType);
+		HelloExtensions serverHelloExtensions = new HelloExtensions();
 
-			serverHelloExtensions.addExtension(ext1);
+		if (supportedCipherSuites.contains(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)) {
+			// we only need to add certificate extensions if we support
+			// a certificate based key exchange algorithm
+			ClientCertificateTypeExtension clientCertificateTypeExtension = message
+					.getClientCertificateTypeExtension();
+			if (clientCertificateTypeExtension != null) {
+				// choose certificate type from client's list
+				// of preferred client certificate types
+				CertificateType certType = negotiateCertificateType(
+						clientCertificateTypeExtension,
+						supportedClientCertificateTypes);
+				// the certificate type requested from the client
+				CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
+				ext1.addCertificateType(certType);
 
-			if (certType == CertificateType.RAW_PUBLIC_KEY) {
-				session.setReceiveRawPublicKey(true);
+				serverHelloExtensions.addExtension(ext1);
+
+				if (certType == CertificateType.RAW_PUBLIC_KEY) {
+					session.setReceiveRawPublicKey(true);
+				}
+			}
+			
+			CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
+			if (serverCertificateTypeExtension != null) {
+				// choose certificate type from client's list
+				// of preferred server certificate types
+				CertificateType certType = negotiateCertificateType(
+						serverCertificateTypeExtension,
+						supportedServerCertificateTypes);
+				// the certificate type found in the attached certificate
+				// payload
+				CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
+				ext2.addCertificateType(certType);
+
+				serverHelloExtensions.addExtension(ext2);
+
+				if (certType == CertificateType.RAW_PUBLIC_KEY) {
+					session.setSendRawPublicKey(true);
+				}
 			}
 		}
-		
-		CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
-		if (serverCertificateTypeExtension != null) {
-			// choose certificate type from client's list
-			// of preferred server certificate types
-			CertificateType certType = negotiateCertificateType(
-					serverCertificateTypeExtension,
-					supportedServerCertificateTypes);
-			if (serverHelloExtensions == null) {
-				serverHelloExtensions = new HelloExtensions();
-			}
-			// the certificate type found in the attached certificate
-			// payload
-			CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
-			ext2.addCertificateType(certType);
 
-			serverHelloExtensions.addExtension(ext2);
-
-			if (certType == CertificateType.RAW_PUBLIC_KEY) {
-				session.setSendRawPublicKey(true);
-			}
-		}
-		
 		if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
 			// if we chose a ECC cipher suite, the server should send the
 			// supported point formats extension in its ServerHello
 			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
 
-			if (serverHelloExtensions == null) {
-				serverHelloExtensions = new HelloExtensions();
-			}
 			HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
 			serverHelloExtensions.addExtension(ext3);
 		}

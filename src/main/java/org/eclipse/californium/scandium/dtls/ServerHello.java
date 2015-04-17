@@ -151,7 +151,7 @@ public class ServerHello extends HandshakeMessage {
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
 
-		if (extensions != null) {
+		if (extensions != null && extensions.getLength() > 0) {
 			writer.writeBytes(extensions.toByteArray());
 		}
 
