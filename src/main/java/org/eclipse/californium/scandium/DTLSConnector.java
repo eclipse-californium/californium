@@ -450,7 +450,8 @@ public class DTLSConnector implements Connector {
 	 */
 	private void terminateConnection(InetSocketAddress peerAddress, AlertMessage alert) {
 
-		LOGGER.log(Level.FINE, "Terminating connection with peer [{0}]", peerAddress);
+		LOGGER.log(Level.FINE, "Terminating connection with peer [{0}], reason [{1}]",
+				new Object[]{peerAddress, alert.getDescription()});
 		cancelPreviousFlight(peerAddress);
 		DTLSSession session = getSessionByAddress(peerAddress);
 		if (session != null) {
@@ -679,8 +680,7 @@ public class DTLSConnector implements Connector {
 							newSession, sessionListener, config);
 					storeHandshaker(handshaker);
 					nextFlight = handshaker.processMessage(record);
-				}
-				else {
+				} else {
 					// client wants to resume a cached session
 					LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
 							new Object[]{peerAddress, ByteArrayUtils.toHexString(sessionId.getSessionId())});
@@ -710,13 +710,13 @@ public class DTLSConnector implements Connector {
 				Handshaker handshaker = new ServerHandshaker(session, sessionListener, config);
 					storeHandshaker(handshaker);
 					nextFlight = handshaker.processMessage(record);
-				} else {
-				// no existing session found, ignore request
-				}
+			} else {
+			// no existing session found, ignore request
 			}
+		}
 		
 		return nextFlight;
-		}
+	}
 		
 	private byte[] getSecretForCookies() {
 		// TODO change secret periodically
