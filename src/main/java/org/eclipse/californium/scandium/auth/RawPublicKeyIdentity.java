@@ -19,7 +19,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PublicKey;
-import java.util.Base64;
+
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * A principal representing an authenticated peer's <em>RawPublicKey</em>.
@@ -59,11 +60,18 @@ public class RawPublicKeyIdentity implements Principal {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(subjectPublicKeyInfo);
 			byte[] digest = md.digest();
-			StringBuffer b = new StringBuffer("ni:///");
-			b.append("sha-256;").append(Base64.getUrlEncoder().withoutPadding().encodeToString(digest));
+			String base64Digest = DatatypeConverter.printBase64Binary(digest);
+			StringBuffer b = new StringBuffer("ni:///sha-256;");
+			if (base64Digest.endsWith("==")) {
+				b.append(base64Digest.substring(0, base64Digest.length() - 2));
+			} else if (base64Digest.endsWith("=")) {
+				b.append(base64Digest.substring(0, base64Digest.length() - 1));
+			} else {
+				b.append(base64Digest);
+			}
 			niUri = b.toString();
 		} catch (NoSuchAlgorithmException e) {
-			// should not happen because SHA-256 is a mandatory hash algorithm for any JVM
+			// should not happen because SHA-256 is a mandatory message digest algorithm for any Java 7 VM
 		}
 	}
 	
