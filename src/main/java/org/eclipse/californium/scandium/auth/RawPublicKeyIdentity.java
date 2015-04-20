@@ -56,18 +56,26 @@ public class RawPublicKeyIdentity implements Principal {
 	}
 	
 	private void createNamedInformationUri(byte[] subjectPublicKeyInfo) {
+		// TODO: replace this with some dedicated Base64 helper class
+		// capable of native base64url encoding in order to prevent
+		// ugly post-processing of base64 encoded digest
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(subjectPublicKeyInfo);
 			byte[] digest = md.digest();
-			String base64Digest = DatatypeConverter.printBase64Binary(digest);
+			String base64urlDigest = DatatypeConverter.printBase64Binary(digest);
+			// difference between canonical base64 and base64url is
+			// two characters in the encoding alphabet
+			// and abstinence from padding
+			base64urlDigest = base64urlDigest.replace('+', '-');
+			base64urlDigest = base64urlDigest.replace('/', '_');
 			StringBuffer b = new StringBuffer("ni:///sha-256;");
-			if (base64Digest.endsWith("==")) {
-				b.append(base64Digest.substring(0, base64Digest.length() - 2));
-			} else if (base64Digest.endsWith("=")) {
-				b.append(base64Digest.substring(0, base64Digest.length() - 1));
+			if (base64urlDigest.endsWith("==")) {
+				b.append(base64urlDigest.substring(0, base64urlDigest.length() - 2));
+			} else if (base64urlDigest.endsWith("=")) {
+				b.append(base64urlDigest.substring(0, base64urlDigest.length() - 1));
 			} else {
-				b.append(base64Digest);
+				b.append(base64urlDigest);
 			}
 			niUri = b.toString();
 		} catch (NoSuchAlgorithmException e) {
