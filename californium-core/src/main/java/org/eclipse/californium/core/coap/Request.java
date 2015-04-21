@@ -15,7 +15,9 @@
  *    Martin Lanter - architect and re-implementation
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add field for sender identity
+ *                                                    (465073)
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -23,6 +25,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.Principal;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -94,6 +97,9 @@ public class Request extends Message {
 	
 	/** The lock object used to wait for a response. */
 	private Object lock;
+	
+	/** the authenticated (remote) sender's identity **/
+	private Principal senderIdentity;
 	
 	/**
 	 * Instantiates a new request with the specified CoAP code and no (null)
@@ -285,6 +291,33 @@ public class Request extends Message {
 		if (query.length()>0) builder.append("?").append(query);
 		// TODO: Query as well?
 		return builder.toString();
+	}
+	
+	/**
+	 * Gets the authenticated (remote) sender's identity.
+	 * 
+	 * @return the identity or <code>null</code> if the sender has
+	 *             not been authenticated
+	 */
+	public Principal getSenderIdentity() {
+		return this.senderIdentity;
+	}
+	
+	/**
+	 * Sets the authenticated (remote) sender's identity.
+	 * 
+	 * This method is invoked by <em>Californium</em> when receiving
+	 * a request from a client in order to include the client's
+	 * authenticated identity. It has no effect on outbound
+	 * requests sent to other CoAP servers. In particular,
+	 * it has no impact on a DTLS handshake (potentially) taking
+	 * place with that server.
+	 * 
+	 * @param senderIdentity the identity
+	 */
+	public Request setSenderIdentity(Principal senderIdentity) {
+		this.senderIdentity = senderIdentity;
+		return this;
 	}
 	
 	/**

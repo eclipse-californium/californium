@@ -67,6 +67,15 @@
 				<role>Committer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>khudalla</id>
+			<name>Kai Hudalla</name>
+			<email>kai.hudalla@bosch-si.com</email>
+			<organization>Bosch Software Innovations GmbH</organization>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
 	</developers>
 
 	<modules>

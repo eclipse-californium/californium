@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,7 +15,9 @@
  *    Martin Lanter - architect and re-implementation
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - include client identity in Requests
+ *                                                    (465073)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -558,7 +560,8 @@ public class CoAPEndpoint implements Endpoint {
 				try {
 					request = parser.parseRequest();
 				} catch (IllegalStateException e) {
-					String log = "message format error caused by " + raw.getInetSocketAddress();
+					StringBuffer log = new StringBuffer("message format error caused by ")
+						.append(raw.getInetSocketAddress());
 					if (!parser.isReply()) {
 						// manually build RST from raw information
 						EmptyMessage rst = new EmptyMessage(Type.RST);
@@ -568,13 +571,16 @@ public class CoAPEndpoint implements Endpoint {
 						for (MessageInterceptor interceptor:interceptors)
 							interceptor.sendEmptyMessage(rst);
 						connector.send(serializer.serialize(rst));
-						log += " and reseted";
+						log.append(" and reset");
 					}
-					LOGGER.info(log);
+					if (LOGGER.isLoggable(Level.INFO)) {
+						LOGGER.info(log.toString());
+					}
 					return;
 				}
 				request.setSource(raw.getAddress());
 				request.setSourcePort(raw.getPort());
+				request.setSenderIdentity(raw.getSenderIdentity());
 				
 				/* 
 				 * Logging here causes significant performance loss.
