@@ -406,7 +406,9 @@ public class DTLSSession {
 			if (masterSecret == null) {
 				throw new NullPointerException("Master secret must not be null");
 			} else if (masterSecret.length != 48) {
-				throw new IllegalArgumentException("Master secret must consist of 48 bytes");
+				throw new IllegalArgumentException(String.format(
+						"Master secret must consist of of exactly 48 bytes but has [%d] bytes",
+						masterSecret.length));
 			} else {
 				this.masterSecret = masterSecret;
 			}
