@@ -26,8 +26,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedByInterruptException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +39,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -86,6 +89,8 @@ public class DTLSConnector implements Connector {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 
+	private SecretKey cookieMacKey = new SecretKeySpec("generate cookie".getBytes(), "MAC");
+	
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
@@ -717,10 +722,10 @@ public class DTLSConnector implements Connector {
 		
 		return nextFlight;
 	}
-		
-	private byte[] getSecretForCookies() {
+
+	private SecretKey getMacKeyForCookies() {
 		// TODO change secret periodically
-		return "generate cookie".getBytes();
+		return cookieMacKey;
 	}
 	
 	/**
@@ -740,27 +745,22 @@ public class DTLSConnector implements Connector {
 		throws HandshakeException {
 
 		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-
 			// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-			byte[] secret = getSecretForCookies();
-
+			Mac hmac = Mac.getInstance("HmacSHA256");
+			hmac.init(getMacKeyForCookies());
 			// Client-IP
-			md.update(peerAddress.toString().getBytes());
+			hmac.update(peerAddress.toString().getBytes());
 
 			// Client-Parameters
-			md.update((byte) clientHello.getClientVersion().getMajor());
-			md.update((byte) clientHello.getClientVersion().getMinor());
-			md.update(clientHello.getRandom().getRandomBytes());
-			md.update(clientHello.getSessionId().getSessionId());
-			md.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-			md.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-
-			byte[] data = md.digest();
-
-			return new Cookie(Handshaker.doHMAC(md, secret, data));
-		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not instantiate message digest algorithm for cookie creation.", e);
+			hmac.update((byte) clientHello.getClientVersion().getMajor());
+			hmac.update((byte) clientHello.getClientVersion().getMinor());
+			hmac.update(clientHello.getRandom().getRandomBytes());
+			hmac.update(clientHello.getSessionId().getSessionId());
+			hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
+			hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+			return new Cookie(hmac.doFinal());
+		} catch (GeneralSecurityException e) {
+			LOGGER.log(Level.SEVERE,"Could not instantiate MAC algorithm for cookie creation", e);
 			throw new HandshakeException("Internal error", new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 	}

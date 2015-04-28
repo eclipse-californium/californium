@@ -21,11 +21,12 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -53,31 +54,23 @@ public class DtlsTestTools {
 		return writer.toByteArray();
 	}
 
-	public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello) throws NoSuchAlgorithmException {
-
-		MessageDigest md;
-		byte[] cookie = null;
-
-		md = MessageDigest.getInstance("SHA-256");
-
+	public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello)
+			throws GeneralSecurityException {
+		
 		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-		byte[] secret = "generate cookie".getBytes();
-
+		Mac hmac = Mac.getInstance("HmacSHA256");
+		hmac.init(new SecretKeySpec("generate cookie".getBytes(), "Mac"));
 		// Client-IP
-		md.update(endpointAddress.toString().getBytes());
+		hmac.update(endpointAddress.toString().getBytes());
 
 		// Client-Parameters
-		md.update((byte) clientHello.getClientVersion().getMajor());
-		md.update((byte) clientHello.getClientVersion().getMinor());
-		md.update(clientHello.getRandom().getRandomBytes());
-		md.update(clientHello.getSessionId().getSessionId());
-		md.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-		md.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-
-		byte[] data = md.digest();
-
-		cookie = Handshaker.doHMAC(md, secret, data);
-		return cookie;
+		hmac.update((byte) clientHello.getClientVersion().getMajor());
+		hmac.update((byte) clientHello.getClientVersion().getMinor());
+		hmac.update(clientHello.getRandom().getRandomBytes());
+		hmac.update(clientHello.getSessionId().getSessionId());
+		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
+		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+		return hmac.doFinal();
 	}
 
 	public static byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
