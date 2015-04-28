@@ -17,5 +17,12 @@ public class RawPublicKeyIdentityTest {
 		assertTrue(id.getName().startsWith("ni:///sha-256;"));
 		assertFalse(id.getName().endsWith("="));
 	}
+	
+	@Test
+	public void testGetSubjectInfoReturnsEncodedKey() throws Exception {
+		PublicKey key = DtlsTestTools.getPublicKey();
+		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
+		assertArrayEquals(id.getKey().getEncoded(), id.getSubjectInfo());
+	}
 
 }

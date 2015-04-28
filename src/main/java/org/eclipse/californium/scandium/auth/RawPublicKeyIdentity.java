@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - store PublicKey instead of <em>subjectInfo</em>
  ******************************************************************************/
 package org.eclipse.californium.scandium.auth;
 
@@ -19,6 +20,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PublicKey;
+import java.util.Arrays;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -27,31 +29,21 @@ import javax.xml.bind.DatatypeConverter;
  */
 public class RawPublicKeyIdentity implements Principal {
 
-	private final byte[] subjectPublicKeyInfo;
 	private String niUri;
+	private final PublicKey publicKey;
 	
 	/**
-	 * Creates a new instance for a given key.
+	 * Creates a new instance for a given public key.
 	 * 
-	 * @param key the key
+	 * @param key the public key
 	 * @throws NullPointerException if the key is <code>null</code>
 	 */
 	public RawPublicKeyIdentity(PublicKey key) {
-		this(key.getEncoded());
-	}
-	
-	/**
-	 * Creates a new instance for a given ASN.1 encoded <em>SubjectPublicKeyInfo</em>.
-	 * 
-	 * @param subjectPublicKeyInfo the key's subject info
-	 * @throws NullPointerException if subject info is <code>null</code>
-	 */
-	public RawPublicKeyIdentity(byte[] subjectPublicKeyInfo) {
-		if (subjectPublicKeyInfo == null) {
-			throw new NullPointerException("Subject info must not be null");
+		if (key == null) {
+			throw new NullPointerException("Public key must not be null");
 		} else {
-			this.subjectPublicKeyInfo = subjectPublicKeyInfo;
-			createNamedInformationUri(subjectPublicKeyInfo);
+			this.publicKey = key;
+			createNamedInformationUri(publicKey.getEncoded());
 		}
 	}
 	
@@ -96,6 +88,15 @@ public class RawPublicKeyIdentity implements Principal {
 	public final String getName() {
 		return niUri;
 	}
+
+	/**
+	 * Gets the raw public key.
+	 * 
+	 * @return the key
+	 */
+	public final PublicKey getKey() {
+		return publicKey;
+	}
 	
 	/**
 	 * Gets the key's ASN.1 encoded <em>SubjectPublicKeyInfo</em>.
@@ -103,7 +104,7 @@ public class RawPublicKeyIdentity implements Principal {
 	 * @return the subject info
 	 */
 	public final byte[] getSubjectInfo() {
-		return subjectPublicKeyInfo;
+		return publicKey.getEncoded();
 	}
 
 	/**
@@ -119,14 +120,25 @@ public class RawPublicKeyIdentity implements Principal {
 		return new StringBuffer("RawPublicKey Identity [").append(niUri).append("]").toString();
 	}
 
+	/**
+	 * Creates a hash code based on the key's ASN.1 encoded <em>SubjectPublicKeyInfo</em>.
+	 * 
+	 * @return the hash code
+	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((niUri == null) ? 0 : niUri.hashCode());
+		result = prime * result + ((publicKey == null) ? 0 : getSubjectInfo().hashCode());
 		return result;
 	}
 
+	/**
+	 * Checks if this instance is equal to another object.
+	 * 
+	 * @return <code>true</code> if the other object is a <code>RawPublicKeyIdentity</code>
+	 *           and has the same <em>SubjectPublicKeyInfo</em> as this instance
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
@@ -139,11 +151,11 @@ public class RawPublicKeyIdentity implements Principal {
 			return false;
 		}
 		RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
-		if (niUri == null) {
-			if (other.niUri != null) {
+		if (publicKey == null) {
+			if (other.publicKey != null) {
 				return false;
 			}
-		} else if (!niUri.equals(other.niUri)) {
+		} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
 			return false;
 		}
 		return true;
