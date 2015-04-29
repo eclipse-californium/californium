@@ -409,7 +409,7 @@ public class DtlsConnectorConfig {
 		public Builder setSupportedCipherSuites(String[] cipherSuites) {
 			CipherSuite[] suites = new CipherSuite[cipherSuites.length];
 			for (int i = 0; i < cipherSuites.length; i++) {
-				if (CipherSuite.TLS_NULL_WITH_NULL_NULL.getName().equals(cipherSuites[i])) {
+				if (CipherSuite.TLS_NULL_WITH_NULL_NULL.name().equals(cipherSuites[i])) {
 					throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 				} else {
 					CipherSuite knownSuite = CipherSuite.getTypeByName(cipherSuites[i]);
@@ -559,7 +559,7 @@ public class DtlsConnectorConfig {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 					if (config.pskStore == null) {
 						throw new IllegalStateException("PSK store must be set when support for " +
-								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.getName() + " is configured");
+								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.name() + " is configured");
 					}
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
@@ -569,7 +569,7 @@ public class DtlsConnectorConfig {
 							!(config.getPublicKey().getAlgorithm().equals("EC"))) {
 						// test if private & public key are ECDSA capable
 						throw new IllegalStateException("Keys must be ECDSA capable when support for " +
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getName() +
+								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.name() +
 								" is configured");
 					}
 					break;

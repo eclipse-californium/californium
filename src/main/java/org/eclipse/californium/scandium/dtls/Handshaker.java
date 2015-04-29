@@ -16,6 +16,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace custom HMAC implementation
  *                                                    with standard algorithm
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - retrieve security parameters from cipher suite only
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -371,9 +372,9 @@ public abstract class Handshaker {
 			cipherSuite = session.getCipherSuite();
 		}
 
-		int macKeyLength = cipherSuite.getBulkCipher().getMacKeyLength();
-		int encKeyLength = cipherSuite.getBulkCipher().getEncKeyLength();
-		int fixedIvLength = cipherSuite.getBulkCipher().getFixedIvLength();
+		int macKeyLength = cipherSuite.getMacKeyLength();
+		int encKeyLength = cipherSuite.getEncKeyLength();
+		int fixedIvLength = cipherSuite.getFixedIvLength();
 
 		clientWriteMACKey = new SecretKeySpec(data, 0, macKeyLength, "Mac");
 		serverWriteMACKey = new SecretKeySpec(data, macKeyLength, macKeyLength, "Mac");
