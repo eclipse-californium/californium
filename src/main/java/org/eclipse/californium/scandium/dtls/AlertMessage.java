@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -255,11 +256,16 @@ public class AlertMessage implements DTLSMessage {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
+	public ContentType getContentType() {
+		return ContentType.ALERT;
+	}
+	
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tAlert Protocol\n");
-		sb.append("\tLevel: " + level.toString() + "\n");
-		sb.append("\tDescription: " + description.toString() + " \n");
+		sb.append("\tAlert Protocol");
+		sb.append("\n\tLevel: ").append(level);
+		sb.append("\n\tDescription: ").append(description).append("\n");
 
 		return sb.toString();
 	}

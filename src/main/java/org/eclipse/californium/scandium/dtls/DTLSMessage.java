@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -30,5 +31,12 @@ public interface DTLSMessage {
 	 * 
 	 * @return the byte representation of this DTLS message.
 	 */
-	public byte[] toByteArray();
+	byte[] toByteArray();
+	
+	/**
+	 * Gets the message's content type.
+	 * 
+	 * @return the type
+	 */
+	ContentType getContentType();
 }
