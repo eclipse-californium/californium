@@ -342,6 +342,7 @@ public class DTLSSession {
 	 */
 	final synchronized void setReadState(DTLSConnectionState readState) {
 		this.readState = readState;
+		LOGGER.log(Level.FINEST, "Setting current read state to\n{0}", writeState);
 	}
 
 	/**
@@ -374,6 +375,7 @@ public class DTLSSession {
 	 */
 	final synchronized void setWriteState(DTLSConnectionState writeState) {
 		this.writeState = writeState;
+		LOGGER.log(Level.FINEST, "Setting current write state to\n{0}", writeState);
 	}
 
 	final KeyExchangeAlgorithm getKeyExchange() {

@@ -15,6 +15,7 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - turn into an immutable, reduce visibility
  *                                                    to improve encapsulation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add toString()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -153,5 +154,16 @@ class DTLSConnectionState {
 	 */
 	int getRecordIvLength() {
 		return cipherSuite.getBulkCipher().getRecordIvLength();
+	}
+	
+	@Override
+	public String toString() {
+		StringBuffer b = new StringBuffer("DTLSConnectionState:");
+		b.append("\n\tCipher suite: ").append(cipherSuite);
+		b.append("\n\tCompression method: ").append(compressionMethod);
+		b.append("\n\tIV: ").append(iv == null ? "null" : "not null");
+		b.append("\n\tMAC key: ").append(macKey == null ? "null" : "not null");
+		b.append("\n\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
+		return b.toString();
 	}
 }
