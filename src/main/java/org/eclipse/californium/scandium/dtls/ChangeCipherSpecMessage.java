@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -68,15 +69,18 @@ public class ChangeCipherSpecMessage implements DTLSMessage {
 	
 	// Methods ////////////////////////////////////////////////////////
 
+	@Override
+	public ContentType getContentType() {
+		return ContentType.CHANGE_CIPHER_SPEC;
+	}
+	
 	public CCSType getCCSProtocolType() {
 		return CCSProtocolType;
 	}
 	
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("\tChange Cipher Spec Message\n");
-		return sb.toString();
+		return "\tChange Cipher Spec Message\n";
 	}
 	
 	// Serialization //////////////////////////////////////////////////
