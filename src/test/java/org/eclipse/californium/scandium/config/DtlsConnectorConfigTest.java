@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
+ *                                                    configuration
  ******************************************************************************/
 package org.eclipse.californium.scandium.config;
 
@@ -26,9 +28,9 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 
 import org.junit.Assert;
-
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,20 +62,22 @@ public class DtlsConnectorConfigTest {
 	}
 	
 	@Test
-	public void testBuilderSetsPskCipherSuiteWhenPskStoreIsSet() {
+	public void testBuilderSetsPskCipherSuitesWhenPskStoreIsSet() {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
-		Assert.assertThat(config.getSupportedCipherSuites()[0],
-				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-		Assert.assertThat(config.getSupportedCipherSuites().length, is(1));
+		Assert.assertTrue(config.getSupportedCipherSuites().length > 0);
+		for (CipherSuite suite : config.getSupportedCipherSuites()) {
+			Assert.assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.PSK));
+		}
 	}
 	
 	@Test
 	public void testBuilderSetsEcdhCipherSuiteWhenKeysAreSet() throws Exception {
 		DtlsConnectorConfig config = builder.setIdentity(
 				DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()).build();
-		Assert.assertThat(config.getSupportedCipherSuites()[0],
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-		Assert.assertThat(config.getSupportedCipherSuites().length, is(1));
+		Assert.assertTrue(config.getSupportedCipherSuites().length > 0);
+		for (CipherSuite suite : config.getSupportedCipherSuites()) {
+			Assert.assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
+		}
 	}
 	
 	@Test
@@ -82,11 +86,17 @@ public class DtlsConnectorConfigTest {
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setPskStore(new StaticPskStore("ID", "KEY".getBytes()))
 				.build();
-		Assert.assertThat(config.getSupportedCipherSuites()[0],
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-		Assert.assertThat(config.getSupportedCipherSuites()[1],
-				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-		Assert.assertThat(config.getSupportedCipherSuites().length, is(2));
+		int ecDhSuitesCount = 0;
+		int pskSuitesCount = 0;
+		for (CipherSuite suite : config.getSupportedCipherSuites()) {
+			if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(suite.getKeyExchange())) {
+				ecDhSuitesCount++;
+			} else if (KeyExchangeAlgorithm.PSK.equals(suite.getKeyExchange())) {
+				pskSuitesCount++;
+			}
+		}
+		Assert.assertTrue(ecDhSuitesCount > 0);
+		Assert.assertTrue(pskSuitesCount > 0);
 	}
 	
 	@Test(expected = IllegalStateException.class)
@@ -120,5 +130,19 @@ public class DtlsConnectorConfigTest {
 		} catch (NullPointerException e) {
 			// all is well
 		}
+	}
+	
+	@Test
+	public void testBuildAllowsForAnonymousClient() {
+		builder.setClientOnly()
+			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8})
+			.build();
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testBuildAllowsForAnonymousClientUsingEcDsaCiphersOnly() {
+		builder.setClientOnly()
+			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
+			.build();
 	}
 }
