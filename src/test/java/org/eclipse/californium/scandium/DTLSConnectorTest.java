@@ -70,6 +70,8 @@ public class DTLSConnectorTest {
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 	private static KeyStore keyStore;
 	private static KeyStore trustStore;
+	private static PrivateKey serverPrivateKey;
+	private static PrivateKey clientPrivateKey;
 	
 	DtlsConnectorConfig serverConfig;
 	DTLSConnector server;
@@ -86,7 +88,8 @@ public class DTLSConnectorTest {
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		// load the key store
 		keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
-
+		serverPrivateKey = (PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
+		clientPrivateKey = (PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
 		// load the trust store
 		trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
 	}
@@ -103,23 +106,26 @@ public class DTLSConnectorTest {
 		Certificate[] trustedCertificates = getTrustedCertificates(trustStore);
 		
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("client"), true);
+		builder.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true);
 		builder.setTrustStore(trustedCertificates);
 		clientConfig = builder.build();
+
+		client = new DTLSConnector(clientConfig, clientSessionStore);
 		
 		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-		builder.setIdentity((PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("server"), true);
+		builder.setSupportedCipherSuites(
+				new CipherSuite[]{
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256});
+		builder.setIdentity(serverPrivateKey, keyStore.getCertificateChain("server"), true);
 		builder.setTrustStore(trustedCertificates);
 		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
 		builder.setClientAuthenticationRequired(true);
 		serverConfig = builder.build();
 
 		server = new DTLSConnector(serverConfig, serverSessionStore);
-		client = new DTLSConnector(clientConfig, clientSessionStore);
 		
 		rawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -336,6 +342,18 @@ public class DTLSConnectorTest {
 		// and try to establish a fresh session
 		givenAnEstablishedSession();
 		Assert.assertThat(establishedSession.getPeer(), is(clientEndpoint));
+	}
+
+	@Test
+	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
+		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256});
+		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("client"), false);
+		builder.setTrustStore(getTrustedCertificates(trustStore));
+		clientConfig = builder.build();
+		client = new DTLSConnector(clientConfig, clientSessionStore);
+		givenAnEstablishedSession();
 	}
 	
 	@Test

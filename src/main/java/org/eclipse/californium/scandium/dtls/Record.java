@@ -16,20 +16,26 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - expose sequence number as
  *                   property of type long in order to prevent tedious conversions
  *                   in client code
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.spec.IvParameterSpec;
+
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CipherType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -92,7 +98,8 @@ public class Record {
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
-	 * Creates a record representing a DTLSCiphertext struct received from the network.
+	 * Creates a record from a <em>DTLSCiphertext</em> struct received from the network.
+	 * 
 	 * Called when reconstructing the record from a byte array. The fragment
 	 * will remain in its binary representation up to the DTLS Layer.
 	 * 
@@ -100,20 +107,19 @@ public class Record {
 	 * @param version the version
 	 * @param epoch the epoch
 	 * @param sequenceNumber the sequence number
-	 * @param length the number of bytes of encrypted data 
 	 * @param fragmentBytes the encrypted data
 	 */
-	public Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, int length, byte[] fragmentBytes) {
+	public Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, byte[] fragmentBytes) {
 		this.type = type;
 		this.version = version;
 		this.epoch = epoch;
 		this.sequenceNumber = sequenceNumber;
-		this.length = length;
 		this.fragmentBytes = fragmentBytes;
+		this.length = fragmentBytes.length;
 	}
 
 	/**
-	 * Creates a record representing a DTLSPlaintext struct based on a {@link DTLSMessage}.
+	 * Creates a record representing a <em>DTLSPlaintext</em> struct based on a {@link DTLSMessage}.
 	 * 
 	 * @param type
 	 *            the type
@@ -126,10 +132,12 @@ public class Record {
 	 * @param session
 	 *            the session
 	 * @throws IllegalArgumentException if the given sequence number is longer than 48 bits
+	 * @throws GeneralSecurityException if the message could not be encrypted, e.g.
+	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
 
 	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session) 
-		throws IllegalArgumentException {
+		throws IllegalArgumentException, GeneralSecurityException {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must be 48 bits only");
 		}
@@ -148,7 +156,7 @@ public class Record {
 	 * 
 	 * @return the encoded byte array
 	 */
-	public byte[] toByteArray() {
+	public synchronized byte[] toByteArray() throws GeneralSecurityException {
 		DatagramWriter writer = new DatagramWriter();
 
 		writer.write(type.getCode(), CONTENT_TYPE_BITS);
@@ -200,7 +208,7 @@ public class Record {
 			if (contentType == null) {
 				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
 			} else {
-				records.add(new Record(contentType, version, epoch, sequenceNumber, length, fragmentBytes));
+				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes));
 			}	
 		}
 		
@@ -210,20 +218,24 @@ public class Record {
 	// Cryptography /////////////////////////////////////////////////////////
 
 	/**
-	 * Encrypts the fragment, if a cipher suite is available that supports
-	 * encryption.
+	 * Encrypts a TLSPlaintext.fragment according to the <em>current</em> DTLS connection state.
 	 * 
-	 * @param byteArray the fragment to encrypt
-	 * @return the encrypted fragment
+	 * @param plaintextFragment
+	 *            the TLSPlaintext.fragment to encrypt
+	 * @return the (encrypted) TLSCiphertext.fragment
+	 * @throws GeneralSecurityException if the plaintext could not be encrypted, e.g.
+	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
-	private byte[] encryptFragment(byte[] byteArray) {
+	private byte[] encryptFragment(byte[] plaintextFragment) throws GeneralSecurityException {
+		
 		if (session == null) {
-			return byteArray;
+			return plaintextFragment;
 		}
 
-		byte[] encryptedFragment = byteArray;
+		byte[] encryptedFragment = plaintextFragment;
 
 		CipherSuite cipherSuite = session.getWriteState().getCipherSuite();
+		LOGGER.log(Level.FINER, "Encrypting record fragment using current write state\n{0}", session.getWriteState());
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -231,15 +243,17 @@ public class Record {
 			break;
 			
 		case AEAD:
-			encryptedFragment = encryptAEAD(byteArray);
+			encryptedFragment = encryptAEAD(plaintextFragment);
 			break;
 			
 		case BLOCK:
-			// TODO implement block cipher
+			encryptedFragment = encryptBlockCipher(plaintextFragment);
 			break;
 			
 		case STREAM:
-			// Not used in DTLS, see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
+			// Currently, Scandium does not support any stream ciphers
+			// RC4 is explicitly ruled out from being used in DTLS
+			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
 			break;
 
 		default:
@@ -250,24 +264,25 @@ public class Record {
 	}
 
 	/**
-	 * Decrypts the byte array according to the current connection state. So,
-	 * potentially no decryption takes place. Returns <code>null</code> if the
-	 * message can't be authenticated.
+	 * Decrypts a TLSCiphertext.fragment according to the <em>current</em> DTLS connection state.
 	 * 
-	 * @param byteArray
-	 *            the potentially encrypted fragment.
-	 * @return the decrypted fragment.
-	 * @throws HandshakeException
-	 *             if the decryption fails.
+	 * So, potentially no decryption takes place at all.
+	 * 
+	 * @param ciphertextFragment
+	 *            the TLSCiphertext.fragment to decrypt
+	 * @return the (de-crypted) TLSPlaintext.fragment
+	 * @throws GeneralSecurityException
+	 *             if decryption fails, e.g. because the MAC could not be validated.
 	 */
-	private byte[] decryptFragment(byte[] byteArray) throws HandshakeException {
+	private byte[] decryptFragment(byte[] ciphertextFragment) throws GeneralSecurityException {
 		if (session == null) {
-			return byteArray;
+			return ciphertextFragment;
 		}
 
-		byte[] fragment = byteArray;
+		byte[] fragment = ciphertextFragment;
 
 		CipherSuite cipherSuite = session.getReadState().getCipherSuite();
+		LOGGER.log(Level.FINER, "Decrypting record fragment using current read state\n{0}", session.getReadState());
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -275,15 +290,17 @@ public class Record {
 			break;
 			
 		case AEAD:
-			fragment = decryptAEAD(byteArray);
+			fragment = decryptAEAD(ciphertextFragment);
 			break;
 			
 		case BLOCK:
-			// TODO implement block cipher
+			fragment = decryptBlockCipher(ciphertextFragment);
 			break;
 			
 		case STREAM:
-			// Not used in DTLS, see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
+			// Currently, Scandium does not support any stream ciphers
+			// RC4 is explicitly ruled out from being used in DTLS
+			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
 			break;
 
 		default:
@@ -293,9 +310,167 @@ public class Record {
 		return fragment;
 	}
 	
+	// Block Cipher Cryptography //////////////////////////////////////
+	
+	/**
+	 * Converts a given TLSCompressed.fragment to a
+	 * TLSCiphertext.fragment structure as defined by
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
+	 * RFC 5246, section 6.2.3.2</a>
+	 * 
+	 * <pre>
+	 * struct {
+	 *    opaque IV[SecurityParameters.record_iv_length];
+	 *    block-ciphered struct {
+	 *       opaque content[TLSCompressed.length];
+	 *       opaque MAC[SecurityParameters.mac_length];
+	 *       uint8 padding[GenericBlockCipher.padding_length];
+	 *       uint8 padding_length;
+	 *    };
+	 * } GenericBlockCipher;
+	 * </pre>
+	 * 
+	 * The particular cipher to use is determined from the negotiated
+	 * cipher suite in the <em>current</em> DTLS connection state.
+	 *  
+	 * @param compressedFragment the TLSCompressed.fragment
+	 * @return the TLSCiphertext.fragment
+	 * @throws NullPointerException if the given fragment is <code>null</code>
+	 * @throws IllegalStateException if the {@link #session} is not
+	 * @throws GeneralSecurityException if the JVM does not support the negotiated block cipher
+	 */
+	protected synchronized final byte[] encryptBlockCipher(byte[] compressedFragment) throws GeneralSecurityException {
+		if (session == null) {
+			throw new IllegalStateException("DTLS session must be set on record");
+		} else if (compressedFragment == null) {
+			throw new NullPointerException("Compressed fragment must not be null");
+		}
+		
+		/*
+		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
+		 * explanation
+		 */
+		DatagramWriter plaintext = new DatagramWriter();
+		plaintext.writeBytes(compressedFragment);
+		
+		// add MAC
+		plaintext.writeBytes(getBlockCipherMac(session.getWriteState(), compressedFragment));
+				
+		// determine padding length
+		int length = compressedFragment.length + session.getWriteState().getCipherSuite().getMacLength() + 1;
+		int smallestMultipleOfBlocksize = session.getWriteState().getRecordIvLength();
+		while ( smallestMultipleOfBlocksize <= length) {
+			smallestMultipleOfBlocksize += session.getWriteState().getRecordIvLength();
+		}
+		int paddingLength = smallestMultipleOfBlocksize % length;
+		
+		// create padding
+		byte[] padding = new byte[paddingLength + 1];
+		Arrays.fill(padding, (byte) paddingLength);
+		plaintext.writeBytes(padding);
+					
+		// TODO: check if we can re-use the cipher instance
+		Cipher blockCipher = Cipher.getInstance(session.getWriteState().getCipherSuite().getTransformation());
+		blockCipher.init(Cipher.ENCRYPT_MODE,
+				session.getWriteState().getEncryptionKey());
+
+		// create GenericBlockCipher structure
+		DatagramWriter result = new DatagramWriter();
+		result.writeBytes(blockCipher.getIV());
+		result.writeBytes(blockCipher.doFinal(plaintext.toByteArray()));
+		return result.toByteArray();
+	}
+	
+	/**
+	 * Converts a given TLSCiphertext.fragment to a
+	 * TLSCompressed.fragment structure as defined by
+	 * <a href="">RFC 5246, section 6.2.3.2</a>:
+	 * 
+	 * <pre>
+	 * struct {
+	 *    opaque IV[SecurityParameters.record_iv_length];
+	 *    block-ciphered struct {
+	 *       opaque content[TLSCompressed.length];
+	 *       opaque MAC[SecurityParameters.mac_length];
+	 *       uint8 padding[GenericBlockCipher.padding_length];
+	 *       uint8 padding_length;
+	 *    };
+	 * } GenericBlockCipher;
+	 * </pre>
+	 * 
+	 * The particular cipher to use is determined from the negotiated
+	 * cipher suite in the <em>current</em> DTLS connection state.
+	 * 
+	 * @param ciphertextFragment the TLSCiphertext.fragment
+	 * @return the TLSCompressed.fragment
+	 * @throws NullPointerException if the given ciphertext is <code>null</code>
+	 * @throws IllegalStateException if the {@link #session} is not set
+	 * @throws InvalidMacException if message authentication failed
+	 * @throws GeneralSecurityException if the ciphertext could not be decrpyted, e.g.
+	 *             because the JVM does not support the negotiated block cipher
+	 */
+	protected final byte[] decryptBlockCipher(byte[] ciphertextFragment) throws GeneralSecurityException {
+		if (session == null) {
+			throw new IllegalStateException("DTLS session must be set on record");
+		} else if (ciphertextFragment == null) {
+			throw new NullPointerException("Ciphertext must not be null");
+		}
+		/*
+		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
+		 * explanation
+		 */
+		DatagramReader reader = new DatagramReader(ciphertextFragment);
+		byte[] iv = reader.readBytes(session.getReadState().getRecordIvLength());
+		// TODO: check if we can re-use the cipher instance
+		Cipher blockCipher = Cipher.getInstance(session.getReadState().getCipherSuite().getTransformation());
+		blockCipher.init(Cipher.DECRYPT_MODE,
+				session.getReadState().getEncryptionKey(),
+				new IvParameterSpec(iv));
+		byte[] plaintext = blockCipher.doFinal(reader.readBytesLeft());
+		// last byte contains padding length
+		int paddingLength = plaintext[plaintext.length - 1];
+		int fragmentLength = plaintext.length
+				- 1 // paddingLength byte
+				- paddingLength
+				- session.getReadState().getCipherSuite().getMacLength();
+		
+		reader = new DatagramReader(plaintext);
+		byte[] content = reader.readBytes(fragmentLength);			
+		byte[] macFromMessage = reader.readBytes(session.getReadState().getCipherSuite().getMacLength());
+		byte[] mac = getBlockCipherMac(session.getReadState(), content);
+		if (Arrays.equals(macFromMessage, mac)) {
+			return content;
+		} else {
+			throw new InvalidMacException(mac, macFromMessage);
+		}
+	}
+	
+	/**
+	 * Calculates a MAC for use with CBC block ciphers as specified
+	 * by <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
+	 * RFC 5246, section 6.2.3.2</a>.
+	 * 
+	 * @param conState the security parameters for calculating the MAC
+	 * @param content the data to calculate the MAC for
+	 * @return the MAC
+	 * @throws GeneralSecurityException if the MAC could not be calculated,
+	 *           e.g. because the JVM does not support the cipher suite's
+	 *           HMac algorithm
+	 */
+	private byte[] getBlockCipherMac(DTLSConnectionState conState, byte[] content) throws GeneralSecurityException {
+		
+		Mac hmac = Mac.getInstance(conState.getCipherSuite().getMacName());
+		hmac.init(conState.getMacKey());
+		
+		DatagramWriter mac = new DatagramWriter();
+		mac.writeBytes(generateAdditionalData(content.length));
+		mac.writeBytes(content);
+		return hmac.doFinal(mac.toByteArray());
+	}
+	
 	// AEAD Cryptography //////////////////////////////////////////////
 	
-	protected byte[] encryptAEAD(byte[] byteArray) {
+	protected byte[] encryptAEAD(byte[] byteArray) throws GeneralSecurityException {
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 for
 		 * explanation of additional data or
@@ -304,7 +479,8 @@ public class Record {
 		byte[] iv = session.getWriteState().getIv().getIV();
 		byte[] nonce = generateNonce(iv);
 		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
-		byte[] additionalData = generateAdditionalData(getLength());
+//		byte[] additionalData = generateAdditionalData(getLength());
+		byte[] additionalData = generateAdditionalData(byteArray.length);
 		
 		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
 		
@@ -322,13 +498,12 @@ public class Record {
 	/**
 	 * Decrypts the given byte array using a AEAD cipher.
 	 * 
-	 * @param byteArray
-	 *            the encrypted message.
-	 * @return the decrypted message.
-	 * @throws HandshakeException
-	 *             if the decryption fails.
+	 * @param byteArray the encrypted message
+	 * @return the decrypted message
+	 * @throws InvalidMacException if message authentication failed
+	 * @throws GeneralSecurityException if de-cryption failed
 	 */
-	protected byte[] decryptAEAD(byte[] byteArray) throws HandshakeException {
+	protected byte[] decryptAEAD(byte[] byteArray) throws GeneralSecurityException {
 		/*
 		 */
 		
@@ -344,7 +519,8 @@ public class Record {
 		 * The decrypted message is always 16 bytes shorter than the cipher (8
 		 * for the authentication tag and 8 for the explicit nonce).
 		 */
-		byte[] additionalData = generateAdditionalData(getLength() - 16);
+//		byte[] additionalData = generateAdditionalData(getLength() - 16);
+		byte[] additionalData = generateAdditionalData(byteArray.length - 16);
 
 		DatagramReader reader = new DatagramReader(byteArray);
 		
@@ -405,7 +581,7 @@ public class Record {
 	 * encourages the use of the session's 16bit epoch value concatenated
 	 * with a monotonically increasing 48bit sequence number as the explicit nonce. 
 	 * 
-	 * @return the explicit nonce constructed from the epoch and sequence number
+	 * @return the 64-bit explicit nonce constructed from the epoch and sequence number
 	 */
 	private byte[] generateExplicitNonce() {
 		
@@ -453,70 +629,92 @@ public class Record {
 		return type;
 	}
 
-	public void setType(ContentType type) {
-		this.type = type;
-	}
-
+//	public void setType(ContentType type) {
+//		this.type = type;
+//	}
+//
 	public ProtocolVersion getVersion() {
 		return version;
 	}
 
-	public void setVersion(ProtocolVersion version) {
-		this.version = version;
-	}
-
+//	public void setVersion(ProtocolVersion version) {
+//		this.version = version;
+//	}
+//
 	public int getEpoch() {
 		return epoch;
 	}
 
-	public void setEpoch(int epoch) {
-		this.epoch = epoch;
-	}
-
+//	public void setEpoch(int epoch) {
+//		this.epoch = epoch;
+//	}
+//
 	public long getSequenceNumber() {
 		return sequenceNumber;
 	}
 
-	public void setSequenceNumber(long sequenceNumber) {
+	/**
+	 * Sets the record's sequence number.
+	 * 
+	 * This is primarily intended for cases where the record needs to be re-transmitted
+	 * with a new sequence number.
+	 * 
+	 * This method also takes care of re-encrypting the record's message fragment if
+	 * a CBC block cipher is used in order to update the ciphertext's MAC which is
+	 * parameterized with the record's sequence number.
+	 *  
+	 * @param sequenceNumber the new sequence number
+	 * @throws GeneralSecurityException if the fragment could not be re-encrypted
+	 */
+	public synchronized void setSequenceNumber(long sequenceNumber) throws GeneralSecurityException {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must have max 48 bits");
 		}
 		this.sequenceNumber = sequenceNumber;
+		if (session != null && session.getWriteState() != null) {
+			if (CipherType.BLOCK.equals(session.getWriteState().getCipherSuite().getCipherType())) {
+				fragmentBytes = encryptBlockCipher(fragment.toByteArray());
+			}
+		}
 	}
 
 	public int getLength() {
 		return length;
 	}
 
-	public void setLength(int length) {
-		this.length = length;
-	}
+//	public void setLength(int length) {
+//		this.length = length;
+//	}
 
-	public DTLSSession getSession() {
-		return session;
-	}
+//	public DTLSSession getSession() {
+//		return session;
+//	}
 
-	public void setSession(DTLSSession session) {
+	public synchronized void setSession(DTLSSession session) {
 		this.session = session;
 	}
 	
-	public byte[] getFragmentBytes() {
-		return fragmentBytes;
-	}
-
 	/**
-	 * So far, the fragment is in its raw binary format. Decrypt (if necessary)
-	 * under current read state and serialize it.
+	 * Gets the <em>TLSPlaintext.fragment</em> from the record.
+	 *  
+	 * If necessary, the fragment is decrypted first according to the DTLS connection's
+	 * <em>current</em> read state.
 	 * 
-	 * @return the fragment
-	 * @throws HandshakeException
-	 *             if the decryption fails.
+	 * @return the plaintext fragment
+	 * @throws InvalidMacException if message authentication failed
+	 * @throws GeneralSecurityException if de-cryption fails, e.g. because
+	 *             the JVM does not support the negotiated cipher algorithm
+	 * @throws HandshakeException if the TLSPlaintext.fragment could not be parsed into
+	 *             a valid handshake message
 	 */
-	public DTLSMessage getFragment() throws HandshakeException {
+	public synchronized DTLSMessage getFragment() throws GeneralSecurityException, HandshakeException {
 		if (fragment == null) {
-			// decide, which type of fragment need decryption
+			// decide, which type of fragment need de-cryption
 			switch (type) {
 			case ALERT:
+				// http://tools.ietf.org/html/rfc5246#section-7.2:
+				// "Like other messages, alert messages are encrypted and
+				// compressed, as specified by the current connection state."
 				byte[] decryptedMessage = decryptFragment(fragmentBytes);
 				if (decryptedMessage != null) {
 					fragment = AlertMessage.fromByteArray(decryptedMessage);
@@ -524,6 +722,10 @@ public class Record {
 				break;
 
 			case APPLICATION_DATA:
+				// http://tools.ietf.org/html/rfc5246#section-10:
+				// "Application data messages are carried by the record layer and are
+				//  fragmented, compressed, and encrypted based on the current connection
+				//  state."
 				decryptedMessage = decryptFragment(fragmentBytes);
 				if (decryptedMessage != null) {
 					fragment = ApplicationMessage.fromByteArray(decryptedMessage);
@@ -531,8 +733,8 @@ public class Record {
 				break;
 
 			case CHANGE_CIPHER_SPEC:
-				// http://tools.ietf.org/html/rfc5246#section-7.1: "is
-				// encrypted and compressed under the current (not the pending)
+				// http://tools.ietf.org/html/rfc5246#section-7.1:
+				// "is encrypted and compressed under the current (not the pending)
 				// connection state"
 				decryptedMessage = decryptFragment(fragmentBytes);
 				if (decryptedMessage != null) {
@@ -541,6 +743,15 @@ public class Record {
 				break;
 
 			case HANDSHAKE:
+				// TODO: it is unclear to me whether handshake messages are encrypted or not
+				// http://tools.ietf.org/html/rfc5246#section-7.4:
+				// "Handshake messages are supplied to the TLS record layer, where they
+				//  are encapsulated within one or more TLSPlaintext structures, which
+				//  are processed and transmitted as specified by the current active session state."
+				if (LOGGER.isLoggable(Level.FINEST)) {
+					LOGGER.log(Level.FINEST, "Decrypting HANDSHAKE message ciphertext\n{0}",
+						ByteArrayUtils.toHexString(fragmentBytes));
+				}
 				decryptedMessage = decryptFragment(fragmentBytes);
 
 				KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
@@ -548,29 +759,21 @@ public class Record {
 				if (session != null) {
 					keyExchangeAlgorithm = session.getKeyExchange();
 					receiveRawPublicKey = session.receiveRawPublicKey();
+					LOGGER.log(Level.FINEST, "Using KeyExchange [{0}] and receiveRawPublicKey [{1}] from session",
+							new Object[]{keyExchangeAlgorithm, receiveRawPublicKey});
 				}
 				if (decryptedMessage != null) {
+					if (LOGGER.isLoggable(Level.FINEST)) {
+						LOGGER.log(Level.FINEST,
+							"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]\n{2}",
+							new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, ByteArrayUtils.toHexString(decryptedMessage)});
+					}
 					fragment = HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey);
 				}
-				break;
-
-			default:
-				LOGGER.severe("Unknown content type: " + type);
 				break;
 			}
 		}
 		
-		/*
-		 * If at this point the fragment is still null, the decryption must have
-		 * failed (e.g. not possible to authenticate). Send alert.
-		 * 
-		 * http://tools.ietf.org/html/rfc5246#section-6.2.3.3: "If the
-		 * decryption fails, a fatal bad_record_mac alert MUST be generated."
-		 */
-		if (fragment == null) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_RECORD_MAC);
-			throw new HandshakeException("The decryption failed.", alert);
-		}
 		return fragment;
 	}
 
@@ -579,10 +782,11 @@ public class Record {
 	 * raw binary representation and encrypts it if necessary (depending on
 	 * current connection state).
 	 * 
-	 * @param fragment
-	 *            the DTLS fragment.
+	 * @param fragment the DTLS fragment
+	 * @throws GeneralSecurityException if the message could not be encrypted, e.g.
+	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
-	public void setFragment(DTLSMessage fragment) {
+	public synchronized void setFragment(DTLSMessage fragment) throws GeneralSecurityException {
 
 		if (fragmentBytes == null) {
 			// serialize fragment and if necessary encrypt byte array

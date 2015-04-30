@@ -20,6 +20,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -177,7 +178,7 @@ public class ServerHandshaker extends Handshaker {
 	
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight, but the client did not receive
 			// it, since we received its finished message again, so we
@@ -193,7 +194,7 @@ public class ServerHandshaker extends Handshaker {
 			return flight;
 		}
 
-		// log record now (even if message is still encrypted) in case a HandshakeException
+		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
 		LOGGER.log(Level.FINER, "Processing DTLS record from peer [{0}]:\n{1}",
 				new Object[]{getPeerAddress(), record});
@@ -351,7 +352,9 @@ public class ServerHandshaker extends Handshaker {
 	 * @param message
 	 *            the client's {@link Finished} message.
 	 * @return the server's last {@link DTLSFlight}.
-	 * @throws HandshakeException 
+	 * @throws HandshakeException if the client did not send the required <em>CLIENT_CERTIFICATE</em>
+	 *            and <em>CERTIFICATE_VERIFY</em> messages or if the server's FINISHED message
+	 *            cannot be created
 	 */
 	private DTLSFlight receivedClientFinished(Finished message) throws HandshakeException {
 		if (lastFlight != null) {
@@ -422,7 +425,6 @@ public class ServerHandshaker extends Handshaker {
 		lastFlight = flight;
 		handshakeCompleted();
 		return flight;
-
 	}
 
 	/**
@@ -437,7 +439,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @param message
 	 *            the client's hello message.
 	 * @return the server's next flight to be sent.
-	 * @throws HandshakeException
+	 * @throws HandshakeException if the server's response message(s) cannot be created
 	 */
 	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
 		DTLSFlight flight = new DTLSFlight(getSession());
@@ -518,7 +520,7 @@ public class ServerHandshaker extends Handshaker {
 			HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
 			serverHelloExtensions.addExtension(ext3);
 		}
-		
+
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod, serverHelloExtensions);
 		flight.addMessage(wrapMessage(serverHello));
 		
@@ -678,7 +680,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() {
+	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		HelloRequest helloRequest = new HelloRequest();
 
 		DTLSFlight flight = new DTLSFlight(getSession());

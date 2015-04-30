@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -72,7 +73,7 @@ public class RecordTest {
 	}
 
 	@Test
-	public void testConstructorEnforcesMaxSequenceNo() {
+	public void testConstructorEnforcesMaxSequenceNo() throws GeneralSecurityException {
 		new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO, new HelloRequest(), session);
 		try {
 			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(), session);
@@ -83,7 +84,7 @@ public class RecordTest {
 	}
 	
 	@Test
-	public void testSetSequenceNumberEnforcesMaxSequenceNo() {
+	public void testSetSequenceNumberEnforcesMaxSequenceNo() throws GeneralSecurityException {
 		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(), session);
 		record.setSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO);
 		try {
@@ -95,7 +96,7 @@ public class RecordTest {
 	}
 	
 	@Test
-	public void testFromByteArrayAcceptsKnownTypeCode() {
+	public void testFromByteArrayAcceptsKnownTypeCode() throws GeneralSecurityException {
 		
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		List<Record> recordList = Record.fromByteArray(application_record);
@@ -109,7 +110,7 @@ public class RecordTest {
 	}
 	
 	@Test
-	public void testFromByteArrayRejectsUnknownTypeCode() {
+	public void testFromByteArrayRejectsUnknownTypeCode() throws GeneralSecurityException {
 		
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
@@ -125,20 +126,20 @@ public class RecordTest {
 	 * explicit nonce part frmo the epoch and sequence number contained in the <i>DTLSCiphertext</i>
 	 * struct.
 	 * 
-	 * @throws HandshakeException if decryption fails
+	 * @throws Exception if decryption fails
 	 */
 	@Test
-	public void testDecryptAEADUsesExplicitNonceFromGenericAEADCipherStruct() throws HandshakeException {
+	public void testDecryptAEADUsesExplicitNonceFromGenericAEADCipherStruct() throws Exception {
 		
 		byte[] fragment = newGenericAEADCipherFragment();
-		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, fragment.length, fragment);
+		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, fragment);
 		record.setSession(session);
 		
 		byte[] decryptedData = record.decryptAEAD(fragment);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	
-	byte[] newGenericAEADCipherFragment() {
+	byte[] newGenericAEADCipherFragment() throws GeneralSecurityException {
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)
 		byte[] seq_num = new byte[]{0x00, (byte) EPOCH, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) SEQUENCE_NO};
 		
