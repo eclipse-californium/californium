@@ -26,12 +26,18 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 /**
  * Represents the state of a DTLS connection.
  * 
- * It specifies a compression algorithm, an
- * encryption algorithm, and a MAC algorithm. For a connection, there are always
- * for connection states outstanding: the current read and write states, and the
- * pending read and write states. All records are processed under the current
- * read and write states. See <a
- * href="http://tools.ietf.org/html/rfc5246#section-6.1">RFC 5246</a> for
+ * For each DTLS connection four states are maintained:
+ * <ul>
+ * <li>current read state</li>
+ * <li>current write state</li>
+ * <li>pending read state</li>
+ * <li>pending write state</li>
+ * </ul>
+ * 
+ * A connection state specifies a compression algorithm, an encryption algorithm
+ * and a MAC algorithm. All records are processed under the <em>current</em>
+ * read and write states.
+ * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">RFC 5246</a> for
  * details.
  */
 class DTLSConnectionState {
@@ -72,8 +78,14 @@ class DTLSConnectionState {
 	 *            the initialization vector used
 	 * @param macKey
 	 *            the MAC key used
+	 * @throws NullPointerException if either cipher suite or compression method are <code>null</code>
 	 */
 	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey, IvParameterSpec iv, SecretKey macKey) {
+		if (cipherSuite == null) {
+			throw new NullPointerException("Cipher suite must not be null");
+		} else if (compressionMethod == null) {
+			throw new NullPointerException("Compression method must not be null");
+		}
 		this.cipherSuite = cipherSuite;
 		this.compressionMethod = compressionMethod;
 		this.encryptionKey = encryptionKey;
@@ -91,15 +103,55 @@ class DTLSConnectionState {
 		return compressionMethod;
 	}
 
+	/**
+	 * Gets the cipher algorithm key.
+	 * 
+	 * @return the key
+	 */
 	SecretKey getEncryptionKey() {
 		return encryptionKey;
 	}
 
+	/**
+	 * Gets the fixed initialization vector for use with AEAD based cipher suites.
+	 * 
+	 * @return the initialization vector
+	 */
 	IvParameterSpec getIv() {
 		return iv;
 	}
 
 	SecretKey getMacKey() {
 		return macKey;
+	}
+
+	/**
+	 * Gets the output length of the MAC algorithm.
+	 *  
+	 * @return the length in bytes
+	 */
+	int getMacLength() {
+		return cipherSuite.getMacLength();
+	}
+	
+	/**
+	 * Gets the key length of the MAC algorithm.
+	 *  
+	 * @return the length in bytes
+	 */
+	int getMacKeyLength() {
+		return cipherSuite.getMacKeyLength();
+	}
+	
+	/**
+	 * Gets the length of the cipher algorithms's initialization vector.
+	 * 
+	 * For block ciphers (e.g. AES) this is the same as the cipher's
+	 * block size.
+	 * 
+	 * @return the length in bytes
+	 */
+	int getRecordIvLength() {
+		return cipherSuite.getBulkCipher().getRecordIvLength();
 	}
 }
