@@ -369,7 +369,6 @@ public enum CipherSuite {
 		// key_length & record_iv_length as documented in RFC 5426, Appendic C
 		// see http://tools.ietf.org/html/rfc5246#appendix-C
 		NULL(0, 0, 0),
-		RC4(16, 4, 0), // don't know
 		B_3DES(24, 4, 8), // don't know
 		AES_128(16, 4, 16); // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
 		
