@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -105,12 +106,12 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tHandshake Protocol\n");
-		sb.append("\tType: " + getMessageType().toString() + "\n");
-		sb.append("\tMessage Sequence: " + messageSeq + " \n");
-		sb.append("\tFragment Offset: " + fragmentOffset + "\n");
-		sb.append("\tFragment Length: " + fragmentLength + "\n");
-		sb.append("\tLength: " + getMessageLength() + "\n");
+		sb.append("\tHandshake Protocol");
+		sb.append("\n\tType: ").append(getMessageType());
+		sb.append("\n\tMessage Sequence: ").append(messageSeq);
+		sb.append("\n\tFragment Offset: ").append(fragmentOffset);
+		sb.append("\n\tFragment Length: ").append(fragmentLength);
+		sb.append("\n\tLength: ").append(getMessageLength()).append("\n");
 
 		return sb.toString();
 	}
@@ -154,6 +155,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	public static HandshakeMessage fromByteArray(byte[] byteArray, KeyExchangeAlgorithm keyExchange, boolean useRawPublicKey) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		HandshakeType type = HandshakeType.getTypeByCode(reader.read(MESSAGE_TYPE_BITS));
+		LOGGER.log(Level.FINEST, "Parsing HANDSHAKE message of type [{0}]", type);
 
 		int length = reader.read(MESSAGE_LENGTH_BITS);
 
