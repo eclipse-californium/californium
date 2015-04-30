@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,22 +14,26 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla - fixes & improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - getter for retrieving extension
+ *                                                    of a particular type
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
- * Represents a structure to hold several {@link HelloExtension}.
+ * A container for one or more {@link HelloExtension}s.
  */
 public class HelloExtensions {
 	// Logging ////////////////////////////////////////////////////////
@@ -77,7 +81,7 @@ public class HelloExtensions {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\t\tExtensions Length: " + getLength() + "\n");
+		sb.append("\t\tExtensions Length: ").append(getLength()).append("\n");
 		for (HelloExtension ext : extensions) {
 			sb.append(ext.toString());
 		}
@@ -134,8 +138,25 @@ public class HelloExtensions {
 		}
 	}
 
+	/**
+	 * Gets a hello extension of a particular type.
+	 * 
+	 * @param type the type of extension
+	 * @return the extension or <code>null</code> if no extension
+	 *     of the given type is present
+	 */
+	final HelloExtension getExtension(ExtensionType type) {
+		if (type != null) {
+			for (HelloExtension ext : extensions) {
+				if (type.equals(ext.getType())) {
+					return ext;
+				}
+			}
+		}
+		return null;
+	}
+	
 	public List<HelloExtension> getExtensions() {
-		// TODO: should we not better return an immutable copy? 
-		return extensions;
+		return Collections.unmodifiableList(extensions);
 	}
 }
