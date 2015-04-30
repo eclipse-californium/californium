@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.logging.Level;
@@ -46,7 +47,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight, but the client did not receive
 			// it, since we received its finished message again, so we
@@ -120,8 +121,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * @param message
 	 *            the server's finished message.
 	 * @return the last flight of the short handshake.
-	 * @throws HandshakeException
-	 *             if the server's Finished message could not be verified.
+	 * @throws HandshakeException if the server's FINISHED message could not be
+	 *            verified or if the client's handshake messages cannot be created
 	 */
 	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException {
 		if (lastFlight != null) {
@@ -175,7 +176,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() {
+	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session);
 
 		message.addCipherSuite(session.getCipherSuite());

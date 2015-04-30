@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -128,7 +129,7 @@ public class ClientHandshaker extends Handshaker {
 	
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = null;
 		if (!processMessageNext(record)) {
 			return null;
@@ -248,9 +249,10 @@ public class ClientHandshaker extends Handshaker {
 	 * @param message
 	 *            the {@link Finished} message.
 	 * @return the list
-	 * @throws HandshakeException 
+	 * @throws HandshakeException
+	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
 	 */
-	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException {
+	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = new DTLSFlight(getSession());
 
 		message.verifyData(getMasterSecret(), false, handshakeHash);
@@ -274,8 +276,9 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the hello request message
+	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	private DTLSFlight receivedHelloRequest(HelloRequest message) {
+	private DTLSFlight receivedHelloRequest(HelloRequest message) throws HandshakeException {
 		if (state < HandshakeType.HELLO_REQUEST.getCode()) {
 			return getStartHandshakeMessage();
 		} else {
@@ -293,8 +296,9 @@ public class ClientHandshaker extends Handshaker {
 	 * @param message
 	 *            the server's {@link HelloVerifyRequest}.
 	 * @return {@link ClientHello} with server's {@link Cookie} set.
+	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	private DTLSFlight receivedHelloVerifyRequest(HelloVerifyRequest message) {
+	private DTLSFlight receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
 
 		clientHello.setCookie(message.getCookie());
 		// update the length (cookie added)
@@ -327,7 +331,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setSessionIdentifier(message.getSessionId());
 		setCipherSuite(message.getCipherSuite());
 		setCompressionMethod(message.getCompressionMethod());
-		
+
 		ClientCertificateTypeExtension clientCertType = serverHello.getClientCertificateTypeExtension();
 		// check what type of certificate the server expects the client to send
 		if (clientCertType != null && clientCertType.getCertificateTypes().get(0) == CertificateType.RAW_PUBLIC_KEY) {
@@ -374,7 +378,7 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the server's {@link ServerKeyExchange} message.
-	 * @throws HandshakeException if the message can't be verified.
+	 * @throws HandshakeException if the message can't be verified
 	 */
 	private void receivedServerKeyExchange(ECDHServerKeyExchange message) throws HandshakeException {
 		if (serverKeyExchange != null && (serverKeyExchange.getMessageSeq() == message.getMessageSeq())) {
@@ -411,8 +415,9 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @return the client's next flight to be sent.
 	 * @throws HandshakeException
+	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
-	private DTLSFlight receivedServerHelloDone(ServerHelloDone message) throws HandshakeException {
+	private DTLSFlight receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = new DTLSFlight(getSession());
 		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
 			// discard duplicate message
@@ -576,7 +581,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() {
+	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey);
 
 		// store client random for later calculations

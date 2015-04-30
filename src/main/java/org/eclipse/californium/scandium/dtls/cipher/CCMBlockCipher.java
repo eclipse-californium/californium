@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,22 +13,19 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - throw GeneralSecurityException instead
+ *            of HandshakeException to indicate problems with en-/decryption
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.scandium.dtls.AlertMessage;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -39,10 +36,6 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * 3610</a> for details.
  */
 public final class CCMBlockCipher {
-
-	// Logging ////////////////////////////////////////////////////////
-
-	private static final Logger LOGGER = Logger.getLogger(CCMBlockCipher.class.getCanonicalName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -75,58 +68,56 @@ public final class CCMBlockCipher {
 	 *            Number of octets in authentication field.
 	 * @return the decrypted message
 	 * 
-	 * @throws HandshakeException
-	 *             if the message could not be authenticated.
+	 * @throws GeneralSecurityException if the message could not be de-crypted, e.g.
+	 *             because the ciphertext's block size is not correct
+	 * @throws InvalidMacException
+	 *             if the message could not be authenticated
 	 */
-	public static byte[] decrypt(byte[] key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes) throws HandshakeException {
+	public static byte[] decrypt(byte[] key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
+			throws GeneralSecurityException {
 		byte[] T;
 		byte[] m;
 		byte[] mac;
-		try {
-			/*
-			 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-6.1:
-			 * "AEAD_AES_128_CCM_8 ciphertext is exactly 8 octets longer than
-			 * its corresponding plaintext"
-			 */
-			long lengthM = c.length - numAuthenticationBytes;
+		/*
+		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-6.1:
+		 * "AEAD_AES_128_CCM_8 ciphertext is exactly 8 octets longer than
+		 * its corresponding plaintext"
+		 */
+		long lengthM = c.length - numAuthenticationBytes;
 
-			// instantiate the underlying block cipher
-			Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
-			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
+		// instantiate the underlying block cipher
+		Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
 
-			/*
-			 * Decryption starts by recomputing the key stream to recover the
-			 * message m and the MAC value T.
-			 */
-			List<byte[]> S_i = generateKeyStreamBlocks(lengthM, nonce, cipher);
-			byte[] S_0 = S_i.get(0);
-			byte[] concatenatedS_i = generateConcatenatedKeyStream(S_i, lengthM);
+		/*
+		 * Decryption starts by recomputing the key stream to recover the
+		 * message m and the MAC value T.
+		 */
+		List<byte[]> S_i = generateKeyStreamBlocks(lengthM, nonce, cipher);
+		byte[] S_0 = S_i.get(0);
+		byte[] concatenatedS_i = generateConcatenatedKeyStream(S_i, lengthM);
 
-			// extract the encrypted message (cut of authentication value)
-			byte[] encryptedM = ByteArrayUtils.truncate(c, (int) lengthM);
+		// extract the encrypted message (cut of authentication value)
+		byte[] encryptedM = ByteArrayUtils.truncate(c, (int) lengthM);
 
-			/*
-			 * The message is decrypted by XORing the octets of message m with
-			 * the first l(m) octets of the concatenation of S_1, S_2, S_3
-			 */
-			m = ByteArrayUtils.xorArrays(encryptedM, concatenatedS_i);
+		/*
+		 * The message is decrypted by XORing the octets of message m with
+		 * the first l(m) octets of the concatenation of S_1, S_2, S_3
+		 */
+		m = ByteArrayUtils.xorArrays(encryptedM, concatenatedS_i);
 
-			// extract the authentication value from the cipher text
-			byte[] encryptedT = new byte[numAuthenticationBytes];
-			System.arraycopy(c, (int) lengthM, encryptedT, 0, numAuthenticationBytes);
+		// extract the authentication value from the cipher text
+		byte[] encryptedT = new byte[numAuthenticationBytes];
+		System.arraycopy(c, (int) lengthM, encryptedT, 0, numAuthenticationBytes);
 
-			// T := U XOR first-M-bytes( S_0 )
-			T = ByteArrayUtils.xorArrays(encryptedT, ByteArrayUtils.truncate(S_0, numAuthenticationBytes));
+		// T := U XOR first-M-bytes( S_0 )
+		T = ByteArrayUtils.xorArrays(encryptedT, ByteArrayUtils.truncate(S_0, numAuthenticationBytes));
 
-			/*
-			 * The message and additional authentication data is then used to
-			 * recompute the CBC-MAC value and check T.
-			 */
-			mac = computeCbcMac(nonce, m, a, cipher, numAuthenticationBytes);
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not decrypt the message.",e);
-			return new byte[] {};
-		}
+		/*
+		 * The message and additional authentication data is then used to
+		 * recompute the CBC-MAC value and check T.
+		 */
+		mac = computeCbcMac(nonce, m, a, cipher, numAuthenticationBytes);
 
 		/*
 		 * If the T value is not correct, the receiver MUST NOT reveal any
@@ -137,10 +128,7 @@ public final class CCMBlockCipher {
 		if (Arrays.equals(T, mac)) {
 			return m;
 		} else {
-			String message = "The encrypted message could not be authenticated:\nExpected: " 
-			                + ByteArrayUtils.toHexString(T) + "\nActual:   " + ByteArrayUtils.toHexString(mac);
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_RECORD_MAC);
-			throw new HandshakeException(message, alert);
+			throw new InvalidMacException(mac, T);
 		}
 
 	}
@@ -160,52 +148,50 @@ public final class CCMBlockCipher {
 	 * @param numAuthenticationBytes
 	 *            Number of octets in authentication field.
 	 * @return the encrypted and authenticated message.
+	 * @throws GeneralSecurityException if the data could not be encrypted, e.g. because
+	 *            the JVM does not support the AES cipher algorithm
 	 */
-	public static byte[] encrypt(byte[] key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes) {
-		try {
-			long lengthM = m.length;
+	public static byte[] encrypt(byte[] key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
+		throws GeneralSecurityException {
+		long lengthM = m.length;
 
-			// instantiate the cipher
-			Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
-			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
+		// instantiate the cipher
+		Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
 
-			/*
-			 * First, authentication:
-			 * http://tools.ietf.org/html/rfc3610#section-2.2
-			 */
+		/*
+		 * First, authentication:
+		 * http://tools.ietf.org/html/rfc3610#section-2.2
+		 */
 
-			// compute the authentication field T
-			byte[] T = computeCbcMac(nonce, m, a, cipher, numAuthenticationBytes);
+		// compute the authentication field T
+		byte[] T = computeCbcMac(nonce, m, a, cipher, numAuthenticationBytes);
 
-			/*
-			 * Second, encryption http://tools.ietf.org/html/rfc3610#section-2.3
-			 */
+		/*
+		 * Second, encryption http://tools.ietf.org/html/rfc3610#section-2.3
+		 */
 
-			List<byte[]> S_i = generateKeyStreamBlocks(lengthM, nonce, cipher);
-			byte[] S_0 = S_i.get(0);
-			byte[] concatenatedS_i = generateConcatenatedKeyStream(S_i, lengthM);
+		List<byte[]> S_i = generateKeyStreamBlocks(lengthM, nonce, cipher);
+		byte[] S_0 = S_i.get(0);
+		byte[] concatenatedS_i = generateConcatenatedKeyStream(S_i, lengthM);
 
-			/*
-			 * The message is encrypted by XORing the octets of message m with
-			 * the first l(m) octets of the concatenation of S_1, S_2, S_3, ...
-			 * . Note that S_0 is not used to encrypt the message.
-			 */
-			byte[] encryptedMessage = ByteArrayUtils.xorArrays(m, concatenatedS_i);
+		/*
+		 * The message is encrypted by XORing the octets of message m with
+		 * the first l(m) octets of the concatenation of S_1, S_2, S_3, ...
+		 * . Note that S_0 is not used to encrypt the message.
+		 */
+		byte[] encryptedMessage = ByteArrayUtils.xorArrays(m, concatenatedS_i);
 
-			// U := T XOR first-M-bytes( S_0 )
-			byte[] U = ByteArrayUtils.xorArrays(T, ByteArrayUtils.truncate(S_0, numAuthenticationBytes));
+		// U := T XOR first-M-bytes( S_0 )
+		byte[] U = ByteArrayUtils.xorArrays(T, ByteArrayUtils.truncate(S_0, numAuthenticationBytes));
 
-			/*
-			 * The final result c consists of the encrypted message followed by
-			 * the encrypted authentication value U.
-			 */
-			byte[] c = ByteArrayUtils.concatenate(encryptedMessage, U);
+		/*
+		 * The final result c consists of the encrypted message followed by
+		 * the encrypted authentication value U.
+		 */
+		byte[] c = ByteArrayUtils.concatenate(encryptedMessage, U);
 
-			return c;
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not encrypt the message.",e);
-			return new byte[] {};
-		}
+		return c;
 	}
 
 	// Helper methods /////////////////////////////////////////////////
@@ -226,10 +212,11 @@ public final class CCMBlockCipher {
 	 * @param authenticationBytes
 	 *            Number of octets in authentication field.
 	 * @return the CBC-MAC
-	 * @throws Exception
+	 * @throws GeneralSecurityException
 	 *             if cipher can not be realized.
 	 */
-	private static byte[] computeCbcMac(byte[] nonce, byte[] m, byte[] a, Cipher cipher, int authenticationBytes) throws Exception {
+	private static byte[] computeCbcMac(byte[] nonce, byte[] m, byte[] a, Cipher cipher, int authenticationBytes)
+			throws GeneralSecurityException {
 		long lengthM = m.length;
 		long lengthA = a.length;
 		int L = 15 - nonce.length;
@@ -359,10 +346,10 @@ public final class CCMBlockCipher {
 	 * @param cipher
 	 *            the cipher.
 	 * @return the key stream blocks.
-	 * @throws Exception
+	 * @throws GeneralSecurityException
 	 *             if the cipher can not be realized.
 	 */
-	private static List<byte[]> generateKeyStreamBlocks(long lengthM, byte[] nonce, Cipher cipher) throws Exception {
+	private static List<byte[]> generateKeyStreamBlocks(long lengthM, byte[] nonce, Cipher cipher) throws GeneralSecurityException {
 		int L = 15 - nonce.length;
 
 		List<byte[]> S_i = new ArrayList<byte[]>();

@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.logging.Level;
@@ -63,7 +64,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	}
 	
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException {
+	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = null;
 
 		if (!processMessageNext(record)) {
@@ -128,8 +129,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 * @param message
 	 *            the client's hello message.
 	 * @return the server's last flight.
+	 * @throws HandshakeException if the server's handshake records cannot be created
 	 */
-	private DTLSFlight receivedClientHello(ClientHello message) {
+	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
 
 		DTLSFlight flight = new DTLSFlight(getSession());
 		

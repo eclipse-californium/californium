@@ -76,6 +76,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -230,10 +231,10 @@ public class DTLSConnector implements Connector {
 						DTLSSession existingSession = DTLSConnector.this.sessionStore.store(session);
 						removeHandshaker(handshaker.getPeerAddress());
 						if (existingSession == null) {
-							LOGGER.log(Level.FINER, "Putting newly established session with peer [{0}] into session store",
+							LOGGER.log(Level.FINE, "Putting newly established session with peer [{0}] into session store",
 									handshaker.getPeerAddress());
 						} else {
-							LOGGER.log(Level.FINER, "Replacing existing session with peer [{0}] in session store",
+							LOGGER.log(Level.FINE, "Replacing existing session with peer [{0}] in session store",
 									handshaker.getPeerAddress());
 						}
 					}
@@ -327,6 +328,9 @@ public class DTLSConnector implements Connector {
 				LOGGER.log(Level.FINE, "Session with peer [{0}] not found. Maybe already closed by peer?",
 						peerAddress);
 			}
+		} catch (GeneralSecurityException e) {
+			LOGGER.log(Level.FINE, "Cannot create CLOSE_NOTIFY message for peer [{0}] due to [{1}]",
+					new Object[]{peerAddress, e.getMessage()});
 		} finally {
 			// clear session
 			connectionClosed(peerAddress);
@@ -409,8 +413,8 @@ public class DTLSConnector implements Connector {
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data);
 
-		try {
-			for (Record record : records) {
+		for (Record record : records) {
+			try {
 				LOGGER.log(Level.FINEST, "Received DTLS record of type [{0}]", record.getType());
 				
 				switch(record.getType()) {
@@ -426,14 +430,32 @@ public class DTLSConnector implements Connector {
 				case HANDSHAKE:
 					processHandshakeRecord(peerAddress, record);
 				}
-			}
-		} catch (HandshakeException e) {
-			if (AlertLevel.FATAL.equals(e.getAlert().getLevel())) {
-				terminateConnection(peerAddress, e.getAlert());
-			} else {
-				LOGGER.log(Level.FINE,
-						String.format("Cannot process DTLS record from peer [%s]", peerAddress)
-						, e);
+			} catch (InvalidMacException e) {
+				// this means that the message from the record could not be authenticated
+				// maybe because the record has been sent in a forged UDP datagram by an attacker
+				// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
+				// advises to silently discard such records
+				LOGGER.log(Level.INFO, "MAC validation failed for [{0}] record from peer {[1]}, discarding ...",
+						new Object[]{record.getType(), peerAddress});
+				break;
+			} catch (GeneralSecurityException e) {
+				// this means that the message could not be decrypted, e.g. because the JVM does
+				// not support the negotiated cipher algorithm or the ciphertext has the wrong block size etc.
+				// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
+				// advises to silently discard such records
+				LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer {[1]} due to [{2}], discarding ...",
+						new Object[]{record.getType(), peerAddress, e.getMessage()});
+				break;
+			} catch (HandshakeException e) {
+				if (AlertLevel.FATAL.equals(e.getAlert().getLevel())) {
+					LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer {[1]} due to [{2}], aborting connection...",
+							new Object[]{record.getType(), peerAddress, e.getMessage()});
+					terminateConnection(peerAddress, e.getAlert());
+				} else {
+					LOGGER.log(Level.FINE, "Cannot process [{0}] record from peer [{1}] due to [{2}], discarding ...",
+							new Object[]{record.getType(), peerAddress, e.getMessage()});
+				}
+				break;
 			}
 		}
 	}
@@ -461,10 +483,15 @@ public class DTLSConnector implements Connector {
 		DTLSSession session = getSessionByAddress(peerAddress);
 		if (session != null) {
 			if (alert != null) {
-				DTLSFlight flight = new DTLSFlight(session);
-				flight.setRetransmissionNeeded(false);
-				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
-				sendFlight(flight);
+				try {
+					DTLSFlight flight = new DTLSFlight(session);
+					flight.setRetransmissionNeeded(false);
+					flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
+					sendFlight(flight);
+				} catch (GeneralSecurityException e) {
+					LOGGER.log(Level.FINE, "Cannot create ALERT message for peer [{0}] due to [{1}]",
+							new Object[]{peerAddress, e.getMessage()});
+				}
 			}
 			
 			// prevent processing of additional records
@@ -475,7 +502,8 @@ public class DTLSConnector implements Connector {
 	}
 	
 	
-	private void processApplicationDataRecord(InetSocketAddress peerAddress, Record record) {
+	private void processApplicationDataRecord(InetSocketAddress peerAddress, Record record)
+			throws GeneralSecurityException, HandshakeException {
 
 		DTLSSession session = getSessionByAddress(peerAddress);
 		
@@ -487,24 +515,15 @@ public class DTLSConnector implements Connector {
 				// APPLICATION_DATA can only be processed within the context of
 				// an established, i.e. fully negotiated, session
 				record.setSession(session);
-				try {
-					ApplicationMessage message = (ApplicationMessage) record.getFragment();
-					if (messageHandler != null) {
-						messageHandler.receiveData(new RawData(message.getData(), peerAddress, session.getPeerIdentity()));
-					}
-					// the fragment could be processed
-					// thus, the session seems to have been established successfully with
-					// peer and it's safe to remove the (now obsolete) handshaker
-					removeHandshaker(peerAddress);
-					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-				} catch (HandshakeException e) {
-					// this means that the fragment from the record could not be verified and de-crypted
-					// mybe because the record has been sent in a forged UDP datagram by an attacker
-					// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
-					// advises to silently discard such records
-					LOGGER.log(Level.FINE, "Discarding (supposedly) forged APPLICATION_DATA record from peer {[0]}",
-							peerAddress);
+				ApplicationMessage message = (ApplicationMessage) record.getFragment();
+				if (messageHandler != null) {
+					messageHandler.receiveData(new RawData(message.getData(), peerAddress, session.getPeerIdentity()));
 				}
+				// the fragment could be processed
+				// thus, the session seems to have been established successfully with
+				// peer and it's safe to remove the (now obsolete) handshaker
+				removeHandshaker(peerAddress);
+				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} else {
 				LOGGER.log(Level.FINER, "Discarding duplicate APPLICATION_DATA record received from peer [{0}]",
 						peerAddress);
@@ -518,42 +537,33 @@ public class DTLSConnector implements Connector {
 		}
 	}
 	
-	private void processAlertRecord(InetSocketAddress peerAddress, Record record) {
+	private void processAlertRecord(InetSocketAddress peerAddress, Record record) throws GeneralSecurityException, HandshakeException {
 		
 		// An ALERT can be processed at all times. If the ALERT level is fatal
 		// the connection with the peer must be terminated and all session or handshake
 		// state (keys, session identifier etc) must be destroyed.
 		record.setSession(getSessionByAddress(peerAddress));
-		try {
-			AlertMessage alert = (AlertMessage) record.getFragment();
-			LOGGER.log(Level.FINER, "Received ALERT record [{0}] from [{1}]",
-					new Object[]{alert, peerAddress});
-			if (AlertLevel.FATAL.equals(alert.getLevel())) {
-				// according to section 7.2 of the TLS 1.2 spec
-				// (http://tools.ietf.org/html/rfc5246#section-7.2)
-				// the connection needs to be terminated immediately
-				cancelPreviousFlight(peerAddress);
-				
-				AlertMessage bye = null;
-				switch (alert.getDescription()) {
-				case CLOSE_NOTIFY:
-					// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
-					// http://tools.ietf.org/html/rfc5246#section-7.2.1
-					bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
-				default:
-					terminateConnection(peerAddress, bye);
-					//TODO somehow tell application layer to cancel
-				}
-			} else {
-				// alert is not fatal, ignore for now
+		AlertMessage alert = (AlertMessage) record.getFragment();
+		LOGGER.log(Level.FINER, "Received ALERT record [{0}] from [{1}]",
+				new Object[]{alert, peerAddress});
+		if (AlertLevel.FATAL.equals(alert.getLevel())) {
+			// according to section 7.2 of the TLS 1.2 spec
+			// (http://tools.ietf.org/html/rfc5246#section-7.2)
+			// the connection needs to be terminated immediately
+			cancelPreviousFlight(peerAddress);
+			
+			AlertMessage bye = null;
+			switch (alert.getDescription()) {
+			case CLOSE_NOTIFY:
+				// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
+				// http://tools.ietf.org/html/rfc5246#section-7.2.1
+				bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
+			default:
+				terminateConnection(peerAddress, bye);
+				//TODO somehow tell application layer to cancel
 			}
-		} catch (HandshakeException e) {
-			// this means that the fragment from the record could not be verified and de-crypted
-			// maybe because the record has been sent in a forged UDP datagram by an attacker
-			// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
-			// advises to silently discard such records
-			LOGGER.log(Level.FINE, "Discarding (supposedly) forged ALERT record from peer {[0]}",
-					peerAddress);
+		} else {
+			// alert is not fatal, ignore for now
 		}
 	}
 	
@@ -571,7 +581,8 @@ public class DTLSConnector implements Connector {
 		}		
 	}
 	
-	private void processHandshakeRecord(InetSocketAddress peerAddress, Record record) throws HandshakeException {
+	private void processHandshakeRecord(InetSocketAddress peerAddress, Record record)
+			throws HandshakeException, GeneralSecurityException {
 
 		LOGGER.log(Level.FINER, "Received HANDSHAKE record from peer [{0}]", peerAddress);
 		Handshaker handshaker = getHandshaker(peerAddress);
@@ -616,7 +627,8 @@ public class DTLSConnector implements Connector {
 		
 	}
 	
-	private DTLSFlight processHelloRequest(InetSocketAddress peerAddress, Record record) throws HandshakeException {
+	private DTLSFlight processHelloRequest(InetSocketAddress peerAddress, Record record)
+			throws HandshakeException, GeneralSecurityException {
 		DTLSSession session = getSessionByAddress(peerAddress);
 		// Peer (server) wants us (client) to initiate a re-negotiation of the session
 		if (session == null) {
@@ -627,7 +639,8 @@ public class DTLSConnector implements Connector {
 		return handshaker.getStartHandshakeMessage();
 	}
 	
-	private DTLSFlight processClientHello(InetSocketAddress peerAddress, Record record) throws HandshakeException {
+	private DTLSFlight processClientHello(InetSocketAddress peerAddress, Record record)
+			throws HandshakeException, GeneralSecurityException {
 		
 		DTLSFlight nextFlight = null;
 		HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
@@ -804,39 +817,42 @@ public class DTLSConnector implements Connector {
 		Handshaker handshaker = null;
 		DTLSFlight flight = null;
 
-		if (session == null) {
-			// no session with peer available, create new empty session &
-			// start fresh handshake
-			session = new DTLSSession(peerAddress, true);
-			sessionStore.store(session);
-			handshaker = new ClientHandshaker(message, session, config);
-			
-		} else {
-
-			if (session.isActive()) {
-				// session to peer is active, send encrypted message
+		try {
+			if (session == null) {
+				// no session with peer available, create new empty session &
+				// start fresh handshake
+				session = new DTLSSession(peerAddress, true);
+				sessionStore.store(session);
+				handshaker = new ClientHandshaker(message, session, config);
 				
-				// TODO What about PMTU? 
-				DTLSMessage fragment = new ApplicationMessage(message.getBytes());
-				Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
-				flight = new DTLSFlight(session);
-				flight.addMessage(record);				
 			} else {
-				// try to resume the existing session
-				handshaker = new ResumingClientHandshaker(message, session, config);
+	
+				if (session.isActive()) {
+					// session to peer is active, send encrypted message
+					
+					// TODO What about PMTU? 
+					DTLSMessage fragment = new ApplicationMessage(message.getBytes());
+					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
+					flight = new DTLSFlight(session);
+					flight.addMessage(record);				
+				} else {
+					// try to resume the existing session
+					handshaker = new ResumingClientHandshaker(message, session, config);
+				}				
 			}
-			
+			// start DTLS handshake protocol
+			if (handshaker != null) {
+				// get starting handshake message
+				storeHandshaker(handshaker);
+				flight = handshaker.getStartHandshakeMessage();
+				storeFlight(flight);
+				scheduleRetransmission(flight);
+			}
+			sendFlight(flight);
+		} catch (GeneralSecurityException e) {
+			LOGGER.log(Level.FINE, "Cannot send record to peer [{0}] due to [{1}]",
+					new Object[]{peerAddress, e.getMessage()});
 		}
-		
-		// start DTLS handshake protocol
-		if (handshaker != null) {
-			// get starting handshake message
-			storeHandshaker(handshaker);
-			flight = handshaker.getStartHandshakeMessage();
-			storeFlight(flight);
-			scheduleRetransmission(flight);
-		}
-		sendFlight(flight);
 	}
 
 	/**
@@ -883,32 +899,32 @@ public class DTLSConnector implements Connector {
 		// put as many records into one datagram as allowed by the block size
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
 
-		for (Record record : flight.getMessages()) {
-			if (flight.getTries() > 0) {
-				// adjust the record sequence number
-				int epoch = record.getEpoch();
-				record.setSequenceNumber(flight.getSession().getSequenceNumber(epoch));
-			}
-			
-			LOGGER.log(Level.FINEST, "Sending record to peer [{0}]:\n{1}", new Object[]{flight.getPeerAddress(), record});
-			
-			byte[] recordBytes = record.toByteArray();
-			if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
-				// can't add the next record, send current payload as datagram
-				DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
-				datagrams.add(datagram);
-				payload = new byte[] {};
-			}
-
-			// retrieve payload
-			payload = ByteArrayUtils.concatenate(payload, recordBytes);
-		}
-		DatagramPacket datagram = new DatagramPacket(payload, payload.length,
-				flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
-		datagrams.add(datagram);
-
-		// send it over the UDP socket
 		try {
+			for (Record record : flight.getMessages()) {
+				if (flight.getTries() > 0) {
+					// adjust the record sequence number
+					int epoch = record.getEpoch();
+					record.setSequenceNumber(flight.getSession().getSequenceNumber(epoch));
+				}
+				
+				LOGGER.log(Level.FINEST, "Sending record to peer [{0}]:\n{1}", new Object[]{flight.getPeerAddress(), record});
+				
+				byte[] recordBytes = record.toByteArray();
+				if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
+					// can't add the next record, send current payload as datagram
+					DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
+					datagrams.add(datagram);
+					payload = new byte[] {};
+				}
+	
+				// retrieve payload
+				payload = ByteArrayUtils.concatenate(payload, recordBytes);
+			}
+			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
+					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
+			datagrams.add(datagram);
+	
+			// send it over the UDP socket
 			for (DatagramPacket datagramPacket : datagrams) {
 				if (!socket.isClosed()) {
 					socket.send(datagramPacket);
@@ -919,6 +935,9 @@ public class DTLSConnector implements Connector {
 			
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Could not send datagram", e);
+		} catch (GeneralSecurityException e) {
+			LOGGER.log(Level.INFO, "Cannot send flight to peer [{0}] due to [{1}]",
+					new Object[]{flight.getPeerAddress(), e.getMessage()});
 		}
 	}
 	

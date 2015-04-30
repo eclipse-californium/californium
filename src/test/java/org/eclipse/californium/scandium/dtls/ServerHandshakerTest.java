@@ -131,7 +131,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloNegotiatesSupportedCertificateType() throws HandshakeException {
+	public void testReceiveClientHelloNegotiatesSupportedCertificateType() throws Exception {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type OpenPGP is not supported by Scandium
 		// certificate type X.509 is supported by Scandium
