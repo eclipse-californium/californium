@@ -14,6 +14,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - re-factor DTLSConnectorConfig into
  *                                               an immutable, provide a "builder" for easier
  *                                               instantiation/configuration
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
+ *                                               configuration
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -243,6 +245,7 @@ public class DtlsConnectorConfig {
 	public static final class Builder {
 		
 		private DtlsConnectorConfig config;
+		private boolean clientOnly;
 		
 		/**
 		 * Creates a new instance for setting configuration options
@@ -264,15 +267,40 @@ public class DtlsConnectorConfig {
 		 * <li><em>trustStore</em>: empty array</li>
 		 * </ul>
 		 * 
-		 * Note that when using the defaults, at least one of the {@link #setPskStore(PskStore)}
-		 * or {@link #setIdentity(PrivateKey, PublicKey))} methods needs to be used to 
-		 * get a working configuration.
+		 * Note that when keeping the default values, at least one of the {@link #setPskStore(PskStore)}
+		 * or {@link #setIdentity(PrivateKey, PublicKey))} methods need to be used to 
+		 * get a working configuration for a <code>DTLSConnector</code> that can be used
+		 * as a client and server.
+		 * 
+		 * It is possible to create a configuration for a <code>DTLSConnector</em> that can operate
+		 * as a client only without the need for setting an identity. However, this is possible
+		 * only if the server does not require clients to authenticate, i.e. this only
+		 * works with the ECDH based cipher suites. If you want to create such a <em>client-only</em>
+		 * configuration, you need to use the setClientOnly() method on the builder.
 		 * 
 		 * @param address the IP address and port the connector should bind to
 		 */
 		public Builder(InetSocketAddress address) {
 			config = new DtlsConnectorConfig();
 			config.address = address;
+		}
+		
+		/**
+		 * Indicates that the <em>DTLSConnector</em> will only be used as a
+		 * DTLS client.
+		 * 
+		 * The {@link #build()} method will allow creation of a configuration
+		 * without any identity being set under the following conditions:
+		 * <ul>
+		 * <li>only support for ECDH based cipher suites is configured</li>
+		 * <li>this method has been invoked</li>
+		 * </ul>
+		 * 
+		 * @return this builder for command chaining
+		 */
+		public Builder setClientOnly() {
+			clientOnly = true;
+			return this;
 		}
 		
 		/**
@@ -533,6 +561,19 @@ public class DtlsConnectorConfig {
 		 * Creates an instance of <code>DtlsConnectorConfig</em> based on the properties
 		 * set on this builder.
 		 * 
+		 * If the <em>supportedCipherSuites</em> property has not been set, the
+		 * builder tries to derive a reasonable set of cipher suites from the
+		 * <em>pskStore</em> and <em>identity</em> properties as follows:
+		 * <ol>
+		 * <li>If only the <em>pskStore</em> is set: <code>{TLS_PSK_WITH_AES_128_CCM_8,
+		 * TLS_PSK_WITH_AES_128_CBC_SHA256}</code></li>
+		 * <li>If only the <em>identity</em> is set: <code>{TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+		 * TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256}</code></li>
+		 * <li>If both the <em>pskStore</em> and the <em>identity</em> are set:
+		 * <code>{TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		 * TLS_PSK_WITH_AES_128_CCM_8, TLS_PSK_WITH_AES_128_CBC_SHA256}</code></li>
+		 * </ol>
+		 * 
 		 * @return the configuration object
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
@@ -541,13 +582,27 @@ public class DtlsConnectorConfig {
 				// user has not explicitly set cipher suites
 				// try to guess his intentions from properties he has set
 				if (config.pskStore != null && config.privateKey == null && config.publicKey == null) {
-					config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+					
+					config.supportedCipherSuites = 
+							new CipherSuite[]{
+								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+								CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256};
+					
 				} else if (config.pskStore == null && config.privateKey != null && config.publicKey != null) {
-					config.supportedCipherSuites = new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8};
+					
+					config.supportedCipherSuites =
+							new CipherSuite[]{
+								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256};
+					
 				} else if (config.pskStore != null && config.privateKey != null && config.publicKey != null) {
+					
 					config.supportedCipherSuites = new CipherSuite[]{
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256};
+					
 				} else {
 					throw new IllegalStateException("Supported cipher suites must be set either " +
 							"explicitly or implicitly by means of setting the identity or PSK store");
@@ -557,20 +612,23 @@ public class DtlsConnectorConfig {
 			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
+				case TLS_PSK_WITH_AES_128_CBC_SHA256:
 					if (config.pskStore == null) {
 						throw new IllegalStateException("PSK store must be set when support for " +
 								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.name() + " is configured");
 					}
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-					if (config.getPrivateKey() == null || config.getPublicKey() == null) {
-						throw new IllegalStateException("Identity must be set");
-					} else if (!(config.privateKey.getAlgorithm().equals("EC")) ||
-							!(config.getPublicKey().getAlgorithm().equals("EC"))) {
-						// test if private & public key are ECDSA capable
-						throw new IllegalStateException("Keys must be ECDSA capable when support for " +
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.name() +
-								" is configured");
+				case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+					if (!clientOnly) {
+						if (config.getPrivateKey() == null || config.getPublicKey() == null) {
+							throw new IllegalStateException("Identity must be set");
+						} else if (!(config.privateKey.getAlgorithm().equals("EC")) ||
+								!(config.getPublicKey().getAlgorithm().equals("EC"))) {
+							// test if private & public key are ECDSA capable
+							throw new IllegalStateException("Keys must be ECDSA capable when support for an " +
+									"ECDHE_ECDSA based cipher suite is configured");
+						}
 					}
 					break;
 				default:
