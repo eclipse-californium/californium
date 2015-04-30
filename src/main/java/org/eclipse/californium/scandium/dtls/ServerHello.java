@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,11 +13,10 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- *    Kai Hudalla - fixes & additions
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fixes & additions
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessors for certificate types
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -253,41 +252,6 @@ public class ServerHello extends HandshakeMessage {
 		return extensions;
 	}
 
-	/**
-	 * Gets the client's certificate type.
-	 * 
-	 * @return the client's certificate type extension if available,
-	 *         otherwise <code>null</code>.
-	 */
-	public ClientCertificateTypeExtension getClientCertificateTypeExtension() {
-		if (extensions != null) {
-			List<HelloExtension> exts = extensions.getExtensions();
-			for (HelloExtension helloExtension : exts) {
-				if (helloExtension instanceof ClientCertificateTypeExtension) {
-					return (ClientCertificateTypeExtension) helloExtension;
-				}
-			}
-		}
-		return null;
-	}
-	
-	/**
-	 * 
-	 * @return the client's certificate type extension if available,
-	 *         otherwise <code>null</code>.
-	 */
-	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
-		if (extensions != null) {
-			List<HelloExtension> exts = extensions.getExtensions();
-			for (HelloExtension helloExtension : exts) {
-				if (helloExtension instanceof ServerCertificateTypeExtension) {
-					return (ServerCertificateTypeExtension) helloExtension;
-				}
-			}
-		}
-		return null;
-	}
-	
 	/**
 	 * Gets the type of certificate the server expects the client to send in
 	 * its <em>Certificate</em> message.
