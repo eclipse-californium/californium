@@ -166,6 +166,9 @@ public class DTLSSession {
 			this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 			this.compressionMethod = CompressionMethod.NULL;
 			this.sequenceNumbers.put(0, initialSequenceNo);
+			// initialize current read/write state with NULL cipher suite
+			this.readState = new DTLSConnectionState();
+			this.writeState = new DTLSConnectionState();
 		}
 	}
 
