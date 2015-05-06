@@ -14,6 +14,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 464812
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
+ *                                                    session expiration (466554)
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -344,6 +346,27 @@ public class DTLSConnectorTest {
 		Assert.assertThat(establishedSession.getPeer(), is(clientEndpoint));
 	}
 
+	@Test
+	public void testConnectorTerminatesHandshakeIfSessionStoreIsExhausted() throws Exception {
+		InMemorySessionStore sessionStore = new InMemorySessionStore(1, 36 * 60 * 60);
+		server = new DTLSConnector(serverConfig, sessionStore);
+		DTLSSession existingSession = new DTLSSession(
+				new InetSocketAddress("192.168.0.1", 5050), false);
+		Assert.assertTrue(sessionStore.put(existingSession));		
+		server.start();
+		Assert.assertTrue(server.isRunning());
+
+		CountDownLatch latch = new CountDownLatch(1);
+		rawDataChannel.setLatch(latch);
+		client.setRawDataReceiver(rawDataChannel);
+		client.start();
+		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
+
+		Assert.assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
+		establishedSession = serverSessionStore.get(clientEndpoint);
+		Assert.assertNull(establishedSession);
+	}
+	
 	@Test
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);

@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
+ *                                                    session expiration (466554)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -34,6 +36,9 @@ public interface SessionListener {
 	 * @param negotiatedSession the session that has been established by
 	 *          the handshaker
 	 * @throws NullPointerException if any of the parameters is <code>null</code>
+	 * @throws HandshakeException if the listener cannot process the newly
+	 *          negotiated session
 	 */
-	void handshakeCompleted(Handshaker handshaker, DTLSSession negotiatedSession);
+	void handshakeCompleted(Handshaker handshaker, DTLSSession negotiatedSession)
+		throws HandshakeException;
 }

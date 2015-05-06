@@ -18,6 +18,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 462463
  *    Kai Hudalla (Bosch Software Innovations GmbH) - re-factor configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
+ *                                                    session expiration (466554)
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -225,18 +227,17 @@ public class DTLSConnector implements Connector {
 		this.sessionListener = new SessionListener() {
 			
 			@Override
-			public void handshakeCompleted(Handshaker handshaker, DTLSSession session) {
-				if (handshaker != null) {
-					if (session != null && session.isActive()) {
-						DTLSSession existingSession = DTLSConnector.this.sessionStore.store(session);
-						removeHandshaker(handshaker.getPeerAddress());
-						if (existingSession == null) {
-							LOGGER.log(Level.FINE, "Putting newly established session with peer [{0}] into session store",
-									handshaker.getPeerAddress());
-						} else {
-							LOGGER.log(Level.FINE, "Replacing existing session with peer [{0}] in session store",
-									handshaker.getPeerAddress());
+			public void handshakeCompleted(Handshaker handshaker, DTLSSession session)
+				throws HandshakeException {
+				if (handshaker != null && session != null && session.isActive()) {
+					try {
+						if (!DTLSConnector.this.sessionStore.put(session)) {
+							throw new HandshakeException(
+									"Session store's maximum capacity has been reached",
+									new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 						}
+					} finally {
+						removeHandshaker(handshaker.getPeerAddress());
 					}
 				}
 			}
@@ -284,21 +285,6 @@ public class DTLSConnector implements Connector {
 	}
 	
 	/**
-	 * Closes all DTLS sessions with all peers.
-	 * 
-	 * According to the DTLS spec this means that a <em>CLOSE_NOTIFY</em>
-	 * message is sent to each of the peers.
-	 */
-	private void close() {
-		// while this certainly is nice behavior
-		// I wonder how long this takes if we have
-		// millions of active sessions ...
-		for (DTLSSession session : sessionStore.getAll()) {
-			this.close(session.getPeer());
-		}
-	}
-	
-	/**
 	 * Closes a connection with a given peer.
 	 * 
 	 * The connection is gracefully shut down, i.e. a final
@@ -308,33 +294,9 @@ public class DTLSConnector implements Connector {
 	 * @param peerAddress the address of the peer to close the connection to
 	 */
 	public final void close(InetSocketAddress peerAddress) {
-		// (Kai Hudalla) I think this method should be made private because managing sessions
-		// should be the sole responsibility of the DTLSConnector. We should probably
-		// add a housekeeping thread that closes stale sessions after a certain time.
-		try {
-			cancelPreviousFlight(peerAddress);
-			DTLSSession session = getSessionByAddress(peerAddress);
-
-			if (session != null) {
-				DTLSMessage closeNotify = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
-
-				DTLSFlight flight = new DTLSFlight(session);
-				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), closeNotify, session));
-				flight.setRetransmissionNeeded(false);
-				
-				LOGGER.log(Level.FINE, "Sending CLOSE_NOTIFY to peer [{0}]", peerAddress);
-				sendFlight(flight);
-			} else {
-				LOGGER.log(Level.FINE, "Session with peer [{0}] not found. Maybe already closed by peer?",
-						peerAddress);
-			}
-		} catch (GeneralSecurityException e) {
-			LOGGER.log(Level.FINE, "Cannot create CLOSE_NOTIFY message for peer [{0}] due to [{1}]",
-					new Object[]{peerAddress, e.getMessage()});
-		} finally {
-			// clear session
-			connectionClosed(peerAddress);
-		}
+		AlertMessage closeNotify = new AlertMessage(AlertLevel.WARNING,
+				AlertDescription.CLOSE_NOTIFY);
+		terminateConnection(peerAddress, closeNotify);
 	}
 	
 	@Override
@@ -380,8 +342,6 @@ public class DTLSConnector implements Connector {
 		if (!running) {
 			return;
 		}
-		// TODO re-consider graceful closing (millions of) connections since this might take some time
-		this.close();
 		releaseSocket();
 	}
 	
@@ -435,27 +395,25 @@ public class DTLSConnector implements Connector {
 				// maybe because the record has been sent in a forged UDP datagram by an attacker
 				// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
 				// advises to silently discard such records
-				LOGGER.log(Level.INFO, "MAC validation failed for [{0}] record from peer {[1]}, discarding ...",
+				LOGGER.log(Level.INFO, "MAC validation failed for [{0}] record from peer [{1}], discarding ...",
 						new Object[]{record.getType(), peerAddress});
-				break;
 			} catch (GeneralSecurityException e) {
 				// this means that the message could not be decrypted, e.g. because the JVM does
 				// not support the negotiated cipher algorithm or the ciphertext has the wrong block size etc.
 				// the DTLS 1.2 spec section 4.1.2.7 (see http://tools.ietf.org/html/rfc6347#section-4.1.2.7)
 				// advises to silently discard such records
-				LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer {[1]} due to [{2}], discarding ...",
+				LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer [{1}] due to [{2}], discarding ...",
 						new Object[]{record.getType(), peerAddress, e.getMessage()});
-				break;
 			} catch (HandshakeException e) {
 				if (AlertLevel.FATAL.equals(e.getAlert().getLevel())) {
-					LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer {[1]} due to [{2}], aborting connection...",
+					LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer [{1}] due to [{2}], aborting handshake ...",
 							new Object[]{record.getType(), peerAddress, e.getMessage()});
 					terminateConnection(peerAddress, e.getAlert());
+					break;
 				} else {
 					LOGGER.log(Level.FINE, "Cannot process [{0}] record from peer [{1}] due to [{2}], discarding ...",
 							new Object[]{record.getType(), peerAddress, e.getMessage()});
 				}
-				break;
 			}
 		}
 	}
@@ -482,6 +440,8 @@ public class DTLSConnector implements Connector {
 		cancelPreviousFlight(peerAddress);
 		DTLSSession session = getSessionByAddress(peerAddress);
 		if (session != null) {
+			// prevent processing of additional records
+			session.setActive(false);
 			if (alert != null) {
 				try {
 					DTLSFlight flight = new DTLSFlight(session);
@@ -494,8 +454,6 @@ public class DTLSConnector implements Connector {
 				}
 			}
 			
-			// prevent processing of additional records
-			session.setActive(false);
 		}
 		// clear session & (pending) handshaker
 		connectionClosed(peerAddress);
@@ -524,6 +482,7 @@ public class DTLSConnector implements Connector {
 				// peer and it's safe to remove the (now obsolete) handshaker
 				removeHandshaker(peerAddress);
 				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
+				sessionStore.update(session);
 			} else {
 				LOGGER.log(Level.FINER, "Discarding duplicate APPLICATION_DATA record received from peer [{0}]",
 						peerAddress);
@@ -805,7 +764,7 @@ public class DTLSConnector implements Connector {
 		
 		InetSocketAddress peerAddress = message.getInetSocketAddress();
 		LOGGER.log(Level.FINER, "Sending application layer message to peer [{0}]", peerAddress);
-		DTLSSession session = getSessionByAddress(peerAddress);
+		DTLSSession session = sessionStore.get(peerAddress);
 		
 		/*
 		 * When the DTLS layer receives a message from an upper layer, there is
@@ -822,7 +781,7 @@ public class DTLSConnector implements Connector {
 				// no session with peer available, create new empty session &
 				// start fresh handshake
 				session = new DTLSSession(peerAddress, true);
-				sessionStore.store(session);
+				sessionStore.put(session);
 				handshaker = new ClientHandshaker(message, session, config);
 				
 			} else {
@@ -834,11 +793,13 @@ public class DTLSConnector implements Connector {
 					DTLSMessage fragment = new ApplicationMessage(message.getBytes());
 					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
 					flight = new DTLSFlight(session);
-					flight.addMessage(record);				
+					flight.addMessage(record);	
 				} else {
 					// try to resume the existing session
 					handshaker = new ResumingClientHandshaker(message, session, config);
-				}				
+				}
+				// session state has been updated by retrieval of sequence number
+				sessionStore.update(session);
 			}
 			// start DTLS handshake protocol
 			if (handshaker != null) {
@@ -919,6 +880,9 @@ public class DTLSConnector implements Connector {
 	
 				// retrieve payload
 				payload = ByteArrayUtils.concatenate(payload, recordBytes);
+			}
+			if (flight.getTries() > 0) {
+				sessionStore.update(flight.getSession());
 			}
 			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
