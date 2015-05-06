@@ -12,11 +12,12 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
+ *                                                    session expiration (466554)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Collection;
 
 /**
  * A strategy for keeping track of DTLS session information.
@@ -32,13 +33,20 @@ import java.util.Collection;
 public interface SessionStore {
 
 	/**
-	 * Stores a session in the store.
+	 * Puts a session into the store.
 	 * 
 	 * @param session the session to store
-	 * @return the session that has been replaced by the newly stored session
-	 *       or <code>null</code> if no session has been replaced
+	 * @return <code>true</code> if the session could be stored, <code>false</code>
+	 *       otherwise (e.g. because the store's capacity is exhausted)
 	 */
-	DTLSSession store(DTLSSession session);
+	boolean put(DTLSSession session);
+
+	/**
+	 * Gets the number of additional sessions this store can manage.
+	 * 
+	 * @return the remaining capacity
+	 */
+	int remainingCapacity();
 	
 	/**
 	 * Updates a session's state in the store.
@@ -80,11 +88,4 @@ public interface SessionStore {
 	 *     no session exists for the given address
 	 */
 	DTLSSession remove(InetSocketAddress peerAddress);
-
-	/**
-	 * Gets all sessions from the store.
-	 * 
-	 * @return the sessions
-	 */
-	Collection<DTLSSession> getAll();	
 }

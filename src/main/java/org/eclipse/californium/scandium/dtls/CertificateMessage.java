@@ -356,13 +356,14 @@ public class CertificateMessage extends HandshakeMessage {
 
 				try {
 					if (certificateFactory == null) {
-						// doing this in try/catch
 						certificateFactory = CertificateFactory.getInstance("X.509");
 					}
 					Certificate cert = certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
 					certs.add(cert);
 				} catch (CertificateException e) {
-					LOGGER.log(Level.SEVERE,"Could not generate the certificate.",e);
+					LOGGER.log(Level.FINE,
+							"Could not create X.509 certificate from byte array, reason [{0}]",
+							e.getMessage());
 					break;
 				}
 			}

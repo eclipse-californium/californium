@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - store peer's identity in session as a
  *                                                    java.security.Principal (fix 464812)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
+ *                                                    session expiration (466554)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -796,7 +798,7 @@ public class ServerHandshaker extends Handshaker {
 
 	}
 
-	private void handshakeCompleted() {
+	private void handshakeCompleted() throws HandshakeException {
 		if (sessionListener != null) {
 			sessionListener.handshakeCompleted(this, this.getSession());
 		}
