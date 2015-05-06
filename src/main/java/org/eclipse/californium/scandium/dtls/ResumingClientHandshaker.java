@@ -39,9 +39,22 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
+	/**
+	 * Creates a new handshaker for resuming an existing session with a server.
+	 * 
+	 * @param message the application layer message to send once the session has
+	 *            been resumed
+	 * @param session the session to resume
+	 * @param config the DTLS configuration parameters to use for the handshake
+	 * @throws HandshakeException if the handshaker could not be initialized
+	 * @throws IllegalArgumentException if the given session does not contain an identifier
+	 */
 	public ResumingClientHandshaker(RawData message, DTLSSession session, DtlsConnectorConfig config)
 			throws HandshakeException {
 		super(message, session, config);
+		if (session.getSessionIdentifier() == null) {
+			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
+		}
 	}
 	
 	// Methods ////////////////////////////////////////////////////////
