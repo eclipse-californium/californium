@@ -15,13 +15,15 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
+
 import java.util.LinkedList;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.DatagramWriter;
-import org.junit.Assert;
 import org.junit.Test;
 
 public class HelloExtensionsTest {
@@ -43,7 +45,7 @@ public class HelloExtensionsTest {
 		HelloExtensions deserializedExt = HelloExtensions.fromByteArray(serializedExtension);
 		ClientCertificateTypeExtension certTypeExt = (ClientCertificateTypeExtension)
 				deserializedExt.getExtensions().get(0);
-		Assert.assertTrue(certTypeExt.getCertificateTypes().size() == 2);
+		assertTrue(certTypeExt.getCertificateTypes().size() == 2);
 		
 	}
 
@@ -54,13 +56,20 @@ public class HelloExtensionsTest {
 		assertThatSupportedExtensionTypesHaveBeenDeserialized();
 	}
 	
+	@Test
+	public void testToByteArrayReturnsEmptyByteArrayIfNoExtensionsAreSet() {
+		givenAnEmptyExtensionsObject();
+		whenSerializingToByteArray();
+		assertThat(helloExtensionBytes.length, is(0));
+	}
+	
 	private void assertThatSupportedExtensionTypesHaveBeenDeserialized() {
-		Assert.assertNotNull(helloExtensions.getExtensions());
-		Assert.assertTrue(containsExtensionType(
+		assertNotNull(helloExtensions.getExtensions());
+		assertTrue(containsExtensionType(
 				ExtensionType.CLIENT_CERT_TYPE.getId(), helloExtensions.getExtensions()));
-		Assert.assertTrue(containsExtensionType(
+		assertTrue(containsExtensionType(
 				ExtensionType.SERVER_CERT_TYPE.getId(), helloExtensions.getExtensions()));
-		Assert.assertFalse(containsExtensionType(
+		assertFalse(containsExtensionType(
 				unsupportedExtensionTypeCode, helloExtensions.getExtensions()));
 	}
 	
@@ -91,6 +100,14 @@ public class HelloExtensionsTest {
     		writer.writeBytes(extension);
     	}
     	helloExtensionBytes = writer.toByteArray();
+	}
+	
+	private void givenAnEmptyExtensionsObject() {
+		helloExtensions = new HelloExtensions();
+	}
+	
+	private void whenSerializingToByteArray() {
+		helloExtensionBytes = helloExtensions.toByteArray();
 	}
 	
 	private void whenDeserializingFromByteArray() throws HandshakeException {
