@@ -45,6 +45,18 @@ public class ServerHelloTest {
 		assertThat(serverHello.getServerCertificateType(), is(CertificateType.RAW_PUBLIC_KEY));
 	}
 
+	@Test
+	public void testGetMessageLengthEqualsSerializedMessageLength() {
+		givenAServerHelloWithEmptyExtensions();
+		assertThat("ServerHello's anticipated message length does not match its real length",
+				serverHello.getMessageLength(), is(serverHello.fragmentToByteArray().length));
+		
+		givenAServerHelloWith(new CertificateType[]{CertificateType.RAW_PUBLIC_KEY},
+				new CertificateType[]{CertificateType.RAW_PUBLIC_KEY});
+		assertThat("ServerHello's anticipated message length does not match its real length",
+				serverHello.getMessageLength(), is(serverHello.fragmentToByteArray().length));
+	}
+	
 	private void givenAServerHelloWith(CertificateType[] serverTypes, CertificateType[] clientTypes) {
 		HelloExtensions ext = new HelloExtensions();
 		if (serverTypes != null) {
@@ -55,5 +67,10 @@ public class ServerHelloTest {
 		}
 		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, ext);
+	}
+	
+	private void givenAServerHelloWithEmptyExtensions() {
+		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, new HelloExtensions());
 	}
 }
