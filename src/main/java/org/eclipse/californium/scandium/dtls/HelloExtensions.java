@@ -62,6 +62,15 @@ public class HelloExtensions {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
+	 * Checks if this container actually holds any extensions.
+	 * 
+	 * @return <code>true</code> if there are any extensions
+	 */
+	boolean isEmpty() {
+		return this.extensions.isEmpty();
+	}
+	
+	/**
 	 * 
 	 * @return the length of the whole extension fragment.
 	 */
@@ -91,14 +100,18 @@ public class HelloExtensions {
 	// Serialization //////////////////////////////////////////////////
 
 	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		if (extensions.isEmpty()) {
+			return new byte[]{};
+		} else {
+			DatagramWriter writer = new DatagramWriter();
 
-		writer.write(getLength(), LENGTH_BITS);
-		for (HelloExtension extension : extensions) {
-			writer.writeBytes(extension.toByteArray());
+			writer.write(getLength(), LENGTH_BITS);
+			for (HelloExtension extension : extensions) {
+				writer.writeBytes(extension.toByteArray());
+			}
+
+			return writer.toByteArray();
 		}
-
-		return writer.toByteArray();
 	}
 
 	public static HelloExtensions fromByteArray(byte[] byteArray) throws HandshakeException {
