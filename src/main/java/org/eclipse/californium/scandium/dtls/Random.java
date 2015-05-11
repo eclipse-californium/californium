@@ -42,7 +42,7 @@ public class Random {
 	// Constructor ////////////////////////////////////////////////////
 
 	public Random() {
-		this.randomBytes = new byte[0];
+		this(new SecureRandom());
 	}
 
 	public Random(SecureRandom generator) {
@@ -59,8 +59,21 @@ public class Random {
 		this.randomBytes[3] = (byte) gmtUnixTime;
 	}
 
+	/**
+	 * Sets the random bytes explicitly.
+	 * 
+	 * @param randomBytes the bytes to use
+	 * @throws NullPointerException if the given array is <code>null</code>
+	 * @throws IllegalArgumentException if the given array's length is not 32
+	 */
 	public Random(byte[] randomBytes) {
-		this.randomBytes = randomBytes;
+		if (randomBytes == null) {
+			throw new NullPointerException("Random bytes must not be null");
+		} else if (randomBytes.length != 32) {
+			throw new IllegalArgumentException("Random bytes array's length must be 32");
+		} else {
+			this.randomBytes = randomBytes;
+		}
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -71,7 +84,7 @@ public class Random {
 	 * @return the random bytes
 	 */
 	public byte[] getRandomBytes() {
-		return randomBytes;
+		return Arrays.copyOf(randomBytes, randomBytes.length);
 	}
 
 	@Override
