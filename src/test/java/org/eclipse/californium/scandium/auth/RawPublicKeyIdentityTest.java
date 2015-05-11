@@ -27,10 +27,14 @@ public class RawPublicKeyIdentityTest {
 	
 	@Test
 	public void testGetNameReturnsNamedInterfaceUri() throws Exception {
+		String uriPrefix = "ni:///sha-256;";
 		PublicKey key = DtlsTestTools.getPublicKey();
 		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
-		assertTrue(id.getName().startsWith("ni:///sha-256;"));
-		assertFalse(id.getName().endsWith("="));
+		assertTrue(id.getName().startsWith(uriPrefix));
+		String hash = id.getName().substring(uriPrefix.length());
+		assertFalse(hash.endsWith("="));
+		assertFalse(hash.contains("+"));
+		assertFalse(hash.contains("/"));
 	}
 	
 	@Test
