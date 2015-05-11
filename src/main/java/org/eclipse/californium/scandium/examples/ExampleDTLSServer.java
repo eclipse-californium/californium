@@ -44,49 +44,49 @@ public class ExampleDTLSServer {
 	}
 
 	private static final int DEFAULT_PORT = 5684; 
-	
+
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private final static String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-    private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-	
-	private DTLSConnector dtlsConnector;
-	
-	public ExampleDTLSServer() {
-	    InMemoryPskStore pskStore = new InMemoryPskStore();
-        // put in the PSK store the default identity/psk for tinydtls tests
-        pskStore.setKey("Client_identity", "secretPSK".getBytes());
-	   
-	    try {
-	        // load the key store
-	        KeyStore keyStore = KeyStore.getInstance("JKS");
-            InputStream in = new FileInputStream(KEY_STORE_LOCATION);
-            keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-            // load the trust store
-            KeyStore trustStore = KeyStore.getInstance("JKS");
-            InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
-            trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
-            
-            // You can load multiple certificates if needed
-            Certificate[] trustedCertificates = new Certificate[1];
-            trustedCertificates[0] = trustStore.getCertificate("root");
-            
+	private DTLSConnector dtlsConnector;
+
+	public ExampleDTLSServer() {
+		InMemoryPskStore pskStore = new InMemoryPskStore();
+		// put in the PSK store the default identity/psk for tinydtls tests
+		pskStore.setKey("Client_identity", "secretPSK".getBytes());
+
+		try {
+			// load the key store
+			KeyStore keyStore = KeyStore.getInstance("JKS");
+			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+
+			// load the trust store
+			KeyStore trustStore = KeyStore.getInstance("JKS");
+			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
+
+			// You can load multiple certificates if needed
+			Certificate[] trustedCertificates = new Certificate[1];
+			trustedCertificates[0] = trustStore.getCertificate("root");
+
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(DEFAULT_PORT));
 			builder.setPskStore(pskStore);
 			builder.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
 			builder.setTrustStore(trustedCertificates);
-            dtlsConnector = new DTLSConnector(builder.build(), null);
-            dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
+			dtlsConnector = new DTLSConnector(builder.build(), null);
+			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
-        } catch (GeneralSecurityException | IOException e) {
-            System.err.println("Could not load the keystore");
-            e.printStackTrace();
-        }
-	 
+		} catch (GeneralSecurityException | IOException e) {
+			System.err.println("Could not load the keystore");
+			e.printStackTrace();
+		}
+
 	}
-	
+
 	public void start() {
 		try {
 			dtlsConnector.start();
@@ -94,11 +94,11 @@ public class ExampleDTLSServer {
 			throw new IllegalStateException("Unexpected error starting the DTLS UDP server",e);
 		}
 	}
-	
+
 	private class RawDataChannelImpl implements RawDataChannel {
-		
+
 		private Connector connector;
-		
+
 		public RawDataChannelImpl(Connector con) {
 			this.connector = con;
 		}
@@ -109,17 +109,17 @@ public class ExampleDTLSServer {
 				throw new NullPointerException();
 			if (raw.getPort() == 0)
 				throw new NullPointerException();
-			
+
 			System.out.println("Received request: " + new String(raw.getBytes()));
 			connector.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
 		}
 	}
-	
+
 	public static void main(String[] args) {
-		
+
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
-		
+
 		try {
 			System.in.read();
 		} catch (IOException e) {
