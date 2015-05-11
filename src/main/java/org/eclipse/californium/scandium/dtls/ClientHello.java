@@ -99,7 +99,7 @@ public class ClientHello extends HandshakeMessage {
 	 * certificates to be used for (mutual) authentication 
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey) {
-	    
+
 		this.clientVersion = version;
 		this.random = new Random(secureRandom);
 		this.sessionId = new SessionId(new byte[] {});
@@ -187,30 +187,30 @@ public class ClientHello extends HandshakeMessage {
 	@Override
 	public byte[] fragmentToByteArray() {
 
-        DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter();
 
-        writer.write(clientVersion.getMajor(), VERSION_BITS);
-        writer.write(clientVersion.getMinor(), VERSION_BITS);
+		writer.write(clientVersion.getMajor(), VERSION_BITS);
+		writer.write(clientVersion.getMinor(), VERSION_BITS);
 
-        writer.writeBytes(random.getRandomBytes());
+		writer.writeBytes(random.getRandomBytes());
 
-        writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-        writer.writeBytes(sessionId.getSessionId());
+		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
+		writer.writeBytes(sessionId.getSessionId());
 
-        writer.write(cookie.length(), COOKIE_LENGTH);
-        writer.writeBytes(cookie.getCookie());
+		writer.write(cookie.length(), COOKIE_LENGTH);
+		writer.writeBytes(cookie.getCookie());
 
-        writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
-        writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
+		writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
+		writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
 
-        writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
-        writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
+		writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
+		writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
 
-        if (extensions != null) {
-            writer.writeBytes(extensions.toByteArray());
-        }
+		if (extensions != null) {
+			writer.writeBytes(extensions.toByteArray());
+		}
 
-        return writer.toByteArray();
+		return writer.toByteArray();
 	}
 
 	/**
@@ -264,7 +264,8 @@ public class ClientHello extends HandshakeMessage {
 		 * then the length of the extensions. See
 		 * http://tools.ietf.org/html/rfc5246#section-7.4.1.2
 		 */
-		int extensionsLength = (extensions != null) ? (2 + extensions.getLength()) : 0;
+		int extensionsLength = (extensions == null || extensions.isEmpty()) ?
+				0 : (2 + extensions.getLength());
 
 		/*
 		 * fixed sizes: version (2) + random (32) + session ID length (1) +

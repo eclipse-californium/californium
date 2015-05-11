@@ -152,7 +152,7 @@ public class ServerHello extends HandshakeMessage {
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
 
-		if (extensions != null && extensions.getLength() > 0) {
+		if (extensions != null) {
 			writer.writeBytes(extensions.toByteArray());
 		}
 
@@ -217,7 +217,8 @@ public class ServerHello extends HandshakeMessage {
 		 * then the length of the extensions. See
 		 * http://tools.ietf.org/html/rfc5246#section-7.4.1.2
 		 */
-		int extensionsLength = (extensions != null) ? (2 + extensions.getLength()) : 0;
+		int extensionsLength = (extensions == null || extensions.isEmpty()) ?
+				0 : (2 + extensions.getLength());
 
 		/*
 		 * fixed sizes: version (2) + random (32) + session ID length (1) +
