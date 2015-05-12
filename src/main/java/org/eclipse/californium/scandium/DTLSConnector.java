@@ -438,7 +438,7 @@ public class DTLSConnector implements Connector {
 		LOGGER.log(Level.FINE, "Terminating connection with peer [{0}], reason [{1}]",
 				new Object[]{peerAddress, alert.getDescription()});
 		cancelPreviousFlight(peerAddress);
-		DTLSSession session = getSessionByAddress(peerAddress);
+		DTLSSession session = sessionStore.get(peerAddress);
 		if (session != null) {
 			// prevent processing of additional records
 			session.setActive(false);
@@ -463,7 +463,7 @@ public class DTLSConnector implements Connector {
 	private void processApplicationDataRecord(InetSocketAddress peerAddress, Record record)
 			throws GeneralSecurityException, HandshakeException {
 
-		DTLSSession session = getSessionByAddress(peerAddress);
+		DTLSSession session = sessionStore.get(peerAddress);
 		
 		if (session != null && session.isActive()) {
 			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
@@ -501,28 +501,31 @@ public class DTLSConnector implements Connector {
 		// An ALERT can be processed at all times. If the ALERT level is fatal
 		// the connection with the peer must be terminated and all session or handshake
 		// state (keys, session identifier etc) must be destroyed.
-		record.setSession(getSessionByAddress(peerAddress));
-		AlertMessage alert = (AlertMessage) record.getFragment();
-		LOGGER.log(Level.FINER, "Received ALERT record [{0}] from [{1}]",
-				new Object[]{alert, peerAddress});
-		if (AlertLevel.FATAL.equals(alert.getLevel())) {
-			// according to section 7.2 of the TLS 1.2 spec
-			// (http://tools.ietf.org/html/rfc5246#section-7.2)
-			// the connection needs to be terminated immediately
-			cancelPreviousFlight(peerAddress);
-			
-			AlertMessage bye = null;
-			switch (alert.getDescription()) {
-			case CLOSE_NOTIFY:
-				// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
-				// http://tools.ietf.org/html/rfc5246#section-7.2.1
-				bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
-			default:
-				terminateConnection(peerAddress, bye);
-				//TODO somehow tell application layer to cancel
+		DTLSSession session = sessionStore.get(peerAddress);
+		if (session != null) {
+			record.setSession(session);
+			AlertMessage alert = (AlertMessage) record.getFragment();
+			LOGGER.log(Level.FINER, "Received ALERT record [{0}] from [{1}]",
+					new Object[]{alert, peerAddress});
+			if (AlertLevel.FATAL.equals(alert.getLevel())) {
+				// according to section 7.2 of the TLS 1.2 spec
+				// (http://tools.ietf.org/html/rfc5246#section-7.2)
+				// the connection needs to be terminated immediately
+				AlertMessage bye = null;
+				switch (alert.getDescription()) {
+				case CLOSE_NOTIFY:
+					// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
+					// http://tools.ietf.org/html/rfc5246#section-7.2.1
+					bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
+				default:
+					terminateConnection(peerAddress, bye);
+					//TODO somehow tell application layer to cancel
+				}
+			} else {
+				// alert is not fatal, ignore for now
 			}
 		} else {
-			// alert is not fatal, ignore for now
+			LOGGER.log(Level.FINER, "Received ALERT record from [{0}] without existing session, discarding ...", peerAddress);
 		}
 	}
 	
@@ -588,7 +591,7 @@ public class DTLSConnector implements Connector {
 	
 	private DTLSFlight processHelloRequest(InetSocketAddress peerAddress, Record record)
 			throws HandshakeException, GeneralSecurityException {
-		DTLSSession session = getSessionByAddress(peerAddress);
+		DTLSSession session = sessionStore.get(peerAddress);
 		// Peer (server) wants us (client) to initiate a re-negotiation of the session
 		if (session == null) {
 			session = new DTLSSession(peerAddress, true);
@@ -661,7 +664,7 @@ public class DTLSConnector implements Connector {
 					// client wants to resume a cached session
 					LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
 							new Object[]{peerAddress, ByteArrayUtils.toHexString(sessionId.getSessionId())});
-					DTLSSession session = getSessionByIdentifier(sessionId);
+					DTLSSession session = sessionStore.find(sessionId);
 					if (session != null) {
 						// session has been found in cache, resume session
 						// TODO check if client still has same address
@@ -680,7 +683,7 @@ public class DTLSConnector implements Connector {
 			}
 		} else {
 			// client tries to re-negotiate new crypto params for existing session
-			DTLSSession session = getSessionByAddress(peerAddress);
+			DTLSSession session = sessionStore.get(peerAddress);
 			if (session != null) {
 				// let handshaker figure out whether CLIENT_HELLO is from correct
 				// epoch and client uses correct crypto params
@@ -773,6 +776,10 @@ public class DTLSConnector implements Connector {
 		 * message will be encrypted and sent to the peer, otherwise a short
 		 * handshake will be initiated.
 		 */
+		
+		// TODO make sure that only ONE handshake is in progress with a peer
+		// at all times
+		
 		Handshaker handshaker = null;
 		DTLSFlight flight = null;
 
@@ -829,30 +836,6 @@ public class DTLSConnector implements Connector {
 		return sessionStore.get(address);
 	}
 
-	/**
-	 * Finds a cached session by its identifier.
-	 * 
-	 * Note that not all cached session necessarily have a session identifier
-	 * assigned, e.g. if the handshake for that session has not been completed (yet).
-
-	 * Searches through all stored sessions and returns that session which
-	 * matches the session identifier or <code>null</code> if no such session
-	 * available. This method is used when the server receives a
-	 * <code>ClientHello</code> containing a session identifier indicating that the
-	 * client wants to resume a previous session. If a matching session is
-	 * found, the server will resume the session with a abbreviated handshake,
-	 * otherwise a full handshake (with new session identifier in
-	 * <code>ServerHello</code>) is conducted.
-	 * 
-	 * @param sessionId
-	 *            the session identifier to look up
-	 * @return the corresponding session or <code>null</code> if none of
-	 *            the cached sessions has the given identifier
-	 */
-	private DTLSSession getSessionByIdentifier(SessionId sessionId) {
-		return sessionStore.find(sessionId);
-	}
-	
 	private void sendFlight(DTLSFlight flight) {
 		byte[] payload = new byte[] {};
 		LOGGER.log(Level.FINER, "Sending flight of [{0}] messages to peer[{1}]",
