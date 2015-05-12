@@ -225,7 +225,7 @@ public class DTLSSession {
 		this.keyExchange = cipherSuite.getKeyExchange();
 	}
 
-	public final boolean isActive() {
+	public synchronized final boolean isActive() {
 		return active;
 	}
 
@@ -262,7 +262,7 @@ public class DTLSSession {
 		}
 	}
 
-	final synchronized void incrementReadEpoch() {
+	private synchronized void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
@@ -270,7 +270,7 @@ public class DTLSSession {
 	/**
 	 * Increments the epoch and sets the sequence number of the new epoch to 0.
 	 */
-	final synchronized void incrementWriteEpoch() {
+	private synchronized void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
@@ -338,10 +338,17 @@ public class DTLSSession {
 	 * read state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
 	 * received from a peer during a handshake.
 	 * 
+	 * This method also increments the read epoch.
+	 * 
 	 * @param readState the current read state
+	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
 	final synchronized void setReadState(DTLSConnectionState readState) {
+		if (readState == null) {
+			throw new NullPointerException("Read state must not be null");
+		}
 		this.readState = readState;
+		incrementReadEpoch();
 		LOGGER.log(Level.FINEST, "Setting current read state to\n{0}", writeState);
 	}
 
@@ -371,10 +378,18 @@ public class DTLSSession {
 	 * write state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
 	 * received from a peer during a handshake.
 	 * 
+	 * This method also increments the write epoch and resets the session's
+	 * sequence number counter to zero.
+	 * 
 	 * @param writeState the current write state
+	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
 	final synchronized void setWriteState(DTLSConnectionState writeState) {
+		if (writeState == null) {
+			throw new NullPointerException("Write state must not be null");
+		}
 		this.writeState = writeState;
+		incrementWriteEpoch();
 		LOGGER.log(Level.FINEST, "Setting current write state to\n{0}", writeState);
 	}
 

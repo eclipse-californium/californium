@@ -72,7 +72,7 @@ public class DTLSSessionTest {
 		Assert.assertFalse(session.isRecordProcessable(session.getReadEpoch(), 0));
 		Assert.assertFalse(session.isRecordProcessable(session.getReadEpoch(), 2));
 		
-		session.incrementReadEpoch();
+		session.setReadState(session.getReadState()); // dummy invocation to provoke epoch switch
 		Assert.assertTrue(session.isRecordProcessable(session.getReadEpoch(), 0));
 		Assert.assertTrue(session.isRecordProcessable(session.getReadEpoch(), 2));
 		

@@ -83,7 +83,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		case CHANGE_CIPHER_SPEC:
 			record.getFragment();
 			setCurrentReadState();
-			session.incrementReadEpoch();
 			break;
 
 		case HANDSHAKE:
@@ -172,7 +171,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
-		session.incrementWriteEpoch();
 
 		handshakeHash = mdWithServerFinish.digest();
 		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash);
