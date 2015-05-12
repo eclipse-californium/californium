@@ -205,7 +205,6 @@ public class ServerHandshaker extends Handshaker {
 		case CHANGE_CIPHER_SPEC:
 			record.getFragment();
 			setCurrentReadState();
-			session.incrementReadEpoch();
 			break;
 
 		case HANDSHAKE:
@@ -409,7 +408,6 @@ public class ServerHandshaker extends Handshaker {
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
-		session.incrementWriteEpoch();
 
 		/*
 		 * Second, send Finished message

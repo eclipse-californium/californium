@@ -145,7 +145,6 @@ public class ClientHandshaker extends Handshaker {
 			// TODO check, if all expected messages already received
 			record.getFragment();
 			setCurrentReadState();
-			session.incrementReadEpoch();
 			break;
 
 		case HANDSHAKE:
@@ -514,7 +513,6 @@ public class ClientHandshaker extends Handshaker {
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
-		session.incrementWriteEpoch();
 
 		/*
 		 * Fifth, send the finished message.
