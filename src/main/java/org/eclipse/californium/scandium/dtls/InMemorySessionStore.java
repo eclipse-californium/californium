@@ -14,16 +14,15 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
  *                                                    session expiration (466554)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - re-factor LRU cache into separate generic class
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache;
 
 /**
  * An in-memory <code>SessionStore</code> with a maximum capacity
@@ -52,25 +51,16 @@ import java.util.logging.Logger;
  * Insertion, lookup and removal of sessions is done in
  * <em>O(log n)</em>.
  */
-public class InMemorySessionStore implements SessionStore {
+public class InMemorySessionStore extends LeastRecentlyUsedCache<InetSocketAddress, DTLSSession> implements SessionStore {
 
 	private static final Logger LOG = Logger.getLogger(InMemorySessionStore.class.getName());
-	private static final long DEFAULT_THRESHOLD_SECS = 36 * 60 * 60; // 36 hours
-	private static final int DEFAULT_CAPACITY = 500000;
-
-	/** Storing sessions according to peer-addresses */
-	private Map<InetSocketAddress, SessionEntry> cache;
-	private int capacity;
-	private SessionEntry header;
-	private long expirationThreshold;
-	private List<EvictionListener> evictionListeners = new LinkedList<>();
 	
 	/**
 	 * Creates a store with a capacity of 500000 sessions and
 	 * a session expiration threshold of 36 hours.
 	 */
 	public InMemorySessionStore() {
-		this(DEFAULT_CAPACITY, DEFAULT_THRESHOLD_SECS);
+		super();
 	}
 	
 	/**
@@ -82,51 +72,11 @@ public class InMemorySessionStore implements SessionStore {
 	 *            a new session is to be added to the store
 	 */
 	public InMemorySessionStore(int capacity, final long threshold) {
-		header = new SessionEntry(null, -1);
-		header.after = header.before = header;
-		
-		this.capacity = capacity;
-		this.expirationThreshold = threshold;
-		this.cache = new HashMap<>(capacity + 1, 1.0f); // add one to prevent re-sizing
+		super(capacity, threshold);
 		LOG.log(Level.CONFIG, "Created new InMemorySessionStore [capacity: {0}, session expiration threshold: {1}s]",
-				new Object[]{capacity, expirationThreshold});
+				new Object[]{capacity, threshold});
 	}
 
-	/**
-	 * Registers a listener to be notified about sessions being evicted from the store.
-	 * 
-	 * @param listener the listener
-	 */
-	void addEvictionListener(EvictionListener listener) {
-		if (listener != null) {
-			this.evictionListeners.add(listener);
-		}
-	}
-	
-	/**
-	 * Sets the period of time after which a session is to be considered
-	 * stale if it hasn't be accessed.
-	 *  
-	 * @param newThreshold the threshold in seconds
-	 */
-	void setExpirationThreshold(long newThreshold) {
-		this.expirationThreshold = newThreshold;
-	}
-	
-	/**
-	 * Gets the number of sessions currently managed by the store.
-	 * 
-	 * @return the size
-	 */
-	synchronized int size() {
-		return cache.size();
-	}
-	
-	@Override
-	public synchronized int remainingCapacity() {
-		return capacity - cache.size();
-	}
-	
 	/**
 	 * Puts a session to the store.
 	 * 
@@ -155,161 +105,29 @@ public class InMemorySessionStore implements SessionStore {
 	public final synchronized boolean put(DTLSSession session) {
 		
 		if (session != null) {
-			SessionEntry value = cache.get(session.getPeer());
-			if (value != null) {				
-				LOG.log(Level.FINER, "Replacing existing session [{0}] in cache", value);
-				value.remove();
-				add(session);
-				return true;
-			} else if (cache.size() < capacity) {
-				add(session);
-				return true;
-			} else {
-				long thresholdDate = System.currentTimeMillis() - expirationThreshold * 1000;
-				SessionEntry eldest = header.after;
-				if (eldest.isStale(thresholdDate)) {
-					LOG.log(Level.FINER, "Evicting eldest session [{0}] from cache.", eldest);
-					eldest.remove();
-					cache.remove(eldest.getPeer());
-					add(session);
-					notifyEvictionListeners(eldest.getSession());
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	private synchronized void notifyEvictionListeners(DTLSSession session) {
-		for (EvictionListener listener : evictionListeners) {
-			listener.onEviction(session);
-		}
-	}
-	
-	/**
-	 * Gets the <em>eldest</em> session in the store.
-	 * 
-	 * The eldest session is the one that has been used least recently.
-	 * 
-	 * @return the session
-	 */
-	final synchronized DTLSSession getEldest() {
-		SessionEntry eldest = header.after;
-		return eldest.getSession();
-	}
-	
-	private synchronized void add(DTLSSession session) {
-		SessionEntry value = new SessionEntry(session, System.currentTimeMillis());
-		LOG.log(Level.FINER, "Adding session to cache [{0}]", value);
-		cache.put(session.getPeer(), value);
-		value.addBefore(header);
-	}
-	
-	@Override
-	public final synchronized DTLSSession get(InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			return null;
-		}
-		SessionEntry value = cache.get(peerAddress);
-		if (value != null) {
-			value.recordAccess(header);
-			return value.getSession();
+			return put(session.getPeer(), session);
 		} else {
-			return null;
+			return false;
 		}
 	}
-
+	
 	@Override
-	public final synchronized DTLSSession find(SessionId id) {
+	public final synchronized DTLSSession find(final SessionId id) {
 		if (id == null) {
 			return null;
 		} else {
-			
-			for (SessionEntry value : cache.values()) {
-				if (id.equals(value .getSession().getSessionIdentifier())) {
-					value.recordAccess(header);
-					return value.getSession();
+			return find(new Predicate<DTLSSession>() {
+				@Override
+				public boolean accept(DTLSSession session) {
+					return id.equals(session.getSessionIdentifier());
 				}
-			}
-			
-			return null;
+			});
 		}
 	}
 
 	@Override
-	public final synchronized DTLSSession remove(InetSocketAddress peerAddress) {
-		if (peerAddress != null) {
-			SessionEntry value = cache.remove(peerAddress);
-			if (value != null) {
-				value.remove();
-				return value.getSession();
-			}
-		}
-		return null;
+	public void update(DTLSSession session) {
+		// nothing to do since we are using an in-memory cache
 	}
 
-	@Override
-	public final void update(DTLSSession session) {
-		// nothing to do
-		// access time has already been updated during get or put
-	}
-
-	static interface EvictionListener {
-		void onEviction(DTLSSession evictedSession);
-	}
-	
-	private static class SessionEntry {
-		private InetSocketAddress peer;
-		private DTLSSession session;
-		private long lastUpdate;
-		private SessionEntry after;
-		private SessionEntry before;
-				
-		private SessionEntry(DTLSSession session, long lastUpdate) {
-			this.session = session;
-			if (session != null) {
-				this.peer = session.getPeer();
-			}
-			this.lastUpdate = lastUpdate;
-		}
-		
-		private InetSocketAddress getPeer() {
-			return peer;
-		}
-		
-		private DTLSSession getSession() {
-			return session;
-		}
-		
-		private boolean isStale(long threshold) {
-			return lastUpdate <= threshold;
-		}
-		
-		private void recordAccess(SessionEntry header) {
-			LOG.log(Level.FINER, "Refreshing last access time of session [{0}]", this);
-			remove();
-			lastUpdate = System.currentTimeMillis();
-			addBefore(header);
-		}
-		
-		private void addBefore(SessionEntry existingEntry) {
-			after  = existingEntry;
-			before = existingEntry.before;
-			before.after = this;
-			after.before = this;
-		}
-		
-		private void remove() {
-			before.after = after;
-			after.before = before;
-		}
-		
-		@Override
-		public String toString() {
-			return new StringBuffer("SessionEntry [key: ").append(peer)
-					.append(", last access: ").append(lastUpdate).append("]")
-					.toString();
-		}
-	}
-	
 }
