@@ -9,7 +9,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>element-connector</artifactId>
-	<version>1.0.0-M4</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>bundle</packaging>
 
 	<name>element-connector</name>
@@ -32,7 +32,7 @@
 	<scm>
 		<developerConnection>scm:git:https://github.com/eclipse/californium.element-connector.git</developerConnection>
 		<url>https://github.com/eclipse/californium.element-connector</url>
-		<tag>1.0.0-M4</tag>
+		<tag>HEAD</tag>
 	</scm>
 	<developers>
 		<developer>
