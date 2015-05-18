@@ -66,6 +66,15 @@
 				<role>Committer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>khudalla</id>
+			<name>Kai Hudalla</name>
+			<email>kai.hudalla@bosch-si.com</email>
+			<organization>Bosch Software Innovations GmbH</organization>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
 	</developers>
 
 	<distributionManagement>
@@ -99,7 +108,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.5</version>
+						<version>1.6</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -126,7 +135,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version>
+						<version>2.4</version>
 						<executions>
 							<execution>
 								<id>attach-sources</id>
@@ -146,7 +155,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>3.8.1</version>
+			<version>4.8.1</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -156,27 +165,21 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.3</version>
 				<configuration>
 					<source>${project.build.javaVersion}</source>
 					<target>${project.build.javaVersion}</target>
 					<encoding>${project.build.sourceEncoding}</encoding>
 				</configuration>
 			</plugin>
-			<!-- JAR packaging -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.2</version>
-				<!-- nothing here -->
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version>
+				<version>2.4</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
+						<phase>verify</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
@@ -186,7 +189,7 @@
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<version>2.3.7</version>
+				<version>2.5.0</version>
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
@@ -199,6 +202,11 @@
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
 					</instructions>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.2</version>
 			</plugin>
 		</plugins>
 	</build>
