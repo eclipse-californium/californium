@@ -34,8 +34,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
-import javax.net.ssl.SSLEngineResult.HandshakeStatus;
-
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
