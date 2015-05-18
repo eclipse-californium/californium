@@ -202,7 +202,7 @@ public class RawData {
 	/**
 	 * Sets the address.
 	 *
-	 * @param address the new address
+	 * @param newAddress the new address
 	 * @deprecated Use constructor instead.
 	 */
 	public void setAddress(InetAddress newAddress) {

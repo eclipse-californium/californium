@@ -28,7 +28,7 @@ import java.net.InetSocketAddress;
  * applications can use the {@link #send(RawData)} method to send messages
  * (wrapped in a {@link RawData} object) to a client via the network. Processing of
  * messages received from clients is delegated to the handler registered via the
- * {@link #setRawDataReceiver(RawDataChannel) method.
+ * {@link #setRawDataReceiver(RawDataChannel)} method.
  * 
  * Implementations of the {@link #send(RawData)} method should be non-blocking
  * to allow the server application to continue working on other tasks. This could

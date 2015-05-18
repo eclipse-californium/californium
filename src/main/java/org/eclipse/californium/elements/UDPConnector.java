@@ -330,7 +330,7 @@ public class UDPConnector implements Connector {
 	/**
 	 * Checks whether sent and received datagram packets are logged.
 	 * 
-	 * @param b <code>true</code> if packets are logged
+	 * @return <code>true</code> if packets are logged
 	 * @deprecated Packets sent and received are always logged at {@link Level#FINER}
 	 */
 	public boolean isLogPackets() {
