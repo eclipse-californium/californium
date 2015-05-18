@@ -121,8 +121,9 @@ public class DTLSSession {
 	 */
 	private boolean receiveRawPublicKey = false;
 
-	private long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
-	private long receivedRecordsVector = 0;
+	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+	private volatile long receiveWindowLowerBoundary = 0;
+	private volatile long receivedRecordsVector = 0;
 	
 	
 	// Constructor ////////////////////////////////////////////////////
@@ -526,7 +527,7 @@ public class DTLSSession {
 			return false;
 		} else {
 			synchronized (this) {
-				if (sequenceNo < getLowerBoundary()) {
+				if (sequenceNo < receiveWindowLowerBoundary) {
 					// record lies out of receive window's "left" edge
 					// discard
 					return false;
@@ -554,18 +555,17 @@ public class DTLSSession {
 		} else {
 			
 			// determine (zero based) index of record's sequence number within receive window
-			long idx = sequenceNo - getLowerBoundary();
+			long idx = sequenceNo - receiveWindowLowerBoundary;
 			// create bit mask for probing the bit representing position "idx" 
 			long bitMask = 1L << idx;
-			LOGGER.log(Level.FINER,
-					"Checking sequence no [{0}] using bit mask [{1}] against received records [{2}] with lower boundary [{3}]",
-					new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector), getLowerBoundary()});
+			if (LOGGER.isLoggable(Level.FINER)) {
+				LOGGER.log(Level.FINER,
+						"Checking sequence no [{0}] using bit mask [{1}] against received records [{2}] with lower boundary [{3}]",
+						new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
+						receiveWindowLowerBoundary});
+			}
 			return (receivedRecordsVector & bitMask) == bitMask;
 		}
-	}
-		
-	private synchronized long getLowerBoundary() {
-		return Math.max(0, receiveWindowUpperBoundary - RECEIVE_WINDOW_SIZE + 1);
 	}
 
 	/**
@@ -587,8 +587,9 @@ public class DTLSSession {
 				receiveWindowUpperBoundary = sequenceNo;
 				// slide receive window to the right
 				receivedRecordsVector = receivedRecordsVector >>> incr;
+				receiveWindowLowerBoundary = Math.max(0, receiveWindowUpperBoundary - RECEIVE_WINDOW_SIZE + 1);
 			}
-			long bitMask = 1L << (sequenceNo - getLowerBoundary());
+			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
 			LOGGER.log(Level.FINER, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
@@ -605,6 +606,6 @@ public class DTLSSession {
 	private synchronized void resetReceiveWindow() {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+		receiveWindowLowerBoundary = 0;
 	}
-    
 }
