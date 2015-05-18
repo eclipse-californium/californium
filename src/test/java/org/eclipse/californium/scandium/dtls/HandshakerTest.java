@@ -34,7 +34,7 @@ public class HandshakerTest {
 	@Before
 	public void setUp() throws Exception {
 		session = new DTLSSession(endpoint, false);
-		handshaker = new Handshaker(false, session, null, 1500) {
+		handshaker = new Handshaker(false, session, null, null, 1500) {
 			@Override
 			public DTLSFlight getStartHandshakeMessage() {
 				return new DTLSFlight(session);
