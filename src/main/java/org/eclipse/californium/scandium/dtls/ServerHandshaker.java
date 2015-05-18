@@ -19,6 +19,8 @@
  *                                                    java.security.Principal (fix 464812)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for stale
  *                                                    session expiration (466554)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
+ *                                                    of handshake
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -31,6 +33,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
+
+import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -100,7 +104,7 @@ public class ServerHandshaker extends Handshaker {
 	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
 	
-	private SessionListener sessionListener;
+	
 	
 	// Constructors ///////////////////////////////////////////////////
 
@@ -111,7 +115,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @param session
 	 *            the session to negotiate with the client
 	 * @param sessionListener
-	 *            the listener to notify when the session has been established
+	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCerts
 	 *            the root certificates to use for authenticating the client 
 	 * @param config
@@ -136,7 +140,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @param session
 	 *            the session to negotiate with the client
 	 * @param sessionListener
-	 *            the listener to notify when the session has been established
+	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCerts
 	 *            the root certificates to use for authenticating the client 
 	 * @param config
@@ -146,9 +150,8 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, SessionListener sessionListener,
 			DtlsConnectorConfig config) throws HandshakeException { 
-		super(false, initialMessageSequenceNo, session, config.getTrustStore(), config.getMaxFragmentLength());
+		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), config.getMaxFragmentLength());
 
-		this.sessionListener = sessionListener;
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		
 		this.pskStore = config.getPskStore();
@@ -182,9 +185,9 @@ public class ServerHandshaker extends Handshaker {
 	@Override
 	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
-			// we already sent the last flight, but the client did not receive
-			// it, since we received its finished message again, so we
-			// retransmit our last flight
+			// we already sent the last flight (including our FINISHED message),
+			// but the client does not seem to have received it because we received
+			// its finished message again, so we simply retransmit our last flight
 			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
 			return lastFlight;
@@ -423,14 +426,14 @@ public class ServerHandshaker extends Handshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
-		handshakeCompleted();
+		sessionEstablished();
 		return flight;
 	}
 
 	/**
 	 * Called after the server receives a {@link ClientHello} handshake message.
-	 * If the message has a {@link Cookie} set, verify it and prepare the next
-	 * flight (mandatory messages depend on the cipher suite / key exchange
+	 * 
+	 * Prepares the next flight (mandatory messages depend on the cipher suite / key exchange
 	 * algorithm). Mandatory messages are ServerHello and ServerHelloDone; see
 	 * <a href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 1.
 	 * Message flow for a full handshake</a> for details about the messages in
@@ -442,6 +445,8 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws HandshakeException if the server's response message(s) cannot be created
 	 */
 	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
+		
+		handshakeStarted();
 		DTLSFlight flight = new DTLSFlight(getSession());
 
 		// update the handshake hash
@@ -794,12 +799,6 @@ public class ServerHandshaker extends Handshaker {
 				new AlertMessage(AlertLevel.FATAL,
 						AlertDescription.UNSUPPORTED_CERTIFICATE));
 
-	}
-
-	private void handshakeCompleted() throws HandshakeException {
-		if (sessionListener != null) {
-			sessionListener.handshakeCompleted(this, this.getSession());
-		}
 	}	
 
 }

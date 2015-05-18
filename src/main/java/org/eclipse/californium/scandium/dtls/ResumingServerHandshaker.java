@@ -13,7 +13,9 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
+ *                                                    of handshake
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -44,8 +46,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(DTLSSession session, DtlsConnectorConfig config) throws HandshakeException {
-		super(session, null, config);
+	public ResumingServerHandshaker(DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
+			throws HandshakeException {
+		super(session, sessionListener, config);
 		setSessionToResume(session);
 	}
 	
@@ -132,6 +135,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 */
 	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
 
+		handshakeStarted();
 		DTLSFlight flight = new DTLSFlight(getSession());
 		
 		md.update(message.toByteArray());
@@ -179,6 +183,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	private void receivedClientFinished(Finished message) throws HandshakeException {
 
 		message.verifyData(getMasterSecret(), false, handshakeHash);
+		sessionEstablished();
 	}
 
 }

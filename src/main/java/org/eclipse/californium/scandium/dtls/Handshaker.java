@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace custom HMAC implementation
  *                                                    with standard algorithm
  *    Kai Hudalla (Bosch Software Innovations GmbH) - retrieve security parameters from cipher suite only
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for notifying a SessionListener about
+ *                                                    life-cycle events
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -152,6 +154,8 @@ public abstract class Handshaker {
 	
 	/** the maximum fragment size before DTLS fragmentation must be applied */
 	private int maxFragmentLength = 4096;
+
+	private SessionListener sessionListener;
 	
 	
 	// Constructor ////////////////////////////////////////////////////
@@ -163,6 +167,8 @@ public abstract class Handshaker {
 	 *            indicates whether this handshaker plays the client or server role
 	 * @param session
 	 *            the session this handshaker is negotiating
+	 * @param sessionListener
+	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
 	 * @param maxFragmentLength the maximum length of message fragments this handshaker
@@ -171,9 +177,9 @@ public abstract class Handshaker {
 	 *            the handshake hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	protected Handshaker(boolean isClient, DTLSSession session, Certificate[] rootCertificates,
-			int maxFragmentLength) throws HandshakeException {
-		this(isClient, 0, session, rootCertificates, maxFragmentLength);
+	protected Handshaker(boolean isClient, DTLSSession session, SessionListener sessionListener, 
+			Certificate[] rootCertificates, int maxFragmentLength) throws HandshakeException {
+		this(isClient, 0, session, sessionListener, rootCertificates, maxFragmentLength);
 	}
 	
 	/**
@@ -189,6 +195,8 @@ public abstract class Handshaker {
 	 *            round-trips have been performed with the peer before the handshake starts.
 	 * @param session
 	 *            the session this handshaker is negotiating
+	 * @param sessionListener
+	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
 	 * @param maxFragmentLength the maximum length of message fragments this handshaker
@@ -198,14 +206,15 @@ public abstract class Handshaker {
 	 * @throws NullPointerException if session is <code>null</code>
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
-	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, Certificate[] rootCertificates,
-			int maxFragmentLength) throws HandshakeException {
+	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, SessionListener sessionListener,
+			Certificate[] rootCertificates, int maxFragmentLength) throws HandshakeException {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		}
 		if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
+		this.sessionListener = sessionListener;
 		this.nextReceiveSeq = initialMessageSeq;
 		this.sequenceNumber = initialMessageSeq;
 		this.isClient = isClient;
@@ -222,7 +231,6 @@ public abstract class Handshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 	}
-	
 	
 	/**
 	 * 
@@ -919,5 +927,23 @@ public abstract class Handshaker {
 	 */
 	public final void setMaxFragmentLength(int maxFragmentLength) {
 		this.maxFragmentLength = maxFragmentLength;
+	}
+
+	protected final void handshakeStarted() throws HandshakeException {
+		if (sessionListener != null) {
+			sessionListener.handshakeStarted(this);
+		}
+	}
+	
+	protected final void sessionEstablished() throws HandshakeException {
+		if (sessionListener != null) {
+			sessionListener.sessionEstablished(this, this.getSession());
+		}
+	}
+
+	protected final void handshakeCompleted() {
+		if (sessionListener != null) {
+			sessionListener.handshakeCompleted(getPeerAddress());
+		}
 	}
 }

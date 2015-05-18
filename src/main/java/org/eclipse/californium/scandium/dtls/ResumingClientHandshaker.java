@@ -14,6 +14,8 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
+ *                                                    of handshake
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -45,13 +47,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * @param message the application layer message to send once the session has
 	 *            been resumed
 	 * @param session the session to resume
+	 * @param sessionListener
+	 *            the listener to notify about the session's life-cycle events
 	 * @param config the DTLS configuration parameters to use for the handshake
 	 * @throws HandshakeException if the handshaker could not be initialized
 	 * @throws IllegalArgumentException if the given session does not contain an identifier
 	 */
-	public ResumingClientHandshaker(RawData message, DTLSSession session, DtlsConnectorConfig config)
+	public ResumingClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
 			throws HandshakeException {
-		super(message, session, config);
+		super(message, session, sessionListener, config);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
@@ -183,11 +187,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
+		sessionEstablished();
 		return flight;
 	}
 
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+		handshakeStarted();
 		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session);
 
 		message.addCipherSuite(session.getCipherSuite());

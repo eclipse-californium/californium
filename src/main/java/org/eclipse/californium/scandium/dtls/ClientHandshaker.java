@@ -16,6 +16,8 @@
  *    Kai Hudalla (Bosch Software Innovtions GmbH) - small improvements
  *    Kai Hudalla (Bosch Software Innovations GmbH) - store peer's identity in session as a
  *                                                    java.security.Principal (fix 464812)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
+ *                                                    of handshake
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -109,13 +111,16 @@ public class ClientHandshaker extends Handshaker {
 	 *            the first application data message to be sent after the handshake is finished 
 	 * @param session
 	 *            the session to negotiate with the server
+	 * @param sessionListener
+	 *            the listener to notify about the session's life-cycle events
 	 * @param config
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session or config is <code>null</code>
 	 */
-	public ClientHandshaker(RawData message, DTLSSession session, DtlsConnectorConfig config) throws HandshakeException {
-		super(true, session, config.getTrustStore(), config.getMaxFragmentLength());
+	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
+			throws HandshakeException {
+		super(true, session, sessionListener, config.getTrustStore(), config.getMaxFragmentLength());
 		this.message = message;
 		this.privateKey = config.getPrivateKey();
 		this.certificates = config.getCertificateChain();
@@ -258,7 +263,8 @@ public class ClientHandshaker extends Handshaker {
 
 		state = HandshakeType.FINISHED.getCode();
 		session.setActive(true);
-
+		sessionEstablished();
+		handshakeCompleted();
 		// received server's Finished message, now able to send encrypted
 		// message
 		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes());
@@ -571,6 +577,7 @@ public class ClientHandshaker extends Handshaker {
 
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+		handshakeStarted();
 		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey);
 
 		// store client random for later calculations
@@ -588,7 +595,7 @@ public class ClientHandshaker extends Handshaker {
 
 		// store for later calculations
 		clientHello = message;
-		DTLSFlight flight = new DTLSFlight(getSession());
+		DTLSFlight flight = new DTLSFlight(session);
 		flight.addMessage(wrapMessage(message));
 
 		return flight;
