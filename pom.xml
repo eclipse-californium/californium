@@ -7,6 +7,9 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
+		<maven.source.pluginVersion>2.4</maven.source.pluginVersion>
+		<maven.javadoc.pluginVersion>2.10.3</maven.javadoc.pluginVersion>
+		<element.connectorVersion>1.0.0-M5</element.connectorVersion>
 	</properties>
 
 	<groupId>org.eclipse.californium</groupId>
@@ -32,7 +35,7 @@
 		</license>
 	</licenses>
 	<scm>
-		<developerConnection>scm:git:ssh://git@github.com/eclipse/californium.scandium.git</developerConnection>
+		<developerConnection>scm:git:https://git@github.com/eclipse/californium.scandium.git</developerConnection>
 		<url>https://github.com/eclipse/californium.scandium</url>
 		<tag>HEAD</tag>
 	</scm>
@@ -94,18 +97,23 @@
 			<activation>
 				<activeByDefault>false</activeByDefault>
 			</activation>
-			<distributionManagement>
-				<repository>
-					<id>ossrh</id>
-					<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-				</repository>
-			</distributionManagement>
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.sonatype.plugins</groupId>
+						<artifactId>nexus-staging-maven-plugin</artifactId>
+						<version>1.6.5</version>
+						<extensions>true</extensions>
+						<configuration>
+							<serverId>ossrh</serverId>
+							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+							<autoReleaseAfterClose>true</autoReleaseAfterClose>
+						</configuration>
+					</plugin>
+					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.5</version>
+						<version>1.6</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -119,26 +127,12 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version>
+						<version>${maven.javadoc.pluginVersion}</version>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
 								<goals>
 									<goal>jar</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version>
-						<executions>
-							<execution>
-								<id>attach-sources</id>
-								<goals>
-									<goal>jar-no-fork</goal>
 								</goals>
 							</execution>
 						</executions>
@@ -157,26 +151,12 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version>
+						<version>${maven.javadoc.pluginVersion}</version>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
 								<goals>
 									<goal>jar</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version>
-						<executions>
-							<execution>
-								<id>attach-sources</id>
-								<goals>
-									<goal>jar-no-fork</goal>
 								</goals>
 							</execution>
 						</executions>
@@ -196,7 +176,7 @@
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>element-connector</artifactId>
-			<version>${project.version}</version>
+			<version>${element.connectorVersion}</version>
 		</dependency>
 	</dependencies>
 
@@ -205,29 +185,23 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.3</version>
 				<configuration>
 					<source>${project.build.javaVersion}</source>
 					<target>${project.build.javaVersion}</target>
 					<encoding>${project.build.sourceEncoding}</encoding>
 				</configuration>
 			</plugin>
-			<!-- JAR packaging -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.2</version>
-				<!-- nothing here -->
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version>
+				<version>${maven.source.pluginVersion}</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
+						<phase>verify</phase>
 						<goals>
-							<goal>jar</goal>
+							<goal>jar-no-fork</goal>
 						</goals>
 					</execution>
 				</executions>
@@ -239,9 +213,11 @@
 				-->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.17</version>
+				<version>2.18.1</version>
 				<configuration>
-					<argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/Scandium-logging.properties</argLine>
+					<systemPropertyVariables>
+						<java.util.logging.config.file>${project.build.testOutputDirectory}/Scandium-logging.properties</java.util.logging.config.file>
+					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>
@@ -250,28 +226,39 @@
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
-				<version>2.3.7</version>
+				<version>2.5.0</version>
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
 						<Export-Package>
 							org.eclipse.californium.scandium,
 							org.eclipse.californium.scandium.auth,
+							org.eclipse.californium.scandium.config,
 							org.eclipse.californium.scandium.dtls,
 							org.eclipse.californium.scandium.dtls.cipher,
-							org.eclipse.californium.scandium.dtls.pskstore,
-							org.eclipse.californium.scandium.config
+							org.eclipse.californium.scandium.dtls.pskstore
 						</Export-Package>
 						<Private-Package>
-							org.eclipse.californium.scandium.examples,
 							org.eclipse.californium.scandium.util
 						</Private-Package>
 						<Import-Package>
-							org.eclipse.californium.*;version="[1.0.0, 1.1)",
+							org.eclipse.californium.elements;version="[1.0.0, 1.1)",
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
 					</instructions>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.2</version>
+				<configuration>
+					<tagNameFormat>@{project.version}</tagNameFormat>
+					<autoVersionSubmodules>true</autoVersionSubmodules>
+					<useReleaseProfile>false</useReleaseProfile>
+					<releaseProfiles>release</releaseProfiles>
+					<goals>deploy</goals>
 				</configuration>
 			</plugin>
 		</plugins>
