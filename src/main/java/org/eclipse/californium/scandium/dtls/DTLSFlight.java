@@ -103,8 +103,7 @@ public class DTLSFlight {
 	 * Creates an empty flight to be sent within a session with a peer.
 	 * 
 	 * Flights created using this constructor are by default eligible for
-	 * re-transmission. Retransmission can be scheduled by invoking the
-	 * {@link #scheduleRetransmission(Timer, TimerTask, int, int)} method.
+	 * re-transmission.
 	 * 
 	 * @param session the session to get record sequence numbers from
 	 *                 when sending out the flight

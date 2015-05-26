@@ -156,7 +156,7 @@ public class Record {
 	 * 
 	 * @return the encoded byte array
 	 */
-	public synchronized byte[] toByteArray() throws GeneralSecurityException {
+	public synchronized byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 
 		writer.write(type.getCode(), CONTENT_TYPE_BITS);
@@ -384,7 +384,8 @@ public class Record {
 	/**
 	 * Converts a given TLSCiphertext.fragment to a
 	 * TLSCompressed.fragment structure as defined by
-	 * <a href="">RFC 5246, section 6.2.3.2</a>:
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
+	 * RFC 5246, section 6.2.3.2</a>:
 	 * 
 	 * <pre>
 	 * struct {
