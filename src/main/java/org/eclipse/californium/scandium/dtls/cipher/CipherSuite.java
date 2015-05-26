@@ -164,7 +164,7 @@ public enum CipherSuite {
 	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
 	 * Java Security Documentation</a>.
 	 * 
-	 * @return the name or <code>null</code> for the {@link #NULL} MAC
+	 * @return the name or <code>null</code> for the {@link MACAlgorithm#NULL} MAC
 	 */
 	public String getMacName() {
 		return macAlgorithm.getName();

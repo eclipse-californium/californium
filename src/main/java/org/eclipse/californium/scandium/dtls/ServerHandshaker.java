@@ -114,8 +114,6 @@ public class ServerHandshaker extends Handshaker {
 	 *            the session to negotiate with the client
 	 * @param sessionListener
 	 *            the listener to notify about the session's life-cycle events
-	 * @param rootCerts
-	 *            the root certificates to use for authenticating the client 
 	 * @param config
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized
@@ -139,8 +137,6 @@ public class ServerHandshaker extends Handshaker {
 	 *            the session to negotiate with the client
 	 * @param sessionListener
 	 *            the listener to notify about the session's life-cycle events
-	 * @param rootCerts
-	 *            the root certificates to use for authenticating the client 
 	 * @param config
 	 *            the DTLS configuration
 	 * @throws HandshakeException if the handshaker cannot be initialized

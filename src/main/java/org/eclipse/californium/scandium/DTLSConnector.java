@@ -205,6 +205,7 @@ public class DTLSConnector implements Connector {
 	 * Certificate Authorities or self-signed certificates (may be <code>null</code>)
 	 * @param sessionStore the store to use for keeping track of session information,
 	 *       if <code>null</code> session information is kept in-memory
+	 * @param config the configuration options to use
 	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,

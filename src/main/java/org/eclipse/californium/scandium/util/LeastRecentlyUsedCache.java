@@ -32,7 +32,7 @@ import java.util.Map;
  * following conditions is met:
  * <ul>
  * <li>The cache's remaining capacity is greater than zero.</li>
- * <li>The cache contains at least one <em>stale<em> entry, i.e. an
+ * <li>The cache contains at least one <em>stale</em> entry, i.e. an
  * entry that has not been accessed for at least the cache's
  * <em>expiration threshold</em> period. In such a case the least-
  * recently accessed stale entry gets evicted from the cache to make
@@ -126,7 +126,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * following conditions are met:
 	 * <ul>
 	 * <li>The cache's remaining capacity is greater than zero.</li>
-	 * <li>The cache contains at least one <em>stale<em> entry, i.e. an
+	 * <li>The cache contains at least one <em>stale</em> entry, i.e. an
 	 * entry that has not been accessed for at least the cache's <em>
 	 * expiration threshold</em> period. In such a case the least-
 	 * recently accessed stale entry gets evicted from the cache to make
@@ -136,10 +136,12 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * If an entry is evicted this method notifies all registered
 	 * <code>EvictionListeners</code>.
 	 * 
-	 * @returns <code>true</code> if the entry could be added to the
+	 * @param key the key to store the value under
+	 * @param value the value to store
+	 * @return <code>true</code> if the entry could be added to the
 	 * cache, <code>false</code> otherwise, e.g. because the cache's
 	 * remaining capacity is zero and no stale entries can be evicted
-	 * @see {@link #addEvictionListener(EvictionListener)}
+	 * @see #addEvictionListener(EvictionListener)
 	 */
 	public final synchronized boolean put(K key, V value) {
 		

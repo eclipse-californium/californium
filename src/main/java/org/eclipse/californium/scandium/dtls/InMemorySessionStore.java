@@ -36,7 +36,7 @@ import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache;
  * following conditions is met:
  * <ul>
  * <li>The store's remaining capacity is greater than zero.</li>
- * <li>The store contains at least one <em>stale<em> session, i.e. a
+ * <li>The store contains at least one <em>stale</em> session, i.e. a
  * session that has not been accessed for at least the store's <em>
  * session expiration threshold</em> period. In such a case the least-
  * recently accessed stale session gets evicted from the store to make
@@ -86,20 +86,16 @@ public class InMemorySessionStore extends LeastRecentlyUsedCache<InetSocketAddre
 	 * following conditions is met:
 	 * <ul>
 	 * <li>The store's remaining capacity is greater than zero.</li>
-	 * <li>The store contains at least one <em>stale<em> session, i.e. a
+	 * <li>The store contains at least one <em>stale</em> session, i.e. a
 	 * session that has not been accessed for at least the store's <em>
 	 * session expiration threshold</em> period. In such a case the least-
 	 * recently accessed stale session gets evicted from the store to make
 	 * place for the new session to be added.</li>
 	 * </ul>
 	 * 
-	 * If a session is evicted this method notifies all registered
-	 * <code>EvictionListeners</code>.
-	 * 
-	 * @returns <code>true</code> if the session could be added to the
+	 * @return <code>true</code> if the session could be added to the
 	 * store, <code>false</code> otherwise, e.g. because the store's
 	 * remaining capacity is zero and no stale session can be evicted
-	 * @see {@link #addEvictionListener(EvictionListener)}
 	 */
 	@Override
 	public final synchronized boolean put(DTLSSession session) {

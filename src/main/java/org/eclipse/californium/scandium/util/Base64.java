@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
+import java.io.IOException;
+
 /**
  * <p>Encodes and decodes to and from Base64 notation.</p>
  * <p>Homepage: <a href="http://iharder.net/base64">http://iharder.net/base64</a>.</p>
@@ -23,7 +25,7 @@ package org.eclipse.californium.scandium.util;
  * <p>Example:</p>
  * 
  * <code>String encoded = Base64.encode( myByteArray );</code>
- * <br />
+ * 
  * <code>byte[] myByteArray = Base64.decode( encoded );</code>
  *
  * <p>The <tt>options</tt> parameter, which appears in a few places, is used to pass 
@@ -1137,16 +1139,13 @@ public class Base64
 	 *
 	 * @param source The Base64 encoded data
 	 * @return decoded data
+	 * @throws IOException if bogus characters exist in the source data
 	 * @since 2.3.1
 	 */
 	public static byte[] decode( byte[] source )
 			throws java.io.IOException {
 		byte[] decoded = null;
-		//        try {
 		decoded = decode( source, 0, source.length, Base64.NO_OPTIONS );
-		//        } catch( java.io.IOException ex ) {
-		//            assert false : "IOExceptions only come from GZipping, which is turned off: " + ex.getMessage();
-		//        }
 		return decoded;
 	}
 
@@ -1694,7 +1693,7 @@ public class Base64
 		 * Valid options:<pre>
 		 *   ENCODE or DECODE: Encode or Decode as data is read.
 		 *   DO_BREAK_LINES: break lines at 76 characters
-		 *     (only meaningful when encoding)</i>
+		 *     (only meaningful when encoding)
 		 * </pre>
 		 * <p>
 		 * Example: <code>new Base64.InputStream( in, Base64.DECODE )</code>
@@ -1907,7 +1906,7 @@ public class Base64
 		 * Valid options:<pre>
 		 *   ENCODE or DECODE: Encode or Decode as data is read.
 		 *   DO_BREAK_LINES: don't break lines at 76 characters
-		 *     (only meaningful when encoding)</i>
+		 *     (only meaningful when encoding)
 		 * </pre>
 		 * <p>
 		 * Example: <code>new Base64.OutputStream( out, Base64.ENCODE )</code>

@@ -30,7 +30,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 /**
- * A container for all configuration options of a </code>DTLSConnector</code>.
+ * A container for all configuration options of a <code>DTLSConnector</code>.
  * 
  * Instances of this class are immutable and can only be created by means of
  * the {@link Builder}.
@@ -268,15 +268,15 @@ public class DtlsConnectorConfig {
 		 * </ul>
 		 * 
 		 * Note that when keeping the default values, at least one of the {@link #setPskStore(PskStore)}
-		 * or {@link #setIdentity(PrivateKey, PublicKey))} methods need to be used to 
+		 * or {@link #setIdentity(PrivateKey, PublicKey)} methods need to be used to 
 		 * get a working configuration for a <code>DTLSConnector</code> that can be used
 		 * as a client and server.
 		 * 
-		 * It is possible to create a configuration for a <code>DTLSConnector</em> that can operate
+		 * It is possible to create a configuration for a <code>DTLSConnector</code> that can operate
 		 * as a client only without the need for setting an identity. However, this is possible
 		 * only if the server does not require clients to authenticate, i.e. this only
 		 * works with the ECDH based cipher suites. If you want to create such a <em>client-only</em>
-		 * configuration, you need to use the setClientOnly() method on the builder.
+		 * configuration, you need to use the {@link #setClientOnly()} method on the builder.
 		 * 
 		 * @param address the IP address and port the connector should bind to
 		 */
@@ -475,6 +475,7 @@ public class DtlsConnectorConfig {
 		 * 
 		 * @param pskStore
 		 *            the key store
+		 * @return this builder for command chaining
 		 */
 		public Builder setPskStore(PskStore pskStore) {
 			config.pskStore = pskStore;
@@ -513,7 +514,7 @@ public class DtlsConnectorConfig {
 		 * identity to the client. In client mode the key and certificates are used
 		 * to prove the client's identity to the server.
 		 * 
-		 * @param key
+		 * @param privateKey
 		 *            the private key used for creating signatures
 		 * @param certificateChain
 		 *            the chain of certificates asserting the private key subject's
@@ -522,10 +523,11 @@ public class DtlsConnectorConfig {
 		 *            <code>true</code> if the connector should indicate preference for
 		 *            using <em>RawPublicKey</em>s for authentication purposes in the 
 		 *            handshake with a peer (instead of including the full X.509 certificate chain)
-		 * @see #setIdentity(PrivateKey, PublicKey) for configuring <em>RawPublicKey</em>
-		 *            mode only
+		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate chain is <code>null</code>
 		 *            or the certificate chain does not contain any certificates 
+		 * @see #setIdentity(PrivateKey, PublicKey) for configuring <em>RawPublicKey</em>
+		 *            mode only
 		 */
 		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
 				boolean preferRawPublicKeys) {
@@ -558,7 +560,7 @@ public class DtlsConnectorConfig {
 		}
 		
 		/**
-		 * Creates an instance of <code>DtlsConnectorConfig</em> based on the properties
+		 * Creates an instance of <code>DtlsConnectorConfig</code> based on the properties
 		 * set on this builder.
 		 * 
 		 * If the <em>supportedCipherSuites</em> property has not been set, the
