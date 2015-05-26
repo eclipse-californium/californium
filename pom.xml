@@ -12,7 +12,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>scandium</artifactId>
-	<version>1.0.0-M4</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>bundle</packaging>
 
 	<name>Scandium (Sc)</name>
@@ -35,7 +35,7 @@
 	<scm>
 		<developerConnection>scm:git:https://git@github.com/eclipse/californium.scandium.git</developerConnection>
 		<url>https://github.com/eclipse/californium.scandium</url>
-		<tag>1.0.0-M4</tag>
+		<tag>HEAD</tag>
 	</scm>
 	<developers>
 		<developer>
