@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add access to client identity
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -21,15 +22,22 @@ import java.io.ByteArrayInputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,6 +56,8 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 public class CertificateMessage extends HandshakeMessage {
 
 	// Logging ///////////////////////////////////////////////////////////
+
+	private static final String CERTIFICATE_TYPE_X509 = "X.509";
 
 	private static final Logger LOGGER = Logger.getLogger(CertificateMessage.class.getCanonicalName());
 
@@ -190,121 +200,57 @@ public class CertificateMessage extends HandshakeMessage {
 		return certificateChain;
 	}
 	
+	private Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
+		Set<TrustAnchor> result = new HashSet<>();
+		if (trustedCertificates != null) {
+			for (Certificate cert : trustedCertificates) {
+				if (CERTIFICATE_TYPE_X509.equals(cert.getType())) {
+					result.add(new TrustAnchor((X509Certificate) cert, null));
+				} else {
+					LOGGER.log(Level.INFO,
+							"List of trusted CA certificates contains non-X.509 certificate of type [{0}]",
+							cert.getType());
+				}
+			}
+		}
+		return result;
+	}
+	
 	/**
-	 * Tries to verify the peer's certificate. Checks its validity and verifies
-	 * that it was signed with the stated private key.
+	 * Validates the X.509 certificate chain provided by the the peer as part of this message.
 	 * 
-	 * @param trustedCertificates the list of trusted certificates
+	 * This method checks
+	 * <ol>
+	 * <li>that each certificate's issuer DN equals the subject DN of the next certiciate in the chain</li>
+	 * <li>that each certificate is currently valid according to its validity period</li>
+	 * <li>that the chain is rooted at a trusted CA</li>
+	 * </ol>
 	 * 
-	 * @throws HandshakeException
-	 *             if the certificate could not be verified.
+	 * @param trustedCertificates the list of trusted root CAs
+	 * 
+	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(Certificate[] trustedCertificates) throws HandshakeException {
 		if (rawPublicKeyBytes == null) {
-			boolean verified = false;
 
-			X509Certificate peerCertificate = (X509Certificate) certificateChain[0];
+			Set<TrustAnchor> trustAnchors = getTrustAnchors(trustedCertificates);
+			
 			try {
-				peerCertificate.checkValidity();
-			} catch (CertificateException e) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED);
-				throw new HandshakeException("Certificate not valid.", alert);
-			}
-			
-			if (isSelfSigned(peerCertificate)) {
-				// TODO allow self-signed certificates?
-				LOGGER.info("Peer used self-signed certificate.");
-				return;
-			}
-
-			verified = validateKeyChain(peerCertificate, certificateChain, trustedCertificates);
-
-			if (!verified) {
+				CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
+				CertPath certPath = certFactory.generateCertPath(Arrays.asList(certificateChain));
+				
+				PKIXParameters params = new PKIXParameters(trustAnchors);
+				// TODO: implement alternative means of revocation checking
+				params.setRevocationEnabled(false);
+				
+				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+				validator.validate(certPath, params);
+				
+			} catch (GeneralSecurityException e) {
+				LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
-				throw new HandshakeException("Certificate could not be verified.", alert);
-			}
-		}
-	}
-	
-	/**
-	 * Tries to validate the certificate chain with the given intermediate and
-	 * trusted certificates.
-	 * 
-	 * @param certificate
-	 *            the end of the certificate chain which needs to be verified.
-	 * @param intermediateCertificates
-	 *            the intermediate certificates (not trusted).
-	 * @param trustedCertificates
-	 *            the trusted certificates.
-	 * @return <code>true</code> if the chain could be validated,
-	 *         <code>false</code> otherwise.
-	 */
-	public boolean validateKeyChain(X509Certificate certificate, Certificate[] intermediateCertificates, Certificate[] trustedCertificates) {
-		
-		// first check all the intermediate certificates, if one of these signed
-		// the chain's end certificate
-		for (Certificate cert : intermediateCertificates) {
-			X509Certificate intermediateCertificate = (X509Certificate) cert;
-			
-			if (certificate.getIssuerX500Principal().equals(intermediateCertificate.getSubjectX500Principal())) {
-				try {
-					certificate.verify(intermediateCertificate.getPublicKey());
-				} catch (Exception e) {
-					continue;
-				}
-
-				if (!isSelfSigned(intermediateCertificate) && !certificate.equals(intermediateCertificate)) {
-					// intermediate certificates can't be trusted to
-					// complete the chain, but they can be middle parts
-					return validateKeyChain(intermediateCertificate, intermediateCertificates, trustedCertificates);
-				}
-
-			}
-
-		}
-		
-		// check all trusted certificates, if one of theses is the root of the
-		// certificate chain
-		for (Certificate cert : trustedCertificates) {
-			X509Certificate trustedCertificate = (X509Certificate) cert;
-
-			if (certificate.getIssuerX500Principal().equals(trustedCertificate.getSubjectX500Principal())) {
-				try {
-					certificate.verify(trustedCertificate.getPublicKey());
-				} catch (Exception e) {
-					continue;
-				}
-
-				if (isSelfSigned(trustedCertificate)) {
-					return true;
-				} else if (!certificate.equals(trustedCertificate)) {
-					// follow next step of the chain
-					return validateKeyChain(trustedCertificate, intermediateCertificates, trustedCertificates);
-				}
-
-			}
-
-		}
-		// no valid chain found
-		return false;
-	}
-	
-	/**
-	 * Checks whether this certificate was signed with the private key that
-	 * corresponds to this certificates public key.
-	 * 
-	 * @param certificate
-	 *            the certificate to be checked for self-signing.
-	 * @return <code>true</code> if the certificate was self-signed,
-	 *         <code>false</code> otherwise.
-	 */
-	private boolean isSelfSigned(X509Certificate certificate) {
-		try {
-			certificate.verify(certificate.getPublicKey());
-			return true;
-		} catch (GeneralSecurityException e) {
-			// the certificate was not signed with this public key
-			return false;
+				throw new HandshakeException("Certificate chain could not be validated", alert);
+			}			
 		}
 	}
 
@@ -356,10 +302,9 @@ public class CertificateMessage extends HandshakeMessage {
 
 				try {
 					if (certificateFactory == null) {
-						certificateFactory = CertificateFactory.getInstance("X.509");
+						certificateFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
 					}
-					Certificate cert = certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
-					certs.add(cert);
+					certs.add(certificateFactory.generateCertificate(new ByteArrayInputStream(certificate)));
 				} catch (CertificateException e) {
 					LOGGER.log(Level.FINE,
 							"Could not create X.509 certificate from byte array, reason [{0}]",

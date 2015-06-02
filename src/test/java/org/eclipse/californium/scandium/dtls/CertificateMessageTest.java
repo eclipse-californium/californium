@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469158
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -45,11 +46,18 @@ public class CertificateMessageTest {
 	@Test
 	public void testVerifyCertificateSucceedsForExampleCertificates() throws IOException, GeneralSecurityException {
 
-			givenACertificateMessage("server");
-			assertThatCertificateVerificationSucceeds();
-			
-			givenACertificateMessage("client");
-			assertThatCertificateVerificationSucceeds();
+		givenACertificateMessage("server");
+		assertThatCertificateVerificationSucceeds();
+		
+		givenACertificateMessage("client");
+		assertThatCertificateVerificationSucceeds();
+	}
+	
+	@Test
+	public void testVerifyCertificateFailsIfTrustAnchorIsEmpty() throws IOException, GeneralSecurityException {
+
+		givenACertificateMessage("client");
+		assertThatCertificateValidationFailsForEmptyTrustAnchor();
 	}
 	
 	private void assertThatCertificateVerificationSucceeds() {
@@ -58,6 +66,15 @@ public class CertificateMessageTest {
 			// all is well
 		} catch (HandshakeException e) {
 			fail("Verification of certificate should have succeeded");
+		}
+	}
+	
+	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
+		try {
+			message.verifyCertificate(null);
+			fail("Verification of certificate should have failed");
+		} catch (HandshakeException e) {
+			// all is well
 		}
 	}
 	
