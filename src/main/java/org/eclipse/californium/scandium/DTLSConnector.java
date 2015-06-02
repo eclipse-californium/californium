@@ -502,7 +502,6 @@ public class DTLSConnector implements Connector {
 					// in order to prevent repeated (and useless) look-up of handshaker
 					sessionListener.handshakeCompleted(peerAddress);
 					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-					sessionStore.update(session);
 					// finally, forward de-crypted message to application layer
 					if (messageHandler != null) {
 						messageHandler.receiveData(new RawData(message.getData(), peerAddress, session.getPeerIdentity()));
@@ -829,8 +828,6 @@ public class DTLSConnector implements Connector {
 				storeFlight(flight);
 				scheduleRetransmission(flight);
 			}
-			// session state has been updated by retrieval of sequence number
-			sessionStore.update(session);
 			sendFlight(flight);
 		} catch (GeneralSecurityException e) {
 			LOGGER.log(Level.FINE, "Cannot send record to peer [{0}] due to [{1}]",
@@ -878,9 +875,6 @@ public class DTLSConnector implements Connector {
 	
 				// retrieve payload
 				payload = ByteArrayUtils.concatenate(payload, recordBytes);
-			}
-			if (flight.getTries() > 0) {
-				sessionStore.update(flight.getSession());
 			}
 			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());

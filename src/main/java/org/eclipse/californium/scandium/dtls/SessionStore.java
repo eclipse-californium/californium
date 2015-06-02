@@ -22,13 +22,13 @@ import java.net.InetSocketAddress;
 /**
  * A strategy for keeping track of DTLS session information.
  * 
- * Implementations might choose to keep the data in-memory
- * or use a separate persistence store in order to share state
- * with other server instances.
- * 
  * The methods of this strategy interface are designed to support
  * usage of a session's peer address as key. However, implementations
  * may chose to use other properties of a session as well.
+ * 
+ * It is also assumed that the sessions are kept in memory. Thus, no
+ * explicit <code>update</code> method is provided since all instances
+ * are expected to be passed-in and stored by reference.
  */
 public interface SessionStore {
 
@@ -47,20 +47,6 @@ public interface SessionStore {
 	 * @return the remaining capacity
 	 */
 	int remainingCapacity();
-	
-	/**
-	 * Updates a session's state in the store.
-	 * 
-	 * This method may not be relevant for all implementations,
-	 * e.g. an in-memory implementation may relay on Java's
-	 * pass-by-reference mechanism to keep object state up-to-date.
-	 * 
-	 * However, implementations using a separate persistence store
-	 * may want to make sure that the new state is persisted.
-	 * 
-	 * @param session the updated session
-	 */
-	void update(DTLSSession session);
 	
 	/**
 	 * Gets a session by its peer address.

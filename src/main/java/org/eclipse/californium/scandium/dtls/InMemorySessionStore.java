@@ -121,9 +121,4 @@ public class InMemorySessionStore extends LeastRecentlyUsedCache<InetSocketAddre
 		}
 	}
 
-	@Override
-	public void update(DTLSSession session) {
-		// nothing to do since we are using an in-memory cache
-	}
-
 }
