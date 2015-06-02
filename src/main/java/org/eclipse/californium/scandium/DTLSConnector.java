@@ -239,46 +239,7 @@ public class DTLSConnector implements Connector {
 	}
 	
 	private void setSessionListener() {
-		this.sessionListener = new SessionListener() {
-			
-			@Override
-			public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
-				if (handshaker != null) {
-					if (!DTLSConnector.this.handshakers.put(handshaker.getPeerAddress(), handshaker)) {
-						throw new HandshakeException(
-								"Maximum number of simultanous handshakes in progress",
-								new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-					} else {
-						LOGGER.log(Level.FINE, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
-					}
-				}
-			}
-			
-			@Override
-			public void sessionEstablished(Handshaker handshaker, DTLSSession session)
-				throws HandshakeException {
-				if (handshaker != null && session != null && session.isActive()) {
-					if (!DTLSConnector.this.sessionStore.put(session)) {
-						handshakers.remove(handshaker.getPeerAddress());
-						throw new HandshakeException(
-								"Maximum number of sessions has been established",
-								new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-					} else {
-						LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
-					}
-				}
-			}
-			
-			@Override
-			public void handshakeCompleted(InetSocketAddress peer) {
-				if (peer != null) {
-					Handshaker completedHandshaker = handshakers.remove(peer);
-					if (completedHandshaker != null) {
-						LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
-					}
-				}
-			}
-		};
+		this.sessionListener = new DefaultSessionListener(sessionStore, handshakers);
 	}
 	
 	private DTLSFlight getFlight(InetSocketAddress peerAddress) {
