@@ -80,12 +80,18 @@ following steps:
 	openssl ecparam -name prime256v1 -genkey -out root.key
 	openssl req -new -key root.key -x509 -sha256 -days 365 -out root.crt
 	
-	# Create private key, signing request, and sign with root CA
+	# Create private key, signing request for intermediary CA, and sign with root CA
+	# the Basic Constraints specified in the inermediary_cert.extensions file are
+	# necessary in order for clients to successfully validate certificate chains containing the
+	# intermediary certificate
 	openssl ecparam -name prime256v1 -genkey -out inter.key
 	openssl req -new -key inter.key -sha256 -out inter.csr
-	openssl x509 -sha256 -req -in inter.csr -CA root.crt -CAkey root.key -out inter.crt -days 365 -CAcreateserial
+	openssl x509 -sha256 -req -in inter.csr -CA root.crt -CAkey root.key -out inter.crt -days 365 -CAcreateserial -extfile intermediary_cert.extensions
 	
 	# Import root CA into Java's trusted CAs
+	# This step is REQUIRED in order for the import of the client and server
+	# certificates created in the next steps to successfully establish the
+	# certificate chain (via the intermediary to the root CA) in the keystore 
 	keytool -importcert -alias californium -file root.crt -keystore "$JAVA_HOME/jre/lib/security/cacerts"
 	
 	# Import root CA into portable trust store
