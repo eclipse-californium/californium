@@ -96,6 +96,13 @@ public class RecordTest {
 	}
 	
 	@Test
+	public void testFromByteArrayRejectsIllformattedRecord() {
+		byte[] illformattedRecord = new byte[]{TYPE_APPL_DATA};
+		List<Record> recordList = Record.fromByteArray(illformattedRecord);
+		assertTrue("fromByteArray() should have detected malformed record", recordList.isEmpty());
+	}
+	
+	@Test
 	public void testFromByteArrayAcceptsKnownTypeCode() throws GeneralSecurityException {
 		
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
