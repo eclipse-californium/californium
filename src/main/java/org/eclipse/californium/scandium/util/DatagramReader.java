@@ -183,6 +183,15 @@ public class DatagramReader {
 		return byteStream.available() > 0;
 	}
 
+	/**
+	 * Gets the number of remaining bits that can be read from the datagram.
+	 *  
+	 * @return the number of bits
+	 */
+	public int bitsLeft() {
+		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
+	}
+	
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
