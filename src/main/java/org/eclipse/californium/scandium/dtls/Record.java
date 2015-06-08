@@ -60,6 +60,9 @@ public class Record {
 
 	private static final int LENGTH_BITS = 16;
 
+	private static final int RECORD_HEADER_LENGTH = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
+			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
+	
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1;
 	
 	// Members ////////////////////////////////////////////////////////
@@ -191,6 +194,11 @@ public class Record {
 		
 		while (reader.bytesAvailable()) {
 
+			if (reader.bitsLeft() < RECORD_HEADER_LENGTH) {
+				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				return records;
+			}
+			
 			int type = reader.read(CONTENT_TYPE_BITS);
 			int major = reader.read(VERSION_BITS);
 			int minor = reader.read(VERSION_BITS);
@@ -200,7 +208,12 @@ public class Record {
 			long sequenceNumber = reader.readLong(SEQUENCE_NUMBER_BITS);
 	
 			int length = reader.read(LENGTH_BITS);
-	
+
+			if (reader.bitsLeft() < length) {
+				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				return records;
+			}
+			
 			// delay decryption/interpretation of fragment
 			byte[] fragmentBytes = reader.readBytes(length);
 	
@@ -209,7 +222,7 @@ public class Record {
 				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes));
-			}	
+			}
 		}
 		
 		return records;
@@ -480,7 +493,6 @@ public class Record {
 		byte[] iv = session.getWriteState().getIv().getIV();
 		byte[] nonce = generateNonce(iv);
 		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
-//		byte[] additionalData = generateAdditionalData(getLength());
 		byte[] additionalData = generateAdditionalData(byteArray.length);
 		
 		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
@@ -520,7 +532,6 @@ public class Record {
 		 * The decrypted message is always 16 bytes shorter than the cipher (8
 		 * for the authentication tag and 8 for the explicit nonce).
 		 */
-//		byte[] additionalData = generateAdditionalData(getLength() - 16);
 		byte[] additionalData = generateAdditionalData(byteArray.length - 16);
 
 		DatagramReader reader = new DatagramReader(byteArray);
@@ -630,26 +641,14 @@ public class Record {
 		return type;
 	}
 
-//	public void setType(ContentType type) {
-//		this.type = type;
-//	}
-//
 	public ProtocolVersion getVersion() {
 		return version;
 	}
 
-//	public void setVersion(ProtocolVersion version) {
-//		this.version = version;
-//	}
-//
 	public int getEpoch() {
 		return epoch;
 	}
 
-//	public void setEpoch(int epoch) {
-//		this.epoch = epoch;
-//	}
-//
 	public long getSequenceNumber() {
 		return sequenceNumber;
 	}
@@ -682,14 +681,6 @@ public class Record {
 	public int getLength() {
 		return length;
 	}
-
-//	public void setLength(int length) {
-//		this.length = length;
-//	}
-
-//	public DTLSSession getSession() {
-//		return session;
-//	}
 
 	public synchronized void setSession(DTLSSession session) {
 		this.session = session;
