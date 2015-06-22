@@ -350,7 +350,7 @@ public class DTLSSession {
 		}
 		this.readState = readState;
 		incrementReadEpoch();
-		LOGGER.log(Level.FINEST, "Setting current read state to\n{0}", writeState);
+		LOGGER.log(Level.FINEST, "Setting current read state to\n{0}", readState);
 	}
 
 	/**
