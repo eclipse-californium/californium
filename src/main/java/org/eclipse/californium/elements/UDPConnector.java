@@ -244,10 +244,11 @@ public class UDPConnector implements Connector {
 		protected void work() throws IOException {
 			datagram.setLength(size);
 			socket.receive(datagram);
-			LOGGER.log(Level.FINER, "UDPConnector ({0}) received {1} bytes from {2}:{3}",
-					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
-						datagram.getAddress(), datagram.getPort()});
-
+			if (LOGGER.isLoggable(Level.FINER)) {
+				LOGGER.log(Level.FINER, "UDPConnector ({0}) received {1} bytes from {2}:{3}",
+						new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
+							datagram.getAddress(), datagram.getPort()});
+			}
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
 			
@@ -270,9 +271,11 @@ public class UDPConnector implements Connector {
 			datagram.setData(raw.getBytes());
 			datagram.setAddress(raw.getAddress());
 			datagram.setPort(raw.getPort());
-			LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
-						datagram.getAddress(), datagram.getPort()});
+			if (LOGGER.isLoggable(Level.FINER)) {
+				LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
+						new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
+							datagram.getAddress(), datagram.getPort()});
+			}
 			socket.send(datagram);
 		}
 	}
