@@ -379,7 +379,12 @@ public class Exchange {
 
 	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
 		if (this.retransmissionHandle!=null) {
-			this.retransmissionHandle.cancel(false);
+			// avoid race condition of multiple responses (e.g., notifications)
+			synchronized (this) {
+				if (this.retransmissionHandle!=null) {
+					this.retransmissionHandle.cancel(false);
+				}
+			}
 		}
 		this.retransmissionHandle = retransmissionHandle;
 	}
