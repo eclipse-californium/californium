@@ -400,10 +400,12 @@ public class Request extends Message {
 	public void setResponse(Response response) {
 		this.response = response;
 		
-		if (lock != null)
+		// only for synchronous/blocking requests
+		if (lock != null) {
 			synchronized (lock) {
 				lock.notifyAll();
 			}
+		}
 		// else: we know that nobody is waiting on the lock
 		
 		for (MessageObserver handler:getMessageObservers())
