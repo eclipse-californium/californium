@@ -219,6 +219,8 @@
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>
+					<parallel>classes</parallel>
+					<threadCount>8</threadCount>
 					<groups>org.eclipse.californium.scandium.category.Small</groups>
 					<excludedGroups>org.eclipse.californium.scandium.category.Medium,org.eclipse.californium.scandium.category.Large</excludedGroups>
 				</configuration>
