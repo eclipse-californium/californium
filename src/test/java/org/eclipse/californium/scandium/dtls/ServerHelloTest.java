@@ -20,11 +20,14 @@ import static org.junit.Assert.*;
 
 import java.util.Arrays;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class ServerHelloTest {
 
 	ServerHello serverHello;

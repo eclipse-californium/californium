@@ -219,7 +219,33 @@
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>
+					<groups>org.eclipse.californium.scandium.category.Small</groups>
+					<excludedGroups>org.eclipse.californium.scandium.category.Medium,org.eclipse.californium.scandium.category.Large</excludedGroups>
 				</configuration>
+				<executions>
+					<execution>
+						<id>medium-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.scandium.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Large</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>large-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.scandium.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.felix</groupId>
