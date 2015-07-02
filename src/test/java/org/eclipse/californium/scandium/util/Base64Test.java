@@ -19,9 +19,12 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class Base64Test {
 
 	@Before

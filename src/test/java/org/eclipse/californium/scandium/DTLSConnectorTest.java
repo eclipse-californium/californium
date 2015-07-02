@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
@@ -66,7 +67,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Medium.class)
 public class DTLSConnectorTest {
 
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;

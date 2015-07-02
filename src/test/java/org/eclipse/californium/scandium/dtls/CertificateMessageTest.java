@@ -24,9 +24,12 @@ import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.util.Enumeration;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class CertificateMessageTest {
 
 	CertificateMessage message;

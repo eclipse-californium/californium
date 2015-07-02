@@ -23,9 +23,12 @@ import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class InMemorySessionStoreTest {
 
 	InMemorySessionStore store;

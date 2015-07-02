@@ -18,9 +18,12 @@ package org.eclipse.californium.scandium.util;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class DatagramReaderTest {
 
 	DatagramReader reader;

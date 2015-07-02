@@ -17,10 +17,13 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class DTLSSessionTest {
 
 	InetSocketAddress peerAddress;

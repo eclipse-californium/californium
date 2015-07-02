@@ -30,6 +30,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
@@ -38,7 +39,9 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class RecordTest {
 
 	static final long SEQUENCE_NO = 5;

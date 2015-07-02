@@ -21,11 +21,14 @@ import static org.junit.Assert.*;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class HelloExtensionsTest {
 
 	int unsupportedExtensionTypeCode = 0x50;
