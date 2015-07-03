@@ -23,6 +23,7 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -38,6 +39,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * previous full handshake.
  */
 public class ResumingClientHandshaker extends ClientHandshaker {
+	
+	private static final Logger LOGGER = Logger.getLogger(ResumingClientHandshaker.class.getName());
 	
 	// Constructor ////////////////////////////////////////////////////
 

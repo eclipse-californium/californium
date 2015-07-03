@@ -23,6 +23,7 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -38,6 +39,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
 public class ResumingServerHandshaker extends ServerHandshaker {
+	
+	private static final Logger LOGGER = Logger.getLogger(ResumingServerHandshaker.class.getName());
 	
 	// Members ////////////////////////////////////////////////////////
 	

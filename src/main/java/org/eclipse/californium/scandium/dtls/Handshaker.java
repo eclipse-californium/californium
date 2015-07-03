@@ -60,14 +60,6 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public abstract class Handshaker {
 
-	// Logging ////////////////////////////////////////////////////////
-
-	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
-
-	protected static final Logger LOGGER = Logger.getLogger(Handshaker.class.getCanonicalName());
-
-	// Static members /////////////////////////////////////////////////
-
 	public final static int MASTER_SECRET_LABEL = 1;
 
 	public final static int KEY_EXPANSION_LABEL = 2;
@@ -76,13 +68,15 @@ public abstract class Handshaker {
 
 	public final static int SERVER_FINISHED_LABEL = 4;
 
-	// Members ////////////////////////////////////////////////////////
+	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
+
+	private static final Logger LOGGER = Logger.getLogger(Handshaker.class.getName());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
 	 * the  protocol.
 	 */
-	protected boolean isClient;
+	protected final boolean isClient;
 
 	protected int state = -1;
 
@@ -108,7 +102,7 @@ public abstract class Handshaker {
 	private SecretKey clientWriteKey;
 	private SecretKey serverWriteKey;
 
-	protected DTLSSession session = null;
+	protected final DTLSSession session;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)

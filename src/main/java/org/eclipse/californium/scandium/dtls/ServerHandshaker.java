@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -56,6 +57,8 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public class ServerHandshaker extends Handshaker {
 
+	private static final Logger LOGGER = Logger.getLogger(ServerHandshaker.class.getName());
+	
 	// Members ////////////////////////////////////////////////////////
 
 	/** Is the client required to authenticate itself? */

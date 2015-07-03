@@ -30,6 +30,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
@@ -51,6 +52,8 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public class ClientHandshaker extends Handshaker {
 
+	private static final Logger LOGGER = Logger.getLogger(ClientHandshaker.class.getName());
+	
 	// Members ////////////////////////////////////////////////////////
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
