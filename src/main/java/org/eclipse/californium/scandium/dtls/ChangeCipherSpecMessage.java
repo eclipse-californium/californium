@@ -14,8 +14,11 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -31,7 +34,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * negotiated CipherSpec and keys. For further details see <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>.
  */
-public class ChangeCipherSpecMessage implements DTLSMessage {
+public final class ChangeCipherSpecMessage extends AbstractMessage {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -39,11 +42,12 @@ public class ChangeCipherSpecMessage implements DTLSMessage {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private CCSType CCSProtocolType;
+	private final CCSType CCSProtocolType;
 
 	// Constructor ////////////////////////////////////////////////////
 
-	public ChangeCipherSpecMessage() {
+	public ChangeCipherSpecMessage(InetSocketAddress peerAddress) {
+		super(peerAddress);
 		CCSProtocolType = CCSType.CHANGE_CIPHER_SPEC;
 	}
 
@@ -85,7 +89,7 @@ public class ChangeCipherSpecMessage implements DTLSMessage {
 	
 	// Serialization //////////////////////////////////////////////////
 
-	// @Override
+	@Override
 	public byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(CCSProtocolType.getCode(), CCS_BITS);
@@ -93,14 +97,14 @@ public class ChangeCipherSpecMessage implements DTLSMessage {
 		return writer.toByteArray();
 	}
 
-	public static DTLSMessage fromByteArray(byte[] byteArray) throws HandshakeException {
+	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		int code = reader.read(CCS_BITS);
 		if (code == CCSType.CHANGE_CIPHER_SPEC.getCode()) {
-			return new ChangeCipherSpecMessage();
+			return new ChangeCipherSpecMessage(peerAddress);
 		} else {
 			String message = "Unknown Change Cipher Spec code received: " + code;
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress);
 			throw new HandshakeException(message, alert);
 		}
 	}

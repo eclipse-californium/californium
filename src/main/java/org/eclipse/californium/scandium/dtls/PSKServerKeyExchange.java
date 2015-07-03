@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,9 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -30,7 +32,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * href="http://tools.ietf.org/html/rfc4279#section-2">ServerKeyExchange</a> for
  * the message format.
  */
-public class PSKServerKeyExchange extends ServerKeyExchange {
+public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -52,12 +54,14 @@ public class PSKServerKeyExchange extends ServerKeyExchange {
 
 	// Constructors ///////////////////////////////////////////////////
 	
-	public PSKServerKeyExchange(String hint) {
+	public PSKServerKeyExchange(String hint, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.hint = hint;
 		this.hintEncoded = hint.getBytes(CHAR_SET);
 	}
 	
-	public PSKServerKeyExchange(byte[] hintEncoded) {
+	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.hintEncoded = hintEncoded;
 		this.hint = new String(hintEncoded, CHAR_SET);
 	}
@@ -91,13 +95,13 @@ public class PSKServerKeyExchange extends ServerKeyExchange {
 		return writer.toByteArray();
 	}
 	
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 		
 		int length = reader.read(IDENTITY_HINT_LENGTH_BITS);
 		byte[] hintEncoded = reader.readBytes(length);
 		
-		return new PSKServerKeyExchange(hintEncoded);
+		return new PSKServerKeyExchange(hintEncoded, peerAddress);
 	}
 	
 	// Getters and Setters ////////////////////////////////////////////
@@ -105,9 +109,4 @@ public class PSKServerKeyExchange extends ServerKeyExchange {
 	public String getHint() {
 		return hint;
 	}
-
-	public void setHint(String hint) {
-		this.hint = hint;
-	}
-
 }

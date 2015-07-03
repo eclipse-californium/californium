@@ -47,7 +47,7 @@ public class DefaultSessionListener implements SessionListener {
 			if (!handshakers.put(handshaker.getPeerAddress(), handshaker)) {
 				throw new HandshakeException(
 						"Maximum number of simultanous handshakes in progress",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, handshaker.getPeerAddress()));
 			} else {
 				LOGGER.log(Level.FINE, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
 			}
@@ -62,7 +62,7 @@ public class DefaultSessionListener implements SessionListener {
 				handshakers.remove(handshaker.getPeerAddress());
 				throw new HandshakeException(
 						"Maximum number of sessions has been established",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 			} else {
 				LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
 			}

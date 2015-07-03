@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 
 /**
@@ -27,8 +30,12 @@ package org.eclipse.californium.scandium.dtls;
  */
 public abstract class ClientKeyExchange extends HandshakeMessage {
 
+	protected ClientKeyExchange(InetSocketAddress peerAddress) {
+		super(peerAddress);
+	}
+	
 	@Override
-	public HandshakeType getMessageType() {
+	public final HandshakeType getMessageType() {
 		return HandshakeType.CLIENT_KEY_EXCHANGE;
 	}
 

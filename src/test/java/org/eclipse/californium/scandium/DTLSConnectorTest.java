@@ -181,7 +181,7 @@ public class DTLSConnectorTest {
 			
 			@Override
 			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data));
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint));
 				latch.countDown();
 			}
 		};
@@ -269,7 +269,7 @@ public class DTLSConnectorTest {
 			
 			@Override
 			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data)); 
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint)); 
 				latch.countDown();
 			}
 		};
@@ -309,7 +309,7 @@ public class DTLSConnectorTest {
 			
 			@Override
 			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data)); 
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint)); 
 				latch.countDown();
 			}
 		};
@@ -453,7 +453,7 @@ public class DTLSConnectorTest {
 	}
 	
 	private ClientHello createClientHello() {
-		ClientHello hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false);
+		ClientHello hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false, clientEndpoint);
 		hello.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		hello.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		hello.addCompressionMethod(CompressionMethod.NULL);

@@ -172,7 +172,7 @@ public class ServerHandshakerTest {
 		clientHelloMsg = newHandshakeMessage(HandshakeType.CLIENT_HELLO, messageSeq, clientHelloFragment);
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), epoch,
 				sequenceNo, clientHelloMsg);
-		List<Record> list = Record.fromByteArray(dtlsRecord);
+		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint);
 		Assert.assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
 		return handshaker.processMessage(record);

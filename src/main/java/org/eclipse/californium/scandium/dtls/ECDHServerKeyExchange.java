@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,10 +13,12 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -50,7 +52,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * href="http://tools.ietf.org/html/rfc4492#section-5.4">Section 5.4. Server Key
  * Exchange</a>, for details on the message format.
  */
-public class ECDHServerKeyExchange extends ServerKeyExchange {
+public final class ECDHServerKeyExchange extends ServerKeyExchange {
 
 	// Logging ////////////////////////////////////////////////////////
 
@@ -90,12 +92,12 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	private ECPoint point = null;
 	private byte[] pointEncoded = null;
 
-	private int curveId;
+	private final int curveId;
 
 	private byte[] signatureEncoded = null;
 
 	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
-	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	// TODO right now only named curve is supported
 	private int curveType = NAMED_CURVE;
@@ -117,16 +119,18 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	 *            the server's random (used for signature)
 	 * @param namedCurveId
 	 *            the named curve's id which will be used for the ECDH
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, ECDHECryptography ecdhe, PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, int namedCurveId) {
+	public ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, ECDHECryptography ecdhe,
+			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, int namedCurveId, InetSocketAddress peerAddress) {
 
-		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+		this(signatureAndHashAlgorithm, namedCurveId, peerAddress);
 		
 		try {
 			publicKey = ecdhe.getPublicKey();
 			ECParameterSpec parameters = publicKey.getParams();
 
-			curveId = namedCurveId;
 			point = publicKey.getW();
 			pointEncoded = ECDHECryptography.encodePoint(point, parameters.getCurve());
 
@@ -156,12 +160,20 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 	 *            the point on the curve (encoded)
 	 * @param signatureEncoded
 	 *            the signature (encoded)
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, int curveId, byte[] pointEncoded, byte[] signatureEncoded) {
-		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
-		this.curveId = curveId;
+	private ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, int curveId, byte[] pointEncoded,
+			byte[] signatureEncoded, InetSocketAddress peerAddress) {
+		this(signatureAndHashAlgorithm, curveId, peerAddress);
 		this.pointEncoded = pointEncoded;
 		this.signatureEncoded = signatureEncoded;
+	}
+
+	private ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, int namedCurveId, InetSocketAddress peerAddress) {
+		super(peerAddress);
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+		this.curveId = namedCurveId;
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -204,14 +216,14 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		int curveType = reader.read(CURVE_TYPE_BITS);
 		switch (curveType) {
 		// TODO right now only named curve supported
 		case EXPLICIT_PRIME:
 		case EXPLICIT_CHAR2:
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress);
 			throw new HandshakeException("Not supported curve type in ServerKeyExchange message", alert);
 			
 		case NAMED_CURVE:
@@ -234,7 +246,7 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 				signatureEncoded = reader.readBytes(length);
 			}
 
-			return new ECDHServerKeyExchange(signAndHash, curveId, pointEncoded, signatureEncoded);
+			return new ECDHServerKeyExchange(signAndHash, curveId, pointEncoded, signatureEncoded, peerAddress);
 
 		default:
 			LOGGER.severe("Unknown curve type: " + curveType);
@@ -301,7 +313,7 @@ public class ECDHServerKeyExchange extends ServerKeyExchange {
 		
 		if (!verified) {
 			String message = "The server's ECDHE key exchange message's signature could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 			throw new HandshakeException(message, alert);
 		}
 	}

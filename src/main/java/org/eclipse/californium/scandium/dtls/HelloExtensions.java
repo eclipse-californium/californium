@@ -16,9 +16,12 @@
  *    Kai Hudalla - fixes & improvements
  *    Kai Hudalla (Bosch Software Innovations GmbH) - getter for retrieving extension
  *                                                    of a particular type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use peer address when parsing
+ *                                                    from byte array
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -114,7 +117,7 @@ public class HelloExtensions {
 		}
 	}
 
-	public static HelloExtensions fromByteArray(byte[] byteArray) throws HandshakeException {
+	public static HelloExtensions fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		List<HelloExtension> extensions = new ArrayList<HelloExtension>();
 
@@ -145,7 +148,7 @@ public class HelloExtensions {
 			// this is always FATAL as defined by the TLS spec (section 7.2.2)
 			throw new HandshakeException(
 					"Hello message contained malformed extensions",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 		} else {
 			return new HelloExtensions(extensions);
 		}

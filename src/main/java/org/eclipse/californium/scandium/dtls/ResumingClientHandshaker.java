@@ -103,13 +103,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				break;
 
 			default:
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, session.getPeer());
 				throw new HandshakeException("Client received unexpected resuming handshake message:\n" + fragment.toString(), alert);
 			}
 			break;
 
 		default:
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Client received not supported record:\n" + record.toString(), alert);
 		}
 		if (flight == null) {
@@ -172,12 +172,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		serverRandom = serverHello.getRandom();
 		generateKeys(session.getMasterSecret());
 
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash);
+		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
 		state = HandshakeType.FINISHED.getCode();

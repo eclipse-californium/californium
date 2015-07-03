@@ -199,7 +199,7 @@ public class ClientHandshaker extends Handshaker {
 					break;
 
 				default:
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 					throw new HandshakeException("Not supported server key exchange algorithm: " + keyExchange, alert);
 				}
 				break;
@@ -218,13 +218,13 @@ public class ClientHandshaker extends Handshaker {
 				break;
 
 			default:
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, session.getPeer());
 				throw new HandshakeException("Client received unexpected handshake message:\n" + fragment.toString(), alert);
 			}
 			break;
 
 		default:
-			AlertMessage alertMessage = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alertMessage = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Client received not supported record:\n" + record.toString(), alertMessage);
 		}
 		if (flight == null) {
@@ -267,7 +267,7 @@ public class ClientHandshaker extends Handshaker {
 		handshakeCompleted();
 		// received server's Finished message, now able to send encrypted
 		// message
-		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes());
+		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), session.getPeer());
 
 		flight.addMessage(wrapMessage(applicationMessage));
 		// application data is not retransmitted
@@ -395,7 +395,7 @@ public class ClientHandshaker extends Handshaker {
 		// get the curve parameter spec by the named curve id
 		ECParameterSpec params = ECDHServerKeyExchange.NAMED_CURVE_PARAMETERS.get(message.getCurveId());
 		if (params == null) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Server used unsupported elliptic curve for ECDH", alert);
 		}
 		
@@ -436,9 +436,9 @@ public class ClientHandshaker extends Handshaker {
 			// TODO load the client's certificate according to the allowed
 			// parameters in the CertificateRequest
 			if (session.sendRawPublicKey()){
-				clientCertificate = new CertificateMessage(publicKey.getEncoded());
+				clientCertificate = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
 			} else {
-				clientCertificate = new CertificateMessage(certificates);
+				clientCertificate = new CertificateMessage(certificates, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}
@@ -450,7 +450,7 @@ public class ClientHandshaker extends Handshaker {
 		byte[] premasterSecret;
 		switch (keyExchange) {
 		case EC_DIFFIE_HELLMAN:
-			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey());
+			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
 			premasterSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
 
 			generateKeys(premasterSecret);
@@ -460,7 +460,7 @@ public class ClientHandshaker extends Handshaker {
 		case PSK:
 			String identity = pskStore.getIdentity(getPeerAddress());
 			if (identity == null) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
@@ -469,10 +469,10 @@ public class ClientHandshaker extends Handshaker {
 
 			byte[] psk = pskStore.getKey(identity);
 			if (psk == null) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
-			clientKeyExchange = new PSKClientKeyExchange(identity);
+			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
 			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
@@ -480,14 +480,14 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case NULL:
-			clientKeyExchange = new NULLClientKeyExchange();
+			clientKeyExchange = new NULLClientKeyExchange(session.getPeer());
 
 			// We assume, that the premaster secret is empty
 			generateKeys(new byte[] {});
 			break;
 
 		default:
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Unknown key exchange algorithm: " + keyExchange, alert);
 		}
 		flight.addMessage(wrapMessage(clientKeyExchange));
@@ -508,7 +508,7 @@ public class ClientHandshaker extends Handshaker {
 			
 			// TODO make sure, that signature is supported
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = certificateRequest.getSupportedSignatureAlgorithms().get(0);
-			certificateVerify = new CertificateVerify(signatureAndHashAlgorithm, privateKey, handshakeMessages);
+			certificateVerify = new CertificateVerify(signatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
 			
 			flight.addMessage(wrapMessage(certificateVerify));
 		}
@@ -516,7 +516,7 @@ public class ClientHandshaker extends Handshaker {
 		/*
 		 * Fourth, send ChangeCipherSpec
 		 */
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
 
@@ -559,7 +559,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			handshakeHash = md.digest();
-			Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash);
+			Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
 			flight.addMessage(wrapMessage(finished));
 			
 			// compute handshake hash with client's finished message also
@@ -578,7 +578,7 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey);
+		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey, session.getPeer());
 
 		// store client random for later calculations
 		clientRandom = message.getRandom();

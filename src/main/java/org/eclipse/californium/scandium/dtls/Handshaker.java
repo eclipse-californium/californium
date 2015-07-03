@@ -228,7 +228,7 @@ public abstract class Handshaker {
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
 			throw new HandshakeException("Could not initialize handshake",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 	
@@ -266,7 +266,7 @@ public abstract class Handshaker {
 		} catch (NoSuchAlgorithmException e) {
 			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
 			throw new HandshakeException("Could not initialize handshake",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 
@@ -304,7 +304,7 @@ public abstract class Handshaker {
 								"Cannot process handshake message from peer [%s] due to [%s]",
 								getSession().getPeer(), e.getMessage()),
 						e);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
 		} else {
@@ -595,7 +595,7 @@ public abstract class Handshaker {
 		} catch (GeneralSecurityException e) {
 			throw new HandshakeException(
 					"Cannot create record",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 
@@ -625,7 +625,8 @@ public abstract class Handshaker {
 				System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
 				
 				FragmentedHandshakeMessage fragmentedMessage =
-						new FragmentedHandshakeMessage(fragmentBytes, handshakeMessage.getMessageType(), offset, messageBytes.length);
+						new FragmentedHandshakeMessage(fragmentBytes, handshakeMessage.getMessageType(), offset,
+								messageBytes.length, session.getPeer());
 				
 				// all fragments have the same message_seq
 				fragmentedMessage.setMessageSeq(messageSeq);
@@ -796,7 +797,8 @@ public abstract class Handshaker {
 		
 		if (reassembly.length == totalLength) {
 			// the reassembled fragment has the expected length
-			FragmentedHandshakeMessage wholeMessage = new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly);
+			FragmentedHandshakeMessage wholeMessage = new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0,
+							reassembly, session.getPeer());
 			reassembly = wholeMessage.toByteArray();
 			
 			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
@@ -805,7 +807,7 @@ public abstract class Handshaker {
 				keyExchangeAlgorithm = session.getKeyExchange();
 				receiveRawPublicKey = session.receiveRawPublicKey();
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey);
+			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, session.getPeer());
 		}
 		
 		return message;
@@ -828,7 +830,7 @@ public abstract class Handshaker {
 	protected final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
 		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
 			throw new HandshakeException("Negotiated cipher suite must not be null",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
 		this.cipherSuite = cipherSuite;
 		this.keyExchange = cipherSuite.getKeyExchange();

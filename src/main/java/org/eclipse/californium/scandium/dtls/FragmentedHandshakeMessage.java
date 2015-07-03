@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -24,7 +27,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * underlying handshake body as transparent data and just helps keeping track of
  * the fragment_offset and fragment_length.
  */
-public class FragmentedHandshakeMessage extends HandshakeMessage {
+public final class FragmentedHandshakeMessage extends HandshakeMessage {
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -53,14 +56,13 @@ public class FragmentedHandshakeMessage extends HandshakeMessage {
 	 *            the message's fragment_offset.
 	 * @param fragmentedBytes
 	 *            the fragment's byte representation.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public FragmentedHandshakeMessage(HandshakeType type, int messageLength, int messageSeq, int fragmentOffset, byte[] fragmentedBytes) {
-		this.type = type;
-		this.messageLength = messageLength;
-		this.fragmentedBytes = fragmentedBytes;
+	public FragmentedHandshakeMessage(HandshakeType type, int messageLength, int messageSeq, int fragmentOffset,
+			byte[] fragmentedBytes, InetSocketAddress peerAddress) {
+		this(fragmentedBytes, type, fragmentOffset, messageLength, peerAddress);
 		setMessageSeq(messageSeq);
-		setFragmentOffset(fragmentOffset);
-		setFragmentLength(fragmentedBytes.length);
 	}
 
 	/**
@@ -74,13 +76,17 @@ public class FragmentedHandshakeMessage extends HandshakeMessage {
 	 *            the fragment's fragment_offset.
 	 * @param messageLength
 	 *            the message's total (unfragmented) length.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public FragmentedHandshakeMessage(byte[] fragmentedBytes, HandshakeType type, int fragmentOffset, int messageLength) {
-		this.fragmentedBytes = fragmentedBytes;
+	public FragmentedHandshakeMessage(byte[] fragmentedBytes, HandshakeType type, int fragmentOffset, int messageLength,
+			InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.type = type;
+		this.messageLength = messageLength;
+		this.fragmentedBytes = fragmentedBytes;
 		setFragmentOffset(fragmentOffset);
 		setFragmentLength(fragmentedBytes.length);
-		this.messageLength = messageLength;
 	}
 
 	// Methods ////////////////////////////////////////////////////////

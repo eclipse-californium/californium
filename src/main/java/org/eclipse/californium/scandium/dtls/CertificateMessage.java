@@ -15,10 +15,12 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add access to client identity
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.ByteArrayInputStream;
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -53,7 +55,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * always immediately follow the {@link ServerHello} message. For details see <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.2">RFC 5246</a>.
  */
-public class CertificateMessage extends HandshakeMessage {
+public final class CertificateMessage extends HandshakeMessage {
 
 	// Logging ///////////////////////////////////////////////////////////
 
@@ -81,19 +83,18 @@ public class CertificateMessage extends HandshakeMessage {
 	 * This is a sequence (chain) of certificates. The sender's certificate MUST
 	 * come first in the list.
 	 */
-	private Certificate[] certificateChain;
+	private final Certificate[] certificateChain;
 
 	/** The encoded chain of certificates */
 	private List<byte[]> encodedChain;
 
-	/** The total length of the {@link CertificateMessage}. */
-	private int messageLength;
-	
 	/**
 	 * The SubjectPublicKeyInfo part of the X.509 certificate. Used in
 	 * constrained environments for smaller message size.
 	 */
-	private byte[] rawPublicKeyBytes = null;
+	private final byte[] rawPublicKeyBytes;
+	
+	private int length;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -103,10 +104,13 @@ public class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param certificateChain
 	 *            the certificate chain (first certificate must be the
-	 *            server's).
+	 *            server's)
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public CertificateMessage(Certificate[] certificateChain) {
-		this.certificateChain = certificateChain;
+	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
+		this(null, certificateChain, peerAddress);
+		calculateLength(certificateChain);
 	}
 
 	/**
@@ -114,10 +118,27 @@ public class CertificateMessage extends HandshakeMessage {
 	 * certificate chain).
 	 * 
 	 * @param rawPublicKeyBytes
-	 *            the raw public key (SubjectPublicKeyInfo).
+	 *           the raw public key (SubjectPublicKeyInfo)
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
 	 */
-	public CertificateMessage(byte[] rawPublicKeyBytes) {
-		this.rawPublicKeyBytes = rawPublicKeyBytes;
+	public CertificateMessage(byte[] rawPublicKeyBytes, InetSocketAddress peerAddress) {
+		this(rawPublicKeyBytes, null, peerAddress);
+		// fixed: 3 bytes for certificates length field + 3 bytes for
+		// certificate length
+		length = 6 + rawPublicKeyBytes.length;
+		// TODO still unclear whether the payload only consists of the raw public key
+		
+		// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.2:
+		// "If the negotiated certificate type is RawPublicKey the TLS server
+		// MUST place the SubjectPublicKeyInfo structure into the Certificate
+		// payload. The public key MUST match the selected key exchange algorithm."
+	}
+	
+	private CertificateMessage(byte[] rawPublicKey, Certificate[] certificateChain, InetSocketAddress peerAddress) {
+		super(peerAddress);
+		this.rawPublicKeyBytes = rawPublicKey;
+		this.certificateChain = certificateChain;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -127,13 +148,12 @@ public class CertificateMessage extends HandshakeMessage {
 		return HandshakeType.CERTIFICATE;
 	}
 
-	@Override
-	public int getMessageLength() {
-		if (rawPublicKeyBytes == null) {
+	private void calculateLength(Certificate[] certificateChain) {
+		if (certificateChain != null) {
 			// the certificate chain length uses 3 bytes
 			// each certificate's length in the chain also uses 3 bytes
 			if (encodedChain == null) {
-				messageLength = 3;
+				length = 3;
 				encodedChain = new ArrayList<byte[]>(certificateChain.length);
 				for (Certificate cert : certificateChain) {
 					try {
@@ -141,27 +161,20 @@ public class CertificateMessage extends HandshakeMessage {
 						encodedChain.add(encoded);
 
 						// the length of the encoded certificate plus 3 bytes
-						// for
-						// the length
-						messageLength += encoded.length + 3;
+						// for the length
+						length += encoded.length + 3;
 					} catch (CertificateEncodingException e) {
 						encodedChain = null;
-						LOGGER.log(Level.SEVERE,"Could not encode the certificate.", e);
+						LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
+					}
+				}
 					}
 				}
 			}
-		} else {
-			// fixed: 3 bytes for certificates length field + 3 bytes for
-			// certificate length
-			messageLength = 6 + rawPublicKeyBytes.length;
-			// TODO still unclear whether the payload only consists of the raw public key
 			
-			// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.2:
-			// "If the negotiated certificate type is RawPublicKey the TLS server
-			// MUST place the SubjectPublicKeyInfo structure into the Certificate
-			// payload. The public key MUST match the selected key exchange algorithm."
-		}
-		return messageLength;
+	@Override
+	public int getMessageLength() {
+		return length;
 	}
 
 	@Override
@@ -197,7 +210,11 @@ public class CertificateMessage extends HandshakeMessage {
 	 *        <em>RawPublicKey</em>s are used
 	 */
 	public Certificate[] getCertificateChain() {
-		return certificateChain;
+		if (certificateChain != null) {
+			return Arrays.copyOf(certificateChain, certificateChain.length);
+		} else {
+			return null;
+		}
 	}
 	
 	private Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
@@ -248,7 +265,7 @@ public class CertificateMessage extends HandshakeMessage {
 				
 			} catch (GeneralSecurityException e) {
 				LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, getPeer());
 				throw new HandshakeException("Certificate chain could not be validated", alert);
 			}			
 		}
@@ -278,7 +295,7 @@ public class CertificateMessage extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey, InetSocketAddress peerAddress) {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
@@ -286,10 +303,12 @@ public class CertificateMessage extends HandshakeMessage {
 		
 		CertificateMessage message;
 		if (useRawPublicKey) {
+			LOGGER.log(Level.FINER, "Parsing RawPublicKey CERTIFICATE message");
 			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
 			byte[] rawPublicKey = reader.readBytes(certificateLength);
-			message = new CertificateMessage(rawPublicKey);
+			message = new CertificateMessage(rawPublicKey, peerAddress);
 		} else {
+			LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
 			List<Certificate> certs = new ArrayList<Certificate>();
 
 			CertificateFactory certificateFactory = null;
@@ -306,14 +325,14 @@ public class CertificateMessage extends HandshakeMessage {
 					}
 					certs.add(certificateFactory.generateCertificate(new ByteArrayInputStream(certificate)));
 				} catch (CertificateException e) {
-					LOGGER.log(Level.FINE,
+					LOGGER.log(Level.INFO,
 							"Could not create X.509 certificate from byte array, reason [{0}]",
 							e.getMessage());
 					break;
 				}
 			}
 
-			message = new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]));
+			message = new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]), peerAddress);
 		}
 		
 		return message;

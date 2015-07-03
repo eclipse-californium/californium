@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,9 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -29,7 +31,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * which identity to use. See <a
  * href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a> for details.
  */
-public class PSKClientKeyExchange extends ClientKeyExchange {
+public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -44,19 +46,21 @@ public class PSKClientKeyExchange extends ClientKeyExchange {
 	 * encoded to octets using UTF-8. See <a
 	 * href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
 	 */
-	private byte[] identityEncoded;
+	private final byte[] identityEncoded;
 
 	/** The identity in cleartext. */
-	private String identity;
+	private final String identity;
 
 	// Constructors ///////////////////////////////////////////////////
 	
-	public PSKClientKeyExchange(String identity) {
-		this.identity = identity;
+	public PSKClientKeyExchange(String identity, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.identityEncoded = identity.getBytes(CHAR_SET);
+		this.identity = identity;
 	}
 	
-	public PSKClientKeyExchange(byte[] identityEncoded) {
+	private PSKClientKeyExchange(byte[] identityEncoded, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.identityEncoded = identityEncoded;
 		this.identity = new String(identityEncoded, CHAR_SET);
 	}
@@ -90,13 +94,13 @@ public class PSKClientKeyExchange extends ClientKeyExchange {
 		return writer.toByteArray();
 	}
 	
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 		
 		int length = reader.read(IDENTITY_LENGTH_BITS);
 		byte[] identityEncoded = reader.readBytes(length);
 		
-		return new PSKClientKeyExchange(identityEncoded);
+		return new PSKClientKeyExchange(identityEncoded, peerAddress);
 	}
 	
 	// Getters and Setters ////////////////////////////////////////////
@@ -104,9 +108,4 @@ public class PSKClientKeyExchange extends ClientKeyExchange {
 	public String getIdentity() {
 		return identity;
 	}
-
-	public void setIdentity(String identity) {
-		this.identity = identity;
-	}
-
 }

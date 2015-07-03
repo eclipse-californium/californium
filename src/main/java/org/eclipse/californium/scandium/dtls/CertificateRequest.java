@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,12 +13,15 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
@@ -36,7 +39,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, 7.4.4.
  * Certificate Request</a>.
  */
-public class CertificateRequest extends HandshakeMessage {
+public final class CertificateRequest extends HandshakeMessage {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -78,11 +81,16 @@ public class CertificateRequest extends HandshakeMessage {
 	
 	/**
 	 * Initializes an empty certificate request.
+	 * 
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
 	 */
-	public CertificateRequest() {
-		this.certificateTypes = new ArrayList<ClientCertificateType>();
-		this.supportedSignatureAlgorithms = new ArrayList<SignatureAndHashAlgorithm>();
-		this.certificateAuthorities = new ArrayList<DistinguishedName>();
+	public CertificateRequest(InetSocketAddress peerAddress) {
+		this(
+			new ArrayList<ClientCertificateType>(),
+			new ArrayList<SignatureAndHashAlgorithm>(),
+			new ArrayList<DistinguishedName>(),
+			peerAddress);
 	}
 
 	/**
@@ -93,8 +101,15 @@ public class CertificateRequest extends HandshakeMessage {
 	 *            the list of supported signature and hash algorithms.
 	 * @param certificateAuthorities
 	 *            the list of allowed certificate authorities.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public CertificateRequest(List<ClientCertificateType> certificateTypes, List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, List<DistinguishedName> certificateAuthorities) {
+	public CertificateRequest(
+			List<ClientCertificateType> certificateTypes,
+			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+			List<DistinguishedName> certificateAuthorities,
+			InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.certificateTypes = certificateTypes;
 		this.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		this.certificateAuthorities = certificateAuthorities;
@@ -180,7 +195,7 @@ public class CertificateRequest extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 		
 		int length = reader.read(CERTIFICATE_TYPES_LENGTH_BITS);
@@ -209,7 +224,7 @@ public class CertificateRequest extends HandshakeMessage {
 			
 		}
 		
-		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities);
+		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities, peerAddress);
 
 	}
 
@@ -435,15 +450,15 @@ public class CertificateRequest extends HandshakeMessage {
 	}
 
 	public List<ClientCertificateType> getCertificateTypes() {
-		return certificateTypes;
+		return Collections.unmodifiableList(certificateTypes);
 	}
 
 	public List<SignatureAndHashAlgorithm> getSupportedSignatureAlgorithms() {
-		return supportedSignatureAlgorithms;
+		return Collections.unmodifiableList(supportedSignatureAlgorithms);
 	}
 
 	public List<DistinguishedName> getCertificateAuthorities() {
-		return certificateAuthorities;
+		return Collections.unmodifiableList(certificateAuthorities);
 	}
 
 }

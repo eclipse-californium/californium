@@ -273,7 +273,7 @@ public class DTLSConnector implements Connector {
 	 */
 	public final void close(InetSocketAddress peerAddress) {
 		AlertMessage closeNotify = new AlertMessage(AlertLevel.WARNING,
-				AlertDescription.CLOSE_NOTIFY);
+				AlertDescription.CLOSE_NOTIFY, peerAddress);
 		terminateConnection(peerAddress, closeNotify);
 	}
 	
@@ -352,7 +352,7 @@ public class DTLSConnector implements Connector {
 		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 		
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromByteArray(data);
+		List<Record> records = Record.fromByteArray(data, peerAddress);
 
 		for (Record record : records) {
 			try {
@@ -499,7 +499,7 @@ public class DTLSConnector implements Connector {
 				case CLOSE_NOTIFY:
 					// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
 					// http://tools.ietf.org/html/rfc5246#section-7.2.1
-					bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
+					bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, peerAddress);
 				default:
 					terminateConnection(peerAddress, bye);
 					//TODO somehow tell application layer to cancel
@@ -611,7 +611,7 @@ public class DTLSConnector implements Connector {
 				// send CLIENT_HELLO_VERIFY with cookie in order to prevent
 				// DOS attack as described in DTLS 1.2 spec
 				LOGGER.log(Level.FINER, "Verifying client IP address [{0}] using HELLO_VERIFY_REQUEST", peerAddress);
-				HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie);
+				HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie, peerAddress);
 				// because we do not have a handshaker in place yet that
 				// manages message_seq numbers, we need to set it explicitly
 				// use message_seq from CLIENT_HELLO in order to allow for
@@ -620,7 +620,7 @@ public class DTLSConnector implements Connector {
 				// use epoch 0 and sequence no from CLIENT_HELLO record as
 				// mandated by section 4.2.1 of the DTLS 1.2 spec
 				// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-				Record helloVerify = new Record(ContentType.HANDSHAKE, 0, record.getSequenceNumber(), msg, null);
+				Record helloVerify = new Record(ContentType.HANDSHAKE, 0, record.getSequenceNumber(), msg, peerAddress);
 				nextFlight = new DTLSFlight(peerAddress);
 				nextFlight.addMessage(helloVerify);
 			} else {
@@ -713,7 +713,7 @@ public class DTLSConnector implements Connector {
 			return new Cookie(hmac.doFinal());
 		} catch (GeneralSecurityException e) {
 			LOGGER.log(Level.SEVERE,"Could not instantiate MAC algorithm for cookie creation", e);
-			throw new HandshakeException("Internal error", new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+			throw new HandshakeException("Internal error", new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, peerAddress));
 		}
 	}
 	
@@ -773,7 +773,7 @@ public class DTLSConnector implements Connector {
 					// session to peer is active, send encrypted message
 					
 					// TODO What about PMTU? 
-					DTLSMessage fragment = new ApplicationMessage(message.getBytes());
+					DTLSMessage fragment = new ApplicationMessage(message.getBytes(), session.getPeer());
 					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
 					flight = new DTLSFlight(session);
 					flight.addMessage(record);	

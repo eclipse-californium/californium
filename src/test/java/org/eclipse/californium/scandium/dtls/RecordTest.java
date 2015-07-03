@@ -58,7 +58,6 @@ public class RecordTest {
 	// salt: 32bit client write init vector (can be any four bytes)
 	byte[] client_iv = new byte[]{0x55, 0x23, 0x2F, (byte) 0xA3};
 	ProtocolVersion protocolVer;
-
 	
 	@Before
 	public void setUp() throws Exception {
@@ -77,9 +76,16 @@ public class RecordTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() throws GeneralSecurityException {
-		new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO, new HelloRequest(), session);
+		new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO, new HelloRequest(session.getPeer()), session);
 		try {
-			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(), session);
+			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(session.getPeer()), session);
+			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
+		} catch (IllegalArgumentException e) {
+			// all is well
+		}
+
+		try {
+			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(session.getPeer()), session.getPeer());
 			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// all is well
@@ -88,7 +94,7 @@ public class RecordTest {
 	
 	@Test
 	public void testSetSequenceNumberEnforcesMaxSequenceNo() throws GeneralSecurityException {
-		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(), session);
+		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(session.getPeer()), session.getPeer());
 		record.setSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO);
 		try {
 			record.setSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO + 1);
@@ -101,7 +107,7 @@ public class RecordTest {
 	@Test
 	public void testFromByteArrayRejectsIllformattedRecord() {
 		byte[] illformattedRecord = new byte[]{TYPE_APPL_DATA};
-		List<Record> recordList = Record.fromByteArray(illformattedRecord);
+		List<Record> recordList = Record.fromByteArray(illformattedRecord, session.getPeer());
 		assertTrue("fromByteArray() should have detected malformed record", recordList.isEmpty());
 	}
 	
@@ -109,7 +115,7 @@ public class RecordTest {
 	public void testFromByteArrayAcceptsKnownTypeCode() throws GeneralSecurityException {
 		
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
-		List<Record> recordList = Record.fromByteArray(application_record);
+		List<Record> recordList = Record.fromByteArray(application_record, session.getPeer());
 		assertEquals(recordList.size(), 1);
 		Record record = recordList.get(0);
 		assertEquals(ContentType.APPLICATION_DATA, record.getType());
@@ -125,7 +131,7 @@ public class RecordTest {
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		
-		List<Record> recordList = Record.fromByteArray(ByteArrayUtils.concatenate(unsupported_dtls_record, application_record));
+		List<Record> recordList = Record.fromByteArray(ByteArrayUtils.concatenate(unsupported_dtls_record, application_record), session.getPeer());
 		Assert.assertTrue(recordList.size() == 1);
 		Assert.assertEquals(ContentType.APPLICATION_DATA, recordList.get(0).getType());
 	}
@@ -142,10 +148,10 @@ public class RecordTest {
 	public void testDecryptAEADUsesExplicitNonceFromGenericAEADCipherStruct() throws Exception {
 		
 		byte[] fragment = newGenericAEADCipherFragment();
-		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, fragment);
+		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, fragment, session.getPeer());
 		record.setSession(session);
 		
-		byte[] decryptedData = record.decryptAEAD(fragment);
+		byte[] decryptedData = record.decryptAEAD(fragment, session.getReadState());
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	

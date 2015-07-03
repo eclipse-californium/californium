@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,13 +13,16 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -34,7 +37,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * ECDH public key is not in the client's certificate, so it must be provided
  * here.
  */
-public class ECDHClientKeyExchange extends ClientKeyExchange {
+public final class ECDHClientKeyExchange extends ClientKeyExchange {
 
 	// DTLS-specific constants ////////////////////////////////////////
 	
@@ -42,7 +45,7 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private byte[] pointEncoded;
+	private final byte[] pointEncoded;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -52,8 +55,11 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	 * 
 	 * @param clientPublicKey
 	 *            the client's public key.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public ECDHClientKeyExchange(PublicKey clientPublicKey) {
+	public ECDHClientKeyExchange(PublicKey clientPublicKey, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		ECPublicKey publicKey = (ECPublicKey) clientPublicKey;
 		ECPoint point = publicKey.getW();
 		ECParameterSpec params = publicKey.getParams();
@@ -68,8 +74,11 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	 * 
 	 * @param pointEncoded
 	 *            the client's ephemeral public key (encoded point).
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public ECDHClientKeyExchange(byte[] pointEncoded) {
+	public ECDHClientKeyExchange(byte[] pointEncoded, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.pointEncoded = pointEncoded;
 	}
 	
@@ -89,12 +98,12 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 		int length = reader.read(LENGTH_BITS);
 		byte[] pointEncoded = reader.readBytes(length);
 
-		return new ECDHClientKeyExchange(pointEncoded);
+		return new ECDHClientKeyExchange(pointEncoded, peerAddress);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////
@@ -106,7 +115,7 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	}
 
 	public byte[] getEncodedPoint() {
-		return pointEncoded;
+		return Arrays.copyOf(pointEncoded, pointEncoded.length);
 	}
 
 	@Override
