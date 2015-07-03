@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
- ******************************************************************************/
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *****************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 
 /**
@@ -24,7 +27,11 @@ package org.eclipse.californium.scandium.dtls;
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.5">RFC 5246</a> for
  * details.
  */
-public class ServerHelloDone extends HandshakeMessage {
+public final class ServerHelloDone extends HandshakeMessage {
+
+	public ServerHelloDone(InetSocketAddress peerAddress) {
+		super(peerAddress);
+	}
 
 	@Override
 	public HandshakeType getMessageType() {

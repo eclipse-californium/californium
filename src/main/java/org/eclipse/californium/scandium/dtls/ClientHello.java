@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,9 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,7 +39,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * renegotiate the security parameters in an existing connection. See <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
-public class ClientHello extends HandshakeMessage {
+public final class ClientHello extends HandshakeMessage {
 
 	// DTLS-specific constants ///////////////////////////////////////////
 
@@ -95,13 +97,14 @@ public class ClientHello extends HandshakeMessage {
 	 *  
 	 * @param version the protocol version to use
 	 * @param secureRandom a function to use for creating random values included in the message
-	 * @param useRawPublicKey <code>true</code> if this client prefers <em>raw public keys</em> over <em>X.509</em>
-	 * certificates to be used for (mutual) authentication 
+	 * @param useRawPublicKey <code>true</code> if this client prefers <em>raw public keys</em> over
+	 *           <em>X.509</em> certificates to be used for (mutual) authentication
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey) {
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey, InetSocketAddress peerAddress) {
 
-		this.clientVersion = version;
-		this.random = new Random(secureRandom);
+		this(version, secureRandom, peerAddress);
 		this.sessionId = new SessionId(new byte[] {});
 		this.cookie = new Cookie();
 		this.extensions = new HelloExtensions();
@@ -165,8 +168,7 @@ public class ClientHello extends HandshakeMessage {
 	 *            the (already existing) DTLS session to resume
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session) {
-		this.clientVersion = version;
-		this.random = new Random(secureRandom);
+		this(version, secureRandom, session.getPeer());
 		this.sessionId = session.getSessionIdentifier();
 		this.cookie = new Cookie();
 		addCipherSuite(session.getWriteState().getCipherSuite());
@@ -177,8 +179,14 @@ public class ClientHello extends HandshakeMessage {
 	 * Creates an empty message instance.
 	 * This constructor is only used by the {@link #fromByteArray(byte[]) method.
 	 */
-	private ClientHello() {
+	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, InetSocketAddress peerAddress) {
+		this(peerAddress);
+		this.clientVersion = version;
+		this.random = new Random(secureRandom);
+	}
 	    
+	private ClientHello(InetSocketAddress peerAddress) {
+		super(peerAddress);
 	}
 	
 
@@ -217,12 +225,14 @@ public class ClientHello extends HandshakeMessage {
 	 * Creates a new ClientObject instance from its byte representation.
 	 * 
 	 * @param byteArray the bytes representing the message
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
 	 * @return the ClientHello object
 	 * @throws HandshakeException if any of the extensions included in the message is of an unsupported type
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray) throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
-		ClientHello result = new ClientHello();
+		ClientHello result = new ClientHello(peerAddress);
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
@@ -244,7 +254,7 @@ public class ClientHello extends HandshakeMessage {
 
 		byte[] bytesLeft = reader.readBytesLeft();
 		if (bytesLeft.length > 0) {
-			result.extensions = HelloExtensions.fromByteArray(bytesLeft);
+			result.extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
 		}
 		return result;
 
@@ -321,10 +331,6 @@ public class ClientHello extends HandshakeMessage {
 		return random;
 	}
 
-	public void setRandom(Random random) {
-		this.random = random;
-	}
-
 	public SessionId getSessionId() {
 		return sessionId;
 	}
@@ -343,10 +349,6 @@ public class ClientHello extends HandshakeMessage {
 
 	public List<CipherSuite> getCipherSuites() {
 		return Collections.unmodifiableList(cipherSuites);
-	}
-
-	public void setCipherSuits(List<CipherSuite> cipherSuits) {
-		this.cipherSuites.addAll(cipherSuits);
 	}
 
 	public void addCipherSuite(CipherSuite cipherSuite) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,9 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -36,11 +38,11 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * {@link ClientHello} up to, but not including, this {@link Finished} message.
  * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>.
  */
-public class Finished extends HandshakeMessage {
+public final class Finished extends HandshakeMessage {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private byte[] verifyData;
+	private final byte[] verifyData;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -56,8 +58,11 @@ public class Finished extends HandshakeMessage {
 	 *            to determine the finished_label
 	 * @param handshakeHash
 	 *            the hash
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public Finished(byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
+	public Finished(byte[] masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		verifyData = getVerifyData(masterSecret, isClient, handshakeHash);
 	}
 
@@ -65,8 +70,11 @@ public class Finished extends HandshakeMessage {
 	 * Called when reconstructing byteArray.
 	 * 
 	 * @param verifyData the raw verify data
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public Finished(byte[] verifyData) {
+	private Finished(byte[] verifyData, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.verifyData = verifyData;
 	}
 
@@ -93,8 +101,11 @@ public class Finished extends HandshakeMessage {
 		
 		boolean verified = Arrays.equals(myVerifyData, verifyData);
 		if (!verified) {
-			String message = "Could not verify the finished message:\nExpected: " + ByteArrayUtils.toHexString(myVerifyData) + "\nReceived: " + ByteArrayUtils.toHexString(verifyData);
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			String message = String.format(
+					"Could not verify the finished message:\nExpected: %s\nReceived: %s",
+					ByteArrayUtils.toHexString(myVerifyData),
+					ByteArrayUtils.toHexString(verifyData));
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 			throw new HandshakeException(message, alert);
 		}
 	}
@@ -143,12 +154,12 @@ public class Finished extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		byte[] verifyData = reader.readBytesLeft();
 
-		return new Finished(verifyData);
+		return new Finished(verifyData, peerAddress);
 	}
 
 }

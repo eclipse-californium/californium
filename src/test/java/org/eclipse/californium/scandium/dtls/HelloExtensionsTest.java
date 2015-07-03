@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2014, 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,12 +12,14 @@
  * 
  * Contributors:
  *    Kai Hudalla, Bosch Software Innovations GmbH
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - adapt to HelloExtensions changes
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.net.InetSocketAddress;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -25,6 +27,7 @@ import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -34,6 +37,12 @@ public class HelloExtensionsTest {
 	int unsupportedExtensionTypeCode = 0x50;
 	byte[] helloExtensionBytes;
 	HelloExtensions helloExtensions;
+	InetSocketAddress peerAddress;
+	
+	@Before
+	public void setUp() {
+		peerAddress = new InetSocketAddress("localhost", 5684);
+	}
 	
 	@Test
 	public void testSerializationDeserialization() throws HandshakeException {
@@ -45,7 +54,7 @@ public class HelloExtensionsTest {
 		extensions.addExtension(ext);
 		byte[] serializedExtension = extensions.toByteArray();
 		
-		HelloExtensions deserializedExt = HelloExtensions.fromByteArray(serializedExtension);
+		HelloExtensions deserializedExt = HelloExtensions.fromByteArray(serializedExtension, peerAddress);
 		ClientCertificateTypeExtension certTypeExt = (ClientCertificateTypeExtension)
 				deserializedExt.getExtensions().get(0);
 		assertTrue(certTypeExt.getCertificateTypes().size() == 2);
@@ -114,7 +123,7 @@ public class HelloExtensionsTest {
 	}
 	
 	private void whenDeserializingFromByteArray() throws HandshakeException {
-		helloExtensions = HelloExtensions.fromByteArray(helloExtensionBytes);
+		helloExtensions = HelloExtensions.fromByteArray(helloExtensionBytes, peerAddress);
 	}
 	
     private boolean containsExtensionType(int type, List<HelloExtension> extensions) {

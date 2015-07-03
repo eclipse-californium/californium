@@ -129,6 +129,6 @@ public class HandshakerTest {
 	private Record createRecord(long epoch, long sequenceNo) {
 		byte[] clientHello = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(),
 				session.getWriteEpoch(), session.getSequenceNumber(), new byte[10]);
-		return Record.fromByteArray(clientHello).get(0);
+		return Record.fromByteArray(clientHello, endpoint).get(0);
 	}
 }

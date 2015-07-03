@@ -12,12 +12,14 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - adapt to ServerHello changes
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.scandium.category.Small;
@@ -31,9 +33,11 @@ import org.junit.experimental.categories.Category;
 public class ServerHelloTest {
 
 	ServerHello serverHello;
+	InetSocketAddress peerAddress;
 	
 	@Before
 	public void setUp() throws Exception {
+		peerAddress = new InetSocketAddress("localhost", 5684);
 	}
 
 	@Test
@@ -69,11 +73,11 @@ public class ServerHelloTest {
 			ext.addExtension(new ClientCertificateTypeExtension(false, Arrays.asList(clientTypes)));
 		}
 		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
-				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, ext);
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, ext, peerAddress);
 	}
 	
 	private void givenAServerHelloWithEmptyExtensions() {
 		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
-				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, new HelloExtensions());
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, new HelloExtensions(), peerAddress);
 	}
 }

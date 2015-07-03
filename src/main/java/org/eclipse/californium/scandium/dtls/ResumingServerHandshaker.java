@@ -96,14 +96,14 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 				break;
 
 			default:
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, session.getPeer());
 				throw new HandshakeException("Server received unexpected resuming handshake message:\n" + fragment.toString(), alert);
 			}
 
 			break;
 
 		default:
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Server received not supported record:\n" + record.toString(), alert);
 		}
 		if (flight == null) {
@@ -143,13 +143,14 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		clientRandom = message.getRandom();
 		serverRandom = new Random(new SecureRandom());
 
-		ServerHello serverHello = new ServerHello(message.getClientVersion(), serverRandom, session.getSessionIdentifier(), session.getCipherSuite(), session.getCompressionMethod(), null);
+		ServerHello serverHello = new ServerHello(message.getClientVersion(), serverRandom, session.getSessionIdentifier(),
+				session.getCipherSuite(), session.getCompressionMethod(), null, session.getPeer());
 		flight.addMessage(wrapMessage(serverHello));
 		md.update(serverHello.toByteArray());
 
 		generateKeys(session.getMasterSecret());
 
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
 
@@ -162,7 +163,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		}
 
 		handshakeHash = md.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash);
+		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
 		mdWithServerFinished.update(finished.toByteArray());

@@ -14,8 +14,11 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -25,12 +28,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * compressed, and encrypted based on the current connection state. The messages
  * are treated as transparent data to the record layer.
  */
-public class ApplicationMessage implements DTLSMessage {
+public final class ApplicationMessage extends AbstractMessage {
 
 	// Members ////////////////////////////////////////////////////////
 
 	/** The (to the record layer) transparent data. */
-	private byte[] data;
+	private final byte[] data;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -39,7 +42,8 @@ public class ApplicationMessage implements DTLSMessage {
 	 * @param data
 	 *            the application data.
 	 */
-	public ApplicationMessage(byte[] data) {
+	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.data = data;
 	}
 	
@@ -59,13 +63,13 @@ public class ApplicationMessage implements DTLSMessage {
 	
 	// Serialization //////////////////////////////////////////////////
 
-	// @Override
+	@Override
 	public byte[] toByteArray() {
 		return data;
 	}
 
-	public static DTLSMessage fromByteArray(byte[] byteArray) {
-		return new ApplicationMessage(byteArray);
+	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
+		return new ApplicationMessage(byteArray, peerAddress);
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
@@ -73,9 +77,4 @@ public class ApplicationMessage implements DTLSMessage {
 	public byte[] getData() {
 		return data;
 	}
-
-	public void setData(byte[] data) {
-		this.data = data;
-	}
-
 }

@@ -12,12 +12,14 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - adapt to ClientHello changes 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
+import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 
 import org.eclipse.californium.scandium.category.Small;
@@ -29,9 +31,11 @@ import org.junit.experimental.categories.Category;
 public class ClientHelloTest {
 
 	ClientHello clientHello;
+	InetSocketAddress peerAddress;
 	
 	@Before
 	public void setUp() throws Exception {
+		peerAddress = new InetSocketAddress("localhost", 5684);
 	}
 
 	@Test
@@ -42,6 +46,6 @@ public class ClientHelloTest {
 	}
 	
 	private void givenAClientHelloWithEmptyExtensions() {
-		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false);
+		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false, peerAddress);
 	}
 }

@@ -14,9 +14,11 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +33,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * href="http://tools.ietf.org/html/rfc6347#section-4.2.2">RFC 6347</a> for the
  * message format.
  */
-public abstract class HandshakeMessage implements DTLSMessage {
+public abstract class HandshakeMessage extends AbstractMessage {
 
 	// Logging ////////////////////////////////////////////////////////
 
@@ -102,10 +104,20 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	 */
 	public abstract byte[] fragmentToByteArray();
 
+	/**
+	 * Creates a new handshake message for a given peer.
+	 * 
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
+	 */
+	protected HandshakeMessage(InetSocketAddress peerAddress) {
+		super(peerAddress);
+	}
+	
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	public ContentType getContentType() {
+	public final ContentType getContentType() {
 		return ContentType.HANDSHAKE;
 	}
 	
@@ -114,7 +126,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tHandshake Protocol");
 		sb.append("\n\tType: ").append(getMessageType());
-		sb.append("\n\tMessage Sequence: ").append(messageSeq);
+		sb.append("\n\tPeer: ").append(getPeer());
+		sb.append("\n\tMessage Sequence No: ").append(messageSeq);
 		sb.append("\n\tFragment Offset: ").append(fragmentOffset);
 		sb.append("\n\tFragment Length: ").append(fragmentLength);
 		sb.append("\n\tLength: ").append(getMessageLength()).append("\n");
@@ -158,7 +171,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, KeyExchangeAlgorithm keyExchange, boolean useRawPublicKey) throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, KeyExchangeAlgorithm keyExchange,
+			boolean useRawPublicKey, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		HandshakeType type = HandshakeType.getTypeByCode(reader.read(MESSAGE_TYPE_BITS));
 		LOGGER.log(Level.FINEST, "Parsing HANDSHAKE message of type [{0}]", type);
@@ -174,38 +188,38 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		
 		if (length != fragmentLength) {
 			// fragmented message received
-			return new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset, bytesLeft);
+			return new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset, bytesLeft, peerAddress);
 		}
 		
 		HandshakeMessage body = null;
 		switch (type) {
 		case HELLO_REQUEST:
-			body = new HelloRequest();
+			body = new HelloRequest(peerAddress);
 			break;
 
 		case CLIENT_HELLO:
-			body = ClientHello.fromByteArray(bytesLeft);
+			body = ClientHello.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		case SERVER_HELLO:
-			body = ServerHello.fromByteArray(bytesLeft);
+			body = ServerHello.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		case HELLO_VERIFY_REQUEST:
-			body = HelloVerifyRequest.fromByteArray(bytesLeft);
+			body = HelloVerifyRequest.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		case CERTIFICATE:
-			body = CertificateMessage.fromByteArray(bytesLeft, useRawPublicKey);
+			body = CertificateMessage.fromByteArray(bytesLeft, useRawPublicKey, peerAddress);
 			break;
 
 		case SERVER_KEY_EXCHANGE:
 			switch (keyExchange) {
 			case EC_DIFFIE_HELLMAN:
-				body = ECDHServerKeyExchange.fromByteArray(bytesLeft);
+				body = ECDHServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 				break;
 			case PSK:
-				body = PSKServerKeyExchange.fromByteArray(bytesLeft);
+				body = PSKServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 				break;
 			case NULL:
 				LOGGER.severe("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
@@ -218,27 +232,27 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			break;
 
 		case CERTIFICATE_REQUEST:
-			body = CertificateRequest.fromByteArray(bytesLeft);
+			body = CertificateRequest.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		case SERVER_HELLO_DONE:
-			body = new ServerHelloDone();
+			body = new ServerHelloDone(peerAddress);
 			break;
 
 		case CERTIFICATE_VERIFY:
-			body = CertificateVerify.fromByteArray(bytesLeft);
+			body = CertificateVerify.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
 			switch (keyExchange) {
 			case EC_DIFFIE_HELLMAN:
-				body = ECDHClientKeyExchange.fromByteArray(bytesLeft);
+				body = ECDHClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 				break;
 			case PSK:
-				body = PSKClientKeyExchange.fromByteArray(bytesLeft);
+				body = PSKClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 				break;
 			case NULL:
-				body = NULLClientKeyExchange.fromByteArray(bytesLeft);
+				body = NULLClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 				break;
 
 			default:
@@ -249,14 +263,14 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			break;
 
 		case FINISHED:
-			body = Finished.fromByteArray(bytesLeft);
+			body = Finished.fromByteArray(bytesLeft, peerAddress);
 			break;
 
 		default:
-			LOGGER.severe("Unknown handshake type: " + type);
+			LOGGER.log(Level.INFO, "Unknown handshake type: {0}", type);
 			break;
 		}
-		
+		// keep the raw bytes for computation of handshake hash
 		body.rawMessage = byteArray;
 		body.setFragmentLength(fragmentLength);
 		body.setFragmentOffset(fragmentOffset);
@@ -299,12 +313,12 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	 * Gets the raw bytes of the message received from a client that this instance
 	 * has been created from.
 	 * The raw message is used for calculating the handshake hash sent in the
-	 * <em>Finished</em> message.
+	 * <em>FINISHED</em> message.
 	 * 
 	 * @return the message or <code>null</code> if this instance has not been
 	 * created from a message received from a client.
 	 */
-    protected byte[] getRawMessage() {
+	protected final byte[] getRawMessage() {
         return rawMessage;
     }
 

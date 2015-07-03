@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,9 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -39,7 +41,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * {@link ClientKeyExchange} message. For further details see <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.8">RFC 5246</a>.
  */
-public class CertificateVerify extends HandshakeMessage {
+public final class CertificateVerify extends HandshakeMessage {
 	
 	// Logging ///////////////////////////////////////////////////////////
 
@@ -59,7 +61,7 @@ public class CertificateVerify extends HandshakeMessage {
 	private byte[] signatureBytes;
 	
 	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
-	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	// Constructor ////////////////////////////////////////////////////
 	
@@ -72,9 +74,12 @@ public class CertificateVerify extends HandshakeMessage {
 	 *            the client's private key to sign the signature.
 	 * @param handshakeMessages
 	 *            the handshake messages which are signed.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey, byte[] handshakeMessages) {
-		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey,
+			byte[] handshakeMessages, InetSocketAddress peerAddress) {
+		this(signatureAndHashAlgorithm, peerAddress);
 		this.signatureBytes = setSignature(clientPrivateKey, handshakeMessages);
 	}
 
@@ -86,10 +91,17 @@ public class CertificateVerify extends HandshakeMessage {
 	 *            the signature and hash algorithm used to verify the signature.
 	 * @param signatureBytes
 	 *            the signature.
+	 * @param peerAddress the IP address and port of the peer this
+	 *            message has been received from or should be sent to
 	 */
-	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes) {
-		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes, InetSocketAddress peerAddress) {
+		this(signatureAndHashAlgorithm, peerAddress);
 		this.signatureBytes = signatureBytes;
+	}
+
+	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, InetSocketAddress peerAddress) {
+		super(peerAddress);
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -125,7 +137,7 @@ public class CertificateVerify extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
@@ -137,7 +149,7 @@ public class CertificateVerify extends HandshakeMessage {
 		int length = reader.read(SIGNATURE_LENGTH_BITS);
 		byte[] signature = reader.readBytes(length);
 
-		return new CertificateVerify(signAndHash, signature);
+		return new CertificateVerify(signAndHash, signature, peerAddress);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////
@@ -194,7 +206,7 @@ public class CertificateVerify extends HandshakeMessage {
 		
 		if (!verified) {
 			String message = "The client's CertificateVerify message could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 			throw new HandshakeException(message, alert);
 		}
 	}

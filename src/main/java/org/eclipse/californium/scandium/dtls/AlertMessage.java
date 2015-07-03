@@ -14,8 +14,11 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -32,7 +35,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * compressed, as specified by the current connection state. For further details
  * see <a href="http://tools.ietf.org/html/rfc5246#section-7.2">RFC 5246</a>.
  */
-public class AlertMessage implements DTLSMessage {
+public final class AlertMessage extends AbstractMessage {
 
 	// CoAP-specific constants/////////////////////////////////////////
 
@@ -41,21 +44,24 @@ public class AlertMessage implements DTLSMessage {
 	// Members ////////////////////////////////////////////////////////
 
 	/** The level of the alert (warning or fatal). */
-	private AlertLevel level;
+	private final AlertLevel level;
 
 	/** The description of the alert. */
-	private AlertDescription description;
+	private final AlertDescription description;
 
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * 
 	 * @param level
-	 *            the alert level.
+	 *            the alert level
 	 * @param description
-	 *            the alert description.
+	 *            the alert description
+	 * @param peerAddress the IP address and port of the peer this message
+	 *            has been received from or is to be sent to
 	 */
-	public AlertMessage(AlertLevel level, AlertDescription description) {
+	public AlertMessage(AlertLevel level, AlertDescription description, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.level = level;
 		this.description = description;
 	}
@@ -272,7 +278,7 @@ public class AlertMessage implements DTLSMessage {
 
 	// Serialization //////////////////////////////////////////////////
 
-	// @Override
+	@Override
 	public byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 
@@ -282,13 +288,13 @@ public class AlertMessage implements DTLSMessage {
 		return writer.toByteArray();
 	}
 
-	public static DTLSMessage fromByteArray(byte[] byteArray) {
+	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		int level = reader.read(BITS);
 		int description = reader.read(BITS);
 
-		return new AlertMessage(AlertLevel.getLevelByCode(level), AlertDescription.getDescriptionByCode(description));
+		return new AlertMessage(AlertLevel.getLevelByCode(level), AlertDescription.getDescriptionByCode(description), peerAddress);
 	}
 
 	public AlertLevel getLevel() {

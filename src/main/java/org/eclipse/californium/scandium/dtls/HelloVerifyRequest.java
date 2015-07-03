@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,8 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -27,7 +30,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * href="http://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347</a> for the
  * definition.
  */
-public class HelloVerifyRequest extends HandshakeMessage {
+public final class HelloVerifyRequest extends HandshakeMessage {
 
 	// DTLS-specific constants ///////////////////////////////////////////
 
@@ -41,14 +44,15 @@ public class HelloVerifyRequest extends HandshakeMessage {
 	 * This field will contain the lower of that suggested by the client in the
 	 * client hello and the highest supported by the server.
 	 */
-	private ProtocolVersion serverVersion;
+	private final ProtocolVersion serverVersion;
 
 	/** The cookie which needs to be replayed by the client. */
-	private Cookie cookie;
+	private final Cookie cookie;
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public HelloVerifyRequest(ProtocolVersion version, Cookie cookie) {
+	public HelloVerifyRequest(ProtocolVersion version, Cookie cookie, InetSocketAddress peerAddress) {
+		super(peerAddress);
 		this.serverVersion = version;
 		this.cookie = cookie;
 	}
@@ -68,7 +72,7 @@ public class HelloVerifyRequest extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray) {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		int major = reader.read(VERSION_BITS);
@@ -78,7 +82,7 @@ public class HelloVerifyRequest extends HandshakeMessage {
 		int cookieLength = reader.read(COOKIE_LENGTH_BITS);
 		Cookie cookie = new Cookie(reader.readBytes(cookieLength));
 
-		return new HelloVerifyRequest(version, cookie);
+		return new HelloVerifyRequest(version, cookie, peerAddress);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////

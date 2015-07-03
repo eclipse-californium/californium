@@ -14,22 +14,23 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
 
 
 /**
- * Defines the DTLS message interface used by {@link Record} and implemented by
- * the 4 message {@link ContentType}: {@link ChangeCipherSpecMessage},
- * {@link AlertMessage}, {@link HandshakeMessage} and {@link ApplicationMessage}
- * .
+ * The message contract as defined by the DTLS specification.
  */
 public interface DTLSMessage {
 
 	/**
+	 * Gets the byte array representation of this message as defined
+	 * by <a href="http://tools.ietf.org/html/rfc5246#appendix-A">TLS 1.2, Appendix A</a>.
 	 * 
-	 * @return the byte representation of this DTLS message.
+	 * @return the byte array
 	 */
 	byte[] toByteArray();
 	
@@ -39,4 +40,12 @@ public interface DTLSMessage {
 	 * @return the type
 	 */
 	ContentType getContentType();
+	
+	/**
+	 * Gets the IP address and port of the peer this message
+	 * has been received from or is to be sent to.
+	 * 
+	 * @return the address
+	 */
+	InetSocketAddress getPeer();
 }
