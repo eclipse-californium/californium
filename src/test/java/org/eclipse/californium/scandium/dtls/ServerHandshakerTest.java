@@ -19,9 +19,11 @@ package org.eclipse.californium.scandium.dtls;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
@@ -60,11 +62,18 @@ public class ServerHandshakerTest {
 	
 	@Before
 	public void setup() throws Exception {
+		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
+		Certificate[] trustedCertificates = new Certificate[trustStore.size()];
+		int j = 0;
+		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
+			trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
+		}
+		
 		session = new DTLSSession(endpoint, false);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
 		builder.setIdentity(privateKey, publicKey)
 			.setPskStore(new StaticPskStore("client", "secret".getBytes()))
-			.setTrustStore(new Certificate[]{});
+			.setTrustStore(trustedCertificates);
 		handshaker = new ServerHandshaker(session, null, builder.build());
 
 		DatagramWriter writer = new DatagramWriter();

@@ -161,21 +161,26 @@ public class ServerHandshaker extends Handshaker {
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		if (rootCertificates != null) {
+		if (rootCertificates != null && rootCertificates.length > 0) {
 			this.supportedClientCertificateTypes.add(CertificateType.X_509);
 		}
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
-			if (config.isSendRawKey()) {
-				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			}
 			if (certificates != null) {
-				this.supportedServerCertificateTypes.add(CertificateType.X_509);
+				if (config.isSendRawKey()) {
+					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+					this.supportedServerCertificateTypes.add(CertificateType.X_509);
+				} else {
+					this.supportedServerCertificateTypes.add(CertificateType.X_509);
+					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				}
+			} else {
+				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			}
 		}
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 	
 

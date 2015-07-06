@@ -99,12 +99,13 @@ public final class ClientHello extends HandshakeMessage {
 	 *  
 	 * @param version the protocol version to use
 	 * @param secureRandom a function to use for creating random values included in the message
-	 * @param useRawPublicKey <code>true</code> if this client prefers <em>raw public keys</em> over
-	 *           <em>X.509</em> certificates to be used for (mutual) authentication
+	 * @param supportedClientCertificateTypes the list of certificate types supported by the client
+	 * @param supportedServerCertificateTypes the list of certificate types supported by the server
 	 * @param peerAddress the IP address and port of the peer this
 	 *           message has been received from or should be sent to
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey, InetSocketAddress peerAddress) {
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, List<CertificateType> supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
 
 		this(version, secureRandom, null, peerAddress);
 		this.extensions = new HelloExtensions();
@@ -125,35 +126,22 @@ public final class ClientHello extends HandshakeMessage {
 		this.extensions.addExtension(supportedPointFormatsExtension);
 		
 		// the certificate types the client is able to provide to the server
-		CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
-		if (useRawPublicKey) {
-			clientCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
-			clientCertificateType.addCertificateType(CertificateType.X_509);
-		} else {
-			// the client supports rawPublicKeys but prefers X.509 certificates
-			
-			// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-07#section-3:
-			// this extension MUST be omitted if the client only supports X.509 certificates
-			clientCertificateType.addCertificateType(CertificateType.X_509);
-			clientCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
+		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
+			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
+			for (CertificateType certificateType : supportedClientCertificateTypes) {
+				clientCertificateType.addCertificateType(certificateType);
+			}
+			this.extensions.addExtension(clientCertificateType);
 		}
-		
+
 		// the type of certificates the client is able to process when provided by the server
-		CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(true);
-		if (useRawPublicKey) {
-			serverCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
-			serverCertificateType.addCertificateType(CertificateType.X_509);
-		} else {
-			// the client supports rawPublicKeys but prefers X.509 certificates
-			
-			// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-07#section-3:
-			// this extension MUST be omitted if the client only supports X.509 certificates
-			serverCertificateType.addCertificateType(CertificateType.X_509);
-			serverCertificateType.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
+		if (supportedServerCertificateTypes != null && !supportedServerCertificateTypes.isEmpty()) {
+			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(true);
+			for (CertificateType certificateType : supportedServerCertificateTypes) {
+				serverCertificateType.addCertificateType(certificateType);
+			}
+			this.extensions.addExtension(serverCertificateType);
 		}
-		
-		this.extensions.addExtension(clientCertificateType);
-		this.extensions.addExtension(serverCertificateType);
 	}
 
 	/**

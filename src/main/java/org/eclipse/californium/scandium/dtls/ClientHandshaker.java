@@ -29,6 +29,8 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -74,13 +76,19 @@ public class ClientHandshaker extends Handshaker {
 	/** the preferred cipher suites ordered by preference */
 	private final CipherSuite[] preferredCipherSuites;
 
-	/** whether the certificate message should only contain the peer's public key or the full X.509 certificate */
-	private final boolean useRawPublicKey;
-	
 	/** The raw message that triggered the start of the handshake
 	 * and needs to be sent once the session is established.
 	 * */
 	private final RawData message;
+
+	/**
+	 * The certificate types this server supports for client authentication.
+	 */
+	private List<CertificateType> supportedClientCertificateTypes;
+	/**
+	 * The certificate types this server supports for server authentication.
+	 */
+	private List<CertificateType> supportedServerCertificateTypes;
 
 	/*
 	 * Store all the message which can possibly be sent by the server.
@@ -129,10 +137,30 @@ public class ClientHandshaker extends Handshaker {
 		this.certificates = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
-		this.useRawPublicKey = config.isSendRawKey();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
+
+		this.supportedServerCertificateTypes = new ArrayList<>();
+		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+		if (rootCertificates != null && rootCertificates.length > 0) {
+			this.supportedServerCertificateTypes.add(CertificateType.X_509);
+		}
+
+		this.supportedClientCertificateTypes = new ArrayList<>();
+		if (privateKey != null && publicKey != null) {
+			if (certificates != null) {
+				if (config.isSendRawKey()) {
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+				} else {
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				}
+			} else {
+				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			}
+		}
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 	
 
@@ -600,7 +628,7 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(), useRawPublicKey, session.getPeer());
+		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(),supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer() );
 
 		// store client random for later calculations
 		clientRandom = message.getRandom();
