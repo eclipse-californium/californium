@@ -39,6 +39,7 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,7 @@ import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -527,9 +529,9 @@ public class DTLSConnectorTest {
 	private ClientHello createClientHello(DTLSSession sessionToResume) {
 		ClientHello hello = null;
 		if (sessionToResume == null) {
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false, clientEndpoint);
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(),clientEndpoint);
 		} else {
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), sessionToResume);
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume);
 		}
 		hello.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		hello.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
