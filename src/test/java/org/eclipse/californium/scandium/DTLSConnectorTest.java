@@ -278,8 +278,7 @@ public class DTLSConnectorTest {
 		
 		// send a CLIENT_HELLO containing the established session's ID
 		// indicating that we want to resume the existing session
-		ClientHello clientHello = createClientHello();
-		clientHello.setSessionId(establishedSession.getSessionIdentifier());
+		ClientHello clientHello = createClientHello(establishedSession);
 		
 		rawClient.sendRecord(serverEndpoint,
 				DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
@@ -453,7 +452,16 @@ public class DTLSConnectorTest {
 	}
 	
 	private ClientHello createClientHello() {
-		ClientHello hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false, clientEndpoint);
+		return createClientHello(null);
+	}
+	
+	private ClientHello createClientHello(DTLSSession sessionToResume) {
+		ClientHello hello = null;
+		if (sessionToResume == null) {
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), false, clientEndpoint);
+		} else {
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), sessionToResume);
+		}
 		hello.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		hello.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		hello.addCompressionMethod(CompressionMethod.NULL);
