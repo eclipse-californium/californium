@@ -14,6 +14,8 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - make sure that sessionId is always
+ *                                                    initialized properly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -104,9 +106,7 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, boolean useRawPublicKey, InetSocketAddress peerAddress) {
 
-		this(version, secureRandom, peerAddress);
-		this.sessionId = new SessionId(new byte[] {});
-		this.cookie = new Cookie();
+		this(version, secureRandom, null, peerAddress);
 		this.extensions = new HelloExtensions();
 		this.cipherSuites = new ArrayList<>();
 		this.compressionMethods = new ArrayList<>();
@@ -168,9 +168,7 @@ public final class ClientHello extends HandshakeMessage {
 	 *            the (already existing) DTLS session to resume
 	 */
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session) {
-		this(version, secureRandom, session.getPeer());
-		this.sessionId = session.getSessionIdentifier();
-		this.cookie = new Cookie();
+		this(version, secureRandom, session.getSessionIdentifier(), session.getPeer());
 		addCipherSuite(session.getWriteState().getCipherSuite());
 		addCompressionMethod(session.getReadState().getCompressionMethod());
 	}
@@ -179,10 +177,16 @@ public final class ClientHello extends HandshakeMessage {
 	 * Creates an empty message instance.
 	 * This constructor is only used by the {@link #fromByteArray(byte[]) method.
 	 */
-	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, InetSocketAddress peerAddress) {
+	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId, InetSocketAddress peerAddress) {
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random(secureRandom);
+		this.cookie = new Cookie();
+		if (sessionId != null) {
+			this.sessionId = sessionId;
+		} else {
+			this.sessionId = new SessionId(new byte[]{});
+		}
 	}
 	    
 	private ClientHello(InetSocketAddress peerAddress) {
@@ -269,19 +273,16 @@ public final class ClientHello extends HandshakeMessage {
 
 	@Override
 	public int getMessageLength() {
-		/*
-		 * if no extensions set, empty; otherwise 2 bytes for field length and
-		 * then the length of the extensions. See
-		 * http://tools.ietf.org/html/rfc5246#section-7.4.1.2
-		 */
+		
+		 // if no extensions set, empty; otherwise 2 bytes for field length and
+		 // then the length of the extensions. See
+		 // http://tools.ietf.org/html/rfc5246#section-7.4.1.2
 		int extensionsLength = (extensions == null || extensions.isEmpty()) ?
 				0 : (2 + extensions.getLength());
 
-		/*
-		 * fixed sizes: version (2) + random (32) + session ID length (1) +
-		 * cookie length (1) + cipher suites length (2) + compression methods
-		 * length (1) = 39
-		 */
+		 // fixed sizes: version (2) + random (32) + session ID length (1) +
+		 // cookie length (1) + cipher suites length (2) + compression methods
+		 // length (1) = 39
 		return 39 + sessionId.length() + cookie.length() + cipherSuites.size() * 2 +
 				compressionMethods.size() + extensionsLength;
 	}
@@ -323,10 +324,6 @@ public final class ClientHello extends HandshakeMessage {
 		return clientVersion;
 	}
 
-	public void setClientVersion(ProtocolVersion clientVersion) {
-		this.clientVersion = clientVersion;
-	}
-
 	public Random getRandom() {
 		return random;
 	}
@@ -335,7 +332,7 @@ public final class ClientHello extends HandshakeMessage {
 		return sessionId;
 	}
 
-	public void setSessionId(SessionId sessionId) {
+	void setSessionId(SessionId sessionId) {
 		this.sessionId = sessionId;
 	}
 
@@ -343,7 +340,7 @@ public final class ClientHello extends HandshakeMessage {
 		return cookie;
 	}
 
-	public void setCookie(Cookie cookie) {
+	void setCookie(Cookie cookie) {
 		this.cookie = cookie;
 	}
 

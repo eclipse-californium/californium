@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - retrieve security parameters from cipher suite only
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for notifying a SessionListener about
  *                                                    life-cycle events
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SortedSet for buffering fragmented messages in order
+ *                                                    to avoid repetitive sorting
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -31,12 +33,13 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,7 +120,7 @@ public abstract class Handshaker {
 	protected Collection<Record> queuedMessages;
 	
 	/** Store the fragmented messages until we are able to reassemble the handshake message. */
-	protected Map<Integer, List<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, List<FragmentedHandshakeMessage>>();
+	protected Map<Integer, SortedSet<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, SortedSet<FragmentedHandshakeMessage>>();
 
 	/**
 	 * The message digest to compute the handshake hashes sent in the
@@ -220,8 +223,7 @@ public abstract class Handshaker {
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
-			throw new HandshakeException("Could not initialize handshake",
+			throw new HandshakeException("Could not initialize message digest algorithm for Handshaker",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
@@ -702,7 +704,7 @@ public abstract class Handshaker {
 	 * 
 	 * @param fragment
 	 *            the fragmented handshake message.
-	 * @return the reassembled handshake message (if all fragements available),
+	 * @return the reassembled handshake message (if all fragments are available),
 	 *         <code>null</code> otherwise.
 	 * @throws HandshakeException
 	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
@@ -711,13 +713,28 @@ public abstract class Handshaker {
 		HandshakeMessage reassembledMessage = null;
 		
 		int messageSeq = fragment.getMessageSeq();
-		if (fragmentedMessages.get(messageSeq) == null) {
-			fragmentedMessages.put(messageSeq, new ArrayList<FragmentedHandshakeMessage>());
+		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
+		if (existingFragments == null) {
+			existingFragments = new TreeSet<FragmentedHandshakeMessage>(new Comparator<FragmentedHandshakeMessage>() {
+
+				// @Override
+				public int compare(FragmentedHandshakeMessage o1, FragmentedHandshakeMessage o2) {
+					if (o1.getFragmentOffset() == o2.getFragmentOffset()) {
+						return 0;
+					} else if (o1.getFragmentOffset() < o2.getFragmentOffset()) {
+						return -1;
+					} else {
+						return 1;
+					}
+				}
+			});
+			fragmentedMessages.put(messageSeq, existingFragments);
 		}
 		// store fragment together with other fragments of same message_seq
-		fragmentedMessages.get(messageSeq).add(fragment);
+		existingFragments.add(fragment);
 		
-		reassembledMessage = reassembleFragments(messageSeq, fragment.getMessageLength(), fragment.getMessageType(), session);
+		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
+				fragment.getMessageLength(), fragment.getMessageType(), session);
 		if (reassembledMessage != null) {
 			// message could be reassembled, therefore increase the next_receive_seq
 			incrementNextReceiveSeq();
@@ -728,40 +745,30 @@ public abstract class Handshaker {
 	}
 	
 	/**
-	 * Tries to reassemble the handshake message with the available fragments.
+	 * Reassembles handshake message fragments into the original message.
 	 * 
 	 * @param messageSeq
 	 *            the fragment's message_seq
+	 * @param fragments the fragments to reassemble
 	 * @param totalLength
 	 *            the expected total length of the reassembled fragment
 	 * @param type
 	 *            the type of the handshake message
 	 * @param session
 	 *            the {@link DTLSSession}
-	 * @return the reassembled handshake message (if all fragements available),
+	 * @return the reassembled handshake message (if all fragements are available),
 	 *         <code>null</code> otherwise.
 	 * @throws HandshakeException
 	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
 	 */
-	protected final HandshakeMessage reassembleFragments(int messageSeq, int totalLength, HandshakeType type, DTLSSession session)
-			throws HandshakeException {
-		List<FragmentedHandshakeMessage> fragments = fragmentedMessages.get(messageSeq);
+	private final HandshakeMessage reassembleFragments(
+			int messageSeq,
+			SortedSet<FragmentedHandshakeMessage> fragments,
+			int totalLength,
+			HandshakeType type,
+			DTLSSession session) throws HandshakeException {
+
 		HandshakeMessage message = null;
-
-		// sort according to fragment offset
-		Collections.sort(fragments, new Comparator<FragmentedHandshakeMessage>() {
-
-			// @Override
-			public int compare(FragmentedHandshakeMessage o1, FragmentedHandshakeMessage o2) {
-				if (o1.getFragmentOffset() == o2.getFragmentOffset()) {
-					return 0;
-				} else if (o1.getFragmentOffset() < o2.getFragmentOffset()) {
-					return -1;
-				} else {
-					return 1;
-				}
-			}
-		});
 
 		byte[] reassembly = new byte[] {};
 		int offset = 0;
@@ -791,8 +798,8 @@ public abstract class Handshaker {
 		
 		if (reassembly.length == totalLength) {
 			// the reassembled fragment has the expected length
-			FragmentedHandshakeMessage wholeMessage = new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0,
-							reassembly, session.getPeer());
+			FragmentedHandshakeMessage wholeMessage =
+					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
 			reassembly = wholeMessage.toByteArray();
 			
 			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
@@ -801,7 +808,7 @@ public abstract class Handshaker {
 				keyExchangeAlgorithm = session.getKeyExchange();
 				receiveRawPublicKey = session.receiveRawPublicKey();
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, session.getPeer());
+			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 		}
 		
 		return message;
