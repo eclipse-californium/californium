@@ -19,9 +19,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -63,9 +63,11 @@ import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -78,15 +80,19 @@ public class DTLSConnectorTest {
 	private static PrivateKey serverPrivateKey;
 	private static PrivateKey clientPrivateKey;
 	
-	DtlsConnectorConfig serverConfig;
-	DTLSConnector server;
+	private static DtlsConnectorConfig serverConfig;
+	private static DTLSConnector server;
+	private static InetSocketAddress serverEndpoint;
+	private static InMemorySessionStore serverSessionStore;
+	private static Certificate[] trustedCertificates;
+	private static SimpleRawDataChannel serverRawDataChannel;
+	private static RawDataProcessor defaultRawDataProcessor;
+	
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
-	InetSocketAddress serverEndpoint;
 	InetSocketAddress clientEndpoint;
-	LatchDecrementingRawDataChannel rawDataChannel;
+	LatchDecrementingRawDataChannel clientRawDataChannel;
 	DTLSSession establishedSession;
-	SessionStore serverSessionStore;
 	SessionStore clientSessionStore;
 
 	@BeforeClass
@@ -97,55 +103,71 @@ public class DTLSConnectorTest {
 		clientPrivateKey = (PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
 		// load the trust store
 		trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
+		trustedCertificates = getTrustedCertificates(trustStore);
+		
+		serverSessionStore = new InMemorySessionStore(2, 5 * 60); // capacity 1, session timeout 5mins
+		serverEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10100);
+		defaultRawDataProcessor = new RawDataProcessor() {
+			
+			@Override
+			public RawData process(RawData request) {
+				// echo request
+				return new RawData("ACK".getBytes(), request.getInetSocketAddress());
+			}
+		};
+		
+		serverRawDataChannel = new SimpleRawDataChannel(defaultRawDataProcessor);
+		
+		serverConfig = new DtlsConnectorConfig.Builder(serverEndpoint)
+			.setSupportedCipherSuites(
+				new CipherSuite[]{
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
+			.setIdentity(serverPrivateKey, keyStore.getCertificateChain("server"), true)
+			.setTrustStore(trustedCertificates)
+			.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()))
+			.setClientAuthenticationRequired(true)
+			.build();
+
+		server = new DTLSConnector(serverConfig, serverSessionStore);
+		server.setRawDataReceiver(serverRawDataChannel);
+		server.start();
+		Assert.assertTrue(server.isRunning());
+	}
+
+	@AfterClass
+	public static void tearDown() {
+		server.destroy();
 	}
 	
 	@Before
 	public void setUp() throws Exception {
 
-		serverSessionStore = new InMemorySessionStore();
 		clientSessionStore = new InMemorySessionStore();
-		
 		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10000);
-		serverEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10100);
-		// You can load multiple certificates if needed
-		Certificate[] trustedCertificates = getTrustedCertificates(trustStore);
 		
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true);
-		builder.setTrustStore(trustedCertificates);
-		clientConfig = builder.build();
+		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+			.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true)
+			.setTrustStore(trustedCertificates)
+			.build();
 
 		client = new DTLSConnector(clientConfig, clientSessionStore);
 		
-		builder = new DtlsConnectorConfig.Builder(serverEndpoint);
-		builder.setSupportedCipherSuites(
-				new CipherSuite[]{
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256});
-		builder.setIdentity(serverPrivateKey, keyStore.getCertificateChain("server"), true);
-		builder.setTrustStore(trustedCertificates);
-		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-		builder.setClientAuthenticationRequired(true);
-		serverConfig = builder.build();
-
-		server = new DTLSConnector(serverConfig, serverSessionStore);
-		
-		rawDataChannel = new LatchDecrementingRawDataChannel();
+		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
-	
+
 	@After
 	public void destroyConnectors() {
 		if (client != null) {
 			client.destroy();
 		}
-		if (server != null) {
-			server.destroy();
-		}
+		serverSessionStore.clear();
+		serverRawDataChannel.setProcessor(defaultRawDataProcessor);
 	}
 	
-	private Certificate[] getTrustedCertificates(KeyStore trustStore) throws KeyStoreException {
+	private static Certificate[] getTrustedCertificates(KeyStore trustStore) throws KeyStoreException {
 		// You can load multiple certificates if needed
 		Certificate[] trustedCertificates = new Certificate[1];
 		trustedCertificates[0] = trustStore.getCertificate("root");
@@ -209,7 +231,7 @@ public class DTLSConnectorTest {
 		// now check if we can still use the originally established session to
 		// exchange application data
 		final CountDownLatch clientLatch = new CountDownLatch(1);
-		rawDataChannel.setLatch(clientLatch);
+		clientRawDataChannel.setLatch(clientLatch);
 		// reactivate original client
 		client.start();
 		// make sure client still has original session in its cache
@@ -244,9 +266,9 @@ public class DTLSConnectorTest {
 		// now we try to establish a new session with a client connecting from the
 		// same IP address and port again
 		final CountDownLatch latch = new CountDownLatch(1);
-		rawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatch(latch);
 		client = new DTLSConnector(clientConfig);
-		client.setRawDataReceiver(rawDataChannel);
+		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
@@ -299,8 +321,6 @@ public class DTLSConnectorTest {
 	@Test
 	public void testConnectorSendsHelloVerifyRequestWithoutCreatingSession() throws Exception {
 
-		server.start();
-		
 		final CountDownLatch latch = new CountDownLatch(1);
 		final List<Record> receivedRecords = new ArrayList<>();
 		
@@ -350,65 +370,79 @@ public class DTLSConnectorTest {
 
 	@Test
 	public void testConnectorTerminatesHandshakeIfSessionStoreIsExhausted() throws Exception {
-		InMemorySessionStore sessionStore = new InMemorySessionStore(1, 36 * 60 * 60);
-		server = new DTLSConnector(serverConfig, sessionStore);
-		DTLSSession existingSession = new DTLSSession(
-				new InetSocketAddress("192.168.0.1", 5050), false);
-		Assert.assertTrue(sessionStore.put(existingSession));		
-		server.start();
-		Assert.assertTrue(server.isRunning());
+		assertTrue(serverSessionStore.getCapacity() <= 2);
+		assertTrue(serverSessionStore.put(new DTLSSession(new InetSocketAddress("192.168.0.1", 5050), false)));
+		assertTrue(serverSessionStore.put(new DTLSSession(new InetSocketAddress("192.168.0.2", 5050), false)));
 
 		CountDownLatch latch = new CountDownLatch(1);
-		rawDataChannel.setLatch(latch);
-		client.setRawDataReceiver(rawDataChannel);
+		clientRawDataChannel.setLatch(latch);
+		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
 		Assert.assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
-		establishedSession = serverSessionStore.get(clientEndpoint);
-		Assert.assertNull(establishedSession);
+		assertNull("Server should not have established a session with client", serverSessionStore.get(clientEndpoint));
 	}
 	
+	/**
+	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
+	 */
 	@Test
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256});
-		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("client"), false);
-		builder.setTrustStore(getTrustedCertificates(trustStore));
-		clientConfig = builder.build();
+		clientConfig =  new DtlsConnectorConfig.Builder(clientEndpoint)
+			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256})
+			.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("client"), false)
+			.setTrustStore(getTrustedCertificates(trustStore))
+			.build();
 		client = new DTLSConnector(clientConfig, clientSessionStore);
 		givenAnEstablishedSession();
 	}
 	
+	/**
+	 * Verifies that the connector includes a <code>RawPublicKeyIdentity</code> representing
+	 * the authenticated client in the <code>RawData</code> object passed to the application
+	 * layer.
+	 */
 	@Test
 	public void testProcessApplicationMessageAddsRawPublicKeyIdentity() throws Exception {
 		
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 	
+	/**
+	 * Verifies that the connector includes a <code>PreSharedKeyIdentity</code> representing
+	 * the authenticated client in the <code>RawData</code> object passed to the application
+	 * layer.
+	 */
 	@Test
 	public void testProcessApplicationMessageAddsPreSharedKeyIdentity() throws Exception {
 		// verify Pre-shared Key identity
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-		clientConfig = builder.build();
+		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+			.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()))
+			.build();
 		client = new DTLSConnector(clientConfig, clientSessionStore);
 		assertClientIdentity(PreSharedKeyIdentity.class);
 	}
 	
+	/**
+	 * Verifies that the connector includes an <code>X500Principal</code> representing
+	 * the authenticated client in the <code>RawData</code> object passed to the application
+	 * layer.
+	 */
 	@Test
 	public void testProcessApplicationMessageAddsX500Principal() throws Exception {
 		// verify X500 principal
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(clientEndpoint);
-		builder.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("client"), false);
-		builder.setTrustStore(getTrustedCertificates(trustStore));
-		clientConfig = builder.build();
+		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+			.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
+				keyStore.getCertificateChain("client"), false)
+			.setTrustStore(getTrustedCertificates(trustStore))
+			.build();
 		client = new DTLSConnector(clientConfig, clientSessionStore);
 		assertClientIdentity(X500Principal.class);
 	}
 
+	@Ignore
 	@Test
 	public void testProcessApplicationUsesNullPrincipalForUnauthenticatedPeer() throws Exception {
 		
@@ -425,24 +459,22 @@ public class DTLSConnectorTest {
 	@SuppressWarnings("rawtypes")
 	private void assertClientIdentity(final Class principalType) throws Exception {
 		
-		server.setRawDataReceiver(new RawDataChannel() {
-
+		serverRawDataChannel.setProcessor(new RawDataProcessor() {
+			
 			@Override
-			public void receiveData(RawData raw) {
+			public RawData process(RawData request) {
 				if (principalType == null) {
-					Assert.assertNull(raw.getSenderIdentity());
+					Assert.assertNull(request.getSenderIdentity());
 				} else {
-					Assert.assertThat(raw.getSenderIdentity(), instanceOf(principalType));
+					Assert.assertThat(request.getSenderIdentity(), instanceOf(principalType));
 				}
-				server.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
+				return new RawData("ACK".getBytes(), request.getInetSocketAddress());
 			}
 		});
-		server.start();
-		Assert.assertTrue(server.isRunning());
-
+		
 		CountDownLatch latch = new CountDownLatch(1);
-		rawDataChannel.setLatch(latch);
-		client.setRawDataReceiver(rawDataChannel);
+		clientRawDataChannel.setLatch(latch);
+		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
@@ -472,19 +504,9 @@ public class DTLSConnectorTest {
 	private void givenAnEstablishedSession() throws Exception {
 		RawData msgToSend = new RawData("Hello World".getBytes(), serverEndpoint);
 
-		server.setRawDataReceiver(new RawDataChannel() {
-
-			@Override
-			public void receiveData(RawData raw) {
-				server.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
-			}
-		});
-		server.start();
-		Assert.assertTrue(server.isRunning());
-
 		CountDownLatch latch = new CountDownLatch(1);
-		rawDataChannel.setLatch(latch);
-		client.setRawDataReceiver(rawDataChannel);
+		clientRawDataChannel.setLatch(latch);
+		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		client.send(msgToSend);
 
@@ -507,6 +529,31 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		}
+	}
+	
+	private static class SimpleRawDataChannel implements RawDataChannel {
+		
+		private RawDataProcessor processor;
+		
+		public SimpleRawDataChannel(RawDataProcessor processor) {
+			setProcessor(processor);
+		}
+		
+		public void setProcessor(RawDataProcessor processor) {
+			this.processor = processor;
+		}
+		
+		@Override
+		public void receiveData(RawData raw) {
+			RawData response = this.processor.process(raw); 
+			if (response != null) {
+				server.send(response);
+			}
+		}
+	}
+	
+	private interface RawDataProcessor {
+		RawData process(RawData request);
 	}
 	
 	private interface DataHandler {
@@ -555,7 +602,6 @@ public class DTLSConnectorTest {
 
 		public void stop() {
 			running = false;
-			receiver.interrupt();
 			socket.close();
 		}
 

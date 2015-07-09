@@ -55,9 +55,9 @@ public class LeastRecentlyUsedCache<K, V> {
 	private static final int DEFAULT_CAPACITY = 500000;
 
 	private Map<K, CacheEntry<K, V>> cache;
-	private int capacity;
+	private volatile int capacity;
 	private CacheEntry<K, V> header;
-	private long expirationThreshold;
+	private volatile long expirationThreshold;
 	private List<EvictionListener<V>> evictionListeners = new LinkedList<>();
 	
 	/**
@@ -77,33 +77,79 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *            a new entry is to be added to the cache
 	 */
 	public LeastRecentlyUsedCache(int capacity, final long threshold) {
-		header = new CacheEntry<>(null, null, -1);
-		header.after = header.before = header;
-		
+
 		this.capacity = capacity;
 		this.expirationThreshold = threshold;
 		this.cache = new HashMap<>(capacity + 1, 1.0f); // add one to prevent re-sizing
+		initLinkedList();
 	}
 
+	private void initLinkedList() {
+		header = new CacheEntry<>(null, null, -1);
+		header.after = header.before = header;
+	}
+	
 	/**
 	 * Registers a listener to be notified about entries being evicted from the store.
 	 * 
 	 * @param listener the listener
 	 */
 	void addEvictionListener(EvictionListener<V> listener) {
-		if (listener != null) {
-			this.evictionListeners.add(listener);
+		synchronized (evictionListeners) {
+			if (listener != null) {
+				this.evictionListeners.add(listener);
+			}
 		}
+	}
+	
+	/**
+	 * Gets the period of time after which an entry is to be considered
+	 * stale if it hasn't be accessed.
+	 *  
+	 * @return the threshold in seconds
+	 */
+	public final long getExpirationThreshold() {
+		return expirationThreshold;
 	}
 	
 	/**
 	 * Sets the period of time after which an entry is to be considered
 	 * stale if it hasn't be accessed.
+	 * 
+	 * <em>NB</em>: invoking this method after creation of the cache does <em>not</em> have an
+	 * immediate effect, i.e. no (now stale) entries are purged from the cache.
+	 * This happens only when a new entry is put to the cache or a stale entry is read from the cache.
 	 *  
 	 * @param newThreshold the threshold in seconds
+	 * @see #put(Object, Object)
+	 * @see #get(Object)
 	 */
-	void setExpirationThreshold(long newThreshold) {
+	public final void setExpirationThreshold(long newThreshold) {
 		this.expirationThreshold = newThreshold;
+	}
+	
+	/**
+	 * Gets the maximum number of entries this cache can manage.
+	 * 
+	 * @return the number of entries
+	 */
+	public final int getCapacity() {
+		return capacity;
+	}
+	
+	/**
+	 * Sets the maximum number of entries this cache can manage.
+	 * 
+	 * <em>NB</em>: invoking this method after creation of the cache does <em>not</em> have an
+	 * immediate effect, i.e. no entries are purged from the cache.
+	 * This happens only when a new entry is put to the cache or a stale entry is read from the cache.
+	 * 
+	 * @return the maximum number of entries
+	 * @see #put(Object, Object)
+	 * @see #get(Object)
+	 */
+	public final void setCapacity(int capacity) {
+		this.capacity = capacity;
 	}
 	
 	/**
@@ -111,12 +157,20 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @return the size
 	 */
-	synchronized int size() {
+	final synchronized int size() {
 		return cache.size();
 	}
 	
-	public synchronized int remainingCapacity() {
+	public final synchronized int remainingCapacity() {
 		return capacity - cache.size();
+	}
+	
+	/**
+	 * Removes all entries from the cache.
+	 */
+	public final synchronized void clear() {
+		cache.clear();
+		initLinkedList();
 	}
 	
 	/**
@@ -169,9 +223,11 @@ public class LeastRecentlyUsedCache<K, V> {
 		return false;
 	}
 
-	private synchronized void notifyEvictionListeners(V session) {
-		for (EvictionListener<V> listener : evictionListeners) {
-			listener.onEviction(session);
+	private void notifyEvictionListeners(V session) {
+		synchronized (evictionListeners) {
+			for (EvictionListener<V> listener : evictionListeners) {
+				listener.onEviction(session);
+			}
 		}
 	}
 	
@@ -182,9 +238,11 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @return the value
 	 */
-	final synchronized V getEldest() {
-		CacheEntry<K, V> eldest = header.after;
-		return eldest.getValue();
+	final V getEldest() {
+		synchronized (header) {
+			CacheEntry<K, V> eldest = header.after;
+			return eldest.getValue();
+		}
 	}
 	
 	private synchronized void add(K key, V value) {
