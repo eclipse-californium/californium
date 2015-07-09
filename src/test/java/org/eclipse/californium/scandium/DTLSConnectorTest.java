@@ -323,6 +323,7 @@ public class DTLSConnectorTest {
 
 		final CountDownLatch latch = new CountDownLatch(1);
 		final List<Record> receivedRecords = new ArrayList<>();
+		InetSocketAddress endpoint = new InetSocketAddress(12000);
 		
 		DataHandler handler = new DataHandler() {
 			
@@ -332,7 +333,7 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(endpoint, handler, clientConfig);
 		rawClient.start();
 		
 		// send a CLIENT_HELLO without cookie
@@ -351,7 +352,7 @@ public class DTLSConnectorTest {
 			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server",
 					handshake.getMessageType(), is(HandshakeType.HELLO_VERIFY_REQUEST));
 			Assert.assertNull("Server should not have created session for CLIENT_HELLO containging no cookie",
-					serverSessionStore.get(clientEndpoint));
+					serverSessionStore.get(endpoint));
 		} finally {
 			rawClient.stop();
 		}
