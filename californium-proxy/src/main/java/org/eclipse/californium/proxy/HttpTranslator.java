@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Paul LeMarquand - fix content type returned from getHttpEntity(), cleanup
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -482,7 +483,6 @@ public final class HttpTranslator {
 
 		// translate the http headers in coap options
 		List<Option> coapOptions = getCoapOptions(httpRequest.getAllHeaders());
-//		coapRequest.setOptions(coapOptions);
 		for (Option option:coapOptions)
 			coapRequest.getOptions().addOption(option);
 
@@ -565,7 +565,7 @@ public final class HttpTranslator {
 
 		// translate the http headers in coap options
 		List<Option> coapOptions = getCoapOptions(httpResponse.getAllHeaders());
-//		coapResponse.addop(coapOptions);
+
 		for (Option option:coapOptions)
 			coapResponse.getOptions().addOption(option);
 
@@ -627,12 +627,9 @@ public final class HttpTranslator {
 		byte[] payload = coapMessage.getPayload();
 		if (payload != null && payload.length != 0) {
 
-			// get the coap content-type
-//			Integer coapContentType = coapMessage.getOptions().getContentFormat();
 			ContentType contentType = null;
 
 			// if the content type is not set, translate with octect-stream
-//			if (coapContentType == MediaTypeRegistry.UNDEFINED) {
 			if (! coapMessage.getOptions().hasContentFormat()) {
 				contentType = ContentType.APPLICATION_OCTET_STREAM;
 			} else {
@@ -655,9 +652,6 @@ public final class HttpTranslator {
 				// parse the content type
 				try {
 					contentType = ContentType.parse(coapContentTypeString);
-//				} catch (ParseException e) {
-//					LOGGER.finer("Cannot convert string to ContentType: " + e.getMessage());
-//					contentType = ContentType.APPLICATION_OCTET_STREAM;
 				} catch (UnsupportedCharsetException e) {
 					LOGGER.finer("Cannot convert string to ContentType: " + e.getMessage());
 					contentType = ContentType.APPLICATION_OCTET_STREAM;
@@ -666,16 +660,16 @@ public final class HttpTranslator {
 
 			// get the charset
 			Charset charset = contentType.getCharset();
+
 			// if there is a charset, means that the content is not binary
 			if (charset != null) {
 
 				// according to the class ContentType the default content-type
-				// with
-				// UTF-8 charset is application/json. If the content-type
-				// parsed is different, or is not iso encoded, it is needed a
-				// translation
+				// with UTF-8 charset is application/json. If the content-type
+				// parsed is different and is not iso encoded, a translation is
+				// needed
 				Charset isoCharset = ISO_8859_1;
-				if (!charset.equals(isoCharset) && contentType != ContentType.APPLICATION_JSON) {
+				if (!charset.equals(isoCharset) && !contentType.getMimeType().equals(ContentType.APPLICATION_JSON.getMimeType())) {
 					byte[] newPayload = changeCharset(payload, charset, isoCharset);
 
 					// since ISO-8859-1 is a subset of UTF-8, it is needed to
@@ -702,7 +696,7 @@ public final class HttpTranslator {
 
 			// set the content-type
 			((AbstractHttpEntity) httpEntity).setContentType(contentType.toString());
-		} // if (payload != null && payload.length != 0)
+		}
 
 		return httpEntity;
 	}
@@ -791,8 +785,6 @@ public final class HttpTranslator {
 
 		HttpRequest httpRequest = null;
 
-		// get the coap method
-//		String coapMethod = CodeRegistry.toString(coapRequest.getCode());
 		String coapMethod = null;
 		switch (coapRequest.getCode()) {
 		case GET: coapMethod = "GET"; break;
@@ -818,11 +810,6 @@ public final class HttpTranslator {
 			LOGGER.warning("Cannot translate the server uri" + e);
 			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
 		}
-		
-//		if (proxyUri == null) {
-//			LOGGER.warning("proxyUri == null");
-//			throw new InvalidFieldException("proxyUri == null");
-//		}
 
 		// create the requestLine
 		RequestLine requestLine = new BasicRequestLine(coapMethod, proxyUri.toString(), HttpVersion.HTTP_1_1);
