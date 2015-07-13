@@ -299,7 +299,7 @@ public class DTLSConnector implements Connector {
 		
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.CONFIG, "DLTS connector listening on [{0}]", config.getAddress());
+		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}]", config.getAddress());
 	}
 	
 	/**
@@ -309,7 +309,6 @@ public class DTLSConnector implements Connector {
 	final synchronized void releaseSocket() {
 		running = false;
 		sender.interrupt();
-		receiver.interrupt();
 		outboundMessages.clear();
 		if (socket != null) {
 			socket.close();
@@ -321,6 +320,7 @@ public class DTLSConnector implements Connector {
 		if (!running) {
 			return;
 		}
+		LOGGER.log(Level.INFO, "Stopping DLTS connector on [{0}]", config.getAddress());
 		timer.cancel();
 		flights.clear();
 		releaseSocket();
@@ -387,7 +387,7 @@ public class DTLSConnector implements Connector {
 						new Object[]{record.getType(), peerAddress, e.getMessage()});
 			} catch (HandshakeException e) {
 				if (AlertLevel.FATAL.equals(e.getAlert().getLevel())) {
-					LOGGER.log(Level.FINE, "Cannot process [{0}] record from peer [{1}] due to [{2}], aborting handshake ...",
+					LOGGER.log(Level.INFO, "Cannot process [{0}] record from peer [{1}] due to [{2}], aborting handshake ...",
 							new Object[]{record.getType(), peerAddress, e.getMessage()});
 					terminateConnection(peerAddress, e.getAlert());
 					break;
@@ -739,6 +739,7 @@ public class DTLSConnector implements Connector {
 			// this means that the worker thread for sending
 			// outbound messages has been interrupted, most
 			// probably because the connector is shutting down
+			Thread.currentThread().interrupt();
 			return;
 		}
 		
@@ -957,7 +958,6 @@ public class DTLSConnector implements Connector {
 		 */
 		private Worker(String name) {
 			super(name);
-			setDaemon(true);
 		}
 
 		public void run() {
