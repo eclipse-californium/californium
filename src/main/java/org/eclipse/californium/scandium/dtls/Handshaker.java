@@ -304,8 +304,8 @@ public abstract class Handshaker {
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
 		} else {
-			LOGGER.log(Level.FINER, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
-					new Object[]{getPeerAddress(), message});
+			LOGGER.log(Level.FINEST, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
+					new Object[]{message.getPeerAddress(), message});
 		}
 		return nextFlight;
 	}
