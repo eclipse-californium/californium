@@ -143,6 +143,19 @@ public class ClientHandshaker extends Handshaker {
 			return null;
 		}
 
+		// log record now (even if message is still encrypted) in case an Exception
+		// is thrown during processing
+		if (LOGGER.isLoggable(Level.FINE)) {
+			StringBuffer msg = new StringBuffer();
+			msg.append(String.format(
+					"Processing %s message from peer [%s]",
+					record.getType(), record.getPeerAddress()));
+			if (LOGGER.isLoggable(Level.FINEST)) {
+				msg.append(":\n").append(record);
+			}
+			LOGGER.fine(msg.toString());
+		}
+		
 		switch (record.getType()) {
 		case ALERT:
 			record.getFragment();
@@ -153,6 +166,8 @@ public class ClientHandshaker extends Handshaker {
 			// TODO check, if all expected messages already received
 			record.getFragment();
 			setCurrentReadState();
+			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+					new Object[]{record.getPeerAddress(), record.getType()});
 			break;
 
 		case HANDSHAKE:
@@ -202,8 +217,9 @@ public class ClientHandshaker extends Handshaker {
 					break;
 
 				default:
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-					throw new HandshakeException("Not supported server key exchange algorithm: " + keyExchange, alert);
+					throw new HandshakeException(
+							String.format("Unsupported key exchange algorithm %s", keyExchange.name()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 				}
 				break;
 
@@ -221,15 +237,20 @@ public class ClientHandshaker extends Handshaker {
 				break;
 
 			default:
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, session.getPeer());
-				throw new HandshakeException("Client received unexpected handshake message:\n" + fragment.toString(), alert);
+				throw new HandshakeException(
+						String.format("Received unexpected handshake message [%s] from peer %s", fragment.getMessageType(), record.getPeerAddress()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
 			}
+			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+					new Object[]{record.getPeerAddress(), fragment.getMessageType()});
 			break;
 
 		default:
-			AlertMessage alertMessage = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-			throw new HandshakeException("Client received not supported record:\n" + record.toString(), alertMessage);
+			throw new HandshakeException(
+					String.format("Received unexpected message [%s] from peer %s", record.getType(), record.getPeerAddress()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, record.getPeerAddress()));
 		}
+		
 		if (flight == null) {
 			Record nextMessage = null;
 			// check queued message, if it is now their turn
@@ -244,8 +265,6 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 
-		LOGGER.log(Level.FINE, "Processed DTLS record from peer [{0}]:\n{1}",
-				new Object[]{getPeerAddress(), record});
 		return flight;
 	}
 
