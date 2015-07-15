@@ -669,8 +669,9 @@ public class ServerHandshaker extends Handshaker {
 				new Object[]{getPeerAddress(), identity});
 		
 		if (psk == null) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-			throw new HandshakeException("No pre-shared secret found for identity: " + identity, alert);
+			throw new HandshakeException(
+					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
 		
 		session.setPeerIdentity(new PreSharedKeyIdentity(identity));
