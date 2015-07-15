@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2014, 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -11,7 +11,9 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Kai Hudalla, Bosch Software Innovations GmbH
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - inital creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for retrieving
+ *                                                    trust anchor
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -118,5 +120,13 @@ public class DtlsTestTools {
 		Certificate[] certChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION,
 				DtlsTestTools.KEY_STORE_PASSWORD, "server");
 		return certChain[0].getPublicKey();
+	}
+	
+	public static Certificate[] getTrustedCertificates() throws IOException, GeneralSecurityException {
+		KeyStore trustStore = loadKeyStore(TRUST_STORE_LOCATION, TRUST_STORE_PASSWORD);
+		// You can load multiple certificates if needed
+		Certificate[] trustedCertificates = new Certificate[1];
+		trustedCertificates[0] = trustStore.getCertificate("root");
+		return trustedCertificates;
 	}
 }
