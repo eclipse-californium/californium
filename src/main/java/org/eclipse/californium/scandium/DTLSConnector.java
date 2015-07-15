@@ -23,6 +23,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace SessionStore with ConnectionStore
  *                                                    keeping all information about the connection
  *                                                    to a peer in a single place
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -117,7 +118,9 @@ public class DTLSConnector implements Connector {
 	private boolean running;
 	
 	private RawDataChannel messageHandler;
-		
+	
+	private ErrorHandler errorHandler;
+	
 	/**
 	 * Creates a DTLS connector from a given configuration object
 	 * using the standard in-memory <code>SessionStore</code>. 
@@ -478,6 +481,9 @@ public class DTLSConnector implements Connector {
 				}
 			} else {
 				// alert is not fatal, ignore for now
+			}
+			if (errorHandler != null) {
+				errorHandler.onError(peerAddress, alert.getLevel(), alert.getDescription());
 			}
 		} else {
 			LOGGER.log(Level.FINER, "Received ALERT record from [{0}] without existing session, discarding ...", peerAddress);
@@ -976,6 +982,15 @@ public class DTLSConnector implements Connector {
 	@Override
 	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		this.messageHandler = messageHandler;
+	}
+
+	/**
+	 * Sets a handler to call back if an alert message is received from a peer.
+	 * 
+	 * @param errorHandler the handler to invoke
+	 */
+	public final void setErrorHandler(ErrorHandler errorHandler) {
+		this.errorHandler = errorHandler;
 	}
 
 	private void connectionClosed(InetSocketAddress peerAddress) {
