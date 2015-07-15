@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,6 +12,7 @@
  * 
  * Contributors:
  * Julien Vermillard - Sierra Wireless
+ * Kai Hudalla (Bosch Software Innovations GmbH) - fix formatting
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.pskstore;
 
@@ -33,45 +34,50 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InMemoryPskStore implements PskStore {
 
-    private Map<String, byte[]> keys = new ConcurrentHashMap<>();
+	private Map<String, byte[]> keys = new ConcurrentHashMap<>();
 
-    private Map<InetSocketAddress, String> knownPeers = new ConcurrentHashMap<>();
+	private Map<InetSocketAddress, String> knownPeers = new ConcurrentHashMap<>();
 
-    @Override
-    public byte[] getKey(String identity) {
-        byte[] key = keys.get(identity);
-        if (key == null) {
-            return null;
-        } else {
-            // defensive copy
-            return Arrays.copyOf(key, key.length);
-        }
-    }
+	@Override
+	public byte[] getKey(String identity) {
+		byte[] key = keys.get(identity);
+		if (key == null) {
+			return null;
+		} else {
+			// defensive copy
+			return Arrays.copyOf(key, key.length);
+		}
+	}
 
-    /**
-     * Set a key value for a given identity.
-     * 
-     * @param identity the identity associated with the key
-     * @param key the key used to authenticate the identity
-     */
-    public void setKey(String identity, byte[] key) {
-        keys.put(identity, key);
-    }
+	/**
+	 * Set a key value for a given identity.
+	 * 
+	 * @param identity
+	 *            the identity associated with the key
+	 * @param key
+	 *            the key used to authenticate the identity
+	 */
+	public void setKey(String identity, byte[] key) {
+		keys.put(identity, key);
+	}
 
-    /**
-     * Add a known peer. Used when we need to initiate a connection.
-     * 
-     * @param peerAddress address of known peer we need to connect to
-     * @param identity identity used for this peer
-     * @param key the key used for this the peer
-     */
-    public void addKnownPeer(InetSocketAddress peerAddress, String identity, byte[] key) {
-        knownPeers.put(peerAddress, identity);
-        keys.put(identity, key);
-    }
+	/**
+	 * Add a known peer. Used when we need to initiate a connection.
+	 * 
+	 * @param peerAddress
+	 *            address of known peer we need to connect to
+	 * @param identity
+	 *            identity used for this peer
+	 * @param key
+	 *            the key used for this the peer
+	 */
+	public void addKnownPeer(InetSocketAddress peerAddress, String identity, byte[] key) {
+		knownPeers.put(peerAddress, identity);
+		keys.put(identity, key);
+	}
 
-    @Override
-    public String getIdentity(InetSocketAddress inetAddress) {
-        return knownPeers.get(inetAddress);		
-    }
+	@Override
+	public String getIdentity(InetSocketAddress inetAddress) {
+		return knownPeers.get(inetAddress);
+	}
 }
