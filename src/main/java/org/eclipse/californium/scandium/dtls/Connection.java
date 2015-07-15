@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  * <li>a pending flight that has not been acknowledged by the peer yet</li>
  * </ul> 
  */
-public class Connection implements SessionListener {
+public final class Connection implements SessionListener {
 
 	private static final Logger LOGGER = Logger.getLogger(Connection.class.getName());
 	private final InetSocketAddress peerAddress;
@@ -69,7 +69,7 @@ public class Connection implements SessionListener {
 	 * 
 	 * @return the address
 	 */
-	public final InetSocketAddress getPeerAddress() {
+	public InetSocketAddress getPeerAddress() {
 		return peerAddress;
 	}
 
@@ -78,7 +78,7 @@ public class Connection implements SessionListener {
 	 * 
 	 * @return the session or <code>null</code> if no session has been established (yet)
 	 */
-	public final DTLSSession getEstablishedSession() {
+	public DTLSSession getEstablishedSession() {
 		return establishedSession;
 	}
 	
@@ -87,7 +87,7 @@ public class Connection implements SessionListener {
 	 * 
 	 * @return the handshaker or <code>null</code> if no handshake is going on
 	 */
-	public final Handshaker getOngoingHandshake() {
+	public Handshaker getOngoingHandshake() {
 		return ongoingHandshake;
 	}
 	
@@ -96,7 +96,7 @@ public class Connection implements SessionListener {
 	 * 
 	 * @param ongoingHandshake the handshaker
 	 */
-	public final void setOngoingHandshake(Handshaker ongoingHandshake) {
+	public void setOngoingHandshake(Handshaker ongoingHandshake) {
 		this.ongoingHandshake = ongoingHandshake;
 	}
 	
@@ -107,7 +107,7 @@ public class Connection implements SessionListener {
 	 * @param pendingFlight the flight
 	 * @see #cancelPendingFlight()
 	 */
-	public final void setPendingFlight(DTLSFlight pendingFlight) {
+	public void setPendingFlight(DTLSFlight pendingFlight) {
 		this.pendingFlight = pendingFlight;
 	}
 	
@@ -117,7 +117,7 @@ public class Connection implements SessionListener {
 	 * 
 	 * This method is usually invoked once an flight has been acknowledged by the peer. 
 	 */
-	public final void cancelPendingFlight() {
+	public void cancelPendingFlight() {
 		if (pendingFlight != null) {
 			pendingFlight.getRetransmitTask().cancel();
 			pendingFlight.setRetransmitTask(null);
@@ -134,7 +134,7 @@ public class Connection implements SessionListener {
 	 * @return the <em>current</em> session or <code>null</code> if neither
 	 *                 an established session nor an ongoing handshake exists
 	 */
-	public final DTLSSession getSession() {
+	public DTLSSession getSession() {
 		if (establishedSession != null) {
 			return establishedSession;
 		} else if (ongoingHandshake != null) {
@@ -158,8 +158,10 @@ public class Connection implements SessionListener {
 
 	@Override
 	public void handshakeCompleted(InetSocketAddress peer) {
-		this.ongoingHandshake = null;
-		LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
+		if (this.ongoingHandshake != null) {
+			this.ongoingHandshake = null;
+			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
+		}
 	}
 	
 	/**

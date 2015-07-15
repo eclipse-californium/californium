@@ -417,10 +417,7 @@ public class DTLSConnector implements Connector {
 					record.setSession(session);
 					ApplicationMessage message = (ApplicationMessage) record.getFragment();
 					// the fragment could be de-crypted
-					// thus, the session seems to have been established successfully with
-					// peer and it's safe to remove the (now obsolete) handshaker
-					// TODO remember that we have already notified the session listener
-					// in order to prevent repeated (and useless) look-up of handshaker
+					// thus, the handshake seems to have been completed successfully
 					connection.handshakeCompleted(peerAddress);
 					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 					// finally, forward de-crypted message to application layer
