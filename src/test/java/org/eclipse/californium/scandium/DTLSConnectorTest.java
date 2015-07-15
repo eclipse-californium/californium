@@ -19,6 +19,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace SessionStore with ConnectionStore
  *                                                    keeping all information about the connection
  *                                                    to a peer in a single place
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -63,6 +64,8 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -391,6 +394,30 @@ public class DTLSConnectorTest {
 
 		assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
 		assertNull("Server should not have established a session with client", serverSessionStore.get(clientEndpoint));
+	}
+
+	@Test
+	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
+
+		final CountDownLatch latch = new CountDownLatch(1);
+
+		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+			.setPskStore(new StaticPskStore("unknownIdentity", "secretPSK".getBytes()))
+			.build();
+		client = new DTLSConnector(clientConfig);
+		client.setErrorHandler(new ErrorHandler() {
+			
+			@Override
+			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
+				latch.countDown();
+				assertThat(level, is(AlertLevel.FATAL));
+				assertThat(peerAddress, is(serverEndpoint));
+			}
+		});
+		client.start();
+		client.send(new RawData("Hello".getBytes(), serverEndpoint));
+		
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	/**
