@@ -1,0 +1,99 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>scandium-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>scandium</artifactId>
+	<packaging>bundle</packaging>
+	<name>Scandium Core</name>
+	<description>A library for exchanging data using DTLS over UDP</description>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.18.1</version>
+				<configuration>
+					<systemPropertyVariables>
+						<!--
+						   configures the JDK Logging to use the ScandiumFormatter
+						   by means of the Scandium-logging.properties file
+						-->
+						<java.util.logging.config.file>${project.build.testOutputDirectory}/Scandium-logging.properties</java.util.logging.config.file>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*$*</exclude>
+					</excludes>
+					<parallel>classes</parallel>
+					<threadCount>8</threadCount>
+					<groups>org.eclipse.californium.scandium.category.Small</groups>
+					<excludedGroups>org.eclipse.californium.scandium.category.Medium,org.eclipse.californium.scandium.category.Large</excludedGroups>
+				</configuration>
+				<executions>
+					<execution>
+						<id>medium-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.scandium.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Large</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>large-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.scandium.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>2.5.0</version>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.scandium,
+							org.eclipse.californium.scandium.auth,
+							org.eclipse.californium.scandium.config,
+							org.eclipse.californium.scandium.dtls,
+							org.eclipse.californium.scandium.dtls.cipher,
+							org.eclipse.californium.scandium.dtls.pskstore
+						</Export-Package>
+						<Private-Package>
+							org.eclipse.californium.scandium.util
+						</Private-Package>
+						<Import-Package>
+							org.eclipse.californium.elements;version="[1.0.0, 1.1)",
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>element-connector</artifactId>
+		</dependency>
+	</dependencies>
+</project>
