@@ -410,7 +410,7 @@ public class LockstepEndpoint {
 			return request;
 			
 		} else {
-			throw new RuntimeException("Expected request but receive another message");
+			throw new RuntimeException("Expected request but received "+(parser.isResponse()?"response":"empty"));
 		}
 	}
 	

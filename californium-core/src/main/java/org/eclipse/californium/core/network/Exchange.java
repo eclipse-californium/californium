@@ -442,12 +442,10 @@ public class Exchange {
 		private final int hash;
 		
 		public KeyMID(int mid, byte[] address, int port) {
-			if (address == null)
-				throw new NullPointerException();
 			this.MID = mid;
 			this.address = address;
 			this.port = port;
-			this.hash = (port*31 + MID) * 31 + Arrays.hashCode(address);
+			this.hash = (port*31 + mid) * 31 + Arrays.hashCode(address);
 		}
 		
 		@Override
@@ -465,7 +463,7 @@ public class Exchange {
 		
 		@Override
 		public String toString() {
-			return "KeyMID["+MID+" from "+Utils.toHexString(address)+":"+port+"]";
+			return "KeyMID["+MID+" for "+Utils.toHexString(address)+":"+port+"]";
 		}
 	}
 	
@@ -476,19 +474,13 @@ public class Exchange {
 	public static final class KeyToken {
 
 		protected final byte[] token;
-		protected final byte[] address;
-		protected final int port;
 		private final int hash;
 
-		public KeyToken(byte[] token, byte[] address, int port) {
-			if (address == null)
-				throw new NullPointerException();
+		public KeyToken(byte[] token) {
 			if (token == null)
 				throw new NullPointerException();
 			this.token = token;
-			this.address = address;
-			this.port = port;
-			this.hash = (port*31 + Arrays.hashCode(token)) * 31 + Arrays.hashCode(address);
+			this.hash = Arrays.hashCode(token);
 		}
 		
 		@Override
@@ -501,12 +493,12 @@ public class Exchange {
 			if (! (o instanceof KeyToken))
 				return false;
 			KeyToken key = (KeyToken) o;
-			return Arrays.equals(token, key.token) && port == key.port && Arrays.equals(address, key.address);
+			return Arrays.equals(token, key.token);
 		}
 		
 		@Override
 		public String toString() {
-			return "KeyToken["+Utils.toHexString(token)+" from "+Utils.toHexString(address)+":"+port+"]";
+			return "KeyToken["+Utils.toHexString(token)+"]";
 		}
 	}
 	
@@ -545,7 +537,7 @@ public class Exchange {
 		
 		@Override
 		public String toString() {
-			return "KeyUri["+uri+" from "+Utils.toHexString(address)+":"+port+"]";
+			return "KeyUri["+uri+" for "+Utils.toHexString(address)+":"+port+"]";
 		}
 	}
 }

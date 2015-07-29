@@ -55,9 +55,8 @@ public class Matcher {
 	// TODO: Make per endpoint
 	private AtomicInteger currendMID; 
 	
-	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // Outgoing
-	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken;
-	
+	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
+	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
 	private ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
 	
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
@@ -77,9 +76,11 @@ public class Matcher {
 		DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 		this.deduplicator = factory.createDeduplicator(config);
 		
-		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START))
+		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START)) {
 			currendMID = new AtomicInteger(new Random().nextInt(1<<16));
-		else currendMID = new AtomicInteger(0);
+		} else {
+			currendMID = new AtomicInteger(0);
+		}
 		
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
@@ -88,8 +89,10 @@ public class Matcher {
 	public synchronized void start() {
 		if (started) return;
 		else started = true;
+		
 		if (executor == null)
 			throw new IllegalStateException("Matcher has no executor to schedule exchange removal");
+		
 		deduplicator.start();
 		
 		// this is a useful health metric that could later be exported to some kind of monitoring interface
@@ -113,50 +116,47 @@ public class Matcher {
 	public synchronized void setExecutor(ScheduledExecutorService executor) {
 		deduplicator.setExecutor(executor);
 		this.executor = executor;
+		// health status runnable is not migrated at the moment
 	}
 	
 	public void sendRequest(Exchange exchange, Request request) {
+		
 		if (request.getMID() == Message.NONE)
 			request.setMID(currendMID.getAndIncrement()%(1<<16));
 
 		/*
 		 * The request is a CON or NON and must be prepared for these responses
-		 * - CON  => ACK/RST/ACK+response/CON+response/NON+response
-		 * - NON => RST/CON+response/NON+response
+		 * - CON  => ACK / RST / ACK+response / CON+response / NON+response
+		 * - NON => RST / CON+response / NON+response
 		 * If this request goes lost, we do not get anything back.
 		 */
-		
-		KeyMID idByMID = new KeyMID(request.getMID(), 
-				request.getDestination().getAddress(), request.getDestinationPort());
-		KeyToken idByTok = new KeyToken(request.getToken(),
-				request.getDestination().getAddress(), request.getDestinationPort());
+
+		// the MID is from the local namespace -- use blank address
+		KeyMID idByMID = new KeyMID(request.getMID(), null, 0);
+		KeyToken idByToken = new KeyToken(request.getToken());
 		
 		exchange.setObserver(exchangeObserver);
 		
-		LOGGER.fine("Stored open request by "+idByMID+", "+idByTok);
+		if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Stored open request by "+idByMID+", "+idByToken);
 		
 		exchangesByMID.put(idByMID, exchange);
-		exchangesByToken.put(idByTok, exchange);
+		exchangesByToken.put(idByToken, exchange);
 	}
 
 	public void sendResponse(Exchange exchange, Response response) {
+		
 		if (response.getMID() == Message.NONE)
 			response.setMID(currendMID.getAndIncrement()%(1<<16));
 		
 		/*
 		 * The response is a CON or NON or ACK and must be prepared for these
-		 * - CON  => ACK/RST // we only care to stop retransmission
-		 * - NON => RST // we don't care
+		 * - CON  => ACK / RST // we only care to stop retransmission
+		 * - NON => RST // we only care for observe
 		 * - ACK  => nothing!
 		 * If this response goes lost, we must be prepared to get the same 
 		 * CON/NON request with same MID again. We then find the corresponding
 		 * exchange and the ReliabilityLayer resends this response.
 		 */
-		
-		if (response.getDestination() == null)
-			throw new NullPointerException("Response has no destination address set");
-		if (response.getDestinationPort() == 0)
-			throw new NullPointerException("Response hsa no destination port set");
 
 		// If this is a CON notification we now can forget all previous NON notifications
 		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
@@ -166,6 +166,7 @@ public class Matcher {
 			}
 		}
 		
+		// Blockwise transfers are identified by URI and remote endpoint
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getRequest();
 			KeyUri idByUri = new KeyUri(request.getURI(),
@@ -183,17 +184,14 @@ public class Matcher {
 		// Insert CON and NON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON || response.getType() == Type.NON) {
-			KeyMID idByMID = new KeyMID(response.getMID(), 
-					response.getDestination().getAddress(), response.getDestinationPort());
+			KeyMID idByMID = new KeyMID(response.getMID(), null, 0);
 			exchangesByMID.put(idByMID, exchange);
 		}
 		
-		if (response.getType() == Type.ACK || response.getType() == Type.NON) {
-			// Since this is an ACK or NON, the exchange is over with sending this response.
-			if (response.isLast()) {
-				exchange.setComplete();
-			}
-		} // else this is a CON and we need to wait for the ACK or RST.
+		// Only CONs and Observe keep the exchange active
+		if (response.getType() != Type.CON && response.isLast()) {
+			exchange.setComplete();
+		}
 	}
 
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
@@ -202,12 +200,6 @@ public class Matcher {
 			// We have rejected the request or response
 			exchange.setComplete();
 		}
-		
-		/*
-		 * We do not expect any response for an empty message
-		 */
-		if (message.getMID() == Message.NONE)
-			LOGGER.severe("Empy message "+ message+" has no MID // debugging");
 	}
 
 	public Exchange receiveRequest(Request request) {
@@ -240,23 +232,23 @@ public class Matcher {
 				return exchange;
 				
 			} else {
-				LOGGER.info("Message is a duplicate, ignore: "+request);
+				LOGGER.info("Duplicate request: "+request);
 				request.setDuplicate(true);
 				return previous;
 			}
 			
 		} else {
 			
-			KeyUri idByUri = new KeyUri(request.getURI(),
-					request.getSource().getAddress(), request.getSourcePort());
+			KeyUri idByUri = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 			
-			LOGGER.fine("Lookup ongoing exchange for "+idByUri);
+			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Lookup ongoing exchange for "+idByUri);
+			
 			Exchange ongoing = ongoingExchanges.get(idByUri);
 			if (ongoing != null) {
 				
 				Exchange prev = deduplicator.findPrevious(idByMID, ongoing);
 				if (prev != null) {
-					LOGGER.info("Message is a duplicate: "+request);
+					LOGGER.info("Duplicate ongoing request: "+request);
 					request.setDuplicate(true);
 				}
 				return ongoing;
@@ -279,7 +271,7 @@ public class Matcher {
 					ongoingExchanges.put(idByUri, exchange);
 					return exchange;
 				} else {
-					LOGGER.info("Message is a duplicate: "+request);
+					LOGGER.info("Duplicate initial request: "+request);
 					request.setDuplicate(true);
 					return previous;
 				}
@@ -295,45 +287,51 @@ public class Matcher {
 		 * - Retransmitted CON (because client got no ACK)
 		 * 		=> resend ACK
 		 */
-
-		KeyMID idByMID = new KeyMID(response.getMID(), 
-				response.getSource().getAddress(), response.getSourcePort());
 		
-		KeyToken idByTok = new KeyToken(response.getToken(), 
-				response.getSource().getAddress(), response.getSourcePort());
+		KeyMID idByMID;
+		if (response.getType() == Type.ACK) {
+			// own namespace
+			idByMID = new KeyMID(response.getMID(), null, 0);
+		} else {
+			// remote namespace
+			idByMID = new KeyMID(response.getMID(), response.getSource().getAddress(), response.getSourcePort());
+		}
 		
-		Exchange exchange = exchangesByToken.get(idByTok);
+		KeyToken idByToken = new KeyToken(response.getToken());
+		
+		Exchange exchange = exchangesByToken.get(idByToken);
 		
 		if (exchange != null) {
 			// There is an exchange with the given token
-			
 			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
 			if (prev != null) { // (and thus it holds: prev == exchange)
-				LOGGER.fine("Duplicate response "+response);
+				LOGGER.info("Duplicate response for open exchange: "+response);
 				response.setDuplicate(true);
 			} else {
-				LOGGER.fine("Exchange got reply: Cleaning up "+idByMID);
+				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
+				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Exchange got response: Cleaning up "+idByMID);
 				exchangesByMID.remove(idByMID);
 			}
 			
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
-				// The token matches but not the MID. This is a response for an older exchange
-				LOGGER.warning("Token matches but not MID: Expected "+exchange.getCurrentRequest().getMID()+" but was "+response.getMID());
-				// ignore response
-				return null;
-			} else {
-				// this is a separate response that we can deliver
-				return exchange;
+				// The token matches but not the MID.
+				LOGGER.warning("Possible MID reuse before lifetime end: "+response.getTokenString()+" expected MID "+exchange.getCurrentRequest().getMID()+" but received "+response.getMID());
 			}
+			
+			return exchange;
 			
 		} else {
 			// There is no exchange with the given token.
 			if (response.getType() != Type.ACK) {
+				// only act upon separate responses
 				Exchange prev = deduplicator.find(idByMID);
 				if (prev != null) {
+					LOGGER.info("Duplicate response for completed exchange: "+response);
 					response.setDuplicate(true);
 					return prev;
 				}
+			} else {
+				LOGGER.info("Ignoring unmatchable piggy-backed response: "+response);
 			}
 			// ignore response
 			return null;
@@ -342,20 +340,19 @@ public class Matcher {
 
 	public Exchange receiveEmptyMessage(EmptyMessage message) {
 		
-		KeyMID idByMID = new KeyMID(message.getMID(),
-				message.getSource().getAddress(), message.getSourcePort());
+		// local namespace
+		KeyMID idByMID = new KeyMID(message.getMID(), null, 0);
 		
 		Exchange exchange = exchangesByMID.get(idByMID);
 		
 		if (exchange != null) {
-			LOGGER.fine("Exchange got reply: Cleaning up "+idByMID);
+			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Exchange got reply: Cleaning up "+idByMID);
 			exchangesByMID.remove(idByMID);
 			return exchange;
 		} else {
-			LOGGER.info("Matcher received empty message that does not match any exchange: "+message);
-			// ignore message;
+			LOGGER.info("Ignoring unmatchable empty message: "+message);
 			return null;
-		} // else, this is an ACK for an unknown exchange and we ignore it
+		}
 	}
 	
 	public void clear() {
@@ -369,8 +366,8 @@ public class Matcher {
 		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
 			Response previous = iterator.next();
-			KeyMID idByMID = new KeyMID(previous.getMID(), 
-					previous.getDestination().getAddress(), previous.getDestinationPort());
+			// notifications are local MID namespace
+			KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
 			exchangesByMID.remove(idByMID);
 			iterator.remove();
 		}
@@ -388,33 +385,31 @@ public class Matcher {
 			
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
-				Request request = exchange.getRequest();
-				KeyToken idByTok = new KeyToken(exchange.getCurrentRequest().getToken(), request.getDestination().getAddress(), request.getDestinationPort());
-				KeyMID idByMID = new KeyMID(request.getMID(), request.getDestination().getAddress(), request.getDestinationPort());
+				
+				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
+				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 				
 //				LOGGER.fine("Exchange completed: Cleaning up "+idByTok);
-				exchangesByToken.remove(idByTok);
+				exchangesByToken.remove(idByToken);
+				
 				// in case an empty ACK was lost
 				exchangesByMID.remove(idByMID);
 			
-			} else {
-				// this endpoint created the Exchange to respond a request
+			} else { // Origin.REMOTE
+				// this endpoint created the Exchange to respond to a request
+				
 				Request request = exchange.getCurrentRequest();
 				if (request != null) {
 					// TODO: We can optimize this and only do it, when the request really had blockwise transfer
-					KeyUri uriKey = new KeyUri(request.getURI(),
-							request.getSource().getAddress(), request.getSourcePort());
+					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
 					ongoingExchanges.remove(uriKey);
 				}
-				// TODO: What if the request is only a block?
-				// TODO: This should only happen if the transfer was blockwise
 
 				Response response = exchange.getResponse();
-				if (response != null) {
+				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
-					KeyMID midKey = new KeyMID(response.getMID(), 
-							response.getDestination().getAddress(), response.getDestinationPort());
+					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
 					exchangesByMID.remove(midKey);
 				}
