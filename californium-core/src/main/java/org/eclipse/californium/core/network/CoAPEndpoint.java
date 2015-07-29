@@ -468,6 +468,12 @@ public class CoAPEndpoint implements Endpoint {
 		
 		@Override
 		public void sendRequest(Exchange exchange, Request request) {
+			
+			if (request.getDestination() == null)
+				throw new NullPointerException("Request has no destination address");
+			if (request.getDestinationPort() == 0)
+				throw new NullPointerException("Request has no destination port");
+			
 			matcher.sendRequest(exchange, request);
 			
 			/* 
@@ -486,6 +492,12 @@ public class CoAPEndpoint implements Endpoint {
 
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
+			
+			if (response.getDestination() == null)
+				throw new NullPointerException("Response has no destination address");
+			if (response.getDestinationPort() == 0)
+				throw new NullPointerException("Response has no destination port");
+			
 			matcher.sendResponse(exchange, response);
 			
 			/* 
@@ -504,6 +516,12 @@ public class CoAPEndpoint implements Endpoint {
 
 		@Override
 		public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
+			
+			if (message.getDestination() == null)
+				throw new NullPointerException("Message has no destination address");
+			if (message.getDestinationPort() == 0)
+				throw new NullPointerException("Message has no destination port");
+			
 			matcher.sendEmptyMessage(exchange, message);
 			
 			/* 
