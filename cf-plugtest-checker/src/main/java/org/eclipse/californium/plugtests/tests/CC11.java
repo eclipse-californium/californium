@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -24,11 +24,11 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
- * TD_COAP_CORE_11: Handle request not containing Token option.
+ * TD_COAP_CORE_11: Perform GET transaction containing non-empty Token with a separate response (CON mode)
  */
 public class CC11 extends TestClientAbstract {
 
-	public static final String RESOURCE_URI = "/test";
+	public static final String RESOURCE_URI = "/separate";
 	public final ResponseCode EXPECTED_RESPONSE_CODE = ResponseCode.CONTENT;
 
 	public CC11(String serverURI) {
@@ -36,19 +36,15 @@ public class CC11 extends TestClientAbstract {
 
 		// create the request
 		Request request = new Request(Code.GET, Type.CON);
-		// Length of the token should be between 1 to 8 B
-		// request.setToken(TokenManager.getInstance().acquireToken(false));
-		// // TODO
-		// set the parameters and execute the request
+		request.setToken(new byte[]{(byte) 0xBE, (byte) 0xEF});
 		executeRequest(request, serverURI, RESOURCE_URI);
 	}
 
 	protected boolean checkResponse(Request request, Response response) {
 		boolean success = true;
 
-		success &= checkType(Type.ACK, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-				response.getCode().value, "code");
+		success &= checkType(Type.CON, response.getType());
+		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
 		// Token value = the same value as in the request sent by the client
 		// in step 2
 		success &= checkToken(request.getToken(), response.getToken());
