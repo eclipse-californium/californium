@@ -47,7 +47,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 
-public class ObserveServerSide {
+public class ObserveServerSideTest {
 
 private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	

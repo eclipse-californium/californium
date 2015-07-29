@@ -45,7 +45,7 @@ import org.junit.Test;
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
  */
-public class ObserveClientSide {
+public class ObserveClientSideTest {
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	

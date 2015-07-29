@@ -46,7 +46,7 @@ import org.junit.Test;
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
-public class Deduplication {
+public class DeduplicationTest {
 	
 	private LockstepEndpoint server;
 	

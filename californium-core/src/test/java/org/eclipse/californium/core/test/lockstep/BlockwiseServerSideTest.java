@@ -51,7 +51,7 @@ import org.junit.Test;
 /**
  * This test implements all examples from the blockwise draft 14 for a server.
  */
-public class BlockwiseServerSide {
+public class BlockwiseServerSideTest {
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	
