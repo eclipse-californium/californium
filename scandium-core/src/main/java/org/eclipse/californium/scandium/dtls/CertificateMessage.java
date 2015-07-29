@@ -351,7 +351,9 @@ public final class CertificateMessage extends HandshakeMessage {
 		PublicKey publicKey = null;
 
 		if (rawPublicKeyBytes == null) {
-			publicKey = certificateChain[0].getPublicKey();
+			if (certificateChain != null && certificateChain.length > 0) {
+				publicKey = certificateChain[0].getPublicKey();
+			}// else : no public key in this certificate message
 		} else {
 			// get server's public key from Raw Public Key
 			EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(rawPublicKeyBytes);
