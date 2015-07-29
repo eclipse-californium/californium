@@ -104,8 +104,12 @@ public class SupportedEllipticCurvesExtension extends HelloExtension {
 		sb.append("\t\t\t\tElliptic Curves (" + ellipticCurveList.size() + " curves):\n");
 
 		for (Integer curveId : ellipticCurveList) {
-			String curveName = ECDHECryptography.NAMED_CURVE_TABLE[curveId];
-			sb.append("\t\t\t\t\tElliptic Curve: " + curveName + " (" + curveId + ")\n");
+			if (0 < curveId && curveId < ECDHECryptography.NAMED_CURVE_TABLE.length) {
+				String curveName = ECDHECryptography.NAMED_CURVE_TABLE[curveId];
+				sb.append("\t\t\t\t\tElliptic Curve: " + curveName + " (" + curveId + ")\n");
+			} else {
+				sb.append("\t\t\t\t\tElliptic Curve: unknown (" + curveId + ")\n");
+			}
 		}
 
 		return sb.toString();
