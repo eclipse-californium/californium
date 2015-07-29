@@ -73,6 +73,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 			// Get the executor and let it process the request
 			Executor executor = resource.getExecutor();
 			if (executor != null) {
+				exchange.setCustomExecutor();
 				executor.execute(new Runnable() {
 					public void run() {
 						resource.handleRequest(exchange);

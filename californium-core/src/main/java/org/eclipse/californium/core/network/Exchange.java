@@ -131,8 +131,12 @@ public class Exchange {
 	// first block piggy-backed with the Block1 option of the last request block
 	private BlockOption block1ToAck;
 	
-	/** The relation that the target resource has established with the source */
+	// The relation that the target resource has established with the source
 	private ObserveRelation relation;
+	
+	// When the request is handled by an executor different than the protocol stage set to true.
+	// The endpoint will hand sending responses over to the protocol stage executor
+	private boolean customExecutor = false;
 
 	/**
 	 * Constructs a new exchange with the specified request and origin. 
@@ -429,7 +433,27 @@ public class Exchange {
 	public void setRelation(ObserveRelation relation) {
 		this.relation = relation;
 	}
-	
+
+	/**
+	 * Checks if this exchange was delivered to a handler with custom Executor.
+	 * If so, the protocol stage must hand the processing over to its own Executor.
+	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 * 
+	 * @return true if for handler with custom executor
+	 */
+	public boolean hasCustomExecutor() {
+		return customExecutor;
+	}
+
+	/**
+	 * Marks that this exchange was delivered to a handler with custom Executor.
+	 * If so, the protocol stage must hand the processing over to its own Executor.
+	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 */
+	public void setCustomExecutor() {
+		this.customExecutor = true;
+	}
+
 	/**
 	 * This class is used by the matcher to remember a message by its MID and
 	 * source/destination.

@@ -388,6 +388,7 @@ public class CoAPEndpoint implements Endpoint {
 	 */
 	@Override
 	public void sendRequest(final Request request) {
+		// always use protocol stage executor
 		executor.execute(new Runnable() {
 			public void run() {
 				try {
@@ -404,19 +405,21 @@ public class CoAPEndpoint implements Endpoint {
 	 */
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-		// TODO: If the currently executing thread is not a thread of the
-		// executor, a new task on the executor should be created to send the
-		// response. (Just uncomment this code)
-//		executor.execute(new Runnable() {
-//			public void run() {
-//				try {
-//					coapstack.sendResponse(exchange, response);
-//				} catch (Exception e) {
-//					e.printStackTrace();
-//				}
-//			}
-//		});
-		coapstack.sendResponse(exchange, response);
+		if (exchange.hasCustomExecutor()) {
+			// handle sending by protocol stage instead of business logic stage
+			executor.execute(new Runnable() {
+				public void run() {
+					try {
+						coapstack.sendResponse(exchange, response);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			});
+		} else {
+			// use same thread to save switching overhead
+			coapstack.sendResponse(exchange, response);
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -424,15 +427,9 @@ public class CoAPEndpoint implements Endpoint {
 	 */
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
-		executor.execute(new Runnable() {
-			public void run() {
-				try {
-					coapstack.sendEmptyMessage(exchange, message);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		});
+		// send empty messages right away in the same thread to ensure execution order
+		// of CoapExchange.accept() / .reject() and similar cases.
+		coapstack.sendEmptyMessage(exchange, message);
 	}
 	
 	/* (non-Javadoc)
