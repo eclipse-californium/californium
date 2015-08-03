@@ -48,7 +48,7 @@ public class OriginTracer implements MessageInterceptor {
 	        fh = new FileHandler("origin-trace/origin-trace-"+month+".txt", true);
 	        SimpleFormatter formatter = new SimpleFormatter() {
 	        	public String format(LogRecord record) {
-	        		return new SimpleDateFormat("[yyyy-MM-dd hh:mm:ss]").format(new Date()) + "\t" + record.getMessage() + "\r\n";
+	        		return new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]").format(new Date()) + "\t" + record.getMessage() + "\r\n";
 	        	}
 	        };
 	        fh.setFormatter(formatter);
