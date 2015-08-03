@@ -68,7 +68,7 @@ public class OriginTracer implements MessageInterceptor {
 	
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.info(String.format("%s:%d", request.getSource(), request.getSourcePort()));
+		LOGGER.info(String.format("%s", request.getSource() ));
 	}
 
 	@Override
@@ -94,6 +94,6 @@ public class OriginTracer implements MessageInterceptor {
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
 		// only log pings
-		if (message.getType()==Type.CON) LOGGER.info(String.format("%s:%d", message.getSource(), message.getSourcePort()));
+		if (message.getType()==Type.CON) LOGGER.info(String.format("%s", message.getSource() ));
 	}
 }
