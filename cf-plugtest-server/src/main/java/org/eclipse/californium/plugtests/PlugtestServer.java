@@ -21,6 +21,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Large;
@@ -77,6 +78,8 @@ public class PlugtestServer extends CoapServer {
             // add special interceptor for message traces
             for (Endpoint ep:server.getEndpoints()) {
             	ep.addInterceptor(new MessageTracer());
+            	// Eclipse IoT metrics
+            	ep.addInterceptor(new OriginTracer());
             }
             
             System.out.println(PlugtestServer.class.getSimpleName()+" listening on port " + port);
