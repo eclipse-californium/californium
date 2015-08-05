@@ -305,7 +305,7 @@ public abstract class Message {
 	
 	public String getPayloadTracingString() {
 		if (null == payload || 0 == payload.length)
-			return  "no payload";
+			return "no payload";
 		boolean text = true;
 		for (byte b:payload) {
 			if (' ' > b) {
@@ -325,17 +325,16 @@ public abstract class Message {
 			decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
 			ByteBuffer in = ByteBuffer.wrap(payload);
 			CharBuffer out = CharBuffer.allocate(24);
-			CoderResult result = decoder.decode(in,  out,  true);
+			CoderResult result = decoder.decode(in, out, true);
 			decoder.flush(out);
 			out.flip();
 			if (CoderResult.OVERFLOW == result) {
 				return "\"" + out +  "\".. " + payload.length + " bytes";
-			}
-			else if (!result.isError()){
+			} else if (!result.isError()){
 				return "\"" + out + "\"" ;
 			}
 		}
-		return Utils.toHexText(payload, 256);						
+		return Utils.toHexText(payload, 256);
 	}
 	
 	/**

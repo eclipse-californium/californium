@@ -65,21 +65,20 @@ public class Utils {
 	public static String toHexText(byte[] bytes, int length) {
 		if (bytes == null) return "null";
 		if (length > bytes.length) length = bytes.length;
-	    StringBuilder sb = new StringBuilder();
-	    if (16 < length) sb.append('\n');
-	    for(int index = 0; index < length; ++index) {	    	
-	       sb.append(String.format("%02x", bytes[index] & 0xFF));
-	       if (31 == (31 & index)) {
-	    	   sb.append('\n');
-	       }
-	       else {
-	    	   sb.append(' ');	    	   
-	       }
-	    }
-	    if (length < bytes.length) {
-	    	sb.append(" .. ").append(bytes.length).append(" bytes");
-	    }
-	    return sb.toString();
+		StringBuilder sb = new StringBuilder();
+		if (16 < length) sb.append('\n');
+		for(int index = 0; index < length; ++index) {
+			sb.append(String.format("%02x", bytes[index] & 0xFF));
+			if (31 == (31 & index)) {
+				sb.append('\n');
+			} else {
+				sb.append(' ');
+			}
+		}
+		if (length < bytes.length) {
+			sb.append(" .. ").append(bytes.length).append(" bytes");
+		}
+		return sb.toString();
 	}
 
 	/**
