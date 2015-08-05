@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add block1/block2 options 
+ *                                                    to be decoded by toValueString 
+ *                                                    (for message tracing)
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -324,6 +327,7 @@ public class Option implements Comparable<Option> {
 		switch (OptionNumberRegistry.getFormatByNr(number)) {
 		case INTEGER:
 			if (number==OptionNumberRegistry.ACCEPT || number==OptionNumberRegistry.CONTENT_FORMAT) return "\""+MediaTypeRegistry.toString(getIntegerValue())+"\"";
+			else if (number==OptionNumberRegistry.BLOCK1 || number==OptionNumberRegistry.BLOCK2) return "\""+ new BlockOption(value) +"\"";
 			else return Integer.toString(getIntegerValue());
 		case STRING:
 			return "\""+this.getStringValue()+"\"";
