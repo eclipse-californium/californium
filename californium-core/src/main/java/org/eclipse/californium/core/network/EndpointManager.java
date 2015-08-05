@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - log default_secure_endpoint
+ *                                                    instead of default_endpoint 
+ *                                                    in setDefaultSecureEndpoint
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -184,7 +187,7 @@ public class EndpointManager {
 		if (!this.default_secure_endpoint.isStarted()) {
 			try {
 				default_secure_endpoint.start();
-				LOGGER.log(Level.INFO, "Started new default secure endpoint " + default_endpoint.getAddress());
+				LOGGER.log(Level.INFO, "Started new default secure endpoint " + default_secure_endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not start new default secure endpoint", e);
 			}
