@@ -444,11 +444,9 @@ public class Request extends Message {
 	 * the client expects multiple responses, e.g., multiple notifications to an
 	 * observe request or multiple responses to a multicast request.
 	 * 
-	 * @param timeout
-	 *            the maximum time to wait in milliseconds.
+	 * @param timeout the maximum time to wait in milliseconds.
 	 * @return the response (null if timeout occurred)
-	 * @throws InterruptedException
-	 *             the interrupted exception
+	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
 		long before = System.currentTimeMillis();
@@ -462,18 +460,17 @@ public class Request extends Message {
 		}
 		// wait for response
 		synchronized (lock) {
-			while (response == null 
-					&& !isCanceled() && !isTimedOut() && !isRejected()) {
+			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected()) {
 				lock.wait(timeout);
-				long now = System.currentTimeMillis();
+				long now = System.currentTimeMillis();				
+				// timeout expired?
 				if (timeout > 0 && expired <= now) {
-					Response r = response;
-					response = null;
-					return r;
+					// break loop since response is still null
+					break;
 				}
 			}
-			Response r = response;
-			response = null;
+			Response r = this.response;
+			this.response = null;
 			return r;
 		}
 	}

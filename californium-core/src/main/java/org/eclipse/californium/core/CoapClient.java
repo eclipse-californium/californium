@@ -279,7 +279,6 @@ public class CoapClient {
 			request.setToken(new byte[0]);
 			request.setURI(uri);
 			request.send().waitForResponse(timeout);
-			request.cancel();
 			return request.isRejected();
 		} catch (InterruptedException e) {
 			// waiting was interrupted, which is fine
@@ -911,12 +910,16 @@ public class CoapClient {
 	 */
 	protected Endpoint getEffectiveEndpoint(Request request) {
 		Endpoint myEndpoint = getEndpoint();
+		
+		// custom endpoint
 		if (myEndpoint != null) return myEndpoint;
+		
+		// default endpoints
 		if (CoAP.COAP_SECURE_URI_SCHEME.equals(request.getScheme())) {
-			// This is the case when secure coap is supposed to be used
+			// this is the case when secure coap is supposed to be used
 			return EndpointManager.getEndpointManager().getDefaultSecureEndpoint();
 		} else {
-			// This is the normal case
+			// this is the normal case
 			return EndpointManager.getEndpointManager().getDefaultEndpoint();
 		}
 	}
