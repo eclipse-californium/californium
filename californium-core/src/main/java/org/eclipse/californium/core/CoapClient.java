@@ -278,7 +278,7 @@ public class CoapClient {
 			request.setType(Type.CON);
 			request.setToken(new byte[0]);
 			request.setURI(uri);
-			request.send().waitForResponse(5000);
+			request.send().waitForResponse(timeout);
 			request.cancel();
 			return request.isRejected();
 		} catch (InterruptedException e) {
