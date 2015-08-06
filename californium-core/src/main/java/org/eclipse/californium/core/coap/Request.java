@@ -18,6 +18,10 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add field for sender identity
  *                                                    (465073)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move payload string conversion
+ *    												  from toString() to
+ *                                                    Message.getPayloadTracingString(). 
+ *                                                    (for message tracing)
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -521,16 +525,7 @@ public class Request extends Message {
 	 */
 	@Override
 	public String toString() {
-		String payload = getPayloadString();
-		if (payload == null) {
-			payload = "no payload";
-		} else {
-			int len = payload.length();
-			if (payload.indexOf("\n")!=-1) payload = payload.substring(0, payload.indexOf("\n"));
-			if (payload.length() > 24) payload = payload.substring(0,20);
-			payload = "\""+payload+"\"";
-			if (payload.length() != len+2) payload += ".. " + len + " bytes";
-		}
+		String payload = getPayloadTracingString();
 		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
 	}
 	

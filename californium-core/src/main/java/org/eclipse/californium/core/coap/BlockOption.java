@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add block size also in bytes
+ *                                                    to return value of toString() 
+ *                                                    (for message tracing)
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -215,7 +218,7 @@ public class BlockOption {
 	 */
 	@Override
 	public String toString() {
-		return "(szx="+szx+", m="+m+", num="+num+")";
+		return "(szx="+szx+"/"+ szx2Size(szx)+ ", m="+m+", num="+num+")";
 	}
 	
 	@Override
