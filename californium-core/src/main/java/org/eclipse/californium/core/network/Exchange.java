@@ -78,7 +78,7 @@ public class Exchange {
 	private boolean complete = false;
 	
 	/** The timestamp when this exchange has been created */
-	private long timestamp;
+	private final long timestamp;
 	
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -410,10 +410,6 @@ public class Exchange {
 
 	public long getTimestamp() {
 		return timestamp;
-	}
-
-	public void setTimestamp(long timestamp) {
-		this.timestamp = timestamp;
 	}
 
 	/**

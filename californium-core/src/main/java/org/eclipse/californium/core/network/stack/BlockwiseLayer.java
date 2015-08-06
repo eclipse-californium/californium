@@ -367,6 +367,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					assembleMessage(status, assembled, response);
 					assembled.setType(response.getType());
 					
+					// set overall transfer RTT
+					assembled.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+					
 					// Check if this response is a notification
 					int observe = status.getObserve();
 					if (observe != BlockwiseStatus.NO_OBSERVE) {
