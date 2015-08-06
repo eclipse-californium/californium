@@ -158,7 +158,8 @@ public class CoAP {
 	 */
 	public enum ResponseCode {
 		
-		// Success
+		// Success: 64--95
+		_UNKNOWN_SUCCESS_CODE(64), // 2.00 is undefined -- only used to identify class
 		CREATED(65),
 		DELETED(66),
 		VALID(67),
@@ -166,7 +167,7 @@ public class CoAP {
 		CONTENT(69),
 		CONTINUE(95),
 
-		// Client error
+		// Client error: 128--159
 		BAD_REQUEST(128),
 		UNAUTHORIZED(129),
 		BAD_OPTION(130),
@@ -179,7 +180,7 @@ public class CoAP {
 		REQUEST_ENTITY_TOO_LARGE(141), 
 		UNSUPPORTED_CONTENT_FORMAT(143),
 
-		// Server error
+		// Server error: 160--192
 		INTERNAL_SERVER_ERROR(160),
 		NOT_IMPLEMENTED(161),
 		BAD_GATEWAY(162),
@@ -208,11 +209,13 @@ public class CoAP {
 		 */
 		public static ResponseCode valueOf(int value) {
 			switch (value) {
+				// CoAPTest.testResponseCode ensures we keep this up to date 
 				case 65: return CREATED;
 				case 66: return DELETED;
 				case 67: return VALID;
 				case 68: return CHANGED;
 				case 69: return CONTENT;
+				case 95: return CONTINUE;
 				case 128: return BAD_REQUEST;
 				case 129: return UNAUTHORIZED;
 				case 130: return BAD_OPTION;
@@ -230,10 +233,14 @@ public class CoAP {
 				case 163: return SERVICE_UNAVAILABLE;
 				case 164: return GATEWAY_TIMEOUT;
 				case 165: return PROXY_NOT_SUPPORTED;
-				default: // Make an extensive search
-					for (ResponseCode code:ResponseCode.values())
-						if (code.value == value) return code;
-					throw new IllegalArgumentException("Unknown CoAP response code "+value);
+				// codes unknown at release time
+				default:
+					// Fallback to class
+					if (value/32 == 2) return _UNKNOWN_SUCCESS_CODE;
+					else if (value/32 == 4) return BAD_REQUEST;
+					else if (value/32 == 5) return INTERNAL_SERVER_ERROR;
+					/// Undecidable
+					else throw new IllegalArgumentException("Unknown CoAP response code "+value);
 			}
 		}
 		
@@ -242,15 +249,15 @@ public class CoAP {
 		}
 		
 		public static boolean isSuccess(ResponseCode code) {
-			return 65 <= code.value && code.value <= 127;
+			return 64 <= code.value && code.value < 96;
 		}
 		
 		public static boolean isClientError(ResponseCode code) {
-			return BAD_REQUEST.value <= code.value && code.value < INTERNAL_SERVER_ERROR.value;
+			return 128 <= code.value && code.value < 160;
 		}
 		
 		public static boolean isServerError(ResponseCode code) {
-			return INTERNAL_SERVER_ERROR.value <= code.value;
+			return 160 <= code.value && code.value < 192;
 		}
 	}
 	
