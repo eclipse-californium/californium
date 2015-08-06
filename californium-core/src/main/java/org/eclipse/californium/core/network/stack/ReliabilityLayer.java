@@ -162,6 +162,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param task the retransmission task
 	 */
 	protected void prepareRetransmission(Exchange exchange, RetransmissionTask task) {
+		
+		// prevent RejectedExecutionException
+		if (executor.isShutdown()) {
+			LOGGER.info("Endpoint is being destroyed: skipping retransmission");
+			return;
+		}
+		
 		/*
 		 * For a new confirmable message, the initial timeout is set to a
 		 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
@@ -174,7 +181,6 @@ public class ReliabilityLayer extends AbstractLayer {
 			timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
 		}
 		exchange.setCurrentTimeout(timeout);
-		
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);
 	}

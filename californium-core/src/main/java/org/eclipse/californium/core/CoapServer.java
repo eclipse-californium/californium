@@ -224,9 +224,9 @@ public class CoapServer implements ServerInterface {
 		try {
 			boolean succ = executor.awaitTermination(5, TimeUnit.SECONDS);
 			if (!succ)
-				LOGGER.warning("Stack executor did not shutdown in time");
+				LOGGER.warning("Server executor did not shutdown in time");
 		} catch (InterruptedException e) {
-			LOGGER.log(Level.WARNING, "Exception while terminating stack executor", e);
+			LOGGER.log(Level.WARNING, "Exception while terminating server executor", e);
 		}
 	}
 	

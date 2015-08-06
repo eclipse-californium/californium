@@ -60,8 +60,8 @@ public class MessageTypeTest {
 			server.addEndpoint(endpoint);
 			server.add(new CoapResource(ACC_RESOURCE) {
 				public void handlePOST(CoapExchange exchange) {
-					System.out.println("gotit");
 					exchange.accept();
+					System.out.println("gotit");
 					exchange.respond(SERVER_RESPONSE);
 				}
 			});
@@ -90,7 +90,7 @@ public class MessageTypeTest {
 		Request req2acc = new Request(Code.POST);
 		req2acc.setConfirmable(false);
 		req2acc.setURI("localhost:"+serverPort+"/"+ACC_RESOURCE);
-		req2acc.setPayload("client says hi".getBytes());
+		req2acc.setPayload("client says hi");
 		req2acc.send();
 		
 		// receive response and check
@@ -102,7 +102,7 @@ public class MessageTypeTest {
 		Request req2noacc = new Request(Code.POST);
 		req2noacc.setConfirmable(false);
 		req2noacc.setURI("coap://localhost:"+serverPort+"/"+NO_ACC_RESOURCE);
-		req2noacc.setPayload("client says hi".getBytes());
+		req2noacc.setPayload("client says hi");
 		req2noacc.send();
 		
 		// receive response and check
@@ -118,7 +118,7 @@ public class MessageTypeTest {
 		Request req2acc = new Request(Code.POST);
 		req2acc.setConfirmable(true);
 		req2acc.setURI("localhost:"+serverPort+"/"+ACC_RESOURCE);
-		req2acc.setPayload("client says hi".getBytes());
+		req2acc.setPayload("client says hi");
 		req2acc.send();
 		
 		// receive response and check
@@ -130,7 +130,7 @@ public class MessageTypeTest {
 		Request req2noacc = new Request(Code.POST);
 		req2noacc.setConfirmable(true);
 		req2noacc.setURI("coap://localhost:"+serverPort+"/"+NO_ACC_RESOURCE);
-		req2noacc.setPayload("client says hi".getBytes());
+		req2noacc.setPayload("client says hi");
 		req2noacc.send();
 		
 		// receive response and check
@@ -139,5 +139,4 @@ public class MessageTypeTest {
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 		assertEquals(response.getType(), Type.ACK);
 	}
-	
 }
