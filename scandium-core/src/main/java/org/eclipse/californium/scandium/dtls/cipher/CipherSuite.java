@@ -18,6 +18,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Add getters for conveniently accessing
  *               a cipher suite's underlying security parameters, add definitions for CBC based
  *               cipher suites mandatory for LW M2M servers
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for checking if suite requires
+ *               sending of a CERTIFICATE message to the client
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -127,6 +129,18 @@ public enum CipherSuite {
 		return keyExchange;
 	}
 
+	/**
+	 * Checks whether this cipher suite requires the server
+	 * to send a <em>CERTIFICATE</em> message during the handshake.
+	 * 
+	 * @return <code>true</code> if the message is required
+	 */
+	public boolean requiresServerCertificateMessage() {
+		return !(KeyExchangeAlgorithm.DH_ANON.equals(keyExchange) ||
+				KeyExchangeAlgorithm.PSK.equals(keyExchange) ||
+				KeyExchangeAlgorithm.NULL.equals(keyExchange));
+	}
+	
 	/**
 	 * Gets the cipher suite's underlying bulk cipher algorithm used
 	 * to encrypt data.
