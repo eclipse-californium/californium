@@ -48,7 +48,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
  * The server MUST send a Certificate message whenever the agreed-upon key
  * exchange method uses certificates for authentication. This message will
@@ -93,23 +92,27 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * constrained environments for smaller message size.
 	 */
 	private final byte[] rawPublicKeyBytes;
-	
-	private int length;
+
+	// length is at least 3 bytes containing the message's overall number of bytes
+	private int length = 3;
 
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
-	 * Adds the whole certificate chain to the message and if requested extracts
-	 * the raw public key from the server's certificate.
+	 * Creates a <em>CERTIFICATE</em> message containing a certificate chain.
 	 * 
 	 * @param certificateChain
-	 *            the certificate chain (first certificate must be the
+	 *            the certificate chain with the (first certificate must be the
 	 *            server's)
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
+	 * @throws NullPointerException if the certificate chain is <code>null</code>
 	 */
 	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
 		this(null, certificateChain, peerAddress);
+		if (certificateChain == null) {
+			throw new NullPointerException("Certificate chain must not be null");
+		}
 		calculateLength(certificateChain);
 	}
 
@@ -124,9 +127,11 @@ public final class CertificateMessage extends HandshakeMessage {
 	 */
 	public CertificateMessage(byte[] rawPublicKeyBytes, InetSocketAddress peerAddress) {
 		this(rawPublicKeyBytes, null, peerAddress);
-		// fixed: 3 bytes for certificates length field + 3 bytes for
-		// certificate length
-		length = 6 + rawPublicKeyBytes.length;
+		if (rawPublicKeyBytes.length > 0) {
+			// 3 additional bytes for public key length + encoded key bytes
+			length += 3 + rawPublicKeyBytes.length;
+		}
+		
 		// TODO still unclear whether the payload only consists of the raw public key
 		
 		// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.2:
@@ -153,24 +158,23 @@ public final class CertificateMessage extends HandshakeMessage {
 			// the certificate chain length uses 3 bytes
 			// each certificate's length in the chain also uses 3 bytes
 			if (encodedChain == null) {
-				length = 3;
 				encodedChain = new ArrayList<byte[]>(certificateChain.length);
 				for (Certificate cert : certificateChain) {
 					try {
 						byte[] encoded = cert.getEncoded();
 						encodedChain.add(encoded);
 
-						// the length of the encoded certificate plus 3 bytes
-						// for the length
-						length += encoded.length + 3;
+						// the length of the encoded certificate (3 bytes) plus the
+						// encoded bytes
+						length += 3 + encoded.length;
 					} catch (CertificateEncodingException e) {
 						encodedChain = null;
 						LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
 					}
 				}
-					}
-				}
 			}
+		}
+	}
 			
 	@Override
 	public int getMessageLength() {
@@ -276,10 +280,10 @@ public final class CertificateMessage extends HandshakeMessage {
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
+		writer.write(getMessageLength() - 3, CERTIFICATE_LIST_LENGTH);
 
 		if (rawPublicKeyBytes == null) {
 			// the size of the certificate chain
-			writer.write(getMessageLength() - (CERTIFICATE_LIST_LENGTH/8), CERTIFICATE_LIST_LENGTH);
 			for (byte[] encoded : encodedChain) {
 				// the size of the current certificate
 				writer.write(encoded.length, CERTIFICATE_LENGTH_BITS);
@@ -287,7 +291,6 @@ public final class CertificateMessage extends HandshakeMessage {
 				writer.writeBytes(encoded);
 			}
 		} else {
-			writer.write(getMessageLength() - 3, CERTIFICATE_LIST_LENGTH);
 			writer.write(rawPublicKeyBytes.length, CERTIFICATE_LENGTH_BITS);
 			writer.writeBytes(rawPublicKeyBytes);
 		}
@@ -299,7 +302,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
-		int certificateChainLength = reader.read(CERTIFICATE_LENGTH_BITS);
+		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
 		
 		CertificateMessage message;
 		if (useRawPublicKey) {
@@ -326,7 +329,7 @@ public final class CertificateMessage extends HandshakeMessage {
 					certs.add(certificateFactory.generateCertificate(new ByteArrayInputStream(certificate)));
 				} catch (CertificateException e) {
 					LOGGER.log(Level.INFO,
-							"Could not create X.509 certificate from byte array, reason [{0}]",
+							"Could not create X.509 certificate from byte array: {0}",
 							e.getMessage());
 					break;
 				}
