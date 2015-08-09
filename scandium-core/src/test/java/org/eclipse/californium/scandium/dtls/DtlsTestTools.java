@@ -75,14 +75,33 @@ public class DtlsTestTools {
 		return hmac.doFinal();
 	}
 
-	public static byte[] newClientCertificateTypesExtension(byte[] certificateTypes) {
-		return newHelloExtension(19, certificateTypes);
+	public static byte[] newClientCertificateTypesExtension(int... types) {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(types.length, 8);
+		for (int type : types) {
+			writer.write(type, 8);
+		}
+		return newHelloExtension(19, writer.toByteArray());
 	}
 
-	public static byte[] newServerCertificateTypesExtension(byte[] certificateTypes) {
-		return newHelloExtension(20, certificateTypes);
+	public static byte[] newServerCertificateTypesExtension(int... types) {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(types.length, 8);
+		for (int type : types) {
+			writer.write(type, 8);
+		}
+		return newHelloExtension(20, writer.toByteArray());
 	}
-
+	
+	public static byte[] newSupportedEllipticCurvesExtension(int... curveIds) {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(curveIds.length * 2, 16);
+		for (int type : curveIds) {
+			writer.write(type, 16);
+		}
+		return newHelloExtension(10, writer.toByteArray());
+	}
+	
 	public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(typeCode, 16);

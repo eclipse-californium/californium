@@ -16,6 +16,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Date;
@@ -25,16 +28,15 @@ import java.util.List;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.DatagramWriter;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,21 +45,23 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class ServerHandshakerTest {
 
-	static PublicKey publicKey;
 	static PrivateKey privateKey;
+	static Certificate[] certificateChain;
 	ServerHandshaker handshaker;
 	DTLSSession session;
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
 	byte[] sessionId = new byte[]{(byte) 0x0A, (byte) 0x0B, (byte) 0x0C, (byte) 0x0D, (byte) 0x0E, (byte) 0x0F};
 	// ciphers supported by client: 0xFFA8 = fantasy cipher (non-existent), 0xC0A8 = TLS_PSK_WITH_AES_128_CCM_8
-	byte[] supportedCiphers = new byte[]{(byte) 0xFF, (byte) 0xA8, (byte) 0xC0, (byte) 0xA8};
+	// 0xC023 = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+	byte[] supportedCiphers = new byte[]{(byte) 0xFF, (byte) 0xA8, (byte) 0xC0, (byte) 0xA8, (byte) 0xC0, (byte) 0x23};
 	byte[] random;
 	byte[] clientHelloMsg;
 	
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		privateKey = DtlsTestTools.getPrivateKey();
-		publicKey = DtlsTestTools.getPublicKey();
+		certificateChain = DtlsTestTools.getCertificateChainFromStore(
+				DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD, "server");
 	}
 	
 	@Before
@@ -71,9 +75,9 @@ public class ServerHandshakerTest {
 		
 		session = new DTLSSession(endpoint, false);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
-		builder.setIdentity(privateKey, publicKey)
-			.setPskStore(new StaticPskStore("client", "secret".getBytes()))
-			.setTrustStore(trustedCertificates);
+		builder.setIdentity(privateKey, certificateChain, false)
+			.setTrustStore(trustedCertificates)
+			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256});
 		handshaker = new ServerHandshaker(session, null, builder.build());
 
 		DatagramWriter writer = new DatagramWriter();
@@ -90,14 +94,18 @@ public class ServerHandshakerTest {
 	@Test
 	public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws HandshakeException {
 
-		processClientHello(0, null, supportedCiphers, null);
+		List<byte[]> extensions = new LinkedList<>();
+		// curveId 0x0016 secp256k1
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0016));
+
+		processClientHello(0, null, supportedCiphers, extensions);
 
 		byte[] loggedMsg = new byte[clientHelloMsg.length];
 		// copy the received ClientHello message from the handshakeMessages buffer
 		System.arraycopy(handshaker.handshakeMessages, 0, loggedMsg, 0, clientHelloMsg.length);
 		// and verify that it is equal to the original ClientHello message
 		// sent by the client
-		Assert.assertArrayEquals(clientHelloMsg, loggedMsg);
+		assertArrayEquals(clientHelloMsg, loggedMsg);
 	}
 
 	@Test
@@ -108,10 +116,10 @@ public class ServerHandshakerTest {
 		try {
 			// process Client Hello including Cookie
 			processClientHello(0, null, supportedCiphers, null);
-			Assert.fail("Server should have aborted cipher negotiation");
+			fail("Server should have aborted cipher negotiation");
 		} catch (HandshakeException e) {
 			// server has aborted handshake as required
-			Assert.assertEquals(AlertMessage.AlertLevel.FATAL, e.getAlert().getLevel());
+			assertEquals(AlertMessage.AlertLevel.FATAL, e.getAlert().getLevel());
 		}
 
 
@@ -121,7 +129,7 @@ public class ServerHandshakerTest {
 	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() throws HandshakeException {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
-		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(new byte[]{(byte) 0x05}));
+		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(0x05));
 
 		processClientHello(0, null, supportedCiphers, extensions);
 	}
@@ -131,42 +139,59 @@ public class ServerHandshakerTest {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type OpenPGP is not supported by Scandium
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
-				new byte[]{(byte) CertificateType.OPEN_PGP.getCode()}));
+				CertificateType.OPEN_PGP.getCode()));
 
 		try {
 			processClientHello(0, null, supportedCiphers, extensions);
-			Assert.fail("Should have thrown " + HandshakeException.class.getSimpleName());
+			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
-			Assert.assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
+			assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
 		}
 	}
 
 	@Test
 	public void testReceiveClientHelloNegotiatesSupportedCertificateType() throws Exception {
 		List<byte[]> extensions = new LinkedList<>();
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0016));
 		// certificate type OpenPGP is not supported by Scandium
 		// certificate type X.509 is supported by Scandium
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
-				new byte[]{(byte) CertificateType.OPEN_PGP.getCode(),
-						(byte) CertificateType.X_509.getCode()}));
+				CertificateType.OPEN_PGP.getCode(), CertificateType.X_509.getCode()));
 
-		DTLSFlight flight = processClientHello(0, null, supportedCiphers, extensions);
-		ServerHello serverHello = (ServerHello) flight.getMessages().get(0).getFragment();
-		Assert.assertNotNull(serverHello.getExtensions());
-		ClientCertificateTypeExtension ext = (ClientCertificateTypeExtension) serverHello.getExtensions().getExtensions().get(0);
-		Assert.assertTrue(ext.getCertificateTypes().contains(CertificateType.X_509));
+		processClientHello(0, null, supportedCiphers, extensions);
+		assertThat(handshaker.getNegotiatedClientCertificateType(), is(CertificateType.X_509));
+		assertThat(handshaker.getNegotiatedServerCertificateType(), is(CertificateType.X_509));
 	}
 
 	@Test(expected = HandshakeException.class)
 	public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() throws HandshakeException {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
-		extensions.add(DtlsTestTools.newServerCertificateTypesExtension(new byte[]{(byte) 0x05}));
+		extensions.add(DtlsTestTools.newServerCertificateTypesExtension(0x05));
 
 		processClientHello(0, null, supportedCiphers, extensions);
 	}
 
+	@Test(expected = HandshakeException.class)
+	public void testReceiveClientHelloAbortsOnUnsupportedEcCurveIds() throws HandshakeException {
+		List<byte[]> extensions = new LinkedList<>();
+		// curveId 0x0000 is not assigned by IANA
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000));
+		// only support ECDHE based cipher suite
+		processClientHello(0, null, new byte[]{(byte) 0xC0, (byte) 0x23}, extensions);
+	}
+	
+	@Test()
+	public void testReceiveClientHelloNegotiatesSupportedEcCurveId() throws HandshakeException {
+		List<byte[]> extensions = new LinkedList<>();
+		// curveId 0x0000 is not assigned by IANA
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, SupportedGroup.secp256r1.getId()));
+		// only support ECDHE based cipher suite
+		processClientHello(0, null, new byte[]{(byte) 0xC0, (byte) 0x23}, extensions);
+		assertThat(handshaker.getNegortiatedSupportedGroup(), is(SupportedGroup.secp256r1));
+	}
+	
 	private DTLSFlight processClientHello(int messageSeq, byte[] cookie,
 			byte[] supportedCiphers, List<byte[]> helloExtensions) throws HandshakeException {
 
@@ -182,7 +207,7 @@ public class ServerHandshakerTest {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), epoch,
 				sequenceNo, clientHelloMsg);
 		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint);
-		Assert.assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
 		return handshaker.processMessage(record);
 	}

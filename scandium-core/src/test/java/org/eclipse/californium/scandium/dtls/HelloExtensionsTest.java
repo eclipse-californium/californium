@@ -88,32 +88,30 @@ public class HelloExtensionsTest {
 	private void givenAMixOfSupportedAndUnsupportedHelloExtensions() {
 		int length = 0;
 		List<byte[]> extensions = new LinkedList<>();
-    	// a supported client certificate type extension
-		byte[] ext = DtlsTestTools.newClientCertificateTypesExtension(
-    			new byte[]{(byte) CertificateType.X_509.getCode()});
+		// a supported client certificate type extension
+		byte[] ext = DtlsTestTools.newClientCertificateTypesExtension(CertificateType.X_509.getCode());
 		length += ext.length;
-    	extensions.add(ext);
-    	// extension type 0x50 is not defined by IANA
-    	DatagramWriter writer = new DatagramWriter();
-    	writer.writeBytes(
-    			DtlsTestTools.newHelloExtension(unsupportedExtensionTypeCode, new byte[]{(byte) 0x12}));
-    	ext = writer.toByteArray();
+		extensions.add(ext);
+		// extension type 0x50 is not defined by IANA
+		DatagramWriter writer = new DatagramWriter();
+		writer.writeBytes(DtlsTestTools.newHelloExtension(
+				unsupportedExtensionTypeCode, new byte[] { (byte) 0x12 }));
+		ext = writer.toByteArray();
 		length += ext.length;
-    	extensions.add(ext);
-    	// a supported server certificate type extension
-    	ext = DtlsTestTools.newServerCertificateTypesExtension(
-    			new byte[]{(byte) CertificateType.X_509.getCode()});
+		extensions.add(ext);
+		// a supported server certificate type extension
+		ext = DtlsTestTools.newServerCertificateTypesExtension(CertificateType.X_509.getCode());
 		length += ext.length;
-    	extensions.add(ext);
-    	
-    	writer = new DatagramWriter();
-    	writer.write(length, HelloExtensions.LENGTH_BITS);
-    	for (byte[] extension : extensions) {
-    		writer.writeBytes(extension);
-    	}
-    	helloExtensionBytes = writer.toByteArray();
+		extensions.add(ext);
+
+		writer = new DatagramWriter();
+		writer.write(length, HelloExtensions.LENGTH_BITS);
+		for (byte[] extension : extensions) {
+			writer.writeBytes(extension);
+		}
+		helloExtensionBytes = writer.toByteArray();
 	}
-	
+
 	private void givenAnEmptyExtensionsObject() {
 		helloExtensions = new HelloExtensions();
 	}

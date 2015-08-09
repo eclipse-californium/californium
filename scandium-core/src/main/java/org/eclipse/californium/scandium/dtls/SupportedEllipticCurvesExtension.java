@@ -17,18 +17,21 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
- * The supported elliptic curves extension. For details see <a
- * href="http://tools.ietf.org/html/rfc4492#section-5.1.1">RFC 4492</a>.
+ * The supported elliptic curves extension.
+ * 
+ * For details see <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1">
+ * RFC 4492</a>.
  */
-public class SupportedEllipticCurvesExtension extends HelloExtension {
+public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -39,7 +42,7 @@ public class SupportedEllipticCurvesExtension extends HelloExtension {
 	// Members ////////////////////////////////////////////////////////
 	
 	/** The list holding the supported named curves IDs */
-	private List<Integer> ellipticCurveList;
+	private final List<Integer> ellipticCurveList;
 	
 	// Constructor ////////////////////////////////////////////////////
 
@@ -99,24 +102,25 @@ public class SupportedEllipticCurvesExtension extends HelloExtension {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: " + (getLength() - 4) + "\n");
-		sb.append("\t\t\t\tElliptic Curves Length: " + (getLength() - 6) + "\n");
-		sb.append("\t\t\t\tElliptic Curves (" + ellipticCurveList.size() + " curves):\n");
+		sb.append("\t\t\t\tLength: ").append(getLength() - 4).append("\n");
+		sb.append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6).append("\n");
+		sb.append("\t\t\t\tElliptic Curves (").append(ellipticCurveList.size()).append(" curves):\n");
 
 		for (Integer curveId : ellipticCurveList) {
-			if (0 < curveId && curveId < ECDHECryptography.NAMED_CURVE_TABLE.length) {
-				String curveName = ECDHECryptography.NAMED_CURVE_TABLE[curveId];
-				sb.append("\t\t\t\t\tElliptic Curve: " + curveName + " (" + curveId + ")\n");
+			SupportedGroup group = SupportedGroup.fromId(curveId);
+			if (group != null) {
+				sb.append("\t\t\t\t\tElliptic Curve: ").append(group.name());
 			} else {
-				sb.append("\t\t\t\t\tElliptic Curve: unknown (" + curveId + ")\n");
+				sb.append("\t\t\t\t\tElliptic Curve: unknown");
 			}
+			sb.append(" (").append(curveId).append(")\n");
 		}
 
 		return sb.toString();
 	}
 
 	public List<Integer> getEllipticCurveList() {
-		return ellipticCurveList;
+		return Collections.unmodifiableList(ellipticCurveList);
 	}
 
 }

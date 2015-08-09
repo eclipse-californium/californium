@@ -46,7 +46,9 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorit
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -91,6 +93,10 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private List<CertificateType> supportedServerCertificateTypes;
 
+	private CertificateType negotiatedClientCertificateType;
+	private CertificateType negotiatedServerCertificateType;
+	private SupportedGroup negotiatedSupportedGroup;
+	
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
 	 * need these to compute the handshake hash.
@@ -332,6 +338,8 @@ public class ServerHandshaker extends Handshaker {
 		clientPublicKey = clientCertificate.getPublicKey();
 		if (message.getCertificateChain() != null && message.getCertificateChain().length > 0) {
 			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
+		} else {
+			// TODO: decide whether the handshake needs to be aborted or can proceed with an unauthenticated client
 		}
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
@@ -488,60 +496,22 @@ public class ServerHandshaker extends Handshaker {
 		
 		
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
+		serverHelloExtensions.addExtension(negotiateClientCertificateType(message));
 
-		if (supportedCipherSuites.contains(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)) {
-			// we only need to add certificate extensions if we support
-			// a certificate based key exchange algorithm
-			ClientCertificateTypeExtension clientCertificateTypeExtension = message
-					.getClientCertificateTypeExtension();
-			if (clientCertificateTypeExtension != null) {
-				// choose certificate type from client's list
-				// of preferred client certificate types
-				CertificateType certType = negotiateCertificateType(
-						clientCertificateTypeExtension,
-						supportedClientCertificateTypes);
-				// the certificate type requested from the client
-				CertificateTypeExtension ext1 = new ClientCertificateTypeExtension(false);
-				ext1.addCertificateType(certType);
-
-				serverHelloExtensions.addExtension(ext1);
-
-				if (certType == CertificateType.RAW_PUBLIC_KEY) {
-					session.setReceiveRawPublicKey(true);
-				}
-			}
-			
-			CertificateTypeExtension serverCertificateTypeExtension = message.getServerCertificateTypeExtension();
-			if (serverCertificateTypeExtension != null) {
-				// choose certificate type from client's list
-				// of preferred server certificate types
-				CertificateType certType = negotiateCertificateType(
-						serverCertificateTypeExtension,
-						supportedServerCertificateTypes);
-				// the certificate type found in the attached certificate
-				// payload
-				CertificateTypeExtension ext2 = new ServerCertificateTypeExtension(false);
-				ext2.addCertificateType(certType);
-
-				serverHelloExtensions.addExtension(ext2);
-
-				if (certType == CertificateType.RAW_PUBLIC_KEY) {
-					session.setSendRawPublicKey(true);
-				}
-			}
+		if (cipherSuite.requiresServerCertificateMessage()) {
+			// we (server side) need to prove our identity using a certificate
+			serverHelloExtensions.addExtension(negotiateServerCertificateType(message));
 		}
 
-		if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+		if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange)) {
 			// if we chose a ECC cipher suite, the server should send the
 			// supported point formats extension in its ServerHello
 			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-
-			HelloExtension ext3 = new SupportedPointFormatsExtension(formats);
-			serverHelloExtensions.addExtension(ext3);
+			serverHelloExtensions.addExtension(new SupportedPointFormatsExtension(formats));
 		}
 
-		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, cipherSuite, compressionMethod,
-				serverHelloExtensions, session.getPeer());
+		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
+				cipherSuite, compressionMethod,	serverHelloExtensions, session.getPeer());
 		flight.addMessage(wrapMessage(serverHello));
 		
 		// update the handshake hash
@@ -582,11 +552,17 @@ public class ServerHandshaker extends Handshaker {
 		case EC_DIFFIE_HELLMAN:
 			// TODO SHA256withECDSA is default but should be configurable
 			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-			int namedCurveId = negotiateNamedCurve(message.getSupportedEllipticCurvesExtension());
-			ecdhe = new ECDHECryptography(namedCurveId);
-			serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom,
-					namedCurveId, session.getPeer());
-			break;
+			int negotiatedCurveId = negotiateNamedCurve(message);
+			ecdhe = ECDHECryptography.fromNamedCurveId(negotiatedCurveId);
+			try {
+				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom,
+						negotiatedCurveId, session.getPeer());
+				break;
+			} catch (GeneralSecurityException e) {
+				throw new HandshakeException(
+						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			}
 
 		case PSK:
 			/*
@@ -765,56 +741,129 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Chooses a elliptic curve from the client's supported list.
+	 * Determines the elliptic curve to use during the EC based DH key exchange.
 	 * 
-	 * @param extension
-	 *            the supported elliptic curves extension.
-	 * @return the chosen elliptic curve identifier.
+	 * @param clientHello
+	 *            the peer's <em>CLIENT_HELLO</em> message containing its
+	 *            preferred elliptic curves
+	 * @return the selected elliptic curve's id
 	 * @throws HandshakeException
-	 *             if no extension present in the ClientHello.
+	 *             if none of the peer's preferred curves is supported by this
+	 *             handshaker
 	 */
-	private int negotiateNamedCurve(SupportedEllipticCurvesExtension extension) throws HandshakeException {
-		if (extension != null) {
-			for (Integer curveID : extension.getEllipticCurveList()) {
+	private int negotiateNamedCurve(ClientHello clientHello) throws HandshakeException {
+		SupportedEllipticCurvesExtension extension = clientHello.getSupportedEllipticCurvesExtension();
+		if (extension == null) {
+			// extension was not present in ClientHello, we can't continue the handshake
+			throw new HandshakeException(
+					"Client did not provide the elliptic_curves extension although EC cipher suite chosen",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+		} else {
+			for (Integer preferredCurveId : extension.getEllipticCurveList()) {
 				// choose first proposal which is supported
-				if (ECDHServerKeyExchange.NAMED_CURVE_PARAMETERS.get(curveID) != null) {
-					return curveID;
+				SupportedGroup group = SupportedGroup.fromId(preferredCurveId);
+				if (group != null && group.getEcParams() != null) {
+					negotiatedSupportedGroup = group;
+					break;
 				}
 			}
-		} else {
-			// extension was not present in ClientHello, we can't continue the handshake
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-			throw new HandshakeException("The client did not provide the supported elliptic curves extension although ECC cipher suite chosen.", alert);
+			if (negotiatedSupportedGroup == null) {
+				throw new HandshakeException(
+						"None of elliptic curves proposed by client supported by server",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+			} else {
+				return negotiatedSupportedGroup.getId();
+			}
 		}
-		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-		throw new HandshakeException("No proposed elliptic curve supported.", alert);
-
 	}
 	
 	/**
-	 * Chooses the certificate type which will be used in the rest of the
-	 * handshake.
+	 * Determines the type of certificate this handshaker expects from the peer
+	 * in its <em>CERTIFICATE</em> message.
 	 * 
-	 * @param extension
-	 *            the certificate types preferred by the client
-	 * @param supportedTypes
-	 *            the certificate types supported by this server
-	 * @return the certificate type selected (and supported) by this server
+	 * @param clientHello
+	 *            the peer's <em>CLIENT_HELLO</em> message containing the
+	 *            peer's preferred client certificate types
+	 * @return the hello extension containing the selected certificate type
 	 * @throws HandshakeException
-	 *             if none of the client's preferred types is supported by this
-	 *             server
+	 *             if none of the peer's preferred types is supported by this
+	 *             handshaker
 	 */
-	private CertificateType negotiateCertificateType(
-			CertificateTypeExtension extension,
-			List<CertificateType> supportedTypes) throws HandshakeException {
-		for (CertificateType preferredType : extension.getCertificateTypes()) {
-			if (supportedTypes.contains(preferredType)) {
-				return preferredType;
+	private ClientCertificateTypeExtension negotiateClientCertificateType(ClientHello clientHello)
+			throws HandshakeException {
+		
+		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
+		if (certTypeExt != null) {
+			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+				if (supportedClientCertificateTypes.contains(certType)) {
+					negotiatedClientCertificateType = certType;
+					break;
+				}
 			}
+		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
+			negotiatedClientCertificateType = CertificateType.X_509;
 		}
-		throw new HandshakeException("No supported certificate type found",
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
+		if (negotiatedClientCertificateType == null) {
+			throw new HandshakeException(
+					"Server does not support any of the client's preferred client certificate types",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
+		} else {
+			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
 
+			ClientCertificateTypeExtension result = new ClientCertificateTypeExtension(false);
+			result.addCertificateType(negotiatedClientCertificateType);
+			return result;
+		}
 	}	
+
+	/**
+	 * Determines the type of certificate this handshaker will send to the peer
+	 * in its <em>CERTIFICATE</em> message.
+	 * 
+	 * @param clientHello
+	 *            the peer's <em>CLIENT_HELLO</em> message containing the
+	 *            peer's preferred server certificate types
+	 * @return the hello extension containing the selected certificate type
+	 * @throws HandshakeException
+	 *             if none of the peer's preferred types is supported by this
+	 *             handshaker
+	 */
+	private ServerCertificateTypeExtension negotiateServerCertificateType(ClientHello clientHello)
+			throws HandshakeException {
+		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
+		if (certTypeExt != null) {
+			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+				if (supportedServerCertificateTypes.contains(certType)) {
+					negotiatedServerCertificateType = certType;
+					break;
+				}
+			}
+		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
+			negotiatedServerCertificateType = CertificateType.X_509;
+		}
+		if (negotiatedServerCertificateType == null) {
+			throw new HandshakeException(
+					"Server does not support any of the client's preferred server certificate types",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
+		} else {
+			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
+			
+			ServerCertificateTypeExtension result = new ServerCertificateTypeExtension(false);
+			result.addCertificateType(negotiatedServerCertificateType);
+			return result;
+		}
+	}
+
+	final CertificateType getNegotiatedClientCertificateType() {
+		return negotiatedClientCertificateType;
+	}
+
+	final CertificateType getNegotiatedServerCertificateType() {
+		return negotiatedServerCertificateType;
+	}
+	
+	final SupportedGroup getNegortiatedSupportedGroup() {
+		return negotiatedSupportedGroup;
+	}
 
 }

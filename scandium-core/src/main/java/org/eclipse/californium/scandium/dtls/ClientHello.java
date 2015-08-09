@@ -29,6 +29,7 @@ import java.util.List;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -114,9 +115,9 @@ public final class ClientHello extends HandshakeMessage {
 		
 		// the supported elliptic curves
 		List<Integer> curves = Arrays.asList(
-				ECDHServerKeyExchange.NAMED_CURVE_INDEX.get("secp256r1"),
-				ECDHServerKeyExchange.NAMED_CURVE_INDEX.get("secp384r1"),
-				ECDHServerKeyExchange.NAMED_CURVE_INDEX.get("secp521r1"));
+				ECDHECryptography.SupportedGroup.secp256r1.getId(),
+				ECDHECryptography.SupportedGroup.secp384r1.getId(),
+				ECDHECryptography.SupportedGroup.secp521r1.getId());
 		HelloExtension supportedCurvesExtension = new SupportedEllipticCurvesExtension(curves);
 		this.extensions.addExtension(supportedCurvesExtension);
 		
