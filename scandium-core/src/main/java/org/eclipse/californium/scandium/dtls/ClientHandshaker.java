@@ -28,7 +28,6 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
-import java.security.spec.ECParameterSpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -442,15 +441,16 @@ public class ClientHandshaker extends Handshaker {
 		}
 		// for backwards compatibility only
 		session.setPeerRawPublicKey(serverPublicKey);
-		// get the curve parameter spec by the named curve id
-		ECParameterSpec params = ECDHServerKeyExchange.NAMED_CURVE_PARAMETERS.get(message.getCurveId());
-		if (params == null) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-			throw new HandshakeException("Server used unsupported elliptic curve for ECDH", alert);
+		ephemeralServerPublicKey = message.getPublicKey();
+		try {
+			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
+		} catch (GeneralSecurityException e) {
+			throw new HandshakeException(
+				String.format(
+					"Cannot create ephemeral keys from domain params provided by server: %s",
+					e.getMessage()),
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
 		}
-		
-		ephemeralServerPublicKey = message.getPublicKey(params);
-		ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
 	}
 
 	/**
