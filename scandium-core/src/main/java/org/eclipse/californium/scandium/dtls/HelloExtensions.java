@@ -38,7 +38,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 /**
  * A container for one or more {@link HelloExtension}s.
  */
-public class HelloExtensions {
+public final class HelloExtensions {
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(HelloExtensions.class.getCanonicalName());
@@ -50,7 +50,7 @@ public class HelloExtensions {
 	// Members ////////////////////////////////////////////////////////
 
 	/** The list of extensions. */
-	private List<HelloExtension> extensions;
+	private final List<HelloExtension> extensions;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -87,7 +87,9 @@ public class HelloExtensions {
 	}
 
 	public void addExtension(HelloExtension extension) {
-		this.extensions.add(extension);
+		if (extension != null) {
+			this.extensions.add(extension);
+		}
 	}
 
 	@Override
