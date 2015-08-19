@@ -13,6 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469158
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -52,6 +53,28 @@ public class CertificateMessageTest {
 		}
 	}
 
+	@Test
+	public void testEmptyCertificateMessageSerialization() {
+		
+		givenAnEmptyCertificateMessage();
+		assertSerializedMessageLength(3);
+
+		givenAnEmptyRawPublicKeyCertificateMessage();
+		assertSerializedMessageLength(3);
+	}
+
+	@Test
+	public void testFromByteArrayHandlesEmptyMessageCorrectly() {
+		byte[] msg = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
+		// parse expecting X.509 payload
+		message = CertificateMessage.fromByteArray(msg, false, peerAddress);
+		assertSerializedMessageLength(3);
+
+		// parse expecting RawPublicKey payload
+		message = CertificateMessage.fromByteArray(msg, true, peerAddress);
+		assertSerializedMessageLength(3);
+	}
+	
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage("server", true);
@@ -97,6 +120,12 @@ public class CertificateMessageTest {
 			// all is well
 		}
 	}
+
+	private void assertSerializedMessageLength(int length) {
+		assertThat(message.getMessageLength(), is(length));
+		byte[] serializedMsg = message.fragmentToByteArray();
+		assertThat(serializedMsg.length, is(length));
+	}
 	
 	private void givenACertificateMessage(String certChainName, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
 		certificateChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD,
@@ -108,4 +137,11 @@ public class CertificateMessageTest {
 		}
 	}
 
+	private void givenAnEmptyCertificateMessage() {
+		message = new CertificateMessage(new Certificate[]{}, peerAddress);
+	}
+
+	private void givenAnEmptyRawPublicKeyCertificateMessage() {
+		message = new CertificateMessage(new byte[]{}, peerAddress);
+	}
 }
