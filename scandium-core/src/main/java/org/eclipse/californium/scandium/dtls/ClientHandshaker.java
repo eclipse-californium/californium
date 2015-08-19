@@ -628,7 +628,8 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(),supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer() );
+		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(),
+				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
 		clientRandom = message.getRandom();
