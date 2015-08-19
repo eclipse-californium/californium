@@ -21,6 +21,8 @@
  *                                                    session expiration (466554)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
  *                                                    of handshake
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - only include client/server certificate type extensions
+ *                                                    in SERVER_HELLO if required for cipher suite
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -496,11 +498,16 @@ public class ServerHandshaker extends Handshaker {
 		
 		
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
-		serverHelloExtensions.addExtension(negotiateClientCertificateType(message));
-
+		
 		if (cipherSuite.requiresServerCertificateMessage()) {
-			// we (server side) need to prove our identity using a certificate
+			// the negotiated cipher suite requires us (server side) to prove our identity
+			// using a certificate
 			serverHelloExtensions.addExtension(negotiateServerCertificateType(message));
+			if (clientAuthenticationRequired) {
+				// we (server side) will request a certificate from the client as well
+				// thus we need to indicate the type of certificate we expect
+				serverHelloExtensions.addExtension(negotiateClientCertificateType(message));
+			}
 		}
 
 		if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange)) {
@@ -522,21 +529,13 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Certificate (if required by key exchange algorithm)
 		 */
 		CertificateMessage certificateMessage = null;
-		switch (keyExchange) {
-		case EC_DIFFIE_HELLMAN:
+		if (cipherSuite.requiresServerCertificateMessage()) {
 			if (session.sendRawPublicKey()){
 				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
 			} else {
 				certificateMessage = new CertificateMessage(certificates, session.getPeer());
 			}
-			break;
 
-		default:
-			// NULL and PSK do not require the Certificate message
-			// See http://tools.ietf.org/html/rfc4279#section-2
-			break;
-		}
-		if (certificateMessage != null) {
 			flight.addMessage(wrapMessage(certificateMessage));
 			md.update(certificateMessage.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
@@ -732,6 +731,8 @@ public class ServerHandshaker extends Handshaker {
 			// NEVER negotiate NULL cipher suite
 			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL &&
 					supportedCipherSuites.contains(cipherSuite)) {
+				LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
+						new Object[]{cipherSuite.name(), getPeerAddress()});
 				return cipherSuite;
 			}
 		}
