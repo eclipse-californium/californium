@@ -16,6 +16,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add access to client identity
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -107,6 +108,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
 	 * @throws NullPointerException if the certificate chain is <code>null</code>
+	 *            (use an array of length zero to create an <em>empty</em> message)
 	 */
 	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
 		this(null, certificateChain, peerAddress);
@@ -117,16 +119,21 @@ public final class CertificateMessage extends HandshakeMessage {
 	}
 
 	/**
-	 * Called when only the raw public key is available (and not the whole
-	 * certificate chain).
+	 * Creates a <em>CERTIFICATE</em> message containing a raw public key.
 	 * 
 	 * @param rawPublicKeyBytes
 	 *           the raw public key (SubjectPublicKeyInfo)
 	 * @param peerAddress the IP address and port of the peer this
 	 *           message has been received from or should be sent to
+	 * @throws NullPointerException if the raw public key byte array is <code>null</code>
+	 *           (use an array of length zero to create an <em>empty</em> message)
 	 */
 	public CertificateMessage(byte[] rawPublicKeyBytes, InetSocketAddress peerAddress) {
 		this(rawPublicKeyBytes, null, peerAddress);
+		if (rawPublicKeyBytes == null) {
+			throw new NullPointerException("Raw public key byte array must not be null");
+		}
+		
 		if (rawPublicKeyBytes.length > 0) {
 			// 3 additional bytes for public key length + encoded key bytes
 			length += 3 + rawPublicKeyBytes.length;
@@ -159,18 +166,18 @@ public final class CertificateMessage extends HandshakeMessage {
 			// each certificate's length in the chain also uses 3 bytes
 			if (encodedChain == null) {
 				encodedChain = new ArrayList<byte[]>(certificateChain.length);
-				for (Certificate cert : certificateChain) {
-					try {
+				try {
+					for (Certificate cert : certificateChain) {
 						byte[] encoded = cert.getEncoded();
 						encodedChain.add(encoded);
 
 						// the length of the encoded certificate (3 bytes) plus the
 						// encoded bytes
 						length += 3 + encoded.length;
-					} catch (CertificateEncodingException e) {
-						encodedChain = null;
-						LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
 					}
+				} catch (CertificateEncodingException e) {
+					encodedChain = null;
+					LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
 				}
 			}
 		}
@@ -185,16 +192,15 @@ public final class CertificateMessage extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		if (rawPublicKeyBytes == null) {
-			sb.append("\t\tCertificates Length: " + (getMessageLength() - 3) + "\n");
+		if (rawPublicKeyBytes == null && certificateChain != null) {
+			sb.append("\t\tCertificate chain length: ").append(getMessageLength() - 3).append("\n");
 			int index = 0;
 			for (Certificate cert : certificateChain) {
-				sb.append("\t\t\tCertificate Length: " + encodedChain.get(index).length + "\n");
-				sb.append("\t\t\tCertificate: " + cert.toString() + "\n");
-
+				sb.append("\t\t\tCertificate Length: ").append(encodedChain.get(index).length).append("\n");
+				sb.append("\t\t\tCertificate: ").append(cert).append("\n");
 				index++;
 			}
-		} else {
+		} else if (rawPublicKeyBytes != null && certificateChain == null) {
 			sb.append("\t\tRaw Public Key: ");
 			sb.append(getPublicKey().toString());
 			sb.append("\n");
@@ -290,7 +296,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				// the encoded current certificate
 				writer.writeBytes(encoded);
 			}
-		} else {
+		} else if (rawPublicKeyBytes.length > 0) {
 			writer.write(rawPublicKeyBytes.length, CERTIFICATE_LENGTH_BITS);
 			writer.writeBytes(rawPublicKeyBytes);
 		}
@@ -298,7 +304,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey, InetSocketAddress peerAddress) {
+	public static CertificateMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey, InetSocketAddress peerAddress) {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
@@ -362,6 +368,7 @@ public final class CertificateMessage extends HandshakeMessage {
 			EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(rawPublicKeyBytes);
 			try {
 				// TODO make instance variable
+				// TODO dynamically determine algorithm for KeyFactory creation
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
 				LOGGER.log(Level.SEVERE, "Could not reconstruct the peer's public key.", e);
