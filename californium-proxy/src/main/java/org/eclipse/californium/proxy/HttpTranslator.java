@@ -62,6 +62,7 @@ import org.apache.http.message.BasicStatusLine;
 import org.apache.http.util.EntityUtils;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
@@ -414,9 +415,8 @@ public final class HttpTranslator {
 			throw new TranslationException("Cannot convert the http method in coap method", e);
 		}
 
-		// create the request
-//		Request coapRequest = Request.getRequestForMethod(coapMethod);
-		Request coapRequest = new Request(Code.valueOf(coapMethod));
+		// create the request -- since HTTP is reliable use CON
+		Request coapRequest = new Request(Code.valueOf(coapMethod), Type.CON);
 
 		// get the uri
 		String uriString = httpRequest.getRequestLine().getUri();
@@ -453,7 +453,7 @@ public final class HttpTranslator {
 
 			if (proxyingEnabled) {
 				// if the uri hasn't the indication of the scheme, add it
-				if (!uriString.matches("^coap://.*")) {
+				if (!uriString.matches("^coaps?://.*")) {
 					uriString = "coap://" + uriString;
 				}
 

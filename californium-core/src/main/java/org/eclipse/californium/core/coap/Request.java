@@ -123,9 +123,8 @@ public class Request extends Message {
 	 * @param type the message type
 	 */
 	public Request(Code code, Type type) {
-		super();
+		super(type);
 		this.code = code;
-		super.setType(type);
 	}
 	
 	/**

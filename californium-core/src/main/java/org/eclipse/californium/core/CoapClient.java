@@ -274,8 +274,7 @@ public class CoapClient {
 	 */
 	public boolean ping(long timeout) {
 		try {
-			Request request = new Request(null);
-			request.setType(Type.CON);
+			Request request = new Request(null, Type.CON);
 			request.setToken(new byte[0]);
 			request.setURI(uri);
 			request.send().waitForResponse(timeout);
@@ -292,7 +291,7 @@ public class CoapClient {
 	
 	public Set<WebLink> discover(String query) {
 		Request discover = Request.newGet();
-		discover.setURI(uri);
+		discover.setURI(uri); // for scheme and authority, but then remove path and query
 		discover.getOptions().clearUriPath().clearUriQuery().setUriPath("/.well-known/core");
 		if (query!=null) {
 			discover.getOptions().setUriQuery(query);
