@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Cf-Android</string>
+
+    <string name="label_uri">URI</string>
+    <string name="label_button">GET</string>
+
+    <string name="action_sandbox">californium.eclipse.org</string>
+    <string name="action_local">localhost</string>
+
+    <string name="action_start">Run Local Server</string>
+
+    <string name="uri_sandbox">coap://californium.eclipse.org:5683/</string>
+    <string name="uri_local">coap://localhost:5683/</string>
+</resources>
