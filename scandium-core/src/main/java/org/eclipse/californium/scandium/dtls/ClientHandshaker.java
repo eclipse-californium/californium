@@ -81,16 +81,16 @@ public class ClientHandshaker extends Handshaker {
 	/** The raw message that triggered the start of the handshake
 	 * and needs to be sent once the session is established.
 	 * */
-	private final RawData message;
+	protected final RawData message;
 
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
-	private List<CertificateType> supportedClientCertificateTypes;
+	protected List<CertificateType> supportedClientCertificateTypes;
 	/**
 	 * The certificate types this server supports for server authentication.
 	 */
-	private List<CertificateType> supportedServerCertificateTypes;
+	protected List<CertificateType> supportedServerCertificateTypes;
 
 	/*
 	 * Store all the message which can possibly be sent by the server. We need
@@ -285,7 +285,6 @@ public class ClientHandshaker extends Handshaker {
 		message.verifyData(getMasterSecret(), false, handshakeHash);
 
 		state = HandshakeType.FINISHED.getCode();
-		session.setActive(true);
 		sessionEstablished();
 		handshakeCompleted();
 		// received server's Finished message, now able to send encrypted
@@ -323,10 +322,10 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the server's {@link HelloVerifyRequest}.
-	 * @return {@link ClientHello} with server's {@link Cookie} set.
+	 * @return {@link ClientHello} with server's Cookie set.
 	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	private DTLSFlight receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
+	protected DTLSFlight receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
 
 		clientHello.setCookie(message.getCookie());
 		// update the length (cookie added)
@@ -346,7 +345,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException if the ServerHello message cannot be processed,
 	 * 	e.g. because the server selected an unknown or unsupported cipher suite
 	 */
-	private void receivedServerHello(ServerHello message) throws HandshakeException {
+	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		if (serverHello != null && (message.getMessageSeq() == serverHello.getMessageSeq())) {
 			// received duplicate version (retransmission), discard it
 			return;

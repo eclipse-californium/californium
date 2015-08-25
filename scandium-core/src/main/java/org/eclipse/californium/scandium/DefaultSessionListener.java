@@ -57,7 +57,7 @@ public class DefaultSessionListener implements SessionListener {
 	@Override
 	public void sessionEstablished(Handshaker handshaker, DTLSSession session)
 		throws HandshakeException {
-		if (handshaker != null && session != null && session.isActive()) {
+		if (handshaker != null && session != null) {
 			if (!sessionStore.put(session)) {
 				handshakers.remove(handshaker.getPeerAddress());
 				throw new HandshakeException(

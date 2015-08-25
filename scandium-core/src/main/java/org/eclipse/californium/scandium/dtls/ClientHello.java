@@ -114,8 +114,43 @@ public final class ClientHello extends HandshakeMessage {
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
+		this(version, secureRandom, null,supportedClientCertificateTypes,supportedServerCertificateTypes, peerAddress);
+		this.cipherSuites = new ArrayList<>();
+		this.compressionMethods = new ArrayList<>();
+	}
 
-		this(version, secureRandom, null, peerAddress);
+	/**
+	 * Creates a <em>Client Hello</em> message to be used for resuming an existing
+	 * DTLS session.
+	 * 
+	 * @param version
+	 *            the protocol version to use
+	 * @param secureRandom
+	 *            a function to use for creating random values included in the message
+	 * @param session
+	 *            the (already existing) DTLS session to resume
+	 * @param supportedClientCertificateTypes the list of certificate types supported by the client
+	 * @param supportedServerCertificateTypes the list of certificate types supported by the server
+	 */
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session, List<CertificateType> supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes) {
+		this(version, secureRandom, session.getSessionIdentifier(), supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
+		addCipherSuite(session.getWriteState().getCipherSuite());
+		addCompressionMethod(session.getReadState().getCompressionMethod());
+	}
+
+	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId, List<CertificateType> supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
+		this(peerAddress);
+		this.clientVersion = version;
+		this.random = new Random(secureRandom);
+		this.cookie = new byte[] {};
+		if (sessionId != null) {
+			this.sessionId = sessionId;
+		} else {
+			this.sessionId = new SessionId(new byte[] {});
+		}
+
 		this.extensions = new HelloExtensions();
 		this.cipherSuites = new ArrayList<>();
 		this.compressionMethods = new ArrayList<>();
@@ -146,41 +181,6 @@ public final class ClientHello extends HandshakeMessage {
 				serverCertificateType.addCertificateType(certificateType);
 			}
 			this.extensions.addExtension(serverCertificateType);
-		}
-	}
-
-	/**
-	 * Creates a <em>Client Hello</em> message to be used for resuming an
-	 * existing DTLS session.
-	 * 
-	 * @param version
-	 *            the protocol version to use
-	 * @param secureRandom
-	 *            a function to use for creating random values included in the
-	 *            message
-	 * @param session
-	 *            the (already existing) DTLS session to resume
-	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session) {
-		this(version, secureRandom, session.getSessionIdentifier(), session.getPeer());
-		addCipherSuite(session.getWriteState().getCipherSuite());
-		addCompressionMethod(session.getReadState().getCompressionMethod());
-	}
-
-	/**
-	 * Creates an empty message instance. This constructor is only used by the
-	 * {@link #fromByteArray(byte[]) method.
-	 */
-	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId,
-			InetSocketAddress peerAddress) {
-		this(peerAddress);
-		this.clientVersion = version;
-		this.random = new Random(secureRandom);
-		this.cookie = new byte[] {};
-		if (sessionId != null) {
-			this.sessionId = sessionId;
-		} else {
-			this.sessionId = new SessionId(new byte[] {});
 		}
 	}
 
