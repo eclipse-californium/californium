@@ -40,17 +40,18 @@ public class ObservePumping extends CoapResource {
 
 	// The current time represented as string
 	private String time;
-
-	/*
-	 * Constructor for a new TimeResource
-	 */
+	
 	public ObservePumping() {
-		super("obs-pumping");
+		this(Type.CON);
+	}
+	
+	public ObservePumping(Type type) {
+		super("obs-pumping" + (type==Type.NON ? "-non" : ""));
 		setObservable(true);
 		getAttributes().setTitle("Observable resource which changes every 5 seconds");
 		getAttributes().addResourceType("observe");
 		getAttributes().setObservable();
-		setObserveType(Type.CON);
+		setObserveType(type);
 
 		// Set timer task scheduling
 		Timer timer = new Timer();
