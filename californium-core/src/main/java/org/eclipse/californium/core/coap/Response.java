@@ -25,6 +25,7 @@ package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 
 /**
  * Response represents a CoAP response to a CoAP request. A response is either a
@@ -40,6 +41,26 @@ public class Response extends Message {
 	private long rtt;
 
 	private boolean last = true;
+	
+	/**
+	 * Creates a response to the specified request with the specified response
+	 * code. The destination address of the response is the source address of
+	 * the request. The response has the same token as the request.
+	 * Type and MID are usually set automatically by the {@link ReliabilityLayer}.
+	 *
+	 * @param request
+	 *            the request
+	 * @param code
+	 *            the code
+	 * @return the response
+	 */
+	public static Response createResponse(Request request, ResponseCode code) {
+		Response response = new Response(code);
+		response.setDestination(request.getSource());
+		response.setDestinationPort(request.getSourcePort());
+		response.setToken(request.getToken());
+		return response;
+	}
 	
 	/**
 	 * Instantiates a new response with the specified response code.
@@ -66,44 +87,6 @@ public class Response extends Message {
 	public String toString() {
 		String payload = getPayloadTracingString();
 		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
-	}
-	
-	/**
-	 * Creates a piggy-backed response with the specified response code to the
-	 * specified request. The destination address of the response is the source
-	 * address of the request. The response has the same MID and token as the
-	 * request.
-	 * 
-	 * @param request the request
-	 * @param code the code
-	 * @return the response
-	 */
-	public static Response createPiggybackedResponse(Request request, ResponseCode code) {
-		Response response = new Response(code);
-		response.setMID(request.getMID());
-		response.setType(Type.ACK);
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
-		response.setToken(request.getToken());
-		return response;
-	}
-	
-	/**
-	 * Creates a separate response with the specified response code to the
-	 * specified request. The destination address of the response is the source
-	 * address of the request. The response has the same token as the request
-	 * but needs another MID from the CoAP network stack.
-	 *
-	 * @param request the request
-	 * @param code the code
-	 * @return the response
-	 */
-	public static Response createSeparateResponse(Request request, ResponseCode code) {
-		Response response = new Response(code);
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
-		response.setToken(request.getToken());
-		return response;
 	}
 	
 	public boolean isLast() {

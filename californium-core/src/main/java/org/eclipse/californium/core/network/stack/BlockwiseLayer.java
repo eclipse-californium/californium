@@ -160,10 +160,10 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (request.getOptions().getContentFormat()==status.getContentFormat()) {
 					status.addBlock(request.getPayload());
 				} else {
-					Response error = Response.createPiggybackedResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
+					Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
 					error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 					error.setPayload("Changed Content-Format");
-					request.setAcknowledged(true);
+					
 					exchange.setCurrentResponse(error);
 					super.sendResponse(exchange, error);
 					return;
@@ -173,14 +173,13 @@ public class BlockwiseLayer extends AbstractLayer {
 				if ( block1.isM() ) {
 					LOGGER.finest("There are more blocks to come. Acknowledge this block.");
 					
-					if (request.isConfirmable()) {
-						Response piggybacked = Response.createPiggybackedResponse(request, ResponseCode.CONTINUE);
-						piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
-						piggybacked.setLast(false);
-						request.setAcknowledged(true);
-						exchange.setCurrentResponse(piggybacked);
-						super.sendResponse(exchange, piggybacked);
-					}
+					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
+					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
+					piggybacked.setLast(false);
+					
+					exchange.setCurrentResponse(piggybacked);
+					super.sendResponse(exchange, piggybacked);
+					
 					// do not assemble and deliver the request yet
 					
 				} else {
@@ -193,9 +192,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					earlyBlock2Negotiation(exchange, request);
 					
 					// Assemble and deliver
-					Request assembled = new Request(request.getCode()); // getAssembledRequest(status, request);
+					Request assembled = new Request(request.getCode());
 					assembleMessage(status, assembled, request);
-//					assembled.setAcknowledged(true); // TODO: prevents accept from sending ACK. Maybe the resource uses separate...
+					
 					exchange.setRequest(assembled);
 					super.receiveRequest(exchange, assembled);
 				}
@@ -203,11 +202,11 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else {
 				// ERROR, wrong number, Incomplete
 				LOGGER.warning("Wrong block number. Expected "+status.getCurrentNum()+" but received "+block1.getNum()+". Respond with 4.08 (Request Entity Incomplete)");
-				Response error = Response.createPiggybackedResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
+				Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
 				error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 				error.setPayload("Wrong block number");
-				request.setAcknowledged(true);
 				exchange.setCurrentResponse(error);
+				
 				super.sendResponse(exchange, error);
 			}
 			
@@ -250,24 +249,18 @@ public class BlockwiseLayer extends AbstractLayer {
 			exchange.setBlock1ToAck(null);
 		
 		if (requireBlockwise(exchange, response)) {
-			// This must be a large response to a GET or POST request (PUT?)
 			LOGGER.fine("Response payload "+response.getPayloadSize()+"/"+max_message_size+" requires Blockwise");
 			
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
 			
 			Response block = getNextResponseBlock(response, status);
-			block.setType(response.getType()); // This is only true for the first block
+			
 			if (block1 != null) // in case we still have to ack the last block1
 				block.getOptions().setBlock1(block1);
 			if (block.getToken() == null)
 				block.setToken(exchange.getRequest().getToken());
 			
-			if (response.getOptions().hasObserve()) {
-				// the ACK for the first block should acknowledge the whole notification
-				exchange.setCurrentResponse(response);
-			} else {
-				exchange.setCurrentResponse(block);
-			}
+			exchange.setCurrentResponse(block);
 			super.sendResponse(exchange, block);
 			
 		} else {
@@ -475,15 +468,21 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 	
 	private Response getNextResponseBlock(Response response, BlockwiseStatus status) {
+		Response block;
 		int szx = status.getCurrentSzx();
 		int num = status.getCurrentNum();
-		Response block = new Response(response.getCode());
-//		block.setType(response.getType()); // NO! First block has type from origin response, all other depend on current request
-		block.setDestination(response.getDestination());
-		block.setDestinationPort(response.getDestinationPort());
-		block.setToken(response.getToken());
-		block.setOptions(new OptionSet(response.getOptions()));
-		block.addMessageObserver(new TimeoutForwarder(response));
+		
+		if (response.getOptions().hasObserve()) {
+			// a blockwise notification transmits the first block only
+			block = response;
+		} else {
+			block = new Response(response.getCode());
+			block.setDestination(response.getDestination());
+			block.setDestinationPort(response.getDestinationPort());
+			block.setToken(response.getToken());
+			block.setOptions(new OptionSet(response.getOptions()));
+			block.addMessageObserver(new TimeoutForwarder(response));
+		}
 
 		int payloadsize = response.getPayloadSize();
 		int currentSize = 1 << (4 + szx);
@@ -493,12 +492,15 @@ public class BlockwiseLayer extends AbstractLayer {
 			int to = Math.min((num + 1) * currentSize, response.getPayloadSize());
 			int length = to - from;
 			byte[] blockPayload = new byte[length];
+			boolean m = (to < response.getPayloadSize());
+			block.getOptions().setBlock2(szx, m, num);
+			
+			// crop payload -- do after calculation of m in case block==response
 			System.arraycopy(response.getPayload(), from, blockPayload, 0, length);
 			block.setPayload(blockPayload);
 			
-			boolean m = (to < response.getPayloadSize());
-			block.getOptions().setBlock2(szx, m, num);
-			block.setLast(!m);
+			// do not complete notifications
+			block.setLast(!m && !response.getOptions().hasObserve());
 			
 			status.setComplete(!m);
 		} else {

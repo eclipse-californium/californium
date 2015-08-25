@@ -78,8 +78,9 @@ public class SweepDeduplicator implements Deduplicator {
 	/**
 	 * If the message with the specified {@link KeyMID} has already arrived
 	 * before, this method returns the corresponding exchange. If this
-	 * KeyMID has not yet arrived, this methos returns null, indicating that
-	 * the message with the KeyMID is not a duplicate.
+	 * KeyMID has not yet arrived, this method returns null, indicating that
+	 * the message with the KeyMID is not a duplicate. In this case, the
+	 * exchange is added to the deduplicator.
 	 */
 	public Exchange findPrevious(KeyMID key, Exchange exchange) {
 		Exchange previous = incommingMessages.putIfAbsent(key, exchange);

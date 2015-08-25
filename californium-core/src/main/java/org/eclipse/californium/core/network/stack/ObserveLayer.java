@@ -44,7 +44,7 @@ public class ObserveLayer extends AbstractLayer {
 	}
 	
 	@Override
-	public void sendResponse(final Exchange exchange, final Response response) {
+	public void sendResponse(final Exchange exchange, Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
 			

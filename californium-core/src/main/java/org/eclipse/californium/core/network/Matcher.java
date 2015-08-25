@@ -53,7 +53,7 @@ public class Matcher {
 	private ScheduledExecutorService executor;
 	
 	// TODO: Make per endpoint
-	private AtomicInteger currendMID; 
+	private AtomicInteger currendMID;
 	
 	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
 	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
@@ -145,8 +145,9 @@ public class Matcher {
 
 	public void sendResponse(Exchange exchange, Response response) {
 		
-		if (response.getMID() == Message.NONE)
+		if (response.getMID() == Message.NONE) {
 			response.setMID(currendMID.getAndIncrement()%(1<<16));
+		}
 		
 		/*
 		 * The response is a CON or NON or ACK and must be prepared for these
@@ -169,14 +170,13 @@ public class Matcher {
 		// Blockwise transfers are identified by URI and remote endpoint
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getRequest();
-			KeyUri idByUri = new KeyUri(request.getURI(),
-					response.getDestination().getAddress(), response.getDestinationPort());
+			KeyUri idByUri = new KeyUri(request.getURI(), response.getDestination().getAddress(), response.getDestinationPort());
 			if (exchange.getResponseBlockStatus()!=null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
-				LOGGER.fine("Ongoing Block2 started, storing "+idByUri + "\nOngoing " + request + "\nOngoing " + response);
+				LOGGER.fine("Ongoing Block2 started, storing "+idByUri + " for " + request);
 				ongoingExchanges.put(idByUri, exchange);
 			} else {
-				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + "\nOngoing " + request + "\nOngoing " + response);
+				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + " for " + request);
 				ongoingExchanges.remove(idByUri);
 			}
 		}
@@ -250,6 +250,13 @@ public class Matcher {
 				if (prev != null) {
 					LOGGER.info("Duplicate ongoing request: "+request);
 					request.setDuplicate(true);
+				} else {
+					// the exchange is continuing, we can (i.e., must) clean up the previous response
+					if (ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
+						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID(), null, 0);
+						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request: Cleaning up "+idByMID);
+						exchangesByMID.remove(idByMID);
+					}
 				}
 				return ongoing;
 		
@@ -397,21 +404,20 @@ public class Matcher {
 			
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
-				
-				Request request = exchange.getCurrentRequest();
-				if (request != null) {
-					// TODO: We can optimize this and only do it, when the request really had blockwise transfer
-					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-//					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
-					ongoingExchanges.remove(uriKey);
-				}
 
-				Response response = exchange.getResponse();
+				Response response = exchange.getCurrentResponse();
 				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
 					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
 					exchangesByMID.remove(midKey);
+				}
+				
+				Request request = exchange.getCurrentRequest();
+				if (response.getOptions().hasBlock2() && request != null) {
+					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
+//					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
+					ongoingExchanges.remove(uriKey);
 				}
 				
 				// Remove all remaining NON-notifications if this exchange is an observe relation
