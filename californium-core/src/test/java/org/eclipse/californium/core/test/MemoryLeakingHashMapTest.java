@@ -78,13 +78,17 @@ public class MemoryLeakingHashMapTest {
 
 		testBlockwise(uriOf(PIGGY));
 		testBlockwise(uriOf(SEPARATE));
+		testBlockwiseNON(uriOf(PIGGY));
 		
 		testObserveProactive(uriOf(PIGGY));
 		testObserveReactive(uriOf(PIGGY));
+		testObserveBlockwise(uriOf(PIGGY));
 	}
 	
 	private void testSimpleNONGet(String uri) throws Exception {
 		System.out.println("Test simple NON GET to "+uri);
+		
+		currentResponseText = "simple NON GET";
 		
 		Request request = Request.newGet();
 		request.setURI(uri);
@@ -103,6 +107,8 @@ public class MemoryLeakingHashMapTest {
 	private void testSimpleGet(String uri) throws Exception {
 		System.out.println("Test simple GET to "+uri);
 		
+		currentResponseText = "simple GET";
+		
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
 		
@@ -118,11 +124,32 @@ public class MemoryLeakingHashMapTest {
 	private void testBlockwise(String uri) throws Exception {
 		System.out.println("Test blockwise POST to "+uri);
 		
+		String ten = "123456789.";
+		currentRequestText = ten+ten+ten;
+		currentResponseText = ten+ten+ten+ten+ten;
+		
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
 		
+		CoapResponse response = client.post(currentRequestText, MediaTypeRegistry.TEXT_PLAIN);
+		System.out.println("Client received response "+response.getResponseText());
+		Assert.assertEquals(currentResponseText, response.getResponseText());
+		
+		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
+		serverSurveillant.assertHashMapsEmpty();
+		clientSurveillant.assertHashMapsEmpty();
+	}
+	
+	private void testBlockwiseNON(String uri) throws Exception {
+		System.out.println("Test blockwise POST to "+uri);
+
 		String ten = "123456789.";
 		currentRequestText = ten+ten+ten;
+		currentResponseText = ten+ten+ten+ten+ten;
+		
+		CoapClient client = new CoapClient(uri).useNONs();
+		client.setEndpoint(clientEndpoint);
+		
 		CoapResponse response = client.post(currentRequestText, MediaTypeRegistry.TEXT_PLAIN);
 		System.out.println("Client received response "+response.getResponseText());
 		Assert.assertEquals(currentResponseText, response.getResponseText());
@@ -134,6 +161,8 @@ public class MemoryLeakingHashMapTest {
 	
 	private void testObserveProactive(final String uri) throws Exception {
 		System.out.println("Test observe relation with a reactive cancelation to "+uri);
+		
+		currentResponseText = "Hello observer";
 		
 		// We use a semaphore to return after the test has completed
 		final Semaphore semaphore = new Semaphore(0);
@@ -186,6 +215,8 @@ public class MemoryLeakingHashMapTest {
 	private void testObserveReactive(final String uri) throws Exception {
 		System.out.println("Test observe relation with a reactive cancelation to "+uri);
 		
+		currentResponseText = "Hello observer";
+		
 		// We use a semaphore to return after the test has completed
 		final Semaphore semaphore = new Semaphore(0);
 
@@ -216,6 +247,61 @@ public class MemoryLeakingHashMapTest {
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
 		CoapObserverAndForgetter handler = new CoapObserverAndForgetter();
+		CoapObserveRelation rel = client.observe(handler);
+		handler.relation = rel;
+		
+		// Wait until we have received all the notifications and canceled the relation
+		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 100);
+		
+		boolean success = semaphore.tryAcquire();
+		Assert.assertTrue("Client has not received all expected responses", success);
+		
+		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
+		serverSurveillant.assertHashMapsEmpty();
+		clientSurveillant.assertHashMapsEmpty();
+	}
+	
+	private void testObserveBlockwise(final String uri) throws Exception {
+		System.out.println("Test observe relation with blockwise notifications "+uri);
+
+		// We need a long response text (>16) 
+		String ten = "123456789.";
+		currentResponseText = ten+ten+ten;
+		
+		// We use a semaphore to return after the test has completed
+		final Semaphore semaphore = new Semaphore(0);
+		
+		/*
+		 * This Handler counts the notification and cancels the relation when
+		 * it has received HOW_MANY_NOTIFICATION_WE_WAIT_FOR.
+		 */
+		class CoapObserverAndCanceler implements CoapHandler {
+			private CoapObserveRelation relation;
+			private int notificationCounter = 0;
+
+			public void onLoad(CoapResponse response) {
+				++notificationCounter;
+				System.out.println("Client received notification "+notificationCounter+": "+response.getResponseText());
+				
+				if (notificationCounter == HOW_MANY_NOTIFICATION_WE_WAIT_FOR) {
+					System.out.println("Client cancels observe relation to "+uri);
+					relation.proactiveCancel();
+					
+				} else if (notificationCounter == HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) {
+					// Now we received the response to the canceling GET request
+					semaphore.release();
+				}
+				
+			}
+			
+			public void onError() {
+				Assert.assertTrue(false); // should not happen
+			}
+		}
+		
+		CoapClient client = new CoapClient(uri);
+		client.setEndpoint(clientEndpoint);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler();
 		CoapObserveRelation rel = client.observe(handler);
 		handler.relation = rel;
 		
@@ -287,13 +373,13 @@ public class MemoryLeakingHashMapTest {
 		
 		@Override public void actionPerformed(ActionEvent e) {
 			++status;
+			System.out.println("TestResource "+getName()+" performed "+status+" changes");
 			changed();
 		}
 		
 		@Override public void handleGET(CoapExchange exchange) {
 			if (mode == Mode.SEPARATE_RESPONE)
 				exchange.accept();
-			currentResponseText = "hello get "+status;
 			exchange.respond(currentResponseText);
 		}
 		
@@ -303,8 +389,7 @@ public class MemoryLeakingHashMapTest {
 				exchange.accept();
 			
 			System.out.println("TestResource "+getName()+" received POST message: "+exchange.getRequestText());
-			String ten = "123456789.";
-			currentResponseText = "hello post "+status+ten+ten+ten;
+			
 			exchange.respond(ResponseCode.CREATED, currentResponseText);
 		}
 		
