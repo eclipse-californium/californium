@@ -423,7 +423,6 @@ public class ServerHandshaker extends Handshaker {
 		flight.addMessage(wrapMessage(finished));
 
 		state = HandshakeType.FINISHED.getCode();
-		session.setActive(true);
 
 		flight.setRetransmissionNeeded(false);
 		// store, if we need to retransmit this flight, see

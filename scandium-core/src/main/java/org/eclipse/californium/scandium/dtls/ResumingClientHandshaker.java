@@ -42,7 +42,10 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	private static final Logger LOGGER = Logger.getLogger(ResumingClientHandshaker.class.getName());
-	
+
+	// flag to indicate if we must do a full handshake or an abbreviated one
+	private boolean fullHandshake = false;
+
 	/**
 	 * The last flight that is sent during this handshake, will not be
 	 * retransmitted unless the peer retransmits its last flight.
@@ -75,6 +78,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 	@Override
 	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+		if (fullHandshake){
+			// handshake resumption was refused by the server
+			// we do a full handshake
+			return super.doProcessMessage(message);
+		}
+
 		if (lastFlight != null) {
 			// we already sent the last flight, but the server does not seem to have received
 			// it since it sent its FINISHED message again, so we simply retransmit our last flight
@@ -101,10 +110,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		}
 		
 		switch (message.getContentType()) {
-		case ALERT:
-			break;
 
 		case CHANGE_CIPHER_SPEC:
+			calculateKeys(session.getMasterSecret());
 			setCurrentReadState();
 			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
 					new Object[]{message.getPeer(), message.getContentType()});
@@ -114,9 +122,23 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 
+			case HELLO_VERIFY_REQUEST:
+				flight = receivedHelloVerifyRequest((HelloVerifyRequest) message);
+				break;
+
 			case SERVER_HELLO:
-				// TODO if server's session ID does not match, make full handshake
-				serverHello = (ServerHello) handshakeMsg;
+				ServerHello serverHello = (ServerHello) message;
+				if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
+				{
+					// Server refuse to resume the session, go for a full handshake
+					fullHandshake  = true;
+					super.receivedServerHello(serverHello);
+				}else{
+					this.serverHello = serverHello;
+					setCipherSuite(session.getCipherSuite());
+					setCompressionMethod(session.getCompressionMethod());
+					serverRandom = serverHello.getRandom();
+				}
 				break;
 
 			case FINISHED:
@@ -163,7 +185,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		// update the handshake hash
 		md.update(clientHello.toByteArray());
-		md.update(serverHello.toByteArray());
+		md.update(serverHello.getRawMessage());
 
 		MessageDigest mdWithServerFinish = null;
 		try {
@@ -174,27 +196,25 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			LOGGER.severe("Clone not supported.");
 			e.printStackTrace();
 		}
-		mdWithServerFinish.update(message.toByteArray());
+		mdWithServerFinish.update(message.getRawMessage());
 
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
 		handshakeHash = md.digest();
-		message.verifyData(getMasterSecret(), false, handshakeHash);
+		message.verifyData(session.getMasterSecret(), false, handshakeHash);
 		
-		clientRandom = clientHello.getRandom();
-		serverRandom = serverHello.getRandom();
-		generateKeys(session.getMasterSecret());
-
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
+		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), session.getPeer());
+		flight.addMessage(wrapMessage(applicationMessage));
+		
 		state = HandshakeType.FINISHED.getCode();
-		session.setActive(true);
 
 		flight.setRetransmissionNeeded(false);
 		// store, if we need to retransmit this flight, see
@@ -207,7 +227,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session);
+		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session, supportedClientCertificateTypes, supportedServerCertificateTypes);
+
+		clientRandom = message.getRandom();
 
 		message.addCipherSuite(session.getCipherSuite());
 		message.addCompressionMethod(session.getCompressionMethod());

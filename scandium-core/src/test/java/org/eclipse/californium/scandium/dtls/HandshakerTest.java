@@ -231,7 +231,7 @@ public class HandshakerTest {
 		}
 
 	private Record createRecord(int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
-		ClientHello clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), session);
+		ClientHello clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), session, null, null);
 		clientHello.setMessageSeq(messageSeqNo);
 		return new Record(ContentType.HANDSHAKE, epoch, sequenceNo, clientHello, session);
 	}

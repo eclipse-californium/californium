@@ -23,9 +23,16 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -53,6 +60,8 @@ import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
@@ -67,8 +76,6 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -245,7 +252,7 @@ public class DTLSConnectorTest {
 		// make sure client still has original session in its cache
 		Connection con = clientSessionStore.get(serverEndpoint);
 		assertNotNull(con);
-		assertTrue(con.hasActiveEstablishedSession());
+		assertNotNull(con.getEstablishedSession());
 		assertThat(con.getEstablishedSession().getSessionIdentifier(), is(establishedSession.getSessionIdentifier()));
 
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
@@ -285,52 +292,102 @@ public class DTLSConnectorTest {
 		
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverSessionStore.get(clientEndpoint);
 		assertNotNull(con);
 		assertNotNull(con.getEstablishedSession());
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		// make sure that the server has created a new session replacing the original one with the client
 		assertThat("Server should have replaced original session with client with a newly established one",
 				con.getEstablishedSession().getSessionIdentifier(), is(not(originalSessionId)));
 	}
-	
+
 	@Test
-	public void testConnectorResumesExistingSession() throws Exception {
-	
+	public void testConnectorResumesSessionFromNewConnection() throws Exception {
+		// Do a first handshake
 		givenAnEstablishedSession();
-		
-		final CountDownLatch latch = new CountDownLatch(1);
-		final List<Record> receivedRecords = new ArrayList<>();
-		
-		DataHandler handler = new DataHandler() {
-			
-			@Override
-			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint)); 
-				latch.countDown();
-			}
-		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
-		rawClient.start();
-		
-		// send a CLIENT_HELLO containing the established session's ID
-		// indicating that we want to resume the existing session
-		ClientHello clientHello = createClientHello(establishedSession);
-		
-		rawClient.sendRecord(serverEndpoint,
-				DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
-		
-		try{
-			Assert.assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			Assert.assertFalse(receivedRecords.isEmpty());
-			Record record = receivedRecords.get(0);
-			Assert.assertThat("Expected HANDSHAKE message from server",
-					record.getType(), is(ContentType.HANDSHAKE));
-			// TODO: check if received message is a SERVER_HELLO with the same sessionId
-			// this is currently not possible because the server erroneously encrypts handshake messages
-		} finally {
-			rawClient.stop();
-		}
+		client.stop();
+		byte[] sessionId = establishedSession.getSessionIdentifier().getSessionId();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverEndpoint);
+		Connection connection = clientSessionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getSessionId());
+
+		// create a new client with different inetAddress but with the same session store.
+		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10001);
+		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
+		client = new DTLSConnector(clientConfig, clientSessionStore);
+		clientRawDataChannel = new LatchDecrementingRawDataChannel();
+		client.setRawDataReceiver(clientRawDataChannel);
+		client.start();
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientSessionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getSessionId());
+	}
+
+	@Test
+	public void testConnectorResumesSessionFromExistingConnection() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession();
+		byte[] sessionId = establishedSession.getSessionIdentifier().getSessionId();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverEndpoint);
+		Connection connection = clientSessionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getSessionId());
+		client.start();
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientSessionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getSessionId());
+	}
+
+	@Test
+	public void testConnectorPerformsFullHandshakeWhenResumingNonExistingSession() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession();
+		byte[] sessionId = establishedSession.getSessionIdentifier().getSessionId();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverEndpoint);
+		Connection connection = clientSessionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getSessionId());
+		client.start();
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// remove session from server
+		serverSessionStore.remove(clientEndpoint);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check session id was not equals
+		connection = clientSessionStore.get(serverEndpoint);
+		Assert.assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getSessionId())));
 	}
 
 	@Test
@@ -535,7 +592,7 @@ public class DTLSConnectorTest {
 		if (sessionToResume == null) {
 			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(),clientEndpoint);
 		} else {
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume);
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume, null, null);
 		}
 		hello.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		hello.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
@@ -562,8 +619,12 @@ public class DTLSConnectorTest {
 		client.releaseSocket();
 	}
 	
-	private class LatchDecrementingRawDataChannel implements RawDataChannel {
+	private class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
 		private CountDownLatch latch;
+		
+		public LatchDecrementingRawDataChannel() {
+			super(null);
+		}
 		
 		public synchronized void setLatch(CountDownLatch latchToDecrement) {
 			this.latch = latchToDecrement;
@@ -571,6 +632,7 @@ public class DTLSConnectorTest {
 		
 		@Override
 		public synchronized void receiveData(RawData raw) {
+			super.receiveData(raw);
 			if (latch != null) {
 				latch.countDown();
 			}
@@ -591,9 +653,11 @@ public class DTLSConnectorTest {
 		
 		@Override
 		public void receiveData(RawData raw) {
-			RawData response = this.processor.process(raw); 
-			if (response != null) {
-				server.send(response);
+			if (processor != null) {
+				RawData response = this.processor.process(raw);
+				if (response != null) {
+					server.send(response);
+				}
 			}
 		}
 	}

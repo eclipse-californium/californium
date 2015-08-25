@@ -36,7 +36,10 @@ public final class Connection implements SessionListener {
 	private DTLSSession establishedSession;
 	private Handshaker ongoingHandshake;
 	private DTLSFlight pendingFlight;
-	
+
+	// Used to know when an abbreviated handshake should be initiated
+	private boolean resumptionRequired = false; 
+
 	/**
 	 * Creates a new new connection to a given peer.
 	 * 
@@ -164,16 +167,19 @@ public final class Connection implements SessionListener {
 			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
 		}
 	}
-	
+
 	/**
-	 * Checks whether this connection currently has an established and <em>active</em>
-	 * session with the peer.
-	 * 
-	 * An active session is one that can be used to exchange (application) data with the peer.
-	 * 
-	 * @return <code>true</code> if an active session is established with the client
+	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
 	 */
-	public boolean hasActiveEstablishedSession() {
-		return establishedSession != null && establishedSession.isActive();
+	public boolean isResumptionRequired() {
+		return resumptionRequired;
+	}
+
+	/**
+	 * Use to force an abbreviated handshake next time a data will be sent on this connection.
+	 * @param resumptionRequired true to force abbreviated handshake.
+	 */
+	public void setResumptionRequired(boolean resumptionRequired) {
+		this.resumptionRequired = resumptionRequired;
 	}
 }

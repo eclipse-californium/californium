@@ -86,12 +86,6 @@ public class DTLSSession {
 	private PublicKey peerRawPublicKey;	
 
 	/**
-	 * Whether the session is active and application data can be sent to the
-	 * peer.
-	 */
-	private boolean active = false;
-
-	/**
 	 * Whether this entity is considered the "client" or the "server" in this
 	 * connection.
 	 */
@@ -138,6 +132,31 @@ public class DTLSSession {
 	}
 	
 	
+	/**
+	 * Called to resuming an existing session.
+	 *
+	 * @param peerAddress
+	 *            the remote address
+	 * @param session
+	 *            the session to resume
+	 * @param initialSequenceNo the initial record sequence number to start from
+	 *            in epoch 0. When starting a new handshake with a client that
+	 *            has successfully exchanged a cookie with the server, the
+	 *            sequence number to use in the SERVER_HELLO record MUST be the same as
+	 *            the one from the successfully validated CLIENT_HELLO record
+	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
+	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
+	 */
+	public DTLSSession(InetSocketAddress peerAddress, DTLSSession session,long initialSequenceNo){
+		this(peerAddress, session.isClient, initialSequenceNo);
+		sessionIdentifier = session.sessionIdentifier;
+		setCipherSuite(session.cipherSuite);
+		sendRawPublicKey = session.sendRawPublicKey;
+		receiveRawPublicKey = session.receiveRawPublicKey;
+		masterSecret = session.masterSecret;
+		compressionMethod = session.compressionMethod;
+	}
+
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
@@ -220,14 +239,6 @@ public class DTLSSession {
 	 */
 	final synchronized void setCipherSuite(CipherSuite cipherSuite) {
 		this.cipherSuite = cipherSuite;
-	}
-
-	public synchronized final boolean isActive() {
-		return active;
-	}
-
-	public final synchronized void setActive(boolean isActive) {
-		this.active = isActive;
 	}
 
 	public final boolean isClient() {

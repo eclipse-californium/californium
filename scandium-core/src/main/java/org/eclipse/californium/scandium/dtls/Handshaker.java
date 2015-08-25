@@ -35,8 +35,10 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -145,7 +147,7 @@ public abstract class Handshaker {
 	/** the maximum fragment size before DTLS fragmentation must be applied */
 	private int maxFragmentLength = 4096;
 
-	private SessionListener sessionListener;
+	private Set<SessionListener> sessionListeners = new HashSet<>();
 	
 	
 	// Constructor ////////////////////////////////////////////////////
@@ -204,7 +206,7 @@ public abstract class Handshaker {
 		if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
-		this.sessionListener = sessionListener;
+		addSessionListener(sessionListener);
 		this.nextReceiveSeq = initialMessageSeq;
 		this.sequenceNumber = initialMessageSeq;
 		this.isClient = isClient;
@@ -495,7 +497,7 @@ public abstract class Handshaker {
 	 * @param masterSecret
 	 *            the master secret.
 	 */
-	private void calculateKeys(byte[] masterSecret) {
+	protected void calculateKeys(byte[] masterSecret) {
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.3:
 		 * key_block = PRF(SecurityParameters.master_secret, "key expansion", SecurityParameters.server_random + SecurityParameters.client_random);
@@ -996,20 +998,30 @@ public abstract class Handshaker {
 		this.maxFragmentLength = maxFragmentLength;
 	}
 
+	public void addSessionListener(SessionListener listener){
+		if (listener != null)
+			sessionListeners.add(listener);
+	}
+	
+	public void removeSessionListener(SessionListener listener){
+		if (listener != null)
+			sessionListeners.remove(listener);
+	}
+	
 	protected final void handshakeStarted() throws HandshakeException {
-		if (sessionListener != null) {
+		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeStarted(this);
 		}
 	}
 	
 	protected final void sessionEstablished() throws HandshakeException {
-		if (sessionListener != null) {
+		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.sessionEstablished(this, this.getSession());
 		}
 	}
 
 	protected final void handshakeCompleted() {
-		if (sessionListener != null) {
+		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(getPeerAddress());
 		}
 	}

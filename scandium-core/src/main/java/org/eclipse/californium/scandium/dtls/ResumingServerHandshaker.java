@@ -50,25 +50,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
 			throws HandshakeException {
-		super(session, sessionListener, config);
-		setSessionToResume(session);
+		super(sequenceNumber,session, sessionListener, config);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////
-	
-	/**
-	 * Resets the state of a session, such that it can be used to resume it.
-	 * 
-	 * @param session
-	 *            the session to be resumed.
-	 */
-	private void setSessionToResume(DTLSSession session) {
-		session.setActive(false);
-		session.setWriteEpoch(0);
-		session.setReadEpoch(0);
-	}
 	
 	@Override
 	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
@@ -142,7 +129,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		handshakeStarted();
 		DTLSFlight flight = new DTLSFlight(getSession());
 		
-		md.update(message.toByteArray());
+		md.update(message.getRawMessage());
 
 		clientRandom = message.getRandom();
 		serverRandom = new Random(new SecureRandom());
@@ -152,7 +139,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		flight.addMessage(wrapMessage(serverHello));
 		md.update(serverHello.toByteArray());
 
-		generateKeys(session.getMasterSecret());
+		setCompressionMethod(session.getCompressionMethod());
+
+		calculateKeys(session.getMasterSecret());
 
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
@@ -167,12 +156,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		}
 
 		handshakeHash = md.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getMasterSecret(), false, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
 		mdWithServerFinished.update(finished.toByteArray());
 		handshakeHash = mdWithServerFinished.digest();
-			
+
 		return flight;
 	}
 	
@@ -186,9 +175,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-
-		message.verifyData(getMasterSecret(), false, handshakeHash);
+		message.verifyData(session.getMasterSecret(), true, handshakeHash);
 		sessionEstablished();
+		handshakeCompleted();
 	}
 
 }
