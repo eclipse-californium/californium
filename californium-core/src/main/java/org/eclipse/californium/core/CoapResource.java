@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add nextObserveNumber 
+ *                                                    (for use by subclasses)
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -718,12 +720,21 @@ public  class CoapResource implements Resource {
 	}
 	
 	/**
+	 * Increments the observe option number to order the change notifications.
+	 * If {@link #notifyObserverRelations()} is not used, use this to setup the
+	 * observe option as order number.
+	 */
+	protected void nextObserveNumber() {
+		notificationOrderer.getNextObserveNumber();
+	}
+	
+	/**
 	 * Notifies all CoAP clients that have established an observe relation with
 	 * this resource that the state has changed by reprocessing their original
 	 * request that has established the relation.
 	 */
 	protected void notifyObserverRelations() {
-		notificationOrderer.getNextObserveNumber();
+		nextObserveNumber();
 		for (ObserveRelation relation:observeRelations) {
 			relation.notifyObservers();
 		}
