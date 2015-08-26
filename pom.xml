@@ -91,6 +91,7 @@
 		<module>cf-secure</module>
 		<module>cf-proxy</module>
 		<module>cf-benchmark</module>
+		<module>cf-benchmark-observe</module>
 	</modules>
 	
 	<distributionManagement>
