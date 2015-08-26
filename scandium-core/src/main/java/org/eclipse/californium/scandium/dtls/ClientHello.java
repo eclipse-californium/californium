@@ -34,13 +34,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
  * When a client first connects to a server, it is required to send the
  * ClientHello as its first message. The client can also send a ClientHello in
  * response to a {@link HelloRequest} or on its own initiative in order to
- * renegotiate the security parameters in an existing connection. See <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
+ * renegotiate the security parameters in an existing connection. See
+ * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
 public final class ClientHello extends HandshakeMessage {
 
@@ -73,7 +72,7 @@ public final class ClientHello extends HandshakeMessage {
 	private SessionId sessionId;
 
 	/** The cookie used to prevent flooding attacks (potentially empty). */
-	private Cookie cookie;
+	private byte[] cookie;
 
 	/**
 	 * This is a list of the cryptographic options supported by the client, with
@@ -97,35 +96,43 @@ public final class ClientHello extends HandshakeMessage {
 
 	/**
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
-	 *  
-	 * @param version the protocol version to use
-	 * @param secureRandom a function to use for creating random values included in the message
-	 * @param supportedClientCertificateTypes the list of certificate types supported by the client
-	 * @param supportedServerCertificateTypes the list of certificate types supported by the server
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
+	 *
+	 * 
+	 * @param version
+	 *            the protocol version to use
+	 * @param secureRandom
+	 *            a function to use for creating random values included in the
+	 *            message
+	 * @param supportedClientCertificateTypes
+	 *            the list of certificate types supported by the client
+	 * @param supportedServerCertificateTypes
+	 *            the list of certificate types supported by the server
+	 * @param peerAddress
+	 *            the IP address and port of the peer this message has been
+	 *            received from or should be sent to
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, List<CertificateType> supportedClientCertificateTypes,
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom,
+			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
 
 		this(version, secureRandom, null, peerAddress);
 		this.extensions = new HelloExtensions();
 		this.cipherSuites = new ArrayList<>();
 		this.compressionMethods = new ArrayList<>();
-		
+
 		// the supported elliptic curves
-		List<Integer> curves = Arrays.asList(
-				ECDHECryptography.SupportedGroup.secp256r1.getId(),
-				ECDHECryptography.SupportedGroup.secp384r1.getId(),
+		List<Integer> curves = Arrays.asList(//
+				ECDHECryptography.SupportedGroup.secp256r1.getId(), //
+				ECDHECryptography.SupportedGroup.secp384r1.getId(), //
 				ECDHECryptography.SupportedGroup.secp521r1.getId());
 		HelloExtension supportedCurvesExtension = new SupportedEllipticCurvesExtension(curves);
 		this.extensions.addExtension(supportedCurvesExtension);
-		
+
 		// the supported point formats
 		List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
 		HelloExtension supportedPointFormatsExtension = new SupportedPointFormatsExtension(formats);
 		this.extensions.addExtension(supportedPointFormatsExtension);
-		
+
 		// the certificate types the client is able to provide to the server
 		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
@@ -135,7 +142,8 @@ public final class ClientHello extends HandshakeMessage {
 			this.extensions.addExtension(clientCertificateType);
 		}
 
-		// the type of certificates the client is able to process when provided by the server
+		// the type of certificates the client is able to process when provided
+		// by the server
 		if (supportedServerCertificateTypes != null && !supportedServerCertificateTypes.isEmpty()) {
 			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(true);
 			for (CertificateType certificateType : supportedServerCertificateTypes) {
@@ -146,13 +154,14 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Creates a <em>Client Hello</em> message to be used for resuming an existing
-	 * DTLS session.
+	 * Creates a <em>Client Hello</em> message to be used for resuming an
+	 * existing DTLS session.
 	 * 
 	 * @param version
 	 *            the protocol version to use
 	 * @param secureRandom
-	 *            a function to use for creating random values included in the message
+	 *            a function to use for creating random values included in the
+	 *            message
 	 * @param session
 	 *            the (already existing) DTLS session to resume
 	 */
@@ -163,25 +172,25 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Creates an empty message instance.
-	 * This constructor is only used by the {@link #fromByteArray(byte[]) method.
+	 * Creates an empty message instance. This constructor is only used by the
+	 * {@link #fromByteArray(byte[]) method.
 	 */
-	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId, InetSocketAddress peerAddress) {
+	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId,
+			InetSocketAddress peerAddress) {
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random(secureRandom);
-		this.cookie = new Cookie();
+		this.cookie = new byte[] {};
 		if (sessionId != null) {
 			this.sessionId = sessionId;
 		} else {
-			this.sessionId = new SessionId(new byte[]{});
+			this.sessionId = new SessionId(new byte[] {});
 		}
 	}
-	    
+
 	private ClientHello(InetSocketAddress peerAddress) {
 		super(peerAddress);
 	}
-	
 
 	// Serialization //////////////////////////////////////////////////
 
@@ -198,8 +207,8 @@ public final class ClientHello extends HandshakeMessage {
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
 		writer.writeBytes(sessionId.getSessionId());
 
-		writer.write(cookie.length(), COOKIE_LENGTH);
-		writer.writeBytes(cookie.getCookie());
+		writer.write(cookie.length, COOKIE_LENGTH);
+		writer.writeBytes(cookie);
 
 		writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
 		writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
@@ -217,33 +226,40 @@ public final class ClientHello extends HandshakeMessage {
 	/**
 	 * Creates a new ClientObject instance from its byte representation.
 	 * 
-	 * @param byteArray the bytes representing the message
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
+	 * @param byteArray
+	 *            the bytes representing the message
+	 * @param peerAddress
+	 *            the IP address and port of the peer this message has been
+	 *            received from or should be sent to
 	 * @return the ClientHello object
-	 * @throws HandshakeException if any of the extensions included in the message is of an unsupported type
+	 * @throws HandshakeException
+	 *             if any of the extensions included in the message is of an
+	 *             unsupported type
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress)
+			throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		ClientHello result = new ClientHello(peerAddress);
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
 		result.clientVersion = new ProtocolVersion(major, minor);
-		
+
 		result.random = new Random(reader.readBytes(RANDOM_BYTES));
 
 		int sessionIdLength = reader.read(SESSION_ID_LENGTH_BITS);
 		result.sessionId = new SessionId(reader.readBytes(sessionIdLength));
 
 		int cookieLength = reader.read(COOKIE_LENGTH);
-		result.cookie = new Cookie(reader.readBytes(cookieLength));
+		result.cookie = reader.readBytes(cookieLength);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		result.cipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength), cipherSuitesLength / 2); // 2
+		result.cipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
+				cipherSuitesLength / 2); // 2
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
-		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength), compressionMethodsLength);
+		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength),
+				compressionMethodsLength);
 
 		byte[] bytesLeft = reader.readBytesLeft();
 		if (bytesLeft.length > 0) {
@@ -262,18 +278,17 @@ public final class ClientHello extends HandshakeMessage {
 
 	@Override
 	public int getMessageLength() {
-		
-		 // if no extensions set, empty; otherwise 2 bytes for field length and
-		 // then the length of the extensions. See
-		 // http://tools.ietf.org/html/rfc5246#section-7.4.1.2
-		int extensionsLength = (extensions == null || extensions.isEmpty()) ?
-				0 : (2 + extensions.getLength());
 
-		 // fixed sizes: version (2) + random (32) + session ID length (1) +
-		 // cookie length (1) + cipher suites length (2) + compression methods
-		 // length (1) = 39
-		return 39 + sessionId.length() + cookie.length() + cipherSuites.size() * 2 +
-				compressionMethods.size() + extensionsLength;
+		// if no extensions set, empty; otherwise 2 bytes for field length and
+		// then the length of the extensions. See
+		// http://tools.ietf.org/html/rfc5246#section-7.4.1.2
+		int extensionsLength = (extensions == null || extensions.isEmpty()) ? 0 : (2 + extensions.getLength());
+
+		// fixed sizes: version (2) + random (32) + session ID length (1) +
+		// cookie length (1) + cipher suites length (2) + compression methods
+		// length (1) = 39
+		return 39 + sessionId.length() + cookie.length + cipherSuites.size() * 2 + compressionMethods.size()
+				+ extensionsLength;
 	}
 
 	@Override
@@ -286,9 +301,9 @@ public final class ClientHello extends HandshakeMessage {
 		if (sessionId.length() > 0) {
 			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getSessionId()));
 		}
-		sb.append("\n\t\tCookie Length: ").append(cookie.length());
-		if (cookie.length() > 0) {
-			sb.append("\n\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie.getCookie()));
+		sb.append("\n\t\tCookie Length: ").append(cookie.length);
+		if (cookie.length > 0) {
+			sb.append("\n\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
 		}
 		sb.append("\n\t\tCipher Suites Length: ").append(cipherSuites.size() * 2);
 		sb.append("\n\t\tCipher Suites (").append(cipherSuites.size()).append(" suites)");
@@ -325,11 +340,11 @@ public final class ClientHello extends HandshakeMessage {
 		this.sessionId = sessionId;
 	}
 
-	public Cookie getCookie() {
+	public byte[] getCookie() {
 		return cookie;
 	}
 
-	void setCookie(Cookie cookie) {
+	void setCookie(byte[] cookie) {
 		this.cookie = cookie;
 	}
 
@@ -358,7 +373,7 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		compressionMethods.add(compressionMethod);
 	}
-	
+
 	/**
 	 * Gets the supported elliptic curves.
 	 * 
@@ -376,11 +391,11 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		return null;
 	}
-	
+
 	/**
 	 * 
-	 * @return the client's certificate type extension if available,
-	 *         otherwise <code>null</code>.
+	 * @return the client's certificate type extension if available, otherwise
+	 *         <code>null</code>.
 	 */
 	public ClientCertificateTypeExtension getClientCertificateTypeExtension() {
 		if (extensions != null) {
@@ -393,11 +408,11 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		return null;
 	}
-	
+
 	/**
 	 * 
-	 * @return the client's certificate type extension if available,
-	 *         otherwise <code>null</code>.
+	 * @return the client's certificate type extension if available, otherwise
+	 *         <code>null</code>.
 	 */
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
 		if (extensions != null) {

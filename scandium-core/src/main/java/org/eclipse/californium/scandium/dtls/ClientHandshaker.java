@@ -90,8 +90,8 @@ public class ClientHandshaker extends Handshaker {
 	private List<CertificateType> supportedServerCertificateTypes;
 
 	/*
-	 * Store all the message which can possibly be sent by the server.
-	 * We need these to compute the handshake hash.
+	 * Store all the message which can possibly be sent by the server. We need
+	 * these to compute the handshake hash.
 	 */
 	/** The server's {@link ServerHello}. Mandatory. */
 	protected ServerHello serverHello;
