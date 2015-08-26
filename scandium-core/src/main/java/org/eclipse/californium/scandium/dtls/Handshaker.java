@@ -51,8 +51,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -77,7 +77,7 @@ public abstract class Handshaker {
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
-	 * the  protocol.
+	 * the protocol.
 	 */
 	protected final boolean isClient;
 

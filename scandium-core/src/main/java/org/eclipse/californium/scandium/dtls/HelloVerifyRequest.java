@@ -23,12 +23,11 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
  * The server send this request after receiving a {@link ClientHello} message to
- * prevent Denial-of-Service Attacks. See <a
- * href="http://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347</a> for the
- * definition.
+ * prevent Denial-of-Service Attacks. See
+ * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347</a> for
+ * the definition.
  */
 public final class HelloVerifyRequest extends HandshakeMessage {
 
@@ -47,16 +46,16 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	private final ProtocolVersion serverVersion;
 
 	/** The cookie which needs to be replayed by the client. */
-	private final Cookie cookie;
-	
+	private final byte[] cookie;
+
 	// Constructor ////////////////////////////////////////////////////
 
-	public HelloVerifyRequest(ProtocolVersion version, Cookie cookie, InetSocketAddress peerAddress) {
+	public HelloVerifyRequest(ProtocolVersion version, byte[] cookie, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.serverVersion = version;
 		this.cookie = cookie;
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
@@ -66,8 +65,8 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		writer.write(serverVersion.getMajor(), VERSION_BITS);
 		writer.write(serverVersion.getMinor(), VERSION_BITS);
 
-		writer.write(cookie.length(), COOKIE_LENGTH_BITS);
-		writer.writeBytes(cookie.getCookie());
+		writer.write(cookie.length, COOKIE_LENGTH_BITS);
+		writer.writeBytes(cookie);
 
 		return writer.toByteArray();
 	}
@@ -80,11 +79,11 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		ProtocolVersion version = new ProtocolVersion(major, minor);
 
 		int cookieLength = reader.read(COOKIE_LENGTH_BITS);
-		Cookie cookie = new Cookie(reader.readBytes(cookieLength));
+		byte[] cookie = reader.readBytes(cookieLength);
 
 		return new HelloVerifyRequest(version, cookie, peerAddress);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
@@ -95,14 +94,14 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	@Override
 	public int getMessageLength() {
 		// fixed: version (2) + cookie length (1)
-		return 3 + cookie.length();
+		return 3 + cookie.length;
 	}
 
 	public ProtocolVersion getServerVersion() {
 		return serverVersion;
 	}
 
-	public Cookie getCookie() {
+	public byte[] getCookie() {
 		return cookie;
 	}
 
@@ -111,8 +110,8 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tServer Version: " + serverVersion.getMajor() + ", " + serverVersion.getMinor() + "\n");
-		sb.append("\t\tCookie Length: " + cookie.length() + "\n");
-		sb.append("\t\tCookie: " + ByteArrayUtils.toHexString(cookie.getCookie()) + "\n");
+		sb.append("\t\tCookie Length: " + cookie.length + "\n");
+		sb.append("\t\tCookie: " + ByteArrayUtils.toHexString(cookie) + "\n");
 
 		return sb.toString();
 	}
