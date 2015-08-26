@@ -11,7 +11,9 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Robert Harder - initial creation
+ *    Robert Harder - initial creation (http://iharder.sourceforge.net/current/java/base64/)
+ *                    Rob has provided explicit consent to re-distribute the code under EPL/EDL
+ *                    (documented in CQ 9648 - http://dev.eclipse.org/ipzilla/show_bug.cgi?id=9648)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add option for preventing padding
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
