@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - test stop transfer on cancel
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -64,6 +66,7 @@ public class BlockwiseTransferTest {
 	
 	private boolean request_short = true;
 	private boolean respond_short = true;
+	private boolean cancel_request = false;
 	
 	private CoapServer server;
 	private ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
@@ -106,6 +109,7 @@ public class BlockwiseTransferTest {
 		test_GET_long();
 		// repeat test to check ongoing clean-up
 		test_GET_long();
+		test_GET_long_cancel();
 	}
 	
 	public void test_POST_short_short() throws Exception {
@@ -147,23 +151,47 @@ public class BlockwiseTransferTest {
 		respond_short = false;
 		executeGETRequest();
 	}
+
+	public void test_GET_long_cancel() throws Exception {
+		System.out.println("-- GET long, cancel --");
+		respond_short = false;
+		cancel_request = true;
+		executeGETRequest();
+	}
 	
 	private void executeGETRequest() throws Exception {
 		String payload = "nothing";
 		try {
 			interceptor.clear();
-			Request request = Request.newGet();
+			final AtomicInteger counter = new AtomicInteger(0);
+			final Request request = Request.newGet();
 			request.setDestination(InetAddress.getByName("localhost")); // InetAddress.getLocalHost() returns different address on Linux
 			request.setDestinationPort(serverPort);
+			interceptor.handler = new ReceiveRequestHandler() {
+				@Override
+				public void receiveRequest(Request received) {
+					counter.getAndIncrement();
+					if (cancel_request) {
+						request.cancel();
+					}
+				}
+			};
+			
 			clientEndpoint.sendRequest(request);
 			
 			// receive response and check
 			Response response = request.waitForResponse(1000);
-			
-			assertNotNull(response);
-			payload = response.getPayloadString();
-			if (respond_short) assertEquals(SHORT_GET_RESPONSE, payload);
-			else assertEquals(LONG_GET_RESPONSE, payload);
+
+			if (cancel_request) {
+				Thread.sleep(100); // Quickly wait for more blocks (should not happen)
+				assertEquals(1, counter.get());
+			}
+			else {
+				assertNotNull(response);
+				payload = response.getPayloadString();
+				if (respond_short) assertEquals(SHORT_GET_RESPONSE, payload);
+				else assertEquals(LONG_GET_RESPONSE, payload);
+			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
 			System.out.println("Client received "+payload
@@ -248,6 +276,7 @@ public class BlockwiseTransferTest {
 	public static class ServerBlockwiseInterceptor implements MessageInterceptor {
 
 		private StringBuilder buffer = new StringBuilder();
+		public ReceiveRequestHandler handler;
 		
 		@Override
 		public void sendRequest(Request request) {
@@ -280,6 +309,7 @@ public class BlockwiseTransferTest {
 					blockOptionString(1, request.getOptions().getBlock1()),
 					blockOptionString(2, request.getOptions().getBlock2()),
 					observeOptionString(request.getOptions()) ));
+			if (null != handler) handler.receiveRequest(request);
 		}
 
 		@Override
@@ -321,4 +351,7 @@ public class BlockwiseTransferTest {
 		
 	}
 	
+	public interface ReceiveRequestHandler {
+		void receiveRequest(Request received);
+	}
 }

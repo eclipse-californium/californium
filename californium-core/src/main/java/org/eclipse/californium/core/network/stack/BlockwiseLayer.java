@@ -272,6 +272,19 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
+		
+		// do not continue fetching blocks if canceled
+		if (exchange.getRequest().isCanceled()) {
+			// reject (in particular for Block+Observe)
+			if (response.getType()!=Type.ACK) {
+				LOGGER.finer("Rejecting blockwise transfer for canceled Exchange");
+				EmptyMessage rst = EmptyMessage.newRST(response);
+				sendEmptyMessage(exchange, rst);
+				// Matcher sets exchange as complete when RST is sent
+			}
+			return;
+		}
+		
 		if (!response.getOptions().hasBlock1() && !response.getOptions().hasBlock2()) {
 			// There is no block1 or block2 option, therefore it is a normal response
 			exchange.setResponse(response);
@@ -389,16 +402,6 @@ public class BlockwiseLayer extends AbstractLayer {
 				exchange.getRequest().cancel();
 			}
 		}
-	}
-
-	@Override
-	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
-		super.sendEmptyMessage(exchange, message);
-	}
-
-	@Override
-	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
-		super.receiveEmptyMessage(exchange, message);
 	}
 	
 	/////////// HELPER METHODS //////////
