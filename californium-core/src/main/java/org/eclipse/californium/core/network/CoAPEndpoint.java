@@ -679,9 +679,13 @@ public class CoAPEndpoint implements Endpoint {
 		
 		private void reject(Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
+			
 			for (MessageInterceptor interceptor:interceptors)
 				interceptor.sendEmptyMessage(rst);
-			connector.send(serializer.serialize(rst));
+			
+			// MessageInterceptor might have canceled
+			if (!rst.isCanceled())
+				connector.send(serializer.serialize(rst));
 		}
 
 	}
