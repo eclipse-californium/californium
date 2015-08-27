@@ -21,8 +21,7 @@ package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -65,8 +64,8 @@ public class ObserveClientSideTest {
 		System.out.println("\nStart "+getClass().getSimpleName());
 		
 		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
@@ -87,8 +86,8 @@ public class ObserveClientSideTest {
 	@Test
 	public void test() throws Throwable {
 		try {
-			testGETWithLostACK();
 			testGETObserveWithLostACK();
+			testBlockwiseObserve();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -100,40 +99,8 @@ public class ObserveClientSideTest {
 		}
 	}
 	
-	private void testGETWithLostACK() throws Exception {
-		System.out.println("Simple blockwise GET:");
-		respPayload = generatePayload(10);
-		String path = "test";
-		server = createLockstepEndpoint();
-		
-		Request request = createRequest(GET, path);
-		client.sendRequest(request);
-		
-		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").go(); // lost;
-		clientInterceptor.log(" // lost");
-		server.expectRequest(CON, GET, path).loadMID("A").storeToken("B").go(); // lost;
-		
-		server.sendEmpty(ACK).loadMID("A").go();
-		Thread.sleep(50);
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-		clientInterceptor.log(" // lost");
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-		clientInterceptor.log(" // lost");
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go();
-		
-		Response response = request.waitForResponse(1000);
-		Assert.assertNotNull("Client received no response", response);
-		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
-		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
-		
-		printServerLog();
-	}
-	
 	private void testGETObserveWithLostACK() throws Exception {
-		System.out.println("Simple blockwise GET:");
+		System.out.println("Observe with lost ACKs:");
 		respPayload = generatePayload(10);
 		String path = "test";
 		server = createLockstepEndpoint();
@@ -173,6 +140,70 @@ public class ObserveClientSideTest {
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
 		printServerLog();
+	}
+	
+	private void testBlockwiseObserve() throws Exception {
+		System.out.println("Blockwise Observe:");
+		respPayload = generatePayload(40);
+		String path = "test";
+		server = createLockstepEndpoint();
+		
+		Request request = createRequest(GET, path);
+		request.setObserve();
+		client.sendRequest(request);
+		
+		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		
+		Response response = request.waitForResponse(1000);
+		Assert.assertNotNull("Client received no response", response);
+		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
+		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
+		printServerLog();
+		
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		
+		response = request.waitForResponse(500);
+		Assert.assertNotNull("Client received no notification", response);
+		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
+		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
+		printServerLog();
+		
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		// canceling in the middle of blockwise transfer
+		request.cancel();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		// this is not executed anymore
+		// server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		
+		// notification may not be delivered
+		response = request.waitForResponse(500);
+		Assert.assertNull("Client received notification although canceled", response);
+		
+		// next notification must be rejected
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectEmpty(RST, mid).go();
+		
+		// notification may not be delivered
+		response = request.waitForResponse(500);
+		Assert.assertNull("Client received notification although canceled", response);
+		printServerLog();
+		
 	}
 	
 	private LockstepEndpoint createLockstepEndpoint() {

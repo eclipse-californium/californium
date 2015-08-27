@@ -116,11 +116,11 @@ public class LockstepEndpoint {
 		return new RequestExpectation().type(type).code(code).path(path);
 	}
 	
-	public ResponseExpecation expectResponse() {
-		return new ResponseExpecation();
+	public ResponseExpectation expectResponse() {
+		return new ResponseExpectation();
 	}
 	
-	public ResponseExpecation expectResponse(Type type, ResponseCode code, byte[] token, int mid) {
+	public ResponseExpectation expectResponse(Type type, ResponseCode code, byte[] token, int mid) {
 		return expectResponse().type(type).code(code).token(token).mid(mid);
 	}
 	
@@ -414,57 +414,57 @@ public class LockstepEndpoint {
 		}
 	}
 	
-	public class ResponseExpecation extends MessageExpectation {
+	public class ResponseExpectation extends MessageExpectation {
 		
 		private Response response;
 		
 		private List<Expectation<Response>> expectations = new LinkedList<LockstepEndpoint.Expectation<Response>>();
 		
-		@Override public ResponseExpecation mid(final int mid) {
+		@Override public ResponseExpectation mid(final int mid) {
 			super.mid(mid); return this;
 		}
 
-		@Override public ResponseExpecation type(final Type type) {
+		@Override public ResponseExpectation type(final Type type) {
 			super.type(type); return this;
 		}
 
-		@Override public ResponseExpecation token(final byte[] token) {
+		@Override public ResponseExpectation token(final byte[] token) {
 			super.token(token); return this;
 		}
 
-		@Override public ResponseExpecation payload(final String payload) {
+		@Override public ResponseExpectation payload(final String payload) {
 			super.payload(payload); return this;
 		}
 		
-		@Override public ResponseExpecation payload(String payload, int from, int to) {
+		@Override public ResponseExpectation payload(String payload, int from, int to) {
 			super.payload(payload, from, to); return this;
 		}
 		
-		@Override public ResponseExpecation block1(final int num, final boolean m, final int size) {
+		@Override public ResponseExpectation block1(final int num, final boolean m, final int size) {
 			super.block1(num, m, size); return this;
 		}
 		
-		@Override public ResponseExpecation block2(final int num, final boolean m, final int size) {
+		@Override public ResponseExpectation block2(final int num, final boolean m, final int size) {
 			super.block2(num, m, size); return this;
 		}
 		
-		@Override public ResponseExpecation observe(final int observe) {
+		@Override public ResponseExpectation observe(final int observe) {
 			super.observe(observe); return this;
 		}
 
-		@Override public ResponseExpecation noOption(final int... numbers) {
+		@Override public ResponseExpectation noOption(final int... numbers) {
 			super.noOption(numbers); return this;
 		}
 		
-		@Override public ResponseExpecation storeMID(final String var) {
+		@Override public ResponseExpectation storeMID(final String var) {
 			super.storeMID(var); return this;
 		}
 		
-		@Override public ResponseExpecation loadMID(final String var) {
+		@Override public ResponseExpectation loadMID(final String var) {
 			super.loadMID(var); return this;
 		}
 		
-		public ResponseExpecation code(final ResponseCode code) {
+		public ResponseExpectation code(final ResponseCode code) {
 			expectations.add(new Expectation<Response>() {
 				public void check(Response response) {
 					Assert.assertEquals(code, response.getCode());
@@ -474,7 +474,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
-		public ResponseExpecation responseType(final String key, final Type... acceptable) {
+		public ResponseExpectation responseType(final String key, final Type... acceptable) {
 			expectations.add(new Expectation<Response>() {
 				public void check(Response response) {
 					Type type = response.getType();
@@ -488,7 +488,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
-		public ResponseExpecation storeObserve(final String key) {
+		public ResponseExpectation storeObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 				public void check(Response response) {
 					Assert.assertTrue("Has no observe option", response.getOptions().hasObserve());
@@ -498,7 +498,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
-		public ResponseExpecation largerObserve(final String key) {
+		public ResponseExpectation largerObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 				public void check(Response response) {
 					Assert.assertTrue("Has no observe option", response.getOptions().hasObserve());
@@ -513,13 +513,13 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
-		public ResponseExpecation checkObs(String former, String next) {
+		public ResponseExpectation checkObs(String former, String next) {
 			largerObserve(former);
 			storeObserve(next);
 			return this;
 		}
 		
-		public ResponseExpecation loadObserve(final String key) {
+		public ResponseExpectation loadObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 				public void check(Response response) {
 					Assert.assertTrue("No observe option:", response.getOptions().hasObserve());

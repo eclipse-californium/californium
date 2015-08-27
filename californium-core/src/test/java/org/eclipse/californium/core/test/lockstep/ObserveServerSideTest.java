@@ -101,7 +101,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 			testEstablishmentAndTimeout();
 			testEstablishmentAndTimeoutWithUpdateInMiddle();
 			testEstablishmentAndRejectCancellation();
-			// testObserveWithBlock(); // TODO
+			testObserveWithBlock();
 			testNON();
 			testNONWithBlock();
 			testQuickChangeAndTimeout();
@@ -125,7 +125,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("Z").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification
@@ -179,7 +179,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification
@@ -221,7 +221,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification
@@ -247,34 +247,45 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		
 		// Establish relation
 		LockstepEndpoint client = createLockstepEndpoint();
-		respType = null;
+		respType = null; // first type is normal ACK
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").block2(0, true, 32).payload(respPayload, 0, 32).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log("\nObserve relation established");
 		
+		// Get remaining blocks
 		byte[] tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(2, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 32).payload(respPayload, 64, 80).go(); 
 		
-//		// First notification
-		serverInterceptor.log("\n   === changed ===");
+		// First notification
+		Thread.sleep(50);
 		respType = CON;
 		testObsResource.change(generatePayload(80));
+		serverInterceptor.log("\n   === changed ===");
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").block2(0, true, 32).payload(respPayload, 0, 32).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
-		
-		Thread.sleep(100);
-		testObsResource.change(generatePayload(80));
+
+		// Get remaining blocks
 		byte[] tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(2, false, 32).go();
-		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 32).payload(respPayload, 64, 80).go(); 
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 32).payload(respPayload, 64, 80).go();
+		
+		// Second notification
+		Thread.sleep(50);
+		respType = CON;
+		testObsResource.change(generatePayload(80));
+		serverInterceptor.log("\n   === changed ===");
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").block2(0, true, 32).payload(respPayload, 0, 32).go();
+		client.sendEmpty(RST).loadMID("MID").go();
 		
 		
 		Thread.sleep(timeout+100);
-//		Assert.assertEquals("Resource has not removed relation:", 0, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not removed relation:", 0, testObsResource.getObserverCount());
 		printServerLog();
 	}
 	
@@ -353,7 +364,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(NON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse().type(NON).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification
@@ -392,7 +403,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(NON, GET, tok, ++mid).path(path).observe(0).block2(0, false, 32).go();
 		client.expectResponse().type(NON).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification
@@ -434,7 +445,7 @@ private static boolean RANDOM_PAYLOAD_GENERATION = true;
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").payload(respPayload).go();
-		Assert.assertEquals("Resource has established relation:", 1, testObsResource.getObserverCount());
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log("\nObserve relation established");
 		
 		// First notification

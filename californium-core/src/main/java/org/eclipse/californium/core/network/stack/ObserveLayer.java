@@ -129,7 +129,7 @@ public class ObserveLayer extends AbstractLayer {
 	public void receiveResponse(Exchange exchange, Response response) {
 		if (response.getOptions().hasObserve() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
-			LOGGER.finer("ObserveLayer rejecting notification for canceled Exchange");
+			LOGGER.finer("Rejecting notification for canceled Exchange");
 			EmptyMessage rst = EmptyMessage.newRST(response);
 			sendEmptyMessage(exchange, rst);
 			// Matcher sets exchange as complete when RST is sent
