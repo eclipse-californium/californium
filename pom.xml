@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.6</project.build.javaVersion>
+		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<maven.source.pluginVersion>2.4</maven.source.pluginVersion>
 		<maven.javadoc.pluginVersion>2.10.3</maven.javadoc.pluginVersion>
 	</properties>
