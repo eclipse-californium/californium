@@ -140,7 +140,16 @@ public enum CipherSuite {
 				KeyExchangeAlgorithm.PSK.equals(keyExchange) ||
 				KeyExchangeAlgorithm.NULL.equals(keyExchange));
 	}
-	
+
+	/**
+	 * Checks whether this cipher suite uses elliptic curve cryptography (ECC).
+	 * 
+	 * @return <code>true</code> if ECC is used
+	 */
+	public boolean isEccBased() {
+		return KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange);
+	}
+
 	/**
 	 * Gets the cipher suite's underlying bulk cipher algorithm used
 	 * to encrypt data.

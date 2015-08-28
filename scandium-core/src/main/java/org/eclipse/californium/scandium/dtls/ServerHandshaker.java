@@ -23,13 +23,14 @@
  *                                                    of handshake
  *    Kai Hudalla (Bosch Software Innovations GmbH) - only include client/server certificate type extensions
  *                                                    in SERVER_HELLO if required for cipher suite
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - pick arbitrary supported group if client omits
+ *                                                    Supported Elliptic Curves Extension (fix 473678)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,7 +49,6 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorit
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -484,12 +484,12 @@ public class ServerHandshaker extends Handshaker {
 
 		// store client and server random
 		clientRandom = message.getRandom();
-		serverRandom = new Random(new SecureRandom());
+		serverRandom = new Random();
 
 		SessionId sessionId = new SessionId();
 		session.setSessionIdentifier(sessionId);
 
-		CipherSuite cipherSuite = negotiateCipherSuite(message.getCipherSuites());
+		CipherSuite cipherSuite = negotiateCipherSuite(message);
 		setCipherSuite(cipherSuite);
 
 		// currently only NULL compression supported, no negotiation needed
@@ -510,7 +510,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 		}
 
-		if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange)) {
+		if (cipherSuite.isEccBased()) {
 			// if we chose a ECC cipher suite, the server should send the
 			// supported point formats extension in its ServerHello
 			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
@@ -551,11 +551,10 @@ public class ServerHandshaker extends Handshaker {
 		case EC_DIFFIE_HELLMAN:
 			// TODO SHA256withECDSA is default but should be configurable
 			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-			int negotiatedCurveId = negotiateNamedCurve(message);
-			ecdhe = ECDHECryptography.fromNamedCurveId(negotiatedCurveId);
 			try {
+				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
 				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom,
-						negotiatedCurveId, session.getPeer());
+						negotiatedSupportedGroup.getId(), session.getPeer());
 				break;
 			} catch (GeneralSecurityException e) {
 				throw new HandshakeException(
@@ -713,12 +712,18 @@ public class ServerHandshaker extends Handshaker {
 	 * preferred ciphers until one is found that is also contained
 	 * in the {@link #supportedCipherSuites}.
 	 * 
+	 * If the client proposes an ECC based cipher suite this method also
+	 * tries to determine an appropriate <em>Supported Group</em> by means
+	 * of invoking the {@link #negotiateNamedCurve(ClientHello)} method.
+	 * If a group is found it will be stored in the {@link #negotiatedSupportedGroup}
+	 * field. 
+	 * 
 	 * The <em>SSL_NULL_WITH_NULL_NULL</em> cipher suite is <em>never</em>
 	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5">
 	 * RFC 5246 Appendix A.5</a>
 	 * 
-	 * @param cipherSuites
-	 *            the list of cipher suites the client supports
+	 * @param clientHello
+	 *            the message containing the list of cipher suites the client supports
 	 *            (ordered by preference)
 	 * @return The single cipher suite selected by the server from the list
 	 *         which will be used after handshake completion.
@@ -726,11 +731,22 @@ public class ServerHandshaker extends Handshaker {
 	 *             if this server does not support any of
 	 *             the cipher suites proposed by the client
 	 */
-	private CipherSuite negotiateCipherSuite(List<CipherSuite> cipherSuites) throws HandshakeException {
-		for (CipherSuite cipherSuite : cipherSuites) {
+	private CipherSuite negotiateCipherSuite(ClientHello clientHello) throws HandshakeException {
+		
+		for (CipherSuite cipherSuite : clientHello.getCipherSuites()) {
 			// NEVER negotiate NULL cipher suite
 			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL &&
 					supportedCipherSuites.contains(cipherSuite)) {
+				if (cipherSuite.isEccBased()) {
+					// we also need to check if we can agree on a named curve
+					SupportedGroup group = negotiateNamedCurve(clientHello);
+					if (group != null) {
+						negotiatedSupportedGroup = group;
+					} else {
+						// try next cipher suite
+						continue;
+					}
+				}
 				LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
 						new Object[]{cipherSuite.name(), getPeerAddress()});
 				return cipherSuite;
@@ -747,37 +763,31 @@ public class ServerHandshaker extends Handshaker {
 	 * @param clientHello
 	 *            the peer's <em>CLIENT_HELLO</em> message containing its
 	 *            preferred elliptic curves
-	 * @return the selected elliptic curve's id
-	 * @throws HandshakeException
-	 *             if none of the peer's preferred curves is supported by this
-	 *             handshaker
+	 * @return the selected curve
 	 */
-	private int negotiateNamedCurve(ClientHello clientHello) throws HandshakeException {
+	private SupportedGroup negotiateNamedCurve(ClientHello clientHello) {
+		SupportedGroup result = null;
+		List<SupportedGroup> preferredGroups = SupportedGroup.getPreferredGroups();
 		SupportedEllipticCurvesExtension extension = clientHello.getSupportedEllipticCurvesExtension();
 		if (extension == null) {
-			// extension was not present in ClientHello, we can't continue the handshake
-			throw new HandshakeException(
-					"Client did not provide the elliptic_curves extension required for an EC based key exchange",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+			// according to RFC 4492, section 4 (https://tools.ietf.org/html/rfc4492#section-4)
+			// we are free to pick any curve in this case
+			if (!preferredGroups.isEmpty()) {
+				result = preferredGroups.get(0);
+			}
 		} else {
 			for (Integer preferredGroupId : extension.getSupportedGroupIds()) {
-				// choose first proposal which is supported
+				// use first group proposed by client contained in list of server's preferred groups
 				SupportedGroup group = SupportedGroup.fromId(preferredGroupId);
-				if (group != null && group.isUsable()) {
-					negotiatedSupportedGroup = group;
+				if (group != null && group.isUsable() && preferredGroups.contains(group)) {
+					result = group;
 					break;
 				}
 			}
-			if (negotiatedSupportedGroup == null) {
-				throw new HandshakeException(
-						"None of elliptic curves proposed by client supported by server",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
-			} else {
-				return negotiatedSupportedGroup.getId();
-			}
 		}
+		return result;
 	}
-	
+
 	/**
 	 * Determines the type of certificate this handshaker expects from the peer
 	 * in its <em>CERTIFICATE</em> message.
@@ -862,9 +872,8 @@ public class ServerHandshaker extends Handshaker {
 	final CertificateType getNegotiatedServerCertificateType() {
 		return negotiatedServerCertificateType;
 	}
-	
-	final SupportedGroup getNegortiatedSupportedGroup() {
+
+	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
 	}
-
 }

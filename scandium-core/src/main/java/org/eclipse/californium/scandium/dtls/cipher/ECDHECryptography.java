@@ -39,6 +39,7 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -500,6 +501,26 @@ public final class ECDHECryptography {
 				}
 			}
 			return result.toArray(new SupportedGroup[]{});
+		}
+
+		/**
+		 * Gets the preferred <em>supported groups</em>.
+		 * 
+		 * @return the groups in order of preference
+		 */
+		public static List<SupportedGroup> getPreferredGroups() {
+			List<SupportedGroup> result = new ArrayList<>();
+			for (SupportedGroup group : SupportedGroup.values()) {
+				switch(group) {
+				case secp256r1:
+				case secp384r1:
+				case secp521r1:
+					result.add(group);
+				default:
+					// skip
+				}
+			}
+			return result;
 		}
 	}
 }
