@@ -169,7 +169,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		this.signatureEncoded = signatureEncoded;
 		// re-create public key from params
 		SupportedGroup group = SupportedGroup.fromId(curveId);
-		if (group == null || group.getEcParams() == null) {
+		if (group == null || !group.isUsable()) {
 			throw new HandshakeException(
 				String.format("Server used unsupported elliptic curve (%d) for ECDH", curveId),
 				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));

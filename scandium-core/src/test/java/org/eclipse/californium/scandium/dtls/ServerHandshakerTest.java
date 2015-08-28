@@ -95,8 +95,7 @@ public class ServerHandshakerTest {
 	public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws HandshakeException {
 
 		List<byte[]> extensions = new LinkedList<>();
-		// curveId 0x0016 secp256k1
-		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0016));
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(getArbitrarySupportedGroup().getId()));
 
 		processClientHello(0, null, supportedCiphers, extensions);
 
@@ -153,7 +152,7 @@ public class ServerHandshakerTest {
 	@Test
 	public void testReceiveClientHelloNegotiatesSupportedCertificateType() throws Exception {
 		List<byte[]> extensions = new LinkedList<>();
-		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0016));
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(getArbitrarySupportedGroup().getId()));
 		// certificate type OpenPGP is not supported by Scandium
 		// certificate type X.509 is supported by Scandium
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
@@ -185,11 +184,12 @@ public class ServerHandshakerTest {
 	@Test()
 	public void testReceiveClientHelloNegotiatesSupportedEcCurveId() throws HandshakeException {
 		List<byte[]> extensions = new LinkedList<>();
+		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
 		// curveId 0x0000 is not assigned by IANA
-		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, SupportedGroup.secp256r1.getId()));
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, supportedGroup.getId()));
 		// only support ECDHE based cipher suite
 		processClientHello(0, null, new byte[]{(byte) 0xC0, (byte) 0x23}, extensions);
-		assertThat(handshaker.getNegortiatedSupportedGroup(), is(SupportedGroup.secp256r1));
+		assertThat(handshaker.getNegortiatedSupportedGroup(), is(supportedGroup));
 	}
 	
 	private DTLSFlight processClientHello(int messageSeq, byte[] cookie,
@@ -268,7 +268,21 @@ public class ServerHandshakerTest {
 			writer.write(extBytes.length, 16);
 			writer.writeBytes(extBytes);
 		}
-
 		return writer.toByteArray();
+	}
+
+	/**
+	 * Gets an arbitrary <code>SupportedGroup</code> implemented by the JRE's
+	 * cryptography provider(s).
+	 * 
+	 * @return the group
+	 */
+	private SupportedGroup getArbitrarySupportedGroup() {
+		SupportedGroup[] supportedGroups = SupportedGroup.getUsableGroups();
+		if (supportedGroups.length > 0) {
+			return supportedGroups[0];
+		} else {
+			return SupportedGroup.secp256r1;
+		}
 	}
 }

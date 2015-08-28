@@ -757,13 +757,13 @@ public class ServerHandshaker extends Handshaker {
 		if (extension == null) {
 			// extension was not present in ClientHello, we can't continue the handshake
 			throw new HandshakeException(
-					"Client did not provide the elliptic_curves extension although EC cipher suite chosen",
+					"Client did not provide the elliptic_curves extension required for an EC based key exchange",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		} else {
-			for (Integer preferredCurveId : extension.getEllipticCurveList()) {
+			for (Integer preferredGroupId : extension.getSupportedGroupIds()) {
 				// choose first proposal which is supported
-				SupportedGroup group = SupportedGroup.fromId(preferredCurveId);
-				if (group != null && group.getEcParams() != null) {
+				SupportedGroup group = SupportedGroup.fromId(preferredGroupId);
+				if (group != null && group.isUsable()) {
 					negotiatedSupportedGroup = group;
 					break;
 				}
