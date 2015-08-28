@@ -122,17 +122,8 @@ public final class ClientHello extends HandshakeMessage {
 
 		// the supported groups
 		// TODO make list of supported groups configurable
-		List<SupportedGroup> curves = new ArrayList<>();
-		if (SupportedGroup.secp256r1.isUsable()) {
-			curves.add(SupportedGroup.secp256r1);
-		}
-		if (SupportedGroup.secp384r1.isUsable()) {
-			curves.add(SupportedGroup.secp384r1);
-		}
-		if (SupportedGroup.secp521r1.isUsable()) {
-			curves.add(SupportedGroup.secp521r1);
-		}
-		this.extensions.addExtension(new SupportedEllipticCurvesExtension(curves.toArray(new SupportedGroup[]{})));
+		SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[]{});
+		this.extensions.addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
 
 		// the supported point formats
 		List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
