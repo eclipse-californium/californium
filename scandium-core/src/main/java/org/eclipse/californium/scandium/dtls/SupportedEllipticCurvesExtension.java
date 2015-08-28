@@ -42,18 +42,32 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	// Members ////////////////////////////////////////////////////////
 	
 	/** The list holding the supported named curves IDs */
-	private final List<Integer> ellipticCurveList;
+	private final List<Integer> supportedGroups;
 	
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * 
-	 * @param ellipticCurveList
+	 * @param supportedGroupIds
 	 *            the list of supported named curves.
 	 */
-	public SupportedEllipticCurvesExtension(List<Integer> ellipticCurveList) {
+	public SupportedEllipticCurvesExtension(List<Integer> supportedGroupIds) {
 		super(ExtensionType.ELLIPTIC_CURVES);
-		this.ellipticCurveList = ellipticCurveList;
+		this.supportedGroups = new ArrayList<Integer>(supportedGroupIds);
+	}
+
+	/**
+	 * Creates an instance using the IDs of a given set of supported groups.
+	 * 
+	 * @param supportedGroups
+	 *            the supported groups
+	 */
+	public SupportedEllipticCurvesExtension(SupportedGroup[] supportedGroups) {
+		super(ExtensionType.ELLIPTIC_CURVES);
+		this.supportedGroups = new ArrayList<Integer>();
+		for (SupportedGroup group : supportedGroups) {
+			this.supportedGroups.add(group.getId());
+		}
 	}
 	
 	// Serialization //////////////////////////////////////////////////
@@ -63,12 +77,12 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		DatagramWriter writer = new DatagramWriter();
 		writer.writeBytes(super.toByteArray());
 
-		int listLength = ellipticCurveList.size() * 2;
+		int listLength = supportedGroups.size() * 2;
 		writer.write(listLength + 2, LENGTH_BITS);
 		writer.write(listLength, LIST_LENGTH_BITS);
 
-		for (Integer curveId : ellipticCurveList) {
-			writer.write(curveId, CURVE_BITS);
+		for (Integer groupId : supportedGroups) {
+			writer.write(groupId, CURVE_BITS);
 		}
 
 		return writer.toByteArray();
@@ -79,15 +93,15 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
 		int listLength = reader.read(LIST_LENGTH_BITS);
 
-		List<Integer> ellipticCurveList = new ArrayList<Integer>();
+		List<Integer> groupIds = new ArrayList<Integer>();
 		while (listLength > 0) {
 			int id = reader.read(CURVE_BITS);
-			ellipticCurveList.add(id);
+			groupIds.add(id);
 
 			listLength -= 2;
 		}
 
-		return new SupportedEllipticCurvesExtension(ellipticCurveList);
+		return new SupportedEllipticCurvesExtension(groupIds);
 	}
 	
 	// Methods ////////////////////////////////////////////////////////
@@ -96,7 +110,7 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	public int getLength() {
 		// fixed: type (2 bytes), length (2 bytes), list length (2 bytes)
 		// variable: number of named curves * 2 (2 bytes for each curve)
-		return 6 + (ellipticCurveList.size() * 2);
+		return 6 + (supportedGroups.size() * 2);
 	}
 
 	@Override
@@ -104,9 +118,9 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		StringBuilder sb = new StringBuilder(super.toString());
 		sb.append("\t\t\t\tLength: ").append(getLength() - 4).append("\n");
 		sb.append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6).append("\n");
-		sb.append("\t\t\t\tElliptic Curves (").append(ellipticCurveList.size()).append(" curves):\n");
+		sb.append("\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):\n");
 
-		for (Integer curveId : ellipticCurveList) {
+		for (Integer curveId : supportedGroups) {
 			SupportedGroup group = SupportedGroup.fromId(curveId);
 			if (group != null) {
 				sb.append("\t\t\t\t\tElliptic Curve: ").append(group.name());
@@ -119,8 +133,8 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		return sb.toString();
 	}
 
-	public List<Integer> getEllipticCurveList() {
-		return Collections.unmodifiableList(ellipticCurveList);
+	public List<Integer> getSupportedGroupIds() {
+		return Collections.unmodifiableList(supportedGroups);
 	}
 
 }

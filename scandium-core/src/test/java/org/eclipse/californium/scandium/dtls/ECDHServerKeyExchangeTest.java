@@ -1,30 +1,51 @@
+/*******************************************************************************
+ * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class ECDHServerKeyExchangeTest {
 
 	ECDHServerKeyExchange msg;
 	InetSocketAddress peerAddress = new InetSocketAddress(5000);
+
 	@Before
 	public void setUp() throws Exception {
-		
+
+		SupportedGroup usableGroup = SupportedGroup.getUsableGroups()[0];
 		msg = new ECDHServerKeyExchange(
 				new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA),
-				new ECDHECryptography(23),
+				ECDHECryptography.fromNamedCurveId(usableGroup.getId()),
 				DtlsTestTools.getPrivateKey(),
 				new Random(),
 				new Random(),
-				23,
+				usableGroup.getId(),
 				peerAddress);
 	}
 

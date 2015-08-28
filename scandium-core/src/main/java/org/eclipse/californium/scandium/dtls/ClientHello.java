@@ -29,7 +29,7 @@ import java.util.List;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -38,7 +38,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * When a client first connects to a server, it is required to send the
  * ClientHello as its first message. The client can also send a ClientHello in
  * response to a {@link HelloRequest} or on its own initiative in order to
- * renegotiate the security parameters in an existing connection. See
+ * re-negotiate the security parameters in an existing connection. See
  * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
 public final class ClientHello extends HandshakeMessage {
@@ -120,18 +120,23 @@ public final class ClientHello extends HandshakeMessage {
 		this.cipherSuites = new ArrayList<>();
 		this.compressionMethods = new ArrayList<>();
 
-		// the supported elliptic curves
-		List<Integer> curves = Arrays.asList(//
-				ECDHECryptography.SupportedGroup.secp256r1.getId(), //
-				ECDHECryptography.SupportedGroup.secp384r1.getId(), //
-				ECDHECryptography.SupportedGroup.secp521r1.getId());
-		HelloExtension supportedCurvesExtension = new SupportedEllipticCurvesExtension(curves);
-		this.extensions.addExtension(supportedCurvesExtension);
+		// the supported groups
+		// TODO make list of supported groups configurable
+		List<SupportedGroup> curves = new ArrayList<>();
+		if (SupportedGroup.secp256r1.isUsable()) {
+			curves.add(SupportedGroup.secp256r1);
+		}
+		if (SupportedGroup.secp384r1.isUsable()) {
+			curves.add(SupportedGroup.secp384r1);
+		}
+		if (SupportedGroup.secp521r1.isUsable()) {
+			curves.add(SupportedGroup.secp521r1);
+		}
+		this.extensions.addExtension(new SupportedEllipticCurvesExtension(curves.toArray(new SupportedGroup[]{})));
 
 		// the supported point formats
 		List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-		HelloExtension supportedPointFormatsExtension = new SupportedPointFormatsExtension(formats);
-		this.extensions.addExtension(supportedPointFormatsExtension);
+		this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
 
 		// the certificate types the client is able to provide to the server
 		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
