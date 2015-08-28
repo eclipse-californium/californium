@@ -18,6 +18,8 @@
  *                                                    java.security.Principal (fix 464812)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
  *                                                    of handshake
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112: only prefer RawPublicKey from server
+ *                                                    if no trust store has been configured
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -139,10 +141,10 @@ public class ClientHandshaker extends Handshaker {
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 		if (rootCertificates != null && rootCertificates.length > 0) {
 			this.supportedServerCertificateTypes.add(CertificateType.X_509);
 		}
+		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
