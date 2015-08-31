@@ -65,6 +65,12 @@ public class ServerHandshaker extends Handshaker {
 	
 	// Members ////////////////////////////////////////////////////////
 
+	/**
+	 * The last flight that is sent during this handshake, will not be
+	 * retransmitted unless the peer retransmits its last flight.
+	 */
+	private DTLSFlight lastFlight;
+
 	/** Is the client required to authenticate itself? */
 	private boolean clientAuthenticationRequired = false;
 
@@ -221,7 +227,8 @@ public class ServerHandshaker extends Handshaker {
 			}
 			LOGGER.fine(msg.toString());
 		}
-		
+
+
 		switch (record.getType()) {
 		case CHANGE_CIPHER_SPEC:
 			record.getFragment();
@@ -231,43 +238,43 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage fragment = (HandshakeMessage) record.getFragment();
+			HandshakeMessage message = (HandshakeMessage) record.getFragment();
 
 			// check for fragmentation
-			if (fragment instanceof FragmentedHandshakeMessage) {
-				fragment = handleFragmentation((FragmentedHandshakeMessage) fragment);
-				if (fragment == null) {
+			if (message instanceof FragmentedHandshakeMessage) {
+				message = handleFragmentation((FragmentedHandshakeMessage) message);
+				if (message == null) {
 					// fragment could not yet be fully reassembled
 					break;
 				}
 				// continue with the reassembled handshake message
-				record.setFragment(fragment);
+				record.setFragment(message);
 			}
 			
-			switch (fragment.getMessageType()) {
+			switch (message.getMessageType()) {
 			case CLIENT_HELLO:
-				flight = receivedClientHello((ClientHello) fragment);
+				flight = receivedClientHello((ClientHello) message);
 				break;
 
 			case CERTIFICATE:
-				receivedClientCertificate((CertificateMessage) fragment);
+				receivedClientCertificate((CertificateMessage) message);
 				break;
 
 			case CLIENT_KEY_EXCHANGE:
 				byte[] premasterSecret;
 				switch (keyExchange) {
 				case PSK:
-					premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) fragment);
+					premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) message);
 					generateKeys(premasterSecret);
 					break;
 
 				case EC_DIFFIE_HELLMAN:
-					premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) fragment);
+					premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
 					generateKeys(premasterSecret);
 					break;
 
 				case NULL:
-					premasterSecret = receivedClientKeyExchange((NULLClientKeyExchange) fragment);
+					premasterSecret = receivedClientKeyExchange((NULLClientKeyExchange) message);
 					generateKeys(premasterSecret);
 					break;
 
@@ -280,20 +287,24 @@ public class ServerHandshaker extends Handshaker {
 				break;
 
 			case CERTIFICATE_VERIFY:
-				receivedCertificateVerify((CertificateVerify) fragment);
+				receivedCertificateVerify((CertificateVerify) message);
 				break;
 
 			case FINISHED:
-				flight = receivedClientFinished((Finished) fragment);
+				flight = receivedClientFinished((Finished) message);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", fragment.getMessageType(), record.getPeerAddress()),
+						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), fragment.getMessageType()});
+			if (message != null) {
+				// this means that we successfully processed a handshake message (not a fragment only)
+				incrementNextReceiveSeq();
+				LOGGER.log(Level.FINE, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
+						new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
+			}
 			break;
 
 		default:
@@ -307,13 +318,13 @@ public class ServerHandshaker extends Handshaker {
 			// check queued message, if it is now their turn
 			for (Record queuedMessage : queuedMessages) {
 				if (processMessageNext(queuedMessage)) {
-					// queuedMessages.remove(queuedMessage);
+					queuedMessages.remove(queuedMessage);
 					nextMessage = queuedMessage;
 					break;
 				}
 			}
 			if (nextMessage != null) {
-				flight = processMessage(nextMessage);
+				flight = doProcessMessage(nextMessage);
 			}
 		}
 		

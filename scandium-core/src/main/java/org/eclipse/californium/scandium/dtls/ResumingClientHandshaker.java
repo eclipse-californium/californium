@@ -42,6 +42,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	private static final Logger LOGGER = Logger.getLogger(ResumingClientHandshaker.class.getName());
 	
+	/**
+	 * The last flight that is sent during this handshake, will not be
+	 * retransmitted unless the peer retransmits its last flight.
+	 */
+	private DTLSFlight lastFlight;
+
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
@@ -69,10 +75,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
-			// we already sent the last flight, but the client did not receive
-			// it, since we received its finished message again, so we
-			// retransmit our last flight
-			LOGGER.finer("Received server's finished message again, retransmit the last flight.");
+			// we already sent the last flight, but the server does not seem to have received
+			// it since it sent its FINISHED message again, so we simply retransmit our last flight
+			LOGGER.log(
+				Level.FINER,
+				"Received server's [{0}] FINISHED message again, retransmitting last flight...",
+				record.getPeerAddress());
 			return lastFlight;
 		}
 
@@ -108,25 +116,26 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage fragment = (HandshakeMessage) record.getFragment();
-			switch (fragment.getMessageType()) {
+			HandshakeMessage message = (HandshakeMessage) record.getFragment();
+			switch (message.getMessageType()) {
 
 			case SERVER_HELLO:
 				// TODO if server's session ID does not match, make full handshake
-				serverHello = (ServerHello) fragment;
+				serverHello = (ServerHello) message;
 				break;
 
 			case FINISHED:
-				flight = receivedServerFinished((Finished) fragment);
+				flight = receivedServerFinished((Finished) message);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", fragment.getMessageType(), record.getPeerAddress()),
+						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), fragment.getMessageType()});
+			incrementNextReceiveSeq();
+			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+					new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
 			break;
 
 		default:
@@ -140,12 +149,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// check queued message, if it is now their turn
 			for (Record queuedMessage : queuedMessages) {
 				if (processMessageNext(queuedMessage)) {
-					// queuedMessages.remove(queuedMessage);
+					queuedMessages.remove(queuedMessage);
 					nextMessage = queuedMessage;
 				}
 			}
 			if (nextMessage != null) {
-				flight = processMessage(nextMessage);
+				flight = doProcessMessage(nextMessage);
 			}
 		}
 		return flight;

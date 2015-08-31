@@ -131,12 +131,6 @@ public abstract class Handshaker {
 	/** All the handshake messages exchanged before the CertificateVerify message. */
 	protected byte[] handshakeMessages = new byte[] {};
 
-	/**
-	 * The last flight that is sent during this handshake, will not be
-	 * retransmitted unless the peer retransmits its last flight.
-	 */
-	protected DTLSFlight lastFlight = null;
-
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
 
@@ -651,7 +645,7 @@ public abstract class Handshaker {
 		if (epoch < session.getReadEpoch()) {
 			// discard old message
 			LOGGER.log(Level.FINER,
-					"Discarding message from peer [{0}] from finished epoch [{1}] < current epoch [{2}]",
+					"Discarding message from peer [{0}] from past epoch [{1}] < current epoch [{2}]",
 					new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
 			return false;
 		} else if (epoch == session.getReadEpoch()) {
@@ -664,15 +658,10 @@ public abstract class Handshaker {
 				int messageSeq = ((HandshakeMessage) fragment).getMessageSeq();
 
 				if (messageSeq == nextReceiveSeq) {
-					if (!(fragment instanceof FragmentedHandshakeMessage)) {
-						// each fragment has the same message_seq, therefore
-						// don't increment yet
-						incrementNextReceiveSeq();
-					}
 					return true;
 				} else if (messageSeq > nextReceiveSeq) {
 					LOGGER.log(Level.FINER,
-							"Queued newer message from same epoch, message_seq [{0}] > next_receive_seq [{1}]",
+							"Queued newer message from current epoch, message_seq [{0}] > next_receive_seq [{1}]",
 							new Object[]{messageSeq, nextReceiveSeq});
 					queuedMessages.add(record);
 					return false;

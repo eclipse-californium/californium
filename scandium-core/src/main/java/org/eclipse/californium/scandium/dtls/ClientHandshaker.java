@@ -200,45 +200,45 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage fragment = (HandshakeMessage) record.getFragment();
+			HandshakeMessage message = (HandshakeMessage) record.getFragment();
 			
 			// check for fragmentation
-			if (fragment instanceof FragmentedHandshakeMessage) {
-				fragment = handleFragmentation((FragmentedHandshakeMessage) fragment);
-				if (fragment == null) {
+			if (message instanceof FragmentedHandshakeMessage) {
+				message = handleFragmentation((FragmentedHandshakeMessage) message);
+				if (message == null) {
 					// fragment could not yet be fully reassembled
 					break;
 				}
 				// continue with the reassembled handshake message
-				record.setFragment(fragment);
+				record.setFragment(message);
 			}
 			
-			switch (fragment.getMessageType()) {
+			switch (message.getMessageType()) {
 			case HELLO_REQUEST:
-				flight = receivedHelloRequest((HelloRequest) fragment);
+				flight = receivedHelloRequest((HelloRequest) message);
 				break;
 
 			case HELLO_VERIFY_REQUEST:
-				flight = receivedHelloVerifyRequest((HelloVerifyRequest) fragment);
+				flight = receivedHelloVerifyRequest((HelloVerifyRequest) message);
 				break;
 
 			case SERVER_HELLO:
-				receivedServerHello((ServerHello) fragment);
+				receivedServerHello((ServerHello) message);
 				break;
 
 			case CERTIFICATE:
-				receivedServerCertificate((CertificateMessage) fragment);
+				receivedServerCertificate((CertificateMessage) message);
 				break;
 
 			case SERVER_KEY_EXCHANGE:
 
 				switch (keyExchange) {
 				case EC_DIFFIE_HELLMAN:
-					receivedServerKeyExchange((ECDHServerKeyExchange) fragment);
+					receivedServerKeyExchange((ECDHServerKeyExchange) message);
 					break;
 
 				case PSK:
-					serverKeyExchange = (PSKServerKeyExchange) fragment;
+					serverKeyExchange = (PSKServerKeyExchange) message;
 					break;
 					
 				case NULL:
@@ -254,24 +254,27 @@ public class ClientHandshaker extends Handshaker {
 
 			case CERTIFICATE_REQUEST:
 				// save for later, will be handled by server hello done
-				certificateRequest = (CertificateRequest) fragment;
+				certificateRequest = (CertificateRequest) message;
 				break;
 
 			case SERVER_HELLO_DONE:
-				flight = receivedServerHelloDone((ServerHelloDone) fragment);
+				flight = receivedServerHelloDone((ServerHelloDone) message);
 				break;
 
 			case FINISHED:
-				flight = receivedServerFinished((Finished) fragment);
+				flight = receivedServerFinished((Finished) message);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", fragment.getMessageType(), record.getPeerAddress()),
+						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), fragment.getMessageType()});
+			if (message != null) {
+				incrementNextReceiveSeq();
+				LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+						new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
+			}
 			break;
 
 		default:
@@ -285,12 +288,12 @@ public class ClientHandshaker extends Handshaker {
 			// check queued message, if it is now their turn
 			for (Record queuedMessage : queuedMessages) {
 				if (processMessageNext(queuedMessage)) {
-					// queuedMessages.remove(queuedMessage);
+					queuedMessages.remove(queuedMessage);
 					nextMessage = queuedMessage;
 				}
 			}
 			if (nextMessage != null) {
-				flight = processMessage(nextMessage);
+				flight = doProcessMessage(nextMessage);
 			}
 		}
 
