@@ -239,10 +239,55 @@ public class ServerHandshakerTest {
 		assertThat(handshaker.getNegotiatedSupportedGroup(), notNullValue());
 	}
 
+
+	@Test
+	public void testDoProcessMessageProcessesQueuedMessages() throws Exception {
+		Record nextRecord = givenAHandshakerWithAQueuedMessage();
+		handshaker.processMessage(nextRecord);
+		assertThatAllMessagesHaveBeenProcessedInOrder();
+	}
+
+	private Record givenAHandshakerWithAQueuedMessage() throws Exception {
+
+		InetSocketAddress senderAddress = new InetSocketAddress(5000);
+		processClientHello(0, null);
+		assertThat(handshaker.getNextReceiveSeq(), is(1));
+		// create client CERTIFICATE msg
+		Certificate[] clientChain = DtlsTestTools.getCertificateChainFromStore(
+				DtlsTestTools.KEY_STORE_LOCATION,
+				DtlsTestTools.KEY_STORE_PASSWORD,
+				"client");
+		CertificateMessage certificateMsg = new CertificateMessage(clientChain, endpoint);
+		certificateMsg.setMessageSeq(1);
+		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);
+		
+		// create client KEY_EXCHANGE msg
+		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(
+				clientChain[0].getPublicKey(), endpoint);
+		keyExchangeMsg.setMessageSeq(2);
+		Record keyExchangeRecord = getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
+
+		handshaker.processMessage(keyExchangeRecord);
+		assertThat(handshaker.clientKeyExchange, nullValue());
+		assertFalse("Client's KEY_EXCHANGE message should have been queued",
+				handshaker.queuedMessages.isEmpty());
+		return certificateMsgRecord;
+	}
+	
+	private void assertThatAllMessagesHaveBeenProcessedInOrder() {
+		assertThat(handshaker.getNextReceiveSeq(), is(3));
+		assertThat("Client's CERTIFICATE message should have been processed",
+				handshaker.clientCertificate, notNullValue());
+		assertThat("Client's KEY_EXCHANGE message should have been processed",
+				handshaker.clientKeyExchange, notNullValue());
+		assertTrue("All (processed) messages should have been removed from inbound messages queue",
+				handshaker.queuedMessages.isEmpty());
+
+	}
+
 	private DTLSFlight processClientHello(int messageSeq, List<byte[]> helloExtensions) throws HandshakeException {
 
-		return processClientHello(session.getWriteEpoch(), session.getSequenceNumber(),
-				messageSeq, null, supportedClientCiphers, helloExtensions);
+		return processClientHello(0, 0, messageSeq, null, supportedClientCiphers, helloExtensions);
 	}
 
 	private DTLSFlight processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,
@@ -315,6 +360,14 @@ public class ServerHandshakerTest {
 			writer.writeBytes(extBytes);
 		}
 		return writer.toByteArray();
+	}
+
+	private Record getRecordForMessage(int epoch, int seqNo, HandshakeMessage msg, InetSocketAddress peer) {
+		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
+				seqNo, msg.toByteArray());
+		List<Record> list = Record.fromByteArray(dtlsRecord, peer);
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		return list.get(0);
 	}
 
 	/**

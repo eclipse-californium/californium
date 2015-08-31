@@ -103,23 +103,24 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage fragment = (HandshakeMessage) record.getFragment();
-			switch (fragment.getMessageType()) {
+			HandshakeMessage message = (HandshakeMessage) record.getFragment();
+			switch (message.getMessageType()) {
 			case CLIENT_HELLO:
-				flight = receivedClientHello((ClientHello) fragment);
+				flight = receivedClientHello((ClientHello) message);
 				break;
 
 			case FINISHED:
-				receivedClientFinished((Finished) fragment);
+				receivedClientFinished((Finished) message);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", fragment.getMessageType(), record.getPeerAddress()),
+						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), fragment.getMessageType()});
+			incrementNextReceiveSeq();
+			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+					new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
 			break;
 
 		default:
@@ -133,12 +134,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			// check queued message, if it is now their turn
 			for (Record queuedMessage : queuedMessages) {
 				if (processMessageNext(queuedMessage)) {
-					// queuedMessages.remove(queuedMessage);
+					queuedMessages.remove(queuedMessage);
 					nextMessage = queuedMessage;
 				}
 			}
 			if (nextMessage != null) {
-				flight = processMessage(nextMessage);
+				flight = doProcessMessage(nextMessage);
 			}
 		}
 		return flight;
