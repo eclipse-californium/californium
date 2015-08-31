@@ -316,10 +316,10 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	 * <em>FINISHED</em> message.
 	 * 
 	 * @return the message or <code>null</code> if this instance has not been
-	 * created from a message received from a client.
+	 *            created from a message received from a client.
 	 */
 	protected final byte[] getRawMessage() {
-        return rawMessage;
-    }
+		return rawMessage;
+	}
 
 }
