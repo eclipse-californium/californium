@@ -16,6 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel previous relations for cleanup
+ *                                                    in ObservingEndpoint.
+ *                                                    remove relation only, if the relation for
+ *                                                    the key was not exchanged previously and 
+ *                                                    therefore the current mapping targets to
+ *                                                    a different, newer relation. 
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -41,16 +47,21 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	}
 	
 	/**
-	 * Adds the specified observe relation
+	 * Adds the specified observe relation.
 	 *
 	 * @param relation the observe relation
-	 * @return true, if successful
+	 * @return true, if a old relation was replaced by the provided one, 
+	 *         false, if the provided relation was added.
 	 */
 	public boolean add(ObserveRelation relation) {
 		if (relation == null)
 			throw new NullPointerException();
-		
-		return (observeRelations.put(relation.getKey(), relation) != null);
+		ObserveRelation previous = observeRelations.put(relation.getKey(), relation);
+		if (null != previous) {
+			previous.cancel();
+			return true;
+		}
+		return false;
 	}
 	
 	/**
@@ -62,7 +73,7 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	public boolean remove(ObserveRelation relation) {
 		if (relation == null)
 			throw new NullPointerException();
-		return observeRelations.remove(relation.getKey())!=null;
+		return observeRelations.remove(relation.getKey(), relation);
 	}
 	
 	/**
