@@ -14,6 +14,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test case for validating fix for bug 473678
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -270,7 +271,7 @@ public class ServerHandshakerTest {
 		handshaker.processMessage(keyExchangeRecord);
 		assertThat(handshaker.clientKeyExchange, nullValue());
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
-				handshaker.queuedMessages.isEmpty());
+				handshaker.inboundMessageBuffer.isEmpty());
 		return certificateMsgRecord;
 	}
 	
@@ -281,7 +282,7 @@ public class ServerHandshakerTest {
 		assertThat("Client's KEY_EXCHANGE message should have been processed",
 				handshaker.clientKeyExchange, notNullValue());
 		assertTrue("All (processed) messages should have been removed from inbound messages queue",
-				handshaker.queuedMessages.isEmpty());
+				handshaker.inboundMessageBuffer.isEmpty());
 
 	}
 

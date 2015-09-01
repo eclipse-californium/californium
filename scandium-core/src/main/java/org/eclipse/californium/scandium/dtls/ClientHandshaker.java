@@ -20,6 +20,7 @@
  *                                                    of handshake
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112: only prefer RawPublicKey from server
  *                                                    if no trust store has been configured
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -166,11 +167,8 @@ public class ClientHandshaker extends Handshaker {
 	
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
+	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = null;
-		if (!processMessageNext(record)) {
-			return null;
-		}
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -178,67 +176,53 @@ public class ClientHandshaker extends Handshaker {
 			StringBuffer msg = new StringBuffer();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
-					record.getType(), record.getPeerAddress()));
+					message.getContentType(), message.getPeer()));
 			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(record);
+				msg.append(":\n").append(message);
 			}
 			LOGGER.fine(msg.toString());
 		}
 		
-		switch (record.getType()) {
+		switch (message.getContentType()) {
 		case ALERT:
-			record.getFragment();
-			// TODO react according to alert message: close connection or abort
 			break;
 
 		case CHANGE_CIPHER_SPEC:
 			// TODO check, if all expected messages already received
-			record.getFragment();
 			setCurrentReadState();
 			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), record.getType()});
+					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage message = (HandshakeMessage) record.getFragment();
-			
-			// check for fragmentation
-			if (message instanceof FragmentedHandshakeMessage) {
-				message = handleFragmentation((FragmentedHandshakeMessage) message);
-				if (message == null) {
-					// fragment could not yet be fully reassembled
-					break;
-				}
-				// continue with the reassembled handshake message
-				record.setFragment(message);
-			}
-			
-			switch (message.getMessageType()) {
+			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
+
+			switch (handshakeMsg.getMessageType()) {
 			case HELLO_REQUEST:
-				flight = receivedHelloRequest((HelloRequest) message);
+				flight = receivedHelloRequest((HelloRequest) handshakeMsg);
 				break;
 
 			case HELLO_VERIFY_REQUEST:
-				flight = receivedHelloVerifyRequest((HelloVerifyRequest) message);
+				flight = receivedHelloVerifyRequest((HelloVerifyRequest) handshakeMsg);
 				break;
 
 			case SERVER_HELLO:
-				receivedServerHello((ServerHello) message);
+				receivedServerHello((ServerHello) handshakeMsg);
 				break;
 
 			case CERTIFICATE:
-				receivedServerCertificate((CertificateMessage) message);
+				receivedServerCertificate((CertificateMessage) handshakeMsg);
 				break;
 
 			case SERVER_KEY_EXCHANGE:
 
 				switch (keyExchange) {
 				case EC_DIFFIE_HELLMAN:
-					receivedServerKeyExchange((ECDHServerKeyExchange) message);
+					receivedServerKeyExchange((ECDHServerKeyExchange) handshakeMsg);
 					break;
 
 				case PSK:
-					serverKeyExchange = (PSKServerKeyExchange) message;
+					serverKeyExchange = (PSKServerKeyExchange) handshakeMsg;
 					break;
 					
 				case NULL:
@@ -248,53 +232,38 @@ public class ClientHandshaker extends Handshaker {
 				default:
 					throw new HandshakeException(
 							String.format("Unsupported key exchange algorithm %s", keyExchange.name()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
 				}
 				break;
 
 			case CERTIFICATE_REQUEST:
 				// save for later, will be handled by server hello done
-				certificateRequest = (CertificateRequest) message;
+				certificateRequest = (CertificateRequest) handshakeMsg;
 				break;
 
 			case SERVER_HELLO_DONE:
-				flight = receivedServerHelloDone((ServerHelloDone) message);
+				flight = receivedServerHelloDone((ServerHelloDone) handshakeMsg);
 				break;
 
 			case FINISHED:
-				flight = receivedServerFinished((Finished) message);
+				flight = receivedServerFinished((Finished) handshakeMsg);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
+						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
-			if (message != null) {
-				incrementNextReceiveSeq();
-				LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
-						new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
-			}
+
+			incrementNextReceiveSeq();
+			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", record.getType(), record.getPeerAddress()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, record.getPeerAddress()));
-		}
-		
-		if (flight == null) {
-			Record nextMessage = null;
-			// check queued message, if it is now their turn
-			for (Record queuedMessage : queuedMessages) {
-				if (processMessageNext(queuedMessage)) {
-					queuedMessages.remove(queuedMessage);
-					nextMessage = queuedMessage;
-				}
-			}
-			if (nextMessage != null) {
-				flight = doProcessMessage(nextMessage);
-			}
+					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
 
 		return flight;
