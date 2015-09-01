@@ -575,6 +575,10 @@ public class DTLSConnector implements Connector {
 		}
 
 		if (flight != null) {
+			// we search again in the store because after message processing,
+			// we could have a connection for this peer now.
+			connection = connectionStore.get(peerAddress);
+
 			if (connection != null) {
 				connection.cancelPendingFlight();
 				if (flight.isRetransmissionNeeded()) {

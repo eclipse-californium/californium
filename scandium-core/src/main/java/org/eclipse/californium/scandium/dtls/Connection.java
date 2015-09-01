@@ -159,6 +159,7 @@ public final class Connection implements SessionListener {
 	@Override
 	public void handshakeCompleted(InetSocketAddress peer) {
 		if (this.ongoingHandshake != null) {
+			cancelPendingFlight();
 			this.ongoingHandshake = null;
 			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
 		}
