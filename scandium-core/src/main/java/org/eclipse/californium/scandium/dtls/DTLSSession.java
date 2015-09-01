@@ -510,7 +510,7 @@ public class DTLSSession {
 	 * @param sequenceNo the record's sequence number
 	 * @return <code>true</code> if the record satisfies the conditions above
 	 */
-    public final boolean isRecordProcessable(long epoch, long sequenceNo) {
+	public final boolean isRecordProcessable(long epoch, long sequenceNo) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
 			// discard record as proposed in DTLS 1.2
