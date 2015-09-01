@@ -16,15 +16,12 @@
  *                                                    with standard algorithm
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test case for verifying re-assembly
  *                                                    of fragmented messages
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
@@ -43,13 +40,18 @@ public class HandshakerTest {
 
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
 	Handshaker handshaker;
+	final int[] receivedMessages = new int[10];
 	DTLSSession session;
 	Certificate[] certificateChain;
 	CertificateMessage certificateMessage;
-	FragmentedHandshakeMessage[] handshakeMessages;
+	FragmentedHandshakeMessage[] handshakeMessageFragments;
 	
 	@Before
 	public void setUp() throws Exception {
+		for (int i = 0; i < receivedMessages.length; i++) {
+			receivedMessages[i++] = 0;
+		}
+		
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
 		certificateChain = 
@@ -57,8 +59,7 @@ public class HandshakerTest {
 						DtlsTestTools.KEY_STORE_LOCATION,
 						DtlsTestTools.KEY_STORE_PASSWORD,
 						"server");
-		certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
-		certificateMessage.setMessageSeq(1);
+		certificateMessage = createCertificateMessage(1);
 
 		handshaker = new Handshaker(false, session, null, null, 1500) {
 			@Override
@@ -67,34 +68,70 @@ public class HandshakerTest {
 			}
 			
 			@Override
-			protected DTLSFlight doProcessMessage(Record record) throws GeneralSecurityException, HandshakeException {
-				return new DTLSFlight(session);
+			protected DTLSFlight doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+				if (message instanceof HandshakeMessage) {
+					receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
+					incrementNextReceiveSeq();
+				}
+				return null;
 			}
 		};
 	}
 
 	@Test
 	public void testProcessMessageDiscardsDuplicateRecord() throws HandshakeException, GeneralSecurityException {
-		Record record0 = createRecord(0, 0);
-		Record record1 = createRecord(0, 1);
+		int current = 0;
+		int next = 1;
+		Record record0 = createRecord(0, current, current);
+		Record record1 = createRecord(0, next, next);
 	
-		DTLSFlight flight = handshaker.processMessage(record0);
-		assertNotNull(flight);
+		handshaker.processMessage(record0);
+		assertThat(receivedMessages[current], is(1));
 
-		// send record with same sequence number again
-		flight = handshaker.processMessage(record0);
-		assertNull(flight);
+		// send record with same record sequence number again
+		handshaker.processMessage(record0);
+		assertThat(receivedMessages[current], is(1));
 
-		// send record with next sequence number
-		flight = handshaker.processMessage(record1);
-		assertNotNull(flight);
+		// send record with next record sequence number
+		handshaker.processMessage(record1);
+		assertThat(receivedMessages[next], is(1));
+	}
+
+	@Test
+	public void testProcessMessageReassemblesFragmentedMessages() throws GeneralSecurityException, HandshakeException {
+		int nextSeqNo = 0;
+		int futureSeqNo = 1;
+		givenAHandshakerWithAQueuedFragmentedMessage(futureSeqNo);
+
+		// when processing the missing message with nextseqNo
+		Record firstRecord = new Record(ContentType.HANDSHAKE, 0, 0, createCertificateMessage(nextSeqNo), session);
+		handshaker.processMessage(firstRecord);
+
+		// assert that all fragments have been re-assembled and the resulting message with
+		// the future sequence no has been processed
+		assertThat(receivedMessages[nextSeqNo], is(1));
+		assertThat(receivedMessages[futureSeqNo], is(1));
+		assertTrue(handshaker.inboundMessageBuffer.isEmpty());
+	}
+
+	private void givenAHandshakerWithAQueuedFragmentedMessage(int seqNo) throws HandshakeException, GeneralSecurityException {
+		// create records containing fragmented message with seqNo 1
+		givenAFragmentedHandshakeMessage(createCertificateMessage(seqNo));
+
+		int i = 1;
+		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
+			Record record = new Record(ContentType.HANDSHAKE, 0, i++, fragment, session);
+			handshaker.processMessage(record);
+		}
+		assertThat(receivedMessages[seqNo], is(0));
+		assertFalse(handshaker.inboundMessageBuffer.isEmpty());
 	}
 
 	@Test
 	public void testHandleFragmentationReassemblesMessagesSentInOrder() throws Exception {
-		givenASetOfFragmentedHandshakeMessages();
+		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
-		for (FragmentedHandshakeMessage fragment : handshakeMessages) {
+		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
 			result = handshaker.handleFragmentation(fragment);
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
@@ -102,17 +139,17 @@ public class HandshakerTest {
 	
 	@Test
 	public void testHandleFragmentationBuffersMessagesSentInReverseOrder() throws Exception {
-		givenASetOfFragmentedHandshakeMessages();
+		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
-		for (int i = handshakeMessages.length - 1; i >= 0; i--) {
-			result = handshaker.handleFragmentation(handshakeMessages[i]);
+		for (int i = handshakeMessageFragments.length - 1; i >= 0; i--) {
+			result = handshaker.handleFragmentation(handshakeMessageFragments[i]);
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
 	
-	private void givenASetOfFragmentedHandshakeMessages() {
+	private void givenAFragmentedHandshakeMessage(HandshakeMessage message) {
 		List<FragmentedHandshakeMessage> fragments = new LinkedList<>();
-		byte[] serializedMsg = certificateMessage.fragmentToByteArray();
+		byte[] serializedMsg = message.fragmentToByteArray();
 		int maxFragmentSize = 500;
 		int fragmentOffset = 0;
 		while (fragmentOffset < serializedMsg.length) {
@@ -126,11 +163,11 @@ public class HandshakerTest {
 							fragmentOffset,
 							serializedMsg.length,
 							endpoint);
-			msg.setMessageSeq(certificateMessage.getMessageSeq());
+			msg.setMessageSeq(message.getMessageSeq());
 			fragments.add(msg);
 			fragmentOffset += fragmentLength;
 		}
-		handshakeMessages = fragments.toArray(new FragmentedHandshakeMessage[]{});
+		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[]{});
 	}
 	
 	private void assertThatReassembledMessageEqualsOriginalMessage(HandshakeMessage result) {
@@ -193,8 +230,15 @@ public class HandshakerTest {
 		assertArrayEquals(expectedOutput, data);
 		}
 
-	private Record createRecord(int epoch, long sequenceNo) throws GeneralSecurityException {
+	private Record createRecord(int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
 		ClientHello clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), session);
+		clientHello.setMessageSeq(messageSeqNo);
 		return new Record(ContentType.HANDSHAKE, epoch, sequenceNo, clientHello, session);
+	}
+	
+	private CertificateMessage createCertificateMessage(int seqNo) {
+		CertificateMessage result = new CertificateMessage(certificateChain, session.getPeer());
+		result.setMessageSeq(seqNo);
+		return result;
 	}
 }

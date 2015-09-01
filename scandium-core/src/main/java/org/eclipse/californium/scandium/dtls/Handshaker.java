@@ -21,6 +21,7 @@
  *                                                    life-cycle events
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SortedSet for buffering fragmented messages in order
  *                                                    to avoid repetitive sorting
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -32,10 +33,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -117,7 +116,7 @@ public abstract class Handshaker {
 	private int nextReceiveSeq = 0;
 
 	/** Buffer for received records that can not be processed immediately. */
-	protected Collection<Record> queuedMessages;
+	protected InboundMessageBuffer inboundMessageBuffer;
 	
 	/** Store the fragmented messages until we are able to reassemble the handshake message. */
 	protected Map<Integer, SortedSet<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, SortedSet<FragmentedHandshakeMessage>>();
@@ -210,7 +209,7 @@ public abstract class Handshaker {
 		this.sequenceNumber = initialMessageSeq;
 		this.isClient = isClient;
 		this.session = session;
-		this.queuedMessages = new HashSet<Record>();
+		this.inboundMessageBuffer = new InboundMessageBuffer();
 		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
 		this.maxFragmentLength = maxFragmentLength;
 
@@ -248,7 +247,7 @@ public abstract class Handshaker {
 		}
 		this.isClient = isClient;
 		this.session = session;
-		this.queuedMessages = new HashSet<Record>();
+		this.inboundMessageBuffer = new InboundMessageBuffer();
 		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
 
 		try {
@@ -257,6 +256,122 @@ public abstract class Handshaker {
 			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
 			throw new HandshakeException("Could not initialize handshake",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+		}
+	}
+
+	/**
+	 * A queue for buffering inbound handshake messages.
+	 */
+	class InboundMessageBuffer {
+		private SortedSet<Record> queue = new TreeSet<>(new Comparator<Record>() {
+			@Override
+			public int compare(Record r1, Record r2) {
+				if (r1.getEpoch() < r2.getEpoch()) {
+					return -1;
+				} else if (r1.getEpoch() > r2.getEpoch()) {
+					return 1;
+				} else {
+					if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
+						return -1;
+					} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
+						return 1;
+					} else {
+						return 0;
+					}
+				}
+			}
+		});
+
+		boolean isEmpty() {
+			return queue.isEmpty();
+		}
+
+		/**
+		 * Gets (and removes from the queue) the handshake message
+		 * with this handshake's next expected message sequence number.
+		 * 
+		 * @return the message or <code>null</code> if the queue does not contain the next expected
+		 *           message (yet) 
+		 * @throws HandshakeException if the record's plaintext fragment could not be parsed
+		 *           into a handshake message
+		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be decrypted 
+		 */
+		DTLSMessage getNextMessage() throws GeneralSecurityException, HandshakeException {
+			for (Record record : queue) {
+				if (record.getEpoch() == session.getReadEpoch()) {
+					HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
+					if (msg.getMessageSeq() == nextReceiveSeq) {
+						queue.remove(record);
+						return msg;
+					}
+				}
+			}
+			return null;
+		}
+
+		/**
+		 * Checks if a given record contains a message that can be processed immediately as part
+		 * of the ongoing handshake.
+		 * 
+		 * This is the case if the record is from the <em>current read epoch</em> and the contained
+		 * message is either a <em>CHANGE_CIPHER_SPEC</em> message or a <em>HANDSHAKE</em> message
+		 * with the next expected sequence number.
+		 * 
+		 * If the record contains a message from a future epoch or having a sequence number that is
+		 * not the next expected one, the record is put into a buffer for later processing when all
+		 * fragments are available and/or the message's sequence number becomes the next expected one.
+		 * 
+		 * @param record the record containing the message to check
+		 * @return the contained message if the message is up for immediate processing or <code>null</code>
+		 *         if the message cannot be processed immediately
+		 * @throws HandshakeException if the record's plaintext fragment could not be parsed
+		 *           into a message
+		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be de-crypted 
+		 */
+		DTLSMessage getNextMessage(Record candidate) throws GeneralSecurityException, HandshakeException {
+			int epoch = candidate.getEpoch();
+			if (epoch < session.getReadEpoch()) {
+				// discard old message
+				LOGGER.log(Level.FINER,
+						"Discarding message from peer [{0}] from past epoch [{1}] < current epoch [{2}]",
+						new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
+				return null;
+			} else if (epoch == session.getReadEpoch()) {
+				DTLSMessage fragment = candidate.getFragment();
+				switch(fragment.getContentType()) {
+				case ALERT:
+				case CHANGE_CIPHER_SPEC:
+					return fragment;
+				case HANDSHAKE:
+					HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
+					int messageSeq = handshakeMessage.getMessageSeq();
+					if (messageSeq == nextReceiveSeq) {
+						return handshakeMessage;
+					} else if (messageSeq > nextReceiveSeq) {
+						LOGGER.log(Level.FINER,
+								"Queued newer message from current epoch, message_seq [{0}] > next_receive_seq [{1}]",
+								new Object[]{messageSeq, nextReceiveSeq});
+						queue.add(candidate);
+						return null;
+					} else {
+						LOGGER.log(Level.FINER,
+								"Discarding old message, message_seq [{0}] < next_receive_seq [{1}]",
+								new Object[]{messageSeq, nextReceiveSeq});
+						return null;
+					}
+				default:
+					LOGGER.log(Level.FINER, "Cannot process message of type [{0}], discarding...",
+							fragment.getContentType());
+					return null;
+				}
+			} else {
+				// newer epoch, queue message
+				queue.add(candidate);
+				LOGGER.log(Level.FINER,
+						"Queueing HANDSHAKE message from future epoch [{0}] > current epoch [{1}]",
+						new Object[]{epoch, getSession().getReadEpoch()});
+				return null;
+			}
 		}
 	}
 
@@ -270,7 +385,7 @@ public abstract class Handshaker {
      * processing of the record to the {@link #doProcessMessage(Record)}
      * method.
      * 
-	 * @param message
+	 * @param record
 	 *            the handshake record
 	 * @return the handshake messages that need to be sent to the peer in
 	 *            response to the record received or <code>null</code> if
@@ -278,16 +393,34 @@ public abstract class Handshaker {
 	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
 	 *            a handshake message or cannot be processed properly
 	 */
-	public final DTLSFlight processMessage(Record message) throws HandshakeException {
+	public final DTLSFlight processMessage(Record record) throws HandshakeException {
 		DTLSFlight nextFlight = null;
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		if (!session.isDuplicate(message.getSequenceNumber())) {
+		if (!session.isDuplicate(record.getSequenceNumber())) {
 			try {
-				message.setSession(session);
-				nextFlight = doProcessMessage(message);
-				session.markRecordAsRead(message.getEpoch(), message.getSequenceNumber());
+				record.setSession(session);
+				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
+				while (nextFlight == null && messageToProcess != null) {
+					if (messageToProcess instanceof FragmentedHandshakeMessage) {
+						messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
+					}
+					
+					if (messageToProcess == null) {
+						// messageToProcess is fragmented and not all parts have been received yet
+					} else {
+						// continue with the now fully re-assembled message
+						nextFlight = doProcessMessage(messageToProcess);
+					}
+					
+					if (nextFlight == null) {
+						// no messages need to be sent back to the peer
+						// process next expected message (if available yet)
+						messageToProcess = inboundMessageBuffer.getNextMessage();
+					}
+				}
+				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
 				LOGGER.log(Level.WARNING,
 						String.format(
@@ -299,27 +432,27 @@ public abstract class Handshaker {
 			}
 		} else {
 			LOGGER.log(Level.FINEST, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
-					new Object[]{message.getPeerAddress(), message});
+					new Object[]{record.getPeerAddress(), record});
 		}
 		return nextFlight;
 	}
 	
 	/**
-	 * Does the specific processing of a record received from a peer in
+	 * Does the specific processing of a message received from a peer in
 	 * the course of an ongoing handshake.
 	 * 
 	 * This method does not do anything. Concrete handshaker implementations should
 	 * override this method in order to prepare the response to the received
 	 * record.
 	 * 
-	 * @param record the record received from the peer
+	 * @param message the message received from the peer
 	 * @return the handshake messages to send to the peer in response to the
 	 *            received record
 	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
 	 *            a handshake message or cannot be processed properly
 	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
 	 */
-	protected DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
+	protected DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		return null;
 	}
 
@@ -627,65 +760,7 @@ public abstract class Handshaker {
 		}
 		return result;
 	}
-	
-	/**
-	 * Determines, using the epoch and sequence number, whether this record is
-	 * the next one which needs to be processed by the handshake protocol.
-	 * 
-	 * @param record the current received message.
-	 * @return <tt>true</tt> if the current message is the next to process,
-	 *         <tt>false</tt> otherwise.
-	 * @throws HandshakeException if the record's plaintext fragment could not be parsed
-	 *           into a handshake message
-	 * @throws GeneralSecurityException if the record's ciphertext fragment could not be decrypted 
-	 */
-	protected final boolean processMessageNext(Record record) throws HandshakeException, GeneralSecurityException {
 
-		int epoch = record.getEpoch();
-		if (epoch < session.getReadEpoch()) {
-			// discard old message
-			LOGGER.log(Level.FINER,
-					"Discarding message from peer [{0}] from past epoch [{1}] < current epoch [{2}]",
-					new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
-			return false;
-		} else if (epoch == session.getReadEpoch()) {
-			DTLSMessage fragment = record.getFragment();
-			switch(fragment.getContentType()) {
-			case ALERT:
-			case CHANGE_CIPHER_SPEC:
-				return true;
-			case HANDSHAKE:
-				int messageSeq = ((HandshakeMessage) fragment).getMessageSeq();
-
-				if (messageSeq == nextReceiveSeq) {
-					return true;
-				} else if (messageSeq > nextReceiveSeq) {
-					LOGGER.log(Level.FINER,
-							"Queued newer message from current epoch, message_seq [{0}] > next_receive_seq [{1}]",
-							new Object[]{messageSeq, nextReceiveSeq});
-					queuedMessages.add(record);
-					return false;
-				} else {
-					LOGGER.log(Level.FINER,
-							"Discarding old message, message_seq [{0}] < next_receive_seq [{1}]",
-							new Object[]{messageSeq, nextReceiveSeq});
-					return false;
-				}
-			default:
-				LOGGER.log(Level.FINER, "Cannot process HANDSHAKE message of unknown type");
-				return false;
-			}
-		} else {
-			// newer epoch, queue message
-			queuedMessages.add(record);
-			LOGGER.log(Level.FINER,
-					"Queueing HANDSHAKE message from future epoch [{0}] > current epoch [{1}]",
-					new Object[]{epoch, getSession().getReadEpoch()});
-			return false;
-		}
-	}
-	
-	
 	/**
 	 * Called when a fragmented handshake message is received. Checks if all
 	 * fragments already here to reassemble the handshake message and if so,
@@ -726,7 +801,7 @@ public abstract class Handshaker {
 				fragment.getMessageLength(), fragment.getMessageType(), session);
 		if (reassembledMessage != null) {
 			// message could be reassembled, therefore increase the next_receive_seq
-			incrementNextReceiveSeq();
+//			incrementNextReceiveSeq();
 			fragmentedMessages.remove(messageSeq);
 		}
 		

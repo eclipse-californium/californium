@@ -16,6 +16,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements
  *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
  *                                                    of handshake
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -70,12 +71,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	}
 	
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
+	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = null;
-
-		if (!processMessageNext(record)) {
-			return null;
-		}
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -83,64 +80,49 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			StringBuffer msg = new StringBuffer();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
-					record.getType(), record.getPeerAddress()));
+					message.getContentType(), message.getPeer()));
 			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(record);
+				msg.append(":\n").append(message);
 			}
 			LOGGER.fine(msg.toString());
 		}
 		
-		switch (record.getType()) {
+		switch (message.getContentType()) {
 		case ALERT:
-			record.getFragment();
 			break;
 
 		case CHANGE_CIPHER_SPEC:
-			record.getFragment();
 			setCurrentReadState();
 			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{record.getPeerAddress(), record.getType()});
+					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
 		case HANDSHAKE:
-			HandshakeMessage message = (HandshakeMessage) record.getFragment();
-			switch (message.getMessageType()) {
+			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
+			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
-				flight = receivedClientHello((ClientHello) message);
+				flight = receivedClientHello((ClientHello) handshakeMsg);
 				break;
 
 			case FINISHED:
-				receivedClientFinished((Finished) message);
+				receivedClientFinished((Finished) handshakeMsg);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), record.getPeerAddress()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, record.getPeerAddress()));
+						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
+
 			incrementNextReceiveSeq();
 			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
-					new Object[]{record.getPeerAddress(), message.getMessageType(), message.getMessageSeq()});
+					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", record.getType(), record.getPeerAddress()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, record.getPeerAddress()));
-		}
-		
-		if (flight == null) {
-			Record nextMessage = null;
-			// check queued message, if it is now their turn
-			for (Record queuedMessage : queuedMessages) {
-				if (processMessageNext(queuedMessage)) {
-					queuedMessages.remove(queuedMessage);
-					nextMessage = queuedMessage;
-				}
-			}
-			if (nextMessage != null) {
-				flight = doProcessMessage(nextMessage);
-			}
+					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
 		return flight;
 	}
