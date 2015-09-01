@@ -538,7 +538,21 @@ public class DTLSConnector implements Connector {
 			// simply delegate the processing of the record to the handshaker
 			flight = connection.getOngoingHandshake().processMessage(record);
 		} else {
-			
+
+			if (record.getEpoch()>0){
+				if (connection != null && connection.getEstablishedSession() != null){
+					// we received a record with Epoch > 0 and we have an established session
+					// so, we use it to decrypt the handshake message.
+					record.setSession(connection.getEstablishedSession());
+				}
+				else
+				{
+					LOGGER.log(Level.FINER, "Discarding unexpected handshake message with epoch > 0 from peer [{0}] with no session established.",
+							new Object[]{peerAddress});
+					return;
+				}
+			}
+
 			HandshakeMessage handshakeMessage = (HandshakeMessage) record.getFragment();
 
 			switch (handshakeMessage.getMessageType()) {
@@ -556,6 +570,7 @@ public class DTLSConnector implements Connector {
 			default:
 				LOGGER.log(Level.FINER, "Discarding unexpected handshake message of type [{0}] from peer [{1}]",
 						new Object[]{handshakeMessage.getMessageType(), peerAddress});
+				return;
 			}
 		}
 
