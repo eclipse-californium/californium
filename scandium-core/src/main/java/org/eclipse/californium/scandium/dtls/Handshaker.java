@@ -935,7 +935,7 @@ public abstract class Handshaker {
 	 * 
 	 * @return the session
 	 */
-	final DTLSSession getSession() {
+	public final DTLSSession getSession() {
 		return session;
 	}
 	
