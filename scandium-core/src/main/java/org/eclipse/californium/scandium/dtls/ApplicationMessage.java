@@ -38,9 +38,13 @@ public final class ApplicationMessage extends AbstractMessage {
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
+	 * Creates a new <em>APPLICATION_DATA</em> message containing specific data.
 	 * 
 	 * @param data
 	 *            the application data.
+	 * @param peerAddress
+	 *            the IP address and port the message is to be sent to or has been
+	 *            received from
 	 */
 	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
 		super(peerAddress);

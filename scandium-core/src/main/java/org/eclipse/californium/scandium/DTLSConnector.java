@@ -78,7 +78,6 @@ import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionId;
-import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -164,7 +163,7 @@ public class DTLSConnector implements Connector {
 	 * Creates a DTLS connector for PSK based authentication only.
 	 * 
 	 * @param address the IP address and port to bind to
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address) {
 		this(address, null);
@@ -176,7 +175,7 @@ public class DTLSConnector implements Connector {
 	 * @param address the address to bind
 	 * @param rootCertificates list of trusted root certificates, e.g. from well known
 	 * Certificate Authorities or self-signed certificates.
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
 		this(address, rootCertificates, null, null);
@@ -191,7 +190,7 @@ public class DTLSConnector implements Connector {
 	 * @param connectionStore the store to use for keeping track of connection information,
 	 *       if <code>null</code> connection information is kept in-memory
 	 * @param config the configuration options to use
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, SessionStore)} instead
+	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,
 			ConnectionStore connectionStore, DTLSConnectorConfig config) {
