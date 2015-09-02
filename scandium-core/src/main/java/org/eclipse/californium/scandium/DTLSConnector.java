@@ -474,7 +474,7 @@ public class DTLSConnector implements Connector {
 	 * @see ErrorHandler
 	 */
 	private void processAlertRecord(InetSocketAddress peerAddress, Record record) throws GeneralSecurityException, HandshakeException {
-		
+
 		// An ALERT can be processed at all times. If the ALERT level is fatal
 		// the connection with the peer must be terminated and all session or handshake
 		// state (keys, session identifier etc) must be destroyed.
@@ -483,8 +483,31 @@ public class DTLSConnector implements Connector {
 			LOGGER.log(Level.FINER, "Received ALERT record from [{0}] without existing connection, discarding ...", peerAddress);
 			return;
 		}
-		
-		DTLSSession session = connection.getSession();
+
+		// get session for this connection
+		DTLSSession session = null;
+		if (connection.getEstablishedSession() == null) {
+			if (record.getEpoch() > 0) {
+				LOGGER.log(Level.FINER, "Received ALERT record with epoch > 0 from [{0}] without established session, discarding ...", peerAddress);
+				return;
+			} else {
+				// we have no established session but we could have a fresh new on going handshake
+				if (connection.getOngoingHandshake() != null && connection.getOngoingHandshake().getSession() != null && connection.getOngoingHandshake().getSession().getReadEpoch() == 0){
+					session = connection.getOngoingHandshake().getSession();
+				}else{
+					LOGGER.log(Level.FINER, "Received ALERT record with epoch == 0 from [{0}] without on going handshake, discarding ...", peerAddress);
+					return;
+				}
+			}
+		} else {
+			if (record.getEpoch() == 0){
+				LOGGER.log(Level.FINER, "Received ALERT record with epoch == 0 from [{0}] with established session, discarding ...", peerAddress);
+				return;
+			}else{
+				session = connection.getEstablishedSession();
+			}
+		}
+
 		if (session != null) {
 			record.setSession(session);
 			AlertMessage alert = (AlertMessage) record.getFragment();
