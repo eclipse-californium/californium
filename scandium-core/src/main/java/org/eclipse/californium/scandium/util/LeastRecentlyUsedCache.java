@@ -144,7 +144,6 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * immediate effect, i.e. no entries are purged from the cache.
 	 * This happens only when a new entry is put to the cache or a stale entry is read from the cache.
 	 * 
-	 * @return the maximum number of entries
 	 * @see #put(Object, Object)
 	 * @see #get(Object)
 	 */
