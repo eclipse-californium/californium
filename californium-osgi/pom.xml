@@ -3,11 +3,6 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<osgi.version>4.3.1</osgi.version>
-	</properties>
-	
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
@@ -20,9 +15,13 @@
 	<name>Californium (Cf) OSGi Bundle</name>
 	<description>OSGi wrapper</description>
 
+	<properties>
+		<osgi.version>4.3.1</osgi.version>
+	</properties>
+	
 	<dependencies>
 		<dependency>
-			<groupId>org.eclipse.californium</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -46,11 +45,21 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.eclipse.californium</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -91,4 +100,24 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<!-- this profile generates javadoc to check integrity -->
+			<id>javadoc</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>createJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

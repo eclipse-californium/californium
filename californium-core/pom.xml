@@ -19,27 +19,47 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.8.1</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<type>jar</type>
 		</dependency>
 	</dependencies>
 
-   <build>
-      <plugins>
-         <plugin>
-            <!--
-               configures the JDK Logging to use the CaliforniumFormatter
-               by means of the Californium-logging.properties file
-               (must be in californium\target\test-classes)
-               -->
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <version>2.17</version>
-            <configuration>
-               <argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/Californium-logging.properties</argLine>
-            </configuration>
-         </plugin>
-      </plugins>
-   </build>
-	
+	<build>
+		<plugins>
+			<plugin>
+				<!-- configures the JDK Logging to use the CaliforniumFormatter by means 
+					of the Californium-logging.properties file (must be in californium\target\test-classes) -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/Californium-logging.properties</argLine>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<!-- this profile generates javadoc to check integrity -->
+			<id>javadoc</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>createJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
