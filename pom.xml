@@ -2,95 +2,72 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
-	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.7</project.build.javaVersion>
-		<maven.source.pluginVersion>2.4</maven.source.pluginVersion>
-		<maven.javadoc.pluginVersion>2.10.3</maven.javadoc.pluginVersion>
-	</properties>
 
-	<groupId>org.eclipse.californium</groupId>
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+	
 	<artifactId>element-connector</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
 	<packaging>bundle</packaging>
 
 	<name>element-connector</name>
 	<description>Java socket abstraction for UDP, DTLS, TCP, etc.</description>
-	<url>https://www.eclipse.org/californium/</url>
-	<organization>
-		<name>Eclipse Foundation</name>
-		<url>http://www.eclipse.org/</url>
-	</organization>
-	<licenses>
-		<license>
-			<name>Eclipse Public License - Version 1.0</name>
-			<url>http://www.eclipse.org/org/documents/epl-v10.php</url>
-		</license>
-		<license>
-			<name>Eclipse Distribution License - Version 1.0</name>
-			<url>http://www.eclipse.org/org/documents/edl-v10.php</url>
-		</license>
-	</licenses>
 	<scm>
 		<developerConnection>scm:git:https://github.com/eclipse/californium.element-connector.git</developerConnection>
 		<url>https://github.com/eclipse/californium.element-connector</url>
 		<tag>HEAD</tag>
 	</scm>
-	<developers>
-		<developer>
-			<id>mkovatsch</id>
-			<name>Matthias Kovatsch</name>
-			<email>kovatsch@inf.ethz.ch</email>
-			<url>http://people.inf.ethz.ch/mkovatsc/</url>
-			<organization>ETH Zurich</organization>
-			<organizationUrl>http://www.vs.inf.ethz.ch/</organizationUrl>
-			<roles>
-				<role>Committer</role>
-				<role>Lead</role>
-			</roles>
-		</developer>
-		<developer>
-			<id>mlanter</id>
-			<name>Martin Lanter</name>
-			<email>martin.lanter@gmx.ch</email>
-			<roles>
-				<role>Committer</role>
-			</roles>
-		</developer>
-		<developer>
-			<id>jvermillard</id>
-			<name>Julien Vermillard</name>
-			<email>jvermillar@sierrawireless.com</email>
-			<organization>Sierra Wireless</organization>
-			<roles>
-				<role>Committer</role>
-			</roles>
-		</developer>
-		<developer>
-			<id>khudalla</id>
-			<name>Kai Hudalla</name>
-			<email>kai.hudalla@bosch-si.com</email>
-			<organization>Bosch Software Innovations GmbH</organization>
-			<roles>
-				<role>Committer</role>
-			</roles>
-		</developer>
-	</developers>
 
-	<distributionManagement>
-		<repository>
-			<id>repo.eclipse.org</id>
-			<name>Californium Repository - Releases</name>
-			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
-		</repository>
-		<snapshotRepository>
-			<id>repo.eclipse.org</id>
-			<name>Californium Repository - Snapshots</name>
-			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
-		</snapshotRepository>
-	</distributionManagement>
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.elements
+						</Export-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 	<profiles>
+		<profile>
+			<!-- this profile generates javadoc to check integrity -->
+			<id>javadoc</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>createJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 		<profile>
 			<!-- this profile generates all the needed artifact and signatures needed for releasing on maven central -->
 			<id>maven_central</id>
@@ -108,38 +85,22 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
-						<executions>
-							<execution>
-								<id>sign-artifacts</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>sign</goal>
-								</goals>
-							</execution>
-						</executions>
 					</plugin>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>${maven.javadoc.pluginVersion}</version>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-							</execution>
-						</executions>
 					</plugin>
 				</plugins>
 			</build>
 		</profile>
 		<profile>
-			<!-- this profile generates signed artifacts to be deployed to repo.eclipse.org -->
-			<id>eclipse_release</id>
+			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->
+			<id>eclipse_jar_signing</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>enableEclipseJarSigner</name>
+				</property>
 			</activation>
 			<build>
 				<plugins>
@@ -157,86 +118,9 @@
 							</execution>
 						</executions>
 					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>${maven.javadoc.pluginVersion}</version>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
 				</plugins>
 			</build>
 		</profile>
 	</profiles>
-
-
-	<dependencies>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.8.1</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.3</version>
-				<configuration>
-					<source>${project.build.javaVersion}</source>
-					<target>${project.build.javaVersion}</target>
-					<encoding>${project.build.sourceEncoding}</encoding>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>${maven.source.pluginVersion}</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<version>2.5.0</version>
-				<extensions>true</extensions>
-				<configuration>
-					<instructions>
-						<Export-Package>
-							org.eclipse.californium.elements
-						</Export-Package>
-						<Import-Package>
-							*
-						</Import-Package>
-						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
-					</instructions>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-release-plugin</artifactId>
-				<version>2.5.2</version>
-				<configuration>
-					<tagNameFormat>@{project.version}</tagNameFormat>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 
 </project>
