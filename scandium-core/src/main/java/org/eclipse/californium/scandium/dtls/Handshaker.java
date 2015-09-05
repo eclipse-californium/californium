@@ -382,7 +382,7 @@ public abstract class Handshaker {
 	 * This method only does a duplicate check as described in
 	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
      * section 4.1.2.6 of the DTLS 1.2 spec</a> and then delegates
-     * processing of the record to the {@link #doProcessMessage(Record)}
+     * processing of the record to the {@link #doProcessMessage(DTLSMessage)}
      * method.
      * 
 	 * @param record
