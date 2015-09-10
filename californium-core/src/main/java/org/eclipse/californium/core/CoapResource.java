@@ -356,7 +356,7 @@ public  class CoapResource implements Resource {
 		if (child.getName() == null)
 			throw new NullPointerException("Child must have a name");
 		if (child.getParent() != null)
-			child.getParent().remove(child);
+			child.getParent().delete(child);
 		children.put(child.getName(), child);
 		child.setParent(this);
 		for (ResourceObserver obs:observers)
@@ -423,12 +423,12 @@ public  class CoapResource implements Resource {
 	}
 	
 	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.server.resources.Resource#remove(org.eclipse.californium.core.server.resources.Resource)
+	 * @see org.eclipse.californium.core.server.resources.Resource#delete(org.eclipse.californium.core.server.resources.Resource)
 	 */
 	@Override
-	public synchronized boolean remove(Resource child) {
-		Resource removed = remove(child.getName());
-		if (removed == child) {
+	public synchronized boolean delete(Resource child) {
+		Resource deleted = delete(child.getName());
+		if (deleted == child) {
 			child.setParent(null);
 			child.setPath(null);
 			for (ResourceObserver obs : observers)
@@ -443,9 +443,9 @@ public  class CoapResource implements Resource {
 	 * with the specified name is found, the return value is null.
 	 * 
 	 * @param name the name
-	 * @return the removed resource or null
+	 * @return the deleted resource or null
 	 */
-	public synchronized Resource remove(String name) {
+	public synchronized Resource delete(String name) {
 		return children.remove(name);
 	}
 	
@@ -456,7 +456,7 @@ public  class CoapResource implements Resource {
 	public synchronized void delete() {
 		Resource parent = getParent();
 		if (parent != null) {
-			parent.remove(this);
+			parent.delete(this);
 		}
 		
 		if (isObservable()) {
@@ -603,7 +603,7 @@ public  class CoapResource implements Resource {
 		Resource parent = getParent();
 		if (parent!=null) {
 			synchronized (parent) {
-				parent.remove(this);
+				parent.delete(this);
 				this.name = name;
 				parent.add(this);
 			}

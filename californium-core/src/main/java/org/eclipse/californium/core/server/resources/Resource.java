@@ -83,7 +83,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * example.
  * </p>
  */
-public interface Resource /*extends RequestProcessor*/ {
+public interface Resource {
 	
 	/**
 	 * Handles the request from the specified exchange.
@@ -175,13 +175,14 @@ public interface Resource /*extends RequestProcessor*/ {
 	public void add(Resource child);
 	
 	/**
-	 * Removes the the specified child. Note that the resource should set the
-	 * path of the child to null.
+	 * Removes the the specified child. Note that an implementation should set
+	 * the path of the child to null.
 	 * 
-	 * @param child the child
+	 * @param child
+	 *            the child
 	 * @return true, if the child was found
 	 */
-	public boolean remove(Resource child);
+	public boolean delete(Resource child);
 	
 	/**
 	 * Gets all child resources.
@@ -262,34 +263,4 @@ public interface Resource /*extends RequestProcessor*/ {
 	 * @return the endpoints
 	 */
 	public List<Endpoint> getEndpoints();
-
-	// TODO: Under construction. Use CoapResource to enjoy coding sugar
-	public static class ResourceTreeBuilder {
-		
-		private Resource root;
-
-		public ResourceTreeBuilder(Resource root) {
-			this.root = root;
-		}
-		
-//		public ResourceTreeBuilder add(Resource resource) {
-//			root.add(resource);
-//			return this;
-//		}
-//		
-//		public ResourceTreeBuilder add(ResourceTreeBuilder builder) {
-//			root.add(builder.create());
-//			return this;
-//		}
-		
-		public Resource create() {
-//			b.add(A
-//					.add(AA
-//							.add(AAA)
-//					.add(AB
-//							.add(ABA)
-//					))
-			return root;
-		}
-	}
 }

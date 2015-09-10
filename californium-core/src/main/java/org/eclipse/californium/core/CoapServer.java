@@ -326,7 +326,7 @@ public class CoapServer implements ServerInterface {
 	
 	@Override
 	public boolean remove(Resource resource) {
-		return root.remove(resource);
+		return root.delete(resource);
 	}
 
 	/**
