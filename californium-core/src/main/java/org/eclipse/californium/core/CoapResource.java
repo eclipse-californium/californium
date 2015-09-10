@@ -598,15 +598,22 @@ public  class CoapResource implements Resource {
 		if (name == null)
 			throw new NullPointerException();
 		String old = this.name;
+		
+		// adjust parent if in tree
 		Resource parent = getParent();
-		synchronized (parent) {
-			parent.remove(this);
+		if (parent!=null) {
+			synchronized (parent) {
+				parent.remove(this);
+				this.name = name;
+				parent.add(this);
+			}
+		} else {
 			this.name = name;
-			parent.add(this);
 		}
+		adjustChildrenPath();
+		
 		for (ResourceObserver obs:observers)
 			obs.changedName(old);
-		adjustChildrenPath();
 	}
 	
 	/**
