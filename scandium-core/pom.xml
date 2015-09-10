@@ -116,7 +116,31 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- this profile generates GPG signatures and deploys artifacts to maven central -->
+			<!-- this profile generates GPG signatures -->
+			<id>create_gpg_signature</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>createGPGSignature</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<!--
+				this profile deploys artifacts to maven central staging repo
+				note that in order to successfully deploy to that repo,
+				GPG signatures for the artifacts need to be present, i.e.
+				this profile should be activated in conjunction with the
+				"createGPGSignature" profile only
+			-->
 			<id>release_to_maven</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
@@ -136,10 +160,6 @@
 							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
 							<autoReleaseAfterClose>true</autoReleaseAfterClose>
 						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-gpg-plugin</artifactId>
 					</plugin>
 				</plugins>
 			</build>
