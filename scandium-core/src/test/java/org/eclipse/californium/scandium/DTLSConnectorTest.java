@@ -34,6 +34,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
@@ -113,7 +114,6 @@ public class DTLSConnectorTest {
 		trustedCertificates = DtlsTestTools.getTrustedCertificates();
 		
 		serverSessionStore = new InMemoryConnectionStore(2, 5 * 60); // capacity 1, connection timeout 5mins
-		serverEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10100);
 		defaultRawDataProcessor = new RawDataProcessor() {
 			
 			@Override
@@ -127,7 +127,7 @@ public class DTLSConnectorTest {
 		
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey("Client_identity", "secretPSK".getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder(serverEndpoint)
+		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 			.setSupportedCipherSuites(
 				new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -143,6 +143,7 @@ public class DTLSConnectorTest {
 		server = new DTLSConnector(serverConfig, serverSessionStore);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
+		serverEndpoint = server.getAddress();
 		Assert.assertTrue(server.isRunning());
 	}
 
@@ -155,12 +156,8 @@ public class DTLSConnectorTest {
 	public void setUp() throws Exception {
 
 		clientSessionStore = new InMemoryConnectionStore(5, 60);
-		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10000);
-		
-		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
-			.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true)
-			.setTrustStore(trustedCertificates)
-			.build();
+		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientSessionStore);
 		
@@ -175,7 +172,14 @@ public class DTLSConnectorTest {
 		serverSessionStore.clear();
 		serverRawDataChannel.setProcessor(defaultRawDataProcessor);
 	}
-	
+
+	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws KeyStoreException {
+		return new DtlsConnectorConfig.Builder(bindAddress)
+			.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true)
+			.setTrustStore(trustedCertificates)
+		.build();
+	}
+
 	@Test
 	public void testConnectorEstablishesSecureSession() throws Exception {
 		givenAnEstablishedSession();
@@ -191,8 +195,7 @@ public class DTLSConnectorTest {
 	public void testConnectorKeepsExistingSessionOnEpochZeroClientHello() throws Exception {
 
 		givenAnEstablishedSession();
-		
-		
+
 		// client has successfully established a secure session with server
 		// and has been "crashed"
 		// now we try to establish a new session with a client connecting from the
@@ -237,8 +240,8 @@ public class DTLSConnectorTest {
 		// exchange application data
 		final CountDownLatch clientLatch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(clientLatch);
-		// reactivate original client
-		client.start();
+		// restart original client binding to same IP address and port as before
+		client.restart();
 		// make sure client still has original session in its cache
 		Connection con = clientSessionStore.get(serverEndpoint);
 		assertNotNull(con);
@@ -247,7 +250,7 @@ public class DTLSConnectorTest {
 
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
-		con = serverSessionStore.get(clientEndpoint);
+		con = serverSessionStore.get(client.getAddress());
 		assertNotNull(con);
 		assertNotNull(con.getEstablishedSession());
 		assertTrue(clientLatch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -266,7 +269,7 @@ public class DTLSConnectorTest {
 	public void testConnectorReplacesExistingSessionAfterFullHandshake() throws Exception {
 
 		givenAnEstablishedSession();
-		
+
 		// the ID of the originally established session
 		SessionId originalSessionId = establishedSession.getSessionIdentifier();
 		
@@ -276,7 +279,7 @@ public class DTLSConnectorTest {
 		// same IP address and port again
 		final CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);
-		client = new DTLSConnector(clientConfig);
+		client = new DTLSConnector(newStandardConfig(clientEndpoint));
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		
@@ -392,6 +395,7 @@ public class DTLSConnectorTest {
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
+		clientEndpoint = client.getAddress();
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
 		assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
@@ -402,7 +406,6 @@ public class DTLSConnectorTest {
 	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
 
 		final CountDownLatch latch = new CountDownLatch(1);
-
 		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
 			.setPskStore(new StaticPskStore("unknownIdentity", "secretPSK".getBytes()))
 			.build();
@@ -514,6 +517,7 @@ public class DTLSConnectorTest {
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
+		clientEndpoint = client.getAddress();
 		client.send(new RawData("Hello World".getBytes(), serverEndpoint));
 
 		Assert.assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -547,6 +551,7 @@ public class DTLSConnectorTest {
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
+		clientEndpoint = client.getAddress();
 		client.send(msgToSend);
 
 		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));

@@ -93,6 +93,8 @@ public class DTLSConnector implements Connector {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 
+	private InetSocketAddress lastBindAddress;
+	
 	// guard access to cookieMacKey
 	private Object cookieMacKeyLock = new Object();
 	// last time when the master key was generated
@@ -237,6 +239,25 @@ public class DTLSConnector implements Connector {
 	
 	@Override
 	public final synchronized void start() throws IOException {
+		start(config.getAddress());
+	}
+
+	/**
+	 * Re-starts the connector binding to the same IP address and port as
+	 * on the previous start.
+	 * 
+	 * @throws IOException if the connector cannot be bound to the previous
+	 *            IP address and port
+	 */
+	final synchronized void restart() throws IOException {
+		if (lastBindAddress != null) {
+			start(lastBindAddress);
+		} else {
+			throw new IllegalStateException("Connector has never been started before");
+		}
+	}
+
+	private void start(InetSocketAddress bindAddress) throws IOException {
 		if (running) {
 			return;
 		}
@@ -244,22 +265,23 @@ public class DTLSConnector implements Connector {
 		socket = new DatagramSocket(null);
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
-		socket.bind(config.getAddress());
+		socket.bind(bindAddress);
+		lastBindAddress = getAddress();
 		running = true;
 
-		sender = new Worker("DTLS-Sender-" + config.getAddress()) {
+		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
 				public void doWork() throws Exception { sendNextMessageOverNetwork(); }
 			};
 
-		receiver = new Worker("DTLS-Receiver-" + config.getAddress()) {
+		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
 				public void doWork() throws Exception { receiveNextDatagramFromNetwork(); }
 			};
 		
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}]", config.getAddress());
+		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}]", lastBindAddress);
 	}
-	
+
 	/**
 	 * Stops the sender and receiver threads and closes the socket
 	 * used for sending and receiving datagrams.
@@ -917,7 +939,13 @@ public class DTLSConnector implements Connector {
 			timer.schedule(flight.getRetransmitTask(), flight.getTimeout());
 		}
 	}
-	
+
+	/**
+	 * Gets the address this connector is bound to.
+	 * 
+	 * @return the IP address and port this connector is bound to or configured to
+	 *            bind to
+	 */
 	@Override
 	public final InetSocketAddress getAddress() {
 		if (socket == null) {
