@@ -300,7 +300,7 @@ public class DTLSConnector implements Connector {
 		if (!running) {
 			return;
 		}
-		LOGGER.log(Level.INFO, "Stopping DLTS connector on [{0}]", config.getAddress());
+		LOGGER.log(Level.INFO, "Stopping DLTS connector on [{0}]", lastBindAddress);
 		timer.cancel();
 		releaseSocket();
 	}
