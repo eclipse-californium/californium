@@ -14,6 +14,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469158
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 477074 (erroneous encoding of RPK)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -30,6 +31,8 @@ import java.util.Enumeration;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.DatagramReader;
+import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -41,10 +44,17 @@ public class CertificateMessageTest {
 	Certificate[] certificateChain;
 	Certificate[] trustAnchor;
 	InetSocketAddress peerAddress;
+	byte[] serializedMessage;
+	PublicKey serverPublicKey;
 	
 	@Before
 	public void setUp() throws Exception {
 		peerAddress = new InetSocketAddress("localhost", 5684);
+		certificateChain = DtlsTestTools.getCertificateChainFromStore(
+				DtlsTestTools.KEY_STORE_LOCATION,
+				DtlsTestTools.KEY_STORE_PASSWORD,
+				"server");
+		serverPublicKey = certificateChain[0].getPublicKey();
 		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
 		trustAnchor = new Certificate[trustStore.size()];
 		int i = 0;
@@ -65,24 +75,55 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() {
-		byte[] msg = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
+		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromByteArray(msg, false, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, false, peerAddress);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromByteArray(msg, true, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
 		assertSerializedMessageLength(3);
 	}
-	
+
+	/**
+	 * Verify that a serialized certificate message containing a raw public key as
+	 * specified in RFC 7250 section 3 can be parsed successfully.
+	 */
+	@Test
+	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
+		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
+		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
+		assertThat(message.getPublicKey(), is(serverPublicKey));
+	}
+
+	/**
+	 * Verify that a certificate message containing a raw public key is serialized
+	 * as specified in RFC 7250.
+	 */
+	@Test
+	public void testFragmentToByteArrayCompliesWithRfc7250() throws Exception {
+		givenARawPublicKeyCertificateMessage(serverPublicKey);
+		serializedMessage = message.fragmentToByteArray();
+		assertThatSerializedRawPublicKeyMessageCompliesWithRfc7250();
+	}
+
+	private void assertThatSerializedRawPublicKeyMessageCompliesWithRfc7250() {
+		long rpkLength = (long) serverPublicKey.getEncoded().length;
+		assertThat((long) serializedMessage.length, is(rpkLength + 3));
+		
+		DatagramReader reader = new DatagramReader(serializedMessage);
+		long length = reader.readLong(24);
+		assertThat(length, is(rpkLength));
+	}
+
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage("server", true);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
-		byte[] serialized = message.toByteArray();
+		serializedMessage = message.toByteArray();
 		CertificateMessage msg = (CertificateMessage) HandshakeMessage.fromByteArray(
-				serialized, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true, peerAddress);
+				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true, peerAddress);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 	
@@ -135,6 +176,18 @@ public class CertificateMessageTest {
 		} else {
 			message = new CertificateMessage(certificateChain, peerAddress);
 		}
+	}
+
+	private void givenARawPublicKeyCertificateMessage(PublicKey publicKey) {
+		message = new CertificateMessage(publicKey.getEncoded(), peerAddress);
+	}
+
+	private void givenASerializedRawPublicKeyCertificateMessage(PublicKey publicKey) throws IOException, GeneralSecurityException {
+		byte[] rawPublicKey = publicKey.getEncoded();
+		DatagramWriter writer = new DatagramWriter();
+		writer.writeLong(rawPublicKey.length, 24);
+		writer.writeBytes(rawPublicKey);
+		serializedMessage = writer.toByteArray();
 	}
 
 	private void givenAnEmptyCertificateMessage() {

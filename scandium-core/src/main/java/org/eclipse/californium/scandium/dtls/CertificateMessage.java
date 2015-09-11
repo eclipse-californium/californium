@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 469593 (validation of peer certificate chain)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 477074 (erroneous encoding of RPK)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -134,17 +135,7 @@ public final class CertificateMessage extends HandshakeMessage {
 			throw new NullPointerException("Raw public key byte array must not be null");
 		}
 		
-		if (rawPublicKeyBytes.length > 0) {
-			// 3 additional bytes for public key length + encoded key bytes
-			length += 3 + rawPublicKeyBytes.length;
-		}
-		
-		// TODO still unclear whether the payload only consists of the raw public key
-		
-		// http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.2:
-		// "If the negotiated certificate type is RawPublicKey the TLS server
-		// MUST place the SubjectPublicKeyInfo structure into the Certificate
-		// payload. The public key MUST match the selected key exchange algorithm."
+		length += rawPublicKeyBytes.length;
 	}
 	
 	private CertificateMessage(byte[] rawPublicKey, Certificate[] certificateChain, InetSocketAddress peerAddress) {
@@ -286,9 +277,9 @@ public final class CertificateMessage extends HandshakeMessage {
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(getMessageLength() - 3, CERTIFICATE_LIST_LENGTH);
 
 		if (rawPublicKeyBytes == null) {
+			writer.write(getMessageLength() - 3, CERTIFICATE_LIST_LENGTH);
 			// the size of the certificate chain
 			for (byte[] encoded : encodedChain) {
 				// the size of the current certificate
@@ -296,7 +287,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				// the encoded current certificate
 				writer.writeBytes(encoded);
 			}
-		} else if (rawPublicKeyBytes.length > 0) {
+		} else {
 			writer.write(rawPublicKeyBytes.length, CERTIFICATE_LENGTH_BITS);
 			writer.writeBytes(rawPublicKeyBytes);
 		}
@@ -308,8 +299,6 @@ public final class CertificateMessage extends HandshakeMessage {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
-		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
-		
 		CertificateMessage message;
 		if (useRawPublicKey) {
 			LOGGER.log(Level.FINER, "Parsing RawPublicKey CERTIFICATE message");
@@ -318,6 +307,7 @@ public final class CertificateMessage extends HandshakeMessage {
 			message = new CertificateMessage(rawPublicKey, peerAddress);
 		} else {
 			LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
+			int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
 			List<Certificate> certs = new ArrayList<Certificate>();
 
 			CertificateFactory certificateFactory = null;
