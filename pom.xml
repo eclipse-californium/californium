@@ -9,14 +9,13 @@
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>parent/pom.xml</relativePath>
 	</parent>
 
-	<artifactId>root</artifactId>
+	<artifactId>californium-parent</artifactId>
 	<packaging>pom</packaging>
 
-	<name>Californium (Cf) Root</name>
-	<description>Californium (Cf) project root</description>
+	<name>Californium (Cf)</name>
+	<description>CoAP framework</description>
 
 	<modules>
 		<module>californium-core</module>
