@@ -112,7 +112,7 @@ public class ObserveRelation {
 	 * the resource and the endpoint.
 	 */
 	public void cancel() {
-		LOGGER.info("Canceling observe relation "+getKey()+" with "+resource.getURI());
+		LOGGER.fine("Canceling observe relation "+getKey()+" with "+resource.getURI());
 		// stop ongoing retransmissions
 		if (exchange.getResponse()!=null) exchange.getResponse().cancel();
 		setEstablished(false);

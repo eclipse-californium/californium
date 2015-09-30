@@ -24,7 +24,6 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 
 /**
