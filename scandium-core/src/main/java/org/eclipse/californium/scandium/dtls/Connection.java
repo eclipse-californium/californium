@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for terminating a handshake
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -102,7 +103,19 @@ public final class Connection implements SessionListener {
 	public void setOngoingHandshake(Handshaker ongoingHandshake) {
 		this.ongoingHandshake = ongoingHandshake;
 	}
-	
+
+	/**
+	 * Stops an ongoing handshake with the peer and removes all state information
+	 * about the handshake.
+	 * 
+	 * Cancels any pending flight and sets <em>ongoingHandshake</em> property to
+	 * <code>null</code>. 
+	 */
+	public void terminateOngoingHandshake() {
+		cancelPendingFlight();
+		setOngoingHandshake(null);
+	}
+
 	/**
 	 * Registers an outbound flight that has not been acknowledged by the peer yet in order
 	 * to be able to cancel its re-transmission later once it has been acknowledged.

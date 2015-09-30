@@ -24,6 +24,7 @@
  *                                                    keeping all information about the connection
  *                                                    to a peer in a single place
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
+ *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 478538
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -233,11 +234,15 @@ public class DTLSConnector implements Connector {
 	 * @param peerAddress the address of the peer to close the connection to
 	 */
 	public final void close(InetSocketAddress peerAddress) {
-		AlertMessage closeNotify = new AlertMessage(AlertLevel.WARNING,
-				AlertDescription.CLOSE_NOTIFY, peerAddress);
-		terminateConnection(peerAddress, closeNotify);
+		Connection connection = connectionStore.get(peerAddress);
+		if (connection != null && connection.getEstablishedSession() != null) {
+			terminateConnection(
+					connection,
+					new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, peerAddress),
+					connection.getEstablishedSession());
+		}
 	}
-	
+
 	@Override
 	public final synchronized void start() throws IOException {
 		start(config.getAddress());
@@ -381,7 +386,7 @@ public class DTLSConnector implements Connector {
 				if (AlertLevel.FATAL.equals(e.getAlert().getLevel())) {
 					LOGGER.log(Level.INFO, "Aborting handshake with peer [{1}]: {2}",
 							new Object[]{record.getType(), peerAddress, e.getMessage()});
-					terminateConnection(peerAddress, e.getAlert());
+					terminateOngoingHandshake(peerAddress, e.getAlert());
 					break;
 				} else {
 					LOGGER.log(Level.FINE, "Discarding [{0}] record from peer [{1}]: {2}",
@@ -390,7 +395,35 @@ public class DTLSConnector implements Connector {
 			}
 		}
 	}
-	
+
+	/**
+	 * Immediately terminates an ongoing handshake with a peer.
+	 * 
+	 * Terminating the handshake includes
+	 * <ul>
+	 * <li>canceling any pending retransmissions to the peer</li>
+	 * <li>destroying any state for an ongoing handshake with the peer</li>
+	 * </ul>
+	 * 
+	 * @param peerAddress the peer to terminate the handshake with
+	 * @param alert the message to send to the peer before terminating the handshake
+	 */
+	private void terminateOngoingHandshake(InetSocketAddress peerAddress, AlertMessage alert) {
+
+		Connection connection = connectionStore.get(peerAddress);
+		if (connection != null && connection.getOngoingHandshake() != null) {
+			DTLSSession session = connection.getOngoingHandshake().getSession();
+			if (connection.getEstablishedSession() == null) {
+				terminateConnection(connection, alert, session);
+			} else {
+				// keep established session intact and only terminate ongoing handshake
+				if (alert != null) {
+					send(alert, session);
+				}
+				connection.terminateOngoingHandshake();
+			}
+		}
+	}
 
 	/**
 	 * Immediately terminates a connection with a peer.
@@ -398,46 +431,34 @@ public class DTLSConnector implements Connector {
 	 * Terminating the connection includes
 	 * <ul>
 	 * <li>canceling any pending retransmissions to the peer</li>
-	 * <li>destroying a cached session with the peer</li>
+	 * <li>destroying any established session with the peer</li>
 	 * <li>destroying any handshakers for the peer</li>
 	 * <li>optionally sending a final ALERT to the peer (if a session exists with the peer)</li>
 	 * </ul>
 	 * 
-	 * @param peerAddress the peer to terminate the connection to
-	 * @param alert the message to send to the peer (may be <code>null</code>)
+	 * @param connection the connection to terminate
+	 * @param alert the message to send to the peer before terminating the connection (may be <code>null</code>)
+	 * @param session the parameters to encrypt the alert message with (may be <code>null</code> if alert is
+	 *           <code>null</code>)
 	 */
-	private void terminateConnection(InetSocketAddress peerAddress, AlertMessage alert) {
-
-		if (alert != null) {
-			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}], reason [{1}]",
-					new Object[]{peerAddress, alert.getDescription()});
-		} else {
-			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}]", peerAddress);
+	private void terminateConnection(Connection connection, AlertMessage alert, DTLSSession session) {
+		if (alert != null && session == null) {
+			throw new IllegalArgumentException("Session must not be NULL if alert message is to be sent");
 		}
-		Connection connection = connectionStore.get(peerAddress);
-		if (connection != null) {
-			connection.cancelPendingFlight();
-			// get either established session or the session to be negotiated
-			DTLSSession session = connection.getSession();
-			// prevent processing of additional records
-			if (alert != null) {
-				try {
-					DTLSFlight flight = new DTLSFlight(session);
-					flight.setRetransmissionNeeded(false);
-					flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
-					sendFlight(flight);
-				} catch (GeneralSecurityException e) {
-					LOGGER.log(Level.FINE, "Cannot create ALERT message for peer [{0}] due to [{1}]",
-							new Object[]{peerAddress, e.getMessage()});
-				}
-			}
-			
+
+		connection.cancelPendingFlight();
+
+		if (alert == null) {
+			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}]", connection.getPeerAddress());
+		} else {
+			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}], reason [{1}]",
+					new Object[]{connection.getPeerAddress(), alert.getDescription()});
+			send(alert, session);
 		}
 		// clear session & (pending) handshaker
-		connectionClosed(peerAddress);
+		connectionClosed(connection.getPeerAddress());
 	}
-	
-	
+
 	private void processApplicationDataRecord(InetSocketAddress peerAddress, Record record)
 			throws GeneralSecurityException, HandshakeException {
 
@@ -475,9 +496,15 @@ public class DTLSConnector implements Connector {
 					new Object[]{peerAddress});
 		}
 	}
-	
+
 	/**
 	 * Processes an <em>ALERT</em> message received from the peer.
+	 * 
+	 * Terminates the connection with the peer if either
+	 * <ul>
+	 * <li>the ALERT's level is FATAL or</li>
+	 * <li>the ALERT is a <em>closure alert</em></li>
+	 * </ul>
 	 * 
 	 * Also notifies a registered {@link #errorHandler} about the alert message.
 	 * 
@@ -486,6 +513,7 @@ public class DTLSConnector implements Connector {
 	 * @throws GeneralSecurityException if the ALERT message could not be de-crypted
 	 * @throws HandshakeException if the record's content could not be parsed into an ALERT message
 	 * @see ErrorHandler
+	 * @see #terminateConnection(InetSocketAddress, AlertMessage)
 	 */
 	private void processAlertRecord(InetSocketAddress peerAddress, Record record) throws GeneralSecurityException, HandshakeException {
 
@@ -508,7 +536,7 @@ public class DTLSConnector implements Connector {
 				// we have no established session but we could have a fresh new on going handshake
 				if (connection.getOngoingHandshake() != null && connection.getOngoingHandshake().getSession() != null && connection.getOngoingHandshake().getSession().getReadEpoch() == 0){
 					session = connection.getOngoingHandshake().getSession();
-				}else{
+				} else {
 					LOGGER.log(Level.FINER, "Received ALERT record with epoch == 0 from [{0}] without on going handshake, discarding ...", peerAddress);
 					return;
 				}
@@ -517,39 +545,41 @@ public class DTLSConnector implements Connector {
 			if (record.getEpoch() == 0){
 				LOGGER.log(Level.FINER, "Received ALERT record with epoch == 0 from [{0}] with established session, discarding ...", peerAddress);
 				return;
-			}else{
+			} else {
 				session = connection.getEstablishedSession();
 			}
 		}
 
-		if (session != null) {
+		if (session == null) {
+			LOGGER.log(Level.FINER, "Received ALERT record from [{0}] without existing session, discarding ...", peerAddress);
+		} else {
 			record.setSession(session);
 			AlertMessage alert = (AlertMessage) record.getFragment();
 			LOGGER.log(Level.FINEST, "Processing ALERT message from [{0}]:\n{1}", new Object[]{peerAddress, record});
-			if (AlertLevel.FATAL.equals(alert.getLevel())) {
+			if (AlertDescription.CLOSE_NOTIFY.equals(alert.getDescription())) {
+				// according to section 7.2.1 of the TLS 1.2 spec
+				// (http://tools.ietf.org/html/rfc5246#section-7.2.1)
+				// we need to respond with a CLOSE_NOTIFY alert and
+				// then close and remove the connection immediately
+				terminateConnection(
+						connection,
+						new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, peerAddress),
+						session);
+			} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
 				// according to section 7.2 of the TLS 1.2 spec
 				// (http://tools.ietf.org/html/rfc5246#section-7.2)
 				// the connection needs to be terminated immediately
-				AlertMessage bye = null;
-				switch (alert.getDescription()) {
-				case CLOSE_NOTIFY:
-					// respond with CLOSE_NOTIFY as mandated by TLS 1.2, section 7.2.1
-					// http://tools.ietf.org/html/rfc5246#section-7.2.1
-					bye = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, peerAddress);
-				default:
-					terminateConnection(peerAddress, bye);
-				}
+				terminateConnection(connection, null, null);
 			} else {
 				// alert is not fatal, ignore for now
 			}
+
 			if (errorHandler != null) {
 				errorHandler.onError(peerAddress, alert.getLevel(), alert.getDescription());
 			}
-		} else {
-			LOGGER.log(Level.FINER, "Received ALERT record from [{0}] without existing session, discarding ...", peerAddress);
 		}
 	}
-	
+
 	private void processChangeCipherSpecRecord(InetSocketAddress peerAddress, Record record) throws HandshakeException {
 		Connection connection = connectionStore.get(peerAddress);
 		if (connection == null || connection.getOngoingHandshake() == null) {
@@ -707,7 +737,7 @@ public class DTLSConnector implements Connector {
 					// so we can terminate the previous session.
 					// (see section 4.2.8 of RFC 6347 (DTLS 1.2))
 					if (peerConnection != null) {
-						terminateConnection(connection.getPeerAddress(), null);
+						terminateConnection(connection, null, null);
 					}
 					peerConnection = new Connection(record.getPeerAddress());
 					connectionStore.put(peerConnection);
@@ -741,12 +771,12 @@ public class DTLSConnector implements Connector {
 									LOGGER.log(Level.FINER,
 											"Remove old connection to [{0}], session with ID [{1}] was successfully resumed on peer [{2}] ",
 											new Object[]{previousConnection.getPeerAddress(),ByteArrayUtils.toHexString(establishedSession.getSessionIdentifier().getSessionId()),establishedSession.getPeer()});
-									terminateConnection(previousConnection.getPeerAddress(), null);
+									terminateConnection(previousConnection, null, null);
 								}
 							});
-						}else{
+						} else {
 							// remove immediately the previous connection;
-							terminateConnection(previousConnection.getPeerAddress(), null);
+							terminateConnection(previousConnection, null, null);
 						}
 						// add the new one to the store
 						connectionStore.put(peerConnection);
@@ -760,7 +790,7 @@ public class DTLSConnector implements Connector {
 						// so we can terminate the previous session.
 						// (see section 4.2.8 of RFC 6347 (DTLS 1.2))
 						if (peerConnection != null) {
-							terminateConnection(peerConnection.getPeerAddress(), null);
+							terminateConnection(peerConnection, null, null);
 						}
 						peerConnection = new Connection(record.getPeerAddress());
 						connectionStore.put(peerConnection);
@@ -830,7 +860,25 @@ public class DTLSConnector implements Connector {
 			throw new HandshakeException("Internal error", new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, peerAddress));
 		}
 	}
-	
+
+	void send(AlertMessage alert, DTLSSession session) {
+		if (alert == null) {
+			throw new IllegalArgumentException("Alert must not be NULL");
+		} else if (session == null) {
+			throw new IllegalArgumentException("Session must not be NULL");
+		} else {
+			try {
+				DTLSFlight flight = new DTLSFlight(session);
+				flight.setRetransmissionNeeded(false);
+				flight.addMessage(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
+				sendFlight(flight);
+			} catch (GeneralSecurityException e) {
+				LOGGER.log(Level.FINE, "Cannot create ALERT message for peer [{0}] due to [{1}]",
+						new Object[]{session.getPeer(), e.getMessage()});
+			}
+		}
+	}
+
 	@Override
 	public final void send(RawData msg) {
 		if (msg == null) {
@@ -891,11 +939,11 @@ public class DTLSConnector implements Connector {
 			else {
 				if (connection.isResumptionRequired()){
 					// create the session to resume from the previous one.
-					DTLSSession resumableSession = new DTLSSession(peerAddress, session,0);
+					DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
 
 					// terminate the previous connection and add the new one to the store
 					Connection newConnection = new Connection(peerAddress);
-					terminateConnection(peerAddress, null);
+					terminateConnection(connection, null, null);
 					connectionStore.put(newConnection);
 					handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config);
 				}
