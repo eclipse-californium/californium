@@ -18,6 +18,9 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add nextObserveNumber 
  *                                                    (for use by subclasses)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace nextObserveNumber
+ *                                                    by ObserveRelationFilter
+ *                                                    (for use by subclasses)
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -42,6 +45,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.observe.ObserveRelationContainer;
+import org.eclipse.californium.core.observe.ObserveRelationFilter;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -698,7 +702,7 @@ public  class CoapResource implements Resource {
 	}
 	
 	/**
-	 * Returns the number of observe realtions that this resource has to CoAP
+	 * Returns the number of observe relations that this resource has to CoAP
 	 * clients.
 	 * 
 	 * @return the observer count
@@ -714,36 +718,49 @@ public  class CoapResource implements Resource {
 	 * the executor of this resource or on the executor of its parent or
 	 * transitively ancestor. If no ancestor defines its own executor, the
 	 * thread that has called this method performs the notification.
+	 * 
+	 * @see #changed(ObserveRelationFilter)
 	 */
 	public void changed() {
+		changed(null);
+	}
+
+	/**
+	 * Notifies a filtered set of CoAP clients that have established an observe
+	 * relation with this resource that the state has changed by reprocessing
+	 * their original request that has established the relation. The notification
+	 * is done by the executor of this resource or on the executor of its parent or
+	 * transitively ancestor. If no ancestor defines its own executor, the
+	 * thread that has called this method performs the notification.
+	 * 
+	 * @param filter filter to select set of relations. 
+	 *               <code>null</code>, if all clients should be notified.
+	 * 
+	 * @see #changed()
+	 */
+	public void changed(final ObserveRelationFilter filter) {
 		Executor executor = getExecutor();
 		// use thread from the protocol stage
-		if (executor == null) notifyObserverRelations();
+		if (executor == null) notifyObserverRelations(filter);
 		// use thread from the resource pool
 		else executor.execute(new Runnable() {
 			public void run() {
-				notifyObserverRelations();
+				notifyObserverRelations(filter);
 			}});
-	}
-	
-	/**
-	 * Increments the observe option number to order the change notifications.
-	 * If {@link #notifyObserverRelations()} is not used, use this to setup the
-	 * observe option as order number.
-	 */
-	protected void nextObserveNumber() {
-		notificationOrderer.getNextObserveNumber();
 	}
 	
 	/**
 	 * Notifies all CoAP clients that have established an observe relation with
 	 * this resource that the state has changed by reprocessing their original
 	 * request that has established the relation.
+	 * 
+	 * @param filter filter to select set of relations. 
+	 *               <code>null</code>, if all clients should be notified.
 	 */
-	protected void notifyObserverRelations() {
-		nextObserveNumber();
+	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
+		notificationOrderer.getNextObserveNumber();
 		for (ObserveRelation relation:observeRelations) {
-			relation.notifyObservers();
+			if (null == filter || filter.accept(relation)) relation.notifyObservers();
 		}
 	}
 
