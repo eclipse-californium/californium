@@ -317,6 +317,7 @@ public class Request extends Message {
 	 * place with that server.
 	 * 
 	 * @param senderIdentity the identity
+	 * @return this request
 	 */
 	public Request setSenderIdentity(Principal senderIdentity) {
 		this.senderIdentity = senderIdentity;

@@ -587,11 +587,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 
 	/**
-	 * Computes the back-off timer and schedules the specified retransmission
-	 * task.
+	 * Schedules a clean-up task. Use the BLOCKWISE_STATUS_LIFETIME config
+	 * property to set the timeout.
 	 * 
-	 * @param exchange the exchange
-	 * @param task the retransmission task
+	 * @param exchange
+	 *            the exchange
 	 */
 	protected void prepareBlockCleanup(Exchange exchange) {
 		
