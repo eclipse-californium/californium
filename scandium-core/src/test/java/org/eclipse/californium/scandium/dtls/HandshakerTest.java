@@ -159,7 +159,7 @@ public class HandshakerTest {
 			FragmentedHandshakeMessage msg = 
 					new FragmentedHandshakeMessage(
 							fragment,
-							HandshakeType.CERTIFICATE,
+							message.getMessageType(),
 							fragmentOffset,
 							serializedMsg.length,
 							endpoint);

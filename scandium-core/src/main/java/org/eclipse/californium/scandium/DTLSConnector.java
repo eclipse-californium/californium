@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -200,7 +201,6 @@ public class DTLSConnector implements Connector {
 			ConnectionStore connectionStore, DTLSConnectorConfig config) {
 		Builder builder = new Builder(address);
 		if (config != null) {
-			builder.setMaxFragmentLength(config.getMaxFragmentLength());
 			builder.setMaxPayloadSize(config.getMaxPayloadSize());
 			builder.setMaxRetransmissions(config.getMaxRetransmit());
 			builder.setRetransmissionTimeout(config.getRetransmissionTimeout());
@@ -272,7 +272,15 @@ public class DTLSConnector implements Connector {
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
 		socket.bind(bindAddress);
-		lastBindAddress = getAddress();
+		NetworkInterface ni = NetworkInterface.getByInetAddress(bindAddress.getAddress());
+		if (config.getMaxPayloadSize() > ni.getMTU()) {
+			String msg = new StringBuffer("Max. payload size [{0}] has been set to a value larger than network interface''s MTU [{1}].")
+					.append(" Outbound messages larger than {1} bytes will get fragmented at the IP layer.")
+					.append(" Reduce the max. payload size to prevent this.")
+					.toString();
+			LOGGER.log(Level.WARNING, msg, new Object[]{config.getMaxPayloadSize(), ni.getMTU()});
+		}
+		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		running = true;
 
 		sender = new Worker("DTLS-Sender-" + lastBindAddress) {

@@ -145,7 +145,7 @@ public abstract class Handshaker {
 	protected final Certificate[] rootCertificates;
 	
 	/** the maximum fragment size before DTLS fragmentation must be applied */
-	private int maxFragmentLength = 4096;
+	private int maxFragmentLength = 1300;
 
 	private Set<SessionListener> sessionListeners = new HashSet<>();
 	
@@ -163,15 +163,15 @@ public abstract class Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
-	 * @param maxFragmentLength the maximum length of message fragments this handshaker
-	 *            may send to the peer
+	 * @param maxPayloadSize
+	 *            the maximum number of bytes that can be sent to a peer in a single record
 	 * @throws HandshakeException if the message digest required for computing
 	 *            the handshake hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, SessionListener sessionListener, 
-			Certificate[] rootCertificates, int maxFragmentLength) throws HandshakeException {
-		this(isClient, 0, session, sessionListener, rootCertificates, maxFragmentLength);
+			Certificate[] rootCertificates, int maxPayloadSize) throws HandshakeException {
+		this(isClient, 0, session, sessionListener, rootCertificates, maxPayloadSize);
 	}
 	
 	/**
@@ -191,15 +191,15 @@ public abstract class Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
-	 * @param maxFragmentLength the maximum length of message fragments this handshaker
-	 *            may send to the peer
+	 * @param maxPayloadSize
+	 *            the maximum number of bytes that can be sent to a peer in a single record
 	 * @throws HandshakeException if the message digest required for computing
 	 *            the FINISHED message hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, SessionListener sessionListener,
-			Certificate[] rootCertificates, int maxFragmentLength) throws HandshakeException {
+			Certificate[] rootCertificates, int maxPayloadSize) throws HandshakeException {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		}
@@ -213,7 +213,8 @@ public abstract class Handshaker {
 		this.session = session;
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
-		this.maxFragmentLength = maxFragmentLength;
+		this.maxFragmentLength = maxPayloadSize
+				- HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES; // DTLS handshake message headers
 
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
@@ -776,8 +777,9 @@ public abstract class Handshaker {
 	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
 	 */
 	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
+
+		LOGGER.log(Level.FINER, "Processing {0} message fragment ...", fragment.getMessageType());
 		HandshakeMessage reassembledMessage = null;
-		
 		int messageSeq = fragment.getMessageSeq();
 		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
 		if (existingFragments == null) {
@@ -802,8 +804,7 @@ public abstract class Handshaker {
 		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
 				fragment.getMessageLength(), fragment.getMessageType(), session);
 		if (reassembledMessage != null) {
-			// message could be reassembled, therefore increase the next_receive_seq
-//			incrementNextReceiveSeq();
+			LOGGER.log(Level.FINER, "Successfully re-assembled {0} message", reassembledMessage.getMessageType());
 			fragmentedMessages.remove(messageSeq);
 		}
 		
