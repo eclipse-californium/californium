@@ -34,7 +34,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Code;

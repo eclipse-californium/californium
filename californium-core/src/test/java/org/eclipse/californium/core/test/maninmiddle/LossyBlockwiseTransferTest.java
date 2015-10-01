@@ -21,7 +21,7 @@ package org.eclipse.californium.core.test.maninmiddle;
 
 import java.util.Random;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;

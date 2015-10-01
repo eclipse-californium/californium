@@ -1,6 +1,6 @@
 package org.eclipse.californium.core.test;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;

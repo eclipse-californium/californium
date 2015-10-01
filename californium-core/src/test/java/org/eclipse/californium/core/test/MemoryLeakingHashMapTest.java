@@ -8,7 +8,7 @@ import java.util.concurrent.Semaphore;
 
 import javax.swing.Timer;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -360,20 +360,16 @@ public class MemoryLeakingHashMapTest {
 	public class TestResource extends CoapResource implements ActionListener {
 
 		private Mode mode;
-		private int status;
 		
 		public TestResource(String name, Mode mode) {
 			super(name);
 			this.mode = mode;
-			this.status = 0;
 			
 			setObservable(true);
 			timer.addActionListener(this);
 		}
 		
 		@Override public void actionPerformed(ActionEvent e) {
-			++status;
-			System.out.println("TestResource "+getName()+" performed "+status+" changes");
 			changed();
 		}
 		

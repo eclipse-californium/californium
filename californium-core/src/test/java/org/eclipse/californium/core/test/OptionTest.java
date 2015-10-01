@@ -20,7 +20,7 @@
 package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertArrayEquals;
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
