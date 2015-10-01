@@ -133,7 +133,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
 			throws HandshakeException {
-		super(true, session, sessionListener, config.getTrustStore(), config.getMaxFragmentLength());
+		super(true, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
 		this.message = message;
 		this.privateKey = config.getPrivateKey();
 		this.certificates = config.getCertificateChain();

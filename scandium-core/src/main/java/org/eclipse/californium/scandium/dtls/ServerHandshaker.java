@@ -162,7 +162,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, SessionListener sessionListener,
 			DtlsConnectorConfig config) throws HandshakeException { 
-		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), config.getMaxFragmentLength());
+		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		
