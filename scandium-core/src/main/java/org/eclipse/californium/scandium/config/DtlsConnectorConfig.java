@@ -33,7 +33,19 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  * A container for all configuration options of a <code>DTLSConnector</code>.
  * 
  * Instances of this class are immutable and can only be created by means of
- * the {@link Builder}.
+ * the {@link Builder}, e.g.
+ * 
+ * <pre>
+ * InetSocketAddress bindToAddress = new InetSocketAddress("localhost", 0); // use ephemeral port
+ * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder(bindToAddress)
+ *    .setPskStore(new StaticPskStore("identity", "secret".getBytes()));
+ *    .set... // additional configuration
+ *    .build();
+ * 
+ * DTLSConnector connector = new DTLSConnector(config);
+ * connector.start();
+ * ...
+ * </pre>
  */
 public class DtlsConnectorConfig {
 

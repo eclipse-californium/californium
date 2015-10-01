@@ -1,16 +1,27 @@
-Scandium (Sc) Security for Californium
-======================================
+# Scandium (Sc) - Security for Californium
 
-Scandium (Sc) is a DTLS 1.2 implementation for the Californium (Cf) CoAP framework.
-It uses the [element-connector](https://github.com/eclipse/californium.element-connector)
-interface, which is a socket-like API to send and receive raw data and allows
-the modularization of Californium (Cf). Hence, Scandium (Sc) can also be used
-standalone, i.e. without Californium's CoAP implementation on top.
+_Scandium (Sc)_ is a pure Java implementation of _Datagram Transport Layer Security 1.2_, also
+known as [RFC 6347](http://tools.ietf.org/html/rfc6347), for the [Californium (Cf)](https://iot.eclipse.org/Calirfornium)
+CoAP framework.
 
-Maven
------
+_Scandium (Sc)_ implements the [element-connector](https://github.com/eclipse/californium.element-connector)
+interface which provides a socket-like API for sending and receiving raw data chunks (byte arrays). Hence, you can
+also use _Scandium (Sc)_ as a standalone library providing a secure UDP based transport layer to any type of application
+sitting on top of it.
 
-Usually Scandium (Sc) is included as Maven dependency in the main project:
+# Getting it
+
+You can either use _Scandium (Sc)_ binaries from Maven or you can build your own binaries from source code.
+
+### Binaries
+
+The most recent _Scandium_ snapshot binaries are available from the Eclipse Foundation's Maven repository.
+Simply add _Scandium_ as as dependency to your Maven POM file as shown below. Don't forget to also add
+the definition for Eclipse's snapshot repository.
+
+**Note**: We will provide _Scandium_ release binaries via Maven Central. Thus, you will
+not need to define any additional Maven repos in your POM file or Maven settings.xml in order to get release versions.
+See [Californium Project Plan](https://projects.eclipse.org/projects/technology.californium/governance) for scheduled releases.
 
 ```xml
   <dependencies>
@@ -39,11 +50,16 @@ Usually Scandium (Sc) is included as Maven dependency in the main project:
   </repositories>
 ```
 
-Alternatively, use `mvn clean install` in the root directory to build
-and install the artifact locally.
+### Building from Source
 
-Eclipse
--------
+If you want to build and install _Scandium_ from source, simply run `mvn clean install` in the project's root directory.
+
+The `scandium-core` folder contains the source code for the Scandium library.
+The `scandium-examples` folder contains some sample code illustrating how to configure
+and instantiate Scandium's `DTLSConnector` class to establish connections secured by DTLS. For more advanced
+configuration options take a look at the `DtlsConnectorConfig` JavaDocs.
+
+# Eclipse
 
 The project also includes the project files for Eclipse. Make sure to have the
 following before importing the Scandium (Sc) project:
@@ -55,26 +71,25 @@ following before importing the Scandium (Sc) project:
 Then choose *[Import... &raquo; Git &raquo; Projects from Git &raquo; Local]*
 to import Californium into Eclipse.
 
-Included Certificates
----------------------
+# Certificates
 
-The sub-directory `certs` contains the Java key stores to run Scandium (Sc).
+### Included Certificates
 
-### Trust Store
+The sub-directory `certs` contains Java key stores with example certificates for running Scandium's example code and test cases.
+
+**Trust Store**
 
 *	Contains the self-signed root CA: *Cf Root CA*
 *	Password: `rootPass`
 
-### Key Store
+**Key Store**
 
 *	Contains the certificate chain for DTLS endpoints: *Cf Client CA* and *Cf Server CA* 
 *	Password: `endPass`
 
-Creating Certificates
----------------------
+### Creating Certificates
 
-Having OpenSSL installed, certificates and key stores can be created with the
-following steps:
+You can create your own certificates for use with Scandium. Assuming that you have OpenSSL installed, certificates and key stores can be created following these steps:
 
 	# Create private key and self-signed root CA
 	openssl ecparam -name prime256v1 -genkey -out root.key
