@@ -15,7 +15,7 @@
 	<name>Scandium (Sc)</name>
 	<description>Security for Californium</description>
 	<scm>
-		<developerConnection>scm:git:https://git@github.com/eclipse/californium.scandium.git</developerConnection>
+		<developerConnection>scm:git:https://github.com/eclipse/californium.scandium.git</developerConnection>
 		<url>https://github.com/eclipse/californium.scandium</url>
 		<tag>HEAD</tag>
 	</scm>
@@ -28,6 +28,14 @@
 		<module>scandium-core</module>
 		<module>scandium-examples</module>
 	</modules>
+	
+	<repositories>
+		<repository>
+			<id>eclipse_snapshots</id>
+			<name>Eclipse Snapshots</name>
+			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
+		</repository>
+	</repositories>
 
 	<dependencyManagement>
 		<dependencies>
@@ -38,38 +46,4 @@
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
-
-	<profiles>
-		<profile>
-			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->
-			<id>eclipse_jar_signing</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<property>
-					<name>enableEclipseJarSigner</name>
-				</property>
-			</activation>
-			<pluginRepositories>
-				<pluginRepository>
-					<id>eclipse-repo</id>
-					<name>Eclipse Repository</name>
-					<releases>
-						<enabled>true</enabled>
-					</releases>
-					<snapshots>
-						<enabled>false</enabled>
-					</snapshots>
-					<url>https://repo.eclipse.org/content/repositories/releases/</url>
-				</pluginRepository>
-			</pluginRepositories>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.eclipse.cbi.maven.plugins</groupId>
-						<artifactId>eclipse-jarsigner-plugin</artifactId>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 </project>
