@@ -99,25 +99,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<!-- this profile generates javadoc to check integrity -->
-			<id>javadoc</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<property>
-					<name>createJavadoc</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 </project>
