@@ -494,10 +494,6 @@ public class HttpStack {
 					LOGGER.warning("Failed to translate the http request in a valid coap request: " + e.getMessage());
 					sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR);
 					return;
-				} catch (RuntimeException e) {
-					LOGGER.warning("Exception in translation: "+e);
-					e.printStackTrace();
-					throw e;
                                 }
 			}
 
