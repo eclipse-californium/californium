@@ -63,7 +63,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		ack_timeout_scale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 		max_retransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 		
-		LOGGER.config("ReliabilityLayer uses ACK_TIMEOUT: "+ack_timeout+", ACK_RANDOM_FACTOR: "+ack_random_factor+", and ACK_TIMEOUT_SCALE: "+ack_timeout_scale);
+		LOGGER.config("ReliabilityLayer uses ACK_TIMEOUT="+ack_timeout+", ACK_RANDOM_FACTOR="+ack_random_factor+", and ACK_TIMEOUT_SCALE="+ack_timeout_scale);
 		
 		config.addConfigObserver(new NetworkConfigObserverAdapter() {
 			@Override

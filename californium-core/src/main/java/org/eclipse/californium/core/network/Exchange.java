@@ -126,6 +126,9 @@ public class Exchange {
 
 	// handle to cancel retransmission
 	private ScheduledFuture<?> retransmissionHandle = null;
+
+	// handle to extend blockwise status lifetime
+	private ScheduledFuture<?> blockCleanupHandle = null;
 	
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
@@ -391,6 +394,22 @@ public class Exchange {
 			}
 		}
 		this.retransmissionHandle = retransmissionHandle;
+	}
+
+	public ScheduledFuture<?> getBlockCleanupHandle() {
+		return blockCleanupHandle;
+	}
+
+	public void setBlockCleanupHandle(ScheduledFuture<?> blockCleanupHandle) {
+		if (this.blockCleanupHandle!=null) {
+			// avoid race condition of multiple block requests
+			synchronized (this) {
+				if (this.blockCleanupHandle!=null) {
+					this.blockCleanupHandle.cancel(false);
+				}
+			}
+		}
+		this.blockCleanupHandle = blockCleanupHandle;
 	}
 
 	public void setObserver(ExchangeObserver observer) {

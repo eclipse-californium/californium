@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
@@ -34,7 +36,6 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
-
 
 public class BlockwiseLayer extends AbstractLayer {
 
@@ -83,6 +84,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	private int max_message_size;
 	private int preferred_block_size;
+	private int block_timeout;
 	
 	/**
 	 * Constructs a new blockwise layer.
@@ -90,9 +92,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * @param config the configuration
 	 */
 	public BlockwiseLayer(NetworkConfig config) {
-		this.max_message_size = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE);
-		this.preferred_block_size = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE);
-		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE: "+max_message_size+" and DEFAULT_BLOCK_SIZE: "+preferred_block_size);
+		max_message_size = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE);
+		preferred_block_size = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE);
+		block_timeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
+		
+		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE="+max_message_size+", DEFAULT_BLOCK_SIZE="+preferred_block_size+", and BLOCKWISE_STATUS_LIFETIME="+block_timeout);
 		
 		config.addConfigObserver(new NetworkConfigObserverAdapter() {
 			@Override
@@ -101,14 +105,15 @@ public class BlockwiseLayer extends AbstractLayer {
 					max_message_size = value;
 				if (NetworkConfig.Keys.PREFERRED_BLOCK_SIZE.equals(key))
 					preferred_block_size = value;
+				if (NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME.equals(key))
+					block_timeout = value;
 			}
 		});
 	}
 	
 	@Override
 	public void sendRequest(Exchange exchange, Request request) {
-		if (request.getOptions().hasBlock2()
-				&& request.getOptions().getBlock2().getNum() > 0) {
+		if (request.getOptions().hasBlock2() && request.getOptions().getBlock2().getNum() > 0) {
 			// This is the case if the user has explicitly added a block option
 			// for random access.
 			// Note: We do not regard it as random access when the block num is
@@ -144,6 +149,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	public void receiveRequest(Exchange exchange, Request request) {
 		if (request.getOptions().hasBlock1()) {
 			// This must be a large POST or PUT request
+			
 			BlockOption block1 = request.getOptions().getBlock1();
 			LOGGER.fine("Request contains block1 option "+block1);
 			
@@ -211,8 +217,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 			
 		} else if (exchange.getResponse()!=null && request.getOptions().hasBlock2()) {
-			// The response has already been generated and the client just wants
-			// the next block of it
+			// The response has already been generated and the client just wants its next block
+			
 			BlockOption block2 = request.getOptions().getBlock2();
 			Response response = exchange.getResponse();
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
@@ -227,6 +233,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// clean up blockwise status
 				LOGGER.fine("Ongoing is complete "+status);
 				exchange.setResponseBlockStatus(null);
+				exchange.setBlockCleanupHandle(null);
 			} else {
 				LOGGER.fine("Ongoing is continuing "+status);
 			}
@@ -260,12 +267,23 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (block.getToken() == null)
 				block.setToken(exchange.getRequest().getToken());
 			
+			if (status.isComplete()) {
+				// clean up blockwise status
+				LOGGER.fine("Ongoing finished on first block "+status);
+				exchange.setResponseBlockStatus(null);
+				exchange.setBlockCleanupHandle(null);
+			} else {
+				LOGGER.fine("Ongoing started "+status);
+			}
+			
 			exchange.setCurrentResponse(block);
 			super.sendResponse(exchange, block);
 			
 		} else {
 			if (block1 != null) response.getOptions().setBlock1(block1);
 			exchange.setCurrentResponse(response);
+			// Block1 transfer completed
+			exchange.setBlockCleanupHandle(null);
 			super.sendResponse(exchange, response);
 		}
 	}
@@ -339,30 +357,25 @@ public class BlockwiseLayer extends AbstractLayer {
 				
 				} else if (block2.isM()) {
 					LOGGER.finer("Request the next response block");
-					// TODO: If this is a notification, do we have to use
-					// another token now?
 
 					Request request = exchange.getRequest();
 					int num = block2.getNum() + 1;
 					int szx = block2.getSzx();
 					boolean m = false;
+					
 					Request block = new Request(request.getCode());
-					block.setToken(response.getToken());
-					block.setOptions(new OptionSet(request.getOptions()));
+					// NON could make sense over SMS or similar transports
+					block.setType(request.getType());
 					block.setDestination(request.getDestination());
 					block.setDestinationPort(request.getDestinationPort());
-					
-					block.setType(request.getType()); // NON could make sense over SMS or similar transports
+					block.setOptions(new OptionSet(request.getOptions()));
 					block.getOptions().setBlock2(szx, m, num);
-					status.setCurrentNum(num);
-					
-					// to make it easier for Observe, we do not re-use the Token
-//					if (!response.getOptions().hasObserve()) {
-//						block.setToken(request.getToken());
-//					}
-					
-					// make sure not to use Observe for block retrieval
+					// we use the same token to ease traceability (GET without Observe no longer cancels relations)
+					block.setToken(response.getToken());
+					// make sure NOT to use Observe for block retrieval
 					block.getOptions().removeObserve();
+					
+					status.setCurrentNum(num);
 					
 					exchange.setCurrentRequest(block);
 					super.sendRequest(exchange, block);
@@ -411,37 +424,49 @@ public class BlockwiseLayer extends AbstractLayer {
 		// been sent in one piece without blockwise).
 		if (request.getOptions().hasBlock2()) {
 			BlockOption block2 = request.getOptions().getBlock2();
-			LOGGER.fine("Request demands blockwise transfer of response with option "+block2+". Create and set new block2 status");
 			BlockwiseStatus status2 = new BlockwiseStatus(request.getOptions().getContentFormat(), block2.getNum(), block2.getSzx());
+			LOGGER.fine("Request with early block negotiation "+block2+". Create and set new Block2 status: "+status2);
 			exchange.setResponseBlockStatus(status2);
 		}
 	}
 	
+	/*
+	 * NOTICE:
+	 * This method is used by sendRequest and receiveRequest.
+	 * Be careful, making changes to the status in here.
+	 */
 	private BlockwiseStatus findRequestBlockStatus(Exchange exchange, Request request) {
-		// NOTICE: This method is used by sendRequest and receiveRequest. Be
-		// careful, making changes to the status in here.
 		BlockwiseStatus status = exchange.getRequestBlockStatus();
 		if (status == null) {
 			status = new BlockwiseStatus(request.getOptions().getContentFormat());
 			status.setCurrentSzx( computeSZX(preferred_block_size) );
 			exchange.setRequestBlockStatus(status);
-			LOGGER.finer("There is no assembler status yet. Create and set new block1 status: "+status);
+			LOGGER.finer("There is no assembler status yet. Create and set new Block1 status: "+status);
+		} else {
+			LOGGER.finer("Current Block1 status: "+status);
 		}
+		// sets a timeout to complete exchange
+		prepareBlockCleanup(exchange);
 		return status;
 	}
 	
+	/*
+	 * NOTICE:
+	 * This method is used by sendResponse and receiveResponse.
+	 * Be careful, making changes to the status in here.
+	 */
 	private BlockwiseStatus findResponseBlockStatus(Exchange exchange, Response response) {
-		// NOTICE: This method is used by sendResponse and receiveResponse. Be
-		// careful, making changes to the status in here.
 		BlockwiseStatus status = exchange.getResponseBlockStatus();
 		if (status == null) {
 			status = new BlockwiseStatus(response.getOptions().getContentFormat());
 			status.setCurrentSzx( computeSZX(preferred_block_size) );
 			exchange.setResponseBlockStatus(status);
-			LOGGER.finer("There is no blockwise status yet. Create and set new block2 status: "+status);
+			LOGGER.finer("There is no blockwise status yet. Create and set new Block2 status: "+status);
 		} else {
-			LOGGER.finer("Current blockwise status: "+status);
+			LOGGER.finer("Current Block2 status: "+status);
 		}
+		// sets a timeout to complete exchange
+		prepareBlockCleanup(exchange);
 		return status;
 	}
 	
@@ -548,21 +573,62 @@ public class BlockwiseLayer extends AbstractLayer {
 				|| exchange.getResponseBlockStatus() != null;
 	}
 	
-	/**
+	/*
 	 * Encodes a block size into a 3-bit SZX value as specified by
 	 * draft-ietf-core-block-14, Section-2.2:
 	 * 
 	 * 16 bytes = 2^4 --> 0
 	 * ... 
 	 * 1024 bytes = 2^10 -> 6
-	 * 
 	 */
 	private int computeSZX(int blockSize) {
 		return (int)(Math.log(blockSize)/Math.log(2)) - 4;
 	}
 	
-	// When a timeout occurs for a block it has to be forwarded to the origin
-	// response.
+
+	/**
+	 * Computes the back-off timer and schedules the specified retransmission
+	 * task.
+	 * 
+	 * @param exchange the exchange
+	 * @param task the retransmission task
+	 */
+	protected void prepareBlockCleanup(Exchange exchange) {
+		
+		// prevent RejectedExecutionException
+		if (executor.isShutdown()) {
+			LOGGER.info("Endpoint is being destroyed: skipping block clean-up");
+			return;
+		}
+		
+		BlockCleanupTask task = new BlockCleanupTask(exchange);
+		
+		ScheduledFuture<?> f = executor.schedule(task , block_timeout, TimeUnit.MILLISECONDS);
+		exchange.setBlockCleanupHandle(f);
+	}
+	
+	protected class BlockCleanupTask implements Runnable {
+		
+		private Exchange exchange;
+		
+		public BlockCleanupTask(Exchange exchange) {
+			this.exchange = exchange;
+		}
+		
+		@Override
+		public void run() {
+			if (exchange.getRequest()==null) {
+				LOGGER.info("Block1 transfer timed out: " + exchange.getCurrentRequest());
+			} else {
+				LOGGER.info("Block2 transfer timed out: " + exchange.getRequest());
+			}
+			exchange.setComplete();
+		}
+	}
+	
+	/*
+	 * When a timeout occurs for a block it has to be forwarded to the origin response.
+	 */
 	public static class TimeoutForwarder extends MessageObserverAdapter {
 		
 		private Message message;

@@ -44,8 +44,8 @@ public class NetworkConfigDefaults {
 		config.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1.5f);
 		config.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 2f);
 		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 4);
-		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247 * 1000); // in ms
-		config.setLong(NetworkConfig.Keys.NON_LIFETIME, 145 * 1000); // in ms
+		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247 * 1000); // ms
+		config.setLong(NetworkConfig.Keys.NON_LIFETIME, 145 * 1000); // ms
 		config.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 93 * 1000);
 		config.setInt(NetworkConfig.Keys.NSTART, 1);
 		config.setInt(NetworkConfig.Keys.LEISURE, 5000);
@@ -56,6 +56,7 @@ public class NetworkConfigDefaults {
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
+		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 10 * 60 * 1000); // ms
 
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
 		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);

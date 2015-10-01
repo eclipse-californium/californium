@@ -171,10 +171,14 @@ public class Matcher {
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getRequest();
 			KeyUri idByUri = new KeyUri(request.getURI(), response.getDestination().getAddress(), response.getDestinationPort());
+			// Observe notifications only send the first block, hence do not store them as ongoing
 			if (exchange.getResponseBlockStatus()!=null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
-				LOGGER.fine("Ongoing Block2 started, storing "+idByUri + " for " + request);
-				ongoingExchanges.put(idByUri, exchange);
+				if (ongoingExchanges.put(idByUri, exchange)==null) {
+					LOGGER.fine("Ongoing Block2 started, storing "+idByUri + " for " + request);
+				} else {
+					LOGGER.fine("Ongoing Block2 continueing, storing "+idByUri + " for " + request);
+				}
 			} else {
 				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + " for " + request);
 				ongoingExchanges.remove(idByUri);
@@ -414,7 +418,7 @@ public class Matcher {
 				}
 				
 				Request request = exchange.getCurrentRequest();
-				if (response.getOptions().hasBlock2() && request != null) {
+				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 //					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
 					ongoingExchanges.remove(uriKey);

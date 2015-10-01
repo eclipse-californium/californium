@@ -76,6 +76,7 @@ public class NetworkConfig {
 		
 		public static final String PREFERRED_BLOCK_SIZE = "PREFERRED_BLOCK_SIZE";
 		public static final String MAX_MESSAGE_SIZE = "MAX_MESSAGE_SIZE";
+		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
 		
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
