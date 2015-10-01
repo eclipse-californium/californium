@@ -381,7 +381,7 @@ public class HttpStack {
 
 							ioReactor.execute(ioEventDispatch);
 						} catch (IOException e) {
-							LOGGER.severe("Interrupted");
+							LOGGER.severe("I/O Exception in HttpStack: " + e.getMessage());
 						}
 
 						LOGGER.info("Shutdown HttpStack");
