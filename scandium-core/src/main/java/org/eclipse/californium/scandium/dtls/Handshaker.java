@@ -734,12 +734,14 @@ public abstract class Handshaker {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
 			// message needs to be fragmented
-			// The sender then creates N handshake messages, all with the
+			LOGGER.log(
+					Level.FINER,
+					"Splitting up {0} message for [{1}] into multiple fragments of max {2} bytes",
+					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), maxFragmentLength});
+			// create N handshake messages, all with the
 			// same message_seq value as the original handshake message
 			int messageSeq = handshakeMessage.getMessageSeq();
-
 			int numFragments = (messageBytes.length / maxFragmentLength) + 1;
-			
 			int offset = 0;
 			for (int i = 0; i < numFragments; i++) {
 				int fragmentLength = maxFragmentLength;
@@ -751,13 +753,17 @@ public abstract class Handshaker {
 				System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
 				
 				FragmentedHandshakeMessage fragmentedMessage =
-						new FragmentedHandshakeMessage(fragmentBytes, handshakeMessage.getMessageType(), offset,
-								messageBytes.length, session.getPeer());
-				
+						new FragmentedHandshakeMessage(
+								fragmentBytes,
+								handshakeMessage.getMessageType(),
+								offset,
+								messageBytes.length,
+								session.getPeer());
+
 				// all fragments have the same message_seq
 				fragmentedMessage.setMessageSeq(messageSeq);
 				offset += fragmentBytes.length;
-				
+
 				result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));
 			}
 		}
