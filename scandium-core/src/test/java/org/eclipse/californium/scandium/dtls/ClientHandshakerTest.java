@@ -12,12 +12,14 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
@@ -33,10 +35,11 @@ import org.junit.experimental.categories.Category;
 public class ClientHandshakerTest {
 
 	ClientHandshaker handshaker;
-	InetSocketAddress peerAddress = new InetSocketAddress(12000);
-	
+	InetSocketAddress peerAddress;
+
 	@Before
 	public void setUp() throws Exception {
+		peerAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 	}
 
 	/**
@@ -57,7 +60,7 @@ public class ClientHandshakerTest {
 
 	private void givenAClientHandshaker(boolean configureTrustStore) throws Exception {
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder(new InetSocketAddress("localhost", 5000))
+				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 					.setIdentity(
 						DtlsTestTools.getPrivateKey(),
 						DtlsTestTools.getCertificateChainFromStore(
