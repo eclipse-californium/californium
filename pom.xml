@@ -279,13 +279,20 @@
 
 	<profiles>
 		<profile>
-			<!-- this profile generates javadoc to check integrity -->
+			<!--
+				this profile generates javadoc to check integrity
+				sub-modules with a file called "noJavadoc" will skip this
+				(e.g., the executable examples, which do not require Javadoc)
+			-->
 			<id>javadoc</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
 				<property>
 					<name>createJavadoc</name>
 				</property>
+				<file>
+					<missing>noJavadoc</missing>
+				</file>
 			</activation>
 			<build>
 				<plugins>
@@ -335,6 +342,9 @@
 				<property>
 					<name>createGPGSignature</name>
 				</property>
+				<file>
+					<missing>noMavenRelease</missing>
+				</file>
 			</activation>
 			<build>
 				<plugins>
@@ -352,6 +362,8 @@
 				GPG signatures for the artifacts need to be present, i.e.
 				this profile should be activated in conjunction with the
 				"createGPGSignature" profile only
+				sub-modules with a file called "noMavenRelease" will skip this
+				(e.g., the executable examples, which do not serve as library) 
 			-->
 			<id>release_to_maven</id>
 			<activation>
@@ -359,6 +371,9 @@
 				<property>
 					<name>releaseToMaven</name>
 				</property>
+				<file>
+					<missing>noMavenRelease</missing>
+				</file>
 			</activation>
 			<build>
 				<plugins>
