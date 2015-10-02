@@ -316,21 +316,27 @@ public class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the maximum number of bytes that can be sent to a peer within one record.
-		 *  
-		 * This value should be adjusted to the Path MTU in order
+		 * Sets the maximum number of bytes that can be sent to a peer within one UDP datagram
+		 * excluding headers.
+		 * <p>
+		 * The value of this property is used when sending data to peers. Any DTLS record must fit
+		 * into a single datagram. Thus, the value of this property limits the maximum length of
+		 * any record's payload to <code>maxPayloadSize</code> - 13 (DTLS record headers) bytes.
+		 * <p>
+		 * The value of this property should be adjusted to the Path MTU in order
 		 * to prevent IP fragmentation. Path MTU values are hard to know in advance
-		 * and hard to come by during runtime as well. An educated guess might be based
-		 * on the following formula, though:
+		 * and hard to come by during runtime as well. An good starting point might be
+		 * using the following formula, though:
 		 * <pre>
 		 * maxPayloadSize = Network Interface MTU size
-		 *                    - 28 bytes (IP packet headers)
-		 *                    - 13 bytes (record headers)
+		 *                    - 20 bytes (IP headers)
+		 *                    -  8 bytes (UDP headers)
 		 * </pre>
 		 * 
 		 * If this property is not set explicitly, the <code>DTLSConnector</code> will therefore
 		 * determine its value exactly this way. In ethernet based environments the MTU size is
-		 * usually around 1500 bytes resulting in a max. payload size of about 1450 bytes.
+		 * usually around 1500 bytes resulting in a max. payload size of 1472 bytes and, consequently,
+		 * a maximum record payload length of 1472 - 13 (DTLS record headers) = 1459 bytes.
 		 * 
 		 * @param size the number of bytes
 		 * @return this builder for command chaining
@@ -633,12 +639,12 @@ public class DtlsConnectorConfig {
 			}
 
 			if (config.maxPayloadSize == 0) {
-				// determine payload size based on network interface's MTU
+				// determine max payload size based on network interface's MTU
 				try {
 					NetworkInterface ni = NetworkInterface.getByInetAddress(config.address.getAddress());
 					config.maxPayloadSize = ni.getMTU()
-							- 28 // IP headers
-							- 13; // DTLS record headers
+							- 20 // IP headers
+							- 8; // UDP headers
 				} catch (SocketException e) {
 					throw new IllegalStateException("Cannot bind to address " + config.address);
 				}

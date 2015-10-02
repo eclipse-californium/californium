@@ -88,6 +88,7 @@ public class DTLSConnectorTest {
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
+	private static final int MAX_PAYLOAD_SIZE = 0; // determine max payload based on network interface's MTU
 	private static KeyStore keyStore;
 	private static PrivateKey serverPrivateKey;
 	private static PrivateKey clientPrivateKey;
@@ -142,6 +143,7 @@ public class DTLSConnectorTest {
 			.setTrustStore(trustedCertificates)
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
+			.setMaxPayloadSize(MAX_PAYLOAD_SIZE)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -182,6 +184,7 @@ public class DTLSConnectorTest {
 		return new DtlsConnectorConfig.Builder(bindAddress)
 			.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true)
 			.setTrustStore(trustedCertificates)
+			.setMaxPayloadSize(MAX_PAYLOAD_SIZE)
 		.build();
 	}
 
