@@ -33,10 +33,10 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
- * 
+ * <p>
  * Instances of this class are immutable and can only be created by means of
  * the {@link Builder}, e.g.
- * 
+ * <p>
  * <pre>
  * InetSocketAddress bindToAddress = new InetSocketAddress("localhost", 0); // use ephemeral port
  * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder(bindToAddress)
@@ -291,8 +291,12 @@ public class DtlsConnectorConfig {
 		 * configuration, you need to use the {@link #setClientOnly()} method on the builder.
 		 * 
 		 * @param address the IP address and port the connector should bind to
+		 * @throws IllegalArgumentException if the given addess is unresolved
 		 */
 		public Builder(InetSocketAddress address) {
+			if (address.isUnresolved()) {
+				throw new IllegalArgumentException("Bind address must not be unresolved");
+			}
 			config = new DtlsConnectorConfig();
 			config.address = address;
 		}
@@ -333,17 +337,17 @@ public class DtlsConnectorConfig {
 		 *                    -  8 bytes (UDP headers)
 		 * </pre>
 		 * 
-		 * If this property is not set explicitly, the <code>DTLSConnector</code> will therefore
+		 * If this property is set to 0 or not set at all, the <code>DTLSConnector</code> will
 		 * determine its value exactly this way. In ethernet based environments the MTU size is
 		 * usually around 1500 bytes resulting in a max. payload size of 1472 bytes and, consequently,
 		 * a maximum record payload length of 1472 - 13 (DTLS record headers) = 1459 bytes.
 		 * 
 		 * @param size the number of bytes
 		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if size < {@link DtlsConnectorConfig#MIN_PAYLOAD_SIZE} 
+		 * @throws IllegalArgumentException if size &ne; 0 and size &lt; 60 
 		 */
 		public Builder setMaxPayloadSize(int size) {
-			if (size < MIN_PAYLOAD_SIZE) {
+			if (size < 0 || (size > 0 && size < MIN_PAYLOAD_SIZE)) {
 				throw new IllegalArgumentException("Maximum payload size must be at least " + MIN_PAYLOAD_SIZE + " bytes");
 			} else {
 				config.maxPayloadSize = size;
@@ -357,6 +361,7 @@ public class DtlsConnectorConfig {
 		 * 
 		 * @param capacity the number of messages to buffer
 		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if capacity &lt; 1
 		 */
 		public Builder setOutboundMessageBufferSize(int capacity) {
 			if (capacity < 1) {
@@ -398,7 +403,7 @@ public class DtlsConnectorConfig {
 		
 		/**
 		 * Sets the cipher suites supported by the connector.
-		 * 
+		 * <p>
 		 * The connector will use these cipher suites (in exactly the same order) during
 		 * the DTLS handshake when negotiating a cipher suite with a peer.
 		 * 
@@ -423,7 +428,7 @@ public class DtlsConnectorConfig {
 		
 		/**
 		 * Sets the cipher suites supported by the connector.
-		 * 
+		 * <p>
 		 * The connector will use these cipher suites (in exactly the same order) during
 		 * the DTLS handshake when negotiating a cipher suite with a peer.
 		 * 
@@ -485,7 +490,7 @@ public class DtlsConnectorConfig {
 		/**
 		 * Sets the connector's identifying properties by means of a private
 		 * and public key pair.
-		 * 
+		 * <p>
 		 * Using this method implies that the connector <em>only</em> supports
 		 * <em>RawPublicKey</em> mode for authenticating to a peer.
 		 * 
@@ -509,7 +514,7 @@ public class DtlsConnectorConfig {
 		/**
 		 * Sets the connector's identifying properties by means of a private key
 		 * and a corresponding issuer certificates chain.
-		 * 
+		 * <p>
 		 * In server mode the key and certificates are used to prove the server's
 		 * identity to the client. In client mode the key and certificates are used
 		 * to prove the client's identity to the server.
@@ -562,7 +567,7 @@ public class DtlsConnectorConfig {
 		/**
 		 * Creates an instance of <code>DtlsConnectorConfig</code> based on the properties
 		 * set on this builder.
-		 * 
+		 * <p>
 		 * If the <em>supportedCipherSuites</em> property has not been set, the
 		 * builder tries to derive a reasonable set of cipher suites from the
 		 * <em>pskStore</em> and <em>identity</em> properties as follows:
