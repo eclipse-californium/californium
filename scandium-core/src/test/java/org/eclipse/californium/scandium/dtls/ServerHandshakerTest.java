@@ -15,6 +15,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test case for validating fix for bug 473678
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -22,6 +23,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Date;
 import java.util.Enumeration;
@@ -53,7 +55,7 @@ public class ServerHandshakerTest {
 	static Certificate[] certificateChain;
 	ServerHandshaker handshaker;
 	DTLSSession session;
-	InetSocketAddress endpoint = new InetSocketAddress("localhost", 10000);
+	InetSocketAddress endpoint;
 	byte[] sessionId = new byte[]{(byte) 0x0A, (byte) 0x0B, (byte) 0x0C, (byte) 0x0D, (byte) 0x0E, (byte) 0x0F};
 	byte[] supportedClientCiphers;
 	byte[] random;
@@ -68,6 +70,7 @@ public class ServerHandshakerTest {
 	
 	@Before
 	public void setup() throws Exception {
+		endpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
 		Certificate[] trustedCertificates = new Certificate[trustStore.size()];
 		int j = 0;
