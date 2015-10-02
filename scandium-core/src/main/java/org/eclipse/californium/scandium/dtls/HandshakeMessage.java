@@ -35,21 +35,24 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  */
 public abstract class HandshakeMessage extends AbstractMessage {
 
+	// message header specific constants ////////////////////////////////////////
+
+	public static final int MESSAGE_TYPE_BITS = 8;
+
+	public static final int MESSAGE_LENGTH_BITS = 24;
+
+	public static final int MESSAGE_SEQ_BITS = 16;
+
+	public static final int FRAGMENT_OFFSET_BITS = 24;
+
+	public static final int FRAGMENT_LENGTH_BITS = 24;
+
+	public static final int MESSAGE_HEADER_LENGTH_BYTES = (MESSAGE_TYPE_BITS + MESSAGE_LENGTH_BITS
+			+ MESSAGE_SEQ_BITS + FRAGMENT_OFFSET_BITS + FRAGMENT_LENGTH_BITS) / 8; // 12 bytes
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(HandshakeMessage.class.getCanonicalName());
-
-	// CoAP-specific constants ////////////////////////////////////////
-
-	private static final int MESSAGE_TYPE_BITS = 8;
-
-	private static final int MESSAGE_LENGTH_BITS = 24;
-
-	private static final int MESSAGE_SEQ_BITS = 16;
-
-	private static final int FRAGMENT_OFFSET_BITS = 24;
-
-	private static final int FRAGMENT_LENGTH_BITS = 24;
 
 	// Members ////////////////////////////////////////////////////////
 
