@@ -265,7 +265,11 @@ public final class CertificateMessage extends HandshakeMessage {
 				validator.validate(certPath, params);
 				
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
+				if (LOGGER.isLoggable(Level.FINEST)) {
+					LOGGER.log(Level.FINEST, "Certificate validation failed", e);
+				} else if (LOGGER.isLoggable(Level.FINE)) {
+					LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
+				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, getPeer());
 				throw new HandshakeException("Certificate chain could not be validated", alert);
 			}			
