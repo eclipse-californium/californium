@@ -169,9 +169,9 @@ public class HandshakerTest {
 		}
 		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[]{});
 	}
-	
+
 	private void assertThatReassembledMessageEqualsOriginalMessage(HandshakeMessage result) {
-		assertTrue(result instanceof CertificateMessage);
+		assertThat(result, is(instanceOf(CertificateMessage.class)));
 		CertificateMessage reassembled = (CertificateMessage) result;
 		assertThat(reassembled.getPublicKey(), is(certificateMessage.getPublicKey()));
 		assertThat(reassembled.getMessageSeq(), is(certificateMessage.getMessageSeq()));
