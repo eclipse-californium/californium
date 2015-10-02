@@ -53,7 +53,7 @@ public class ServerHandshakerTest {
 	static Certificate[] certificateChain;
 	ServerHandshaker handshaker;
 	DTLSSession session;
-	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
+	InetSocketAddress endpoint = new InetSocketAddress("localhost", 10000);
 	byte[] sessionId = new byte[]{(byte) 0x0A, (byte) 0x0B, (byte) 0x0C, (byte) 0x0D, (byte) 0x0E, (byte) 0x0F};
 	byte[] supportedClientCiphers;
 	byte[] random;
