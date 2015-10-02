@@ -285,7 +285,8 @@ public class DTLSConnector implements Connector {
 		
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}]", lastBindAddress);
+		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}] using max. payload size [{1}]",
+				new Object[]{lastBindAddress, config.getMaxPayloadSize()});
 	}
 
 	/**
