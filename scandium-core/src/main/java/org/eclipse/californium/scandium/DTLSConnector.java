@@ -95,6 +95,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public class DTLSConnector implements Connector {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
+	private final static int MAX_UDP_PAYLOAD_SIZE = 65500; // ~ 2^16 - 20 (IP Headers) - 8 (UDP headers)
 
 	private InetSocketAddress lastBindAddress;
 	
@@ -345,7 +346,7 @@ public class DTLSConnector implements Connector {
 	}
 	
 	private void receiveNextDatagramFromNetwork() throws IOException {
-		byte[] buffer = new byte[config.getMaxPayloadSize()];
+		byte[] buffer = new byte[MAX_UDP_PAYLOAD_SIZE];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		synchronized (socket) {
 			socket.receive(packet);
@@ -1005,7 +1006,7 @@ public class DTLSConnector implements Connector {
 		byte[] payload = new byte[] {};
 		LOGGER.log(Level.FINER, "Sending flight of [{0}] messages to peer[{1}]",
 				new Object[]{flight.getMessages().size(), flight.getPeerAddress()});
-		// put as many records into one datagram as allowed by the block size
+		// put as many records into one datagram as allowed by the max. payload size
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
 
 		try {
@@ -1015,24 +1016,27 @@ public class DTLSConnector implements Connector {
 					int epoch = record.getEpoch();
 					record.setSequenceNumber(flight.getSession().getSequenceNumber(epoch));
 				}
-				
-				LOGGER.log(Level.FINEST, "Sending record to peer [{0}]:\n{1}", new Object[]{flight.getPeerAddress(), record});
-				
+
 				byte[] recordBytes = record.toByteArray();
+				LOGGER.log(
+						Level.FINEST,
+						"Sending record of {2} bytes to peer [{0}]:\n{1}",
+						new Object[]{flight.getPeerAddress(), record, recordBytes.length});
+
 				if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
 					// can't add the next record, send current payload as datagram
-					DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
+					DatagramPacket datagram = new DatagramPacket(payload, payload.length,
+							flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 					datagrams.add(datagram);
 					payload = new byte[] {};
 				}
-	
-				// retrieve payload
+
 				payload = ByteArrayUtils.concatenate(payload, recordBytes);
 			}
 			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 			datagrams.add(datagram);
-	
+
 			// send it over the UDP socket
 			for (DatagramPacket datagramPacket : datagrams) {
 				if (!socket.isClosed()) {
@@ -1041,7 +1045,7 @@ public class DTLSConnector implements Connector {
 					LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
 				}
 			}
-			
+
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Could not send datagram", e);
 		} catch (GeneralSecurityException e) {
