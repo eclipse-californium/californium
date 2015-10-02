@@ -112,8 +112,8 @@ public class DTLSConnectorTest {
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		// load the key store
 		keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
-		serverPrivateKey = (PrivateKey) keyStore.getKey("server", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
-		clientPrivateKey = (PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
+		serverPrivateKey = (PrivateKey) keyStore.getKey(DtlsTestTools.SERVER_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
+		clientPrivateKey = (PrivateKey) keyStore.getKey(DtlsTestTools.CLIENT_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
 		// load the trust store
 		trustedCertificates = DtlsTestTools.getTrustedCertificates();
 		
@@ -138,7 +138,7 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
-			.setIdentity(serverPrivateKey, keyStore.getCertificateChain("server"), true)
+			.setIdentity(serverPrivateKey, keyStore.getCertificateChain(DtlsTestTools.SERVER_NAME), true)
 			.setTrustStore(trustedCertificates)
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
@@ -148,7 +148,7 @@ public class DTLSConnectorTest {
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
 		serverEndpoint = server.getAddress();
-		Assert.assertTrue(server.isRunning());
+		assertTrue(server.isRunning());
 	}
 
 	@AfterClass

@@ -132,14 +132,28 @@ public class DtlsTestTools {
 		return keyStore.getCertificateChain(alias);
 	}
 
+	/**
+	 * Gets the server's private key from the example key store.
+	 * 
+	 * @return the key
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 */
 	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
 		return (PrivateKey) DtlsTestTools.getKeyFromStore(DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD, "server");
+				DtlsTestTools.KEY_STORE_PASSWORD, SERVER_NAME);
 	}
 
+	/**
+	 * Gets the server's public key from the example key store.
+	 * 
+	 * @return the key
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 */
 	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
 		Certificate[] certChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD, "server");
+				DtlsTestTools.KEY_STORE_PASSWORD, SERVER_NAME);
 		return certChain[0].getPublicKey();
 	}
 	
