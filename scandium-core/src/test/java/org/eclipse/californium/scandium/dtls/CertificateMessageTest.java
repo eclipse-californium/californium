@@ -53,7 +53,7 @@ public class CertificateMessageTest {
 		certificateChain = DtlsTestTools.getCertificateChainFromStore(
 				DtlsTestTools.KEY_STORE_LOCATION,
 				DtlsTestTools.KEY_STORE_PASSWORD,
-				"server");
+				DtlsTestTools.SERVER_NAME);
 		serverPublicKey = certificateChain[0].getPublicKey();
 		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
 		trustAnchor = new Certificate[trustStore.size()];
@@ -118,7 +118,7 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
-		givenACertificateMessage("server", true);
+		givenACertificateMessage(DtlsTestTools.SERVER_NAME, true);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -126,21 +126,33 @@ public class CertificateMessageTest {
 				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true, peerAddress);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
-	
+
+	@Test
+	public void testSerializationUsingX509() throws IOException, GeneralSecurityException, HandshakeException {
+		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
+		PublicKey pk = message.getPublicKey();
+		assertNotNull(pk);
+		serializedMessage = message.toByteArray();
+		message = (CertificateMessage) HandshakeMessage.fromByteArray(
+				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false, peerAddress);
+		assertThat(message.getPublicKey(), is(pk));
+		assertThatCertificateVerificationSucceeds();
+	}
+
 	@Test
 	public void testVerifyCertificateSucceedsForExampleCertificates() throws IOException, GeneralSecurityException {
 
-		givenACertificateMessage("server", false);
+		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
 		assertThatCertificateVerificationSucceeds();
-		
-		givenACertificateMessage("client", false);
+
+		givenACertificateMessage(DtlsTestTools.CLIENT_NAME, false);
 		assertThatCertificateVerificationSucceeds();
 	}
-	
+
 	@Test
 	public void testVerifyCertificateFailsIfTrustAnchorIsEmpty() throws IOException, GeneralSecurityException {
 
-		givenACertificateMessage("client", false);
+		givenACertificateMessage(DtlsTestTools.CLIENT_NAME, false);
 		assertThatCertificateValidationFailsForEmptyTrustAnchor();
 	}
 	

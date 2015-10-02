@@ -56,14 +56,15 @@ public class ClientHandshakerTest {
 	}
 
 	private void givenAClientHandshaker(boolean configureTrustStore) throws Exception {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(5000));
-		builder.setIdentity(
-			DtlsTestTools.getPrivateKey(),
-			DtlsTestTools.getCertificateChainFromStore(
-								DtlsTestTools.KEY_STORE_LOCATION,
-								DtlsTestTools.KEY_STORE_PASSWORD,
-								"client"),
-			false);
+		DtlsConnectorConfig.Builder builder = 
+				new DtlsConnectorConfig.Builder(new InetSocketAddress("localhost", 5000))
+					.setIdentity(
+						DtlsTestTools.getPrivateKey(),
+						DtlsTestTools.getCertificateChainFromStore(
+											DtlsTestTools.KEY_STORE_LOCATION,
+											DtlsTestTools.KEY_STORE_PASSWORD,
+											DtlsTestTools.CLIENT_NAME),
+						false);
 
 		if (configureTrustStore) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
