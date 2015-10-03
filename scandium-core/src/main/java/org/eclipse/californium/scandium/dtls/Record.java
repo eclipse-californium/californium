@@ -41,8 +41,16 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
-
+/**
+ * An object representation of the DTLS <em>Record</em> layer data structure(s).
+ * <p>
+ * The <em>Datagram Transport Layer Security</em> specification defines
+ * a set of data structures at the <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">
+ * Record</a> layer containing the data to be exchanged with peers.
+ * <p>
+ * This class is used to transform these data structures from their binary encoding
+ * as received from the network interface to their object representation and vice versa.
+ */
 public class Record {
 
 	// Logging ////////////////////////////////////////////////////////
@@ -127,8 +135,9 @@ public class Record {
 	/**
 	 * Creates an outbound record containing a {@link DTLSMessage} as its payload.
 	 * 
-	 * The constructor encrypts the payload according to the given session's current write state.
-	 * In order to send an un-encrypted message, e.g. without an established session, use the
+	 * The given <em>fragment</em> is encoded into its binary representation 
+	 * and encrypted according to the given session's current write state.
+	 * In order to create a <code>Record</code> containing an un-encrypted fragment, use the
 	 * {@link #Record(ContentType, int, long, DTLSMessage, InetSocketAddress)} constructor.
 	 * 
 	 * @param type
@@ -197,10 +206,9 @@ public class Record {
 	// Serialization //////////////////////////////////////////////////
 
 	/**
-	 * Encodes the DTLS Record into its raw binary structure as defined in the
-	 * DTLS v.1.2 specification.
+	 * Encodes this record into its corresponding <em>DTLSCiphertext</em> structure.
 	 * 
-	 * @return the encoded byte array
+	 * @return a byte array containing the <em>DTLSCiphertext</em> structure
 	 */
 	public synchronized byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
@@ -222,15 +230,16 @@ public class Record {
 	}
 
 	/**
-	 * Parses raw binary representations of DTLS records into an object representation.
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into <code>Record</code> instances.
 	 * 
-	 * The binary representation is expected to comply with the structure defined
-	 * in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347 - DTLS</a>.
+	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
+	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
 	 * 
-	 * @param byteArray the raw binary representation containing one or more DTLS records
+	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext strctures
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received
-	 * @return the object representations of the DTLS records
+	 * @return the <code>Record</code> instances
+	 * @throws NullPointerException if either one of the byte array or peer address is <code>null</code>
 	 */
 	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		if (byteArray == null) {
@@ -238,36 +247,36 @@ public class Record {
 		} else if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		}
-		
+
 		List<Record> records = new ArrayList<Record>();
-		
+
 		DatagramReader reader = new DatagramReader(byteArray);
-		
+
 		while (reader.bytesAvailable()) {
 
 			if (reader.bitsLeft() < RECORD_HEADER_LENGTH) {
 				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
-			
+
 			int type = reader.read(CONTENT_TYPE_BITS);
 			int major = reader.read(VERSION_BITS);
 			int minor = reader.read(VERSION_BITS);
 			ProtocolVersion version = new ProtocolVersion(major, minor);
-	
+
 			int epoch = reader.read(EPOCH_BITS);
 			long sequenceNumber = reader.readLong(SEQUENCE_NUMBER_BITS);
-	
+
 			int length = reader.read(LENGTH_BITS);
 
 			if (reader.bitsLeft() < length) {
 				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
-			
+
 			// delay decryption/interpretation of fragment
 			byte[] fragmentBytes = reader.readBytes(length);
-	
+
 			ContentType contentType = ContentType.getTypeByValue(type);
 			if (contentType == null) {
 				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
@@ -275,7 +284,7 @@ public class Record {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes, peerAddress));
 			}
 		}
-		
+
 		return records;
 	}
 
@@ -736,6 +745,15 @@ public class Record {
 		}
 	}
 
+	/**
+	 * Gets the length of the fragment contained in this record in bytes.
+	 * <p>
+	 * The overall length of this record's <em>DTLSCiphertext</em>
+	 * representation is thus <code>Record.length</code> + 13 (DTLS record headers)
+	 * bytes.
+	 * 
+	 * @return the fragment length excluding record headers
+	 */
 	public int getLength() {
 		return length;
 	}
@@ -754,12 +772,13 @@ public class Record {
 			throw new IllegalStateException("Record does not have a peer address");
 		}
 	}
-	
+
 	/**
-	 * Gets the <em>TLSPlaintext.fragment</em> from the record.
+	 * Gets the object representation of this record's <em>DTLSPlaintext.fragment</em>.
 	 *  
-	 * If necessary, the fragment is decrypted first according to the DTLS connection's
-	 * <em>current</em> read state.
+	 * If this record only contains the fragment's ciphertext representation, it is
+	 * first decrypted and then parsed into a <code>DTLSMessage</code> instance using
+	 * the DTLS connection's <em>current</em> read state.
 	 * 
 	 * @return the plaintext fragment
 	 * @throws InvalidMacException if message authentication failed
@@ -775,16 +794,17 @@ public class Record {
 			return getFragment(null);
 		}
 	}	
-	
+
 	/**
-	 * Gets the <em>TLSPlaintext.fragment</em> from the record.
-	 *  
-	 * If necessary, the fragment is decrypted first according to the DTLS connection's
-	 * <em>current</em> read state.
+	 * Gets the object representation of this record's <em>DTLSPlaintext.fragment</em>. 
+	 * <p>
+	 * If this record only contains the fragment's ciphertext representation, it is
+	 * first decrypted and then parsed into a <code>DTLSMessage</code> instance.
 	 * 
-	 * @param currentReadState the encryption params to use, if <code>null</code>
-	 *           the record's payload is returned <em>as is</em>
-	 * @return the plaintext fragment
+	 * @param currentReadState the crypto params to use for de-crypting the ciphertext,
+	 *           if <code>null</code> the fragment bytes are expected to be plaintext already
+	 *           and will be parsed into a <code>DTLSMessage</code> directly
+	 * @return the message object
 	 * @throws InvalidMacException if message authentication failed
 	 * @throws GeneralSecurityException if de-cryption fails, e.g. because
 	 *             the JVM does not support the negotiated cipher algorithm
