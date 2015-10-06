@@ -95,10 +95,11 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public class DTLSConnector implements Connector {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
-	private final static int MAX_UDP_PAYLOAD_SIZE = 65500; // ~ 2^16 - 20 (IP Headers) - 8 (UDP headers)
+	private final static int MAX_UDP_PAYLOAD_SIZE = 65500; // 2^16 - 20 (IP Headers) - 8 (UDP headers)
+	private final static int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // 2^14 bytes
 
 	private InetSocketAddress lastBindAddress;
-	
+
 	// guard access to cookieMacKey
 	private Object cookieMacKeyLock = new Object();
 	// last time when the master key was generated
@@ -893,6 +894,9 @@ public class DTLSConnector implements Connector {
 	public final void send(RawData msg) {
 		if (msg == null) {
 			LOGGER.finest("Ignoring NULL msg ...");
+		} else if (msg.getBytes().length > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+			throw new IllegalArgumentException("Message data must not exceed "
+					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {
 			boolean queueFull = !outboundMessages.offer(msg);
 			if (queueFull) {
