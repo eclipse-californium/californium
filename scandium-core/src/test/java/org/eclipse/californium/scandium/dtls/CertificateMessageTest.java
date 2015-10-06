@@ -27,7 +27,10 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
+
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -60,6 +63,25 @@ public class CertificateMessageTest {
 		int i = 0;
 		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
 			trustAnchor[i++] = trustStore.getCertificate(e.nextElement());
+		}
+	}
+
+	@Test
+	public void testCertificateMessageDoesNotContainRootCert() throws IOException, GeneralSecurityException {
+		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
+		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
+	}
+
+	private void assertThatCertificateChainDoesNotContainRootCert(Certificate[] chain) {
+		X500Principal issuer = null;
+		for (Certificate c : chain) {
+			assertThat(c, instanceOf(X509Certificate.class));
+			X509Certificate cert = (X509Certificate) c;
+			assertThat(cert.getSubjectX500Principal(), is(not(cert.getIssuerX500Principal())));
+			if (issuer != null) {
+				assertThat(issuer, is(cert.getSubjectX500Principal()));
+			}
+			issuer = cert.getIssuerX500Principal();
 		}
 	}
 
