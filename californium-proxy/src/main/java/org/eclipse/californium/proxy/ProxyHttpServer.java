@@ -87,7 +87,17 @@ public class ProxyHttpServer {
 		LOGGER.info("ProxyEndpoint handles request "+request);
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
-			@Override public void sendResponse(Response response) {
+
+			@Override
+			public void sendAccept() {
+				// has no meaning for HTTP: do nothing
+			}
+			@Override
+			public void sendReject() {
+				// TODO: close the HTTP connection to signal rejection
+			}
+			@Override
+			public void sendResponse(Response response) {
 				// Redirect the response to the HttpStack instead of a normal
 				// CoAP endpoint.
 				// TODO: When we change endpoint to be an interface, we can
