@@ -58,8 +58,6 @@ import org.eclipse.californium.elements.Connector;
  * | +-------------------+ |
  * | | {@link BlockwiseLayer}    | |
  * | +-------------------+ |
- * | | {@link TokenLayer}        | |
- * | +-------------------+ |
  * | | {@link ReliabilityLayer}  | |
  * | +-------------------+ |
  * | | Stack Bottom      | |
@@ -105,7 +103,6 @@ public class CoapStack {
 				.add(top)
 				.add(new ObserveLayer(config))
 				.add(new BlockwiseLayer(config))
-				.add(new TokenLayer(config))
 				.add(reliabilityLayer)
 				.add(bottom = new StackBottomAdapter())
 				.create();

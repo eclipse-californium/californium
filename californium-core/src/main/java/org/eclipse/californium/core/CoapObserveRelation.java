@@ -79,18 +79,21 @@ public class CoapObserveRelation {
 	public void reregister() {
 		if (!request.isCanceled()) {
 			Request refresh = Request.newGet();
-			refresh.setOptions(request.getOptions());
-			// make sure Observe is set and zero
-			refresh.setObserve();
-			// use same Token
-			refresh.setToken(request.getToken());
 			refresh.setDestination(request.getDestination());
 			refresh.setDestinationPort(request.getDestinationPort());
+			// use same Token
+			refresh.setToken(request.getToken());
+			// copy options, but set Observe to zero
+			refresh.setOptions(request.getOptions());
+			refresh.setObserve();
+			
 			// use same message observers
 			for (MessageObserver mo : request.getMessageObservers()) {
 				refresh.addMessageObserver(mo);
 			}
+			
 			endpoint.sendRequest(refresh);
+			
 			// update request in observe handle for correct cancellation
 			this.request = refresh;
 			// reset orderer to accept any sequence number since server might have rebooted
@@ -104,17 +107,21 @@ public class CoapObserveRelation {
 	 */
 	public void proactiveCancel() {
 		Request cancel = Request.newGet();
+		cancel.setDestination(request.getDestination());
+		cancel.setDestinationPort(request.getDestinationPort());
+		// use same Token
+		cancel.setToken(request.getToken());
 		// copy options, but set Observe to cancel
 		cancel.setOptions(request.getOptions());
 		cancel.setObserveCancel();
-		// use same Token
-		cancel.setToken(request.getToken());
-		cancel.setDestination(request.getDestination());
-		cancel.setDestinationPort(request.getDestinationPort());
+		
 		// dispatch final response to the same message observers
-		for (MessageObserver mo: request.getMessageObservers())
+		for (MessageObserver mo: request.getMessageObservers()) {
 			cancel.addMessageObserver(mo);
+		}
+		
 		endpoint.sendRequest(cancel);
+		
 		// cancel old ongoing request
 		request.cancel();
 		setCanceled(true);

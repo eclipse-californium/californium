@@ -226,8 +226,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			status.setCurrentSzx(block2.getSzx());
 			
 			Response block = getNextResponseBlock(response, status);
-			block.setToken(request.getToken());
-			block.getOptions().removeObserve();
 			
 			if (status.isComplete()) {
 				// clean up blockwise status
@@ -264,8 +262,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			
 			if (block1 != null) // in case we still have to ack the last block1
 				block.getOptions().setBlock1(block1);
-			if (block.getToken() == null)
-				block.setToken(exchange.getRequest().getToken());
 			
 			if (status.isComplete()) {
 				// clean up blockwise status
@@ -316,17 +312,18 @@ public class BlockwiseLayer extends AbstractLayer {
 			LOGGER.finer("Response acknowledges block "+block1);
 			
 			BlockwiseStatus status = exchange.getRequestBlockStatus();
-			if (! status.isComplete()) {
-				// TODO: the response code should be CONTINUE. Otherwise deliver
+			if (!status.isComplete()) {
+				// TODO: the response code should be CONTINUE. Otherwise deliver random access response.
 				// Send next block
 				int currentSize = 1 << (4 + status.getCurrentSzx());
 				int nextNum = status.getCurrentNum() + currentSize / block1.getSize();
-				LOGGER.finer("Send next block num = "+nextNum);
+				LOGGER.finer("Sending next Block1 num="+nextNum);
 				status.setCurrentNum(nextNum);
 				status.setCurrentSzx(block1.getSzx());
 				Request nextBlock = getNextRequestBlock(exchange.getRequest(), status);
-				if (nextBlock.getToken() == null)
-					nextBlock.setToken(response.getToken()); // reuse same token
+				// we use the same token to ease traceability
+				nextBlock.setToken(response.getToken());
+				
 				exchange.setCurrentRequest(nextBlock);
 				super.sendRequest(exchange, nextBlock);
 				// do not deliver response
@@ -336,7 +333,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// response that needs no blockwise transfer. Thus, deliver it.
 				super.receiveResponse(exchange, response);
 			} else {
-				LOGGER.fine("Response has Block2 option and is therefore sent blockwise");
+				LOGGER.finer("Block1 followed by Block2 transfer");
 			}
 		}
 		
@@ -345,10 +342,14 @@ public class BlockwiseLayer extends AbstractLayer {
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
 			
 			if (block2.getNum() == status.getCurrentNum()) {
+				
 				// We got the block we expected :-)
 				status.addBlock(response.getPayload());
-				if (response.getOptions().hasObserve())
+				
+				// store the observe sequence number to set it in the assembled response
+				if (response.getOptions().hasObserve()) {
 					status.setObserve(response.getOptions().getObserve());
+				}
 				
 				if (status.isRandomAccess()) {
 					// The client has requested this specifc block and we deliver it
@@ -356,24 +357,42 @@ public class BlockwiseLayer extends AbstractLayer {
 					super.receiveResponse(exchange, response);
 				
 				} else if (block2.isM()) {
-					LOGGER.finer("Request the next response block");
 
 					Request request = exchange.getRequest();
 					int num = block2.getNum() + 1;
 					int szx = block2.getSzx();
 					boolean m = false;
+
+					LOGGER.finer("Requesting next Block2 num="+num);
 					
 					Request block = new Request(request.getCode());
-					// NON could make sense over SMS or similar transports
+					// do not enforce CON, since NON could make sense over SMS or similar transports
 					block.setType(request.getType());
 					block.setDestination(request.getDestination());
 					block.setDestinationPort(request.getDestinationPort());
-					block.setOptions(new OptionSet(request.getOptions()));
-					block.getOptions().setBlock2(szx, m, num);
+					
 					// we use the same token to ease traceability (GET without Observe no longer cancels relations)
 					block.setToken(response.getToken());
+					/*
+					 * Replace call with the statement commented below to use a
+					 * different token for retrieving the rest of a blockwise
+					 * notification.
+					 * 
+					 * WARNING:
+					 * 
+					 * The Matcher then will store the same exchange under a
+					 * different KeyToken in exchangesByToken, which is only
+					 * cleaned up when also uncommenting the block marked in
+					 * the else case below.
+					 */
+//					if (!response.getOptions().hasObserve()) block.setToken(response.getToken());
+					
+					// copy options
+					block.setOptions(new OptionSet(request.getOptions()));
 					// make sure NOT to use Observe for block retrieval
 					block.getOptions().removeObserve();
+					
+					block.getOptions().setBlock2(szx, m, num);
 					
 					status.setCurrentNum(num);
 					
@@ -392,6 +411,18 @@ public class BlockwiseLayer extends AbstractLayer {
 					// Check if this response is a notification
 					int observe = status.getObserve();
 					if (observe != BlockwiseStatus.NO_OBSERVE) {
+						
+						/*
+						 * When retrieving the rest of a blockwise notification
+						 * with a different token, the additional Matcher state
+						 * must be cleaned up through the call below.
+						 */
+//						// the remaining blockwise notification was retrieved under a different token
+//						if (!response.getOptions().hasObserve()) {
+//							// call the clean-up mechanism for the additional Matcher entry in exchangesByToken
+//							exchange.completeCurrentRequest();
+//						}
+						
 						assembled.getOptions().setObserve(observe);
 						// This is necessary for notifications that are sent blockwise:
 						// Reset block number AND container with all blocks
@@ -474,11 +505,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		int num = status.getCurrentNum();
 		int szx = status.getCurrentSzx();
 		Request block = new Request(request.getCode());
-		block.setOptions(new OptionSet(request.getOptions()));
+		// do not enforce CON, since NON could make sense over SMS or similar transports
+		block.setType(request.getType());
 		block.setDestination(request.getDestination());
 		block.setDestinationPort(request.getDestinationPort());
-		block.setToken(request.getToken());
-		block.setType(Type.CON);
+		// copy options
+		block.setOptions(new OptionSet(request.getOptions()));
 		
 		int currentSize = 1 << (4 + szx);
 		int from = num * currentSize;
@@ -507,8 +539,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			block = new Response(response.getCode());
 			block.setDestination(response.getDestination());
 			block.setDestinationPort(response.getDestinationPort());
-			block.setToken(response.getToken());
 			block.setOptions(new OptionSet(response.getOptions()));
+			
 			block.addMessageObserver(new TimeoutForwarder(response));
 		}
 
@@ -541,11 +573,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	
 	private void assembleMessage(BlockwiseStatus status, Message message, Message last) {
 		// The assembled request will contain the options of the last block
-		message.setMID(last.getMID());
+		message.setType(last.getType());
 		message.setSource(last.getSource());
 		message.setSourcePort(last.getSourcePort());
+		message.setMID(last.getMID());
 		message.setToken(last.getToken());
-		message.setType(last.getType());
 		message.setOptions(new OptionSet(last.getOptions()));
 		
 		int length = 0;

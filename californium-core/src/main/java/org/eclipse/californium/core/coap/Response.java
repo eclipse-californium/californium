@@ -24,6 +24,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 
 /**
@@ -44,8 +45,9 @@ public class Response extends Message {
 	/**
 	 * Creates a response to the specified request with the specified response
 	 * code. The destination address of the response is the source address of
-	 * the request. The response has the same token as the request.
+	 * the request.
 	 * Type and MID are usually set automatically by the {@link ReliabilityLayer}.
+	 * The token is set automatically by the {@link Matcher}.
 	 *
 	 * @param request
 	 *            the request
@@ -57,7 +59,6 @@ public class Response extends Message {
 		Response response = new Response(code);
 		response.setDestination(request.getSource());
 		response.setDestinationPort(request.getSourcePort());
-		response.setToken(request.getToken());
 		return response;
 	}
 	

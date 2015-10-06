@@ -52,7 +52,7 @@ public class NetworkConfigDefaults {
 		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
 
 		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, true);
-		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_TOKEN_START, true);
+		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);

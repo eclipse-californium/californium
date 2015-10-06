@@ -45,7 +45,6 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
-import org.eclipse.californium.core.network.stack.TokenLayer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -79,33 +78,31 @@ import org.eclipse.californium.elements.UDPConnector;
  *               |
  *             * A            
  * +-Endpoint--+-A---------+
- * |           v A         |  
- * |           v A         |  
- * | +---------v-+-------+ |  
- * | | Stack Top         | |  
- * | +-------------------+ |  
- * | | {@link TokenLayer}        | |
- * | +-------------------+ |  
+ * |           v A         |
+ * |           v A         |
+ * | +---------v-+-------+ |
+ * | | Stack Top         | |
+ * | +-------------------+ |
  * | | {@link ObserveLayer}      | |
- * | +-------------------+ |  
+ * | +-------------------+ |
  * | | {@link BlockwiseLayer}    | |
- * | +-------------------+ |  
+ * | +-------------------+ |
  * | | {@link ReliabilityLayer}  | |
- * | +-------------------+ |  
- * | | Stack Bottom      | |  
- * | +--------+-+--------+ |  
- * |          v A          |  
- * |          v A          |  
+ * | +-------------------+ |
+ * | | Stack Bottom      | |
+ * | +--------+-+--------+ |
+ * |          v A          |
+ * |          v A          |
  * |        {@link Matcher}        |
- * |          v A          |  
+ * |          v A          |
  * |   {@link MessageInterceptor}  |  
- * |          v A          |  
- * |          v A          |  
- * | +--------v-+--------+ |  
+ * |          v A          |
+ * |          v A          |
+ * | +--------v-+--------+ |
  * +-|     {@link Connector}     |-+
- *   +--------+-A--------+    
- *            v A             
- *            v A             
+ *   +--------+-A--------+
+ *            v A
+ *            v A
  *         (Network)
  * </pre>
  * <p>
@@ -580,9 +577,10 @@ public class CoAPEndpoint implements Endpoint {
 					if (!parser.isReply()) {
 						// manually build RST from raw information
 						EmptyMessage rst = new EmptyMessage(Type.RST);
+						rst.setMID(parser.getMID());
+						rst.setToken(new byte[0]);
 						rst.setDestination(raw.getAddress());
 						rst.setDestinationPort(raw.getPort());
-						rst.setMID(parser.getMID());
 						for (MessageInterceptor interceptor:interceptors)
 							interceptor.sendEmptyMessage(rst);
 						connector.send(serializer.serialize(rst));
@@ -679,6 +677,8 @@ public class CoAPEndpoint implements Endpoint {
 		
 		private void reject(Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
+			// sending directly through connector, not stack, thus set token
+			rst.setToken(new byte[0]);
 			
 			for (MessageInterceptor interceptor:interceptors)
 				interceptor.sendEmptyMessage(rst);

@@ -72,7 +72,7 @@ public class NetworkConfig {
 		public static final String PROBING_RATE = "PROBING_RATE";
 		
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
-		public static final String USE_RANDOM_TOKEN_START = "USE_RANDOM_TOKEN_START";
+		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 		
 		public static final String PREFERRED_BLOCK_SIZE = "PREFERRED_BLOCK_SIZE";
 		public static final String MAX_MESSAGE_SIZE = "MAX_MESSAGE_SIZE";

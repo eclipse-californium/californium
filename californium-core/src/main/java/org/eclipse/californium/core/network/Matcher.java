@@ -49,11 +49,14 @@ public class Matcher {
 	private boolean started;
 	private ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	
-	/** The executor. */
+	/* the executor, by default the one of the protocol stage */
 	private ScheduledExecutorService executor;
 	
-	// TODO: Make per endpoint
+	/* managing the MID per endpoint requires remote endpoint management */
 	private AtomicInteger currendMID;
+	
+	/* limit the token size to save bytes in closed environments */
+	private int tokenSizeLimit;
 	
 	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
 	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
@@ -63,7 +66,7 @@ public class Matcher {
 	private Deduplicator deduplicator;
 	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
 	
-	/** Health status output */
+	/* Health status output */
 	private Level healthStatusLevel;
 	private int healthStatusInterval; // seconds
 	
@@ -76,11 +79,16 @@ public class Matcher {
 		DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 		this.deduplicator = factory.createDeduplicator(config);
 		
-		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START)) {
+		boolean randomMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
+		if (randomMID) {
 			currendMID = new AtomicInteger(new Random().nextInt(1<<16));
 		} else {
 			currendMID = new AtomicInteger(0);
 		}
+		
+		tokenSizeLimit = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT);
+		
+		LOGGER.config("Matcher uses USE_RANDOM_MID_START="+randomMID+" and TOKEN_SIZE_LIMIT="+tokenSizeLimit);
 		
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
@@ -121,19 +129,31 @@ public class Matcher {
 	
 	public void sendRequest(Exchange exchange, Request request) {
 		
-		if (request.getMID() == Message.NONE)
+		// ensure MID is set
+		if (request.getMID() == Message.NONE) {
 			request.setMID(currendMID.getAndIncrement()%(1<<16));
-
-		/*
-		 * The request is a CON or NON and must be prepared for these responses
-		 * - CON  => ACK / RST / ACK+response / CON+response / NON+response
-		 * - NON => RST / CON+response / NON+response
-		 * If this request goes lost, we do not get anything back.
-		 */
-
-		// the MID is from the local namespace -- use blank address
+		}
+		// request MID is from the local namespace -- use blank address
 		KeyMID idByMID = new KeyMID(request.getMID(), null, 0);
-		KeyToken idByToken = new KeyToken(request.getToken());
+
+		// ensure Token is set
+		KeyToken idByToken;
+		if (request.getToken() == null) {
+			byte[] token;
+			do {
+				token = createNewToken();
+				idByToken = new KeyToken(token);
+			} while (exchangesByToken.get(idByToken) != null);
+			
+			request.setToken(token);
+			
+		} else {
+			idByToken = new KeyToken(request.getToken());
+			// ongoing requests may reuse token
+			if (!(request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
+				LOGGER.warning("Manual token overrides existing open request: "+idByToken);
+			}
+		}
 		
 		exchange.setObserver(exchangeObserver);
 		
@@ -145,19 +165,13 @@ public class Matcher {
 
 	public void sendResponse(Exchange exchange, Response response) {
 		
+		// ensure MID is set
 		if (response.getMID() == Message.NONE) {
 			response.setMID(currendMID.getAndIncrement()%(1<<16));
 		}
 		
-		/*
-		 * The response is a CON or NON or ACK and must be prepared for these
-		 * - CON  => ACK / RST // we only care to stop retransmission
-		 * - NON => RST // we only care for observe
-		 * - ACK  => nothing!
-		 * If this response goes lost, we must be prepared to get the same 
-		 * CON/NON request with same MID again. We then find the corresponding
-		 * exchange and the ReliabilityLayer resends this response.
-		 */
+		// ensure Token is set
+		response.setToken(exchange.getCurrentRequest().getToken());
 
 		// If this is a CON notification we now can forget all previous NON notifications
 		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
@@ -199,6 +213,9 @@ public class Matcher {
 	}
 
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
+		
+		// ensure Token is set
+		message.setToken(new byte[0]);
 		
 		if (message.getType() == Type.RST && exchange != null) {
 			// We have rejected the request or response
@@ -320,8 +337,8 @@ public class Matcher {
 				response.setDuplicate(true);
 			} else {
 				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
-				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Exchange got response: Cleaning up "+idByMID);
 				exchangesByMID.remove(idByMID);
+				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
 			}
 			
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
@@ -382,6 +399,22 @@ public class Matcher {
 			exchangesByMID.remove(idByMID);
 			iterator.remove();
 		}
+	}
+	
+	/**
+	 * Creates a new token that is never the empty token (i.e., always 1-8 bytes).
+	 * @return the new token
+	 */
+	private byte[] createNewToken() {
+		
+		Random random = new Random();
+		
+		// random length between 1 and tokenSizeLimit
+		byte[] token = new byte[random.nextInt(tokenSizeLimit)+1];
+		// random value
+		random.nextBytes(token);
+		
+		return token;
 	}
 	
 	private class ExchangeObserverImpl implements ExchangeObserver {

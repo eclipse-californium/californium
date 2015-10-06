@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.BlockwiseStatus;
+import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
@@ -358,6 +359,10 @@ public class Exchange {
 		return timedOut;
 	}
 
+	/**
+	 * This method also cleans up the Matcher state by eventually calling the
+	 * exchange observer.
+	 */
 	public void setTimedOut() {
 		this.timedOut = true;
 		// clean up
@@ -420,8 +425,27 @@ public class Exchange {
 		return complete;
 	}
 
+	/**
+	 * Call this method to trigger a clean-up in the Matcher through its
+	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
+	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
+	 * rejecting a response, or when sending the (last) response.
+	 */
 	public void setComplete() {
 		this.complete = true;
+		ExchangeObserver obs = this.observer;
+		if (obs != null)
+			obs.completed(this);
+	}
+	
+	/**
+	 * This method is only needed when the same {@link Exchange} instance uses
+	 * different tokens during its lifetime, e.g., when using a different token
+	 * for retrieving the rest of a blockwise notification (when not altered,
+	 * Californium reuses the same token for this).
+	 * See {@link BlockwiseLayer} for an example use case.
+	 */
+	public void completeCurrentRequest() {
 		ExchangeObserver obs = this.observer;
 		if (obs != null)
 			obs.completed(this);

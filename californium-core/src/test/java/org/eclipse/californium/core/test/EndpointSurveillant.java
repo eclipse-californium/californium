@@ -114,7 +114,8 @@ public class EndpointSurveillant {
 		for (Map.Entry<T, Exchange> entry: entrySet) {
 			buffer.append("\n  ").append(counter++).append(" ")
 			      .append(entry.getKey()).append(" -> ")
-			      .append("Request:  ").append(entry.getValue().getRequest())
+			      .append(entry.getValue())
+			      .append(" || Request:  ").append(entry.getValue().getRequest())
 			      .append(" || Response: ").append(entry.getValue().getResponse());
 		}
 	}
