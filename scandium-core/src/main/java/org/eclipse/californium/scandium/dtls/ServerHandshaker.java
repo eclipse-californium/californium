@@ -165,11 +165,11 @@ public class ServerHandshaker extends Handshaker {
 		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
-		
+
 		this.pskStore = config.getPskStore();
-		
+
 		this.privateKey = config.getPrivateKey();
-		this.certificates = config.getCertificateChain();
+		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
@@ -182,15 +182,13 @@ public class ServerHandshaker extends Handshaker {
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
-			if (certificates != null) {
-				if (config.isSendRawKey()) {
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
+			if (certificateChain == null) {
+				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			} else if (config.isSendRawKey()) {
+				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				this.supportedServerCertificateTypes.add(CertificateType.X_509);
 			} else {
+				this.supportedServerCertificateTypes.add(CertificateType.X_509);
 				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			}
 		}
@@ -511,7 +509,7 @@ public class ServerHandshaker extends Handshaker {
 			if (session.sendRawPublicKey()){
 				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
 			} else {
-				certificateMessage = new CertificateMessage(certificates, session.getPeer());
+				certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
 			}
 
 			flight.addMessage(wrapMessage(certificateMessage));

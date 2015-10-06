@@ -136,7 +136,7 @@ public class ClientHandshaker extends Handshaker {
 		super(true, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
 		this.message = message;
 		this.privateKey = config.getPrivateKey();
-		this.certificates = config.getCertificateChain();
+		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
@@ -149,15 +149,13 @@ public class ClientHandshaker extends Handshaker {
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
-			if (certificates != null) {
-				if (config.isSendRawKey()) {
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
+			if (certificateChain == null) {
+				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			} else if (config.isSendRawKey()) {
+				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				this.supportedClientCertificateTypes.add(CertificateType.X_509);
 			} else {
+				this.supportedClientCertificateTypes.add(CertificateType.X_509);
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			}
 		}
@@ -461,7 +459,7 @@ public class ClientHandshaker extends Handshaker {
 			if (session.sendRawPublicKey()){
 				clientCertificate = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
 			} else {
-				clientCertificate = new CertificateMessage(certificates, session.getPeer());
+				clientCertificate = new CertificateMessage(certificateChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}

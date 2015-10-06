@@ -138,8 +138,8 @@ public abstract class Handshaker {
 	/** The handshaker's public key. */
 	protected PublicKey publicKey;
 
-	/** The handshaker's certificate chain. */
-	protected Certificate[] certificates;
+	/** The chain of certificates asserting this handshaker's identity */
+	protected Certificate[] certificateChain;
 	
 	/** list of trusted self-signed root certificates */
 	protected final Certificate[] rootCertificates;
@@ -729,7 +729,15 @@ public abstract class Handshaker {
 		setSequenceNumber(handshakeMessage);
 		List<Record> result = new ArrayList<>();
 		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
-		
+
+		// CAUTION: length check is done based on DTLSPlaintext.fragment
+		// maxFragmentLength needs to be set to a value smaller
+		// than DtlsConnectorConfig.maxPayloadSize that also accounts for
+		// potential overhead caused by the negotiated cipher algorithm(s).
+		// This is not an issue for an initial handshake because in that
+		// case handshake messages will not (yet) be encrypted.
+		// However, when re-negotiating an established session
+		// handshake messages will be encrypted!
 		if (messageBytes.length <= maxFragmentLength) {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
