@@ -169,15 +169,15 @@ public class Matcher {
 		
 		// Blockwise transfers are identified by URI and remote endpoint
 		if (response.getOptions().hasBlock2()) {
-			Request request = exchange.getRequest();
+			Request request = exchange.getCurrentRequest();
 			KeyUri idByUri = new KeyUri(request.getURI(), response.getDestination().getAddress(), response.getDestinationPort());
 			// Observe notifications only send the first block, hence do not store them as ongoing
 			if (exchange.getResponseBlockStatus()!=null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
 				if (ongoingExchanges.put(idByUri, exchange)==null) {
-					LOGGER.fine("Ongoing Block2 started, storing "+idByUri + " for " + request);
+					LOGGER.fine("Ongoing Block2 started late, storing "+idByUri + " for " + request);
 				} else {
-					LOGGER.fine("Ongoing Block2 continueing, storing "+idByUri + " for " + request);
+					LOGGER.fine("Ongoing Block2 continued, storing "+idByUri + " for " + request);
 				}
 			} else {
 				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + " for " + request);
@@ -245,7 +245,7 @@ public class Matcher {
 			
 			KeyUri idByUri = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 			
-			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Lookup ongoing exchange for "+idByUri);
+			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Looking up ongoing exchange for "+idByUri);
 			
 			Exchange ongoing = ongoingExchanges.get(idByUri);
 			if (ongoing != null) {
@@ -258,7 +258,7 @@ public class Matcher {
 					// the exchange is continuing, we can (i.e., must) clean up the previous response
 					if (ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID(), null, 0);
-						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request: Cleaning up "+idByMID);
+						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request, cleaning up "+idByMID);
 						exchangesByMID.remove(idByMID);
 					}
 				}
@@ -276,8 +276,8 @@ public class Matcher {
 				
 				Exchange exchange = new Exchange(request, Origin.REMOTE);
 				Exchange previous = deduplicator.findPrevious(idByMID, exchange);
-				LOGGER.fine("New ongoing exchange for remote Block1 request with key "+idByUri);
 				if (previous == null) {
+					LOGGER.fine("New ongoing request, storing "+idByUri+" for "+request);
 					exchange.setObserver(exchangeObserver);
 					ongoingExchanges.put(idByUri, exchange);
 					return exchange;
@@ -420,7 +420,7 @@ public class Matcher {
 				Request request = exchange.getCurrentRequest();
 				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-//					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
+					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
 					ongoingExchanges.remove(uriKey);
 				}
 				
