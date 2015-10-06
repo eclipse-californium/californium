@@ -45,6 +45,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -81,10 +83,10 @@ public final class CertificateMessage extends HandshakeMessage {
 	// Members ///////////////////////////////////////////////////////////
 
 	/**
-	 * This is a sequence (chain) of certificates. The sender's certificate MUST
-	 * come first in the list.
+	 * A chain of certificates asserting the sender's identity.
+	 * The sender's identity is reflected by the certificate at index 0.
 	 */
-	private final Certificate[] certificateChain;
+	private X509Certificate[] certificateChain;
 
 	/** The encoded chain of certificates */
 	private List<byte[]> encodedChain;
@@ -93,7 +95,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * The SubjectPublicKeyInfo part of the X.509 certificate. Used in
 	 * constrained environments for smaller message size.
 	 */
-	private final byte[] rawPublicKeyBytes;
+	private byte[] rawPublicKeyBytes;
 
 	// length is at least 3 bytes containing the message's overall number of bytes
 	private int length = 3;
@@ -110,13 +112,19 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            message has been received from or should be sent to
 	 * @throws NullPointerException if the certificate chain is <code>null</code>
 	 *            (use an array of length zero to create an <em>empty</em> message)
+	 * @throws IllegalArgumentException if the certificate chain contains any
+	 *            non-X.509 certificates or does not form a valid chain of
+	 *            certification.
+	 * 
 	 */
 	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
-		this(null, certificateChain, peerAddress);
+		super(peerAddress);
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
+		} else {
+			setCertificateChain(certificateChain);
+			calculateLength(certificateChain);
 		}
-		calculateLength(certificateChain);
 	}
 
 	/**
@@ -130,18 +138,55 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *           (use an array of length zero to create an <em>empty</em> message)
 	 */
 	public CertificateMessage(byte[] rawPublicKeyBytes, InetSocketAddress peerAddress) {
-		this(rawPublicKeyBytes, null, peerAddress);
+		super(peerAddress);
 		if (rawPublicKeyBytes == null) {
 			throw new NullPointerException("Raw public key byte array must not be null");
+		} else {
+			this.rawPublicKeyBytes = rawPublicKeyBytes;
+			length += rawPublicKeyBytes.length;
 		}
-		
-		length += rawPublicKeyBytes.length;
 	}
-	
-	private CertificateMessage(byte[] rawPublicKey, Certificate[] certificateChain, InetSocketAddress peerAddress) {
-		super(peerAddress);
-		this.rawPublicKeyBytes = rawPublicKey;
-		this.certificateChain = certificateChain;
+
+	/**
+	 * Sets the chain of certificates to be sent to a peer as
+	 * part of this message for authentication purposes.
+	 * <p>
+	 * Only the non-root certificates from the given chain are sent to the
+	 * peer because the peer is assumed to have been provisioned with a
+	 * set of trusted root certificates already.
+	 * <p>
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.2">
+	 * TLS 1.2, Section 7.4.2</a> for details.
+	 *  
+	 * @param chain the certificate chain
+	 */
+	private void setCertificateChain(Certificate[] chain) {
+		List<X509Certificate> certificates = new ArrayList<>();
+		X500Principal issuer = null;
+		X509Certificate cert = null;
+		for (Certificate c : chain) {
+			if (!(c instanceof X509Certificate)) {
+				throw new IllegalArgumentException(
+						"Certificate chain must consist of X.509 certificates only");
+			} else {
+				cert = (X509Certificate) c;
+				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
+				if (issuer != null) {
+					if (!issuer.equals(cert.getSubjectX500Principal())) {
+						LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
+								cert.getSubjectX500Principal().getName());
+						throw new IllegalArgumentException("Given certificates do not form a chain");
+					}
+				}
+				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
+					// not a self-signed certificate
+					certificates.add(cert);
+					issuer = cert.getIssuerX500Principal();
+					LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
+				}
+			}
+		}
+		this.certificateChain = certificates.toArray(new X509Certificate[]{});
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -210,7 +255,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @return the certificate chain or <code>null</code> if
 	 *        <em>RawPublicKey</em>s are used
 	 */
-	public Certificate[] getCertificateChain() {
+	public X509Certificate[] getCertificateChain() {
 		if (certificateChain != null) {
 			return Arrays.copyOf(certificateChain, certificateChain.length);
 		} else {
