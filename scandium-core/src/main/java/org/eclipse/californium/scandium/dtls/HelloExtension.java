@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve toString()
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for <em>MaxFragmentLength</em> extension
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,14 +51,27 @@ public abstract class HelloExtension {
 
 	// Serialization //////////////////////////////////////////////////
 
-	public byte[] toByteArray() {
+	public final byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 
 		writer.write(type.getId(), TYPE_BITS);
-
+		addExtensionData(writer);
 		return writer.toByteArray();
 	}
-	
+
+	/**
+	 * Adds binary encoding of this extension's data.
+	 * <p>
+	 * This implementation does not do anything. Sub-classes should
+	 * override this method and use the passed-in writer to add their
+	 * <em>extension_data</em> bytes to the <em>Extension</em> data structure.
+	 * 
+	 * @param writer the writer to use for serialization
+	 */
+	protected void addExtensionData(DatagramWriter writer) {
+		// default is empty
+	};
+
 	/**
 	 * De-serializes a Client or Server Hello handshake message extension from its binary
 	 * representation.
@@ -72,13 +86,13 @@ public abstract class HelloExtension {
 	 * a client sends an extension of a type that the server does not know or support (yet).
 	 * 
 	 * @param typeCode the extension type code
-	 * @param extension the serialized extension
+	 * @param extensionData the serialized extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
 	 * to erroneous encoding etc.
 	 */
-	public static HelloExtension fromByteArray(int typeCode, byte[] extension) throws HandshakeException {
+	public static HelloExtension fromByteArray(int typeCode, byte[] extensionData) throws HandshakeException {
 		ExtensionType type = ExtensionType.getExtensionTypeById(typeCode);
 		if (type == null) {
 			return null;
@@ -86,14 +100,15 @@ public abstract class HelloExtension {
 			switch (type) {
 			// the currently supported extensions
 			case ELLIPTIC_CURVES:
-				return SupportedEllipticCurvesExtension.fromByteArray(extension);
+				return SupportedEllipticCurvesExtension.fromExtensionData(extensionData);
 			case EC_POINT_FORMATS:
-				return SupportedPointFormatsExtension.fromByteArray(extension);
+				return SupportedPointFormatsExtension.fromExtensionData(extensionData);
 			case CLIENT_CERT_TYPE:
-				return ClientCertificateTypeExtension.fromByteArray(extension);
+				return ClientCertificateTypeExtension.fromExtensionData(extensionData);
 			case SERVER_CERT_TYPE:
-				return ServerCertificateTypeExtension.fromByteArray(extension);
-	
+				return ServerCertificateTypeExtension.fromExtensionData(extensionData);
+			case MAX_FRAGMENT_LENGTH:
+				return MaxFragmentLengthExtension.fromExtensionData(extensionData);
 			default:
 				return null;
 			}

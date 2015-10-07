@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements to serialization
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -20,11 +21,11 @@ import java.util.List;
 
 
 public class ClientCertificateTypeExtension extends CertificateTypeExtension {
-	
+
 	// Constructors ///////////////////////////////////////////////////
-	
+
 	/**
-	 * Constructs an empty certificate type extension. If it is client-sided
+	 * Creates an empty certificate type extension. If it is client-sided
 	 * there is a list of supported certificate type (ordered by preference);
 	 * server-side only 1 certificate type is chosen.
 	 * 
@@ -34,7 +35,7 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 	public ClientCertificateTypeExtension(boolean isClient) {
 		super(ExtensionType.CLIENT_CERT_TYPE, isClient);
 	}
-	
+
 	/**
 	 * Constructs a certificate type extension with a list of supported
 	 * certificate types. The server only chooses 1 certificate type.
@@ -54,15 +55,15 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 		StringBuilder sb = new StringBuilder(super.toString());
 
 		for (CertificateType type : certificateTypes) {
-			sb.append("\t\t\t\tClient certificate type: " + type.toString() + "\n");
+			sb.append("\t\t\t\tClient certificate type: ").append(type).append("\n");
 		}
 
 		return sb.toString();
 	};
-	
-	public static ClientCertificateTypeExtension fromByteArray(byte[] byteArray) {
-		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(byteArray.length > 1);
-		ext.addCertiticateTypes(byteArray);
+
+	public static ClientCertificateTypeExtension fromExtensionData(byte[] extensionData) {
+		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(extensionData.length > 1);
+		ext.addCertiticateTypes(extensionData);
 		return ext;
 	}
 }

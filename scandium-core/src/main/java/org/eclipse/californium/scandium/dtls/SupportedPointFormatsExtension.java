@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -66,24 +67,21 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: " + (getLength() - 4) + "\n");
-		sb.append("\t\t\t\tEC point formats length: " + (getLength() - 5) + "\n");
-		sb.append("\t\t\t\tElliptic Curves Point Formats (" + ecPointFormatList.size() + "):\n");
+		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
+		sb.append("\n\t\t\t\tEC point formats length: ").append(getLength() - 5);
+		sb.append("\n\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
 
 		for (ECPointFormat format : ecPointFormatList) {
-			sb.append("\t\t\t\t\tEC point format: " + format.toString() + "\n");
+			sb.append("\n\t\t\t\t\tEC point format: ").append(format.toString());
 		}
 
 		return sb.toString();
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
 	
 	@Override
-	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
-		writer.writeBytes(super.toByteArray());
-
+	protected void addExtensionData(DatagramWriter writer) {
 		int listLength = ecPointFormatList.size();
 		// list length + list length field (1 byte)
 		writer.write(listLength + 1, LENGTH_BITS);
@@ -92,12 +90,10 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		for (ECPointFormat format : ecPointFormatList) {
 			writer.write(format.getId(), POINT_FORMAT_BITS);
 		}
-
-		return writer.toByteArray();
 	}
 
-	public static HelloExtension fromByteArray(byte[] byteArray) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HelloExtension fromExtensionData(byte[] extensionData) {
+		DatagramReader reader = new DatagramReader(extensionData);
 
 		int listLength = reader.read(LIST_LENGTH_BITS);
 
@@ -105,14 +101,14 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		while (listLength > 0) {
 			ECPointFormat format = ECPointFormat.getECPointFormatById(reader.read(POINT_FORMAT_BITS));
 			ecPointFormatList.add(format);
-			
+
 			// one point format uses 1 byte
 			listLength -= 1;
 		}
 
 		return new SupportedPointFormatsExtension(ecPointFormatList);
 	}
-	
+
 	// EC point format Enum ///////////////////////////////////////////
 
 	/**
