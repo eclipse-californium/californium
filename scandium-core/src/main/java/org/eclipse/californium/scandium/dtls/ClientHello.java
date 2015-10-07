@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
@@ -136,7 +137,7 @@ public final class ClientHello extends HandshakeMessage {
 			List<CertificateType> supportedServerCertificateTypes) {
 		this(version, secureRandom, session.getSessionIdentifier(), supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 		addCipherSuite(session.getWriteState().getCipherSuite());
-		addCompressionMethod(session.getReadState().getCompressionMethod());
+		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
 	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId, List<CertificateType> supportedClientCertificateTypes,
@@ -370,6 +371,12 @@ public final class ClientHello extends HandshakeMessage {
 		compressionMethods.add(compressionMethod);
 	}
 
+	void addExtension(HelloExtension extension) {
+		if (extensions != null) {
+			extensions.addExtension(extension);
+		}
+	}
+
 	/**
 	 * Gets the supported elliptic curves.
 	 * 
@@ -378,14 +385,10 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public SupportedEllipticCurvesExtension getSupportedEllipticCurvesExtension() {
 		if (extensions != null) {
-			List<HelloExtension> exts = extensions.getExtensions();
-			for (HelloExtension helloExtension : exts) {
-				if (helloExtension instanceof SupportedEllipticCurvesExtension) {
-					return (SupportedEllipticCurvesExtension) helloExtension;
-				}
-			}
+			return (SupportedEllipticCurvesExtension) extensions.getExtension(ExtensionType.ELLIPTIC_CURVES);
+		} else {
+			return null;
 		}
-		return null;
 	}
 
 	/**
@@ -395,14 +398,10 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ClientCertificateTypeExtension getClientCertificateTypeExtension() {
 		if (extensions != null) {
-			List<HelloExtension> exts = extensions.getExtensions();
-			for (HelloExtension helloExtension : exts) {
-				if (helloExtension instanceof ClientCertificateTypeExtension) {
-					return (ClientCertificateTypeExtension) helloExtension;
-				}
-			}
+			return (ClientCertificateTypeExtension) extensions.getExtension(ExtensionType.CLIENT_CERT_TYPE);
+		} else {
+			return null;
 		}
-		return null;
 	}
 
 	/**
@@ -412,14 +411,23 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
 		if (extensions != null) {
-			List<HelloExtension> exts = extensions.getExtensions();
-			for (HelloExtension helloExtension : exts) {
-				if (helloExtension instanceof ServerCertificateTypeExtension) {
-					return (ServerCertificateTypeExtension) helloExtension;
-				}
-			}
+			return (ServerCertificateTypeExtension) extensions.getExtension(ExtensionType.SERVER_CERT_TYPE);
+		} else {
+			return null;
 		}
-		return null;
 	}
 
+	/**
+	 * Gets the <em>MaximumFragmentLength</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>MaximumFragmentLength</em> extension.
+	 */
+	public MaxFragmentLengthExtension getMaxFragmentLengthExtension() {
+		if (extensions != null) {
+			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
+		} else {
+			return null;
+		}
+	}
 }
