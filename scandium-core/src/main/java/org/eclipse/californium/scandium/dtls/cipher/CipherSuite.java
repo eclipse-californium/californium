@@ -46,11 +46,12 @@ public enum CipherSuite {
 	
 	// Cipher suites //////////////////////////////////////////////////
 	
-	TLS_NULL_WITH_NULL_NULL("NULL", 0x0000, KeyExchangeAlgorithm.NULL, BulkCipherAlgorithm.NULL, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.NULL),
-	TLS_PSK_WITH_AES_128_CBC_SHA256("AES/CBC/NoPadding", 0x00AE, KeyExchangeAlgorithm.PSK, BulkCipherAlgorithm.AES_128, MACAlgorithm.HMAC_SHA256, PRFAlgorithm.TLS_PRF_SHA256, CipherType.BLOCK),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256("AES/CBC/NoPadding", 0xC023, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, BulkCipherAlgorithm.AES_128, MACAlgorithm.HMAC_SHA256, PRFAlgorithm.TLS_PRF_SHA256, CipherType.BLOCK),
-	TLS_PSK_WITH_AES_128_CCM_8("CCM", 0xC0A8, KeyExchangeAlgorithm.PSK, BulkCipherAlgorithm.AES_128, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.AEAD),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8("CCM", 0xC0AE, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, BulkCipherAlgorithm.AES_128, MACAlgorithm.NULL, PRFAlgorithm.TLS_PRF_SHA256, CipherType.AEAD);
+	TLS_NULL_WITH_NULL_NULL(0x0000, KeyExchangeAlgorithm.NULL, Cipher.NULL, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CCM_8, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CCM_8, MACAlgorithm.NULL);
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(CipherSuite.class.getCanonicalName());
@@ -61,36 +62,52 @@ public enum CipherSuite {
 
 	// Members ////////////////////////////////////////////////////////
 
-	/** The <em>transformation</em> string of the corresponding Java Cryptography Architecture
-	 * <code>Cipher</code> */
-	private String transformation;
-
 	/**
 	 * 16 bit identification, i.e. 0x0000 for SSL_NULL_WITH_NULL_NULL, see <a
 	 * href="http://tools.ietf.org/html/rfc5246#appendix-A.5">RFC 5246</a>.
 	 */
 	private int code;
-
 	private KeyExchangeAlgorithm keyExchange;
-	private BulkCipherAlgorithm bulkCipher;
+	private Cipher cipher;
 	private MACAlgorithm macAlgorithm;
 	private PRFAlgorithm pseudoRandomFunction;
-	private CipherType cipherType;
+	private int maxCipherTextExpansion;
 
 	// Constructor ////////////////////////////////////////////////////
 
-	private CipherSuite(String transformation, int code, KeyExchangeAlgorithm keyExchange,
-			BulkCipherAlgorithm bulkCipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf, CipherType cipherType) {
-		this.transformation = transformation;
+	private CipherSuite(int code, KeyExchangeAlgorithm keyExchange, Cipher cipher, MACAlgorithm macAlgorithm) {
+		this(code, keyExchange, cipher, macAlgorithm, PRFAlgorithm.TLS_PRF_SHA256);
+	}
+
+	private CipherSuite(int code, KeyExchangeAlgorithm keyExchange, Cipher cipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf) {
 		this.code = code;
 		this.keyExchange = keyExchange;
-		this.bulkCipher = bulkCipher;
+		this.cipher = cipher;
 		this.macAlgorithm = macAlgorithm;
 		this.pseudoRandomFunction = prf;
-		this.cipherType = cipherType;
+		switch(this.cipher.getType()) {
+		case BLOCK:
+			maxCipherTextExpansion =
+				cipher.getRecordIvLength() // IV
+					+ macAlgorithm.getOutputLength() // MAC
+					+ cipher.getRecordIvLength() // max padding (block size)
+					+ 1; // padding length
+			break;
+		case AEAD:
+			maxCipherTextExpansion =
+				cipher.getRecordIvLength() // explicit nonce
+					+ cipher.getCiphertextExpansion();
+			break;
+		default:
+			maxCipherTextExpansion = 0;
+		}
 	}
-	
+
 	// Getters ////////////////////////////////////////////////////////
+
+	public int getMaxCiphertextExpansion() {
+		return maxCipherTextExpansion;
+	}
 
 	/**
 	 * Gets the Java Cryptography Architecture <em>transformation</em> corresponding
@@ -104,7 +121,7 @@ public enum CipherSuite {
 	 * @return the transformation
 	 */
 	public String getTransformation() {
-		return transformation;
+		return cipher.getTransformation();
 	}
 
 	/**
@@ -151,16 +168,6 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Gets the cipher suite's underlying bulk cipher algorithm used
-	 * to encrypt data.
-	 * 
-	 * @return the algorithm
-	 */
-	public BulkCipherAlgorithm getBulkCipher() {
-		return bulkCipher;
-	}
-
-	/**
 	 * Gets the output length of the cipher suite's MAC algorithm.
 	 *  
 	 * @return the length in bytes
@@ -187,7 +194,7 @@ public enum CipherSuite {
 	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
 	 * Java Security Documentation</a>.
 	 * 
-	 * @return the name or <code>null</code> for the {@link MACAlgorithm#NULL} MAC
+	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
 	 */
 	public String getMacName() {
 		return macAlgorithm.getName();
@@ -203,7 +210,7 @@ public enum CipherSuite {
 	 * @return the length in bytes
 	 */
 	public int getRecordIvLength() {
-		return bulkCipher.getRecordIvLength();
+		return cipher.getRecordIvLength();
 	}
 	
 	/**
@@ -215,7 +222,7 @@ public enum CipherSuite {
 	 * @return the length in bytes
 	 */
 	public int getFixedIvLength() {
-		return bulkCipher.getFixedIvLength();
+		return cipher.getFixedIvLength();
 	}
 
 	/**
@@ -234,7 +241,7 @@ public enum CipherSuite {
 	 * @return the type
 	 */
 	public CipherType getCipherType() {
-		return cipherType;
+		return cipher.getType();
 	}
 
 	/**
@@ -243,7 +250,7 @@ public enum CipherSuite {
 	 * @return the length in bytes
 	 */
 	public int getEncKeyLength() {
-		return bulkCipher.getKeyLength();
+		return cipher.getKeyLength();
 	}
 
 	/**
@@ -335,7 +342,7 @@ public enum CipherSuite {
 	 * See http://tools.ietf.org/html/rfc5246#appendix-A.6
 	 */
 
-	public enum MACAlgorithm {
+	private enum MACAlgorithm {
 		NULL(null, 0),
 		HMAC_MD5("HmacMD5", 16),
 		HMAC_SHA1("HmacSHA1", 20),
@@ -388,42 +395,84 @@ public enum CipherSuite {
 		}
 	}
 
-	public enum BulkCipherAlgorithm {
+	private enum Cipher {
 		// key_length & record_iv_length as documented in RFC 5426, Appendic C
 		// see http://tools.ietf.org/html/rfc5246#appendix-C
-		NULL(0, 0, 0),
-		B_3DES(24, 4, 8), // don't know
-		AES_128(16, 4, 16); // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
-		
+		NULL("NULL", CipherType.NULL, 0, 0, 0),
+		B_3DES_EDE_CBC("DESede/CBC/NoPadding", CipherType.BLOCK, 24, 4, 8), // don't know
+		AES_128_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 16, 4, 16), // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
+		AES_256_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 32, 4, 16),
+		AES_128_CCM_8("CCM", CipherType.AEAD, 16, 4, 8, 8); // explicit nonce (record IV) length = 8
+
+		/**
+		 * The <em>transformation</em> string of the corresponding Java Cryptography Architecture
+		 * <code>Cipher</code>
+		 */
+		private String transformation;
 		// values in octets!
 		private int keyLength;
 		private int fixedIvLength;
 		private int recordIvLength;
-		
-		private BulkCipherAlgorithm(int key_length, int fixed_iv_length, int recordIvLength) {
+		private CipherType type;
+		private int ciphertextExpansion;
+
+
+		private Cipher(String transformation, CipherType type, int key_length, int fixed_iv_length, int recordIvLength) {
+			this.transformation = transformation;
+			this.type = type;
 			this.keyLength = key_length;
 			this.fixedIvLength = fixed_iv_length;
 			this.recordIvLength = recordIvLength;
 		}
 
-		public int getKeyLength() {
+		private Cipher(String transformation, CipherType type, int key_length, int fixed_iv_length, int recordIvLength,
+				int ciphertextExpansion) {
+			this(transformation, type, key_length, fixed_iv_length, recordIvLength);
+			this.ciphertextExpansion = ciphertextExpansion;
+		}
+
+		/**
+		 * Gets the Java Cryptography Architecture <em>transformation</em> corresponding
+		 * to the suite's underlying cipher algorithm.
+		 * 
+		 * The name can be used to instantiate a <code>javax.crypto.Cipher</code> object
+		 * (if a security provider is available in the JVM supporting the transformation).
+		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher">
+		 * Java Security Documentation</a>.
+		 * 
+		 * @return the transformation
+		 */
+		private String getTransformation() {
+			return transformation;
+		}
+
+		private CipherType getType() {
+			return type;
+		}
+
+		private int getKeyLength() {
 			return keyLength;
 		}
 
-		public int getFixedIvLength() {
+		private int getFixedIvLength() {
 			return fixedIvLength;
 		}
 
 		/**
 		 * Gets the length of the cipher's initialization vector.
-		 * 
-		 * For stream ciphers the length is zero. For block ciphers this is equal to
-		 * the cipher's block size.
+		 * <p>
+		 * For stream ciphers the length is zero, for block ciphers this is equal to
+		 * the cipher's block size and for AEAD ciphers this is the length of the
+		 * explicit nonce.
 		 * 
 		 * @return the length in bytes
 		 */
-		public int getRecordIvLength() {
+		private int getRecordIvLength() {
 			return recordIvLength;
+		}
+
+		private int getCiphertextExpansion() {
+			return ciphertextExpansion;
 		}
 	}
 
@@ -431,7 +480,7 @@ public enum CipherSuite {
 		NULL, DHE_DSS, DHE_RSA, DH_ANON, RSA, DH_DSS, DH_RSA, PSK, EC_DIFFIE_HELLMAN;
 	}
 	
-	public enum PRFAlgorithm {
+	private enum PRFAlgorithm {
 		TLS_PRF_SHA256;
 	}
 
