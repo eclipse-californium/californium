@@ -153,7 +153,7 @@ class DTLSConnectionState {
 	 * @return the length in bytes
 	 */
 	int getRecordIvLength() {
-		return cipherSuite.getBulkCipher().getRecordIvLength();
+		return cipherSuite.getRecordIvLength();
 	}
 	
 	@Override
