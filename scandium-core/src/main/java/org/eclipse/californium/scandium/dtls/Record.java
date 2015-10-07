@@ -57,21 +57,21 @@ public class Record {
 
 	protected static final Logger LOGGER = Logger.getLogger(Record.class.getCanonicalName());
 
-	// CoAP-specific constants/////////////////////////////////////////
+	// DTLS specific constants/////////////////////////////////////////
 
-	private static final int CONTENT_TYPE_BITS = 8;
+	public static final int CONTENT_TYPE_BITS = 8;
 
-	private static final int VERSION_BITS = 8; // for major and minor each
+	public static final int VERSION_BITS = 8; // for major and minor each
 
-	private static final int EPOCH_BITS = 16;
+	public static final int EPOCH_BITS = 16;
 
-	private static final int SEQUENCE_NUMBER_BITS = 48;
+	public static final int SEQUENCE_NUMBER_BITS = 48;
 
-	private static final int LENGTH_BITS = 16;
+	public static final int LENGTH_BITS = 16;
 
-	private static final int RECORD_HEADER_LENGTH = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
+	public static final int RECORD_HEADER_BITS = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
 			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
-	
+
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1;
 	
 	// Members ////////////////////////////////////////////////////////
@@ -254,7 +254,7 @@ public class Record {
 
 		while (reader.bytesAvailable()) {
 
-			if (reader.bitsLeft() < RECORD_HEADER_LENGTH) {
+			if (reader.bitsLeft() < RECORD_HEADER_BITS) {
 				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
@@ -863,16 +863,19 @@ public class Record {
 				if (session != null) {
 					keyExchangeAlgorithm = session.getKeyExchange();
 					receiveRawPublicKey = session.receiveRawPublicKey();
-					LOGGER.log(Level.FINER, "Using KeyExchangeAlgorithm [{0}] and receiveRawPublicKey [{1}] from session",
-							new Object[]{keyExchangeAlgorithm, receiveRawPublicKey});
 				} else {
 					LOGGER.log(Level.FINE, "Parsing message without a session");
 				}
 				if (decryptedMessage != null) {
-					if (LOGGER.isLoggable(Level.FINEST)) {
-						LOGGER.log(Level.FINEST,
-							"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]\n{2}",
-							new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, ByteArrayUtils.toHexString(decryptedMessage)});
+					if (LOGGER.isLoggable(Level.FINER)) {
+						StringBuffer msg = new StringBuffer(
+								"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]");
+						Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
+						if (LOGGER.isLoggable(Level.FINEST)) {
+							params[2] = ByteArrayUtils.toHexString(decryptedMessage);
+							msg.append(":\n{2}");
+						}
+						LOGGER.log(Level.FINER, msg.toString(), params);
 					}
 					fragment = HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 				}
