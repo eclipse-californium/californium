@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements to serialization
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -118,10 +119,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
-	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
-		writer.writeBytes(super.toByteArray());
-		
+	protected void addExtensionData(DatagramWriter writer) {
 		if (isClientExtension) {
 			int listLength = certificateTypes.size();
 			// write overall number of bytes
@@ -139,10 +137,8 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			writer.write(1, LENGTH_BITS);
 			writer.write(certificateTypes.get(0).getCode(), EXTENSION_TYPE_BITS);
 		}
-		
-		return writer.toByteArray();
 	}
-	
+
 	// Enums //////////////////////////////////////////////////////////
 
 	/**
