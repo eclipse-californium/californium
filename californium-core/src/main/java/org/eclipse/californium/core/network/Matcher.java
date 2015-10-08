@@ -150,7 +150,7 @@ public class Matcher {
 		} else {
 			idByToken = new KeyToken(request.getToken());
 			// ongoing requests may reuse token
-			if (!(request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
+			if (!(exchange.getFailedTransmissionCount()>0 || request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
 				LOGGER.warning("Manual token overrides existing open request: "+idByToken);
 			}
 		}
