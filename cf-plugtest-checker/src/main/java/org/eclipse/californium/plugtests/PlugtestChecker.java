@@ -112,19 +112,10 @@ public class PlugtestChecker {
 			// iterate for each chosen test
 			for (Class<?> testClass : tests) {
 				System.out.println("Initialize test "+testClass); // DEBUG
-
-				// get the unique constructor
-				Constructor<?>[] constructors = testClass
-						.getDeclaredConstructors();
-
-				if (constructors.length == 0) {
-					System.err.println("constructors.length == 0");
-					System.exit(-1);
-				}
-
-				// inner class: first argument (this) is the enclosing instance
-				TestClientAbstract testClient = (TestClientAbstract) constructors[0]
-						.newInstance(serverURI);
+				
+				Constructor<?> cons = testClass.getConstructor(String.class);
+				
+				TestClientAbstract testClient = (TestClientAbstract) cons.newInstance(serverURI);
 				testClient.waitForUntilTestHasTerminated();
 				reports.add(testClient.getReport());
 			}
@@ -144,6 +135,9 @@ public class PlugtestChecker {
 			System.err.println("Reflection error");
 			e.printStackTrace();
 		} catch (SecurityException e) {
+			System.err.println("Reflection error");
+			e.printStackTrace();
+		} catch (NoSuchMethodException e) {
 			System.err.println("Reflection error");
 			e.printStackTrace();
 		} catch (InvocationTargetException e) {

@@ -26,11 +26,6 @@
 			<artifactId>californium-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.9</version>
-		</dependency>
 	</dependencies>
 
 	<build>
