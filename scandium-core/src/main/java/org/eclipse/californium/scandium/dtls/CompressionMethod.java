@@ -25,13 +25,22 @@ import java.util.logging.Logger;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
- * The algorithm used to compress data prior to encryption.
+ * An identifier for the compression algorithms defined by the IANA to be used
+ * with DTLS.
+ * <p>
+ * Instances of this enumeration do not implement any compression functionality.
+ * They merely serve as an object representation of the identifiers defined
+ * in <a href="http://tools.ietf.org/html/rfc3749">Transport Layer Security
+ * Protocol Compression Methods</a>.
+ * <p>
+ * Note that only the {@link #NULL} compression method is supported at the
+ * moment.
  */
 public enum CompressionMethod {
-	NULL(0x00);
-	
+	NULL(0x00),
+	DEFLATE(0x01);
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(CompressionMethod.class.getCanonicalName());
@@ -60,13 +69,15 @@ public enum CompressionMethod {
 		switch (code) {
 		case 0x00:
 			return CompressionMethod.NULL;
+		case 0x01:
+			return CompressionMethod.DEFLATE;
 
 		default:
 			LOGGER.log(Level.FINER, "Unknown compression method code: {0}", code);
 			return null;
 		}
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
 
 	/**
@@ -111,5 +122,4 @@ public enum CompressionMethod {
 		}
 		return compressionMethods;
 	}
-
 }
