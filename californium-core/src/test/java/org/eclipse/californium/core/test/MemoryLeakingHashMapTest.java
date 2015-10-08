@@ -306,7 +306,7 @@ public class MemoryLeakingHashMapTest {
 		handler.relation = rel;
 		
 		// Wait until we have received all the notifications and canceled the relation
-		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 200);
+		Thread.sleep(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 1000);
 		
 		boolean success = semaphore.tryAcquire();
 		Assert.assertTrue("Client has not received all expected responses", success);

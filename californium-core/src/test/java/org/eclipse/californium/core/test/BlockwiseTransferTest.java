@@ -210,7 +210,7 @@ public class BlockwiseTransferTest {
 			clientEndpoint.sendRequest(request);
 			
 			// receive response and check
-			Response response = request.waitForResponse(1000);
+			Response response = request.waitForResponse(2000);
 			
 			assertNotNull(response);
 			payload = response.getPayloadString();

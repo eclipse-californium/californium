@@ -399,7 +399,7 @@ public class LockstepEndpoint {
 	}
 	
 	public Request waitForRequest() throws Exception {
-		RawData raw = incoming.poll(1, TimeUnit.SECONDS); // or take()?
+		RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
 		Assert.assertNotNull("Did not receive a request (but nothing)", raw);
 		DataParser parser = new DataParser(raw.getBytes());
 		
@@ -539,7 +539,7 @@ public class LockstepEndpoint {
 		}
 
 		public void go() throws Exception {
-			RawData raw = incoming.poll(1, TimeUnit.SECONDS); // or take() ?
+			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive a response (but nothing)", raw);
 			DataParser parser = new DataParser(raw.getBytes());
 			
@@ -565,7 +565,7 @@ public class LockstepEndpoint {
 
 		@Override
 		public void go() throws Exception {
-			RawData raw = incoming.poll(1, TimeUnit.SECONDS); // or take() ?
+			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
 			DataParser parser = new DataParser(raw.getBytes());
 			
@@ -574,7 +574,6 @@ public class LockstepEndpoint {
 				empty.setSource(raw.getAddress());
 				empty.setSourcePort(raw.getPort());
 				check(empty);
-				
 			} else {
 				throw new RuntimeException("Expected response but receive another message");
 			}
