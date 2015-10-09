@@ -180,14 +180,13 @@ public class BlockwiseTransferTest {
 			clientEndpoint.sendRequest(request);
 			
 			// receive response and check
-			Response response = request.waitForResponse(1000);
+			Response response = request.waitForResponse(2000);
 
 			if (cancel_request) {
-				Thread.sleep(100); // Quickly wait for more blocks (should not happen)
+				Thread.sleep(1000); // Quickly wait for more blocks (should not happen)
 				assertEquals(1, counter.get());
-			}
-			else {
-				assertNotNull(response);
+			} else {
+				assertNotNull("Client received no response", response);
 				payload = response.getPayloadString();
 				if (respond_short) assertEquals(SHORT_GET_RESPONSE, payload);
 				else assertEquals(LONG_GET_RESPONSE, payload);
@@ -212,7 +211,7 @@ public class BlockwiseTransferTest {
 			// receive response and check
 			Response response = request.waitForResponse(2000);
 			
-			assertNotNull(response);
+			assertNotNull("Client received no response", response);
 			payload = response.getPayloadString();
 			
 			if (respond_short)assertEquals(SHORT_POST_RESPONSE, payload);

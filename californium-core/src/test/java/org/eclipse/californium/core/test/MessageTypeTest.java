@@ -94,8 +94,8 @@ public class MessageTypeTest {
 		req2acc.send();
 		
 		// receive response and check
-		Response response = req2acc.waitForResponse(100);
-		assertNotNull(response);
+		Response response = req2acc.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 		assertEquals(response.getType(), Type.NON);
 		
@@ -106,8 +106,8 @@ public class MessageTypeTest {
 		req2noacc.send();
 		
 		// receive response and check
-		response = req2noacc.waitForResponse(100);
-		assertNotNull(response);
+		response = req2noacc.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 		assertEquals(response.getType(), Type.NON);
 	}
@@ -122,8 +122,8 @@ public class MessageTypeTest {
 		req2acc.send();
 		
 		// receive response and check
-		Response response = req2acc.waitForResponse(100);
-		assertNotNull(response);
+		Response response = req2acc.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 		assertEquals(response.getType(), Type.CON);
 		
@@ -134,8 +134,8 @@ public class MessageTypeTest {
 		req2noacc.send();
 		
 		// receive response and check
-		response = req2noacc.waitForResponse(100);
-		assertNotNull(response);
+		response = req2noacc.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 		assertEquals(response.getType(), Type.ACK);
 	}

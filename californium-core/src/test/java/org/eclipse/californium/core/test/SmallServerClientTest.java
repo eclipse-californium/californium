@@ -73,7 +73,7 @@ public class SmallServerClientTest {
 		
 		// receive response and check
 		Response response = request.waitForResponse(1000);
-		assertNotNull(response);
+		assertNotNull("Client received no response", response);
 		System.out.println("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}

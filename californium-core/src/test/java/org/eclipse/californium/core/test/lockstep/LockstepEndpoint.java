@@ -410,7 +410,7 @@ public class LockstepEndpoint {
 			return request;
 			
 		} else {
-			throw new RuntimeException("Expected request but received "+(parser.isResponse()?"response":"empty"));
+			throw new RuntimeException("Expected request but received " + parser);
 		}
 	}
 	
@@ -550,7 +550,7 @@ public class LockstepEndpoint {
 				check(response);
 				
 			} else {
-				throw new RuntimeException("Expected response but receive another message");
+				throw new RuntimeException("Expected response but received " + parser);
 			}
 		}
 		
@@ -575,7 +575,7 @@ public class LockstepEndpoint {
 				empty.setSourcePort(raw.getPort());
 				check(empty);
 			} else {
-				throw new RuntimeException("Expected response but receive another message");
+				throw new RuntimeException("Expected empty message but received " + parser);
 			}
 		}
 	}

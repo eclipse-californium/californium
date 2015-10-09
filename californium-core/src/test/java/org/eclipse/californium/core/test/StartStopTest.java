@@ -68,14 +68,14 @@ public class StartStopTest {
 		System.out.println("Socket port: "+serverPort);
 		
 		server1 = new CoapServer(serverPort);
-		server1.add(new CoapResource("ress") {
+		server1.add(new CoapResource("res") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_1_RESPONSE);
 			}
 		});
 		
 		server2 = new CoapServer(serverPort);
-		server2.add(new CoapResource("ress") {
+		server2.add(new CoapResource("res") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_2_RESPONSE);
 			}
@@ -119,7 +119,7 @@ public class StartStopTest {
 		System.out.println();
 		Thread.sleep(100);
 		Request request = Request.newGet();
-		request.setURI("localhost:"+serverPort+"/ress");
+		request.setURI("localhost:"+serverPort+"/res");
 		String response = request.send().waitForResponse(1000).getPayloadString();
 		Assert.assertEquals(expected, response);
 	}

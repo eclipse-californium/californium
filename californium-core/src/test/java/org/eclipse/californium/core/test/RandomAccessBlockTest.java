@@ -61,8 +61,8 @@ public class RandomAccessBlockTest {
 			request.setURI("coap://localhost:"+serverPort+"/"+TARGET);
 			request.getOptions().setBlock2(szx, false, num);
 			
-			Response response = request.send().waitForResponse(100);
-			Assert.assertNotNull(response);
+			Response response = request.send().waitForResponse(1000);
+			Assert.assertNotNull("Client received no response", response);
 			Assert.assertEquals(expectations[i], response.getPayloadString());
 			Assert.assertTrue(response.getOptions().hasBlock2());
 			Assert.assertEquals(num, response.getOptions().getBlock2().getNum());

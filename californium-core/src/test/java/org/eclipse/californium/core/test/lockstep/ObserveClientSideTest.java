@@ -173,7 +173,7 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		
-		response = request.waitForResponse(500);
+		response = request.waitForResponse(1000);
 		Assert.assertNotNull("Client received no notification", response);
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
@@ -191,7 +191,7 @@ public class ObserveClientSideTest {
 		// server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		
 		// notification may not be delivered
-		response = request.waitForResponse(500);
+		response = request.waitForResponse(1000);
 		Assert.assertNull("Client received notification although canceled", response);
 		
 		// next notification must be rejected
@@ -200,7 +200,7 @@ public class ObserveClientSideTest {
 		server.expectEmpty(RST, mid).go();
 		
 		// notification may not be delivered
-		response = request.waitForResponse(500);
+		response = request.waitForResponse(1000);
 		Assert.assertNull("Client received notification although canceled", response);
 		printServerLog();
 		

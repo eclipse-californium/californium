@@ -67,6 +67,11 @@ public class DataParser {
 		this.mid = reader.read(MESSAGE_ID_BITS);
 	}
 	
+	@Override
+	public String toString() {
+		return "[Ver="+version+"|T="+CoAP.Type.valueOf(type)+"|TKL="+tokenlength+"|Code="+code+"|MID="+mid+"]";
+	}
+	
 	public boolean isWellFormed() {
 		return version == CoAP.VERSION;
 	}

@@ -131,14 +131,14 @@ public class ObserveTest {
 		requestB.send();
 		
 		// ensure relations are established
-		Response resp1 = requestA.waitForResponse(100);
-		assertNotNull(resp1);
+		Response resp1 = requestA.waitForResponse(1000);
+		assertNotNull("Client received no response", resp1);
 		assertTrue(resp1.getOptions().hasObserve());
 		assertTrue(resourceX.getObserverCount() == 1);
 		assertEquals(resp1.getPayloadString(), resourceX.currentResponse);
 
-		Response resp2 = requestB.waitForResponse(100);
-		assertNotNull(resp2);
+		Response resp2 = requestB.waitForResponse(1000);
+		assertNotNull("Client received no response", resp2);
 		assertTrue(resp2.getOptions().hasObserve());
 		assertTrue(resourceY.getObserverCount() == 1);
 		assertEquals(resp2.getPayloadString(), resourceY.currentResponse);

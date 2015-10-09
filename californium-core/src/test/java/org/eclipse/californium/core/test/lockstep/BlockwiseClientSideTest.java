@@ -470,7 +470,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 128).payload(respPayload.substring(256, 280)).go();
 		
 		Response notification1 = request.waitForResponse(1000);
-		Assert.assertNotNull("Client received first notification", notification1);
+		Assert.assertNotNull("Client did not receive first notification", notification1);
 		Assert.assertEquals("Client received wrong notification code:", CONTENT, notification1.getCode());
 		Assert.assertEquals("Client received wrong notification length", respPayload.length(), notification1.getPayloadSize());
 		Assert.assertEquals("Client received wrong notification payload:", respPayload, notification1.getPayloadString());
@@ -489,7 +489,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(2, false, 128).payload(respPayload.substring(256, 290)).go();
 
 		Response notification2 = request.waitForResponse(1000);
-		Assert.assertNotNull("Client received first notification", notification2);
+		Assert.assertNotNull("Client did not receive second notification", notification2);
 		Assert.assertEquals("Client received wrong notification code:", CONTENT, notification2.getCode());
 		Assert.assertEquals("Client received wrong notification length", respPayload.length(), notification2.getPayloadSize());
 		Assert.assertEquals("Client received wrong notification payload:", respPayload, notification2.getPayloadString());
