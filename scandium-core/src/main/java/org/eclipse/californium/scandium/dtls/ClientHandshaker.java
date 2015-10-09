@@ -21,6 +21,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112: only prefer RawPublicKey from server
  *                                                    if no trust store has been configured
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
+ *                                                    properties with corresponding properties in DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -214,7 +216,7 @@ public class ClientHandshaker extends Handshaker {
 
 			case SERVER_KEY_EXCHANGE:
 
-				switch (keyExchange) {
+				switch (getKeyExchangeAlgorithm()) {
 				case EC_DIFFIE_HELLMAN:
 					receivedServerKeyExchange((ECDHServerKeyExchange) handshakeMsg);
 					break;
@@ -229,7 +231,7 @@ public class ClientHandshaker extends Handshaker {
 
 				default:
 					throw new HandshakeException(
-							String.format("Unsupported key exchange algorithm %s", keyExchange.name()),
+							String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
 				}
 				break;
@@ -354,8 +356,8 @@ public class ClientHandshaker extends Handshaker {
 		usedProtocol = message.getServerVersion();
 		serverRandom = message.getRandom();
 		session.setSessionIdentifier(message.getSessionId());
-		setCipherSuite(message.getCipherSuite());
-		setCompressionMethod(message.getCompressionMethod());
+		session.setCipherSuite(message.getCipherSuite());
+		session.setCompressionMethod(message.getCompressionMethod());
 
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
@@ -469,7 +471,7 @@ public class ClientHandshaker extends Handshaker {
 		 * algorithm.
 		 */
 		byte[] premasterSecret;
-		switch (keyExchange) {
+		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
 			premasterSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
@@ -508,8 +510,9 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		default:
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-			throw new HandshakeException("Unknown key exchange algorithm: " + keyExchange, alert);
+			throw new HandshakeException(
+					"Unknown key exchange algorithm: " + getKeyExchangeAlgorithm(),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
 		flight.addMessage(wrapMessage(clientKeyExchange));
 

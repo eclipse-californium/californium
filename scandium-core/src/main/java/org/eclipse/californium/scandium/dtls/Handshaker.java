@@ -22,6 +22,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SortedSet for buffering fragmented messages in order
  *                                                    to avoid repetitive sorting
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - replace local compressionMethod and cipherSuite properties
+ *                                                    with corresponding properties in DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,7 +53,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -87,10 +88,6 @@ public abstract class Handshaker {
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
 	protected Random serverRandom;
-	private CipherSuite cipherSuite;
-	private CompressionMethod compressionMethod;
-
-	protected KeyExchangeAlgorithm keyExchange;
 
 	/** The helper class to execute the ECDHE key agreement and key generation. */
 	protected ECDHECryptography ecdhe;
@@ -140,7 +137,7 @@ public abstract class Handshaker {
 
 	/** The chain of certificates asserting this handshaker's identity */
 	protected Certificate[] certificateChain;
-	
+
 	/** list of trusted self-signed root certificates */
 	protected final Certificate[] rootCertificates;
 	
@@ -148,8 +145,7 @@ public abstract class Handshaker {
 	private int maxFragmentLength = 1300;
 
 	private Set<SessionListener> sessionListeners = new HashSet<>();
-	
-	
+
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
@@ -173,7 +169,7 @@ public abstract class Handshaker {
 			Certificate[] rootCertificates, int maxPayloadSize) throws HandshakeException {
 		this(isClient, 0, session, sessionListener, rootCertificates, maxPayloadSize);
 	}
-	
+
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
 	 * 
@@ -220,44 +216,6 @@ public abstract class Handshaker {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
 			throw new HandshakeException("Could not initialize message digest algorithm for Handshaker",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
-		}
-	}
-	
-	/**
-	 * 
-	 * @param peerAddress
-	 *            the peer's address.
-	 * @param isClient
-	 *            indicates whether this handshaker plays the client or server role
-	 * @param session
-	 *            the session this handshaker is negotiating
-	 * @param rootCertificates
-	 *            the trusted root certificates
-	 * @throws HandshakeException if the message digest required for computing
-	 *            the handshake hash cannot be instantiated
-	 * @throws NullPointerException if session is <code>null</code>
-	 * @throws IllegalArgumentException if the given peer address differs from the one
-	 *            contained in the session
-	 * @deprecated Use one of the other constructors
-	 */
-	public Handshaker(InetSocketAddress peerAddress, boolean isClient, DTLSSession session,
-			Certificate[] rootCertificates) throws HandshakeException {
-		if (session == null) {
-			throw new NullPointerException("DTLS Session must not be null");
-		} else if (!session.getPeer().equals(peerAddress)) {
-			throw new IllegalArgumentException("Peer address must be the same as in session");
-		}
-		this.isClient = isClient;
-		this.session = session;
-		this.inboundMessageBuffer = new InboundMessageBuffer();
-		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
-
-		try {
-			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
-		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not initialize message digest algorithm for Handshaker.", e);
-			throw new HandshakeException("Could not initialize handshake",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
@@ -409,14 +367,14 @@ public abstract class Handshaker {
 					if (messageToProcess instanceof FragmentedHandshakeMessage) {
 						messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
 					}
-					
+
 					if (messageToProcess == null) {
 						// messageToProcess is fragmented and not all parts have been received yet
 					} else {
 						// continue with the now fully re-assembled message
 						nextFlight = doProcessMessage(messageToProcess);
 					}
-					
+
 					if (nextFlight == null) {
 						// no messages need to be sent back to the peer
 						// process next expected message (if available yet)
@@ -516,13 +474,10 @@ public abstract class Handshaker {
 		 * client_write_IV[SecurityParameters.fixed_iv_length]
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
 		 */
-		if (cipherSuite == null) {
-			cipherSuite = session.getCipherSuite();
-		}
 
-		int macKeyLength = cipherSuite.getMacKeyLength();
-		int encKeyLength = cipherSuite.getEncKeyLength();
-		int fixedIvLength = cipherSuite.getFixedIvLength();
+		int macKeyLength = session.getCipherSuite().getMacKeyLength();
+		int encKeyLength = session.getCipherSuite().getEncKeyLength();
+		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
 
 		clientWriteMACKey = new SecretKeySpec(data, 0, macKeyLength, "Mac");
 		serverWriteMACKey = new SecretKeySpec(data, macKeyLength, macKeyLength, "Mac");
@@ -676,9 +631,9 @@ public abstract class Handshaker {
 	protected final void setCurrentReadState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, serverWriteKey, serverWriteIV, serverWriteMACKey);
+			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
 		} else {
-			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, clientWriteKey, clientWriteIV, clientWriteMACKey);
+			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
 		}
 		session.setReadState(connectionState);
 	}
@@ -686,9 +641,9 @@ public abstract class Handshaker {
 	protected final void setCurrentWriteState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, clientWriteKey, clientWriteIV, clientWriteMACKey);
+			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
 		} else {
-			connectionState = new DTLSConnectionState(cipherSuite, compressionMethod, serverWriteKey, serverWriteIV, serverWriteMACKey);
+			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
 		session.setWriteState(connectionState);
 	}
@@ -713,6 +668,8 @@ public abstract class Handshaker {
 			case HANDSHAKE:
 				return wrapHandshakeMessage((HandshakeMessage) fragment);
 			default:
+				// other message types should not be prone to fragmentation
+				// since they are only a few bytes in length
 				List<Record> records = new ArrayList<Record>();
 				records.add(new Record(fragment.getContentType(), session.getWriteEpoch(), session.getSequenceNumber(),
 						fragment, session));
@@ -897,26 +854,8 @@ public abstract class Handshaker {
 
 	// Getters and Setters ////////////////////////////////////////////
 
-	final CipherSuite getCipherSuite() {
-		return cipherSuite;
-	}
-
-	/**
-	 * Sets the negotiated {@link CipherSuite} and the corresponding
-	 * {@link KeyExchangeAlgorithm}.
-	 * 
-	 * @param cipherSuite the cipher suite.
-	 * @throws HandshakeException if the given cipher suite is <code>null</code>
-	 * 	or {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
-	 */
-	protected final void setCipherSuite(CipherSuite cipherSuite) throws HandshakeException {
-		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
-			throw new HandshakeException("Negotiated cipher suite must not be null",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
-		}
-		this.cipherSuite = cipherSuite;
-		this.keyExchange = cipherSuite.getKeyExchange();
-		this.session.setCipherSuite(cipherSuite);
+	protected final KeyExchangeAlgorithm getKeyExchangeAlgorithm() {
+		return session.getKeyExchange();
 	}
 
 	final byte[] getMasterSecret() {
@@ -986,16 +925,6 @@ public abstract class Handshaker {
 
 	final void incrementNextReceiveSeq() {
 		this.nextReceiveSeq++;
-	}
-
-	final CompressionMethod getCompressionMethod() {
-		return compressionMethod;
-	}
-
-	final void setCompressionMethod(CompressionMethod compressionMethod) {
-		this.compressionMethod = compressionMethod;
-		// TODO is this right? Shouldn't this be done when pending state becomes current state only?
-		this.session.setCompressionMethod(compressionMethod);
 	}
 
 	final int getMaxFragmentLength() {

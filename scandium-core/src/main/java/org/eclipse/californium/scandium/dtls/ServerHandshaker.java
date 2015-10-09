@@ -26,6 +26,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - pick arbitrary supported group if client omits
  *                                                    Supported Elliptic Curves Extension (fix 473678)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
+ *                                                    properties with corresponding properties in DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -54,7 +56,6 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
@@ -245,7 +246,7 @@ public class ServerHandshaker extends Handshaker {
 
 			case CLIENT_KEY_EXCHANGE:
 				byte[] premasterSecret;
-				switch (keyExchange) {
+				switch (getKeyExchangeAlgorithm()) {
 				case PSK:
 					premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) handshakeMsg);
 					generateKeys(premasterSecret);
@@ -263,7 +264,7 @@ public class ServerHandshaker extends Handshaker {
 
 				default:
 					throw new HandshakeException(
-							String.format("Unsupported key exchange algorithm %s", keyExchange.name()),
+							String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
 				}
 				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.getRawMessage());
@@ -368,7 +369,7 @@ public class ServerHandshaker extends Handshaker {
 		
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
-		if (keyExchange == CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN && 
+		if (CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(getKeyExchangeAlgorithm()) && 
 				clientAuthenticationRequired && 
 				(clientCertificate == null || certificateVerify == null)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
@@ -466,13 +467,21 @@ public class ServerHandshaker extends Handshaker {
 		session.setSessionIdentifier(sessionId);
 
 		CipherSuite cipherSuite = negotiateCipherSuite(message);
-		setCipherSuite(cipherSuite);
+		session.setCipherSuite(cipherSuite);
 
 		// currently only NULL compression supported, no negotiation needed
-		CompressionMethod compressionMethod = CompressionMethod.NULL;
-		setCompressionMethod(compressionMethod);
-		
-		
+		if (!message.getCompressionMethods().contains(CompressionMethod.NULL)) {
+			// abort handshake
+			throw new HandshakeException(
+					"Client does not support NULL compression method",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.HANDSHAKE_FAILURE,
+							message.getPeer()));
+		} else {
+			session.setCompressionMethod(CompressionMethod.NULL);
+		}
+
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
 		
 		if (cipherSuite.requiresServerCertificateMessage()) {
@@ -494,7 +503,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
-				cipherSuite, compressionMethod,	serverHelloExtensions, session.getPeer());
+				cipherSuite, session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
 		flight.addMessage(wrapMessage(serverHello));
 		
 		// update the handshake hash
@@ -523,7 +532,7 @@ public class ServerHandshaker extends Handshaker {
 		 */
 		ServerKeyExchange serverKeyExchange = null;
 		SignatureAndHashAlgorithm signatureAndHashAlgorithm = null;
-		switch (keyExchange) {
+		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			// TODO SHA256withECDSA is default but should be configurable
 			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);

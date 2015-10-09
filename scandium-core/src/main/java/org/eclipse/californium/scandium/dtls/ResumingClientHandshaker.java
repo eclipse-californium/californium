@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
  *                                                    of handshake
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
+ *                                                    properties with corresponding properties in DTLSSession
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -130,13 +132,29 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				ServerHello serverHello = (ServerHello) message;
 				if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
 				{
+					LOGGER.log(
+							Level.FINER,
+							"Server [{0}] refuses to resume session [{1}], performing full handshake instead...",
+							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
 					super.receivedServerHello(serverHello);
-				}else{
+				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
+					throw new HandshakeException(
+							"Server wants to change compression method in resumed session",
+							new AlertMessage(
+									AlertLevel.FATAL,
+									AlertDescription.ILLEGAL_PARAMETER,
+									serverHello.getPeer()));
+				} else if (!serverHello.getCipherSuite().equals(session.getCipherSuite())) {
+					throw new HandshakeException(
+							"Server wants to change cipher suite in resumed session",
+							new AlertMessage(
+									AlertLevel.FATAL,
+									AlertDescription.ILLEGAL_PARAMETER,
+									serverHello.getPeer()));
+				} else {
 					this.serverHello = serverHello;
-					setCipherSuite(session.getCipherSuite());
-					setCompressionMethod(session.getCompressionMethod());
 					serverRandom = serverHello.getRandom();
 				}
 				break;
@@ -192,9 +210,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// the client's finished verify_data must also contain the server's
 			// finished message
 			mdWithServerFinish = (MessageDigest) md.clone();
-		} catch (Exception e) {
-			LOGGER.severe("Clone not supported.");
-			e.printStackTrace();
+		} catch (CloneNotSupportedException e) {
+			throw new HandshakeException(
+					"Cannot create FINISHED message hash",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.INTERNAL_ERROR,
+							message.getPeer()));
 		}
 		mdWithServerFinish.update(message.getRawMessage());
 
@@ -203,15 +225,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		handshakeHash = md.digest();
 		message.verifyData(session.getMasterSecret(), false, handshakeHash);
 		
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
 		flight.addMessage(wrapMessage(changeCipherSpecMessage));
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
-		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), session.getPeer());
+		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), message.getPeer());
 		flight.addMessage(wrapMessage(applicationMessage));
 		
 		state = HandshakeType.FINISHED.getCode();
@@ -227,7 +249,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session, supportedClientCertificateTypes, supportedServerCertificateTypes);
+		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session,
+				supportedClientCertificateTypes, supportedServerCertificateTypes);
 
 		clientRandom = message.getRandom();
 
