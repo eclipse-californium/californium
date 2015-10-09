@@ -22,6 +22,8 @@
  *                                                    synchronize methods to allow for concurrent access
  *    Kai Hudalla (Bosch Software Innovations GmbH) - provide access to peer's identity as a
  *                                                    java.security.Principal (fix 464812)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - provide access to cipher suite's maximum
+ *                                                    plaintext expansion
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -36,32 +38,30 @@ import java.util.logging.Logger;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 
-
 /**
  * Represents a DTLS session between two peers. Keeps track of the current and
  * pending read/write states, the current epoch and sequence number, etc.
  */
-public class DTLSSession {
-	
+public final class DTLSSession {
+
 	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
 	private static final int RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
-	
+	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
+
 	/**
-	 * The remote peer of this session.
+	 * This session's peer's IP address and port.
 	 */
 	private InetSocketAddress peer = null;
-	
+
 	/**
-	 * An arbitrary byte sequence chosen by the server to identify an active or
-	 * resumable session state.
+	 * An arbitrary byte sequence chosen by the server to identify this session.
 	 */
 	private SessionId sessionIdentifier = null;
 
 	private Principal peerIdentity;
-	
-	/** The algorithm used to compress data prior to encryption. */
-	private CompressionMethod compressionMethod;
+
+	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
 
 	/**
 	 * Specifies the pseudorandom function (PRF) used to generate keying
@@ -70,9 +70,14 @@ public class DTLSSession {
 	 * attributes such as the mac_length. (See Appendix A.6 for formal
 	 * definition.)
 	 */
-	private CipherSuite cipherSuite;
+	private CipherSuite cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 
-	/** 48-byte secret shared between the client and server. */
+	private CompressionMethod compressionMethod = CompressionMethod.NULL;
+
+	/**
+	 * The 48-byte master secret shared by client and server to derive
+	 * key material from.
+	 */
 	private byte[] masterSecret = null;
 
 	/**
@@ -86,41 +91,54 @@ public class DTLSSession {
 	private PublicKey peerRawPublicKey;	
 
 	/**
-	 * Whether this entity is considered the "client" or the "server" in this
-	 * connection.
+	 * Indicates whether this object represents the <em>client</em> or the <em>server</em>
+	 * side of the connection. The <em>client</em> side is the one initiating the handshake.
 	 */
-	private boolean isClient;
+	private final boolean isClient;
 
+	/**
+	 * The <em>current read state</em> used for processing all inbound records.
+	 */
 	private DTLSConnectionState readState = new DTLSConnectionState();
+	/**
+	 * The <em>current write state</em> used for processing all outbound records.
+	 */
 	private DTLSConnectionState writeState = new DTLSConnectionState();
 
-	/** The current epoch, incremented with every Change Cipher Spec. */
+	/**
+	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message received
+	 */
 	private int readEpoch = 0;
+	/**
+	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message sent
+	 */
 	private int writeEpoch = 0;
 
-	/** The next sequence number the record must have for each epoch separately. */
-	private Map<Integer, Long> sequenceNumbers = new HashMap<>();
-	
 	/**
-	 * Indicates whether only the RawPublicKey is sent or a full X.509
-	 * certificates.
+	 * The next record sequence number per epoch.
+	 */
+	private Map<Integer, Long> sequenceNumbers = new HashMap<>();
+
+	/**
+	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
+	 * If <code>true</code> send a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
 	private boolean sendRawPublicKey = false;
-	
+
 	/**
-	 * Indicates whether the peer sends a RawPublicKey.
+	 * Indicates the type of certificate to expect from the peer in a CERTIFICATE message.
+	 * If <code>true</code> expect a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
 	private boolean receiveRawPublicKey = false;
 
 	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
-	
-	
+
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
-	 * Called when initializing a fresh session.
+	 * Creates a session using default values for all fields.
 	 *
 	 * @param peerAddress
 	 *            the remote address
@@ -130,15 +148,19 @@ public class DTLSSession {
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient) {
 		this(peerAddress, isClient, 0);
 	}
-	
-	
+
 	/**
-	 * Called to resuming an existing session.
+	 * Creates an instance based on the <em>current connection state</em> of
+	 * a session that is to be resumed.
+	 * <p>
+	 * The newly created session will have its <em>pending state</em> initialized with
+	 * the given session's <em>current write state</em> so that it can be used during
+	 * the abbreviated handshake used to resume the session.
 	 *
 	 * @param peerAddress
 	 *            the remote address
-	 * @param session
-	 *            the session to resume
+	 * @param sessionToResume
+	 *            the session to be resumed
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -147,14 +169,14 @@ public class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, DTLSSession session,long initialSequenceNo){
-		this(peerAddress, session.isClient, initialSequenceNo);
-		sessionIdentifier = session.sessionIdentifier;
-		setCipherSuite(session.cipherSuite);
-		sendRawPublicKey = session.sendRawPublicKey;
-		receiveRawPublicKey = session.receiveRawPublicKey;
-		masterSecret = session.masterSecret;
-		compressionMethod = session.compressionMethod;
+	public DTLSSession(InetSocketAddress peerAddress, DTLSSession sessionToResume, long initialSequenceNo){
+		this(peerAddress, sessionToResume.isClient, initialSequenceNo);
+		sessionIdentifier = sessionToResume.sessionIdentifier;
+		cipherSuite = sessionToResume.getWriteState().getCipherSuite();
+		compressionMethod = sessionToResume.getWriteState().getCompressionMethod();
+		sendRawPublicKey = sessionToResume.sendRawPublicKey;
+		receiveRawPublicKey = sessionToResume.receiveRawPublicKey;
+		masterSecret = sessionToResume.masterSecret;
 	}
 
 	/**
@@ -180,12 +202,7 @@ public class DTLSSession {
 		} else {
 			this.peer = peerAddress;
 			this.isClient = isClient;
-			this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
-			this.compressionMethod = CompressionMethod.NULL;
 			this.sequenceNumbers.put(0, initialSequenceNo);
-			// initialize current read/write state with NULL cipher suite
-			this.readState = new DTLSConnectionState();
-			this.writeState = new DTLSConnectionState();
 		}
 	}
 
@@ -195,7 +212,7 @@ public class DTLSSession {
 		return sessionIdentifier;
 	}
 
-	final synchronized void setSessionIdentifier(SessionId sessionIdentifier) {
+	void setSessionIdentifier(SessionId sessionIdentifier) {
 		this.sessionIdentifier = sessionIdentifier;
 	}
 
@@ -207,7 +224,7 @@ public class DTLSSession {
 	 * been authenticated or the handshake was PSK based
 	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
-	public final PublicKey getPeerRawPublicKey() {
+	public PublicKey getPeerRawPublicKey() {
 		return peerRawPublicKey;
 	}
 
@@ -216,40 +233,85 @@ public class DTLSSession {
 	 * @param key
 	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
 	 */
-	final synchronized void setPeerRawPublicKey(PublicKey key) {
+	void setPeerRawPublicKey(PublicKey key) {
 		peerRawPublicKey = key;
 	}
 
-	public CompressionMethod getCompressionMethod() {
-		return compressionMethod;
-	}
-
-	public void setCompressionMethod(CompressionMethod compressionMethod) {
-		this.compressionMethod = compressionMethod;
-	}
-
-	final CipherSuite getCipherSuite() {
+	/**
+	 * Gets the cipher and MAC algorithm to be used for this session.
+	 * <p>
+	 * The value returned is part of the <em>pending connection state</em> which
+	 * has been negotiated with the peer. This means that it is not in effect
+	 * until the <em>pending</em> state becomes the <em>current</em> state using
+	 * one of the {@link #setReadState(DTLSConnectionState)}
+	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * 
+	 * @return the algorithms to be used
+	 */
+	CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
 	/**
-	 * Sets the cipher suite to be used for this session.
-	 *  
-	 * @param cipherSuite the cipher suite
+	 * Sets the cipher and MAC algorithm to be used for this session.
+	 * <p>
+	 * The value set using this method becomes part of the <em>pending connection state</em>.
+	 * This means that it will not be in effect until the <em>pending</em> state becomes the
+	 * <em>current</em> state using one of the {@link #setReadState(DTLSConnectionState)}
+	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * 
+	 * @param cipherSuite the algorithms to be used
+	 * @throws IllegalArgumentException if the given cipher suite is <code>null</code>
+	 * 	or {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
-	final synchronized void setCipherSuite(CipherSuite cipherSuite) {
-		this.cipherSuite = cipherSuite;
+	void setCipherSuite(CipherSuite cipherSuite) {
+		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
+			throw new IllegalArgumentException("Negotiated cipher suite must not be null");
+		} else {
+			this.cipherSuite = cipherSuite;
+		}
 	}
 
-	public final boolean isClient() {
+	/**
+	 * Gets the algorithm to be used for reducing the size of <em>plaintext</em> data to
+	 * be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em> messages.
+	 * <p>
+	 * The value returned is part of the <em>pending connection state</em> which
+	 * has been negotiated with the peer. This means that it is not in effect
+	 * until the <em>pending</em> state becomes the <em>current</em> state using
+	 * one of the {@link #setReadState(DTLSConnectionState)}
+	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * 
+	 * @return the algorithm identifier
+	 */
+	CompressionMethod getCompressionMethod() {
+		return compressionMethod;
+	}
+
+	/**
+	 * Sets the algorithm to be used for reducing the size of <em>plaintext</em> data to
+	 * be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em> messages.
+	 * <p>
+	 * The value set using this method becomes part of the <em>pending connection state</em>.
+	 * This means that it will not be in effect until the <em>pending</em> state becomes the
+	 * <em>current</em> state using one of the {@link #setReadState(DTLSConnectionState)}
+	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * 
+	 * @param compressionMethod the algorithm identifier
+	 */
+	void setCompressionMethod(CompressionMethod compressionMethod) {
+		this.compressionMethod = compressionMethod;
+	}
+
+	boolean isClient() {
 		return this.isClient;
 	}
 
-	public final int getWriteEpoch() {
+	public int getWriteEpoch() {
 		return writeEpoch;
 	}
-	
-	final synchronized void setWriteEpoch(int epoch) {
+
+	void setWriteEpoch(int epoch) {
 		if (epoch < 0) {
 			throw new IllegalArgumentException("Write epoch must not be negative");
 		} else {
@@ -257,11 +319,11 @@ public class DTLSSession {
 		}
 	}
 
-	public final int getReadEpoch() {
+	public int getReadEpoch() {
 		return readEpoch;
 	}
-	
-	final synchronized void setReadEpoch(int epoch) {
+
+	void setReadEpoch(int epoch) {
 		if (epoch < 0) {
 			throw new IllegalArgumentException("Read epoch must not be negative");
 		} else {
@@ -275,9 +337,6 @@ public class DTLSSession {
 		this.readEpoch++;
 	}
 
-	/**
-	 * Increments the epoch and sets the sequence number of the new epoch to 0.
-	 */
 	private synchronized void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
@@ -293,7 +352,7 @@ public class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public final synchronized long getSequenceNumber() {
+	public synchronized long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
@@ -307,7 +366,7 @@ public class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public final synchronized long getSequenceNumber(int epoch) {
+	public synchronized long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
@@ -330,7 +389,7 @@ public class DTLSSession {
 	 * 
 	 * @return the current read state
 	 */
-	final DTLSConnectionState getReadState() {
+	DTLSConnectionState getReadState() {
 		return readState;
 	}
 
@@ -351,7 +410,7 @@ public class DTLSSession {
 	 * @param readState the current read state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	final synchronized void setReadState(DTLSConnectionState readState) {
+	synchronized void setReadState(DTLSConnectionState readState) {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
@@ -370,7 +429,7 @@ public class DTLSSession {
 	 * 
 	 * @return the current read state
 	 */
-	final DTLSConnectionState getWriteState() {
+	DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
@@ -392,7 +451,7 @@ public class DTLSSession {
 	 * @param writeState the current write state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	final synchronized void setWriteState(DTLSConnectionState writeState) {
+	synchronized void setWriteState(DTLSConnectionState writeState) {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
@@ -402,7 +461,11 @@ public class DTLSSession {
 	}
 
 	final KeyExchangeAlgorithm getKeyExchange() {
-		return cipherSuite.getKeyExchange();
+		if (cipherSuite == null) {
+			throw new IllegalStateException("Cipher suite has not been set (yet)");
+		} else {
+			return cipherSuite.getKeyExchange();
+		}
 	}
 
 	/**
@@ -412,7 +475,7 @@ public class DTLSSession {
 	 * @return the secret or <code>null</code> if it has not yet been
 	 * created
 	 */
-	final byte[] getMasterSecret() {
+	byte[] getMasterSecret() {
 		return masterSecret;
 	}
 
@@ -443,49 +506,116 @@ public class DTLSSession {
 		}
 	}
 
-	final boolean sendRawPublicKey() {
+	/**
+	 * Sets the maximum amount of (unencrypted) payload data that can be sent to this session's
+	 * peer in a single DTLS record.
+	 * <p>
+	 * The value of this property corresponds directly to the <em>DTLSPlaintext.length</em> field
+	 * as defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * Section 4.3.1</a>.
+	 * <p>
+	 * The default value of this property is 2^14 bytes.
+	 * 
+	 * @param length the maximum length in bytes
+	 * @throws IllegalArgumentException if the given length is &lt; 0 or &gt; 2^14
+	 */
+	void setMaxFragmentLength(int length) {
+		if (length < 0 || length > MAX_FRAGMENT_LENGTH_DEFAULT) {
+			throw new IllegalArgumentException("Max. fragment length must be > 0 and < " + MAX_FRAGMENT_LENGTH_DEFAULT);
+		} else {
+			this.maxFragmentLength = length;
+		}
+	}
+
+	/**
+	 * Gets the maximum amount of (unencrypted) payload data that can be sent to this session's
+	 * peer in a single DTLS record.
+	 * <p>
+	 * The value of this property corresponds directly to the <em>DTLSPlaintext.length</em> field
+	 * as defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * Section 4.3.1</a>.
+	 * <p>
+	 * The value returned by this method can be used together with the value returned by the
+	 * {@link #getMaxCiphertextExpansion()} method to calculate the overall maximum length of a
+	 * single <em>DTLSCiphertext.fragment</em> created using this session's <em>current write state</em>.
+	 * 
+	 * @return the maximum length in bytes
+	 */
+	public int getMaxFragmentLength() {
+		return this.maxFragmentLength;
+	}
+
+	/**
+	 * Gets the maximum number of bytes a <em>DTLSPlaintext.fragment</em> gets expanded
+	 * by when transforming it to a <em>DTLSCiphertext.fragment</em> using the cipher
+	 * algorithm held in this session's <em>current write state</em>.
+	 * <p>
+	 * The amount of expansion introduced depends on multiple factors like the bulk cipher
+	 * algorithm's block size, the MAC length and other parameters determined by the cipher
+	 * suite.
+	 * <p>
+	 * Clients can use this information to determine an upper boundary for the required overall
+	 * size of a datagram to hold the <em>DTLSCiphertext</em> structure created for a given
+	 * <em>DTLSPlaintext</em> structure like this:
+	 * <p>
+	 * <pre>
+	 *    DTLSCiphertext.length <= DTLSPlaintext.length
+	 *                               + ciphertext_expansion
+	 *                               + 13 // record headers
+	 *                               + 12 // message headers
+	 *                               + 8 // UDP headers
+	 *                               + 20 // IP headers
+	 * </pre>
+	 * 
+	 * @return the number of bytes
+	 */
+	public int getMaxCiphertextExpansion() {
+		return writeState.getMaxCiphertextExpansion();
+	}
+
+	boolean sendRawPublicKey() {
 		return sendRawPublicKey;
 	}
 
-	final synchronized void setSendRawPublicKey(boolean sendRawPublicKey) {
+	void setSendRawPublicKey(boolean sendRawPublicKey) {
 		this.sendRawPublicKey = sendRawPublicKey;
 	}
 
-	final boolean receiveRawPublicKey() {
+	boolean receiveRawPublicKey() {
 		return receiveRawPublicKey;
 	}
 
-	final synchronized void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
+	void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
 		this.receiveRawPublicKey = receiveRawPublicKey;
 	}
 
 	public InetSocketAddress getPeer() {
 		return peer;
 	}
-	
+
 	/**
 	 * Gets the authenticated peer's identity.
 	 * 
 	 * @return the identity or <code>null</code> if the peer has not been
-	 * authenticated
+	 *            authenticated
 	 */
-	public final Principal getPeerIdentity() {
+	public Principal getPeerIdentity() {
 		return peerIdentity;
 	}
-	
+
 	/**
 	 * Sets the authenticated peer's identity.
 	 * 
 	 * @param the identity
 	 * @throws NullPointerException if the identity is <code>null</code>
 	 */
-	final synchronized void setPeerIdentity(Principal peerIdentity) {
+	void setPeerIdentity(Principal peerIdentity) {
 		if (peerIdentity == null) {
 			throw new NullPointerException("Peer identity must not be null");
 		}
 		this.peerIdentity = peerIdentity;
 	}
-	
+
 	/**
 	 * Gets the identity presented by a peer during a <em>pre-shared key</em>
 	 * based handshake.
@@ -494,7 +624,7 @@ public class DTLSSession {
 	 * has not been authenticated at all or the handshake was ECDH based
 	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
-	public final String getPskIdentity() {
+	public String getPskIdentity() {
 		return pskIdentity;
 	}
 
@@ -503,7 +633,7 @@ public class DTLSSession {
 	 * @param pskIdentity
 	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
 	 */
-	final synchronized void setPskIdentity(String pskIdentity) {
+	void setPskIdentity(String pskIdentity) {
 		this.pskIdentity = pskIdentity;
 	}
 
@@ -521,7 +651,7 @@ public class DTLSSession {
 	 * @param sequenceNo the record's sequence number
 	 * @return <code>true</code> if the record satisfies the conditions above
 	 */
-	public final boolean isRecordProcessable(long epoch, long sequenceNo) {
+	public boolean isRecordProcessable(long epoch, long sequenceNo) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
 			// discard record as proposed in DTLS 1.2
@@ -586,7 +716,7 @@ public class DTLSSession {
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
 	 */
-	public final synchronized void markRecordAsRead(long epoch, long sequenceNo) {
+	public synchronized void markRecordAsRead(long epoch, long sequenceNo) {
 
 		if (epoch == getReadEpoch()) {
 			if (sequenceNo > receiveWindowUpperBoundary) {
@@ -603,7 +733,7 @@ public class DTLSSession {
 					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
 		}
 	}
-	
+
 	/**
 	 * Re-initializes the receive window to detect duplicates for a new epoch.
 	 * 

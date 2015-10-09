@@ -16,6 +16,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - turn into an immutable, reduce visibility
  *                                                    to improve encapsulation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add toString()
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - improve JavaDocs, add method for retrieving
+ *                                                    maximum ciphertext expansion of cipher suite
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,24 +27,20 @@ import javax.crypto.spec.IvParameterSpec;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
- * Represents the state of a DTLS connection.
- * 
- * For each DTLS connection four states are maintained:
- * <ul>
- * <li>current read state</li>
- * <li>current write state</li>
- * <li>pending read state</li>
- * <li>pending write state</li>
- * </ul>
- * 
- * A connection state specifies a compression algorithm, an encryption algorithm
- * and a MAC algorithm. All records are processed under the <em>current</em>
- * read and write states.
- * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">RFC 5246</a> for
- * details.
+ * A set of algorithms and corresponding security parameters that together
+ * represent the <em>current read</em> or <em>write state</em> of a TLS connection.
+ * <p>
+ * According to the <a href="http://tools.ietf.org/html/rfc5246#section-6.1">TLS 1.2</a>
+ * specification, a connection state <em>specifies a compression algorithm, an encryption
+ * algorithm, and a MAC algorithm.  In addition, the parameters for these algorithms are
+ * known: the MAC key and the bulk encryption keys for the connection in both the read and
+ * the write directions.</em>
+ * <p>
+ * This class is immutable and thus only appropriate to reflect a <em>current</em> read or
+ * write state whose properties have been negotiated/established already.
  */
 class DTLSConnectionState {
-	
+
 	// Members ////////////////////////////////////////////////////////
 
 	private CipherSuite cipherSuite;
@@ -70,18 +68,19 @@ class DTLSConnectionState {
 	 * Initializes all fields with given values.
 	 * 
 	 * @param cipherSuite
-	 *            the cipher suite used
+	 *            the cipher and MAC algorithm to use for encrypting message content
 	 * @param compressionMethod
-	 *            the compression used
+	 *            the algorithm to use for compressing message content
 	 * @param encryptionKey
-	 *            the secret encryption key used
+	 *            the secret key to use for encrypting message content
 	 * @param iv
-	 *            the initialization vector used
+	 *            the initialization vector to use for encrypting message content
 	 * @param macKey
-	 *            the MAC key used
-	 * @throws NullPointerException if either cipher suite or compression method are <code>null</code>
+	 *            the key to use for creating/verifying message authentication codes (MAC)
+	 * @throws NullPointerException if any of cipher suite or compression method is <code>null</code>
 	 */
-	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey, IvParameterSpec iv, SecretKey macKey) {
+	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey,
+			IvParameterSpec iv, SecretKey macKey) {
 		if (cipherSuite == null) {
 			throw new NullPointerException("Cipher suite must not be null");
 		} else if (compressionMethod == null) {
@@ -100,6 +99,12 @@ class DTLSConnectionState {
 		return cipherSuite;
 	}
 
+	/**
+	 * Gets the algorithm used for reducing the size of <em>plaintext</em> data to
+	 * be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em> messages.
+	 * 
+	 * @return the algorithm identifier
+	 */
 	CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
@@ -134,7 +139,7 @@ class DTLSConnectionState {
 	int getMacLength() {
 		return cipherSuite.getMacLength();
 	}
-	
+
 	/**
 	 * Gets the key length of the MAC algorithm.
 	 *  
@@ -143,9 +148,9 @@ class DTLSConnectionState {
 	int getMacKeyLength() {
 		return cipherSuite.getMacKeyLength();
 	}
-	
+
 	/**
-	 * Gets the length of the cipher algorithms's initialization vector.
+	 * Gets the length of the cipher algorithm's initialization vector.
 	 * 
 	 * For block ciphers (e.g. AES) this is the same as the cipher's
 	 * block size.
@@ -155,7 +160,35 @@ class DTLSConnectionState {
 	int getRecordIvLength() {
 		return cipherSuite.getRecordIvLength();
 	}
-	
+
+	/**
+	 * Gets the maximum number of bytes a <em>DTLSPlaintext.fragment</em> gets expanded
+	 * by when transforming it to a <em>DTLSCiphertext.fragment</em> using the cipher
+	 * algorithm held in this session's <em>current write state</em>.
+	 * <p>
+	 * The amount of expansion introduced depends on multiple factors like the bulk cipher
+	 * algorithm's block size, the MAC length and other parameters determined by the cipher
+	 * suite.
+	 * <p>
+	 * Clients can use this information to determine an upper boundary for the required
+	 * size of a datagram to hold the overall <em>DTLSCiphertext</em> structure created for
+	 * a given <em>DTLSPlaintext</em> structure like this:
+	 * <p>
+	 * <pre>
+	 *    size(DTLSCiphertext) <= DTLSPlaintext.length // length of the DTLSPlaintext.fragment
+	 *                               + ciphertext_expansion
+	 *                               + 13 // record headers
+	 *                               + 12 // message headers
+	 *                               + 8 // UDP headers
+	 *                               + 20 // IP headers
+	 * </pre>
+	 * 
+	 * @return the number of bytes
+	 */
+	final int getMaxCiphertextExpansion() {
+		return cipherSuite.getMaxCiphertextExpansion();
+	}
+
 	@Override
 	public String toString() {
 		StringBuffer b = new StringBuffer("DTLSConnectionState:");
