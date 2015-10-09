@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - notify SessionListener about start and completion
  *                                                    of handshake
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
+ *                                                    properties with corresponding properties in DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -40,7 +42,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
 public class ResumingServerHandshaker extends ServerHandshaker {
-	
+
 	private static final Logger LOGGER = Logger.getLogger(ResumingServerHandshaker.class.getName());
 	
 	// Members ////////////////////////////////////////////////////////
@@ -54,9 +56,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			throws HandshakeException {
 		super(sequenceNumber,session, sessionListener, config);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
-	
+
 	@Override
 	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = null;
@@ -119,52 +121,69 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 * ChangeCipherSpec and Finished message. The ClientHello contains a fresh
 	 * random value which will be needed to generate the new keys.
 	 * 
-	 * @param message
+	 * @param clientHello
 	 *            the client's hello message.
 	 * @return the server's last flight.
 	 * @throws HandshakeException if the server's handshake records cannot be created
 	 */
-	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
+	private DTLSFlight receivedClientHello(ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
-		DTLSFlight flight = new DTLSFlight(getSession());
-		
-		md.update(message.getRawMessage());
+		if (!clientHello.getCipherSuites().contains(session.getCipherSuite())) {
+			throw new HandshakeException(
+					"Client wants to change cipher suite in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							clientHello.getPeer()));
+		} else if (!clientHello.getCompressionMethods().contains(session.getCompressionMethod())) {
+			throw new HandshakeException(
+					"Client wants to change compression method in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							clientHello.getPeer()));
+		} else {
+			DTLSFlight flight = new DTLSFlight(getSession());
+			md.update(clientHello.getRawMessage());
 
-		clientRandom = message.getRandom();
-		serverRandom = new Random(new SecureRandom());
+			clientRandom = clientHello.getRandom();
+			serverRandom = new Random(new SecureRandom());
 
-		ServerHello serverHello = new ServerHello(message.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-				session.getCipherSuite(), session.getCompressionMethod(), null, session.getPeer());
-		flight.addMessage(wrapMessage(serverHello));
-		md.update(serverHello.toByteArray());
+			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
+					session.getCipherSuite(), session.getCompressionMethod(), null, clientHello.getPeer());
+			flight.addMessage(wrapMessage(serverHello));
+			md.update(serverHello.toByteArray());
 
-		setCompressionMethod(session.getCompressionMethod());
+			calculateKeys(session.getMasterSecret());
 
-		calculateKeys(session.getMasterSecret());
+			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
+			flight.addMessage(wrapMessage(changeCipherSpecMessage));
+			setCurrentWriteState();
 
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
-		flight.addMessage(wrapMessage(changeCipherSpecMessage));
-		setCurrentWriteState();
+			MessageDigest mdWithServerFinished = null;
+			try {
+				mdWithServerFinished = (MessageDigest) md.clone();
+			} catch (CloneNotSupportedException e) {
+				throw new HandshakeException(
+						"Cannot create FINISHED message hash",
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.INTERNAL_ERROR,
+								clientHello.getPeer()));
+			}
 
-		MessageDigest mdWithServerFinished = null;
-		try {
-			mdWithServerFinished = (MessageDigest) md.clone();
-		} catch (Exception e) {
-			LOGGER.severe("Clone not supported.");
-			e.printStackTrace();
+			handshakeHash = md.digest();
+			Finished finished = new Finished(session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			flight.addMessage(wrapMessage(finished));
+
+			mdWithServerFinished.update(finished.toByteArray());
+			handshakeHash = mdWithServerFinished.digest();
+
+			return flight;
 		}
-
-		handshakeHash = md.digest();
-		Finished finished = new Finished(session.getMasterSecret(), false, handshakeHash, session.getPeer());
-		flight.addMessage(wrapMessage(finished));
-
-		mdWithServerFinished.update(finished.toByteArray());
-		handshakeHash = mdWithServerFinished.digest();
-
-		return flight;
 	}
-	
+
 	/**
 	 * Verifies the client's Finished message. If valid, encrypted application
 	 * data can be sent, otherwise an Alert must be sent.
@@ -179,5 +198,4 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		sessionEstablished();
 		handshakeCompleted();
 	}
-
 }

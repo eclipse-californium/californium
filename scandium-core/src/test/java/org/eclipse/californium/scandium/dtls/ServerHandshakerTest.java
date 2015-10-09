@@ -79,11 +79,12 @@ public class ServerHandshakerTest {
 		}
 		
 		session = new DTLSSession(endpoint, false);
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(endpoint);
-		builder.setIdentity(privateKey, certificateChain, false)
-			.setTrustStore(trustedCertificates)
-			.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE});
-		handshaker = new ServerHandshaker(session, null, builder.build());
+		DtlsConnectorConfig config = new DtlsConnectorConfig.Builder(endpoint)
+				.setIdentity(privateKey, certificateChain, false)
+				.setTrustStore(trustedCertificates)
+				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
+				.build();
+		handshaker = new ServerHandshaker(session, null, config);
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
@@ -130,7 +131,7 @@ public class ServerHandshakerTest {
 		} catch (HandshakeException e) {
 			// server has aborted handshake as required
 			assertEquals(AlertMessage.AlertLevel.FATAL, e.getAlert().getLevel());
-			assertThat(handshaker.getCipherSuite(), nullValue());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
 		}
 	}
 
@@ -145,7 +146,7 @@ public class ServerHandshakerTest {
 			processClientHello(0, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch (HandshakeException e) {
-			assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 			assertThat(handshaker.getNegotiatedClientCertificateType(), nullValue());
 		}
 	}
@@ -163,7 +164,7 @@ public class ServerHandshakerTest {
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
 			assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
-			assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 			assertThat(handshaker.getNegotiatedClientCertificateType(), nullValue());
 		}
 	}
@@ -179,7 +180,7 @@ public class ServerHandshakerTest {
 				CertificateType.OPEN_PGP.getCode(), CertificateType.X_509.getCode()));
 
 		processClientHello(0, extensions);
-		assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedClientCertificateType(), is(CertificateType.X_509));
 		assertThat(handshaker.getNegotiatedServerCertificateType(), is(CertificateType.X_509));
 	}
@@ -196,7 +197,7 @@ public class ServerHandshakerTest {
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
 			assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
-			assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 			assertThat(handshaker.getNegotiatedServerCertificateType(), nullValue());
 		}
 	}
@@ -211,7 +212,7 @@ public class ServerHandshakerTest {
 			processClientHello(0, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
-			assertThat(handshaker.getCipherSuite(), nullValue());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
 			assertThat(handshaker.getNegotiatedSupportedGroup(), nullValue());
 		}
 	}
@@ -224,7 +225,7 @@ public class ServerHandshakerTest {
 		// curveId 0x0000 is not assigned by IANA
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, supportedGroup.getId()));
 		processClientHello(0, extensions);
-		assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedSupportedGroup(), is(supportedGroup));
 	}
 
@@ -239,7 +240,7 @@ public class ServerHandshakerTest {
 
 		// omit supported elliptic curves extension
 		processClientHello(0, null);
-		assertThat(handshaker.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedSupportedGroup(), notNullValue());
 	}
 
@@ -260,24 +261,24 @@ public class ServerHandshakerTest {
 		Certificate[] clientChain = DtlsTestTools.getCertificateChainFromStore(
 				DtlsTestTools.KEY_STORE_LOCATION,
 				DtlsTestTools.KEY_STORE_PASSWORD,
-				"client");
+				DtlsTestTools.CLIENT_NAME);
 		CertificateMessage certificateMsg = new CertificateMessage(clientChain, endpoint);
 		certificateMsg.setMessageSeq(1);
 		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);
-		
+
 		// create client KEY_EXCHANGE msg
-		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(
-				clientChain[0].getPublicKey(), endpoint);
+		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(clientChain[0].getPublicKey(), endpoint);
 		keyExchangeMsg.setMessageSeq(2);
 		Record keyExchangeRecord = getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
 
+		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue 
 		handshaker.processMessage(keyExchangeRecord);
 		assertThat(handshaker.clientKeyExchange, nullValue());
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
 				handshaker.inboundMessageBuffer.isEmpty());
 		return certificateMsgRecord;
 	}
-	
+
 	private void assertThatAllMessagesHaveBeenProcessedInOrder() {
 		assertThat(handshaker.getNextReceiveSeq(), is(3));
 		assertThat("Client's CERTIFICATE message should have been processed",
