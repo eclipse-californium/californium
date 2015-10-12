@@ -15,6 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.InetSocketAddress;
+
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
@@ -30,7 +34,11 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 
 	public static final int CODE_BITS = 8;
 	private final Length fragmentLength;
-	
+
+	public MaxFragmentLengthExtension(int fragmentLengthCode) {
+		this(Length.fromCode(fragmentLengthCode));
+	}
+
 	public MaxFragmentLengthExtension(Length fragmentLength) {
 		super(ExtensionType.MAX_FRAGMENT_LENGTH);
 		if (fragmentLength == null) {
@@ -39,36 +47,63 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 		this.fragmentLength = fragmentLength;
 	}
 
-	@Override
-	public int getLength() {
-		// TODO Auto-generated method stub
-		return 0;
+	public Length getFragmentLength() {
+		return fragmentLength;
 	}
 
-	static final MaxFragmentLengthExtension fromExtensionData(byte[] extensionData) {
+	@Override
+	public int getLength() {
+		// fixed: 2 byte (type ID) + 2 byte (length of extension data) + 1 byte (extension data)
+		return 5;
+	}
+
+	/**
+	 * Creates an instance from a <em>MaxFragmentLength</em> structure as defined
+	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
+	 * 
+	 * @param extensionData the extension data struct containing the length code
+	 * @param peerAddress the IP address and port of the peer that sent the extension
+	 * @return the extension object
+	 * @throws HandshakeException if the extension data contains an unknown code
+	 */
+	static final MaxFragmentLengthExtension fromExtensionData(byte[] extensionData,
+			InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(extensionData);
-		Length length = Length.fromCode(reader.read(CODE_BITS));
+		int code = reader.read(CODE_BITS);
+		Length length = Length.fromCode(code);
 		if (length != null) {
 			return new MaxFragmentLengthExtension(length);
 		} else {
-			return null;
+			throw new HandshakeException(
+					String.format(
+							"Peer uses unknown code [%d] in %s extension",
+							code, ExtensionType.MAX_FRAGMENT_LENGTH.name()),
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							peerAddress));
 		}
 	}
 
 	@Override
 	protected void addExtensionData(DatagramWriter writer) {
+		writer.write(1, LENGTH_BITS);
 		writer.write(fragmentLength.code, CODE_BITS);
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tCode: ").append(fragmentLength.code()).append("\n");
-		sb.append("\t\t\t\tMax. Fragment Length: ").append(fragmentLength.length());
+		sb.append("\t\t\t\tCode: ").append(fragmentLength.code()).append(" (")
+			.append(fragmentLength.length()).append(" bytes)");
 		return sb.toString();
 	}
 
-	enum Length {
+	/**
+	 * The codes representing the lengths that can be negotiated using the
+	 * <em>Max Fragment Length</em> Hello extension.
+	 */
+	public enum Length {
 		BYTES_512(1, 512), BYTES_1024(2, 1024), BYTES_2048(3, 2048), BYTES_4096(4, 4096);
 
 		private int code;
@@ -79,21 +114,38 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 			this.length = length;
 		}
 
-		int code() {
+		public int code() {
 			return code;
 		}
 
-		int length() {
+		/**
+		 * Gets the length in bytes this code represents.
+		 * 
+		 * @return the length
+		 */
+		public int length() {
 			return length;
 		}
 
-		static Length fromCode(int code) {
-			for (Length length : values()) {
-				if (length.code() == code) {
-					return length;
-				}
+		/**
+		 * Creates an instance from its code.
+		 * 
+		 * @param code the code
+		 * @return the instance or <code>null</code> if the given code is unknown
+		 */
+		public static Length fromCode(int code) {
+			switch(code) {
+			case 1:
+				return BYTES_512;
+			case 2:
+				return BYTES_1024;
+			case 3:
+				return BYTES_2048;
+			case 4:
+				return BYTES_4096;
+			default:
+				return null;
 			}
-			return null;
 		}
 	}
 }

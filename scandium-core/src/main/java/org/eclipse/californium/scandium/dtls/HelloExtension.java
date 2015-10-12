@@ -114,7 +114,7 @@ public abstract class HelloExtension {
 	 * 
 	 * @param typeCode the extension type code
 	 * @param extensionData the serialized extension
-	 * @param the IP address and port of the peer that sent this extension
+	 * @param peerAddress the IP address and port of the peer that sent this extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
@@ -137,7 +137,7 @@ public abstract class HelloExtension {
 			case SERVER_CERT_TYPE:
 				return ServerCertificateTypeExtension.fromExtensionData(extensionData);
 			case MAX_FRAGMENT_LENGTH:
-				return MaxFragmentLengthExtension.fromExtensionData(extensionData);
+				return MaxFragmentLengthExtension.fromExtensionData(extensionData, peerAddress);
 			default:
 				return null;
 			}
