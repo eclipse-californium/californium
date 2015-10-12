@@ -24,6 +24,8 @@
  *                                                    java.security.Principal (fix 464812)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - provide access to cipher suite's maximum
  *                                                    plaintext expansion
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - calculate max fragment size based on (P)MTU, explicit
+ *                                                    value provided by peer and current write state
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -44,6 +46,11 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
  */
 public final class DTLSSession {
 
+	// 53 bytes overall header length
+	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
+								+ 13 // bytes DTLS record headers
+								+ 8 // bytes UDP headers
+								+ 20; // bytes IP headers
 	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
 	private static final int RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
@@ -62,6 +69,7 @@ public final class DTLSSession {
 	private Principal peerIdentity;
 
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
+	private int maxTransmissionUnit = 1400; // a little less than standard ethernet MTU (1500)
 
 	/**
 	 * Specifies the pseudorandom function (PRF) used to generate keying
@@ -457,6 +465,8 @@ public final class DTLSSession {
 		}
 		this.writeState = writeState;
 		incrementWriteEpoch();
+		// re-calculate maximum fragment length based on cipher suite from updated write state
+		determineMaxFragmentLength(maxFragmentLength);
 		LOGGER.log(Level.FINEST, "Setting current write state to\n{0}", writeState);
 	}
 
@@ -507,14 +517,18 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Sets the maximum amount of (unencrypted) payload data that can be sent to this session's
-	 * peer in a single DTLS record.
+	 * Sets the maximum amount of unencrypted payload data that can be received and processed by
+	 * this session's peer in a single DTLS record.
 	 * <p>
 	 * The value of this property corresponds directly to the <em>DTLSPlaintext.length</em> field
 	 * as defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
 	 * Section 4.3.1</a>.
 	 * <p>
 	 * The default value of this property is 2^14 bytes.
+	 * <p>
+	 * This method checks if a fragment of the given maximum length can be transmitted in a single
+	 * datagram without the need for IP fragmentation. If not the given length is reduced to the
+	 * maximum value for which this is possible.
 	 * 
 	 * @param length the maximum length in bytes
 	 * @throws IllegalArgumentException if the given length is &lt; 0 or &gt; 2^14
@@ -523,54 +537,66 @@ public final class DTLSSession {
 		if (length < 0 || length > MAX_FRAGMENT_LENGTH_DEFAULT) {
 			throw new IllegalArgumentException("Max. fragment length must be > 0 and < " + MAX_FRAGMENT_LENGTH_DEFAULT);
 		} else {
-			this.maxFragmentLength = length;
+			determineMaxFragmentLength(length);
 		}
 	}
 
 	/**
-	 * Gets the maximum amount of (unencrypted) payload data that can be sent to this session's
-	 * peer in a single DTLS record.
+	 * Gets the maximum size of a UDP datagram that can be sent to this session's peer without IP fragmentation.
+	 *  
+	 * @return the maximum size in bytes
+	 */
+	public int getMaxDatagramSize() {
+		return this.maxFragmentLength + writeState.getMaxCiphertextExpansion() + HEADER_LENGTH;
+	}
+
+	/**
+	 * Sets the maximum size of an IP packet that can be transmitted unfragmented to this
+	 * session's peer (PMTU).
 	 * <p>
-	 * The value of this property corresponds directly to the <em>DTLSPlaintext.length</em> field
-	 * as defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
-	 * Section 4.3.1</a>.
+	 * The given value is used to derive the maximum amount of unencrypted data that can
+	 * be sent to the peer in a single DTLS record.
+	 * 
+	 * @param mtu the maximum size in bytes
+	 * @throws IllegalArgumentException if the given value is &lt; 60
+	 * @see #getMaxFragmentLength()
+	 */
+	void setMaxTransmissionUnit(int mtu) {
+		if (mtu < 60) {
+			throw new IllegalArgumentException("MTU must be at least 60 bytes");
+		} else {
+			LOGGER.log(Level.FINER, "Setting MTU for peer [{0}] to {1} bytes",
+					new Object[]{peer, mtu});
+			this.maxTransmissionUnit = mtu;
+			determineMaxFragmentLength(mtu);
+		}
+	}
+
+	private void determineMaxFragmentLength(int maxProcessableFragmentLength) {
+		int maxDatagramSize = maxProcessableFragmentLength + writeState.getMaxCiphertextExpansion() + HEADER_LENGTH;
+		if (maxDatagramSize <= maxTransmissionUnit) {
+			this.maxFragmentLength = maxProcessableFragmentLength;
+		} else {
+			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
+		}
+		LOGGER.log(Level.FINER, "Setting maximum fragment length for peer [{0}] to {1} bytes",
+				new Object[]{peer, this.maxFragmentLength});
+	}
+
+	/**
+	 * Gets the maximum amount of unencrypted payload data that can be sent to this session's
+	 * peer in a single DTLS record created under this session's <em>current write state</em>.
 	 * <p>
-	 * The value returned by this method can be used together with the value returned by the
-	 * {@link #getMaxCiphertextExpansion()} method to calculate the overall maximum length of a
-	 * single <em>DTLSCiphertext.fragment</em> created using this session's <em>current write state</em>.
+	 * The value of this property serves as an upper boundary for the <em>DTLSPlaintext.length</em>
+	 * field defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * Section 4.3.1</a>. This means that an application can assume that any message containing at
+	 * most as many bytes as indicated by this method, will be delivered to the peer in a single
+	 * unfragmented IP datagram.
 	 * 
 	 * @return the maximum length in bytes
 	 */
 	public int getMaxFragmentLength() {
 		return this.maxFragmentLength;
-	}
-
-	/**
-	 * Gets the maximum number of bytes a <em>DTLSPlaintext.fragment</em> gets expanded
-	 * by when transforming it to a <em>DTLSCiphertext.fragment</em> using the cipher
-	 * algorithm held in this session's <em>current write state</em>.
-	 * <p>
-	 * The amount of expansion introduced depends on multiple factors like the bulk cipher
-	 * algorithm's block size, the MAC length and other parameters determined by the cipher
-	 * suite.
-	 * <p>
-	 * Clients can use this information to determine an upper boundary for the required overall
-	 * size of a datagram to hold the <em>DTLSCiphertext</em> structure created for a given
-	 * <em>DTLSPlaintext</em> structure like this:
-	 * <p>
-	 * <pre>
-	 *    DTLSCiphertext.length <= DTLSPlaintext.length
-	 *                               + ciphertext_expansion
-	 *                               + 13 // record headers
-	 *                               + 12 // message headers
-	 *                               + 8 // UDP headers
-	 *                               + 20 // IP headers
-	 * </pre>
-	 * 
-	 * @return the number of bytes
-	 */
-	public int getMaxCiphertextExpansion() {
-		return writeState.getMaxCiphertextExpansion();
 	}
 
 	boolean sendRawPublicKey() {
