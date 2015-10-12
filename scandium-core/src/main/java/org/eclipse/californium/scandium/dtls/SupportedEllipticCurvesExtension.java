@@ -118,12 +118,13 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
 		for (Integer curveId : supportedGroups) {
 			SupportedGroup group = SupportedGroup.fromId(curveId);
+			sb.append("\n\t\t\t\t\tElliptic Curve: ");
 			if (group != null) {
-				sb.append("\n\t\t\t\t\tElliptic Curve: ").append(group.name());
+				sb.append(group.name());
 			} else {
-				sb.append("\n\t\t\t\t\tElliptic Curve: unknown");
+				sb.append("unknown");
 			}
-			sb.append(" (").append(curveId).append(")\n");
+			sb.append(" (").append(curveId).append(")");
 		}
 
 		return sb.toString();
