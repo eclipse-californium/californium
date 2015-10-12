@@ -19,7 +19,9 @@ package org.eclipse.californium.scandium.dtls;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -38,12 +40,12 @@ public class HelloExtensionsTest {
 	byte[] helloExtensionBytes;
 	HelloExtensions helloExtensions;
 	InetSocketAddress peerAddress;
-	
+
 	@Before
-	public void setUp() {
-		peerAddress = new InetSocketAddress("localhost", 5684);
+	public void setUp() throws UnknownHostException {
+		peerAddress = new InetSocketAddress(InetAddress.getLocalHost(), 5684);
 	}
-	
+
 	@Test
 	public void testSerializationDeserialization() throws HandshakeException {
 		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(true);
@@ -115,21 +117,21 @@ public class HelloExtensionsTest {
 	private void givenAnEmptyExtensionsObject() {
 		helloExtensions = new HelloExtensions();
 	}
-	
+
 	private void whenSerializingToByteArray() {
 		helloExtensionBytes = helloExtensions.toByteArray();
 	}
-	
+
 	private void whenDeserializingFromByteArray() throws HandshakeException {
 		helloExtensions = HelloExtensions.fromByteArray(helloExtensionBytes, peerAddress);
 	}
-	
-    private boolean containsExtensionType(int type, List<HelloExtension> extensions) {
-    	for (HelloExtension ext : extensions) {
-    		if (ext.getType().getId() == type) {
-    			return true;
-    		}
-    	}
-    	return false;
-    }
+
+	private boolean containsExtensionType(int type, List<HelloExtension> extensions) {
+		for (HelloExtension ext : extensions) {
+			if (ext.getType().getId() == type) {
+				return true;
+			}
+		}
+		return false;
+	}
 }
