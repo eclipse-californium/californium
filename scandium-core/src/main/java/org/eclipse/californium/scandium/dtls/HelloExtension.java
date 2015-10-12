@@ -15,17 +15,37 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve toString()
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for <em>MaxFragmentLength</em> extension
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - improve documentation, provide peer address to subclasses 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
  * An abstract class representing the functionality for all possible defined
- * extensions. See <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4">RFC 5246</a> for
- * the extension format.
+ * extensions.
+ * <p>
+ * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4">RFC 5246</a>
+ * for the extension format.
+ * <p>
+ * In particular this class is an object representation of the <em>Extension>/em>
+ * struct defined in <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4">
+ * TLS 1.2, Section 7.4.1.4</a>:
+ * 
+ * <pre>
+ * struct {
+ *    ExtensionType extension_type;
+ *    opaque extension_data<0..2^16-1>;
+ * } Extension;
+ * 
+ * enum {
+ *    signature_algorithms(13), (65535)
+ * } ExtensionType;
+ * </pre>
+
  */
 public abstract class HelloExtension {
 
@@ -47,6 +67,13 @@ public abstract class HelloExtension {
 
 	// Abstract methods ///////////////////////////////////////////////
 
+	/**
+	 * Gets the overall length of this extension's corresponding <em>Extension</em> struct.
+	 * <p>
+	 * Note that this includes the 2 bytes indicating the extension type.
+	 * 
+	 * @return the length in bytes
+	 */
 	public abstract int getLength();
 
 	// Serialization //////////////////////////////////////////////////
@@ -87,12 +114,14 @@ public abstract class HelloExtension {
 	 * 
 	 * @param typeCode the extension type code
 	 * @param extensionData the serialized extension
+	 * @param the IP address and port of the peer that sent this extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
 	 * to erroneous encoding etc.
 	 */
-	public static HelloExtension fromByteArray(int typeCode, byte[] extensionData) throws HandshakeException {
+	public static HelloExtension fromByteArray(int typeCode, byte[] extensionData, InetSocketAddress peerAddress)
+			throws HandshakeException {
 		ExtensionType type = ExtensionType.getExtensionTypeById(typeCode);
 		if (type == null) {
 			return null;
@@ -123,11 +152,11 @@ public abstract class HelloExtension {
 		sb.append("\t\t\tExtension: ").append(type).append(" (").append(type.getId()).append(")\n");
 		return sb.toString();
 	}
-	
+
 	final ExtensionType getType() {
 		return type;
 	}
-	
+
 	// Extension type Enum ////////////////////////////////////////////
 
 	/**
@@ -209,7 +238,7 @@ public abstract class HelloExtension {
 			this.id = id;
 			this.name = name;
 		}
-		
+
 		/**
 		 * Gets an extension type by its numeric id as defined by <a href=
 		 * "http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xml">IANA</a>

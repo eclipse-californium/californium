@@ -95,9 +95,9 @@ public final class HelloExtensions {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\t\tExtensions Length: ").append(getLength()).append("\n");
+		sb.append("\t\tExtensions Length: ").append(getLength());
 		for (HelloExtension ext : extensions) {
-			sb.append(ext.toString());
+			sb.append("\n").append(ext.toString());
 		}
 		return sb.toString();
 	}
@@ -129,14 +129,15 @@ public final class HelloExtensions {
 			int typeId = reader.read(HelloExtension.TYPE_BITS);
 			int extensionLength = reader.read(HelloExtension.LENGTH_BITS);
 			byte[] extensionBytes = reader.readBytes(extensionLength);
-			HelloExtension extension = HelloExtension.fromByteArray(typeId, extensionBytes);
-			
+			HelloExtension extension = HelloExtension.fromByteArray(typeId, extensionBytes, peerAddress);
+
 			if (extension != null) {
 				extensions.add(extension);
 			} else {
-				LOGGER.log(Level.FINER,	String.format(
-								"Client included an unknown extension type code in its Hello message [%d]",
-								typeId));
+				LOGGER.log(
+						Level.FINER,
+						"Peer included an unknown extension type code [{0}] in its Hello message",
+						typeId);
 			}
 			// reduce by (type field length + length field length +
 			// extension's length)
@@ -144,7 +145,7 @@ public final class HelloExtensions {
 					+ extensionLength;
 
 		}
-		
+
 		if (length < 0) {
 			// the lengths of the extensions did not add up correctly
 			// this is always FATAL as defined by the TLS spec (section 7.2.2)
