@@ -94,7 +94,7 @@ public class DtlsTestTools {
 		}
 		return newHelloExtension(20, writer.toByteArray());
 	}
-	
+
 	public static byte[] newSupportedEllipticCurvesExtension(int... curveIds) {
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(curveIds.length * 2, 16);
@@ -103,7 +103,11 @@ public class DtlsTestTools {
 		}
 		return newHelloExtension(10, writer.toByteArray());
 	}
-	
+
+	public static byte[] newMaxFragmentLengthExtension(int lengthCode) {
+		return newHelloExtension(1, new byte[]{(byte) lengthCode});
+	}
+
 	public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(typeCode, 16);
@@ -111,7 +115,7 @@ public class DtlsTestTools {
 		writer.writeBytes(extensionBytes);
 		return writer.toByteArray();
 	}
-	
+
 	public static KeyStore loadKeyStore(String keyStoreLocation, String keyStorePassword)
 			throws IOException, GeneralSecurityException {
 		char[] passwd = keyStorePassword.toCharArray();
@@ -119,7 +123,7 @@ public class DtlsTestTools {
 		keyStore.load(new FileInputStream(keyStoreLocation), passwd);
 		return keyStore;
 	}
-	
+
 	public static Key getKeyFromStore(String keyStoreLocation, String keyStorePassword, String keyAlias)
 			throws IOException, GeneralSecurityException {
 		KeyStore keyStore = loadKeyStore(keyStoreLocation, keyStorePassword);
@@ -156,7 +160,7 @@ public class DtlsTestTools {
 				DtlsTestTools.KEY_STORE_PASSWORD, SERVER_NAME);
 		return certChain[0].getPublicKey();
 	}
-	
+
 	public static Certificate[] getTrustedCertificates() throws IOException, GeneralSecurityException {
 		KeyStore trustStore = loadKeyStore(TRUST_STORE_LOCATION, TRUST_STORE_PASSWORD);
 		// You can load multiple certificates if needed
