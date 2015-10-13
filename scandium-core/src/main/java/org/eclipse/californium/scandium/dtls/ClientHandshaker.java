@@ -85,6 +85,8 @@ public class ClientHandshaker extends Handshaker {
 	 * */
 	protected final RawData message;
 
+	private Integer maxFragmentLengthCode;
+
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
@@ -144,7 +146,7 @@ public class ClientHandshaker extends Handshaker {
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
-
+		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
 		if (rootCertificates != null && rootCertificates.length > 0) {
 			this.supportedServerCertificateTypes.add(CertificateType.X_509);
@@ -360,7 +362,20 @@ public class ClientHandshaker extends Handshaker {
 		session.setSessionIdentifier(message.getSessionId());
 		session.setCipherSuite(message.getCipherSuite());
 		session.setCompressionMethod(message.getCompressionMethod());
-
+		if (message.getMaxFragmentLength() != null) {
+			MaxFragmentLengthExtension.Length maxFragmentLength = message.getMaxFragmentLength().getFragmentLength(); 
+			if (maxFragmentLength.code() == maxFragmentLengthCode) {
+				// immediately use negotiated max. fragment size
+				session.setMaxFragmentLength(maxFragmentLength.length());
+			} else {
+				throw new HandshakeException(
+						"Server wants to use other max. fragment size than proposed",
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.ILLEGAL_PARAMETER,
+								message.getPeer()));
+			}
+		}
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
 	}
@@ -616,7 +631,14 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		message.addCompressionMethod(CompressionMethod.NULL);
-
+		if (maxFragmentLengthCode != null) {
+			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
+			message.addExtension(ext);
+			LOGGER.log(
+					Level.FINE,
+					"Indicating max. fragment length [{0}] to server [{1}]",
+					new Object[]{maxFragmentLengthCode, getPeerAddress()});
+		}
 		// set current state
 		state = message.getMessageType().getCode();
 

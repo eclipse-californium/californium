@@ -85,10 +85,11 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class DTLSConnectorTest {
 
+	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
+	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
-	private static final int MAX_PAYLOAD_SIZE = 0; // determine max payload based on network interface's MTU
 	private static KeyStore keyStore;
 	private static PrivateKey serverPrivateKey;
 	private static PrivateKey clientPrivateKey;
@@ -143,7 +144,6 @@ public class DTLSConnectorTest {
 			.setTrustStore(trustedCertificates)
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
-			.setMaxPayloadSize(MAX_PAYLOAD_SIZE)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -181,11 +181,13 @@ public class DTLSConnectorTest {
 	}
 
 	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws KeyStoreException {
+		return newStandardConfigBuilder(bindAddress).build();
+	}
+
+	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws KeyStoreException {
 		return new DtlsConnectorConfig.Builder(bindAddress)
-			.setIdentity(clientPrivateKey, keyStore.getCertificateChain("client"), true)
-			.setTrustStore(trustedCertificates)
-			.setMaxPayloadSize(MAX_PAYLOAD_SIZE)
-		.build();
+				.setIdentity(clientPrivateKey, keyStore.getCertificateChain(DtlsTestTools.CLIENT_NAME), true)
+				.setTrustStore(trustedCertificates);
 	}
 
 	@Test
@@ -635,6 +637,48 @@ public class DTLSConnectorTest {
 		assertThat(senderIdentityVerified.get(), is(Boolean.TRUE));
 	}
 
+	@Test
+	public void testGetMaximumTransmissionUnitReturnsDefaultValue() {
+		// given a connector that has not been started yet
+		DTLSConnector connector = client;
+
+		// when retrieving the maximum transmission unit from the client
+		int mtu = connector.getMaximumTransmissionUnit();
+
+		// then the value is the IPv6 min. MTU
+		assertThat(mtu, is(IPV6_MIN_MTU));
+	}
+
+	@Test
+	public void testGetMaximumFragmentLengthReturnsDefaultValueForUnknownPeer() {
+		// given an empty client side connection store
+		clientConnectionStore.clear();
+
+		// when querying the max fragment length for an unknown peer
+		InetSocketAddress unknownPeer = serverEndpoint;
+		int maxFragmentLength = client.getMaximumFragmentLength(unknownPeer);
+
+		// then the value is the minimum IPv6 MTU - DTLS/UDP/IP header overhead
+		assertThat(maxFragmentLength, is(IPV6_MIN_MTU - DTLS_UDP_IP_HEADER_LENGTH));
+	}
+
+	@Test
+	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
+		// given a constrained client that can only handle fragments of max. 512 bytes
+		clientConfig = newStandardConfigBuilder(clientEndpoint)
+				.setMaxFragmentLengthCode(1)
+				.build();
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+
+		// when the client negotiates a session with the server
+		givenAnEstablishedSession();
+
+		// then any message sent by either the client or server contains at most
+		// 512 bytes of payload data
+		assertThat(client.getMaximumFragmentLength(serverEndpoint), is(512));
+		assertThat(server.getMaximumFragmentLength(clientEndpoint), is(512));
+	}
+
 	private ClientHello createClientHello() {
 		return createClientHello(null);
 	}
@@ -747,7 +791,7 @@ public class DTLSConnectorTest {
 				
 				@Override
 				public void run() {
-					byte[] buf = new byte[config.getMaxPayloadSize()];
+					byte[] buf = new byte[8192];
 					DatagramPacket packet = new DatagramPacket(buf, buf.length);
 					while (running.get()) {
 						try {

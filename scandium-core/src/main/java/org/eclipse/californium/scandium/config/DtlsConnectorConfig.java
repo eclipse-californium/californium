@@ -21,8 +21,6 @@
 package org.eclipse.californium.scandium.config;
 
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
@@ -51,15 +49,14 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  */
 public class DtlsConnectorConfig {
 
-	private static final int MIN_PAYLOAD_SIZE = 60;
 	private InetSocketAddress address;
 
 	private Certificate[] trustStore = new Certificate[0];
 
 	/**
-	 * The maximum number of bytes to send in one datagram.
+	 * The maximum fragment length this connector can process at once.
 	 */
-	private int maxPayloadSize = 0;
+	private Integer maxFragmentLengthCode = null;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
 	private int retransmissionTimeout = 1000;
@@ -98,20 +95,21 @@ public class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the maximum number of bytes that can be sent to a peer within one record.
+	 * Gets the maximum amount of message payload data that this connector can receive in a
+	 * single DTLS record.
+	 * <p>
+	 * The code returned is either <code>null</code> or one of the following:
+	 * <ul>
+	 * <li>1 - 2^9 bytes</li>
+	 * <li>2 - 2^10 bytes</li>
+	 * <li>3 - 2^11 bytes</li>
+	 * <li>4 - 2^12 bytes</li>
+	 * </ul>
 	 * 
-	 * If this property is set to 0 (the default value), the <code>DTLSConnector</code>
-	 * will determine its value according to the following formula:
-	 * <pre>
-	 * maxPayloadSize = Network Interface MTU size
-	 *                    - 28 bytes (IP packet headers)
-	 *                    - 13 bytes (record headers)
-	 * </pre>
-	 * 
-	 * @return the maximum number of bytes
+	 * @return the code indicating the maximum payload length
 	 */
-	public int getMaxPayloadSize() {
-		return maxPayloadSize;
+	public Integer getMaxFragmentLengthCode() {
+		return maxFragmentLengthCode;
 	}
 
 	/**
@@ -320,37 +318,37 @@ public class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the maximum number of bytes that can be sent to a peer within one UDP datagram
-		 * excluding headers.
+		 * Sets the maximum amount of payload data that can be received and processed by this connector
+		 * in a single DTLS record.
 		 * <p>
-		 * The value of this property is used when sending data to peers. Any DTLS record must fit
-		 * into a single datagram. Thus, the value of this property limits the maximum length of
-		 * any record's payload to <code>maxPayloadSize</code> - 13 (DTLS record headers) bytes.
+		 * The value of this property is used to indicate to peers the <em>Maximum Fragment Length</em>
+		 * as defined in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</em>.
+		 * It is also used to determine the amount of memory that will be allocated for receiving UDP datagrams
+		 * sent by peers from the network interface.
 		 * <p>
-		 * The value of this property should be adjusted to the Path MTU in order
-		 * to prevent IP fragmentation. Path MTU values are hard to know in advance
-		 * and hard to come by during runtime as well. An good starting point might be
-		 * using the following formula, though:
-		 * <pre>
-		 * maxPayloadSize = Network Interface MTU size
-		 *                    - 20 bytes (IP headers)
-		 *                    -  8 bytes (UDP headers)
-		 * </pre>
+		 * The code must be either <code>null</code> or one of the following:
+		 * <ul>
+		 * <li>1 - 2^9 bytes</li>
+		 * <li>2 - 2^10 bytes</li>
+		 * <li>3 - 2^11 bytes</li>
+		 * <li>4 - 2^12 bytes</li>
+		 * </ul>
+		 * <p>
+		 * If this property is set to <code>null</code>, the <code>DTLSConnector</code> will
+		 * derive its value from the network interface's <em>Maximum Transmission Unit</em>.
+		 * This means that it will set it to a value small enough to make sure that inbound
+		 * messages fit into a UDP datagram having a size less or equal to the MTU.
 		 * 
-		 * If this property is set to 0 or not set at all, the <code>DTLSConnector</code> will
-		 * determine its value exactly this way. In ethernet based environments the MTU size is
-		 * usually around 1500 bytes resulting in a max. payload size of 1472 bytes and, consequently,
-		 * a maximum record payload length of 1472 - 13 (DTLS record headers) = 1459 bytes.
-		 * 
-		 * @param size the number of bytes
+		 * @param lengthCode the code indicating the maximum length or <code>null</code> to determine
+		 *                   the maximum fragment length based on the network interface's MTU
 		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if size &ne; 0 and size &lt; 60 
+		 * @throws IllegalArgumentException if the code is not one of {1, 2, 3, 4} 
 		 */
-		public Builder setMaxPayloadSize(int size) {
-			if (size < 0 || (size > 0 && size < MIN_PAYLOAD_SIZE)) {
-				throw new IllegalArgumentException("Maximum payload size must be at least " + MIN_PAYLOAD_SIZE + " bytes");
+		public Builder setMaxFragmentLengthCode(Integer lengthCode) {
+			if (lengthCode != null && (lengthCode < 1 || lengthCode > 4)) {
+				throw new IllegalArgumentException("Maximum fragment length code must be one of {1, 2, 3, 4}");
 			} else {
-				config.maxPayloadSize = size;
+				config.maxFragmentLengthCode = lengthCode;
 				return this;
 			}
 		}
@@ -643,17 +641,6 @@ public class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.maxPayloadSize == 0) {
-				// determine max payload size based on network interface's MTU
-				try {
-					NetworkInterface ni = NetworkInterface.getByInetAddress(config.address.getAddress());
-					config.maxPayloadSize = ni.getMTU()
-							- 20 // IP headers
-							- 8; // UDP headers
-				} catch (SocketException e) {
-					throw new IllegalStateException("Cannot bind to address " + config.address);
-				}
-			}
 			return config;
 		}
 	}
