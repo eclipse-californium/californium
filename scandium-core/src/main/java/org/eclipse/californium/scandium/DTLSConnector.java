@@ -76,6 +76,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
@@ -105,7 +106,7 @@ public class DTLSConnector implements Connector {
 			+ MAX_CIPHERTEXT_EXPANSION;
 
 	private InetSocketAddress lastBindAddress;
-	private int maximumTransmissionUnit;
+	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	// guard access to cookieMacKey
@@ -289,6 +290,15 @@ public class DTLSConnector implements Connector {
 			this.maximumTransmissionUnit = 1280;
 		}
 
+		if (config.getMaxFragmentLengthCode() != null) {
+			MaxFragmentLengthExtension.Length lengthCode = MaxFragmentLengthExtension.Length.fromCode(
+					config.getMaxFragmentLengthCode());
+			// reduce inbound buffer size accordingly
+			inboundDatagramBufferSize = lengthCode.length()
+					+ MAX_CIPHERTEXT_EXPANSION
+					+ 25; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
+		}
+
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		running = true;
 
@@ -306,7 +316,9 @@ public class DTLSConnector implements Connector {
 
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}] with MTU [{1}] using Max. (inbound) Fragment Length [{2}]",
+		LOGGER.log(
+				Level.INFO,
+				"DLTS connector listening on [{0}] with MTU [{1}] using (inbound) datagram buffer size [{2} bytes]",
 				new Object[]{lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize});
 	}
 
@@ -538,7 +550,7 @@ public class DTLSConnector implements Connector {
 	 * @throws GeneralSecurityException if the ALERT message could not be de-crypted
 	 * @throws HandshakeException if the record's content could not be parsed into an ALERT message
 	 * @see ErrorHandler
-	 * @see #terminateConnection(InetSocketAddress, AlertMessage)
+	 * @see #terminateConnection(Connection, AlertMessage, DTLSSession)
 	 */
 	private void processAlertRecord(InetSocketAddress peerAddress, Record record) throws GeneralSecurityException, HandshakeException {
 
