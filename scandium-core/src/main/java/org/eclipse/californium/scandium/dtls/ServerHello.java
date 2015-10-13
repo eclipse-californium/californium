@@ -299,7 +299,21 @@ public final class ServerHello extends HandshakeMessage {
 		}
 		return result;
 	}
-	
+
+	/**
+	 * Gets the <em>MaxFragmentLength</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>MaxFragmentLength</em> extension.
+	 */
+	MaxFragmentLengthExtension getMaxFragmentLength() {
+		if (extensions != null) {
+			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
+		} else {
+			return null;
+		}
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
