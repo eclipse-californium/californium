@@ -19,6 +19,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -59,18 +60,22 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	/**
 	 * Creates a new handshaker for resuming an existing session with a server.
 	 * 
-	 * @param message the application layer message to send once the session has
-	 *            been resumed
-	 * @param session the session to resume
+	 * @param message
+	 *            the application layer message to send once the session has been resumed
+	 * @param session
+	 *            the session to resume
 	 * @param sessionListener
 	 *            the listener to notify about the session's life-cycle events
-	 * @param config the DTLS configuration parameters to use for the handshake
+	 * @param config
+	 *            the DTLS configuration parameters to use for the handshake
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the handshaker could not be initialized
 	 * @throws IllegalArgumentException if the given session does not contain an identifier
 	 */
-	public ResumingClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
-			throws HandshakeException {
-		super(message, session, sessionListener, config);
+	public ResumingClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener,
+			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
+		super(message, session, sessionListener, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}

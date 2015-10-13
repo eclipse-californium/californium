@@ -23,6 +23,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -49,7 +50,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
@@ -130,12 +130,14 @@ public class ClientHandshaker extends Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param config
 	 *            the DTLS configuration
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session or config is <code>null</code>
 	 */
-	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
-			throws HandshakeException {
-		super(true, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
+	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config,
+			int maxTransmissionUnit) throws HandshakeException {
+		super(true, session, sessionListener, config.getTrustStore(), maxTransmissionUnit);
 		this.message = message;
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
@@ -612,7 +614,7 @@ public class ClientHandshaker extends Handshaker {
 		for (CipherSuite supportedSuite : preferredCipherSuites) {
 			message.addCipherSuite(supportedSuite);
 		}
-		
+
 		message.addCompressionMethod(CompressionMethod.NULL);
 
 		// set current state

@@ -25,6 +25,8 @@
  *                                                    to a peer in a single place
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 478538
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max datagram size for outbound messages
+ *                                                    from network MTU
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -89,16 +91,22 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
  * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
- * exchanged between networked clients and a server application.	
- * 
+ * exchanged between networked clients and a server application.
  */
 public class DTLSConnector implements Connector {
 	
 	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
-	private final static int MAX_UDP_PAYLOAD_SIZE = 65500; // 2^16 - 20 (IP Headers) - 8 (UDP headers)
-	private final static int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // 2^14 bytes
+	private final static int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
+	private final static int MAX_CIPHERTEXT_EXPANSION =
+			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getMaxCiphertextExpansion(); // CBC cipher has largest expansion
+	private final static int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
+			+ 12 // DTLS message headers
+			+ 13 // DTLS record headers
+			+ MAX_CIPHERTEXT_EXPANSION;
 
 	private InetSocketAddress lastBindAddress;
+	private int maximumTransmissionUnit;
+	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	// guard access to cookieMacKey
 	private Object cookieMacKeyLock = new Object();
@@ -203,7 +211,6 @@ public class DTLSConnector implements Connector {
 			ConnectionStore connectionStore, DTLSConnectorConfig config) {
 		Builder builder = new Builder(address);
 		if (config != null) {
-			builder.setMaxPayloadSize(config.getMaxPayloadSize());
 			builder.setMaxRetransmissions(config.getMaxRetransmit());
 			builder.setRetransmissionTimeout(config.getRetransmissionTimeout());
 			if (rootCertificates != null) {
@@ -275,28 +282,32 @@ public class DTLSConnector implements Connector {
 		socket.setReuseAddress(true);
 		socket.bind(bindAddress);
 		NetworkInterface ni = NetworkInterface.getByInetAddress(bindAddress.getAddress());
-		if (config.getMaxPayloadSize() > ni.getMTU()) {
-			String msg = new StringBuffer("Max. payload size [{0}] has been set to a value larger than network interface''s MTU [{1}].")
-					.append(" Outbound messages larger than {1} bytes will get fragmented at the IP layer.")
-					.append(" Reduce the max. payload size to prevent this.")
-					.toString();
-			LOGGER.log(Level.WARNING, msg, new Object[]{config.getMaxPayloadSize(), ni.getMTU()});
+		if (ni != null && ni.getMTU() > 0) {
+			this.maximumTransmissionUnit = ni.getMTU();
+		} else {
+			LOGGER.config("Cannot determine MTU of network interface, using minimum MTU [1280] of IPv6 instead");
+			this.maximumTransmissionUnit = 1280;
 		}
+
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		running = true;
 
 		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
-				public void doWork() throws Exception { sendNextMessageOverNetwork(); }
+				public void doWork() throws Exception {
+					sendNextMessageOverNetwork();
+				}
 			};
 
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
-				public void doWork() throws Exception { receiveNextDatagramFromNetwork(); }
+				public void doWork() throws Exception {
+					receiveNextDatagramFromNetwork();
+				}
 			};
-		
+
 		receiver.start();
 		sender.start();
-		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}] using max. payload size [{1}]",
-				new Object[]{lastBindAddress, config.getMaxPayloadSize()});
+		LOGGER.log(Level.INFO, "DLTS connector listening on [{0}] with MTU [{1}] using Max. (inbound) Fragment Length [{2}]",
+				new Object[]{lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize});
 	}
 
 	/**
@@ -322,8 +333,9 @@ public class DTLSConnector implements Connector {
 		if (socket != null) {
 			socket.close();
 		}
+		maximumTransmissionUnit = 0;
 	}
-	
+
 	@Override
 	public final synchronized void stop() {
 		if (!running) {
@@ -333,7 +345,7 @@ public class DTLSConnector implements Connector {
 		timer.cancel();
 		releaseSocket();
 	}
-	
+
 	/**
 	 * Destroys the connector.
 	 * 
@@ -345,9 +357,9 @@ public class DTLSConnector implements Connector {
 	public final synchronized void destroy() {
 		stop();
 	}
-	
+
 	private void receiveNextDatagramFromNetwork() throws IOException {
-		byte[] buffer = new byte[MAX_UDP_PAYLOAD_SIZE];
+		byte[] buffer = new byte[inboundDatagramBufferSize];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		synchronized (socket) {
 			socket.receive(packet);
@@ -361,6 +373,8 @@ public class DTLSConnector implements Connector {
 		
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data, peerAddress);
+		LOGGER.log(Level.FINER, "Received {0} DTLS records using a {1} byte datagram buffer",
+				new Object[]{records.size(), inboundDatagramBufferSize});
 
 		for (Record record : records) {
 			try {
@@ -684,7 +698,7 @@ public class DTLSConnector implements Connector {
 			if (session == null) {
 				session = new DTLSSession(record.getPeerAddress(), true);
 			}
-			Handshaker handshaker = new ClientHandshaker(null, session, connection, config);
+			Handshaker handshaker = new ClientHandshaker(null, session, connection, config, maximumTransmissionUnit);
 			return handshaker.getStartHandshakeMessage();
 		} else {
 			// nothing to do, we are already re-negotiating the session parameters
@@ -706,7 +720,7 @@ public class DTLSConnector implements Connector {
 			} else {
 				// let handshaker figure out whether CLIENT_HELLO is from correct
 				// epoch and client uses correct crypto params
-				Handshaker handshaker = new ServerHandshaker(connection.getEstablishedSession(), peerConnection, config);
+				Handshaker handshaker = new ServerHandshaker(connection.getEstablishedSession(), peerConnection, config, maximumTransmissionUnit);
 				nextFlight = handshaker.processMessage(record);
 			}
 		} else {
@@ -759,7 +773,7 @@ public class DTLSConnector implements Connector {
 					// initialize handshaker based on CLIENT_HELLO (this accounts
 					// for the case that multiple cookie exchanges have taken place)
 					Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(),
-							newSession, peerConnection, config);
+							newSession, peerConnection, config, maximumTransmissionUnit);
 					nextFlight = handshaker.processMessage(record);
 				} else {
 					// client wants to resume a cached session
@@ -771,7 +785,8 @@ public class DTLSConnector implements Connector {
 						DTLSSession resumableSession = new DTLSSession(record.getPeerAddress(),previousConnection.getEstablishedSession(),record.getSequenceNumber());
 						peerConnection = new Connection(record.getPeerAddress());
 
-						Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(),resumableSession, peerConnection, config);
+						Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(),
+								resumableSession, peerConnection, config, maximumTransmissionUnit);
 
 						if (!previousConnection.getPeerAddress().equals(peerConnection.getPeerAddress())) {
 							handshaker.addSessionListener(new SessionAdapter() {
@@ -812,7 +827,7 @@ public class DTLSConnector implements Connector {
 						// initialize handshaker based on CLIENT_HELLO (this accounts
 						// for the case that multiple cookie exchanges have taken place)
 						Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(),
-								newSession, peerConnection, config);
+								newSession, peerConnection, config, maximumTransmissionUnit);
 						nextFlight = handshaker.processMessage(record);
 					}
 				}
@@ -947,32 +962,27 @@ public class DTLSConnector implements Connector {
 			if (session == null) {
 				// no session with peer available, create new empty session &
 				// start fresh handshake
-				handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), connection, config);
+				handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), connection, config, maximumTransmissionUnit);
 			}
 			// TODO what if there already is an ongoing handshake with the peer
-			else {
-				if (connection.isResumptionRequired()){
-					// create the session to resume from the previous one.
-					DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
+			else if (connection.isResumptionRequired()){
+				// create the session to resume from the previous one.
+				DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
 
-					// terminate the previous connection and add the new one to the store
-					Connection newConnection = new Connection(peerAddress);
-					terminateConnection(connection, null, null);
-					connectionStore.put(newConnection);
-					handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config);
-				}
-				else{
-					// session to peer is active, send encrypted message
-					flight = new DTLSFlight(session);
-					
-					// TODO What about PMTU? 
-					flight.addMessage(new Record(
-							ContentType.APPLICATION_DATA,
-							session.getWriteEpoch(),
-							session.getSequenceNumber(),
-							new ApplicationMessage(message.getBytes(), peerAddress),
-							session));
-				}
+				// terminate the previous connection and add the new one to the store
+				Connection newConnection = new Connection(peerAddress);
+				terminateConnection(connection, null, null);
+				connectionStore.put(newConnection);
+				handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config, maximumTransmissionUnit);
+			} else {
+				// session to peer is active, send encrypted message
+				flight = new DTLSFlight(session);
+				flight.addMessage(new Record(
+						ContentType.APPLICATION_DATA,
+						session.getWriteEpoch(),
+						session.getSequenceNumber(),
+						new ApplicationMessage(message.getBytes(), peerAddress),
+						session));
 			}
 			// start DTLS handshake protocol
 			if (handshaker != null) {
@@ -1008,8 +1018,14 @@ public class DTLSConnector implements Connector {
 
 	private void sendFlight(DTLSFlight flight) {
 		byte[] payload = new byte[] {};
-		LOGGER.log(Level.FINER, "Sending flight of [{0}] messages to peer[{1}]",
-				new Object[]{flight.getMessages().size(), flight.getPeerAddress()});
+		int maxDatagramSize = maximumTransmissionUnit;
+		if (flight.getSession() != null) {
+			// the max. fragment length reported by the session will be
+			// slightly smaller than the (assumed) PMTU to the peer because it doesn't
+			// account for payload expansion introduced by cipher and headers
+			maxDatagramSize = flight.getSession().getMaxDatagramSize();
+		}
+
 		// put as many records into one datagram as allowed by the max. payload size
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
 
@@ -1022,13 +1038,22 @@ public class DTLSConnector implements Connector {
 				}
 
 				byte[] recordBytes = record.toByteArray();
+				if (recordBytes.length > maxDatagramSize) {
+					LOGGER.log(
+							Level.INFO,
+							"{0} record of {1} bytes for peer [{2}] exceeds max. datagram size [{3}], discarding...",
+							new Object[]{record.getType(), recordBytes.length, record.getPeerAddress(), maxDatagramSize});
+					// TODO: inform application layer, e.g. using error handler
+					continue;
+				}
 				LOGGER.log(
 						Level.FINEST,
 						"Sending record of {2} bytes to peer [{0}]:\n{1}",
 						new Object[]{flight.getPeerAddress(), record, recordBytes.length});
 
-				if (payload.length + recordBytes.length > config.getMaxPayloadSize()) {
-					// can't add the next record, send current payload as datagram
+				if (payload.length + recordBytes.length > maxDatagramSize) {
+					// current record does not fit into datagram anymore
+					// thus, send out current datagram and put record into new one
 					DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 							flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 					datagrams.add(datagram);
@@ -1037,11 +1062,14 @@ public class DTLSConnector implements Connector {
 
 				payload = ByteArrayUtils.concatenate(payload, recordBytes);
 			}
+
 			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 			datagrams.add(datagram);
 
 			// send it over the UDP socket
+			LOGGER.log(Level.FINER, "Sending flight of {0} message(s) to peer [{1}] using {2} datagram(s) of max. {3} bytes",
+					new Object[]{flight.getMessages().size(), flight.getPeerAddress(), datagrams.size(), maxDatagramSize});
 			for (DatagramPacket datagramPacket : datagrams) {
 				if (!socket.isClosed()) {
 					socket.send(datagramPacket);
@@ -1105,6 +1133,55 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
+	 * Gets the MTU value of the network interface this connector is bound to.
+	 * <p>
+	 * Applications may use this property to determine the maximum length of application
+	 * layer data that can be sent using this connector without requiring IP fragmentation.
+	 * <p> 
+	 * The value returned will be 0 if this connector is not running or the network interface
+	 * this connector is bound to does not provide an MTU value.
+	 * 
+	 * @return the MTU provided by the network interface
+	 */
+	public int getMaximumTransmissionUnit() {
+		return maximumTransmissionUnit;
+	}
+
+	/**
+	 * Gets the maximum amount of unencrypted payload data that can be sent to a given
+	 * peer in a single DTLS record.
+	 * <p>
+	 * The value of this property serves as an upper boundary for the <em>DTLSPlaintext.length</em>
+	 * field defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * Section 4.3.1</a>. This means that an application can assume that any message containing at
+	 * most as many bytes as indicated by this method, will be delivered to the peer in a single
+	 * unfragmented datagram.
+	 * <p>
+	 * The value returned by this method considers the <em>current write state</em> of the connection
+	 * to the peer and any potential ciphertext expansion introduced by this cipher suite used to
+	 * secure the connection. However, if no connection exists to the peer, the value returned is
+	 * determined as follows:
+	 * <p>
+	 * <pre>
+	 *   maxFragmentLength = network interface's <em>Maximum Transmission Unit</em>
+	 *                     - IP header length (20 bytes)
+	 *                     - UDP header length (8 bytes)
+	 *                     - DTLS record header length (13 bytes)
+	 *                     - DTLS message header length (12 bytes)
+	 * </pre>
+	 * 
+	 * @return the maximum length in bytes
+	 */
+	public int getMaximumFragmentLength(InetSocketAddress peer) {
+		Connection con = connectionStore.get(peer);
+		if (con != null && con.getEstablishedSession() != null) {
+			return con.getEstablishedSession().getMaxFragmentLength();
+		} else {
+			return maximumTransmissionUnit - DTLSSession.HEADER_LENGTH;
+		}
+	}
+
+	/**
 	 * Gets the address this connector is bound to.
 	 * 
 	 * @return the IP address and port this connector is bound to or configured to
@@ -1118,7 +1195,7 @@ public class DTLSConnector implements Connector {
 			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		}
 	}
-	
+
 	public final boolean isRunning() {
 		return running;
 	}
