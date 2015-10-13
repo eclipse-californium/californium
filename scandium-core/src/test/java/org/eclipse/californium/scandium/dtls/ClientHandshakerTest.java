@@ -34,6 +34,8 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class ClientHandshakerTest {
 
+	final static int MAX_TRANSMISSION_UNIT = 1500;
+
 	ClientHandshaker handshaker;
 	InetSocketAddress peerAddress;
 
@@ -77,7 +79,8 @@ public class ClientHandshakerTest {
 				new RawData(new byte[]{}, peerAddress),
 				new DTLSSession(peerAddress, true),
 				null,
-				builder.build());
+				builder.build(),
+				MAX_TRANSMISSION_UNIT);
 	}
 
 	private void assertPreferredServerCertificateExtension(ClientHello msg, CertificateType expectedType) {

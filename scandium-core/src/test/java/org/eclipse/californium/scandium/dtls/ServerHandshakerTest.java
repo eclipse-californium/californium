@@ -16,6 +16,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test case for validating fix for bug 473678
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,9 +51,13 @@ import org.junit.experimental.categories.Category;
 public class ServerHandshakerTest {
 
 	final static CipherSuite SERVER_CIPHER_SUITE = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+	final static int ETHERNET_MTU = 1500;
 
 	static PrivateKey privateKey;
 	static Certificate[] certificateChain;
+	static Certificate[] trustedCertificates;
+
+	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;
 	DTLSSession session;
 	InetSocketAddress endpoint;
@@ -60,31 +65,30 @@ public class ServerHandshakerTest {
 	byte[] supportedClientCiphers;
 	byte[] random;
 	byte[] clientHelloMsg;
-	
+
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		privateKey = DtlsTestTools.getPrivateKey();
 		certificateChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD, "server");
-	}
-	
-	@Before
-	public void setup() throws Exception {
-		endpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+				DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD, DtlsTestTools.SERVER_NAME);
 		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
-		Certificate[] trustedCertificates = new Certificate[trustStore.size()];
+		trustedCertificates = new Certificate[trustStore.size()];
 		int j = 0;
 		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
 			trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
 		}
-		
+	}
+
+	@Before
+	public void setup() throws Exception {
+		endpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 		session = new DTLSSession(endpoint, false);
-		DtlsConnectorConfig config = new DtlsConnectorConfig.Builder(endpoint)
+		config = new DtlsConnectorConfig.Builder(endpoint)
 				.setIdentity(privateKey, certificateChain, false)
 				.setTrustStore(trustedCertificates)
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
 				.build();
-		handshaker = new ServerHandshaker(session, null, config);
+		handshaker = new ServerHandshaker(session, null, config, ETHERNET_MTU);
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
@@ -101,6 +105,41 @@ public class ServerHandshakerTest {
 				(byte) 0xFF, (byte) 0xA8, // fantasy cipher (non-existent)
 				(byte) 0xC0, (byte) 0xA8, // TLS_PSK_WITH_AES_128_CCM_8
 				(byte) 0xC0, (byte) 0x23};// TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+	}
+
+	@Test
+	public void testConstructorAdjustsMaxFragmentSize() throws HandshakeException {
+		// given a network interface with standard ethernet MTU (1500 bytes)
+		int networkMtu = ETHERNET_MTU;
+
+		// when instantiating a ServerHandshaker to negotiate a new session
+		handshaker = new ServerHandshaker(session, null, config, networkMtu);
+
+		// then a fragment created under the session's current write state should
+		// fit into a single unfragmented UDP datagram
+		assertTrue(session.getMaxDatagramSize() <= networkMtu);
+	}
+
+	@Test
+	public void testReceiveClientHelloProcessesMaxFragmentLengthExtension() throws Exception {
+		// given a server bound to a network interface on an ethernet (MTU 1500 bytes)
+		// and a constrained client that can only handle fragments of max 512 bytes
+		List<byte[]> extensions = new LinkedList<>();
+		extensions.add(DtlsTestTools.newMaxFragmentLengthExtension(1)); // code 1 = 512 bytes
+
+		// when the client sends its CLIENT_HELLO message
+		DTLSFlight response = processClientHello(0, extensions);
+
+		// then a fragment created under the session's current write state can
+		// not contain more than 512 bytes and the SERVER_HELLO message sent
+		// to the client contains a MaxFragmentLength extension indicating a length
+		// of 512 bytes
+		assertTrue(session.getMaxFragmentLength() <= 512);
+		Record record = response.getMessages().get(0);
+		ServerHello serverHello = (ServerHello) record.getFragment();
+		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLength(); 
+		assertThat(ext, is(notNullValue()));
+		assertThat(ext.getFragmentLength().length(), is(512));
 	}
 
 	@Test

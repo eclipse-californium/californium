@@ -19,6 +19,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -52,9 +53,10 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config)
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, SessionListener sessionListener,
+			DtlsConnectorConfig config, int maxTransmissionUnit)
 			throws HandshakeException {
-		super(sequenceNumber,session, sessionListener, config);
+		super(sequenceNumber, session, sessionListener, config, maxTransmissionUnit);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

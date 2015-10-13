@@ -28,6 +28,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - support MaxFragmentLength Hello extension sent by client
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -135,12 +137,14 @@ public class ServerHandshaker extends Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param config
 	 *            the DTLS configuration
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public ServerHandshaker(DTLSSession session, SessionListener sessionListener,
-			DtlsConnectorConfig config) throws HandshakeException {
-		this(0, session, sessionListener, config);
+			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
+		this(0, session, sessionListener, config, maxTransmissionUnit);
 	}
 	
 	/**
@@ -158,12 +162,14 @@ public class ServerHandshaker extends Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param config
 	 *            the DTLS configuration
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the handshaker cannot be initialized
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, SessionListener sessionListener,
-			DtlsConnectorConfig config) throws HandshakeException { 
-		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), config.getMaxPayloadSize());
+			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException { 
+		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), maxTransmissionUnit);
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -483,7 +489,17 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
-		
+
+		MaxFragmentLengthExtension maxFragmentLengthExt = message.getMaxFragmentLengthExtension();
+		if (maxFragmentLengthExt != null) {
+			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
+			serverHelloExtensions.addExtension(maxFragmentLengthExt);
+			LOGGER.log(
+					Level.FINE,
+					"Negotiated max. fragment length [{0} bytes] with peer [{1}]",
+					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), message.getPeer()});
+		}
+
 		if (cipherSuite.requiresServerCertificateMessage()) {
 			// the negotiated cipher suite requires us (server side) to prove our identity
 			// using a certificate

@@ -24,6 +24,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace local compressionMethod and cipherSuite properties
  *                                                    with corresponding properties in DTLSSession
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -140,9 +141,6 @@ public abstract class Handshaker {
 
 	/** list of trusted self-signed root certificates */
 	protected final Certificate[] rootCertificates;
-	
-	/** the maximum fragment size before DTLS fragmentation must be applied */
-	private int maxFragmentLength = 1300;
 
 	private Set<SessionListener> sessionListeners = new HashSet<>();
 
@@ -159,15 +157,15 @@ public abstract class Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
-	 * @param maxPayloadSize
-	 *            the maximum number of bytes that can be sent to a peer in a single record
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the message digest required for computing
 	 *            the handshake hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, SessionListener sessionListener, 
-			Certificate[] rootCertificates, int maxPayloadSize) throws HandshakeException {
-		this(isClient, 0, session, sessionListener, rootCertificates, maxPayloadSize);
+			Certificate[] rootCertificates, int maxTransmissionUnit) throws HandshakeException {
+		this(isClient, 0, session, sessionListener, rootCertificates, maxTransmissionUnit);
 	}
 
 	/**
@@ -187,15 +185,15 @@ public abstract class Handshaker {
 	 *            the listener to notify about the session's life-cycle events
 	 * @param rootCertificates
 	 *            the trusted root certificates
-	 * @param maxPayloadSize
-	 *            the maximum number of bytes that can be sent to a peer in a single record
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to
 	 * @throws HandshakeException if the message digest required for computing
 	 *            the FINISHED message hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, SessionListener sessionListener,
-			Certificate[] rootCertificates, int maxPayloadSize) throws HandshakeException {
+			Certificate[] rootCertificates, int maxTransmissionUnit) throws HandshakeException {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		}
@@ -208,9 +206,8 @@ public abstract class Handshaker {
 		this.isClient = isClient;
 		this.session = session;
 		this.inboundMessageBuffer = new InboundMessageBuffer();
-		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;	
-		this.maxFragmentLength = maxPayloadSize
-				- HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES; // DTLS handshake message headers
+		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;
+		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
@@ -687,36 +684,28 @@ public abstract class Handshaker {
 		List<Record> result = new ArrayList<>();
 		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
 
-		// CAUTION: length check is done based on DTLSPlaintext.fragment
-		// maxFragmentLength needs to be set to a value smaller
-		// than DtlsConnectorConfig.maxPayloadSize that also accounts for
-		// potential overhead caused by the negotiated cipher algorithm(s).
-		// This is not an issue for an initial handshake because in that
-		// case handshake messages will not (yet) be encrypted.
-		// However, when re-negotiating an established session
-		// handshake messages will be encrypted!
-		if (messageBytes.length <= maxFragmentLength) {
+		if (messageBytes.length <= session.getMaxFragmentLength()) {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
 			// message needs to be fragmented
 			LOGGER.log(
 					Level.FINER,
 					"Splitting up {0} message for [{1}] into multiple fragments of max {2} bytes",
-					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), maxFragmentLength});
+					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength()});
 			// create N handshake messages, all with the
 			// same message_seq value as the original handshake message
 			int messageSeq = handshakeMessage.getMessageSeq();
-			int numFragments = (messageBytes.length / maxFragmentLength) + 1;
+			int numFragments = (messageBytes.length / session.getMaxFragmentLength()) + 1;
 			int offset = 0;
 			for (int i = 0; i < numFragments; i++) {
-				int fragmentLength = maxFragmentLength;
+				int fragmentLength = session.getMaxFragmentLength();
 				if (offset + fragmentLength > messageBytes.length) {
 					// the last fragment is normally shorter than the maximal size
 					fragmentLength = messageBytes.length - offset;
 				}
 				byte[] fragmentBytes = new byte[fragmentLength];
 				System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
-				
+
 				FragmentedHandshakeMessage fragmentedMessage =
 						new FragmentedHandshakeMessage(
 								fragmentBytes,
@@ -925,21 +914,6 @@ public abstract class Handshaker {
 
 	final void incrementNextReceiveSeq() {
 		this.nextReceiveSeq++;
-	}
-
-	final int getMaxFragmentLength() {
-		return maxFragmentLength;
-	}
-
-	/**
-	 * Sets the maximum length of handshake messages that this handshaker
-	 * may send in a single fragment.
-	 * 
-	 * @param maxFragmentLength the number of bytes
-	 * @deprecated set this value using the constructor instead
-	 */
-	public final void setMaxFragmentLength(int maxFragmentLength) {
-		this.maxFragmentLength = maxFragmentLength;
 	}
 
 	public void addSessionListener(SessionListener listener){
