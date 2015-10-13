@@ -261,6 +261,14 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		message.addCipherSuite(session.getCipherSuite());
 		message.addCompressionMethod(session.getCompressionMethod());
+		if (maxFragmentLengthCode != null) {
+			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
+			message.addExtension(ext);
+			LOGGER.log(
+					Level.FINE,
+					"Indicating max. fragment length [{0}] to server [{1}]",
+					new Object[]{maxFragmentLengthCode, getPeerAddress()});
+		}
 
 		state = message.getMessageType().getCode();
 		clientHello = message;
