@@ -85,7 +85,7 @@ public class ClientHandshaker extends Handshaker {
 	 * */
 	protected final RawData message;
 
-	private Integer maxFragmentLengthCode;
+	protected Integer maxFragmentLengthCode;
 
 	/**
 	 * The certificate types this server supports for client authentication.
