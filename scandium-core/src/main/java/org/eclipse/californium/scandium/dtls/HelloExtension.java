@@ -31,21 +31,20 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4">RFC 5246</a>
  * for the extension format.
  * <p>
- * In particular this class is an object representation of the <em>Extension>/em>
+ * In particular this class is an object representation of the <em>Extension</em>
  * struct defined in <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4">
  * TLS 1.2, Section 7.4.1.4</a>:
  * 
  * <pre>
  * struct {
  *    ExtensionType extension_type;
- *    opaque extension_data<0..2^16-1>;
+ *    opaque extension_data&lt;0..2^16-1&gt;;
  * } Extension;
  * 
  * enum {
  *    signature_algorithms(13), (65535)
  * } ExtensionType;
  * </pre>
-
  */
 public abstract class HelloExtension {
 

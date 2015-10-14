@@ -1168,12 +1168,13 @@ public class DTLSConnector implements Connector {
 	 * Section 4.3.1</a>. This means that an application can assume that any message containing at
 	 * most as many bytes as indicated by this method, will be delivered to the peer in a single
 	 * unfragmented datagram.
+	 * </p>
 	 * <p>
 	 * The value returned by this method considers the <em>current write state</em> of the connection
 	 * to the peer and any potential ciphertext expansion introduced by this cipher suite used to
 	 * secure the connection. However, if no connection exists to the peer, the value returned is
 	 * determined as follows:
-	 * <p>
+	 * </p>
 	 * <pre>
 	 *   maxFragmentLength = network interface's <em>Maximum Transmission Unit</em>
 	 *                     - IP header length (20 bytes)
@@ -1181,6 +1182,8 @@ public class DTLSConnector implements Connector {
 	 *                     - DTLS record header length (13 bytes)
 	 *                     - DTLS message header length (12 bytes)
 	 * </pre>
+	 * 
+	 * @param peer the address of the remote endpoint
 	 * 
 	 * @return the maximum length in bytes
 	 */
