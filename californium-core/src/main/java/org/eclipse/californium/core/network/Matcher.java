@@ -273,7 +273,8 @@ public class Matcher {
 					request.setDuplicate(true);
 				} else {
 					// the exchange is continuing, we can (i.e., must) clean up the previous response
-					if (ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
+					// check for null, in case no response was created (e.g., because the resource handler crashed...)
+					if (ongoing.getCurrentResponse()!=null && ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID(), null, 0);
 						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request, cleaning up "+idByMID);
 						exchangesByMID.remove(idByMID);
