@@ -338,8 +338,25 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 		
 		if (response.getOptions().hasBlock2()) {
+			
 			BlockOption block2 = response.getOptions().getBlock2();
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
+			
+			// a new notification might arrive during a blockwise transfer
+			if (response.getOptions().hasObserve() && block2.getNum()==0 && status.getCurrentNum()!=0) {
+				
+				if (response.getOptions().getObserve()>status.getObserve()) {
+					// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
+					LOGGER.warning("Ongoing blockwise transfer reseted at num="+status.getCurrentNum()+" by new notification: "+response);
+					// reset current status
+					exchange.setResponseBlockStatus(null);
+					// and create new status for fresher notification
+					status = findResponseBlockStatus(exchange, response);
+				} else {
+					LOGGER.info("Ignoring old notification during ongoing blockwise transfer: "+response);
+					return;
+				}
+			}
 			
 			if (block2.getNum() == status.getCurrentNum()) {
 				
