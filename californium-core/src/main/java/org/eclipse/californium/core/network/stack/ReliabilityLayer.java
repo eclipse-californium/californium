@@ -22,6 +22,7 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -353,7 +354,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					message.setTimedOut(true);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.log(Level.SEVERE, "Exception in MessageObserver: "+e.getMessage(), e);
 			}
 		}
 		

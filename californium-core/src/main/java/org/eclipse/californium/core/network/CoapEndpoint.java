@@ -278,7 +278,7 @@ public class CoapEndpoint implements Endpoint {
 	private void startExecutor() {
 		// Run a task that does nothing but make sure at least one thread of
 		// the executor has started.
-		executeTask(new Runnable() {
+		runInProtocolStage(new Runnable() {
 			public void run() { /* do nothing */ }
 		});
 	}
@@ -385,14 +385,10 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Override
 	public void sendRequest(final Request request) {
-		// always use protocol stage executor
-		executor.execute(new Runnable() {
+		// always use endpoint executor
+		runInProtocolStage(new Runnable() {
 			public void run() {
-				try {
-					coapstack.sendRequest(request);
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				coapstack.sendRequest(request);
 			}
 		});
 	}
@@ -404,13 +400,9 @@ public class CoapEndpoint implements Endpoint {
 	public void sendResponse(final Exchange exchange, final Response response) {
 		if (exchange.hasCustomExecutor()) {
 			// handle sending by protocol stage instead of business logic stage
-			executor.execute(new Runnable() {
+			runInProtocolStage(new Runnable() {
 				public void run() {
-					try {
-						coapstack.sendResponse(exchange, response);
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+					coapstack.sendResponse(exchange, response);
 				}
 			});
 		} else {
@@ -555,7 +547,7 @@ public class CoapEndpoint implements Endpoint {
 					receiveMessage(raw);
 				}
 			};
-			executeTask(task);
+			runInProtocolStage(task);
 		}
 		
 		/*
@@ -691,17 +683,17 @@ public class CoapEndpoint implements Endpoint {
 	}
 	
 	/**
-	 * Execute the specified task on the endpoint's executor.
+	 * Execute the specified task on the endpoint's executor (protocol stage).
 	 *
 	 * @param task the task
 	 */
-	private void executeTask(final Runnable task) {
+	private void runInProtocolStage(final Runnable task) {
 		executor.execute(new Runnable() {
 			public void run() {
 				try {
 					task.run();
 				} catch (Throwable t) {
-					t.printStackTrace();
+					LOGGER.log(Level.SEVERE, "Exception in protocol stage thread: "+t.getMessage(), t);
 				}
 			}
 		});

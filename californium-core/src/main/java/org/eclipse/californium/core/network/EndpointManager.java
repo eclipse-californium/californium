@@ -204,7 +204,7 @@ public class EndpointManager {
 	        		interfaces.add(inetAddresses.nextElement());
 	        }
 		} catch (SocketException e) {
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE, e.getMessage());
 		}
 		return interfaces;
 	}

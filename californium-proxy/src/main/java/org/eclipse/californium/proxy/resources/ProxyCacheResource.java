@@ -218,18 +218,14 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		// search the desired representation
 		Response response = null;
 		CacheKey cacheKey = null;
-		try {
-			for (CacheKey acceptKey : CacheKey.fromAcceptOptions(request)) {
-				response = responseCache.getIfPresent(acceptKey);
-				cacheKey = acceptKey;
 
-				if (response != null) {
-					break;
-				}
+		for (CacheKey acceptKey : CacheKey.fromAcceptOptions(request)) {
+			response = responseCache.getIfPresent(acceptKey);
+			cacheKey = acceptKey;
+
+			if (response != null) {
+				break;
 			}
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 
 		// if the response is not null, manage the cached response
@@ -263,12 +259,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	
 	@Override
 	public void invalidateRequest(Request request) {
-		try {
-			invalidateRequest(CacheKey.fromAcceptOptions(request));
-		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		invalidateRequest(CacheKey.fromAcceptOptions(request));
 		LOGGER.finer("Invalidated request");
 	}
 
@@ -367,10 +358,9 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		 * gives back the keys for every representation.
 		 * 
 		 * @param request
-		 * @return
-		 * @throws URISyntaxException
+		 * @return the list of cache keys
 		 */
-		private static List<CacheKey> fromAcceptOptions(Request request) throws URISyntaxException {
+		private static List<CacheKey> fromAcceptOptions(Request request) {
 			if (request == null) {
 				throw new IllegalArgumentException("request == null");
 			}
@@ -378,10 +368,10 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			List<CacheKey> cacheKeys = new LinkedList<ProxyCacheResource.CacheKey>();
 			String proxyUri = request.getOptions().getProxyUri();
 			try {
+				// TODO why not UTF-8?
 				proxyUri = URLEncoder.encode(proxyUri, "ISO-8859-1");
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.warning("ISO-8859-1 do not support this encoding: " + e.getMessage());
-				throw new URISyntaxException("ISO-8859-1 do not support this encoding", e.getMessage());
+				LOGGER.severe("ISO-8859-1 encoding not supported: " + e.getMessage());
 			}
 			byte[] payload = request.getPayload();
 			
