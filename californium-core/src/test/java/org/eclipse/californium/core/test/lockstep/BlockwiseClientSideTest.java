@@ -40,7 +40,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.junit.After;
@@ -76,7 +76,7 @@ public class BlockwiseClientSideTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
-		client = new CoAPEndpoint(new InetSocketAddress(0), config);
+		client = new CoapEndpoint(new InetSocketAddress(0), config);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		clientPort = client.getAddress().getPort();

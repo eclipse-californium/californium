@@ -21,7 +21,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -44,8 +44,8 @@ public class MemoryLeakingHashMapTest {
 	public static final String SEPARATE = "separate";
 	
 	// The server endpoint that we test
-	private CoAPEndpoint serverEndpoint;
-	private CoAPEndpoint clientEndpoint;
+	private CoapEndpoint serverEndpoint;
+	private CoapEndpoint clientEndpoint;
 	private EndpointSurveillant serverSurveillant;
 	private EndpointSurveillant clientSurveillant;
 
@@ -330,11 +330,11 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 		
 		// Create the endpoint for the server and create surveillant
-		serverEndpoint = new CoAPEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
 		serverEndpoint.addInterceptor(new MessageTracer());
 		serverSurveillant = new EndpointSurveillant("server", serverEndpoint);
 		
-		clientEndpoint = new CoAPEndpoint(config);
+		clientEndpoint = new CoapEndpoint(config);
 		clientEndpoint.start();
 		clientSurveillant = new EndpointSurveillant("client", clientEndpoint);
 		

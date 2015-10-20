@@ -109,10 +109,10 @@ import org.eclipse.californium.elements.UDPConnector;
  * The endpoint and its layers use an {@link ScheduledExecutorService} to
  * execute tasks, e.g., when a request arrives.
  */
-public class CoAPEndpoint implements Endpoint {
+public class CoapEndpoint implements Endpoint {
 	
 	/** the logger. */
-	private final static Logger LOGGER = Logger.getLogger(CoAPEndpoint.class.getCanonicalName());
+	private final static Logger LOGGER = Logger.getLogger(CoapEndpoint.class.getCanonicalName());
 	
 	/** The stack of layers that make up the CoAP protocol */
 	private final CoapStack coapstack;
@@ -144,7 +144,7 @@ public class CoAPEndpoint implements Endpoint {
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
 	 */
-	public CoAPEndpoint() {
+	public CoapEndpoint() {
 		this(0);
 	}
 	
@@ -153,7 +153,7 @@ public class CoAPEndpoint implements Endpoint {
 	 *
 	 * @param port the port
 	 */
-	public CoAPEndpoint(int port) {
+	public CoapEndpoint(int port) {
 		this(new InetSocketAddress(port));
 	}
 
@@ -162,11 +162,11 @@ public class CoAPEndpoint implements Endpoint {
 	 *
 	 * @param address the address
 	 */
-	public CoAPEndpoint(InetSocketAddress address) {
+	public CoapEndpoint(InetSocketAddress address) {
 		this(address, NetworkConfig.getStandard());
 	}
 	
-	public CoAPEndpoint(NetworkConfig config) {
+	public CoapEndpoint(NetworkConfig config) {
 		this(new InetSocketAddress(0), config);
 	}
 	
@@ -176,7 +176,7 @@ public class CoAPEndpoint implements Endpoint {
 	 * @param port the UDP port
 	 * @param config the network configuration
 	 */
-	public CoAPEndpoint(int port, NetworkConfig config) {
+	public CoapEndpoint(int port, NetworkConfig config) {
 		this(new InetSocketAddress(port), config);
 	}
 	
@@ -186,7 +186,7 @@ public class CoAPEndpoint implements Endpoint {
 	 * @param address the address
 	 * @param config the network configuration
 	 */
-	public CoAPEndpoint(InetSocketAddress address, NetworkConfig config) {
+	public CoapEndpoint(InetSocketAddress address, NetworkConfig config) {
 		this(createUDPConnector(address, config), config);
 	}
 	
@@ -197,7 +197,7 @@ public class CoAPEndpoint implements Endpoint {
 	 * @param connector the connector
 	 * @param config the config
 	 */
-	public CoAPEndpoint(Connector connector, NetworkConfig config) {
+	public CoapEndpoint(Connector connector, NetworkConfig config) {
 		this.config = config;
 		this.connector = connector;
 		this.serializer = new Serializer();
@@ -608,7 +608,7 @@ public class CoAPEndpoint implements Endpoint {
 				if (!request.isCanceled()) {
 					Exchange exchange = matcher.receiveRequest(request);
 					if (exchange != null) {
-						exchange.setEndpoint(CoAPEndpoint.this);
+						exchange.setEndpoint(CoapEndpoint.this);
 						coapstack.receiveRequest(exchange, request);
 					}
 				}
@@ -632,7 +632,7 @@ public class CoAPEndpoint implements Endpoint {
 				if (!response.isCanceled()) {
 					Exchange exchange = matcher.receiveResponse(response);
 					if (exchange != null) {
-						exchange.setEndpoint(CoAPEndpoint.this);
+						exchange.setEndpoint(CoapEndpoint.this);
 						response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
 						coapstack.receiveResponse(exchange, response);
 					} else if (response.getType() != Type.ACK) {
@@ -665,7 +665,7 @@ public class CoAPEndpoint implements Endpoint {
 					} else {
 						Exchange exchange = matcher.receiveEmptyMessage(message);
 						if (exchange != null) {
-							exchange.setEndpoint(CoAPEndpoint.this);
+							exchange.setEndpoint(CoapEndpoint.this);
 							coapstack.receiveEmptyMessage(exchange, message);
 						}
 					}

@@ -33,7 +33,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
@@ -191,7 +191,7 @@ public class ClientAsynchronousTest {
 	}
 	
 	private void createServer() {
-		CoAPEndpoint endpoint = new CoAPEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(0);
 		
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();

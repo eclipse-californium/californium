@@ -7,7 +7,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
@@ -24,7 +24,7 @@ public class RandomAccessBlockTest {
 	@Before
 	public void startupServer() throws Exception {
 		System.out.println("\nStart "+getClass().getSimpleName());
-		CoAPEndpoint endpoint = new CoAPEndpoint();
+		CoapEndpoint endpoint = new CoapEndpoint();
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.add(new TestResource(TARGET));

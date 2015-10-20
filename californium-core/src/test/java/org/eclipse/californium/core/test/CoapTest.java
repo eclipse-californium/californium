@@ -30,7 +30,7 @@ import org.junit.Test;
 /**
  * Tests that the mapping from a value to an enum is correct.
  */
-public class CoAPTest {
+public class CoapTest {
 	
 	@Test
 	public void testType() {

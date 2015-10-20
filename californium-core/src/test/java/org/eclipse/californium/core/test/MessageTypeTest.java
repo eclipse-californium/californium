@@ -28,7 +28,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
@@ -54,7 +54,7 @@ public class MessageTypeTest {
 			System.out.println("\nStart "+getClass().getSimpleName());
 			EndpointManager.clear();
 			
-			CoAPEndpoint endpoint = new CoAPEndpoint();
+			CoapEndpoint endpoint = new CoapEndpoint();
 			
 			server = new CoapServer();
 			server.addEndpoint(endpoint);

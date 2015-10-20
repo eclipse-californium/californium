@@ -30,7 +30,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -157,7 +157,7 @@ public class CoapServer implements ServerInterface {
 		this.executor = Executors.newScheduledThreadPool( config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT) );
 		// create endpoint for each port
 		for (int port:ports)
-			addEndpoint(new CoAPEndpoint(port, this.config));
+			addEndpoint(new CoapEndpoint(port, this.config));
 	}
 	
 	public void setExecutor(ScheduledExecutorService executor) {
@@ -183,7 +183,7 @@ public class CoapServer implements ServerInterface {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.info("No endpoints have been defined for server, setting up server endpoint on default port " + port);
-			addEndpoint(new CoAPEndpoint(port, this.config));
+			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 		
 		int started = 0;

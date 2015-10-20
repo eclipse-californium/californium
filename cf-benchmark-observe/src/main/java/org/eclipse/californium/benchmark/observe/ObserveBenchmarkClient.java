@@ -27,7 +27,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.benchmark.observe.ObserveBenchmarkClient;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.UDPConnector;
 
@@ -108,7 +108,7 @@ public class ObserveBenchmarkClient {
 			
 		server.add(new AnnounceResource("announce"));
 		
-		server.addEndpoint(new CoAPEndpoint(sockAddr));
+		server.addEndpoint(new CoapEndpoint(sockAddr));
 		server.start();
 
 		System.out.println("Observe benchmark announcement server listening on " + sockAddr);

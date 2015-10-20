@@ -32,7 +32,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -44,16 +44,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CoAPEndpointTest {
+public class CoapEndpointTest {
 
-	CoAPEndpoint endpoint;
+	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	DataSerializer serializer;
 	
 	@Before
 	public void setUp() throws Exception {
 		connector = new SimpleConnector();
-		endpoint = new CoAPEndpoint(connector, NetworkConfig.getStandard());
+		endpoint = new CoapEndpoint(connector, NetworkConfig.getStandard());
 		serializer = new DataSerializer();
 	}
 
