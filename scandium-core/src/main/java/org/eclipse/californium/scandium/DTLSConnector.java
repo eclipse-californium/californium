@@ -344,6 +344,7 @@ public class DTLSConnector implements Connector {
 		outboundMessages.clear();
 		if (socket != null) {
 			socket.close();
+			socket = null;
 		}
 		maximumTransmissionUnit = 0;
 	}
