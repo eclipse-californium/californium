@@ -185,6 +185,7 @@ public final class DTLSSession {
 		sendRawPublicKey = sessionToResume.sendRawPublicKey;
 		receiveRawPublicKey = sessionToResume.receiveRawPublicKey;
 		masterSecret = sessionToResume.masterSecret;
+		peerIdentity = sessionToResume.peerIdentity;
 	}
 
 	/**
