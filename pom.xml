@@ -273,6 +273,30 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<!-- 
+					Use the Nexus Staging plugin as a full replacement for the standard
+					Maven Deploy plugin.
+					See https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin
+					why this makes sense :-)
+					We can control whether we want to deploy to the Eclipse repo or Maven Central
+					by a combination of the version being a SNAPHOT or release version and property
+					skipStaging=true/false.
+					In any case we can take advantage of the plugin's "deferred deploy" feature which
+					makes sure that all artifacts of a multi-module project are deployed as a whole
+					at the end of the build process instead of deploying each module's artifacts
+					individually as part of building the module.
+				 -->
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.5</version>
+				<extensions>true</extensions>
+				<configuration>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>false</autoReleaseAfterClose>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
@@ -280,7 +304,7 @@
 		<profile>
 			<!--
 				this profile generates javadoc to check integrity
-				sub-modules with a file called "noJavadoc" will skip this
+				sub-modules can set property maven.javadoc.skip=true in order to skip this
 				(e.g., the executable examples, which do not require Javadoc)
 			-->
 			<id>javadoc</id>
@@ -289,9 +313,6 @@
 				<property>
 					<name>createJavadoc</name>
 				</property>
-				<file>
-					<missing>noJavadoc</missing>
-				</file>
 			</activation>
 			<build>
 				<plugins>
@@ -351,61 +372,12 @@
 				<property>
 					<name>createGPGSignature</name>
 				</property>
-				<file>
-					<missing>noMavenRelease</missing>
-				</file>
 			</activation>
 			<build>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
-						<executions>
-							<execution>
-								<id>sign-artifacts</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>sign</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<!--
-				this profile deploys artifacts to maven central staging repo
-				note that in order to successfully deploy to that repo,
-				GPG signatures for the artifacts need to be present, i.e.
-				this profile should be activated in conjunction with the
-				"createGPGSignature" profile only
-				sub-modules with a file called "noMavenRelease" will skip this
-				(e.g., the executable examples, which do not serve as library) 
-			-->
-			<id>release_to_maven</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<property>
-					<name>releaseToMaven</name>
-				</property>
-				<file>
-					<missing>noMavenRelease</missing>
-				</file>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.6.6</version>
-						<extensions>true</extensions>
-						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>true</autoReleaseAfterClose>
-						</configuration>
 					</plugin>
 				</plugins>
 			</build>
