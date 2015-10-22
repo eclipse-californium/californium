@@ -17,12 +17,21 @@
 	<description>Californium (Cf) congestion control example</description>
 
 	<properties>
+		<!-- 
+			this property prevents the Nexus Staging Maven Plugin to
+			deploy this module's artifacts to Maven Central' staging repo
+		 -->
+		<skipStaging>true</skipStaging>
+		<!-- 
+			never create JavaDoc for this module
+		 -->
+		<maven.javadoc.skip>true</maven.javadoc.skip>
 		<assembly.mainClass>org.eclipse.californium.examples.CocoaClient</assembly.mainClass>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.eclipse.californium</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
