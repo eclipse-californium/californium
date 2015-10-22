@@ -9,9 +9,22 @@
 	<artifactId>scandium-examples</artifactId>
 	<name>Scandium Examples</name>
 	<description>Example code illustrating the usage &amp; configuration of Scandium</description>
+
+	<properties>
+		<!-- 
+			this property prevents the Nexus Staging Maven Plugin to
+			deploy this module's artifacts to Maven Central' staging repo
+		 -->
+		<skipStaging>true</skipStaging>
+		<!-- 
+			never create JavaDoc for this module
+		 -->
+		<maven.javadoc.skip>true</maven.javadoc.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
-			<groupId>org.eclipse.californium</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
 			<version>${project.version}</version>
 		</dependency>
