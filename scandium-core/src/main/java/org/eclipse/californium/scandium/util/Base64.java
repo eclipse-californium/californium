@@ -19,6 +19,8 @@
 package org.eclipse.californium.scandium.util;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * <p>Encodes and decodes to and from Base64 notation.</p>
@@ -218,6 +220,7 @@ public class Base64
 	
 	/* ********  P R I V A T E   F I E L D S  ******** */  
 
+	private final static Logger LOG = Logger.getLogger(Base64.class.getName());
 
 	/** Maximum line length (76) of Base64 output. */
 	private final static int MAX_LINE_LENGTH = 76;
@@ -1307,7 +1310,7 @@ public class Base64
 
 				}   // end try
 				catch( java.io.IOException e ) {
-					e.printStackTrace();
+					LOG.log(Level.INFO, e.getMessage(), e);
 					// Just return originally-decoded bytes
 				}   // end catch
 				finally {
