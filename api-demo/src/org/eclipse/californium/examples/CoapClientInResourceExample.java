@@ -25,9 +25,9 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.ConcurrentCoapResource;
 
-public class CoAPClientInResourceExample extends ConcurrentCoapResource {
+public class CoapClientInResourceExample extends ConcurrentCoapResource {
 
-	public CoAPClientInResourceExample(String name) {
+	public CoapClientInResourceExample(String name) {
 		super(name, SINGLE_THREADED);
 	}
 
@@ -66,7 +66,7 @@ public class CoAPClientInResourceExample extends ConcurrentCoapResource {
 
 	public static void main(String[] args) {
 		CoapServer server = new CoapServer();
-		server.add(new CoAPClientInResourceExample("example"));
+		server.add(new CoapClientInResourceExample("example"));
 		server.add(new CoapResource("target") {
 			@Override
 			public void handleGET(CoapExchange exchange) {
@@ -75,5 +75,8 @@ public class CoAPClientInResourceExample extends ConcurrentCoapResource {
 			}
 		});
 		server.start();
+		
+		CoapClient client = new CoapClient("coap://localhost:5683/example");
+		System.out.println( client.get().getResponseText() );
 	}
 }

@@ -15,7 +15,7 @@ import java.util.logging.Level;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.ScandiumLogger;
@@ -81,7 +81,7 @@ public class SecureClient {
 		}
 		
 		CoapClient client = new CoapClient(uri);
-		client.setEndpoint(new CoAPEndpoint(dtlsConnector, NetworkConfig.getStandard()));
+		client.setEndpoint(new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard()));
 		CoapResponse response = client.get();
 		
 		if (response!=null) {

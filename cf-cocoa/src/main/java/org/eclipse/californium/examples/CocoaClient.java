@@ -24,7 +24,7 @@ import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
@@ -60,7 +60,7 @@ public class CocoaClient {
 	    	.setInt(NetworkConfig.Keys.NSTART, 4);
     	
     	// create an endpoint with this configuration
-    	CoAPEndpoint cocoaEndpoint = new CoAPEndpoint(config);
+    	CoapEndpoint cocoaEndpoint = new CoapEndpoint(config);
     	// all CoapClients will use the default endpoint (unless CoapClient#setEndpoint() is used)
     	EndpointManager.getEndpointManager().setDefaultEndpoint(cocoaEndpoint);
         

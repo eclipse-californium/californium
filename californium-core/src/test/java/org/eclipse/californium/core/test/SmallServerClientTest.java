@@ -29,7 +29,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -80,7 +80,7 @@ public class SmallServerClientTest {
 	
 	
 	private void createSimpleServer() {
-		CoAPEndpoint endpoint = new CoAPEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(0);
 		CoapServer server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {

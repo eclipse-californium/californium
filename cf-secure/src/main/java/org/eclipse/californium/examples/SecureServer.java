@@ -29,7 +29,7 @@ import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
@@ -102,7 +102,7 @@ public class SecureServer {
 			
 			DTLSConnector connector = new DTLSConnector(config.build(), null);
 
-			server.addEndpoint(new CoAPEndpoint(connector, NetworkConfig.getStandard()));
+			server.addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
 			server.start();
 
 		} catch (GeneralSecurityException | IOException e) {

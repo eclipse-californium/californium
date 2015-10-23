@@ -18,7 +18,7 @@ package org.eclipse.californium.osgi;
 import java.net.InetSocketAddress;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
@@ -52,7 +52,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 	@Override
 	public final Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
 		
-		CoAPEndpoint endpoint = new CoAPEndpoint(address, config);
+		CoapEndpoint endpoint = new CoapEndpoint(address, config);
 		return endpoint;
 	}
 
@@ -61,7 +61,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 
 		Endpoint endpoint = null;
 		if (secureConnectorFactory != null) {
-			endpoint = new CoAPEndpoint(
+			endpoint = new CoapEndpoint(
 					secureConnectorFactory.newConnector(address),
 					config);
 		} else {

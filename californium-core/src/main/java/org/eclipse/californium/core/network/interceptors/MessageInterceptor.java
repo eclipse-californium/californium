@@ -22,7 +22,7 @@ package org.eclipse.californium.core.network.interceptors;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.Serializer;
@@ -34,7 +34,7 @@ import org.eclipse.californium.elements.Connector;
  * MessageIntercepters registers at an endpoint. When messages arrive from the
  * connector, the corresponding receive-method is called. When a message is
  * about to be sent over a connector, the corresponding send-method is called.
- * The intercepter can be sought of being placed inside an {@link CoAPEndpoint} just
+ * The intercepter can be sought of being placed inside an {@link CoapEndpoint} just
  * between the message {@link Serializer} and the {@link Matcher}.
  * <p>
  * A <code>MessageInterceptor</code> can cancel a message to stop it. If it is

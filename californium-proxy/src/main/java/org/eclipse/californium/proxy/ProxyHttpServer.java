@@ -51,7 +51,7 @@ public class ProxyHttpServer {
 	private final ProxyCacheResource cacheResource = new ProxyCacheResource(true);
 	private final StatsResource statsResource = new StatsResource(cacheResource);
 	
-	private ProxyCoAPResolver proxyCoapResolver;
+	private ProxyCoapResolver proxyCoapResolver;
 	private HttpStack httpStack;
 
 	/**
@@ -204,11 +204,11 @@ public class ProxyHttpServer {
 		}
 	}
 
-	public ProxyCoAPResolver getProxyCoapResolver() {
+	public ProxyCoapResolver getProxyCoapResolver() {
 		return proxyCoapResolver;
 	}
 
-	public void setProxyCoapResolver(ProxyCoAPResolver proxyCoapResolver) {
+	public void setProxyCoapResolver(ProxyCoapResolver proxyCoapResolver) {
 		this.proxyCoapResolver = proxyCoapResolver;
 	}
 	

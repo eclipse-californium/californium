@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.UDPConnector;
 
@@ -117,7 +117,7 @@ public class BenchmarkServer {
 		server.add(new FibonacciResource("fibonacci"));
 		server.add(new ShutDownResource("shutdown"));
 		
-		server.addEndpoint(new CoAPEndpoint(sockAddr));
+		server.addEndpoint(new CoapEndpoint(sockAddr));
 		server.start();
 
 		System.out.println("Benchmark server listening on " + sockAddr);

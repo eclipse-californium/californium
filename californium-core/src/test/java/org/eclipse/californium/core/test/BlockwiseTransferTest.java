@@ -37,7 +37,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
@@ -83,7 +83,7 @@ public class BlockwiseTransferTest {
 		NetworkConfig config = new NetworkConfig()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
-		clientEndpoint = new CoAPEndpoint(config);
+		clientEndpoint = new CoapEndpoint(config);
 		clientEndpoint.start();
 	}
 	
@@ -229,7 +229,7 @@ public class BlockwiseTransferTest {
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		
-		CoAPEndpoint endpoind = new CoAPEndpoint(new InetSocketAddress(7777), config);
+		CoapEndpoint endpoind = new CoapEndpoint(new InetSocketAddress(7777), config);
 		endpoind.addInterceptor(interceptor);
 		server.addEndpoint(endpoind);
 		server.setMessageDeliverer(new MessageDeliverer() {

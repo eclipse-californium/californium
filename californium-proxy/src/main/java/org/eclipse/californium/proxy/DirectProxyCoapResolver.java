@@ -23,15 +23,15 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.proxy.resources.ForwardingResource;
 
 
-public class DirectProxyCoAPResolver implements ProxyCoAPResolver {
+public class DirectProxyCoapResolver implements ProxyCoapResolver {
 
-	private final static Logger LOGGER = Logger.getLogger(DirectProxyCoAPResolver.class.getCanonicalName());
+	private final static Logger LOGGER = Logger.getLogger(DirectProxyCoapResolver.class.getCanonicalName());
 	
 	private ForwardingResource proxyCoapClientResource;
 	
-	public DirectProxyCoAPResolver() { }
+	public DirectProxyCoapResolver() { }
 	
-	public DirectProxyCoAPResolver(ForwardingResource proxyCoapClientResource) {
+	public DirectProxyCoapResolver(ForwardingResource proxyCoapClientResource) {
 		this.proxyCoapClientResource = proxyCoapClientResource;
 	}
 

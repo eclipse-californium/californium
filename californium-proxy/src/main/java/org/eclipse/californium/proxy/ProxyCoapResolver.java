@@ -19,7 +19,7 @@ package org.eclipse.californium.proxy;
 
 import org.eclipse.californium.core.network.Exchange;
 
-public interface ProxyCoAPResolver {
+public interface ProxyCoapResolver {
 
 	public void forwardRequest(Exchange exchange);
 	

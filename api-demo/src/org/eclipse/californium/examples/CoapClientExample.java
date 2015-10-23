@@ -26,11 +26,11 @@ import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 
-public class CoAPClientExample {
+public class CoapClientExample {
 
 	public static void main(String[] args) {
 		
-		CoapClient client = new CoapClient("coap://iot.eclipse.org:5683/obs");
+		CoapClient client = new CoapClient("coap://californium.eclipse.org:5683/obs");
 
 		System.out.println("SYNCHRONOUS");
 		

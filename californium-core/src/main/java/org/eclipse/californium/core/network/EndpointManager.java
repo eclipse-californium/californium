@@ -110,7 +110,7 @@ public class EndpointManager {
 	private synchronized void createDefaultEndpoint() {
 		if (default_endpoint != null) return;
 		
-		default_endpoint = new CoAPEndpoint();
+		default_endpoint = new CoapEndpoint();
 		
 		try {
 			default_endpoint.start();
@@ -204,7 +204,7 @@ public class EndpointManager {
 	        		interfaces.add(inetAddresses.nextElement());
 	        }
 		} catch (SocketException e) {
-			e.printStackTrace();
+			LOGGER.log(Level.SEVERE, e.getMessage());
 		}
 		return interfaces;
 	}

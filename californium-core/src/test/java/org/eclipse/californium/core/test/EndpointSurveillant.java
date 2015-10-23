@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.Assert;
 
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
@@ -32,7 +32,7 @@ public class EndpointSurveillant {
 	private int exchangeLifecycle;
 	private int sweepDuplicatorInterval;
 	
-	public EndpointSurveillant(String name, CoAPEndpoint endpoint) {
+	public EndpointSurveillant(String name, CoapEndpoint endpoint) {
 		NetworkConfig config = endpoint.getConfig();
 		this.exchangeLifecycle = config.getInt(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		this.sweepDuplicatorInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
@@ -41,7 +41,7 @@ public class EndpointSurveillant {
 		extractHashmaps(endpoint);
 	}
 	
-	public void extractHashmaps(CoAPEndpoint endpoint) {
+	public void extractHashmaps(CoapEndpoint endpoint) {
 		Matcher matcher = extractField(endpoint, "matcher");
 
 		exchangesByMID = extractField(matcher, "exchangesByMID");

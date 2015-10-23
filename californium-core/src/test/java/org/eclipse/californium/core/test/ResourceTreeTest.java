@@ -23,7 +23,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoAPEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Assert;
@@ -97,7 +97,7 @@ public class ResourceTreeTest {
 	}
 	
 	private void createServer() {
-		CoAPEndpoint endpoint = new CoAPEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(0);
 		
 		resource = new TestResource(NAME_1, PAYLOAD);
 		server = new CoapServer();

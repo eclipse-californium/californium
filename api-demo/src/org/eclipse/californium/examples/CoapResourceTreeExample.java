@@ -19,7 +19,7 @@ package org.eclipse.californium.examples;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 
-public class CoAPResourceTreeExample {
+public class CoapResourceTreeExample {
 
 	public static void main(String[] args) {
 		
