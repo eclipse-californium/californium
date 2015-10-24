@@ -29,16 +29,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A {@link Connector} employing UDP as the transport protocol for exchanging data
- * between networked clients and a server application.
- *  
- * In order to process data received from the network via UDP, client code can register
- * a {@link RawDataChannel} instance by means of the {@link #setRawDataReceiver(RawDataChannel)}
- * method. Sending data out to connected clients can be achieved by means of the
- * {@link #send(RawData)} method.
+ * A {@link Connector} employing UDP as the transport protocol for exchanging
+ * data between networked clients and a server application. It implements the
+ * network stage in the Californium architecture.
+ * 
+ * In order to process data received from the network via UDP, client code can
+ * register a {@link RawDataChannel} instance by means of the
+ * {@link #setRawDataReceiver(RawDataChannel)} method. Sending data out to
+ * connected clients can be achieved by means of the {@link #send(RawData)}
+ * method.
  * 
  * UDP broadcast is allowed.
- * // TODO: describe that we can make many threads
+ * 
+ * The number of threads can be set through {@link #setReceiverThreadCount(int)}
+ * and {@link #setSenderThreadCount(int)} before the connector is started.
  */
 public class UDPConnector implements Connector {
 
@@ -194,32 +198,29 @@ public class UDPConnector implements Connector {
 		else return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 	}
 	
-	private abstract class Worker extends Thread {
+	private abstract class NetworkStageThread extends Thread {
 
 		/**
 		 * Instantiates a new worker.
 		 *
 		 * @param name the name
 		 */
-		private Worker(String name) {
+		private NetworkStageThread(String name) {
 			super(name);
 			setDaemon(true);
 		}
 
-		/* (non-Javadoc)
-		 * @see java.lang.Thread#run()
-		 */
 		public void run() {
-			LOGGER.log(Level.FINE, "Starting worker [{0}]", getName());
+			LOGGER.log(Level.FINE, "Starting network stage thread [{0}]", getName());
 			while (running) {
 				try {
 					work();
 				} catch (Throwable t) {
-					if (running)
-						LOGGER.log(Level.WARNING, "Exception occurred in Worker [" + getName() + "] (running="
-								+ running + "): ", t);
-					else
-						LOGGER.log(Level.FINE, "Worker [{0}] has been stopped successfully", getName());
+					if (running) {
+						LOGGER.log(Level.SEVERE, "Exception in network stage thread [" + getName() + "]:", t);
+					} else {
+						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+					}
 				}
 			}
 		}
@@ -230,7 +231,7 @@ public class UDPConnector implements Connector {
 		protected abstract void work() throws Exception;
 	}
 	
-	private class Receiver extends Worker {
+	private class Receiver extends NetworkStageThread {
 		
 		private DatagramPacket datagram;
 		private int size;
@@ -257,7 +258,7 @@ public class UDPConnector implements Connector {
 		
 	}
 	
-	private class Sender extends Worker {
+	private class Sender extends NetworkStageThread {
 		
 		private DatagramPacket datagram;
 		
@@ -318,25 +319,5 @@ public class UDPConnector implements Connector {
 	
 	public int getReceiverPacketSize() {
 		return receiverPacketSize;
-	}
-	
-	/**
-	 * Sets whether sent and received datagram packets should be logged.
-	 * 
-	 * @param b <code>true</code> if packets should be logged
-	 * @deprecated Packets sent and received are always logged at {@link Level#FINER}
-	 */
-	public void setLogPackets(boolean b) {
-		this.logPackets = b;
-	}
-	
-	/**
-	 * Checks whether sent and received datagram packets are logged.
-	 * 
-	 * @return <code>true</code> if packets are logged
-	 * @deprecated Packets sent and received are always logged at {@link Level#FINER}
-	 */
-	public boolean isLogPackets() {
-		return logPackets;
 	}
 }
