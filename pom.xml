@@ -7,7 +7,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>parent</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0-M6</version>
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Parent</name>
