@@ -361,14 +361,18 @@ public class DTLSConnector implements Connector {
 
 	/**
 	 * Destroys the connector.
-	 * 
-	 * The only thing this method currently does, is invoking {@link #stop()}.
-	 * Thus, contrary to {@link Connector#destroy()}'s JavaDoc, this connector
-	 * can be re-started.
+	 * <p>
+	 * This method invokes {@link #stop()} and clears the <code>ConnectionStore</code>
+	 * used to manage connections to peers. Thus, contrary to the behavior specified
+	 * for {@link Connector#destroy()}, this connector can be re-started using the
+	 * {@link #start()} method but subsequent invocations of the {@link #send(RawData)}
+	 * method will trigger the establishment of a new connection to the corresponding peer.
+	 * </p>
 	 */
 	@Override
 	public final synchronized void destroy() {
 		stop();
+		connectionStore.clear();
 	}
 
 	private void receiveNextDatagramFromNetwork() throws IOException {

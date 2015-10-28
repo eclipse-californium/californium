@@ -72,4 +72,9 @@ public interface ConnectionStore {
 	 *     no connection exists for the given address
 	 */
 	Connection remove(InetSocketAddress peerAddress);
+
+	/**
+	 * Removes all connections from the store.
+	 */
+	void clear();
 }
