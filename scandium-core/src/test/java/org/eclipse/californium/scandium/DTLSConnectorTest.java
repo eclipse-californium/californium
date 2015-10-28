@@ -87,6 +87,7 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class DTLSConnectorTest {
 
+	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
 	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
@@ -155,7 +156,7 @@ public class DTLSConnectorTest {
 	@Before
 	public void setUp() throws Exception {
 
-		clientConnectionStore = new InMemoryConnectionStore(5, 60);
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
@@ -676,6 +677,20 @@ public class DTLSConnectorTest {
 		// 512 bytes of payload data
 		assertThat(client.getMaximumFragmentLength(serverEndpoint), is(512));
 		assertThat(server.getMaximumFragmentLength(clientEndpoint), is(512));
+	}
+
+	@Test
+	public void testDestroyClearsConnectionStore() throws Exception {
+		// given a non-empty connection store
+		givenAnEstablishedSession();
+		assertThat(clientConnectionStore.get(serverEndpoint), is(notNullValue()));
+
+		// when the client connector is destroyed
+		client.destroy();
+
+		// assert that the client's connection store is empty
+		assertThat(clientConnectionStore.remainingCapacity(), is(CLIENT_CONNECTION_STORE_CAPACITY));
+		assertThat(clientConnectionStore.get(serverEndpoint), is(nullValue()));
 	}
 
 	private ClientHello createClientHello() {
