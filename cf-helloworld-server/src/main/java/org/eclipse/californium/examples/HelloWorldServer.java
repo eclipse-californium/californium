@@ -12,35 +12,61 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - add endpoints for all IP addresses
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Collections;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 
 public class HelloWorldServer extends CoapServer {
-    
+
+	private static final int COAP_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
     /*
      * Application entry point.
      */
     public static void main(String[] args) {
         
         try {
-            
+
             // create server
             HelloWorldServer server = new HelloWorldServer();
+            // add endpoints on all IP addresses
+            server.addEndpoints();
             server.start();
-            
+
         } catch (SocketException e) {
-            
             System.err.println("Failed to initialize server: " + e.getMessage());
         }
     }
-    
+
+    /**
+     * Add endpoints listening on default CoAP port on all IP addresses of all network interfaces.
+     * 
+     * @throws SocketException if network interfaces cannot be determined
+     */
+    private void addEndpoints() throws SocketException {
+    	for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+    		for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+    			if (!addr.isLoopbackAddress() && addr instanceof Inet4Address) {
+    				InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
+    				addEndpoint(new CoapEndpoint(bindToAddress));
+    			}
+    		}
+    	}
+    }
+
     /*
      * Constructor for a new Hello-World server. Here, the resources
      * of the server are initialized.
@@ -50,7 +76,7 @@ public class HelloWorldServer extends CoapServer {
         // provide an instance of a Hello-World resource
         add(new HelloWorldResource());
     }
-    
+
     /*
      * Definition of the Hello-World Resource
      */
@@ -64,7 +90,7 @@ public class HelloWorldServer extends CoapServer {
             // set display name
             getAttributes().setTitle("Hello-World Resource");
         }
-        
+
         @Override
         public void handleGET(CoapExchange exchange) {
             
