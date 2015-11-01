@@ -19,7 +19,7 @@
 		<url>https://github.com/eclipse/californium.scandium</url>
 		<tag>HEAD</tag>
 	</scm>
-	
+
 	<properties>
 		<element.connectorVersion>1.0.0-M5</element.connectorVersion>
 	</properties>
@@ -28,21 +28,26 @@
 		<module>scandium-core</module>
 		<module>scandium-examples</module>
 	</modules>
-	
+
 	<repositories>
 		<repository>
 			<id>eclipse_snapshots</id>
 			<name>Eclipse Snapshots</name>
 			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
 		</repository>
+		<repository>
+			<id>eclipse_releases</id>
+			<name>Eclipse Releases</name>
+			<url>https://repo.eclipse.org/content/repositories/releases/</url>
+		</repository>
 	</repositories>
 
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>org.eclipse.californium</groupId>
+				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
-				<version>${element.connectorVersion}</version>
+				<version>${project.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
