@@ -8,7 +8,7 @@
 		<artifactId>parent</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
 	</parent>
-	
+
 	<artifactId>element-connector</artifactId>
 	<packaging>bundle</packaging>
 
@@ -19,12 +19,17 @@
 		<url>https://github.com/eclipse/californium.element-connector</url>
 		<tag>HEAD</tag>
 	</scm>
-	
+
 	<repositories>
 		<repository>
 			<id>eclipse_snapshots</id>
 			<name>Eclipse Snapshots</name>
 			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>eclipse_releases</id>
+			<name>Eclipse Releases</name>
+			<url>https://repo.eclipse.org/content/repositories/releases/</url>
 		</repository>
 	</repositories>
 
