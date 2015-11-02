@@ -15,7 +15,7 @@
 			this property prevents the Nexus Staging Maven Plugin to
 			deploy this module's artifacts to Maven Central' staging repo
 		 -->
-		<skipStaging>true</skipStaging>
+		<skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
 		<!-- 
 			never create JavaDoc for this module
 		 -->
