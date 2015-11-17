@@ -31,6 +31,7 @@
 		<module>cf-proxy</module>
 		<module>cf-benchmark</module>
 		<module>cf-benchmark-observe</module>
+		<module>cf-demo-apps</module>
 	</modules>
 	
 	<repositories>

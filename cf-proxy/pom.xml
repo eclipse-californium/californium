@@ -49,11 +49,6 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<!-- inherit configuration from parent POM -->
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<!-- inherit configuration from parent POM -->
-			</plugin>
 		</plugins>
 	</build>
 

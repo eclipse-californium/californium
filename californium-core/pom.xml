@@ -32,7 +32,7 @@
 		<plugins>
 			<plugin>
 				<!-- configures the JDK Logging to use the CaliforniumFormatter by means 
-					of the Californium-logging.properties file (must be in californium\target\test-classes) -->
+					of the Californium-logging.properties file (must be in target/test-classes) -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>

@@ -47,13 +47,6 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>scandium</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
 			<scope>provided</scope>
 		</dependency>
@@ -80,19 +73,19 @@
 							org.eclipse.californium.core.server,
 							org.eclipse.californium.core.server.resources,
 							org.eclipse.californium.osgi,
-							org.eclipse.californium.elements;version="${element.connector.version}",
+							org.eclipse.californium.elements,
 							org.eclipse.californium.core.observe,
 							org.eclipse.californium.core.network.interceptors
 						</Export-Package>
 						<Private-Package>
 							org.eclipse.californium.core.network.deduplication,
 							org.eclipse.californium.core.network.serialization,
-							org.eclipse.californium.core.network.stack
+							org.eclipse.californium.core.network.stack.*
 						</Private-Package>
 						<Import-Package>
 							*
 						</Import-Package>
-						<Embed-Dependency>californium-core;inline=true,element-connector;inline=true</Embed-Dependency>
+						<Embed-Dependency>californium-core;inline=true,element-connector;inline=!about.html</Embed-Dependency>
 						<Bundle-SymbolicName>californium-osgi</Bundle-SymbolicName>
 					</instructions>
 				</configuration>
