@@ -82,7 +82,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				resource.handleRequest(exchange);
 			}
 		} else {
-			LOGGER.info("Did not find resource " + path.toString());
+			LOGGER.info("Did not find resource " + path.toString() + " requested by " + request.getSource()+":"+request.getSourcePort());
 			exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 		}
 	}
