@@ -27,7 +27,6 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.logging.Level;
@@ -198,13 +197,14 @@ public class EndpointManager {
 		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
 		try {
 			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-	        for (NetworkInterface netint : Collections.list(nets)) {
-	        	Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
-	        	if (inetAddresses.hasMoreElements())
+			while (nets.hasMoreElements()) {
+				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
+				while (inetAddresses.hasMoreElements()) {
 	        		interfaces.add(inetAddresses.nextElement());
-	        }
+				}
+			}
 		} catch (SocketException e) {
-			LOGGER.log(Level.SEVERE, e.getMessage());
+			LOGGER.log(Level.SEVERE, "Could not fetch all interface addresses", e);
 		}
 		return interfaces;
 	}
