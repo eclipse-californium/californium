@@ -132,8 +132,10 @@ public interface Layer {
 	 * @param executor the new executor
 	 */
 	public void setExecutor(ScheduledExecutorService executor);
-	
-	
+
+	public void destroy();
+
+
 	/**
 	 * A builder that constructs the stack from the top to the bottom. The
 	 * returned list of layers is in the same order as added to the stack.

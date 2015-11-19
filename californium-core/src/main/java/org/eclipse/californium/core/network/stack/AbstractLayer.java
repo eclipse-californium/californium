@@ -160,5 +160,11 @@ public abstract class AbstractLayer implements Layer {
 			throw new IllegalArgumentException("Rejecting an "+message.getType()+" is not allowed");
 		sendEmptyMessage(exchange, EmptyMessage.newRST(message));
 	}
+
+
+	@Override
+	public void destroy() {
+
+	}
 	
 }
