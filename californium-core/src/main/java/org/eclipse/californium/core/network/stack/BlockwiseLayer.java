@@ -41,7 +41,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/** The logger. */
 	protected final static Logger LOGGER = Logger.getLogger(BlockwiseLayer.class.getCanonicalName());
-	
+
 	// TODO: Size Option. Include only in first block.
 	// TODO: DoS: server should have max allowed blocks/bytes/time to allocate.
 	// TODO: Random access for Cf servers: The draft still needs to specify a reaction to "overshoot"
@@ -85,20 +85,23 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int max_message_size;
 	private int preferred_block_size;
 	private int block_timeout;
-	
+	private final NetworkConfigObserverAdapter observer;
+	final private NetworkConfig config;
+
 	/**
 	 * Constructs a new blockwise layer.
 	 * Changes to the configuration are observed and automatically applied.
 	 * @param config the configuration
 	 */
 	public BlockwiseLayer(NetworkConfig config) {
+		this.config = config;
 		max_message_size = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE);
 		preferred_block_size = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE);
 		block_timeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
 		
 		LOGGER.config("BlockwiseLayer uses MAX_MESSAGE_SIZE="+max_message_size+", DEFAULT_BLOCK_SIZE="+preferred_block_size+", and BLOCKWISE_STATUS_LIFETIME="+block_timeout);
-		
-		config.addConfigObserver(new NetworkConfigObserverAdapter() {
+
+		observer = new NetworkConfigObserverAdapter() {
 			@Override
 			public void changed(String key, int value) {
 				if (NetworkConfig.Keys.MAX_MESSAGE_SIZE.equals(key))
@@ -108,7 +111,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME.equals(key))
 					block_timeout = value;
 			}
-		});
+		};
+		config.addConfigObserver(observer);
 	}
 	
 	@Override
@@ -674,7 +678,12 @@ public class BlockwiseLayer extends AbstractLayer {
 			exchange.setComplete();
 		}
 	}
-	
+
+	@Override
+	public void destroy() {
+		config.removeConfigObserver(observer);
+	}
+
 	/*
 	 * When a timeout occurs for a block it has to be forwarded to the origin response.
 	 */

@@ -310,6 +310,7 @@ public class CoapEndpoint implements Endpoint {
 		if (started)
 			stop();
 		connector.destroy();
+		coapstack.destroy();
 		for (EndpointObserver obs:observers)
 			obs.destroyed(this);
 	}

@@ -148,7 +148,12 @@ public class CoapStack {
 	public void setDeliverer(MessageDeliverer deliverer) {
 		this.deliverer = deliverer;
 	}
-	
+
+	public void destroy() {
+		for (Layer layer:layers)
+			layer.destroy();
+	}
+
 	private class StackTopAdapter extends AbstractLayer {
 		
 		public void sendRequest(Request request) {
@@ -213,7 +218,7 @@ public class CoapStack {
 		public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 			outbox.sendEmptyMessage(exchange, message);
 		}
-		
+
 	}
 	
 	public boolean hasDeliverer() {

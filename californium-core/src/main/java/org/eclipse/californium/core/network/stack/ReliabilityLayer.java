@@ -43,7 +43,9 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	/** The logger. */
 	protected final static Logger LOGGER = Logger.getLogger(ReliabilityLayer.class.getCanonicalName());
-	
+	private final NetworkConfig config;
+	private final NetworkConfigObserverAdapter observer;
+
 	/** The random numbers generator for the back-off timer */
 	private Random rand = new Random();
 	
@@ -51,22 +53,22 @@ public class ReliabilityLayer extends AbstractLayer {
 	private float ack_random_factor;
 	private float ack_timeout_scale;
 	private int max_retransmit;
-	
+
 	/**
 	 * Constructs a new reliability layer.
 	 * Changes to the configuration are observed and automatically applied.
 	 * @param config the configuration
 	 */
 	public ReliabilityLayer(NetworkConfig config) {
-		
+		this.config = config;
 		ack_timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
 		ack_timeout_scale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 		max_retransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 		
 		LOGGER.config("ReliabilityLayer uses ACK_TIMEOUT="+ack_timeout+", ACK_RANDOM_FACTOR="+ack_random_factor+", and ACK_TIMEOUT_SCALE="+ack_timeout_scale);
-		
-		config.addConfigObserver(new NetworkConfigObserverAdapter() {
+
+		observer = new NetworkConfigObserverAdapter() {
 			@Override
 			public void changed(String key, int value) {
 				if (NetworkConfig.Keys.ACK_TIMEOUT.equals(key))
@@ -81,7 +83,8 @@ public class ReliabilityLayer extends AbstractLayer {
 				if (NetworkConfig.Keys.ACK_TIMEOUT_SCALE.equals(key))
 					ack_timeout_scale = value;
 			}
-		});
+		};
+		config.addConfigObserver(observer);
 	}
 	
 	/**
@@ -298,7 +301,12 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (min == max) return min;
 		return min + rand.nextInt(max - min);
 	}
-	
+
+	@Override
+	public void destroy() {
+		config.removeConfigObserver(observer);
+	}
+
 	/*
 	 * The main reason to create this class was to enable the methods
 	 * sendRequest and sendResponse to use the same code for sending messages
