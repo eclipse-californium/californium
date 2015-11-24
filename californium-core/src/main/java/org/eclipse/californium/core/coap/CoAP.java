@@ -300,7 +300,7 @@ public class CoAP {
 		public static final int REQUEST_CODE_LOWER_BOUND = 1;
 		
 		/** The highest value of a request code. */
-		public static final int REQUEST_CODE_UPPER_BOUNT = 31;
+		public static final int REQUEST_CODE_UPPER_BOUND = 31;
 		
 		/** The lowest value of a response code. */
 		public static final int RESPONSE_CODE_LOWER_BOUND = 64;

@@ -24,7 +24,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.EMPTY_CODE;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.MESSAGE_ID_BITS;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.REQUEST_CODE_LOWER_BOUND;
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.REQUEST_CODE_UPPER_BOUNT;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.REQUEST_CODE_UPPER_BOUND;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.RESPONSE_CODE_LOWER_BOUND;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.RESPONSE_CODE_UPPER_BOUND;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
@@ -90,7 +90,7 @@ public class DataParser {
 	
 	public boolean isRequest() {
 		return code >= REQUEST_CODE_LOWER_BOUND &&
-				code <= REQUEST_CODE_UPPER_BOUNT;
+				code <= REQUEST_CODE_UPPER_BOUND;
 	}
 	
 	public boolean isResponse() {
