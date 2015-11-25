@@ -202,7 +202,7 @@ public final class ClientHello extends HandshakeMessage {
 		writer.writeBytes(random.getRandomBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getSessionId());
+		writer.writeBytes(sessionId.getId());
 
 		writer.write(cookie.length, COOKIE_LENGTH);
 		writer.writeBytes(cookie);
@@ -296,7 +296,7 @@ public final class ClientHello extends HandshakeMessage {
 		sb.append("\n\t\tRandom: \n").append(random);
 		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getSessionId()));
+			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
 		sb.append("\n\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
@@ -342,7 +342,7 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	void setCookie(byte[] cookie) {
-		this.cookie = cookie;
+		this.cookie = Arrays.copyOf(cookie, cookie.length);
 	}
 
 	public List<CipherSuite> getCipherSuites() {

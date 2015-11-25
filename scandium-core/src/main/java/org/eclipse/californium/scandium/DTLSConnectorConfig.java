@@ -31,6 +31,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  * @deprecated Use <code>org.eclipse.californium.scandium.config.DtlsConnectorConfig</code>
  * instead.
  */
+@Deprecated
 public class DTLSConnectorConfig {
 
 	/** the maximum fragment size before DTLS fragmentation must be applied */

@@ -16,6 +16,7 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 
 /**
  * This exception is thrown when a MAC validation fails.
@@ -25,8 +26,8 @@ public class InvalidMacException extends GeneralSecurityException {
 
 	private static final long serialVersionUID = 1L;
 
-	private byte[] expected;
-	private byte[] actual;
+	private final byte[] expected;
+	private final byte[] actual;
 	
 	/**
 	 * Sets the expected and actual MAC values.
@@ -34,10 +35,10 @@ public class InvalidMacException extends GeneralSecurityException {
 	 * @param expected the expected MAC value
 	 * @param actual the actual MAC value
 	 */
-	public InvalidMacException(byte[] expected, byte[] actual) {
+	public InvalidMacException(final byte[] expected, final byte[] actual) {
 		super("MAC validation failed");
-		this.expected = expected;
-		this.actual = actual;
+		this.expected = Arrays.copyOf(expected, expected.length);
+		this.actual = Arrays.copyOf(actual, actual.length);
 	}
 
 	public final byte[] getExpected() {
@@ -47,5 +48,4 @@ public class InvalidMacException extends GeneralSecurityException {
 	public final byte[] getActual() {
 		return actual;
 	}
-
 }

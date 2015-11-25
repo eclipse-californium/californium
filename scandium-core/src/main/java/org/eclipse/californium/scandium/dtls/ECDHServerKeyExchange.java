@@ -29,6 +29,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,8 +52,7 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  */
 public final class ECDHServerKeyExchange extends ServerKeyExchange {
 
-	// Logging ////////////////////////////////////////////////////////
-
+	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{0}]";
 	private static final Logger LOGGER = Logger.getLogger(ECDHServerKeyExchange.class.getCanonicalName());
 
 	// DTLS-specific constants ////////////////////////////////////////
@@ -165,8 +165,8 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 	private ECDHServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, int curveId, byte[] pointEncoded,
 			byte[] signatureEncoded, InetSocketAddress peerAddress) throws HandshakeException {
 		this(signatureAndHashAlgorithm, curveId, peerAddress);
-		this.pointEncoded = pointEncoded;
-		this.signatureEncoded = signatureEncoded;
+		this.pointEncoded = Arrays.copyOf(pointEncoded, pointEncoded.length);
+		this.signatureEncoded = Arrays.copyOf(signatureEncoded, signatureEncoded.length);
 		// re-create public key from params
 		SupportedGroup group = SupportedGroup.fromId(curveId);
 		if (group == null || !group.isUsable()) {
@@ -180,6 +180,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 				KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_INSTANCE);
 				publicKey = (ECPublicKey) keyFactory.generatePublic(new ECPublicKeySpec(point, group.getEcParams()));
 			} catch (GeneralSecurityException e) {
+				LOGGER.log(Level.FINE, "Cannot re-create server's public key from params", e);
 				throw new HandshakeException(
 					String.format("Cannot re-create server's public key from params: %s", e.getMessage()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, peerAddress));
@@ -207,30 +208,34 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			break;
 
 		case NAMED_CURVE:
-			// http://tools.ietf.org/html/rfc4492#section-5.4
-			writer.write(NAMED_CURVE, CURVE_TYPE_BITS);
-			writer.write(curveId, NAMED_CURVE_BITS);
-			writer.write(pointEncoded.length, PUBLIC_LENGTH_BITS);
-			writer.writeBytes(pointEncoded);
-
-			// signature
-			if (signatureEncoded != null) {
-				// according to http://tools.ietf.org/html/rfc5246#section-A.7 the
-				// signature algorithm must also be included
-				writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
-				writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
-				
-				writer.write(signatureEncoded.length, SIGNATURE_LENGTH_BITS);
-				writer.writeBytes(signatureEncoded);
-			}
+			writeNamedCurve(writer);
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, "Unknown curve type [{0}]", curveType);
+			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
 
 		return writer.toByteArray();
+	}
+
+	private void writeNamedCurve(DatagramWriter writer) {
+		// http://tools.ietf.org/html/rfc4492#section-5.4
+		writer.write(NAMED_CURVE, CURVE_TYPE_BITS);
+		writer.write(curveId, NAMED_CURVE_BITS);
+		writer.write(pointEncoded.length, PUBLIC_LENGTH_BITS);
+		writer.writeBytes(pointEncoded);
+
+		// signature
+		if (signatureEncoded != null) {
+			// according to http://tools.ietf.org/html/rfc5246#section-A.7 the
+			// signature algorithm must also be included
+			writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
+			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
+			
+			writer.write(signatureEncoded.length, SIGNATURE_LENGTH_BITS);
+			writer.writeBytes(signatureEncoded);
+		}
 	}
 
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
@@ -245,28 +250,8 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 							"Curve type [%s] received in ServerKeyExchange message from peer [%s] is unsupported",
 							curveType, peerAddress),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
-			
 		case NAMED_CURVE:
-			int curveId = reader.read(NAMED_CURVE_BITS);
-			int length = reader.read(PUBLIC_LENGTH_BITS);
-			byte[] pointEncoded = reader.readBytes(length);
-
-			byte[] bytesLeft = reader.readBytesLeft();
-			
-			// default is SHA256withECDSA
-			SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-			
-			byte[] signatureEncoded = null;
-			if (bytesLeft.length > 0) {
-				reader = new DatagramReader(bytesLeft);
-				int hashAlgorithm = reader.read(HASH_ALGORITHM_BITS);
-				int signatureAlgorithm = reader.read(SIGNATURE_ALGORITHM_BITS);
-				signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-				length = reader.read(SIGNATURE_LENGTH_BITS);
-				signatureEncoded = reader.readBytes(length);
-			}
-
-			return new ECDHServerKeyExchange(signAndHash, curveId, pointEncoded, signatureEncoded, peerAddress);
+			return readNamedCurve(reader, peerAddress);
 
 		default:
 			LOGGER.log(Level.WARNING, "Unknown curve type [{0}] received from peer [{1}]",
@@ -275,6 +260,29 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		}
 
 		return null;
+	}
+
+	private static ECDHServerKeyExchange readNamedCurve(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
+		int curveId = reader.read(NAMED_CURVE_BITS);
+		int length = reader.read(PUBLIC_LENGTH_BITS);
+		byte[] pointEncoded = reader.readBytes(length);
+
+		byte[] bytesLeft = reader.readBytesLeft();
+
+		// default is SHA256withECDSA
+		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
+
+		byte[] signatureEncoded = null;
+		if (bytesLeft.length > 0) {
+			DatagramReader remainder = new DatagramReader(bytesLeft);
+			int hashAlgorithm = remainder.read(HASH_ALGORITHM_BITS);
+			int signatureAlgorithm = remainder.read(SIGNATURE_ALGORITHM_BITS);
+			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
+			length = remainder.read(SIGNATURE_LENGTH_BITS);
+			signatureEncoded = remainder.readBytes(length);
+		}
+
+		return new ECDHServerKeyExchange(signAndHash, curveId, pointEncoded, signatureEncoded, peerAddress);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -294,7 +302,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, "Unknown curve type [{0}]", curveType);
+			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
 		
@@ -360,31 +368,32 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 
 		switch (curveType) {
 		case EXPLICIT_PRIME:
-
-			break;
-
 		case EXPLICIT_CHAR2:
 
 			break;
 
 		case NAMED_CURVE:
-			signature.update((byte) NAMED_CURVE);
-			signature.update((byte) (curveId >> 8));
-			signature.update((byte) curveId);
-			signature.update((byte) pointEncoded.length);
-			signature.update(pointEncoded);
+			updateSignatureForNamedCurve(signature);
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, "Unknown curve type [{0}]", curveType);
+			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
+	}
+
+	private void updateSignatureForNamedCurve(Signature signature) throws SignatureException {
+		signature.update((byte) NAMED_CURVE);
+		signature.update((byte) (curveId >> 8));
+		signature.update((byte) curveId);
+		signature.update((byte) pointEncoded.length);
+		signature.update(pointEncoded);
 	}
 
 	public ECPublicKey getPublicKey() {
 		return publicKey;
 	}
-	
+
 	public int getCurveId() {
 		return curveId;
 	}

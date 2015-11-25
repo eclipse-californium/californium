@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -146,23 +147,23 @@ public final class CertificateRequest extends HandshakeMessage {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		if (certificateTypes.size() > 0) {
+		if (!certificateTypes.isEmpty()) {
 			sb.append("\t\tClient certificate type:\n");
 			for (ClientCertificateType type : certificateTypes) {
-				sb.append("\t\t\t" + type.toString() + "\n");
+				sb.append("\t\t\t").append(type).append("\n");
 			}
 		}
-		if (supportedSignatureAlgorithms.size() > 0) {
+		if (!supportedSignatureAlgorithms.isEmpty()) {
 			sb.append("\t\tSignature and hash algorithm:\n");
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append("\t\t\t" + algo.toString() + "\n");
+				sb.append("\t\t\t").append(algo).append("\n");
 			}
 		}
-		if (certificateAuthorities.size() > 0) {
+		if (!certificateAuthorities.isEmpty()) {
 			sb.append("\t\tCertificate authorities:\n");
 			for (DistinguishedName name : certificateAuthorities) {
 				X500Principal principal = new X500Principal(name.getName());
-				sb.append("\t\t\t" + principal.getName() + "\n");
+				sb.append("\t\t\t").append(principal.getName()).append("\n");
 			}
 		}
 		return sb.toString();
@@ -407,10 +408,10 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * Certificate Request</a> for details.
 	 */
 	public static class DistinguishedName {
-		private byte[] name;
+		private final byte[] name;
 
 		public DistinguishedName(byte[] name) {
-			this.name = name;
+			this.name = Arrays.copyOf(name, name.length);
 		}
 
 		public byte[] getName() {

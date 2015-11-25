@@ -19,6 +19,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -48,16 +49,16 @@ public final class ApplicationMessage extends AbstractMessage {
 	 */
 	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.data = data;
+		this.data = Arrays.copyOf(data, data.length);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public ContentType getContentType() {
 		return ContentType.APPLICATION_DATA;
 	}
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();

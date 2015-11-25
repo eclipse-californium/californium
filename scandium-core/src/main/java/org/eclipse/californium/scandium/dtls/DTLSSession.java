@@ -32,6 +32,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -52,7 +53,7 @@ public final class DTLSSession {
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
 	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
-	private static final int RECEIVE_WINDOW_SIZE = 64;
+	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
 
@@ -233,6 +234,7 @@ public final class DTLSSession {
 	 * been authenticated or the handshake was PSK based
 	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
+	@Deprecated
 	public PublicKey getPeerRawPublicKey() {
 		return peerRawPublicKey;
 	}
@@ -242,6 +244,7 @@ public final class DTLSSession {
 	 * @param key
 	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
 	 */
+	@Deprecated
 	void setPeerRawPublicKey(PublicKey key) {
 		peerRawPublicKey = key;
 	}
@@ -502,7 +505,7 @@ public final class DTLSSession {
 	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
 	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
 	 */
-	void setMasterSecret(byte[] masterSecret) {
+	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
 		if (this.masterSecret == null) {
 			if (masterSecret == null) {
@@ -512,7 +515,7 @@ public final class DTLSSession {
 						"Master secret must consist of of exactly 48 bytes but has [%d] bytes",
 						masterSecret.length));
 			} else {
-				this.masterSecret = masterSecret;
+				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
 			}
 		}
 	}
@@ -651,6 +654,7 @@ public final class DTLSSession {
 	 * has not been authenticated at all or the handshake was ECDH based
 	 * @deprecated Use {@link #getPeerIdentity()} instead
 	 */
+	@Deprecated
 	public String getPskIdentity() {
 		return pskIdentity;
 	}
@@ -660,6 +664,7 @@ public final class DTLSSession {
 	 * @param pskIdentity
 	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
 	 */
+	@Deprecated
 	void setPskIdentity(String pskIdentity) {
 		this.pskIdentity = pskIdentity;
 	}

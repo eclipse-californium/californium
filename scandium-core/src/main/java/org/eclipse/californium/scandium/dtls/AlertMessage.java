@@ -23,7 +23,6 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
  * 
  * Alert messages convey the severity of the message (warning or fatal) and a
@@ -107,155 +106,55 @@ public final class AlertMessage extends AbstractMessage {
 	 */
 	public enum AlertDescription {
 
-		CLOSE_NOTIFY(0),
-		UNEXPECTED_MESSAGE(10),
-		BAD_RECORD_MAC(20),
-		DECRYPTION_FAILED_RESERVED(21),
-		RECORD_OVERFLOW(22),
-		DECOMPRESSION_FAILURE(30),
-		HANDSHAKE_FAILURE(40),
-		NO_CERTIFICATE_RESERVED(41),
-		BAD_CERTIFICATE(42),
-		UNSUPPORTED_CERTIFICATE(43),
-		CERTIFICATE_REVOKED(44),
-		CERTIFICATE_EXPIRED(45),
-		CERTIFICATE_UNKNOWN(46),
-		ILLEGAL_PARAMETER(47),
-		UNKNOWN_CA(48),
-		ACCESS_DENIED(49),
-		DECODE_ERROR(50),
-		DECRYPT_ERROR(51),
-		EXPORT_RESTRICTION_RESERVED(60),
-		PROTOCOL_VERSION(70),
-		INSUFFICIENT_SECURITY(71),
-		INTERNAL_ERROR(80),
-		USER_CANCELED(90),
-		NO_RENEGOTIATION(100),
-		UNSUPPORTED_EXTENSION(110);
+		CLOSE_NOTIFY(0, "close_notify"),
+		UNEXPECTED_MESSAGE(10, "unexpected_message"),
+		BAD_RECORD_MAC(20, "bad_record_mac"),
+		DECRYPTION_FAILED_RESERVED(21, "decryption_failed"),
+		RECORD_OVERFLOW(22, "record_overflow"),
+		DECOMPRESSION_FAILURE(30, "decompression_failure"),
+		HANDSHAKE_FAILURE(40, "handshake_failure"),
+		NO_CERTIFICATE_RESERVED(41, "no_certificate"),
+		BAD_CERTIFICATE(42, "bad_certificate"),
+		UNSUPPORTED_CERTIFICATE(43, "unsupported_certificate"),
+		CERTIFICATE_REVOKED(44, "certificate_revoked"),
+		CERTIFICATE_EXPIRED(45, "certificate_expired"),
+		CERTIFICATE_UNKNOWN(46, "certificate_unknown"),
+		ILLEGAL_PARAMETER(47, "illegal_parameter"),
+		UNKNOWN_CA(48, "unknown_ca"),
+		ACCESS_DENIED(49, "access_denied"),
+		DECODE_ERROR(50, "decode_error"),
+		DECRYPT_ERROR(51, "decrypt_error"),
+		EXPORT_RESTRICTION_RESERVED(60, "export_restriction"),
+		PROTOCOL_VERSION(70, "protocol_version"),
+		INSUFFICIENT_SECURITY(71, "insufficient_security"),
+		INTERNAL_ERROR(80, "internal_error"),
+		USER_CANCELED(90, "user_canceled"),
+		NO_RENEGOTIATION(100, "no_negotiation"),
+		UNSUPPORTED_EXTENSION(110, "unsupported_extension");
 
 		private byte code;
+		private String description;
 
-		private AlertDescription(int code) {
+		private AlertDescription(int code, String description) {
 			this.code = (byte) code;
+			this.description = description;
 		}
 
 		public byte getCode() {
 			return code;
 		}
 
-		public static AlertDescription getDescriptionByCode(int code) {
-			switch (code) {
-			case 0:
-				return AlertDescription.CLOSE_NOTIFY;
-			case 10:
-				return AlertDescription.UNEXPECTED_MESSAGE;
-			case 20:
-				return AlertDescription.BAD_RECORD_MAC;
-			case 21:
-				return AlertDescription.DECRYPTION_FAILED_RESERVED;
-			case 22:
-				return AlertDescription.RECORD_OVERFLOW;
-			case 30:
-				return AlertDescription.DECOMPRESSION_FAILURE;
-			case 40:
-				return AlertDescription.HANDSHAKE_FAILURE;
-			case 41:
-				return AlertDescription.NO_CERTIFICATE_RESERVED;
-			case 42:
-				return AlertDescription.BAD_CERTIFICATE;
-			case 43:
-				return AlertDescription.UNSUPPORTED_CERTIFICATE;
-			case 44:
-				return AlertDescription.CERTIFICATE_REVOKED;
-			case 45:
-				return AlertDescription.CERTIFICATE_EXPIRED;
-			case 46:
-				return AlertDescription.CERTIFICATE_UNKNOWN;
-			case 47:
-				return AlertDescription.ILLEGAL_PARAMETER;
-			case 48:
-				return AlertDescription.UNKNOWN_CA;
-			case 49:
-				return AlertDescription.ACCESS_DENIED;
-			case 50:
-				return AlertDescription.DECODE_ERROR;
-			case 51:
-				return AlertDescription.DECRYPT_ERROR;
-			case 60:
-				return AlertDescription.EXPORT_RESTRICTION_RESERVED;
-			case 70:
-				return AlertDescription.PROTOCOL_VERSION;
-			case 71:
-				return AlertDescription.INSUFFICIENT_SECURITY;
-			case 80:
-				return AlertDescription.INTERNAL_ERROR;
-			case 90:
-				return AlertDescription.USER_CANCELED;
-			case 100:
-				return AlertDescription.NO_RENEGOTIATION;
-			case 110:
-				return AlertDescription.UNSUPPORTED_EXTENSION;
-			default:
-				return null;
-			}
+		public String getDescription() {
+			return description;
 		}
 
-		static String alertDescription(AlertDescription description) {
-			switch (description) {
-
-			case CLOSE_NOTIFY:
-				return "close_notify";
-			case UNEXPECTED_MESSAGE:
-				return "unexpected_message";
-			case BAD_RECORD_MAC:
-				return "bad_record_mac";
-			case DECRYPTION_FAILED_RESERVED:
-				return "decryption_failed";
-			case RECORD_OVERFLOW:
-				return "record_overflow";
-			case DECOMPRESSION_FAILURE:
-				return "decompression_failure";
-			case HANDSHAKE_FAILURE:
-				return "handshake_failure";
-			case NO_CERTIFICATE_RESERVED:
-				return "no_certificate";
-			case BAD_CERTIFICATE:
-				return "bad_certificate";
-			case UNSUPPORTED_CERTIFICATE:
-				return "unsupported_certificate";
-			case CERTIFICATE_REVOKED:
-				return "certificate_revoked";
-			case CERTIFICATE_EXPIRED:
-				return "certificate_expired";
-			case CERTIFICATE_UNKNOWN:
-				return "certificate_unknown";
-			case ILLEGAL_PARAMETER:
-				return "illegal_parameter";
-			case UNKNOWN_CA:
-				return "unknown_ca";
-			case ACCESS_DENIED:
-				return "access_denied";
-			case DECODE_ERROR:
-				return "decode_error";
-			case DECRYPT_ERROR:
-				return "decrypt_error";
-			case EXPORT_RESTRICTION_RESERVED:
-				return "export_restriction";
-			case PROTOCOL_VERSION:
-				return "protocol_version";
-			case INSUFFICIENT_SECURITY:
-				return "insufficient_security";
-			case INTERNAL_ERROR:
-				return "internal_error";
-			case USER_CANCELED:
-				return "user_canceled";
-			case NO_RENEGOTIATION:
-				return "no_negotiation";
-			case UNSUPPORTED_EXTENSION:
-				return "unsupported_extension";
-			default:
-				return "<UNKNOWN ALERT: " + (description.getCode() & 0x0ff) + ">";
+		public static AlertDescription getDescriptionByCode(int code) {
+			for (AlertDescription desc : values()) {
+				if (desc.code == (byte) code) {
+					return desc;
+				}
 			}
+			return null;
 		}
 	}
 
@@ -288,7 +187,7 @@ public final class AlertMessage extends AbstractMessage {
 		return writer.toByteArray();
 	}
 
-	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
+	public static DTLSMessage fromByteArray(final byte[] byteArray, final InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		int level = reader.read(BITS);
@@ -304,5 +203,4 @@ public final class AlertMessage extends AbstractMessage {
 	public AlertDescription getDescription() {
 		return description;
 	}
-
 }

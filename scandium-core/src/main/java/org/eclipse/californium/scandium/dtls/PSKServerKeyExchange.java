@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -38,7 +39,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	private static final int IDENTITY_HINT_LENGTH_BITS = 16;
 	
-	private static final Charset CHAR_SET = Charset.forName("UTF8");
+	private static final Charset CHAR_SET_UTF8 = Charset.forName("UTF8");
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -47,23 +48,23 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	 * encoded to octets using UTF-8. See <a
 	 * href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
 	 */
-	private byte[] hintEncoded;
+	private final byte[] hintEncoded;
 
 	/** The hint in cleartext. */
-	private String hint;
+	private final String hint;
 
 	// Constructors ///////////////////////////////////////////////////
 	
 	public PSKServerKeyExchange(String hint, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.hint = hint;
-		this.hintEncoded = hint.getBytes(CHAR_SET);
+		this.hintEncoded = hint.getBytes(CHAR_SET_UTF8);
 	}
 	
 	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.hintEncoded = hintEncoded;
-		this.hint = new String(hintEncoded, CHAR_SET);
+		this.hintEncoded = Arrays.copyOf(hintEncoded, hintEncoded.length);
+		this.hint = new String(this.hintEncoded, CHAR_SET_UTF8);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -71,7 +72,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	@Override
 	public int getMessageLength() {
 		// fixed: 2 bytes for the length field
-		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity_hint<0..2^16-1>;
+		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity_hint<0..2^16-1>
 		return 2 + hintEncoded.length;
 	}
 

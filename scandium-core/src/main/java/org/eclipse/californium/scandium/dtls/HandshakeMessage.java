@@ -19,9 +19,12 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -72,15 +75,26 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	 * with fragment_offset=0 and fragment_length=length.
 	 */
 	private int fragmentLength = -1;
-	
-    /**
-     * Used to store the message this instance has been created from.
-     * Only set if this message has been received from a client, i.e. we're the server
-     * in the handshake. The rawMessage is used to calculate the hash/message digest value
-     * sent in the <em>Finished</em> message.
-     */
-    private byte[] rawMessage;
-    
+
+	/**
+	 * Used to store the message this instance has been created from. Only set
+	 * if this message has been received from a client, i.e. we're the server in
+	 * the handshake. The rawMessage is used to calculate the hash/message
+	 * digest value sent in the <em>Finished</em> message.
+	 */
+	private byte[] rawMessage;
+
+	/**
+	 * Creates a new handshake message for a given peer.
+	 * 
+	 * @param peerAddress
+	 *            the IP address and port of the peer this message has been
+	 *            received from or should be sent to
+	 */
+	protected HandshakeMessage(InetSocketAddress peerAddress) {
+		super(peerAddress);
+	}
+
 	// Abstract methods ///////////////////////////////////////////////
 
 	/**
@@ -107,16 +121,6 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	 */
 	public abstract byte[] fragmentToByteArray();
 
-	/**
-	 * Creates a new handshake message for a given peer.
-	 * 
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
-	 */
-	protected HandshakeMessage(InetSocketAddress peerAddress) {
-		super(peerAddress);
-	}
-	
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
@@ -188,13 +192,13 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		int fragmentLength = reader.read(FRAGMENT_LENGTH_BITS);
 
 		byte[] bytesLeft = reader.readBytes(fragmentLength);
-		
+
 		if (length != fragmentLength) {
 			// fragmented message received
 			return new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset, bytesLeft, peerAddress);
 		}
-		
-		HandshakeMessage body = null;
+
+		HandshakeMessage body;
 		switch (type) {
 		case HELLO_REQUEST:
 			body = new HelloRequest(peerAddress);
@@ -217,21 +221,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			break;
 
 		case SERVER_KEY_EXCHANGE:
-			switch (keyExchange) {
-			case EC_DIFFIE_HELLMAN:
-				body = ECDHServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
-				break;
-			case PSK:
-				body = PSKServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
-				break;
-			case NULL:
-				LOGGER.severe("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
-				break;
-			default:
-				LOGGER.severe("Unknown key exchange algorithm: " + keyExchange);
-				break;
-			}
-			
+			body = readServerKeyExchange(bytesLeft, keyExchange, peerAddress);
 			break;
 
 		case CERTIFICATE_REQUEST:
@@ -247,22 +237,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
-			switch (keyExchange) {
-			case EC_DIFFIE_HELLMAN:
-				body = ECDHClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
-				break;
-			case PSK:
-				body = PSKClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
-				break;
-			case NULL:
-				body = NULLClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
-				break;
-
-			default:
-				LOGGER.severe("Unknown key exchange algorithm: " + keyExchange);
-				break;
-			}
-			
+			body = readClientKeyExchange(bytesLeft, keyExchange, peerAddress);
 			break;
 
 		case FINISHED:
@@ -270,16 +245,48 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			break;
 
 		default:
-			LOGGER.log(Level.INFO, "Unknown handshake type: {0}", type);
-			break;
+			throw new HandshakeException(
+					String.format("Cannot parse unsupported message type %s", type),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
 		}
 		// keep the raw bytes for computation of handshake hash
-		body.rawMessage = byteArray;
+		body.rawMessage = Arrays.copyOf(byteArray, byteArray.length);
 		body.setFragmentLength(fragmentLength);
 		body.setFragmentOffset(fragmentOffset);
 		body.setMessageSeq(messageSeq);
 
 		return body;
+	}
+
+	private static HandshakeMessage readServerKeyExchange(byte[] bytesLeft, KeyExchangeAlgorithm keyExchange, InetSocketAddress peerAddress)
+			throws HandshakeException {
+		switch (keyExchange) {
+		case EC_DIFFIE_HELLMAN:
+			return ECDHServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case PSK:
+			return PSKServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		default:
+			throw new HandshakeException(
+					"Unsupported key exchange algorithm",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+		}
+
+	}
+
+	private static HandshakeMessage readClientKeyExchange(byte[] bytesLeft, KeyExchangeAlgorithm keyExchange, InetSocketAddress peerAddress)
+			throws HandshakeException {
+		switch (keyExchange) {
+		case EC_DIFFIE_HELLMAN:
+			return ECDHClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case PSK:
+			return PSKClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case NULL:
+			return NULLClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		default:
+			throw new HandshakeException(
+					"Unknown key exchange algorithm",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+		}
 	}
 
 	// Getters and Setters ////////////////////////////////////////////

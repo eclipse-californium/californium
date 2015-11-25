@@ -18,6 +18,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -84,7 +85,7 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 		super(peerAddress);
 		this.type = type;
 		this.messageLength = messageLength;
-		this.fragmentedBytes = fragmentedBytes;
+		this.fragmentedBytes = Arrays.copyOf(fragmentedBytes, fragmentedBytes.length);
 		setFragmentOffset(fragmentOffset);
 		setFragmentLength(fragmentedBytes.length);
 	}

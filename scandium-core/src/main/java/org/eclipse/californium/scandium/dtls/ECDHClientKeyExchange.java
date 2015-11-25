@@ -40,8 +40,8 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
 public final class ECDHClientKeyExchange extends ClientKeyExchange {
 
 	// DTLS-specific constants ////////////////////////////////////////
-	
-	protected static final int LENGTH_BITS = 8; // opaque point <1..2^8-1>;
+
+	protected static final int LENGTH_BITS = 8; // opaque point <1..2^8-1>
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -79,9 +79,9 @@ public final class ECDHClientKeyExchange extends ClientKeyExchange {
 	 */
 	public ECDHClientKeyExchange(byte[] pointEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.pointEncoded = pointEncoded;
+		this.pointEncoded = Arrays.copyOf(pointEncoded, pointEncoded.length);
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
 
 	@Override

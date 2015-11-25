@@ -24,7 +24,9 @@ import java.net.InetSocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -49,8 +51,8 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  */
 public class DtlsConnectorConfig {
 
+	private static final String EC_ALGORITHM_NAME = "EC";
 	private InetSocketAddress address;
-
 	private Certificate[] trustStore = new Certificate[0];
 
 	/**
@@ -163,7 +165,7 @@ public class DtlsConnectorConfig {
 	 */
 	public final Certificate[] getCertificateChain() {
 		if (certChain == null) {
-			return null;
+			return new Certificate[0];
 		} else {
 			return Arrays.copyOf(certChain, certChain.length);
 		}
@@ -177,7 +179,7 @@ public class DtlsConnectorConfig {
 	 */
 	public final CipherSuite[] getSupportedCipherSuites() {
 		if (supportedCipherSuites == null) {
-			return null;
+			return new CipherSuite[0];
 		} else {
 			return Arrays.copyOf(supportedCipherSuites, supportedCipherSuites.length);
 		}
@@ -535,17 +537,19 @@ public class DtlsConnectorConfig {
 		 */
 		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
 				boolean preferRawPublicKeys) {
-			if (privateKey == null)
+			if (privateKey == null) {
 				throw new NullPointerException("The private key must not be null");
-			if (certificateChain == null || certificateChain.length < 1)
+			} else if (certificateChain == null || certificateChain.length < 1) {
 				throw new NullPointerException("The certificate chain must not be null or empty");
-			config.privateKey = privateKey;
-			config.certChain = certificateChain;
-			config.publicKey =  certificateChain[0].getPublicKey();
-			config.sendRawKey = preferRawPublicKeys;
-			return this;
+			} else {
+				config.privateKey = privateKey;
+				config.certChain = Arrays.copyOf(certificateChain, certificateChain.length);
+				config.publicKey =  config.certChain[0].getPublicKey();
+				config.sendRawKey = preferRawPublicKeys;
+				return this;
+			}
 		}
-		
+
 		/**
 		 * Sets the root certificates the connector should use as the trust anchor when verifying
 		 * a peer's identity based on an X.509 certificate chain.
@@ -558,11 +562,15 @@ public class DtlsConnectorConfig {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
-				config.trustStore = trustedCerts;
+				config.trustStore = Arrays.copyOf(trustedCerts, trustedCerts.length);
 				return this;
 			}
 		}
-		
+
+		private boolean isConfiguredWithKeyPair() {
+			return config.privateKey != null && config.publicKey != null;
+		}
+
 		/**
 		 * Creates an instance of <code>DtlsConnectorConfig</code> based on the properties
 		 * set on this builder.
@@ -584,58 +592,24 @@ public class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
-			if (config.supportedCipherSuites == null) {
-				// user has not explicitly set cipher suites
-				// try to guess his intentions from properties he has set
-				if (config.pskStore != null && config.privateKey == null && config.publicKey == null) {
-					
-					config.supportedCipherSuites = 
-							new CipherSuite[]{
-								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-								CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256};
-					
-				} else if (config.pskStore == null && config.privateKey != null && config.publicKey != null) {
-					
-					config.supportedCipherSuites =
-							new CipherSuite[]{
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256};
-					
-				} else if (config.pskStore != null && config.privateKey != null && config.publicKey != null) {
-					
-					config.supportedCipherSuites = new CipherSuite[]{
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256};
-					
-				} else {
-					throw new IllegalStateException("Supported cipher suites must be set either " +
-							"explicitly or implicitly by means of setting the identity or PSK store");
-				}
+			if (config.getSupportedCipherSuites().length == 0) {
+				determineCipherSuitesFromConfig();
 			}
-			
-			for (CipherSuite suite : config.supportedCipherSuites) {
+
+			if (config.getSupportedCipherSuites().length == 0) {
+				throw new IllegalStateException("Supported cipher suites must be set either " +
+						"explicitly or implicitly by means of setting the identity or PSK store");
+			}
+
+			for (CipherSuite suite : config.getSupportedCipherSuites()) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 				case TLS_PSK_WITH_AES_128_CBC_SHA256:
-					if (config.pskStore == null) {
-						throw new IllegalStateException("PSK store must be set when support for " +
-								CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.name() + " is configured");
-					}
+					verifyPskBasedCipherConfig();
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-					if (!clientOnly) {
-						if (config.getPrivateKey() == null || config.getPublicKey() == null) {
-							throw new IllegalStateException("Identity must be set");
-						} else if (!(config.privateKey.getAlgorithm().equals("EC")) ||
-								!(config.getPublicKey().getAlgorithm().equals("EC"))) {
-							// test if private & public key are ECDSA capable
-							throw new IllegalStateException("Keys must be ECDSA capable when support for an " +
-									"ECDHE_ECDSA based cipher suite is configured");
-						}
-					}
+					verifyEcBasedCipherConfig();
 					break;
 				default:
 					break;
@@ -643,6 +617,43 @@ public class DtlsConnectorConfig {
 			}
 
 			return config;
+		}
+
+		private void verifyPskBasedCipherConfig() {
+			if (config.pskStore == null) {
+				throw new IllegalStateException("PSK store must be set when support for " +
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8.name() + " is configured");
+			}
+		}
+
+		private void verifyEcBasedCipherConfig() {
+			if (!clientOnly) {
+				if (config.getPrivateKey() == null || config.getPublicKey() == null) {
+					throw new IllegalStateException("Identity must be set");
+				} else if ( !EC_ALGORITHM_NAME.equals(config.privateKey.getAlgorithm()) ||
+						!EC_ALGORITHM_NAME.equals(config.getPublicKey().getAlgorithm()) ) {
+					// test if private & public key are ECDSA capable
+					throw new IllegalStateException("Keys must be ECDSA capable when support for an " +
+							"ECDHE_ECDSA based cipher suite is configured");
+				}
+			}
+		}
+
+		private void determineCipherSuitesFromConfig() {
+			// user has not explicitly set cipher suites
+			// try to guess his intentions from properties he has set
+			List<CipherSuite> ciphers = new ArrayList<>();
+			if (isConfiguredWithKeyPair()) {
+				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+			}
+
+			if (config.pskStore != null) {
+				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+			}
+
+			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[0]);
 		}
 	}
 }

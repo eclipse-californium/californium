@@ -28,17 +28,17 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * particular session.
  */
 public class SessionId {
-	
+
 	// Members ////////////////////////////////////////////////////////
-	
-	private byte[] sessionId; // opaque SessionID<0..32>;
-	
+
+	private byte[] id; // opaque SessionID<0..32>
+
 	// Constructors ///////////////////////////////////////////////////
 
 	public SessionId() {
-		sessionId = new Random(new SecureRandom()).getRandomBytes();
+		id = new Random(new SecureRandom()).getRandomBytes();
 	}
-	
+
 	/**
 	 * Creates a session identifier based on given bytes.
 	 * 
@@ -49,17 +49,17 @@ public class SessionId {
 		if (sessionId == null) {
 			throw new NullPointerException("Session ID must not be null");
 		}
-		this.sessionId = sessionId;
+		this.id = Arrays.copyOf(sessionId, sessionId.length);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
-	
+
 	public int length() {
-		return sessionId.length;
+		return id.length;
 	}
-	
-	public byte[] getSessionId() {
-		return sessionId;
+
+	public byte[] getId() {
+		return id;
 	}
 
 	/**
@@ -71,7 +71,7 @@ public class SessionId {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(sessionId);
+		result = prime * result + Arrays.hashCode(id);
 		return result;
 	}
 
@@ -94,13 +94,13 @@ public class SessionId {
 		if (getClass() != obj.getClass())
 			return false;
 		SessionId other = (SessionId) obj;
-		if (!Arrays.equals(sessionId, other.sessionId))
+		if (!Arrays.equals(id, other.id))
 			return false;
 		return true;
 	}
 
 	@Override
 	public String toString() {
-		return ByteArrayUtils.toHexString(sessionId);
+		return ByteArrayUtils.toHexString(id);
 	}
 }

@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -36,8 +37,8 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int IDENTITY_LENGTH_BITS = 16;
-	
-	private static final Charset CHAR_SET = Charset.forName("UTF8");
+
+	private static final Charset CHAR_SET_UTF8 = Charset.forName("UTF8");
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -52,17 +53,17 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	private final String identity;
 
 	// Constructors ///////////////////////////////////////////////////
-	
+
 	public PSKClientKeyExchange(String identity, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.identityEncoded = identity.getBytes(CHAR_SET);
+		this.identityEncoded = identity.getBytes(CHAR_SET_UTF8);
 		this.identity = identity;
 	}
 	
 	private PSKClientKeyExchange(byte[] identityEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.identityEncoded = identityEncoded;
-		this.identity = new String(identityEncoded, CHAR_SET);
+		this.identityEncoded = Arrays.copyOf(identityEncoded, identityEncoded.length);
+		this.identity = new String(this.identityEncoded, CHAR_SET_UTF8);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -70,7 +71,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	@Override
 	public int getMessageLength() {
 		// fixed: 2 bytes for the length field
-		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity<0..2^16-1>;
+		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity<0..2^16-1>
 		return 2 + identityEncoded.length;
 	}
 
@@ -93,7 +94,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 		
 		return writer.toByteArray();
 	}
-	
+
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 		
@@ -102,7 +103,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 		
 		return new PSKClientKeyExchange(identityEncoded, peerAddress);
 	}
-	
+
 	// Getters and Setters ////////////////////////////////////////////
 
 	public String getIdentity() {

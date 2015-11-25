@@ -59,7 +59,7 @@ public class DatagramWriter {
 	 */
 	public void writeLong(long data, int numBits) {
 		if (numBits < 32 && data >= (1 << numBits)) {
-			throw new RuntimeException(String.format("Truncating value %d to %d-bit integer\n", data, numBits));
+			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
 		for (int i = numBits - 1; i >= 0; i--) {
@@ -93,7 +93,7 @@ public class DatagramWriter {
 	public void write(int data, int numBits) {
 
 		if (numBits < 32 && data >= (1 << numBits)) {
-			throw new RuntimeException(String.format("Truncating value %d to %d-bit integer\n", data, numBits));
+			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
 		for (int i = numBits - 1; i >= 0; i--) {

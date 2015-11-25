@@ -75,7 +75,7 @@ public final class Finished extends HandshakeMessage {
 	 */
 	private Finished(byte[] verifyData, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.verifyData = verifyData;
+		this.verifyData = Arrays.copyOf(verifyData, verifyData.length);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -111,18 +111,11 @@ public final class Finished extends HandshakeMessage {
 	}
 
 	private byte[] getVerifyData(byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
-		byte[] data = null;
+		int labelId = isClient ? Handshaker.CLIENT_FINISHED_LABEL : Handshaker.SERVER_FINISHED_LABEL;
 
-		int labelId = (isClient) ? Handshaker.CLIENT_FINISHED_LABEL : Handshaker.SERVER_FINISHED_LABEL;
-		
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-7.4.9: verify_data =
-		 * PRF(master_secret, finished_label, Hash(handshake_messages))
-		 * [0..verify_data_length-1];
-		 */
-		data = Handshaker.doPRF(masterSecret, labelId, handshakeHash);
-
-		return data;
+		// See http://tools.ietf.org/html/rfc5246#section-7.4.9:
+		// verify_data = PRF(master_secret, finished_label, Hash(handshake_messages)) [0..verify_data_length-1]
+		return Handshaker.doPRF(masterSecret, labelId, handshakeHash);
 	}
 
 	@Override
