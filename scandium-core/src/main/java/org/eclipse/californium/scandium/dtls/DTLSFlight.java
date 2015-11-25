@@ -74,6 +74,7 @@ public class DTLSFlight {
 	 * 
 	 * @deprecated use other constructor
 	 */
+	@Deprecated
 	public DTLSFlight() {
 		this.messages = new ArrayList<Record>();
 		this.tries = 0;
@@ -138,6 +139,7 @@ public class DTLSFlight {
 	 * @deprecated use the constructor to implicitly set the peer address
 	 *                   as part of the provided session 
 	 */
+	@Deprecated
 	public void setPeerAddress(InetSocketAddress peerAddress) {
 		this.peerAddress = peerAddress;
 	}
@@ -153,6 +155,7 @@ public class DTLSFlight {
 	 * @param session the session
 	 * @deprecated use the constructor to set the session
 	 */
+	@Deprecated
 	public void setSession(DTLSSession session) {
 		this.session = session;
 	}

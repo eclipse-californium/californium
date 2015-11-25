@@ -154,7 +154,7 @@ public final class ServerHello extends HandshakeMessage {
 		writer.writeBytes(random.getRandomBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getSessionId());
+		writer.writeBytes(sessionId.getId());
 
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
@@ -322,7 +322,7 @@ public final class ServerHello extends HandshakeMessage {
 		sb.append("\n\t\tRandom: \n").append(random);
 		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getSessionId()));
+			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
 		sb.append("\n\t\tCipher Suite: ").append(cipherSuite);
 		sb.append("\n\t\tCompression Method: ").append(compressionMethod);

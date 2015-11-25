@@ -51,7 +51,7 @@ import java.util.Map;
  */
 public class LeastRecentlyUsedCache<K, V> {
 
-	private static final long DEFAULT_THRESHOLD_SECS = 36 * 60 * 60; // 36 hours
+	private static final long DEFAULT_THRESHOLD_SECS = 36L * 60 * 60; // 36 hours
 	private static final int DEFAULT_CAPACITY = 500000;
 
 	private Map<K, CacheEntry<K, V>> cache;
@@ -88,20 +88,18 @@ public class LeastRecentlyUsedCache<K, V> {
 		header = new CacheEntry<>(null, null, -1);
 		header.after = header.before = header;
 	}
-	
+
 	/**
 	 * Registers a listener to be notified about entries being evicted from the store.
 	 * 
 	 * @param listener the listener
 	 */
-	void addEvictionListener(EvictionListener<V> listener) {
-		synchronized (evictionListeners) {
-			if (listener != null) {
-				this.evictionListeners.add(listener);
-			}
+	synchronized void addEvictionListener(EvictionListener<V> listener) {
+		if (listener != null) {
+			this.evictionListeners.add(listener);
 		}
 	}
-	
+
 	/**
 	 * Gets the period of time after which an entry is to be considered
 	 * stale if it hasn't be accessed.
@@ -111,7 +109,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	public final long getExpirationThreshold() {
 		return expirationThreshold;
 	}
-	
+
 	/**
 	 * Sets the period of time after which an entry is to be considered
 	 * stale if it hasn't be accessed.
@@ -127,7 +125,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	public final void setExpirationThreshold(long newThreshold) {
 		this.expirationThreshold = newThreshold;
 	}
-	
+
 	/**
 	 * Gets the maximum number of entries this cache can manage.
 	 * 
@@ -136,7 +134,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	public final int getCapacity() {
 		return capacity;
 	}
-	
+
 	/**
 	 * Sets the maximum number of entries this cache can manage.
 	 * 
@@ -151,7 +149,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	public final void setCapacity(int capacity) {
 		this.capacity = capacity;
 	}
-	
+
 	/**
 	 * Gets the cache's current number of entries.
 	 * 
@@ -160,11 +158,11 @@ public class LeastRecentlyUsedCache<K, V> {
 	final synchronized int size() {
 		return cache.size();
 	}
-	
+
 	public final synchronized int remainingCapacity() {
-		return capacity - cache.size();
+		return Math.max(0, capacity - cache.size());
 	}
-	
+
 	/**
 	 * Removes all entries from the cache.
 	 */
@@ -172,7 +170,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		cache.clear();
 		initLinkedList();
 	}
-	
+
 	/**
 	 * Puts an entry to the cache.
 	 * 
@@ -197,40 +195,40 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * remaining capacity is zero and no stale entries can be evicted
 	 * @see #addEvictionListener(EvictionListener)
 	 */
-	public final synchronized boolean put(K key, V value) {
-		
+	public final boolean put(K key, V value) {
+
 		if (value != null) {
-			CacheEntry<K, V> entry = cache.get(key);
-			if (entry != null) {
-				entry.remove();
-				add(key, value);
-				return true;
-			} else if (cache.size() < capacity) {
-				add(key, value);
-				return true;
-			} else {
-				long thresholdDate = System.currentTimeMillis() - expirationThreshold * 1000;
-				CacheEntry<K, V> eldest = header.after;
-				if (eldest.isStale(thresholdDate)) {
-					eldest.remove();
-					cache.remove(eldest.getKey());
+			synchronized(this) {
+				CacheEntry<K, V> existingEntry = cache.get(key);
+				if (existingEntry != null) {
+					existingEntry.remove();
 					add(key, value);
-					notifyEvictionListeners(eldest.getValue());
 					return true;
+				} else if (cache.size() < capacity) {
+					add(key, value);
+					return true;
+				} else {
+					long thresholdDate = System.currentTimeMillis() - expirationThreshold * 1000;
+					CacheEntry<K, V> eldest = header.after;
+					if (eldest.isStale(thresholdDate)) {
+						eldest.remove();
+						cache.remove(eldest.getKey());
+						add(key, value);
+						notifyEvictionListeners(eldest.getValue());
+						return true;
+					}
 				}
 			}
 		}
 		return false;
 	}
 
-	private void notifyEvictionListeners(V session) {
-		synchronized (evictionListeners) {
-			for (EvictionListener<V> listener : evictionListeners) {
-				listener.onEviction(session);
-			}
+	private synchronized void notifyEvictionListeners(V session) {
+		for (EvictionListener<V> listener : evictionListeners) {
+			listener.onEviction(session);
 		}
 	}
-	
+
 	/**
 	 * Gets the <em>eldest</em> value in the store.
 	 * 
@@ -238,19 +236,17 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @return the value
 	 */
-	final V getEldest() {
-		synchronized (header) {
-			CacheEntry<K, V> eldest = header.after;
-			return eldest.getValue();
-		}
+	final synchronized V getEldest() {
+		CacheEntry<K, V> eldest = header.after;
+		return eldest.getValue();
 	}
-	
+
 	private synchronized void add(K key, V value) {
 		CacheEntry<K, V> entry = new CacheEntry<>(key, value, System.currentTimeMillis());
 		cache.put(key, entry);
 		entry.addBefore(header);
 	}
-	
+
 	/**
 	 * Gets a value from the cache.
 	 * 
@@ -261,20 +257,22 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * @return the value if the key has been found in the cache and the value is
 	 *           not stale, <code>null</code> otherwise
 	 */
-	public final synchronized V get(K key) {
+	public final V get(K key) {
 		if (key == null) {
 			return null;
 		}
-		CacheEntry<K, V> entry = cache.get(key);
-		if (entry == null) {
-			return null;
-		} else if (entry.isStale(expirationThreshold)) {
-			cache.remove(entry.getKey());
-			entry.remove();
-			return null;
-		} else {
-			entry.recordAccess(header);
-			return entry.getValue();
+		synchronized(this) {
+			CacheEntry<K, V> entry = cache.get(key);
+			if (entry == null) {
+				return null;
+			} else if (entry.isStale(expirationThreshold)) {
+				cache.remove(entry.getKey());
+				entry.remove();
+				return null;
+			} else {
+				entry.recordAccess(header);
+				return entry.getValue();
+			}
 		}
 	}
 
@@ -285,15 +283,19 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * @return the removed value or <code>null</code> if the cache does not
 	 *            contain the key
 	 */
-	public final synchronized V remove(K key) {
-		if (key != null) {
+	public final V remove(K key) {
+		if (key == null) {
+			return null;
+		}
+		synchronized(this) {
 			CacheEntry<K, V> entry = cache.remove(key);
 			if (entry != null) {
 				entry.remove();
 				return entry.getValue();
+			} else {
+				return null;
 			}
 		}
-		return null;
 	}
 
 	/**
@@ -304,65 +306,69 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *          predicate or <code>null</code> if no value matches
 	 */
 	protected final V find(Predicate<V> predicate) {
-		for (CacheEntry<K, V> entry : cache.values()) {
-			if (predicate.accept(entry.getValue())) {
-				return entry.getValue();
+		if (predicate != null) {
+			synchronized(this) {
+				for (CacheEntry<K, V> entry : cache.values()) {
+					if (predicate.accept(entry.getValue())) {
+						return entry.getValue();
+					}
+				}
 			}
 		}
 		return null;
 	}
-	
+
 	protected static interface Predicate<V> {
 		boolean accept(V value);
 	}
-	
+
 	static interface EvictionListener<V> {
 		void onEviction(V evictedValue);
 	}
-	
+
 	private static class CacheEntry<K, V> {
 		private K key;
 		private V value;
 		private long lastUpdate;
 		private CacheEntry<K, V> after;
 		private CacheEntry<K, V> before;
-				
+
 		private CacheEntry(K key, V value, long lastUpdate) {
 			this.value = value;
 			this.key = key;
 			this.lastUpdate = lastUpdate;
 		}
-		
+
 		private K getKey() {
 			return key;
 		}
-		
+
 		private V getValue() {
 			return value;
 		}
-		
+
 		private boolean isStale(long threshold) {
 			return lastUpdate <= threshold;
 		}
-		
+
 		private void recordAccess(CacheEntry<K, V> header) {
 			remove();
 			lastUpdate = System.currentTimeMillis();
 			addBefore(header);
 		}
-		
+
 		private void addBefore(CacheEntry<K, V> existingEntry) {
 			after  = existingEntry;
 			before = existingEntry.before;
 			before.after = this;
 			after.before = this;
 		}
-		
+
 		private void remove() {
 			before.after = after;
 			after.before = before;
 		}
-		
+
 		@Override
 		public String toString() {
 			return new StringBuffer("CacheEntry [key: ").append(key)
@@ -370,5 +376,4 @@ public class LeastRecentlyUsedCache<K, V> {
 					.toString();
 		}
 	}
-	
 }

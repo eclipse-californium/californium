@@ -16,8 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-
-
 /**
  * The base exception class for all exceptions during a DTLS handshake.
  */
@@ -25,20 +23,19 @@ public class HandshakeException extends Exception {
 
 	private static final long serialVersionUID = 1123415935894222594L;
 
-	private AlertMessage alert;
-	private String message;
+	private final AlertMessage alert;
 
 	public HandshakeException(String message, AlertMessage alert) {
+		super(message);
 		this.alert = alert;
-		this.message = message;
+	}
+
+	public HandshakeException(String message, AlertMessage alert, Throwable cause) {
+		super(message, cause);
+		this.alert = alert;
 	}
 
 	public AlertMessage getAlert() {
 		return alert;
 	}
-
-	public String getMessage() {
-		return message;
-	}
-
 }

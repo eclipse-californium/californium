@@ -96,7 +96,7 @@ public class CertificateMessageTest {
 	}
 
 	@Test
-	public void testFromByteArrayHandlesEmptyMessageCorrectly() {
+	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
 		message = CertificateMessage.fromByteArray(serializedMessage, false, peerAddress);

@@ -33,7 +33,7 @@ public class RawPublicKeyIdentity implements Principal {
 	private static final int BASE_64_ENCODING_OPTIONS = Base64.ENCODE | Base64.URL_SAFE | Base64.NO_PADDING;
 	private String niUri;
 	private final PublicKey publicKey;
-	
+
 	/**
 	 * Creates a new instance for a given public key.
 	 * 
@@ -48,24 +48,21 @@ public class RawPublicKeyIdentity implements Principal {
 			createNamedInformationUri(publicKey.getEncoded());
 		}
 	}
-	
+
 	private void createNamedInformationUri(byte[] subjectPublicKeyInfo) {
-		// TODO: replace this with some dedicated Base64 helper class
-		// capable of native base64url encoding in order to prevent
-		// ugly post-processing of base64 encoded digest
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(subjectPublicKeyInfo);
 			byte[] digest = md.digest();
 			String base64urlDigest = Base64.encodeBytes(digest, BASE_64_ENCODING_OPTIONS);
-			StringBuffer b = new StringBuffer("ni:///sha-256;").append(base64urlDigest);
+			StringBuilder b = new StringBuilder("ni:///sha-256;").append(base64urlDigest);
 			niUri = b.toString();
 		} catch (NoSuchAlgorithmException | IOException e) {
 			// should not happen because SHA-256 is a mandatory message digest algorithm for any Java 7 VM
 			// no Base64 encoding of InputStream is done
 		}
 	}
-	
+
 	/**
 	 * Gets the <em>Named Information</em> URI representing this raw public key.
 	 * 
@@ -88,7 +85,7 @@ public class RawPublicKeyIdentity implements Principal {
 	public final PublicKey getKey() {
 		return publicKey;
 	}
-	
+
 	/**
 	 * Gets the key's ASN.1 encoded <em>SubjectPublicKeyInfo</em>.
 	 * 
@@ -120,7 +117,7 @@ public class RawPublicKeyIdentity implements Principal {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((publicKey == null) ? 0 : getSubjectInfo().hashCode());
+		result = prime * result + ((publicKey == null) ? 0 : Arrays.hashCode(getSubjectInfo()));
 		return result;
 	}
 
@@ -134,21 +131,20 @@ public class RawPublicKeyIdentity implements Principal {
 	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
-		}
-		if (obj == null) {
+		} else if (obj == null) {
 			return false;
-		}
-		if (!(obj instanceof RawPublicKeyIdentity)) {
+		} else if (!(obj instanceof RawPublicKeyIdentity)) {
 			return false;
-		}
-		RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
-		if (publicKey == null) {
-			if (other.publicKey != null) {
+		} else {
+			RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
+			if (publicKey == null) {
+				if (other.publicKey != null) {
+					return false;
+				}
+			} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
 				return false;
 			}
-		} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
-			return false;
+			return true;
 		}
-		return true;
 	}
 }

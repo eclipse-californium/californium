@@ -24,6 +24,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -96,7 +97,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	 */
 	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes, InetSocketAddress peerAddress) {
 		this(signatureAndHashAlgorithm, peerAddress);
-		this.signatureBytes = signatureBytes;
+		this.signatureBytes = Arrays.copyOf(signatureBytes, signatureBytes.length);
 	}
 
 	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, InetSocketAddress peerAddress) {

@@ -142,8 +142,8 @@ public final class CertificateMessage extends HandshakeMessage {
 		if (rawPublicKeyBytes == null) {
 			throw new NullPointerException("Raw public key byte array must not be null");
 		} else {
-			this.rawPublicKeyBytes = rawPublicKeyBytes;
-			length += rawPublicKeyBytes.length;
+			this.rawPublicKeyBytes = Arrays.copyOf(rawPublicKeyBytes, rawPublicKeyBytes.length);
+			length += this.rawPublicKeyBytes.length;
 		}
 	}
 
@@ -163,7 +163,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	private void setCertificateChain(Certificate[] chain) {
 		List<X509Certificate> certificates = new ArrayList<>();
 		X500Principal issuer = null;
-		X509Certificate cert = null;
+		X509Certificate cert;
 		for (Certificate c : chain) {
 			if (!(c instanceof X509Certificate)) {
 				throw new IllegalArgumentException(
@@ -171,12 +171,10 @@ public final class CertificateMessage extends HandshakeMessage {
 			} else {
 				cert = (X509Certificate) c;
 				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
-				if (issuer != null) {
-					if (!issuer.equals(cert.getSubjectX500Principal())) {
-						LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
-								cert.getSubjectX500Principal().getName());
-						throw new IllegalArgumentException("Given certificates do not form a chain");
-					}
+				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
+					LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
+							cert.getSubjectX500Principal().getName());
+					throw new IllegalArgumentException("Given certificates do not form a chain");
 				}
 				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
 					// not a self-signed certificate
@@ -197,24 +195,22 @@ public final class CertificateMessage extends HandshakeMessage {
 	}
 
 	private void calculateLength(Certificate[] certificateChain) {
-		if (certificateChain != null) {
+		if (certificateChain != null && encodedChain == null) {
 			// the certificate chain length uses 3 bytes
 			// each certificate's length in the chain also uses 3 bytes
-			if (encodedChain == null) {
-				encodedChain = new ArrayList<byte[]>(certificateChain.length);
-				try {
-					for (Certificate cert : certificateChain) {
-						byte[] encoded = cert.getEncoded();
-						encodedChain.add(encoded);
+			encodedChain = new ArrayList<byte[]>(certificateChain.length);
+			try {
+				for (Certificate cert : certificateChain) {
+					byte[] encoded = cert.getEncoded();
+					encodedChain.add(encoded);
 
-						// the length of the encoded certificate (3 bytes) plus the
-						// encoded bytes
-						length += 3 + encoded.length;
-					}
-				} catch (CertificateEncodingException e) {
-					encodedChain = null;
-					LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
+					// the length of the encoded certificate (3 bytes) plus the
+					// encoded bytes
+					length += 3 + encoded.length;
 				}
+			} catch (CertificateEncodingException e) {
+				encodedChain = null;
+				LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
 			}
 		}
 	}
@@ -263,7 +259,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		}
 	}
 	
-	private Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
+	private static Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
 		Set<TrustAnchor> result = new HashSet<>();
 		if (trustedCertificates != null) {
 			for (Certificate cert : trustedCertificates) {
@@ -278,7 +274,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Validates the X.509 certificate chain provided by the the peer as part of this message.
 	 * 
@@ -344,46 +340,48 @@ public final class CertificateMessage extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static CertificateMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey, InetSocketAddress peerAddress) {
+	public static CertificateMessage fromByteArray(byte[] byteArray, boolean useRawPublicKey, InetSocketAddress peerAddress) 
+		throws HandshakeException {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
-		CertificateMessage message;
 		if (useRawPublicKey) {
 			LOGGER.log(Level.FINER, "Parsing RawPublicKey CERTIFICATE message");
 			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
 			byte[] rawPublicKey = reader.readBytes(certificateLength);
-			message = new CertificateMessage(rawPublicKey, peerAddress);
+			return new CertificateMessage(rawPublicKey, peerAddress);
 		} else {
-			LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
-			int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
-			List<Certificate> certs = new ArrayList<Certificate>();
-
-			CertificateFactory certificateFactory = null;
-			while (certificateChainLength > 0) {
-				int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
-				byte[] certificate = reader.readBytes(certificateLength);
-
-				// the size of the length and the actual length of the encoded certificate
-				certificateChainLength -= (CERTIFICATE_LENGTH_BITS/8) + certificateLength;
-
-				try {
-					if (certificateFactory == null) {
-						certificateFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-					}
-					certs.add(certificateFactory.generateCertificate(new ByteArrayInputStream(certificate)));
-				} catch (CertificateException e) {
-					LOGGER.log(Level.INFO,
-							"Could not create X.509 certificate from byte array: {0}",
-							e.getMessage());
-					break;
-				}
-			}
-
-			message = new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]), peerAddress);
+			return readX509CertificateMessage(reader, peerAddress);
 		}
-		
-		return message;
+	}
+
+	private static CertificateMessage readX509CertificateMessage(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
+		LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
+		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
+		List<Certificate> certs = new ArrayList<Certificate>();
+
+		CertificateFactory certificateFactory = null;
+		while (certificateChainLength > 0) {
+			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
+			byte[] certificate = reader.readBytes(certificateLength);
+
+			// the size of the length and the actual length of the encoded certificate
+			certificateChainLength -= (CERTIFICATE_LENGTH_BITS/8) + certificateLength;
+
+			try {
+				if (certificateFactory == null) {
+					certificateFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
+				}
+				certs.add(certificateFactory.generateCertificate(new ByteArrayInputStream(certificate)));
+			} catch (CertificateException e) {
+				throw new HandshakeException(
+						"Cannot parse X.509 certificate chain provided by peer",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, peerAddress),
+						e);
+			}
+		}
+
+		return new CertificateMessage(certs.toArray(new X509Certificate[certs.size()]), peerAddress);
 	}
 
 	/**
@@ -410,11 +408,9 @@ public final class CertificateMessage extends HandshakeMessage {
 				// TODO dynamically determine algorithm for KeyFactory creation
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.SEVERE, "Could not reconstruct the peer's public key.", e);
+				LOGGER.log(Level.SEVERE, "Could not reconstruct the peer's public key", e);
 			}
 		}
 		return publicKey;
-
 	}
-
 }

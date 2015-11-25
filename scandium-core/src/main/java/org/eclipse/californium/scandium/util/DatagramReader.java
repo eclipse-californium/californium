@@ -17,6 +17,7 @@
 package org.eclipse.californium.scandium.util;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 
 /**
  * This class describes the functionality to read raw network-ordered datagrams
@@ -42,7 +43,7 @@ public class DatagramReader {
 	public DatagramReader(byte[] byteArray) {
 
 		// initialize underlying byte stream
-		byteStream = new ByteArrayInputStream(byteArray);
+		byteStream = new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length));
 
 		// initialize bit buffer
 		currentByte = 0;
@@ -128,19 +129,20 @@ public class DatagramReader {
 	 * 
 	 * @return The sequence of bytes read from the stream
 	 */
-	public byte[] readBytes(int count) {
+	public byte[] readBytes(final int count) {
 
+		int bytesToRead = count;
 		// for negative count values, read all bytes left
-		if (count < 0)
-			count = byteStream.available();
+		if (bytesToRead < 0)
+			bytesToRead = byteStream.available();
 
 		// allocate byte array
-		byte[] bytes = new byte[count];
+		byte[] bytes = new byte[bytesToRead];
 
 		// are there bits left to read in buffer?
 		if (currentBitIndex >= 0) {
 
-			for (int i = 0; i < count; i++) {
+			for (int i = 0; i < bytesToRead; i++) {
 				bytes[i] = (byte) read(Byte.SIZE);
 			}
 
@@ -206,7 +208,7 @@ public class DatagramReader {
 			// byte successfully read
 			currentByte = (byte) val;
 		} else {
-			// end of stream reached;
+			// end of stream reached
 			// return implicit zero bytes
 			currentByte = 0;
 		}

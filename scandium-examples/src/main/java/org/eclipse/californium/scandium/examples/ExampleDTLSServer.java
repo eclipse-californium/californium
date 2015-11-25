@@ -25,6 +25,7 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -34,18 +35,17 @@ import org.eclipse.californium.scandium.ScandiumLogger;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
-
 public class ExampleDTLSServer {
 
 	static {
 		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.ALL);
+		ScandiumLogger.setLevel(Level.FINE);
 	}
 
 	private static final int DEFAULT_PORT = 5684; 
-
+	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
-	private final static String KEY_STORE_PASSWORD = "endPass";
+	private static final String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "../certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "../certs/trustStore.jks";
 
@@ -55,11 +55,11 @@ public class ExampleDTLSServer {
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		// put in the PSK store the default identity/psk for tinydtls tests
 		pskStore.setKey("Client_identity", "secretPSK".getBytes());
-
+		InputStream in = null;
 		try {
 			// load the key store
 			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			in = new FileInputStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
 
 			// load the trust store
@@ -80,8 +80,15 @@ public class ExampleDTLSServer {
 			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
 		} catch (GeneralSecurityException | IOException e) {
-			System.err.println("Could not load the keystore");
-			e.printStackTrace();
+			LOG.log(Level.SEVERE, "Could not load the keystore", e);
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
+					LOG.log(Level.SEVERE, "Cannot close key store file", e);
+				}
+			}
 		}
 
 	}
@@ -102,14 +109,9 @@ public class ExampleDTLSServer {
 			this.connector = con;
 		}
 
-		// @Override
+		@Override
 		public void receiveData(final RawData raw) {
-			if (raw.getAddress() == null)
-				throw new NullPointerException();
-			if (raw.getPort() == 0)
-				throw new NullPointerException();
-
-			System.out.println("Received request: " + new String(raw.getBytes()));
+			LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
 			connector.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
 		}
 	}
@@ -118,11 +120,5 @@ public class ExampleDTLSServer {
 
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
-
-		try {
-			System.in.read();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 }

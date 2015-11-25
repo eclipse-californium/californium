@@ -177,7 +177,7 @@ public class ClientHandshaker extends Handshaker {
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
 		if (LOGGER.isLoggable(Level.FINE)) {
-			StringBuffer msg = new StringBuffer();
+			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
@@ -203,7 +203,7 @@ public class ClientHandshaker extends Handshaker {
 
 			switch (handshakeMsg.getMessageType()) {
 			case HELLO_REQUEST:
-				flight = receivedHelloRequest((HelloRequest) handshakeMsg);
+				flight = receivedHelloRequest();
 				break;
 
 			case HELLO_VERIFY_REQUEST:
@@ -309,7 +309,7 @@ public class ClientHandshaker extends Handshaker {
 	 *            the hello request message
 	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	private DTLSFlight receivedHelloRequest(HelloRequest message) throws HandshakeException {
+	private DTLSFlight receivedHelloRequest() throws HandshakeException {
 		if (state < HandshakeType.HELLO_REQUEST.getCode()) {
 			return getStartHandshakeMessage();
 		} else {
@@ -466,7 +466,6 @@ public class ClientHandshaker extends Handshaker {
 		 * handshake hash.
 		 */
 		CertificateMessage clientCertificate = null;
-		ClientKeyExchange clientKeyExchange = null;
 		CertificateVerify certificateVerify = null;
 
 		/*
@@ -487,16 +486,14 @@ public class ClientHandshaker extends Handshaker {
 		 * Second, send ClientKeyExchange as specified by the key exchange
 		 * algorithm.
 		 */
+		ClientKeyExchange clientKeyExchange;
 		byte[] premasterSecret;
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
 			premasterSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
-
 			generateKeys(premasterSecret);
-
 			break;
-
 		case PSK:
 			String identity = pskStore.getIdentity(getPeerAddress());
 			if (identity == null) {
@@ -619,35 +616,34 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(maxProtocolVersion, new SecureRandom(),
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(),
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
-		clientRandom = message.getRandom();
+		clientRandom = startMessage.getRandom();
 
 		// the preferred cipher suites in order of preference
 		for (CipherSuite supportedSuite : preferredCipherSuites) {
-			message.addCipherSuite(supportedSuite);
+			startMessage.addCipherSuite(supportedSuite);
 		}
 
-		message.addCompressionMethod(CompressionMethod.NULL);
+		startMessage.addCompressionMethod(CompressionMethod.NULL);
 		if (maxFragmentLengthCode != null) {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
-			message.addExtension(ext);
+			startMessage.addExtension(ext);
 			LOGGER.log(
 					Level.FINE,
 					"Indicating max. fragment length [{0}] to server [{1}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
 		// set current state
-		state = message.getMessageType().getCode();
+		state = startMessage.getMessageType().getCode();
 
 		// store for later calculations
-		clientHello = message;
+		clientHello = startMessage;
 		DTLSFlight flight = new DTLSFlight(session);
-		flight.addMessage(wrapMessage(message));
+		flight.addMessage(wrapMessage(startMessage));
 
 		return flight;
 	}
-
 }

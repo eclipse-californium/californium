@@ -18,6 +18,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
@@ -53,7 +54,7 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	public HelloVerifyRequest(ProtocolVersion version, byte[] cookie, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.serverVersion = version;
-		this.cookie = cookie;
+		this.cookie = Arrays.copyOf(cookie, cookie.length);
 	}
 
 	// Serialization //////////////////////////////////////////////////

@@ -55,7 +55,7 @@ public class Record {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	protected static final Logger LOGGER = Logger.getLogger(Record.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(Record.class.getCanonicalName());
 
 	// DTLS specific constants/////////////////////////////////////////
 
@@ -72,8 +72,8 @@ public class Record {
 	public static final int RECORD_HEADER_BITS = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
 			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
 
-	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1;
-	
+	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+
 	// Members ////////////////////////////////////////////////////////
 
 	/** The higher-level protocol used to process the enclosed fragment */
@@ -127,7 +127,7 @@ public class Record {
 			InetSocketAddress peerAddress) {
 		this(type, epoch, sequenceNumber);
 		this.version = version;
-		this.fragmentBytes = fragmentBytes;
+		this.fragmentBytes = Arrays.copyOf(fragmentBytes, fragmentBytes.length);
 		this.length = fragmentBytes.length;
 		this.peerAddress = peerAddress;
 	}
@@ -193,7 +193,7 @@ public class Record {
 			LOGGER.log(Level.WARNING, "Unexpected attempt to encrypt outbound record payload", e);
 		}
 	}
-	
+
 	private Record(ContentType type, int epoch, long sequenceNumber) {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must be 48 bits only");
@@ -354,7 +354,7 @@ public class Record {
 			return ciphertextFragment;
 		}
 
-		byte[] fragment = ciphertextFragment;
+		byte[] result = ciphertextFragment;
 
 		CipherSuite cipherSuite = currentReadState.getCipherSuite();
 		LOGGER.log(Level.FINEST, "Decrypting record fragment using current read state\n{0}", currentReadState);
@@ -365,11 +365,11 @@ public class Record {
 			break;
 			
 		case AEAD:
-			fragment = decryptAEAD(ciphertextFragment, currentReadState);
+			result = decryptAEAD(ciphertextFragment, currentReadState);
 			break;
 			
 		case BLOCK:
-			fragment = decryptBlockCipher(ciphertextFragment, currentReadState);
+			result = decryptBlockCipher(ciphertextFragment, currentReadState);
 			break;
 			
 		case STREAM:
@@ -382,11 +382,11 @@ public class Record {
 			break;
 		}
 
-		return fragment;
+		return result;
 	}
-	
+
 	// Block Cipher Cryptography //////////////////////////////////////
-	
+
 	/**
 	 * Converts a given TLSCompressed.fragment to a
 	 * TLSCiphertext.fragment structure as defined by
@@ -420,25 +420,25 @@ public class Record {
 		} else if (compressedFragment == null) {
 			throw new NullPointerException("Compressed fragment must not be null");
 		}
-		
+
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
 		DatagramWriter plaintext = new DatagramWriter();
 		plaintext.writeBytes(compressedFragment);
-		
+
 		// add MAC
 		plaintext.writeBytes(getBlockCipherMac(session.getWriteState(), compressedFragment));
-				
+
 		// determine padding length
-		int length = compressedFragment.length + session.getWriteState().getCipherSuite().getMacLength() + 1;
+		int ciphertextLength = compressedFragment.length + session.getWriteState().getCipherSuite().getMacLength() + 1;
 		int smallestMultipleOfBlocksize = session.getWriteState().getRecordIvLength();
-		while ( smallestMultipleOfBlocksize <= length) {
+		while ( smallestMultipleOfBlocksize <= ciphertextLength) {
 			smallestMultipleOfBlocksize += session.getWriteState().getRecordIvLength();
 		}
-		int paddingLength = smallestMultipleOfBlocksize % length;
-		
+		int paddingLength = smallestMultipleOfBlocksize % ciphertextLength;
+
 		// create padding
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
@@ -455,7 +455,7 @@ public class Record {
 		result.writeBytes(blockCipher.doFinal(plaintext.toByteArray()));
 		return result.toByteArray();
 	}
-	
+
 	/**
 	 * Converts a given TLSCiphertext.fragment to a
 	 * TLSCompressed.fragment structure as defined by
@@ -509,7 +509,7 @@ public class Record {
 				- 1 // paddingLength byte
 				- paddingLength
 				- currentReadState.getCipherSuite().getMacLength();
-		
+
 		reader = new DatagramReader(plaintext);
 		byte[] content = reader.readBytes(fragmentLength);			
 		byte[] macFromMessage = reader.readBytes(currentReadState.getCipherSuite().getMacLength());
@@ -520,7 +520,7 @@ public class Record {
 			throw new InvalidMacException(mac, macFromMessage);
 		}
 	}
-	
+
 	/**
 	 * Calculates a MAC for use with CBC block ciphers as specified
 	 * by <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
@@ -534,7 +534,7 @@ public class Record {
 	 *           HMac algorithm
 	 */
 	private byte[] getBlockCipherMac(DTLSConnectionState conState, byte[] content) throws GeneralSecurityException {
-		
+
 		Mac hmac = Mac.getInstance(conState.getCipherSuite().getMacName());
 		hmac.init(conState.getMacKey());
 		
@@ -543,9 +543,9 @@ public class Record {
 		mac.writeBytes(content);
 		return hmac.doFinal(mac.toByteArray());
 	}
-	
+
 	// AEAD Cryptography //////////////////////////////////////////////
-	
+
 	protected byte[] encryptAEAD(byte[] byteArray) throws GeneralSecurityException {
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 for
@@ -556,9 +556,9 @@ public class Record {
 		byte[] nonce = generateNonce(iv);
 		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
 		byte[] additionalData = generateAdditionalData(byteArray.length);
-		
+
 		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
-		
+
 		/*
 		 * Prepend the explicit nonce as specified in
 		 * http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
@@ -566,10 +566,10 @@ public class Record {
 		 */
 		byte[] explicitNonce = generateExplicitNonce();
 		encryptedFragment = ByteArrayUtils.concatenate(explicitNonce, encryptedFragment);
-		
+
 		return encryptedFragment;
 	}
-	
+
 	/**
 	 * Decrypts the given byte array using a AEAD cipher.
 	 * 
@@ -581,7 +581,7 @@ public class Record {
 	 * @throws GeneralSecurityException if de-cryption failed
 	 */
 	protected byte[] decryptAEAD(byte[] byteArray, DTLSConnectionState currentReadState) throws GeneralSecurityException {
-		
+
 		if (currentReadState == null) {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (byteArray == null) {
@@ -602,24 +602,22 @@ public class Record {
 		byte[] additionalData = generateAdditionalData(byteArray.length - 16);
 
 		DatagramReader reader = new DatagramReader(byteArray);
-		
+	
 		// create explicit nonce from values provided in DTLS record 
 		byte[] explicitNonce = generateExplicitNonce();
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
 		byte[] explicitNonceUsed = reader.readBytes(8);
 		if (!Arrays.equals(explicitNonce, explicitNonceUsed) && LOGGER.isLoggable(Level.FINE)) {
-			StringBuffer b = new StringBuffer("The explicit nonce used by the sender does not match the values provided in the DTLS record");
+			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
 			b.append("\nUsed    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
 			b.append("\nExpected: ").append(ByteArrayUtils.toHexString(explicitNonce));
 			LOGGER.log(Level.FINE, b.toString());
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
-		byte[] decrypted = CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
-
-		return decrypted;
+		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
 	}
-	
+
 	// Cryptography Helper Methods ////////////////////////////////////
 
 	/**
@@ -738,10 +736,9 @@ public class Record {
 			throw new IllegalArgumentException("Sequence number must have max 48 bits");
 		}
 		this.sequenceNumber = sequenceNumber;
-		if (session != null && session.getWriteState() != null) {
-			if (CipherType.BLOCK.equals(session.getWriteState().getCipherSuite().getCipherType())) {
-				fragmentBytes = encryptBlockCipher(fragment.toByteArray());
-			}
+		if (session != null && session.getWriteState() != null && 
+				CipherType.BLOCK.equals(session.getWriteState().getCipherSuite().getCipherType())) {
+			fragmentBytes = encryptBlockCipher(fragment.toByteArray());
 		}
 	}
 
@@ -816,74 +813,85 @@ public class Record {
 			// decide, which type of fragment need de-cryption
 			switch (type) {
 			case ALERT:
-				// http://tools.ietf.org/html/rfc5246#section-7.2:
-				// "Like other messages, alert messages are encrypted and
-				// compressed, as specified by the current connection state."
-				byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-				if (decryptedMessage != null) {
-					fragment = AlertMessage.fromByteArray(decryptedMessage, getPeerAddress());
-				}
+				fragment = decryptAlert(currentReadState);
 				break;
 
 			case APPLICATION_DATA:
-				// http://tools.ietf.org/html/rfc5246#section-10:
-				// "Application data messages are carried by the record layer and are
-				//  fragmented, compressed, and encrypted based on the current connection
-				//  state."
-				decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-				if (decryptedMessage != null) {
-					fragment = ApplicationMessage.fromByteArray(decryptedMessage, getPeerAddress());
-				}
+				fragment = decryptApplicationMessage(currentReadState);
 				break;
 
 			case CHANGE_CIPHER_SPEC:
-				// http://tools.ietf.org/html/rfc5246#section-7.1:
-				// "is encrypted and compressed under the current (not the pending)
-				// connection state"
-				decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-				if (decryptedMessage != null) {
-					fragment =  ChangeCipherSpecMessage.fromByteArray(decryptedMessage, getPeerAddress());
-				}
+				fragment = decryptChangeCipherSpec(currentReadState);
 				break;
 
 			case HANDSHAKE:
-				// TODO: it is unclear to me whether handshake messages are encrypted or not
-				// http://tools.ietf.org/html/rfc5246#section-7.4:
-				// "Handshake messages are supplied to the TLS record layer, where they
-				//  are encapsulated within one or more TLSPlaintext structures, which
-				//  are processed and transmitted as specified by the current active session state."
-				if (LOGGER.isLoggable(Level.FINEST)) {
-					LOGGER.log(Level.FINEST, "Decrypting HANDSHAKE message ciphertext\n{0}",
-						ByteArrayUtils.toHexString(fragmentBytes));
-				}
-				decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-
-				KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
-				boolean receiveRawPublicKey = false;
-				if (session != null) {
-					keyExchangeAlgorithm = session.getKeyExchange();
-					receiveRawPublicKey = session.receiveRawPublicKey();
-				} else {
-					LOGGER.log(Level.FINE, "Parsing message without a session");
-				}
-				if (decryptedMessage != null) {
-					if (LOGGER.isLoggable(Level.FINER)) {
-						StringBuffer msg = new StringBuffer(
-								"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]");
-						Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
-						if (LOGGER.isLoggable(Level.FINEST)) {
-							params[2] = ByteArrayUtils.toHexString(decryptedMessage);
-							msg.append(":\n{2}");
-						}
-						LOGGER.log(Level.FINER, msg.toString(), params);
-					}
-					fragment = HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
-				}
+				fragment = decryptHandshakeMessage(currentReadState);
 				break;
+
+			default:
+				LOGGER.log(Level.WARNING, "Cannot decrypt message of unsupported type [{0}]", type);
 			}
 		}
-		
+
 		return fragment;
+	}
+
+	private DTLSMessage decryptAlert(DTLSConnectionState currentReadState) throws GeneralSecurityException {
+		// http://tools.ietf.org/html/rfc5246#section-7.2:
+		// "Like other messages, alert messages are encrypted and
+		// compressed, as specified by the current connection state."
+		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
+		return AlertMessage.fromByteArray(decryptedMessage, getPeerAddress());
+	}
+
+	private DTLSMessage decryptApplicationMessage(DTLSConnectionState currentReadState) throws GeneralSecurityException {
+		// http://tools.ietf.org/html/rfc5246#section-10:
+		// "Application data messages are carried by the record layer and are
+		//  fragmented, compressed, and encrypted based on the current connection
+		//  state."
+		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
+		return ApplicationMessage.fromByteArray(decryptedMessage, getPeerAddress());
+	}
+
+	private DTLSMessage decryptChangeCipherSpec(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
+		// http://tools.ietf.org/html/rfc5246#section-7.1:
+		// "is encrypted and compressed under the current (not the pending)
+		// connection state"
+		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
+		return ChangeCipherSpecMessage.fromByteArray(decryptedMessage, getPeerAddress());
+	}
+
+	private DTLSMessage decryptHandshakeMessage(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
+		// TODO: it is unclear to me whether handshake messages are encrypted or not
+		// http://tools.ietf.org/html/rfc5246#section-7.4:
+		// "Handshake messages are supplied to the TLS record layer, where they
+		//  are encapsulated within one or more TLSPlaintext structures, which
+		//  are processed and transmitted as specified by the current active session state."
+		if (LOGGER.isLoggable(Level.FINEST)) {
+			LOGGER.log(Level.FINEST, "Decrypting HANDSHAKE message ciphertext\n{0}",
+				ByteArrayUtils.toHexString(fragmentBytes));
+		}
+		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
+
+		KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
+		boolean receiveRawPublicKey = false;
+		if (session != null) {
+			keyExchangeAlgorithm = session.getKeyExchange();
+			receiveRawPublicKey = session.receiveRawPublicKey();
+		} else {
+			LOGGER.log(Level.FINE, "Parsing message without a session");
+		}
+		if (LOGGER.isLoggable(Level.FINER)) {
+			StringBuilder msg = new StringBuilder(
+					"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]");
+			Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
+			if (LOGGER.isLoggable(Level.FINEST)) {
+				params[2] = ByteArrayUtils.toHexString(decryptedMessage);
+				msg.append(":\n{2}");
+			}
+			LOGGER.log(Level.FINER, msg.toString(), params);
+		}
+		return HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 	}
 
 	/**

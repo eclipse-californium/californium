@@ -95,12 +95,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * exchanged between networked clients and a server application.
  */
 public class DTLSConnector implements Connector {
-	
-	private final static Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
-	private final static int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
-	private final static int MAX_CIPHERTEXT_EXPANSION =
+
+	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
+	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
+	private static final int MAX_CIPHERTEXT_EXPANSION =
 			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getMaxCiphertextExpansion(); // CBC cipher has largest expansion
-	private final static int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
+	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
 			+ 12 // DTLS message headers
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
@@ -114,33 +114,33 @@ public class DTLSConnector implements Connector {
 	// last time when the master key was generated
 	private long lastGenerationDate = System.currentTimeMillis();
 	private SecretKey cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
-	
+
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
 	private DatagramSocket socket;
-	
+
 	/** The timer daemon to schedule retransmissions. */
 	private Timer timer;
-	
+
 	/** The thread that receives messages */
 	private Worker receiver;
-	
+
 	/** The thread that sends messages */
 	private Worker sender;
-	
+
 	private final ConnectionStore connectionStore;
-	
+
 	/** A queue for buffering outgoing messages */
 	private final BlockingQueue<RawData> outboundMessages;
-	
+
 	/** Indicates whether the connector has started and not stopped yet */
 	private boolean running;
-	
+
 	private RawDataChannel messageHandler;
 
 	private ErrorHandler errorHandler;
-	
+
 	/**
 	 * Creates a DTLS connector from a given configuration object
 	 * using the standard in-memory <code>SessionStore</code>. 
@@ -151,7 +151,7 @@ public class DTLSConnector implements Connector {
 	public DTLSConnector(DtlsConnectorConfig configuration) {
 		this(configuration, null);
 	}
-	
+
 	/**
 	 * Creates a DTLS connector from a given configuration object.
 	 * 
@@ -174,13 +174,14 @@ public class DTLSConnector implements Connector {
 		}
 		
 	}
-	
+
 	/**
 	 * Creates a DTLS connector for PSK based authentication only.
 	 * 
 	 * @param address the IP address and port to bind to
 	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
+	@Deprecated
 	public DTLSConnector(InetSocketAddress address) {
 		this(address, null);
 	}
@@ -193,10 +194,11 @@ public class DTLSConnector implements Connector {
 	 * Certificate Authorities or self-signed certificates.
 	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
+	@Deprecated
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
 		this(address, rootCertificates, null, null);
 	}
-	
+
 	/**
 	 * Creates a DTLS connector that can also do certificate based authentication.
 	 * 
@@ -208,6 +210,7 @@ public class DTLSConnector implements Connector {
 	 * @param config the configuration options to use
 	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
 	 */
+	@Deprecated
 	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,
 			ConnectionStore connectionStore, DTLSConnectorConfig config) {
 		Builder builder = new Builder(address);
@@ -233,7 +236,7 @@ public class DTLSConnector implements Connector {
 			this.connectionStore = new InMemoryConnectionStore();
 		}
 	}
-	
+
 	/**
 	 * Closes a connection with a given peer.
 	 * 
@@ -303,12 +306,14 @@ public class DTLSConnector implements Connector {
 		running = true;
 
 		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
+				@Override
 				public void doWork() throws Exception {
 					sendNextMessageOverNetwork();
 				}
 			};
 
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
+				@Override
 				public void doWork() throws Exception {
 					receiveNextDatagramFromNetwork();
 				}
@@ -569,7 +574,7 @@ public class DTLSConnector implements Connector {
 		}
 
 		// get session for this connection
-		DTLSSession session = null;
+		DTLSSession session;
 		if (connection.getEstablishedSession() == null) {
 			if (record.getEpoch() > 0) {
 				LOGGER.log(Level.FINER, "Received ALERT record with epoch > 0 from [{0}] without established session, discarding ...", peerAddress);
@@ -640,7 +645,7 @@ public class DTLSConnector implements Connector {
 			throws HandshakeException, GeneralSecurityException {
 
 		LOGGER.log(Level.FINER, "Received HANDSHAKE record from peer [{0}]", peerAddress);
-		DTLSFlight flight = null;
+		DTLSFlight flight;
 		Connection connection = connectionStore.get(peerAddress);
 		if (connection != null && connection.getOngoingHandshake() != null) {
 			// we are already in an ongoing handshake
@@ -795,7 +800,7 @@ public class DTLSConnector implements Connector {
 				} else {
 					// client wants to resume a cached session
 					LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
-							new Object[]{record.getPeerAddress(), ByteArrayUtils.toHexString(sessionId.getSessionId())});
+							new Object[]{record.getPeerAddress(), ByteArrayUtils.toHexString(sessionId.getId())});
 					final Connection previousConnection = connectionStore.find(sessionId);
 					if (previousConnection != null && previousConnection.getEstablishedSession() != null) {
 						// session has been found in cache, resume it
@@ -813,12 +818,12 @@ public class DTLSConnector implements Connector {
 									// when the session will be established for this new connection, remove the previous one.
 									LOGGER.log(Level.FINER,
 											"Remove old connection to [{0}], session with ID [{1}] was successfully resumed on peer [{2}] ",
-											new Object[]{previousConnection.getPeerAddress(),ByteArrayUtils.toHexString(establishedSession.getSessionIdentifier().getSessionId()),establishedSession.getPeer()});
+											new Object[]{previousConnection.getPeerAddress(),ByteArrayUtils.toHexString(establishedSession.getSessionIdentifier().getId()),establishedSession.getPeer()});
 									terminateConnection(previousConnection, null, null);
 								}
 							});
 						} else {
-							// remove immediately the previous connection;
+							// immediately remove previous connection
 							terminateConnection(previousConnection, null, null);
 						}
 						// add the new one to the store
@@ -828,7 +833,7 @@ public class DTLSConnector implements Connector {
 						nextFlight = handshaker.processMessage(record);
 					} else {
 						LOGGER.log(Level.FINER, "Client [{0}] tries to resume non-existing session with ID [{1}], starting new handshake...",
-								new Object[]{record.getPeerAddress(), ByteArrayUtils.toHexString(sessionId.getSessionId())});
+								new Object[]{record.getPeerAddress(), ByteArrayUtils.toHexString(sessionId.getId())});
 						// At this point the client has demonstrated reachability by completing a cookie exchange
 						// so we can terminate the previous session.
 						// (see section 4.2.8 of RFC 6347 (DTLS 1.2))
@@ -894,7 +899,7 @@ public class DTLSConnector implements Connector {
 			hmac.update((byte) clientHello.getClientVersion().getMajor());
 			hmac.update((byte) clientHello.getClientVersion().getMinor());
 			hmac.update(clientHello.getRandom().getRandomBytes());
-			hmac.update(clientHello.getSessionId().getSessionId());
+			hmac.update(clientHello.getSessionId().getId());
 			hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
 			hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
 			return hmac.doFinal();
@@ -1248,6 +1253,7 @@ public class DTLSConnector implements Connector {
 			super(name);
 		}
 
+		@Override
 		public void run() {
 			try {
 				LOGGER.log(Level.CONFIG, "Starting worker thread [{0}]", getName());
@@ -1298,7 +1304,7 @@ public class DTLSConnector implements Connector {
 	}
 
 	/** generate a random byte[] of length 32 **/
-	private byte[] randomBytes() {
+	private static byte[] randomBytes() {
 		SecureRandom rng = new SecureRandom();
 		byte[] result = new byte[32];
 		rng.nextBytes(result);
