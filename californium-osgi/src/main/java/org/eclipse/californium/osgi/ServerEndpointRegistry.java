@@ -22,7 +22,7 @@ import org.eclipse.californium.core.network.Endpoint;
 
 
 public interface ServerEndpointRegistry {
-	
+
 	/**
 	 * Gets the endpoint bound to a particular address.
 	 * 
@@ -31,7 +31,7 @@ public interface ServerEndpointRegistry {
 	 * server's endpoints is bound to the given address
 	 */
 	Endpoint getEndpoint(InetSocketAddress address);
-	
+
 	/**
 	 * Gets the endpoint bound to a particular port.
 	 * 
@@ -42,12 +42,12 @@ public interface ServerEndpointRegistry {
 	 */
 	Endpoint getEndpoint(int port);
 
-    /**
-     * Gets all endpoints in the registry.
-     * 
-     * @return the registered endpoints. Removing or adding endpoints from/to
-     *         the returned set does not remove or add the endpoint to this
-     *         registry.
-     */
-    Set<Endpoint> getAllEndpoints();
+	/**
+	 * Gets all endpoints in the registry.
+	 * 
+	 * @return the registered endpoints. Removing or adding endpoints from/to
+	 *         the returned set does not remove or add the endpoint to this
+	 *         registry.
+	 */
+	Set<Endpoint> getAllEndpoints();
 }
