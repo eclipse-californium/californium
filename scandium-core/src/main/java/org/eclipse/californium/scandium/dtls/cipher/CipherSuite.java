@@ -175,7 +175,7 @@ public enum CipherSuite {
 	public int getMacLength() {
 		return macAlgorithm.getOutputLength();
 	}
-	
+
 	/**
 	 * Gets the key length of the cipher suite's MAC algorithm.
 	 *  
@@ -184,7 +184,7 @@ public enum CipherSuite {
 	public int getMacKeyLength() {
 		return macAlgorithm.getKeyLength();
 	}
-	
+
 	/**
 	 * Gets the name of the cipher suite's MAC algorithm.
 	 * 
@@ -199,7 +199,7 @@ public enum CipherSuite {
 	public String getMacName() {
 		return macAlgorithm.getName();
 	}
-	
+
 	/**
 	 * Gets the amount of data needed to be generated for the cipher's
 	 * initialization vector.
@@ -212,7 +212,7 @@ public enum CipherSuite {
 	public int getRecordIvLength() {
 		return cipher.getRecordIvLength();
 	}
-	
+
 	/**
 	 * Gets the length of the fixed initialization vector (IV) of
 	 * the cipher suite's bulk cipher algorithm.
@@ -262,28 +262,19 @@ public enum CipherSuite {
 	 * @return the cipher suite or <code>null</code> if the code is unknown
 	 */
 	public static CipherSuite getTypeByCode(int code) {
-		switch (code) {
-		case 0x0000:
-			return CipherSuite.TLS_NULL_WITH_NULL_NULL;
-		case 0x00AE:
-			return CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256;
-		case 0xC023:
-			return CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-		case 0xC0A8:
-			return CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		case 0xC0AE:
-			return CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-
-		default:
-			if (LOGGER.isLoggable(Level.FINE)) {
-				LOGGER.log(Level.FINE,
-						"Cannot resolve cipher suite code [{0}]",
-						Integer.toHexString(code));
+		for (CipherSuite cipher : values()) {
+			if (cipher.code == code) {
+				return cipher;
 			}
-			return null;
 		}
+		if (LOGGER.isLoggable(Level.FINEST)) {
+			LOGGER.log(Level.FINEST,
+					"Cannot resolve cipher suite code [{0}]",
+					Integer.toHexString(code));
+		}
+		return null;
 	}
-	
+
 	/**
 	 * Gets a cipher suite by its (official) name.
 	 * 
@@ -338,10 +329,9 @@ public enum CipherSuite {
 
 	// Algorithm Enums ////////////////////////////////////////////////
 	
-	/*
+	/**
 	 * See http://tools.ietf.org/html/rfc5246#appendix-A.6
 	 */
-
 	private enum MACAlgorithm {
 		NULL(null, 0),
 		HMAC_MD5("HmacMD5", 16),
@@ -349,15 +339,15 @@ public enum CipherSuite {
 		HMAC_SHA256("HmacSHA256", 32),
 		HMAC_SHA384("HmacSHA384", 48),
 		HMAC_SHA512("HmacSHA512", 64);
-		
+
 		private String name;
 		private int outputLength;
-		
+
 		private MACAlgorithm(String name, int outputLength) {
 			this.name = name;
 			this.outputLength = outputLength;
 		}
-		
+
 		/**
 		 * Gets the MAC's name.
 		 * 
@@ -372,7 +362,7 @@ public enum CipherSuite {
 		public String getName() {
 			return name;
 		}
-		
+
 		/**
 		 * Gets the length of the MAC output.
 		 * 
@@ -381,7 +371,7 @@ public enum CipherSuite {
 		public int getOutputLength() {
 			return outputLength;
 		}
-		
+
 		/**
 		 * Gets the length of the key material to use with the MAC algorithm.
 		 * 
@@ -417,17 +407,17 @@ public enum CipherSuite {
 		private int ciphertextExpansion;
 
 
-		private Cipher(String transformation, CipherType type, int key_length, int fixed_iv_length, int recordIvLength) {
+		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength) {
 			this.transformation = transformation;
 			this.type = type;
-			this.keyLength = key_length;
-			this.fixedIvLength = fixed_iv_length;
+			this.keyLength = keyLength;
+			this.fixedIvLength = fixedIvLength;
 			this.recordIvLength = recordIvLength;
 		}
 
-		private Cipher(String transformation, CipherType type, int key_length, int fixed_iv_length, int recordIvLength,
+		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength,
 				int ciphertextExpansion) {
-			this(transformation, type, key_length, fixed_iv_length, recordIvLength);
+			this(transformation, type, keyLength, fixedIvLength, recordIvLength);
 			this.ciphertextExpansion = ciphertextExpansion;
 		}
 
@@ -487,5 +477,4 @@ public enum CipherSuite {
 	public enum CipherType {
 		NULL, STREAM, BLOCK, AEAD;
 	}
-
 }
