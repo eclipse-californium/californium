@@ -14,11 +14,14 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - log failure to verify FINISHED message
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -39,6 +42,8 @@ import org.eclipse.californium.scandium.util.DatagramWriter;
  * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>.
  */
 public final class Finished extends HandshakeMessage {
+
+	private static final Logger LOG = Logger.getLogger(Finished.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -98,15 +103,17 @@ public final class Finished extends HandshakeMessage {
 	public void verifyData(byte[] masterSecret, boolean isClient, byte[] handshakeHash) throws HandshakeException {
 
 		byte[] myVerifyData = getVerifyData(masterSecret, isClient, handshakeHash);
-		
-		boolean verified = Arrays.equals(myVerifyData, verifyData);
-		if (!verified) {
-			String message = String.format(
-					"Could not verify the finished message:\nExpected: %s\nReceived: %s",
-					ByteArrayUtils.toHexString(myVerifyData),
-					ByteArrayUtils.toHexString(verifyData));
+
+		if (!Arrays.equals(myVerifyData, verifyData)) {
+			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
+					.append("] FINISHED message failed");
+			if (LOG.isLoggable(Level.FINEST)) {
+				msg.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
+				msg.append(System.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
+			}
+			LOG.log(Level.FINE, msg.toString());
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
-			throw new HandshakeException(message, alert);
+			throw new HandshakeException("Verification of FINISHED message failed", alert);
 		}
 	}
 
@@ -130,10 +137,9 @@ public final class Finished extends HandshakeMessage {
 
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tVerify Data: " + ByteArrayUtils.toHexString(verifyData) + "\n");
-
-		return sb.toString();
+		return new StringBuilder(super.toString())
+				.append("\t\tVerify Data: ").append(ByteArrayUtils.toHexString(verifyData)).append(System.lineSeparator())
+				.toString();
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -141,18 +147,13 @@ public final class Finished extends HandshakeMessage {
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
-		
 		writer.writeBytes(verifyData);
-
 		return writer.toByteArray();
 	}
 
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
-
 		byte[] verifyData = reader.readBytesLeft();
-
 		return new Finished(verifyData, peerAddress);
 	}
-
 }
