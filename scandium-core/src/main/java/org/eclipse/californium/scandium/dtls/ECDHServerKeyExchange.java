@@ -243,23 +243,15 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		int curveType = reader.read(CURVE_TYPE_BITS);
 		switch (curveType) {
 		// TODO right now only named curve supported
-		case EXPLICIT_PRIME:
-		case EXPLICIT_CHAR2:
+		case NAMED_CURVE:
+			return readNamedCurve(reader, peerAddress);
+		default:
 			throw new HandshakeException(
 					String.format(
 							"Curve type [%s] received in ServerKeyExchange message from peer [%s] is unsupported",
 							curveType, peerAddress),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
-		case NAMED_CURVE:
-			return readNamedCurve(reader, peerAddress);
-
-		default:
-			LOGGER.log(Level.WARNING, "Unknown curve type [{0}] received from peer [{1}]",
-					new Object[]{curveType, peerAddress});
-			break;
 		}
-
-		return null;
 	}
 
 	private static ECDHServerKeyExchange readNamedCurve(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
