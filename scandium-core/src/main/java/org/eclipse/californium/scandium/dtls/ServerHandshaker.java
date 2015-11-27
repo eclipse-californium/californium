@@ -879,4 +879,18 @@ public class ServerHandshaker extends Handshaker {
 	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
 	}
+
+	/**
+	 * @return <code>true</code> if the given message is a <em>CLIENT_HELLO</em> message
+	 *            and contains the same <em>client random</em> as the <code>clientRandom</code> field.
+	 */
+	@Override
+	protected boolean isFirstMessageReceived(final HandshakeMessage handshakeMessage) {
+		if (HandshakeType.CLIENT_HELLO.equals(handshakeMessage.getMessageType())) {
+			Random messageRandom = ((ClientHello) handshakeMessage).getRandom();
+			return Arrays.equals(clientRandom.getRandomBytes(), messageRandom.getRandomBytes());
+		} else {
+			return false;
+		}
+	}
 }
