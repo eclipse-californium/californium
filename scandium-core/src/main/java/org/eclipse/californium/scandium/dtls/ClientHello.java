@@ -350,7 +350,7 @@ public final class ClientHello extends HandshakeMessage {
 		return cookie;
 	}
 
-	void setCookie(byte[] cookie) {
+	public void setCookie(byte[] cookie) {
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
 	}
 

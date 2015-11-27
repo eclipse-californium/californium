@@ -944,4 +944,18 @@ public abstract class Handshaker {
 			sessionListener.handshakeCompleted(getPeerAddress());
 		}
 	}
+
+	/**
+	 * Checks whether this handshake has been initiated by the given message.
+	 * 
+	 * @param handshakeMessage the message to check.
+	 * @return <code>true</code> if the given message has initially started this handshake.
+	 */
+	public final boolean hasBeenStartedByMessage(final HandshakeMessage handshakeMessage) {
+		return isFirstMessageReceived(handshakeMessage);
+	}
+
+	protected boolean isFirstMessageReceived(final HandshakeMessage handshakeMessage) {
+		return false;
+	}
 }
