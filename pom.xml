@@ -20,10 +20,6 @@
 		<tag>HEAD</tag>
 	</scm>
 
-	<properties>
-		<element.connectorVersion>1.0.0-M5</element.connectorVersion>
-	</properties>
-
 	<modules>
 		<module>scandium-core</module>
 		<module>scandium-examples</module>
@@ -34,11 +30,23 @@
 			<id>eclipse_snapshots</id>
 			<name>Eclipse Snapshots</name>
 			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
 		</repository>
 		<repository>
 			<id>eclipse_releases</id>
 			<name>Eclipse Releases</name>
 			<url>https://repo.eclipse.org/content/repositories/releases/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
 		</repository>
 	</repositories>
 
