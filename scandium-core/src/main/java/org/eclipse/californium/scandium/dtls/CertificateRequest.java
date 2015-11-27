@@ -46,6 +46,8 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	/* See http://tools.ietf.org/html/rfc5246#section-7.4.4 for message format. */
 
+	private static final String THREE_TABS = "\t\t\t";
+
 	private static final int CERTIFICATE_TYPES_LENGTH_BITS = 8;
 
 	private static final int CERTIFICATE_TYPE_BITS = 8;
@@ -148,22 +150,22 @@ public final class CertificateRequest extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		if (!certificateTypes.isEmpty()) {
-			sb.append("\t\tClient certificate type:\n");
+			sb.append("\t\tClient certificate type:").append(System.lineSeparator());
 			for (ClientCertificateType type : certificateTypes) {
-				sb.append("\t\t\t").append(type).append("\n");
+				sb.append(THREE_TABS).append(type).append(System.lineSeparator());
 			}
 		}
 		if (!supportedSignatureAlgorithms.isEmpty()) {
-			sb.append("\t\tSignature and hash algorithm:\n");
+			sb.append("\t\tSignature and hash algorithm:").append(System.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append("\t\t\t").append(algo).append("\n");
+				sb.append(THREE_TABS).append(algo).append(System.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
-			sb.append("\t\tCertificate authorities:\n");
+			sb.append("\t\tCertificate authorities:").append(System.lineSeparator());
 			for (DistinguishedName name : certificateAuthorities) {
 				X500Principal principal = new X500Principal(name.getName());
-				sb.append("\t\t\t").append(principal.getName()).append("\n");
+				sb.append(THREE_TABS).append(principal.getName()).append(System.lineSeparator());
 			}
 		}
 		return sb.toString();
@@ -237,7 +239,9 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * details.
 	 */
 	public enum ClientCertificateType {
-		RSA_SIGN(1), DSS_SIGN(2), RSA_FIXED_DH(3), DSS_FIXED_DH(4), RSA_EPHEMERAL_DH_RESERVED(5), DSS_EPHEMERAL_DH_RESERVED(6), FORTEZZA_DMS_RESERVED(20), ECDSA_SIGN(64), RSA_FIXED_ECDH(65), ECDSA_FIXED_ECDH(66);
+		RSA_SIGN(1), DSS_SIGN(2), RSA_FIXED_DH(3), DSS_FIXED_DH(4), RSA_EPHEMERAL_DH_RESERVED(5),
+		DSS_EPHEMERAL_DH_RESERVED(6), FORTEZZA_DMS_RESERVED(20), ECDSA_SIGN(64), RSA_FIXED_ECDH(65),
+		ECDSA_FIXED_ECDH(66);
 
 		private int code;
 
@@ -248,33 +252,14 @@ public final class CertificateRequest extends HandshakeMessage {
 		public int getCode() {
 			return code;
 		}
-		
-		public static ClientCertificateType getTypeByCode(int code) {
-			switch (code) {
-			case 1:
-				return RSA_SIGN;
-			case 2:
-				return DSS_SIGN;
-			case 3:
-				return RSA_FIXED_DH;
-			case 4:
-				return DSS_FIXED_DH;
-			case 5:
-				return RSA_EPHEMERAL_DH_RESERVED;
-			case 6:
-				return DSS_EPHEMERAL_DH_RESERVED;
-			case 20:
-				return FORTEZZA_DMS_RESERVED;
-			case 64:
-				return ECDSA_SIGN;
-			case 65:
-				return RSA_FIXED_ECDH;
-			case 66:
-				return ECDSA_FIXED_ECDH;
 
-			default:
-				return null;
+		public static ClientCertificateType getTypeByCode(int code) {
+			for (ClientCertificateType type : values()) {
+				if (type.code == code) {
+					return type;
+				}
 			}
+			return null;
 		}
 	}
 
@@ -291,27 +276,14 @@ public final class CertificateRequest extends HandshakeMessage {
 		private HashAlgorithm(int code) {
 			this.code = code;
 		}
-		
-		public static HashAlgorithm getAlgorithmByCode(int code) {
-			switch (code) {
-			case 0:
-				return NONE;
-			case 1:
-				return MD5;
-			case 2:
-				return SHA1;
-			case 3:
-				return SHA224;
-			case 4:
-				return SHA256;
-			case 5:
-				return SHA384;
-			case 6:
-				return SHA512;
 
-			default:
-				return null;
+		public static HashAlgorithm getAlgorithmByCode(int code) {
+			for (HashAlgorithm algorithm : values()) {
+				if (algorithm.code == code) {
+					return algorithm;
+				}
 			}
+			return null;
 		}
 
 		public int getCode() {
@@ -324,25 +296,7 @@ public final class CertificateRequest extends HandshakeMessage {
 
 		@Override
 		public String toString() {
-			switch (code) {
-			case 0:
-				return "NONE";
-			case 1:
-				return "MD5";
-			case 2:
-				return "SHA1";
-			case 3:
-				return "SHA224";
-			case 4:
-				return "SHA256";
-			case 5:
-				return "SHA384";
-			case 6:
-				return "SHA512";
-
-			default:
-				return "";
-			}
+			return name();
 		}
 	}
 
@@ -359,7 +313,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		private SignatureAlgorithm(int code) {
 			this.code = code;
 		}
-		
+
 		public static SignatureAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
 			case 0:
@@ -383,22 +337,10 @@ public final class CertificateRequest extends HandshakeMessage {
 		public void setCode(int code) {
 			this.code = code;
 		}
-		
+
 		@Override
 		public String toString() {
-			switch (code) {
-			case 0:
-				return "Anonymous";
-			case 1:
-				return "RSA";
-			case 2:
-				return "DSA";
-			case 3:
-				return "ECDSA";
-
-			default:
-				return "";
-			}
+			return name();
 		}
 	}
 
@@ -417,9 +359,8 @@ public final class CertificateRequest extends HandshakeMessage {
 		public byte[] getName() {
 			return name;
 		}
-
 	}
-	
+
 	// Getters and Setters ////////////////////////////////////////////
 
 	public void addCertificateType(ClientCertificateType certificateType) {
@@ -433,7 +374,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	public void addCertificateAuthority(DistinguishedName authority) {
 		certificateAuthorities.add(authority);
 	}
-	
+
 	/**
 	 * Takes a list of trusted certificates, extracts the subject principal and
 	 * adds the DER-encoded distinguished name to the certificate authorities.
@@ -461,5 +402,4 @@ public final class CertificateRequest extends HandshakeMessage {
 	public List<DistinguishedName> getCertificateAuthorities() {
 		return Collections.unmodifiableList(certificateAuthorities);
 	}
-
 }

@@ -96,7 +96,7 @@ public abstract class HelloExtension {
 	 */
 	protected void addExtensionData(DatagramWriter writer) {
 		// default is empty
-	};
+	}
 
 	/**
 	 * De-serializes a Client or Server Hello handshake message extension from its binary
@@ -165,7 +165,7 @@ public abstract class HelloExtension {
 	 * >IANA</a> for a summary.
 	 */
 	public enum ExtensionType {
-		/** See <a href="http://www.ietf.org/rfc/rfc3546">RFC 3546</a> */
+		// See http://www.ietf.org/rfc/rfc3546
 		SERVER_NAME(0, "server_name"),
 		MAX_FRAGMENT_LENGTH(1, "max_fragment_length"),
 		CLIENT_CERTIFICATE_URL(2, "client_certificate_url"),
@@ -175,7 +175,7 @@ public abstract class HelloExtension {
 
 		/** See <a href="http://tools.ietf.org/html/rfc4681">RFC 4681</a> */
 		USER_MAPPING(6, "user_mapping"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc5878">RFC 5878</a> */
 		CLIENT_AUTHZ(7, "client_authz"),
 		SERVER_AUTHZ(8, "server_authz"),
@@ -193,44 +193,42 @@ public abstract class HelloExtension {
 		 */
 		ELLIPTIC_CURVES(10, "elliptic_curves"),
 		EC_POINT_FORMATS(11, "ec_point_formats"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc5054">RFC 5054</a> */
 		SRP(12, "srp"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc5246">RFC 5246</a> */
 		SIGNATURE_ALGORITHMS(13, "signature_algorithms"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc5764">RFC 5764</a> */
 		USE_SRTP(14, "use_srtp"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc6520">RFC 6520</a> */
 		HEARTBEAT(15, "heartbeat"),
-		
+
 		/** See <a href="http://www.iana.org/go/draft-friedl-tls-applayerprotoneg">draft-friedl-tls-applayerprotoneg</a> */
 		APPLICATION_LAYER_PROTOCOL_NEGOTIATION(16, "application_layer_protocol_negotiation"),
 
 		/** See <a href="http://www.iana.org/go/draft-ietf-tls-multiple-cert-status-extension-08">draft-ietf-tls-multiple-cert-status-extension-08</a> */
 		STATUS_REQUEST_V2(17, "status_request_v2"),
-		
+
 		/** See <a href="http://www.iana.org/go/draft-laurie-pki-sunlight-12">draft-laurie-pki-sunlight-12</a> */
 		SIGNED_CERTIFICATE_TIMESTAMP(18, "signed_certificate_timestamp"),
-		
+
 		/** See <a href="http://tools.ietf.org/html/rfc7250">RFC 7250</a> */
 		CLIENT_CERT_TYPE(19, "client_certificate_type"),
 		SERVER_CERT_TYPE(20, "server_certificate_type"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc7366">RFC 7366</a> **/
 		ENCRYPT_THEN_MAC(22, "encrypt_then_mac"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc4507">RFC 4507</a> **/
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
-		
+
 		/** See <a href="http://www.iana.org/go/rfc5746">RFC 5746</a> **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");
-		
 
 		private int id;
-
 		private String name;
 
 		ExtensionType(int id, String name) {
@@ -248,58 +246,12 @@ public abstract class HelloExtension {
 		 *         given id is unsupported.
 		 */
 		public static ExtensionType getExtensionTypeById(int id) {
-			switch (id) {
-			case 0:
-				return ExtensionType.SERVER_NAME;
-			case 1:
-				return ExtensionType.MAX_FRAGMENT_LENGTH;
-			case 2:
-				return ExtensionType.CLIENT_CERTIFICATE_URL;
-			case 3:
-				return ExtensionType.TRUSTED_CA_KEYS;
-			case 4:
-				return ExtensionType.TRUNCATED_HMAC;
-			case 5:
-				return ExtensionType.STATUS_REQUEST;
-			case 6:
-				return ExtensionType.USER_MAPPING;
-			case 7:
-				return ExtensionType.CLIENT_AUTHZ;
-			case 8:
-				return ExtensionType.SERVER_AUTHZ;
-			case 9:
-				return ExtensionType.CERT_TYPE;
-			case 10:
-				return ExtensionType.ELLIPTIC_CURVES;
-			case 11:
-				return ExtensionType.EC_POINT_FORMATS;
-			case 12:
-				return ExtensionType.SRP;
-			case 13:
-				return ExtensionType.SIGNATURE_ALGORITHMS;
-			case 14:
-				return ExtensionType.USE_SRTP;
-			case 15:
-				return ExtensionType.HEARTBEAT;
-			case 16:
-				return ExtensionType.APPLICATION_LAYER_PROTOCOL_NEGOTIATION;
-			case 17:
-				return ExtensionType.STATUS_REQUEST_V2;
-			case 18:
-				return ExtensionType.SIGNED_CERTIFICATE_TIMESTAMP;
-			case 19:
-				return ExtensionType.CLIENT_CERT_TYPE;
-			case 20:
-				return ExtensionType.SERVER_CERT_TYPE;
-			case 22:
-				return ExtensionType.ENCRYPT_THEN_MAC;
-			case 35:
-				return ExtensionType.SESSION_TICKET_TLS;
-			case 65281:
-				return ExtensionType.RENEGOTIATION_INFO;
-			default:
-				return null;
+			for (ExtensionType type : values()) {
+				if (type.getId() == id) {
+					return type;
+				}
 			}
+			return null;
 		}
 
 		@Override

@@ -23,7 +23,7 @@ import java.security.Principal;
  */
 public class PreSharedKeyIdentity implements Principal {
 
-	final String identity;
+	private final String identity;
 
 	/**
 	 * Creates a new instance for a given identity.
@@ -38,7 +38,7 @@ public class PreSharedKeyIdentity implements Principal {
 			this.identity = identity;
 		}
 	}
-	
+
 	/**
 	 * Gets the identity.
 	 * 
@@ -92,5 +92,4 @@ public class PreSharedKeyIdentity implements Principal {
 		}
 		return true;
 	}
-	
 }
