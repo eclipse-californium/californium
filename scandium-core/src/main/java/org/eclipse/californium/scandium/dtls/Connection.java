@@ -50,7 +50,7 @@ public final class Connection implements SessionListener {
 	public Connection(InetSocketAddress peerAddress) {
 		this(peerAddress, null);
 	}
-	
+
 	/**
 	 * Creates a new new connection to a given peer.
 	 * 
@@ -67,7 +67,7 @@ public final class Connection implements SessionListener {
 			this.ongoingHandshake = ongoingHandshake;
 		}
 	}
-	
+
 	/**
 	 * Gets the address of this connection's peer.
 	 * 
@@ -85,7 +85,16 @@ public final class Connection implements SessionListener {
 	public DTLSSession getEstablishedSession() {
 		return establishedSession;
 	}
-	
+
+	/**
+	 * Checks whether a session has already been established with the peer.
+	 * 
+	 * @return <code>true</code> if a session has been established
+	 */
+	public boolean hasEstablishedSession() {
+		return establishedSession != null;
+	}
+
 	/**
 	 * Gets the handshaker managing the currently ongoing handshake with the peer.
 	 * 
@@ -94,7 +103,16 @@ public final class Connection implements SessionListener {
 	public Handshaker getOngoingHandshake() {
 		return ongoingHandshake;
 	}
-	
+
+	/**
+	 * Checks whether there is a handshake going on with the peer.
+	 * 
+	 * @return <code>true</code> if a handshake is going on
+	 */
+	public boolean hasOngoingHandshake() {
+		return ongoingHandshake != null;
+	}
+
 	/**
 	 * Sets the handshaker managing the currently ongoing handshake with the peer.
 	 * 
@@ -126,7 +144,7 @@ public final class Connection implements SessionListener {
 	public void setPendingFlight(DTLSFlight pendingFlight) {
 		this.pendingFlight = pendingFlight;
 	}
-	
+
 	/**
 	 * Cancels any pending re-transmission of an outbound flight that has been registered
 	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
@@ -140,7 +158,7 @@ public final class Connection implements SessionListener {
 			pendingFlight = null;
 		}
 	}
-	
+
 	/**
 	 * Gets the session containing the connection's <em>current</em> state.
 	 * 
