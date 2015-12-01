@@ -757,9 +757,11 @@ public class Record {
 
 	public synchronized void setSession(DTLSSession session) {
 		this.session = session;
-		this.peerAddress = null;
+		if (session != null) {
+			this.peerAddress = null;
+		}
 	}
-	
+
 	public InetSocketAddress getPeerAddress() {
 		if (session != null) {
 			return session.getPeer();
