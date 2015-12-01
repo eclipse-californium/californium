@@ -333,6 +333,15 @@ public final class ClientHello extends HandshakeMessage {
 		return sessionId;
 	}
 
+	/**
+	 * Checks whether this message contains a session ID.
+	 * 
+	 * @return <code>true</code> if the message contains a non-null session ID with length &gt; 0
+	 */
+	public boolean hasSessionId() {
+		return sessionId != null && sessionId.length() > 0;
+	}
+
 	void setSessionId(SessionId sessionId) {
 		this.sessionId = sessionId;
 	}
