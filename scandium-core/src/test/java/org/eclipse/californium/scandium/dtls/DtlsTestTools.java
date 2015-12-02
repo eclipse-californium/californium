@@ -33,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-public class DtlsTestTools {
+public final class DtlsTestTools {
 
 	public static final String TRUST_STORE_PASSWORD = "rootPass";
 	public final static String KEY_STORE_PASSWORD = "endPass";
@@ -42,6 +42,9 @@ public class DtlsTestTools {
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+
+	private DtlsTestTools() {
+	}
 
 	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
 
