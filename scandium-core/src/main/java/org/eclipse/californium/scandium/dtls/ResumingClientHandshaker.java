@@ -70,17 +70,19 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the DTLS configuration parameters to use for the handshake
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws HandshakeException if the handshaker could not be initialized
 	 * @throws IllegalArgumentException if the given session does not contain an identifier
+	 * @throws IllegalStateException if the message digest required for computing
+	 *            the FINISHED message hash cannot be instantiated
+	 * @throws NullPointerException if <code>session</code> or <code>config</code> is <code>null</code>
 	 */
 	public ResumingClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
+			DtlsConnectorConfig config, int maxTransmissionUnit) {
 		super(message, session, sessionListener, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override

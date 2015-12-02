@@ -159,12 +159,12 @@ public abstract class Handshaker {
 	 *            the trusted root certificates
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws HandshakeException if the message digest required for computing
-	 *            the handshake hash cannot be instantiated
+	 * @throws IllegalStateException if the message digest required for computing
+	 *            the FINISHED message hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, SessionListener sessionListener, 
-			Certificate[] rootCertificates, int maxTransmissionUnit) throws HandshakeException {
+			Certificate[] rootCertificates, int maxTransmissionUnit) {
 		this(isClient, 0, session, sessionListener, rootCertificates, maxTransmissionUnit);
 	}
 
@@ -187,13 +187,13 @@ public abstract class Handshaker {
 	 *            the trusted root certificates
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws HandshakeException if the message digest required for computing
+	 * @throws IllegalStateException if the message digest required for computing
 	 *            the FINISHED message hash cannot be instantiated
 	 * @throws NullPointerException if session is <code>null</code>
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, SessionListener sessionListener,
-			Certificate[] rootCertificates, int maxTransmissionUnit) throws HandshakeException {
+			Certificate[] rootCertificates, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		}
@@ -212,8 +212,9 @@ public abstract class Handshaker {
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
-			throw new HandshakeException("Could not initialize message digest algorithm for Handshaker",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+			// this cannot happen on a Java SE 7 VM because SHA-256 is mandatory to implement
+			throw new IllegalStateException(
+					String.format("Message digest algorithm %s is not available on JVM", MESSAGE_DIGEST_ALGORITHM_NAME));
 		}
 	}
 

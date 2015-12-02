@@ -134,11 +134,12 @@ public class ClientHandshaker extends Handshaker {
 	 *            the DTLS configuration
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session or config is <code>null</code>
+	 * @throws IllegalStateException if the message digest required for computing
+	 *            the FINISHED message hash cannot be instantiated
+	 * @throws NullPointerException if <code>session</code> or <code>config</code> is <code>null</code>
 	 */
 	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config,
-			int maxTransmissionUnit) throws HandshakeException {
+			int maxTransmissionUnit) {
 		super(true, session, sessionListener, config.getTrustStore(), maxTransmissionUnit);
 		this.message = message;
 		this.privateKey = config.getPrivateKey();
