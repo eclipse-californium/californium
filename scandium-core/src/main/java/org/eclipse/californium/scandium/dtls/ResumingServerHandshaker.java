@@ -45,17 +45,16 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 public class ResumingServerHandshaker extends ServerHandshaker {
 
 	private static final Logger LOGGER = Logger.getLogger(ResumingServerHandshaker.class.getName());
-	
+
 	// Members ////////////////////////////////////////////////////////
-	
+
 	/** The handshake hash used in the Finished messages. */
 	private byte[] handshakeHash;
-	
+
 	// Constructor ////////////////////////////////////////////////////
 
 	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit)
-			throws HandshakeException {
+			DtlsConnectorConfig config, int maxTransmissionUnit) {
 		super(sequenceNumber, session, sessionListener, config, maxTransmissionUnit);
 	}
 
@@ -77,7 +76,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			}
 			LOGGER.fine(msg.toString());
 		}
-		
+
 		switch (message.getContentType()) {
 		case ALERT:
 			break;
@@ -117,7 +116,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		}
 		return flight;
 	}
-	
+
 	/**
 	 * The server generates new keys from the old master secret and sends
 	 * ChangeCipherSpec and Finished message. The ClientHello contains a fresh
