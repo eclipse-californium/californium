@@ -66,7 +66,7 @@ public final class AlertMessage extends AbstractMessage {
 	}
 
 	// Alert Level Enum ///////////////////////////////////////////////
-	
+
 	/**
 	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.3">Alert
 	 * Messages</a> for the listing.
@@ -84,6 +84,12 @@ public final class AlertMessage extends AbstractMessage {
 			return code;
 		}
 
+		/**
+		 * Gets the alert level for a given code.
+		 * 
+		 * @param code the code
+		 * @return the corresponding level or <code>null</code> if no alert level exists for the given code
+		 */
 		public static AlertLevel getLevelByCode(int code) {
 			switch (code) {
 			case 1:
@@ -99,7 +105,7 @@ public final class AlertMessage extends AbstractMessage {
 	}
 
 	// Alert Description Enum /////////////////////////////////////////
-	
+
 	/**
 	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.3">Alert
 	 * Messages</a> for the listing.
@@ -148,6 +154,12 @@ public final class AlertMessage extends AbstractMessage {
 			return description;
 		}
 
+		/**
+		 * Gets the alert description for a given code.
+		 * 
+		 * @param code the code
+		 * @return the corresponding description or <code>null</code> if no alert description exists for the given code
+		 */
 		public static AlertDescription getDescriptionByCode(int code) {
 			for (AlertDescription desc : values()) {
 				if (desc.code == (byte) code) {
@@ -164,19 +176,22 @@ public final class AlertMessage extends AbstractMessage {
 	public ContentType getContentType() {
 		return ContentType.ALERT;
 	}
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tAlert Protocol");
-		sb.append("\n\tLevel: ").append(level);
-		sb.append("\n\tDescription: ").append(description).append("\n");
+		sb.append("\tAlert Protocol").append(System.lineSeparator());
+		sb.append("\tLevel: ").append(level).append(System.lineSeparator());
+		sb.append("\tDescription: ").append(description).append(System.lineSeparator());
 
 		return sb.toString();
 	}
 
 	// Serialization //////////////////////////////////////////////////
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
@@ -187,13 +202,23 @@ public final class AlertMessage extends AbstractMessage {
 		return writer.toByteArray();
 	}
 
-	public static DTLSMessage fromByteArray(final byte[] byteArray, final InetSocketAddress peerAddress) {
+	public static AlertMessage fromByteArray(final byte[] byteArray, final InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
-
-		int level = reader.read(BITS);
-		int description = reader.read(BITS);
-
-		return new AlertMessage(AlertLevel.getLevelByCode(level), AlertDescription.getDescriptionByCode(description), peerAddress);
+		byte levelCode = reader.readNextByte();
+		byte descCode = reader.readNextByte();
+		AlertLevel level = AlertLevel.getLevelByCode(levelCode);
+		AlertDescription description = AlertDescription.getDescriptionByCode(descCode);
+		if (level == null) {
+			throw new HandshakeException(
+					String.format("Unknown alert level code [%d]", levelCode),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+		} else if (description == null) {
+			throw new HandshakeException(
+					String.format("Unknown alert description code [%d]", descCode),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+		} else {
+			return new AlertMessage(level, description, peerAddress);
+		}
 	}
 
 	public AlertLevel getLevel() {
@@ -202,5 +227,9 @@ public final class AlertMessage extends AbstractMessage {
 
 	public AlertDescription getDescription() {
 		return description;
+	}
+
+	public boolean isFatal() {
+		return AlertLevel.FATAL.equals(level);
 	}
 }

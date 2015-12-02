@@ -838,7 +838,7 @@ public class Record {
 		return fragment;
 	}
 
-	private DTLSMessage decryptAlert(DTLSConnectionState currentReadState) throws GeneralSecurityException {
+	private DTLSMessage decryptAlert(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
 		// http://tools.ietf.org/html/rfc5246#section-7.2:
 		// "Like other messages, alert messages are encrypted and
 		// compressed, as specified by the current connection state."
