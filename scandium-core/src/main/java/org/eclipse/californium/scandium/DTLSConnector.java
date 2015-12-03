@@ -143,7 +143,7 @@ public class DTLSConnector implements Connector {
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
-	 * using the standard in-memory <code>SessionStore</code>. 
+	 * using the standard in-memory <code>ConnectionStore</code>. 
 	 * 
 	 * @param configuration the configuration options
 	 * @throws NullPointerException if the configuration is <code>null</code>
@@ -172,7 +172,6 @@ public class DTLSConnector implements Connector {
 		} else {
 			this.connectionStore = new InMemoryConnectionStore();
 		}
-		
 	}
 
 	/**
