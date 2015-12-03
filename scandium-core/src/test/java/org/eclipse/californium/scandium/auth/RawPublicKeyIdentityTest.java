@@ -19,12 +19,14 @@ import static org.junit.Assert.*;
 
 import java.security.PublicKey;
 
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class RawPublicKeyIdentityTest {
 
-	
 	@Test
 	public void testGetNameReturnsNamedInterfaceUri() throws Exception {
 		String uriPrefix = "ni:///sha-256;";
@@ -36,7 +38,7 @@ public class RawPublicKeyIdentityTest {
 		assertFalse(hash.contains("+"));
 		assertFalse(hash.contains("/"));
 	}
-	
+
 	@Test
 	public void testGetSubjectInfoReturnsEncodedKey() throws Exception {
 		PublicKey key = DtlsTestTools.getPublicKey();
