@@ -155,7 +155,7 @@ public class ClientHandshaker extends Handshaker {
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
-			if (certificateChain == null) {
+			if (certificateChain == null || certificateChain.length == 0) {
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			} else if (config.isSendRawKey()) {
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);

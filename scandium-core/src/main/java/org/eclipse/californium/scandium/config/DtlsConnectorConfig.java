@@ -16,6 +16,7 @@
  *                                               instantiation/configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -146,7 +147,7 @@ public class DtlsConnectorConfig {
 	public int getOutboundMessageBufferSize() {
 		return outboundMessageBufferSize;
 	}
-	
+
 	/**
 	 * Gets the IP address and port the connector is bound to.
 	 * 
@@ -155,7 +156,7 @@ public class DtlsConnectorConfig {
 	public InetSocketAddress getAddress() {
 		return address;
 	}
-	
+
 	/**
 	 * Gets the certificates forming the chain-of-trust from 
 	 * a root CA down to the certificate asserting the server's identity.
@@ -165,7 +166,7 @@ public class DtlsConnectorConfig {
 	 */
 	public final Certificate[] getCertificateChain() {
 		if (certChain == null) {
-			return new Certificate[0];
+			return null;
 		} else {
 			return Arrays.copyOf(certChain, certChain.length);
 		}
@@ -300,7 +301,7 @@ public class DtlsConnectorConfig {
 			config = new DtlsConnectorConfig();
 			config.address = address;
 		}
-		
+
 		/**
 		 * Indicates that the <em>DTLSConnector</em> will only be used as a
 		 * DTLS client.
@@ -372,7 +373,7 @@ public class DtlsConnectorConfig {
 				return this;
 			}
 		}
-		
+
 		/**
 		 * Sets the maximum number of times a flight of handshake messages gets re-transmitted
 		 * to a peer.
@@ -388,7 +389,7 @@ public class DtlsConnectorConfig {
 				return this;
 			}
 		}
-		
+
 		/**
 		 * Sets whether the connector requires DTLS clients to authenticate during
 		 * the handshake.
@@ -401,7 +402,7 @@ public class DtlsConnectorConfig {
 			config.clientAuthenticationRequired = authRequired;
 			return this;
 		}
-		
+
 		/**
 		 * Sets the cipher suites supported by the connector.
 		 * <p>
@@ -426,7 +427,7 @@ public class DtlsConnectorConfig {
 				return this;
 			}
 		}
-		
+
 		/**
 		 * Sets the cipher suites supported by the connector.
 		 * <p>
@@ -458,7 +459,7 @@ public class DtlsConnectorConfig {
 			config.supportedCipherSuites = suites;
 			return this;
 		}
-		
+
 		/**
 		 * Sets the time to wait before a handshake package gets re-transmitted.
 		 * 
@@ -474,7 +475,7 @@ public class DtlsConnectorConfig {
 				return this;
 			}
 		}
-		
+
 		/**
 		 * Sets the key store to use for authenticating clients based
 		 * on a pre-shared key.
@@ -487,7 +488,7 @@ public class DtlsConnectorConfig {
 			config.pskStore = pskStore;
 			return this;
 		}
-		
+
 		/**
 		 * Sets the connector's identifying properties by means of a private
 		 * and public key pair.
@@ -511,7 +512,7 @@ public class DtlsConnectorConfig {
 			config.sendRawKey = true;
 			return this;
 		}
-		
+
 		/**
 		 * Sets the connector's identifying properties by means of a private key
 		 * and a corresponding issuer certificates chain.

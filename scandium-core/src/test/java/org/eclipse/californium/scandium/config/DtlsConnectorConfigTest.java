@@ -14,10 +14,12 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                                    configuration
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  ******************************************************************************/
 package org.eclipse.californium.scandium.config;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -27,19 +29,21 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 
-import org.junit.Assert;
+import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class DtlsConnectorConfigTest {
 
 	DtlsConnectorConfig.Builder builder;
 	InetSocketAddress endpoint;
-	
+
 	@Before
 	public void setUp() throws Exception {
 		endpoint =  new InetSocketAddress(InetAddress.getLocalHost(), 10000);
@@ -60,26 +64,26 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderFailsWithDefaultConfiguration() {
 		builder.build();
 	}
-	
+
 	@Test
 	public void testBuilderSetsPskCipherSuitesWhenPskStoreIsSet() {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
-		Assert.assertTrue(config.getSupportedCipherSuites().length > 0);
+		assertTrue(config.getSupportedCipherSuites().length > 0);
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
-			Assert.assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.PSK));
+			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.PSK));
 		}
 	}
-	
+
 	@Test
 	public void testBuilderSetsEcdhCipherSuiteWhenKeysAreSet() throws Exception {
 		DtlsConnectorConfig config = builder.setIdentity(
 				DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()).build();
-		Assert.assertTrue(config.getSupportedCipherSuites().length > 0);
+		assertTrue(config.getSupportedCipherSuites().length > 0);
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
-			Assert.assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
+			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
 		}
 	}
-	
+
 	@Test
 	public void testBuilderSetsAllCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
 		DtlsConnectorConfig config = builder
@@ -95,43 +99,43 @@ public class DtlsConnectorConfigTest {
 				pskSuitesCount++;
 			}
 		}
-		Assert.assertTrue(ecDhSuitesCount > 0);
-		Assert.assertTrue(pskSuitesCount > 0);
+		assertTrue(ecDhSuitesCount > 0);
+		assertTrue(pskSuitesCount > 0);
 	}
-	
+
 	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingIdentity() {
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8}).build();
 	}
-	
+
 	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingPskStore() {
 		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}).build();
 	}
-	
+
 	@Test(expected = NullPointerException.class)
 	public void testSetIdentityRequiresPrivateKey() {
 		builder.setIdentity(null, new Certificate[0], false);
 	}
-	
+
 	@Test
 	public void testSetIdentityRequiresPrivateAndPublicKey() throws IOException, GeneralSecurityException {
 		PrivateKey privateKey = DtlsTestTools.getPrivateKey();
 		PublicKey publicKey = DtlsTestTools.getPublicKey();
 		try {
 			builder.setIdentity(privateKey, null);
-			Assert.fail("Should have rejected null as public key");
+			fail("Should have rejected null as public key");
 		} catch (NullPointerException e) {
 			// all is well
 		}
 		try {
 			builder.setIdentity(null, publicKey);
-			Assert.fail("Should have rejected null as private key");
+			fail("Should have rejected null as private key");
 		} catch (NullPointerException e) {
 			// all is well
 		}
 	}
-	
+
 	@Test
 	public void testBuildAllowsForAnonymousClient() {
 		builder.setClientOnly()
@@ -144,5 +148,19 @@ public class DtlsConnectorConfigTest {
 		builder.setClientOnly()
 			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
 			.build();
+	}
+
+	@Test
+	public void testGetCertificateChainReturnsNullForRpkOnlyConfiguration() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only
+		DtlsConnectorConfig config = builder
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.build();
+
+		// WHEN retrieving the certificate chain
+		Certificate[] chain = config.getCertificateChain();
+
+		// THEN
+		assertThat("Certificate chain should be null for RawPublicKey only configuration", chain, is(nullValue()));
 	}
 }

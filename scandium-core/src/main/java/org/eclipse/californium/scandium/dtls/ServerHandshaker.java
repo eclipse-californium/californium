@@ -189,7 +189,7 @@ public class ServerHandshaker extends Handshaker {
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
-			if (certificateChain == null) {
+			if (certificateChain == null || certificateChain.length == 0) {
 				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			} else if (config.isSendRawKey()) {
 				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
