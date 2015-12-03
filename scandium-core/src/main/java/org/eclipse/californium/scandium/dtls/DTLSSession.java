@@ -56,6 +56,8 @@ public final class DTLSSession {
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
+	private static final int MAX_TRANSMISSION_UNIT_DEFAULT = 1400; // a little less than standard ethernet MTU (1500)
+	private static final int MASTER_SECRET_LENGTH = 48; // bytes
 
 	/**
 	 * This session's peer's IP address and port.
@@ -70,13 +72,13 @@ public final class DTLSSession {
 	private Principal peerIdentity;
 
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
-	private int maxTransmissionUnit = 1400; // a little less than standard ethernet MTU (1500)
+	private int maxTransmissionUnit = MAX_TRANSMISSION_UNIT_DEFAULT;
 
 	/**
-	 * Specifies the pseudorandom function (PRF) used to generate keying
+	 * Specifies the pseudo-random function (PRF) used to generate keying
 	 * material, the bulk data encryption algorithm (such as null, AES, etc.)
 	 * and the MAC algorithm (such as HMAC-SHA1). It also defines cryptographic
-	 * attributes such as the mac_length. (See Appendix A.6 for formal
+	 * attributes such as the mac_length. (See TLS 1.2, Appendix A.6 for formal
 	 * definition.)
 	 */
 	private CipherSuite cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
@@ -510,10 +512,10 @@ public final class DTLSSession {
 		if (this.masterSecret == null) {
 			if (masterSecret == null) {
 				throw new NullPointerException("Master secret must not be null");
-			} else if (masterSecret.length != 48) {
+			} else if (masterSecret.length != MASTER_SECRET_LENGTH) {
 				throw new IllegalArgumentException(String.format(
-						"Master secret must consist of of exactly 48 bytes but has [%d] bytes",
-						masterSecret.length));
+						"Master secret must consist of of exactly %d bytes but has %d bytes",
+						MASTER_SECRET_LENGTH, masterSecret.length));
 			} else {
 				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
 			}
