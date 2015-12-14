@@ -794,7 +794,12 @@ public class DTLSConnector implements Connector {
 	 */
 	private void processHelloRequest(final HelloRequest helloRequest, final Connection connection) throws HandshakeException {
 		if (connection.hasOngoingHandshake()) {
-			// nothing to do, we are already re-negotiating the session parameters
+			// TLS 1.2, Section 7.4 advises to ignore HELLO_REQUEST messages arriving while
+			// in an ongoing handshake (http://tools.ietf.org/html/rfc5246#section-7.4)
+			LOGGER.log(
+					Level.FINE,
+					"Ignoring {0} received from [{1}] while already in an ongoing handshake with peer",
+					new Object[]{helloRequest.getMessageType(), helloRequest.getPeer()});
 		} else {
 			DTLSSession session = connection.getEstablishedSession();
 			if (session == null) {
