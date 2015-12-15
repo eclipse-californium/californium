@@ -50,16 +50,15 @@ public final class HelloExtensions {
 	// Members ////////////////////////////////////////////////////////
 
 	/** The list of extensions. */
-	private final List<HelloExtension> extensions;
+	private final List<HelloExtension> extensions= new ArrayList<HelloExtension>();
 
 	// Constructors ///////////////////////////////////////////////////
 
 	public HelloExtensions() {
-		this.extensions = new ArrayList<HelloExtension>();
 	}
 
 	public HelloExtensions(List<HelloExtension> extensions) {
-		this.extensions = extensions;
+		this.extensions.addAll(extensions);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -72,7 +71,7 @@ public final class HelloExtensions {
 	boolean isEmpty() {
 		return this.extensions.isEmpty();
 	}
-	
+
 	/**
 	 * 
 	 * @return the length of the whole extension fragment.
@@ -97,7 +96,7 @@ public final class HelloExtensions {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\t\tExtensions Length: ").append(getLength());
 		for (HelloExtension ext : extensions) {
-			sb.append("\n").append(ext.toString());
+			sb.append(System.lineSeparator()).append(ext);
 		}
 		return sb.toString();
 	}
@@ -174,7 +173,7 @@ public final class HelloExtensions {
 		}
 		return null;
 	}
-	
+
 	public List<HelloExtension> getExtensions() {
 		return Collections.unmodifiableList(extensions);
 	}
