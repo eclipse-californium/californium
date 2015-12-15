@@ -79,25 +79,24 @@ public final class ClientHello extends HandshakeMessage {
 	 * This is a list of the cryptographic options supported by the client, with
 	 * the client's first preference first.
 	 */
-	private List<CipherSuite> cipherSuites;
+	private List<CipherSuite> cipherSuites = new ArrayList<>();
 
 	/**
 	 * This is a list of the compression methods supported by the client, sorted
 	 * by client preference.
 	 */
-	private List<CompressionMethod> compressionMethods;
+	private List<CompressionMethod> compressionMethods = new ArrayList<>();
 
 	/**
 	 * Clients MAY request extended functionality from servers by sending data
 	 * in the extensions field.
 	 */
-	private HelloExtensions extensions = null;
+	private HelloExtensions extensions = new HelloExtensions();
 
 	// Constructors ///////////////////////////////////////////////////////////
 
 	/**
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
-	 *
 	 * 
 	 * @param version
 	 *            the protocol version to use
@@ -115,9 +114,7 @@ public final class ClientHello extends HandshakeMessage {
 	public ClientHello(ProtocolVersion version, SecureRandom secureRandom,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
-		this(version, secureRandom, null,supportedClientCertificateTypes,supportedServerCertificateTypes, peerAddress);
-		this.cipherSuites = new ArrayList<>();
-		this.compressionMethods = new ArrayList<>();
+		this(version, secureRandom, null, supportedClientCertificateTypes, supportedServerCertificateTypes, peerAddress);
 	}
 
 	/**
@@ -149,12 +146,8 @@ public final class ClientHello extends HandshakeMessage {
 		if (sessionId != null) {
 			this.sessionId = sessionId;
 		} else {
-			this.sessionId = new SessionId(new byte[] {});
+			this.sessionId = SessionId.emptySessionId();
 		}
-
-		this.extensions = new HelloExtensions();
-		this.cipherSuites = new ArrayList<>();
-		this.compressionMethods = new ArrayList<>();
 
 		// the supported groups
 		// TODO make list of supported groups configurable
