@@ -22,6 +22,8 @@ package org.eclipse.californium.core.network.stack;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.Message;
+
 /**
  * This class represents the status of a blockwise transfer of a request or a
  * response.
@@ -32,6 +34,9 @@ import java.util.List;
 public class BlockwiseStatus {
 
 	public static final int NO_OBSERVE = -1;
+	
+	/** The first token to manage blockwise Observe */
+	private Message first;
 	
 	/** The current num. */
 	private int currentNum;
@@ -91,6 +96,24 @@ public class BlockwiseStatus {
 		this.contentFormat = contentFormat;
 		this.currentNum = num;
 		this.currentSzx = szx;
+	}
+	
+	/**
+	 * Gets the first block.
+	 *
+	 * @return the first block
+	 */
+	public Message getFirst() {
+		return first;
+	}
+
+	/**
+	 * Sets the first block for transparent blockwise notifications.
+	 *
+	 * @param first the block to store
+	 */
+	public void setFirst(Message first) {
+		this.first = first;
 	}
 	
 	/**

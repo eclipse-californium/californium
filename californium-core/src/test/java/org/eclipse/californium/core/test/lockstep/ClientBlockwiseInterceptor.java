@@ -33,8 +33,8 @@ public class ClientBlockwiseInterceptor implements MessageInterceptor {
 	@Override
 	public void sendRequest(Request request) {
 		buffer.append(
-				String.format("\n%s [MID=%d], %s, /%s%s%s%s    ----->",
-				request.getType(), request.getMID(), request.getCode(),
+				String.format("\n%s [MID=%d, T=%s], %s, /%s%s%s%s    ----->",
+				request.getType(), request.getMID(), request.getTokenString(), request.getCode(),
 				request.getOptions().getUriPathString(),
 				blockOptionString(1, request.getOptions().getBlock1()),
 				blockOptionString(2, request.getOptions().getBlock2()),
@@ -62,8 +62,8 @@ public class ClientBlockwiseInterceptor implements MessageInterceptor {
 	@Override
 	public void receiveResponse(Response response) {
 		buffer.append(
-				String.format("\n<-----   %s [MID=%d], %s%s%s%s    ",
-				response.getType(), response.getMID(), response.getCode(),
+				String.format("\n<-----   %s [MID=%d, T=%s], %s%s%s%s    ",
+				response.getType(), response.getMID(), response.getTokenString(), response.getCode(),
 				blockOptionString(1, response.getOptions().getBlock1()),
 				blockOptionString(2, response.getOptions().getBlock2()),
 				observeString(response.getOptions())));

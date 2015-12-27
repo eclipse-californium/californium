@@ -29,13 +29,13 @@ import java.net.InetSocketAddress;
 import java.util.Random;
 
 import org.junit.Assert;
-
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,6 +71,7 @@ public class ObserveClientSideTest {
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 		client = new CoapEndpoint(new InetSocketAddress(0), config);
 		client.addInterceptor(clientInterceptor);
+		client.addInterceptor(new MessageTracer());
 		client.start();
 		clientPort = client.getAddress().getPort();
 		System.out.println("Client binds to port "+clientPort);
@@ -120,6 +121,8 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		
 		Response response = request.waitForResponse(1000);
+		printServerLog();
+		
 		Assert.assertNotNull("Client received no response", response);
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
@@ -136,10 +139,11 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 
 		response = request.waitForResponse(1000);
+		printServerLog();
+		
 		Assert.assertNotNull("Client received no response", response);
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
-		printServerLog();
 	}
 	
 	private void testBlockwiseObserve() throws Exception {
@@ -160,11 +164,13 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		
 		Response response = request.waitForResponse(1000);
+		printServerLog();
+		
 		Assert.assertNotNull("Client received no response", response);
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
-		printServerLog();
 		
+		// normal notification
 		Thread.sleep(50);
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
@@ -174,36 +180,89 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		
 		response = request.waitForResponse(1000);
+		printServerLog();
+		
 		Assert.assertNotNull("Client received no notification", response);
 		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
 		Assert.assertEquals("Client received wrong payload:", respPayload, response.getPayloadString());
-		printServerLog();
 		
+		// override transfer with new notification
 		Thread.sleep(50);
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		clientInterceptor.log("\n\n//////// Overriding notification ////////");
+		String respPayload3 = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload3.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		// old block
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		// new block
+		server.expectRequest(CON, GET, path).storeBoth("D").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 16).payload(respPayload3.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("E").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32, 40)).go();
+		
+		response = request.waitForResponse(1000);
+		printServerLog();
+		
+		Assert.assertNotNull("Client received no notification", response);
+		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
+		Assert.assertEquals("Client received wrong payload:", respPayload3, response.getPayloadString());
+		
+		// override transfer with new notification and conflicting block number
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
+		clientInterceptor.log("\n\n//////// Overriding notification 2 ////////");
+		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload4.substring(0, 16)).go();
+		server.expectEmpty(ACK, mid).go();
+		// old block
+		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
+		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		// new block
+		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("H").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 16).payload(respPayload4.substring(32, 40)).go();
+		
+		response = request.waitForResponse(1000);
+		printServerLog();
+		
+		Assert.assertNotNull("Client received no notification", response);
+		Assert.assertEquals("Client received wrong response code:", CONTENT, response.getCode());
+		Assert.assertEquals("Client received wrong payload:", respPayload4, response.getPayloadString());
+		
+		// cancel
+		Thread.sleep(50);
+		clientInterceptor.log("\n\n//////// Notification after cancellation ////////");
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(6).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		// canceling in the middle of blockwise transfer
 		request.cancel();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
-		// this is not executed anymore
-		// server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
-		// server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		
 		// notification may not be delivered
 		response = request.waitForResponse(1000);
+		printServerLog();
+		
 		Assert.assertNull("Client received notification although canceled", response);
 		
 		// next notification must be rejected
 		Thread.sleep(50);
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(RST, mid).go();
 		
 		// notification may not be delivered
 		response = request.waitForResponse(1000);
-		Assert.assertNull("Client received notification although canceled", response);
 		printServerLog();
 		
+		Assert.assertNull("Client received notification although canceled", response);
 	}
 	
 	private LockstepEndpoint createLockstepEndpoint() {
