@@ -20,6 +20,8 @@
 package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Assert;
 
 import org.eclipse.californium.core.coap.Option;
@@ -74,27 +76,35 @@ public class OptionTest {
 
 		option.setIntegerValue(0);
 		assertArrayEquals(option.getValue(), new byte[0]);
+		assertEquals(0, option.getIntegerValue());
 		
 		option.setIntegerValue(11);
 		assertArrayEquals(option.getValue(), new byte[] {11});
-		
+		assertEquals(11, option.getIntegerValue());
+
 		option.setIntegerValue(255);
 		assertArrayEquals(option.getValue(), new byte[] { (byte) 255 });
-		
+		assertEquals(255, option.getIntegerValue());
+
 		option.setIntegerValue(256);
 		assertArrayEquals(option.getValue(), new byte[] {1, 0});
-		
+		assertEquals(256, option.getIntegerValue());
+
 		option.setIntegerValue(18273);
 		assertArrayEquals(option.getValue(), new byte[] {71, 97});
-		
+		assertEquals(18273, option.getIntegerValue());
+
 		option.setIntegerValue(1<<16);
 		assertArrayEquals(option.getValue(), new byte[] {1, 0, 0});
-		
+		assertEquals(1<<16, option.getIntegerValue());
+
 		option.setIntegerValue(23984773);
 		assertArrayEquals(option.getValue(), new byte[] {1, 109, (byte) 250, (byte) 133});
-		
+		assertEquals(23984773, option.getIntegerValue());
+
 		option.setIntegerValue(0xFFFFFFFF);
 		assertArrayEquals(option.getValue(), new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
+		assertEquals(0xFFFFFFFF, option.getIntegerValue());
 	}
 	
 	@Test
@@ -103,34 +113,44 @@ public class OptionTest {
 
 		option.setLongValue(0);
 		assertArrayEquals(option.getValue(), new byte[0]);
+		assertEquals(0, option.getLongValue());
 		
 		option.setLongValue(11);
 		assertArrayEquals(option.getValue(), new byte[] {11});
-		
+		assertEquals(11, option.getLongValue());
+
 		option.setLongValue(255);
 		assertArrayEquals(option.getValue(), new byte[] { (byte) 255 });
-		
+		assertEquals(255, option.getLongValue());
+
 		option.setLongValue(256);
 		assertArrayEquals(option.getValue(), new byte[] {1, 0});
-		
+		assertEquals(256, option.getLongValue());
+
 		option.setLongValue(18273);
 		assertArrayEquals(option.getValue(), new byte[] {71, 97});
-		
+		assertEquals(18273, option.getLongValue());
+
 		option.setLongValue(1<<16);
 		assertArrayEquals(option.getValue(), new byte[] {1, 0, 0});
-		
+		assertEquals(1<<16, option.getLongValue());
+
 		option.setLongValue(23984773);
 		assertArrayEquals(option.getValue(), new byte[] {1, 109, (byte) 250, (byte) 133});
+		assertEquals(23984773, option.getLongValue());
 
 		option.setLongValue(0xFFFFFFFFL);
 		assertArrayEquals(option.getValue(), new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
-		
+		assertEquals(0xFFFFFFFFL, option.getLongValue());
+
 		option.setLongValue(0x9823749837239845L);
 		assertArrayEquals(option.getValue(), new byte[] {-104, 35, 116, -104, 55, 35, -104, 69});
-		
+		assertEquals(0x9823749837239845L, option.getLongValue());
+
 		option.setLongValue(0xFFFFFFFFFFFFFFFFL);
 		assertArrayEquals(option.getValue(), new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
 			(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
+		assertEquals(0xFFFFFFFFFFFFFFFFL, option.getLongValue());
 	}
 	
 	@Test

@@ -189,7 +189,7 @@ public class Option implements Comparable<Option> {
 	public long getLongValue() {
 		long ret = 0;
 		for (int i=0;i<value.length;i++) {
-			ret += (value[value.length - i - 1] & 0xFF) << (i*8);
+			ret += (long) (value[value.length - i - 1] & 0xFF) << (i*8);
 		}
 		return ret;
 	}
