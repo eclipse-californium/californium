@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -28,6 +28,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max datagram size for outbound messages
  *                                                    from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483371
+ *    Benjamin Cabe - fix typos in logger
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -328,7 +329,7 @@ public class DTLSConnector implements Connector {
 		sender.start();
 		LOGGER.log(
 				Level.INFO,
-				"DLTS connector listening on [{0}] with MTU [{1}] using (inbound) datagram buffer size [{2} bytes]",
+				"DTLS connector listening on [{0}] with MTU [{1}] using (inbound) datagram buffer size [{2} bytes]",
 				new Object[]{lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize});
 	}
 
@@ -364,7 +365,7 @@ public class DTLSConnector implements Connector {
 		if (!running) {
 			return;
 		}
-		LOGGER.log(Level.INFO, "Stopping DLTS connector on [{0}]", lastBindAddress);
+		LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
 		timer.cancel();
 		releaseSocket();
 	}
