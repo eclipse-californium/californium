@@ -55,6 +55,7 @@ public class MediaTypeRegistry {
 	public static final int APPLICATION_SOAP_FASTINFOSET = 49; // 04
 	public static final int APPLICATION_JSON = 50; // 04
 	public static final int APPLICATION_X_OBIX_BINARY = 51; // 04
+	public static final int APPLICATION_CBOR = 60;
 
 	// implementation specific
 	public static final int UNDEFINED = -1;
@@ -86,6 +87,7 @@ public class MediaTypeRegistry {
 		add(APPLICATION_SOAP_FASTINFOSET, "application/soap+fastinfoset", "soap.finf");
 		add(APPLICATION_JSON, "application/json", "json");
 		add(APPLICATION_X_OBIX_BINARY, "application/x-obix-binary", "obix");
+		add(APPLICATION_CBOR, "application/cbor", "cbor"); // RFC 7049
 	}
 
 	// Static Functions ////////////////////////////////////////////////////////
@@ -122,6 +124,7 @@ public class MediaTypeRegistry {
 		case APPLICATION_FASTINFOSET:
 		case APPLICATION_SOAP_FASTINFOSET:
 		case APPLICATION_X_OBIX_BINARY:
+		case APPLICATION_CBOR:
 		default:
 			return false;
 		}
