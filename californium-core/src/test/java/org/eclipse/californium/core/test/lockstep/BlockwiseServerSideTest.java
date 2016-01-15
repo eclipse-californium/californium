@@ -36,12 +36,13 @@ import java.net.InetSocketAddress;
 import java.util.Random;
 
 import org.junit.Assert;
-
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.EndpointSurveillant;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.junit.After;
 import org.junit.Before;
@@ -52,10 +53,13 @@ import org.junit.Test;
  * This test implements all examples from the blockwise draft 14 for a server.
  */
 public class BlockwiseServerSideTest {
+	public static final int TEST_EXCHANGE_LIFETIME = 247; // 0.247 seconds
+	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // 1 second
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;
 	
 	private CoapServer server;
+	private EndpointSurveillant serverSurveillant;
 	private int serverPort;
 	
 	private int mid = 7000;
@@ -76,10 +80,16 @@ public class BlockwiseServerSideTest {
 		
 		NetworkConfig config = new NetworkConfig()
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128);
+			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
+			.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 100)
+			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_EXCHANGE_LIFETIME)
+			.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
 		server = new CoapServer(config, 0);
 		server.add(testResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
+		
+		serverSurveillant = new EndpointSurveillant("server", (CoapEndpoint) (server.getEndpoints().get(0)));
+		
 		server.start();
 		serverPort = server.getEndpoints().get(0).getAddress().getPort();
 		System.out.println("Server binds to port "+serverPort);
@@ -96,6 +106,7 @@ public class BlockwiseServerSideTest {
 	public void test() throws Throwable {
 		try {
 			testGET();
+			testIncompleteGET();
 			testGETEarlyNegotion();
 			testGETLateNegotion();
 			testGETLateNegotionalLostACK();
@@ -155,6 +166,30 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false,  128).payload(respPayload.substring(256,300)).go();
 		
 		printServerLog();
+	}
+	
+	/**
+	 * 
+	 */
+	private void testIncompleteGET() throws Exception {
+		System.out.println("Incomplete blockwise GET:");
+		respPayload = generatePayload(300);
+		byte[] tok = generateNextToken();
+		String path = "test";
+		
+		LockstepEndpoint client = createLockstepEndpoint();
+		client.sendRequest(CON, GET, tok, ++mid).path(path).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 128).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
+		serverInterceptor.log("\n//////// Missing last GET ////////");
+		
+		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
+		
+		printServerLog();
+		
+		serverSurveillant.assertHashMapsEmpty();
+		
 	}
 	
 	/**
