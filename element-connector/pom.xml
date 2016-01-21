@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>parent</artifactId>
+		<version>1.1.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>element-connector</artifactId>
+	<packaging>bundle</packaging>
+
+	<name>element-connector</name>
+	<description>Java socket abstraction for UDP, DTLS, TCP, etc.</description>
+	<scm>
+		<developerConnection>scm:git:https://github.com/eclipse/californium.element-connector.git</developerConnection>
+		<url>https://github.com/eclipse/californium.element-connector</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<repositories>
+		<repository>
+			<id>eclipse_snapshots</id>
+			<name>Eclipse Snapshots</name>
+			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>eclipse_releases</id>
+			<name>Eclipse Releases</name>
+			<url>https://repo.eclipse.org/content/repositories/releases/</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.elements
+						</Export-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
