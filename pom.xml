@@ -136,6 +136,12 @@
 		</dependencies>
 	</dependencyManagement>
 
+	<modules>
+		<module>core</module>
+		<module>element-connector</module>
+		<module>scandium</module>
+	</modules>
+
 	<build>
 		<pluginManagement>
 			<plugins>
