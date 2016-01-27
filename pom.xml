@@ -137,9 +137,12 @@
 	</dependencyManagement>
 
 	<modules>
-		<module>core</module>
 		<module>element-connector</module>
-		<module>scandium</module>
+		<module>scandium-core</module>
+		<module>californium-core</module>
+		<module>californium-proxy</module>
+		<module>californium-osgi</module>
+		<module>demo-apps</module>
 	</modules>
 
 	<build>
@@ -217,31 +220,6 @@
 							<goals>
 								<goal>single</goal>
 							</goals>
-						</execution>
-					</executions>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-dependency-plugin</artifactId>
-					<version>2.10</version>
-					<executions>
-						<execution>
-							<id>copy-installed</id>
-							<phase>install</phase>
-							<goals>
-								<goal>copy</goal>
-							</goals>
-							<configuration>
-								<artifactItems>
-									<artifactItem>
-										<groupId>${project.groupId}</groupId>
-										<artifactId>${project.artifactId}</artifactId>
-										<version>${project.version}</version>
-										<type>${project.packaging}</type>
-									</artifactItem>
-								</artifactItems>
-								<outputDirectory>../run/</outputDirectory>
-							</configuration>
 						</execution>
 					</executions>
 				</plugin>
