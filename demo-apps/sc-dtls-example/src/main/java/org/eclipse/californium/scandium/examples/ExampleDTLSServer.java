@@ -16,7 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -46,8 +45,8 @@ public class ExampleDTLSServer {
 	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private static final String KEY_STORE_PASSWORD = "endPass";
-	private static final String KEY_STORE_LOCATION = "../certs/keyStore.jks";
-	private static final String TRUST_STORE_LOCATION = "../certs/trustStore.jks";
+	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
 	private DTLSConnector dtlsConnector;
 
@@ -59,12 +58,13 @@ public class ExampleDTLSServer {
 		try {
 			// load the key store
 			KeyStore keyStore = KeyStore.getInstance("JKS");
-			in = new FileInputStream(KEY_STORE_LOCATION);
+			in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+			in.close();
 
 			// load the trust store
 			KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			InputStream inTrust = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
 			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
 			// You can load multiple certificates if needed

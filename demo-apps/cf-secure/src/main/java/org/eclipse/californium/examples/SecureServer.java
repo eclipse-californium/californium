@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -80,7 +79,7 @@ public class SecureServer {
 
 			// load the trust store
 			KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			InputStream inTrust = SecureServer.class.getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
 			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
 			// You can load multiple certificates if needed
@@ -89,9 +88,9 @@ public class SecureServer {
 
 			// load the key store
 			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			InputStream in = SecureServer.class.getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-			
+
 			DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(new InetSocketAddress(DTLS_PORT));
 			config.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
@@ -99,7 +98,7 @@ public class SecureServer {
 			config.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
 			config.setTrustStore(trustedCertificates);
-			
+
 			DTLSConnector connector = new DTLSConnector(config.build(), null);
 
 			server.addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
