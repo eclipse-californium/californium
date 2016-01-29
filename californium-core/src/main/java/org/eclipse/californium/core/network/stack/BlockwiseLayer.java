@@ -207,6 +207,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					
 					// Assemble and deliver
 					Request assembled = new Request(request.getCode());
+					assembled.setSenderIdentity(request.getSenderIdentity());
 					assembleMessage(status, assembled);
 					
 					exchange.setRequest(assembled);
