@@ -1,6 +1,5 @@
 package org.eclipse.californium.examples;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -42,12 +41,12 @@ public class SecureClient {
 		try {
 			// load key store
 			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = new FileInputStream(KEY_STORE_LOCATION);
+			InputStream in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
 
 			// load trust store
 			KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream inTrust = new FileInputStream(TRUST_STORE_LOCATION);
+			InputStream inTrust = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
 			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
 			// You can load multiple certificates if needed

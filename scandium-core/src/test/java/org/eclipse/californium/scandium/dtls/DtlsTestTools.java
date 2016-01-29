@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
@@ -37,8 +36,8 @@ public final class DtlsTestTools {
 
 	public static final String TRUST_STORE_PASSWORD = "rootPass";
 	public final static String KEY_STORE_PASSWORD = "endPass";
-	public static final String KEY_STORE_LOCATION = "../certs/keyStore.jks";
-	public static final String TRUST_STORE_LOCATION = "../certs/trustStore.jks";
+	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
@@ -123,7 +122,7 @@ public final class DtlsTestTools {
 			throws IOException, GeneralSecurityException {
 		char[] passwd = keyStorePassword.toCharArray();
 		KeyStore keyStore = KeyStore.getInstance("JKS");
-		keyStore.load(new FileInputStream(keyStoreLocation), passwd);
+		keyStore.load(DtlsTestTools.class.getClassLoader().getResourceAsStream(keyStoreLocation), passwd);
 		return keyStore;
 	}
 

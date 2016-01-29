@@ -32,6 +32,11 @@
 			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>demo-certs</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<build>
