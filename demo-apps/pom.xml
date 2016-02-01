@@ -13,7 +13,7 @@
 	<artifactId>demo-apps</artifactId>
 	<packaging>pom</packaging>
 	
-	<name>Demo Applications</name>
+	<name>Californium (Cf) Demo Applications</name>
 	<description>Demo applications illustrating Californium's features that can be run from the command line.</description>
 
 	<properties>
