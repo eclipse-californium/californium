@@ -12,7 +12,7 @@
 	</parent>
 	<artifactId>demo-certs</artifactId>
 
-	<name>Demo Certificates</name>
+	<name>Californium (Cf) Demo Certificates</name>
 	<description>Java Key Stores containing X.509 ECC based certificates for demonstration purposes. These certificates are used by Scandium unit tests and by the the demo applications.
 DO NOT USE IN PRODUCTION SYSTEMS!</description>
 
