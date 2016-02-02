@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Bosch Software Innovations GmbH - don't use strict request/response matching by default 
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -77,6 +78,7 @@ public class NetworkConfigDefaults {
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000);
 		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, false);
 
 		config.setInt(NetworkConfig.Keys.HTTP_PORT, 8080);
 		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);

@@ -23,6 +23,7 @@
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - add test case for bug 478538
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
+ *    Bosch Software Innovations GmbH - add test cases for GitHub issue #1
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -48,6 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
@@ -116,7 +120,7 @@ public class DTLSConnectorTest {
 		// load the key store
 
 		serverConnectionStore = new InMemoryConnectionStore(2, 5 * 60); // capacity 1, connection timeout 5mins
-		serverRawDataProcessor = new ClientIdentityCapturingProcessor();
+		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
@@ -176,6 +180,51 @@ public class DTLSConnectorTest {
 		return new DtlsConnectorConfig.Builder(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+	}
+
+	@Test
+	public void testSendInvokesMessageCallback() throws Exception {
+
+		// GIVEN a message including a MessageCallback
+		final AtomicBoolean isCallbackInvoked = new AtomicBoolean();
+		RawData outboundMessage = RawData.outbound(
+				new byte[]{0x01},
+				serverEndpoint,
+				new MessageCallback() {
+
+					@Override
+					public void onContextEstablished(CorrelationContext context) {
+						isCallbackInvoked.set(context != null);
+					}
+				},
+				false);
+
+		// WHEN sending the message
+		givenAnEstablishedSession(outboundMessage, true);
+
+		// THEN assert that the callback has been invoked with a correlation context
+		assertTrue(isCallbackInvoked.get());
+		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
+		assertThat(serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext(), is(notNullValue()));
+	}
+
+	@Test
+	public void testConnectorAddsCorrelationContextToReceivedApplicationMessage() throws Exception {
+		// GIVEN a message to be sent to the server
+		RawData outboundMessage = RawData.outbound(new byte[]{0x01}, serverEndpoint, null, false);
+
+		// WHEN a session has been established and the message has been sent to the server
+		givenAnEstablishedSession(outboundMessage, true);
+
+		// THEN assert that the message delivered to the server side application layer
+		// contains a correlation context containing the established session's ID, epoch and cipher 
+		DTLSSession session = clientConnectionStore.get(serverEndpoint).getEstablishedSession();
+		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
+		DtlsCorrelationContext context = (DtlsCorrelationContext) serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext();
+		assertThat(context, is(notNullValue()));
+		assertThat(context.getSessionId(), is(session.getSessionIdentifier().toString()));
+		assertThat(context.getEpoch(), is(String.valueOf(session.getReadEpoch())));
+		assertThat(context.getCipher(), is(session.getReadStateCipher()));
 	}
 
 	@Test
@@ -809,9 +858,11 @@ public class DTLSConnectorTest {
 	private void givenAnEstablishedSession() throws Exception {
 		givenAnEstablishedSession(true);
 	}
-
 	private void givenAnEstablishedSession(boolean releaseSocket) throws Exception {
-		RawData msgToSend = new RawData("Hello World".getBytes(), serverEndpoint);
+		givenAnEstablishedSession(new RawData("Hello World".getBytes(), serverEndpoint), releaseSocket);
+	}
+
+	private void givenAnEstablishedSession(RawData msgToSend, boolean releaseSocket) throws Exception {
 
 		CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);
@@ -951,22 +1002,35 @@ public class DTLSConnectorTest {
 	}
 
 	private interface RawDataProcessor {
+
 		RawData process(RawData request);
+
+		RawData getLatestInboundMessage();
+
 		Principal getClientIdentity();
 	}
 
-	private static class ClientIdentityCapturingProcessor implements RawDataProcessor{
-		private AtomicReference<Principal> principal = new AtomicReference<>();
+	private static class MessageCapturingProcessor implements RawDataProcessor {
+		private AtomicReference<RawData> inboundMessage = new AtomicReference<RawData>();
 
 		@Override
 		public RawData process(RawData request) {
-			principal.set(request.getSenderIdentity());
+			inboundMessage.set(request);
 			return new RawData("ACK".getBytes(), request.getInetSocketAddress());
 		}
 
 		@Override
 		public Principal getClientIdentity() {
-			return principal.get();
+			if (inboundMessage != null) {
+				return inboundMessage.get().getSenderIdentity();
+			} else {
+				return null;
+			}
+		}
+
+		@Override
+		public RawData getLatestInboundMessage() {
+			return inboundMessage.get();
 		}
 	}
 
