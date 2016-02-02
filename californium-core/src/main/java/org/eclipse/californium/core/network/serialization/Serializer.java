@@ -20,9 +20,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
+import java.net.InetSocketAddress;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 
 
@@ -30,7 +33,10 @@ import org.eclipse.californium.elements.RawData;
  * The serializer serializes requests, responses and empty messages to bytes,
  * i.e. {@link RawData}.
  */
-public final class Serializer {
+public class Serializer {
+
+	private Serializer() {
+	}
 
 	/**
 	 * Serializes the specified request. Message identifier, message code,
@@ -48,6 +54,31 @@ public final class Serializer {
 			bytes = new DataSerializer().serializeRequest(request);
 		request.setBytes(bytes);
 		return new RawData(bytes, request.getDestination(), request.getDestinationPort());
+	}
+
+	/**
+	 * Serializes a given CoAP request.
+	 * <p>
+	 * Message identifier, message code, token, options and payload are converted
+	 * into a byte array and wrapped in a {@link RawData} object.
+	 * The request's destination address and port are stored as address and port
+	 * in the RawData object.
+	 * </p>
+	 * 
+	 * @param request
+	 *            the request
+	 * @param callback
+	 *            the callback the transport layer should invoke to signal establishment
+	 *            of message context information. This information may be used for matching a response
+	 *            to a request.
+	 * @return the request as raw data
+	 */
+	public static RawData serialize(Request request, MessageCallback callback) {
+		byte[] bytes = request.getBytes();
+		if (bytes == null)
+			bytes = new DataSerializer().serializeRequest(request);
+		request.setBytes(bytes);
+		return RawData.outbound(bytes, new InetSocketAddress(request.getDestination(), request.getDestinationPort()), callback, false);
 	}
 
 	/**

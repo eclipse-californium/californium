@@ -682,7 +682,7 @@ public class LockstepEndpoint {
 				message.setDestinationPort(destination.getPort());
 			}
 			setProperties(message);
-			
+
 			RawData raw = Serializer.serialize(message);
 			send(raw);
 		}
@@ -747,7 +747,7 @@ public class LockstepEndpoint {
 				request.setDestinationPort(destination.getPort());
 			}
 			setProperties(request);
-			
+
 			RawData raw = Serializer.serialize(request);
 			send(raw);
 		}
@@ -833,7 +833,7 @@ public class LockstepEndpoint {
 				response.setDestinationPort(destination.getPort());
 			}
 			setProperties(response);
-			
+
 			RawData raw = Serializer.serialize(response);
 			send(raw);
 		}

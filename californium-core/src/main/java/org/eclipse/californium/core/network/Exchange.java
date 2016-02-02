@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Bosch Software Innovations GmbH - use correlation context to improve matching
+ *                                      of Response(s) to Request (fix GitHub issue #1)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -27,6 +29,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
@@ -34,6 +37,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseStatus;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * An exchange represents the complete state of an exchange of one request and
@@ -56,9 +60,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * This class might change with the implementation of CoAP extensions.
  */
 public class Exchange {
-	
+
 	private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
-	
+
 	/**
 	 * The origin of an exchange. If Cf receives a new request and creates a new
 	 * exchange the origin is REMOTE since the request has been initiated from a
@@ -71,33 +75,33 @@ public class Exchange {
 
 	/** The endpoint that processes this exchange */
 	private Endpoint endpoint;
-	
+
 	/** An observer to be called when a request is complete */
 	private ExchangeObserver observer;
-	
+
 	/** Indicates if the exchange is complete */
 	private boolean complete = false;
-	
+
 	/** The timestamp when this exchange has been created */
 	private final long timestamp;
-	
+
 	/**
 	 * The actual request that caused this exchange. Layers below the
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
 	 * while layers above should work with the {@link #request}.
 	 */
 	private Request request; // the initial request we have to exchange
-	
+
 	/**
 	 * The current block of the request that is being processed. This is a single
 	 * block in case of a blockwise transfer or the same as {@link #request} in
 	 * case of a normal transfer.
 	 */
 	private Request currentRequest; // Matching needs to know for what we expect a response
-	
+
 	/** The status of the blockwise transfer. null in case of a normal transfer */
 	private BlockwiseStatus requestBlockStatus;
-	
+
 	/**
 	 * The actual response that is supposed to be sent to the client. Layers
 	 * below the {@link BlockwiseLayer} should only work with the
@@ -105,23 +109,23 @@ public class Exchange {
 	 * {@link #response}.
 	 */
 	private Response response;
-	
+
 	/** The current block of the response that is being transferred. */
 	private Response currentResponse; // Matching needs to know when receiving duplicate
-	
+
 	/** The status of the blockwise transfer. null in case of a normal transfer */
 	private BlockwiseStatus responseBlockStatus;
-	
+
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
 	private final Origin origin;
-	
+
 	// true if the exchange has failed due to a timeout
 	private boolean timedOut;
-	
+
 	// the timeout of the current request or response set by reliability layer
 	private int currentTimeout;
-	
+
 	// the amount of attempted transmissions that have not succeeded yet
 	private int failedTransmissionCount = 0;
 
@@ -130,20 +134,23 @@ public class Exchange {
 
 	// handle to extend blockwise status lifetime
 	private ScheduledFuture<?> blockCleanupHandle = null;
-	
+
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
 	private BlockOption block1ToAck;
-	
+
 	// The relation that the target resource has established with the source
 	private ObserveRelation relation;
-	
+
 	// When the request is handled by an executor different than the protocol stage set to true.
 	// The endpoint will hand sending responses over to the protocol stage executor
 	private boolean customExecutor = false;
 
+	private CorrelationContext correlationContext;
+
 	/**
-	 * Constructs a new exchange with the specified request and origin. 
+	 * Creates a new exchange with the specified request and origin.
+	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 */
@@ -153,7 +160,7 @@ public class Exchange {
 		this.origin = origin;
 		this.timestamp = System.currentTimeMillis();
 	}
-	
+
 	/**
 	 * Accept this exchange and therefore the request. Only if the request's
 	 * type was a <code>CON</code> and the request has not been acknowledged
@@ -167,7 +174,7 @@ public class Exchange {
 			endpoint.sendEmptyMessage(this, ack);
 		}
 	}
-	
+
 	/**
 	 * Reject this exchange and therefore the request. Sends an RST back to the
 	 * client.
@@ -178,7 +185,7 @@ public class Exchange {
 		EmptyMessage rst = EmptyMessage.newRST(request);
 		endpoint.sendEmptyMessage(this, rst);
 	}
-	
+
 	/**
 	 * Sends the specified response over the same endpoint as the request has
 	 * arrived.
@@ -191,11 +198,11 @@ public class Exchange {
 		setResponse(response);
 		endpoint.sendResponse(this, response);
 	}
-	
+
 	public Origin getOrigin() {
 		return origin;
 	}
-	
+
 	/**
 	 * Returns the request that this exchange is associated with. If the request
 	 * is sent blockwise, it might not have been assembled yet and this method
@@ -494,28 +501,76 @@ public class Exchange {
 	}
 
 	/**
+	 * Sets additional information about the context this exchange's request has been sent in.
+	 * <p>
+	 * The information is usually obtained from the <code>Connector</code> this exchange is using
+	 * to send and receive data. The information contained in the context can be used in addition
+	 * to the message ID and token of this exchange to increase security when matching an incoming
+	 * response to this exchange's request.
+	 * </p>
+	 * 
+	 * @param ctx the correlation information
+	 */
+	public void setCorrelationContext(CorrelationContext ctx) {
+		correlationContext = ctx;
+	}
+
+	/**
+	 * Gets transport layer specific information that can be used to correlate a response with
+	 * this exchange's original request.
+	 *  
+	 * @return the correlation information or <code>null</code> if no information is available.
+	 */
+	public CorrelationContext getCorrelationContext() {
+		return correlationContext;
+	}
+
+	/**
 	 * This class is used by the matcher to remember a message by its MID and
 	 * source/destination.
 	 */
 	public static final class KeyMID {
-		
+
 		protected final int MID;
 		protected final byte[] address;
 		protected final int port;
 		private final int hash;
-		
+
+		/**
+		 * Creates a key based on a message ID created locally.
+		 * <p>
+		 * Keys created using this constructor are used for messages being <em>sent</em> to a peer.
+		 * </p>
+		 * 
+		 * @param mid the message ID to use.
+		 */
+		public KeyMID(int mid) {
+			this(mid, null, 0);
+		}
+
+		/**
+		 * Creates a key based on a message ID created by a remote peer.
+		 * <p>
+		 * Keys created using this constructor are used for messages that have
+		 * been <em>received</em> from a peer.
+		 * </p>
+		 * 
+		 * @param mid the message ID created by the peer.
+		 * @param address the IP address of the peer
+		 * @param port the port of the peer
+		 */
 		public KeyMID(int mid, byte[] address, int port) {
 			this.MID = mid;
 			this.address = address;
 			this.port = port;
 			this.hash = (port*31 + mid) * 31 + Arrays.hashCode(address);
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
 			if (! (o instanceof KeyMID))
@@ -523,13 +578,20 @@ public class Exchange {
 			KeyMID key = (KeyMID) o;
 			return MID == key.MID && port == key.port && Arrays.equals(address, key.address);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyMID["+MID+" for "+Utils.toHexString(address)+":"+port+"]";
+			return new StringBuilder("KeyMID[")
+					.append(MID).append(" for ").append(Utils.toHexString(address)).append(":")
+					.append(port).append("]")
+					.toString();
+		}
+
+		public static KeyMID fromInboundMessage(Message message) {
+			return new KeyMID(message.getMID(), message.getSource().getAddress(), message.getSourcePort());
 		}
 	}
-	
+
 	/**
 	 * This class is used by the matcher to remember a request by its token and
 	 * destination.
@@ -545,12 +607,12 @@ public class Exchange {
 			this.token = token;
 			this.hash = Arrays.hashCode(token);
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
 			if (! (o instanceof KeyToken))
@@ -558,13 +620,13 @@ public class Exchange {
 			KeyToken key = (KeyToken) o;
 			return Arrays.equals(token, key.token);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyToken["+Utils.toHexString(token)+"]";
+			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append("]").toString();
 		}
 	}
-	
+
 	/**
 	 * This class is used by the matcher to remember a request by its 
 	 * destination URI (for observe relations).

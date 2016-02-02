@@ -180,12 +180,14 @@ public class UDPConnector implements Connector {
 	public synchronized void destroy() {
 		stop();
 	}
-	
+
 	@Override
 	public void send(RawData msg) {
-		if (msg == null)
-			throw new NullPointerException();
-		outgoing.add(msg);
+		if (msg == null) {
+			throw new NullPointerException("Message must not be null");
+		} else {
+			outgoing.add(msg);
+		}
 	}
 
 	@Override
@@ -252,7 +254,7 @@ public class UDPConnector implements Connector {
 			}
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
-			
+
 			receiver.receiveData(msg);
 		}
 		

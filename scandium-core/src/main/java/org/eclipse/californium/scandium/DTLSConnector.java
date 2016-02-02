@@ -31,6 +31,8 @@
  *    Benjamin Cabe - fix typos in logger
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Bosch Software Innovations GmbH - set correlation context on sent/received messages
+ *                                      (fix GitHub issue #1)
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -60,6 +62,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -174,7 +178,7 @@ public class DTLSConnector implements Connector {
 		} else {
 			this.config = configuration;
 		}
-		this.outboundMessages = new LinkedBlockingQueue<RawData>(config.getOutboundMessageBufferSize());
+		this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
 		if (connectionStore != null) {
 			this.connectionStore = connectionStore;
 		} else {
@@ -236,7 +240,7 @@ public class DTLSConnector implements Connector {
 			}
 		}
 		this.config = builder.build();
-		this.outboundMessages = new LinkedBlockingQueue<RawData>(this.config.getOutboundMessageBufferSize());
+		this.outboundMessages = new LinkedBlockingQueue<>(this.config.getOutboundMessageBufferSize());
 		if (connectionStore != null) {
 			this.connectionStore = connectionStore;
 		} else {
@@ -567,7 +571,7 @@ public class DTLSConnector implements Connector {
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 						// finally, forward de-crypted message to application layer
-						handleApplicationMessage(message, session.getPeerIdentity());
+						handleApplicationMessage(message, session);
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -584,9 +588,13 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleApplicationMessage(ApplicationMessage message, Principal peerIdentity) {
+	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
 		if (messageHandler != null) {
-			messageHandler.receiveData(new RawData(message.getData(), message.getPeer(), peerIdentity));
+			DtlsCorrelationContext context = new DtlsCorrelationContext(
+					session.getSessionIdentifier().toString(),
+					String.valueOf(session.getReadEpoch()),
+					session.getReadStateCipher());
+			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
 		}
 	}
 
@@ -1087,7 +1095,7 @@ public class DTLSConnector implements Connector {
 	@Override
 	public final void send(RawData msg) {
 		if (msg == null) {
-			LOGGER.finest("Ignoring NULL msg ...");
+			throw new NullPointerException("Message must not be null");
 		} else if (msg.getBytes().length > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
@@ -1174,6 +1182,13 @@ public class DTLSConnector implements Connector {
 					session.getSequenceNumber(),
 					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
 					session);
+			if (message.getMessageCallback() != null) {
+				CorrelationContext ctx = new DtlsCorrelationContext(
+						session.getSessionIdentifier().toString(),
+						String.valueOf(session.getWriteEpoch()),
+						session.getWriteStateCipher());
+				message.getMessageCallback().onContextEstablished(ctx);
+			}
 			sendRecord(record);
 		} catch (GeneralSecurityException e) {
 			LOGGER.log(Level.FINE, String.format("Cannot send APPLICATION record to peer [%s]", message.getInetSocketAddress()), e);
@@ -1281,7 +1296,6 @@ public class DTLSConnector implements Connector {
 			for (DatagramPacket datagramPacket : datagrams) {
 				sendDatagram(datagramPacket);
 			}
-
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Could not send datagram", e);
 		}

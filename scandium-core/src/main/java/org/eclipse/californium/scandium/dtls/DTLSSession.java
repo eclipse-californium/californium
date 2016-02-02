@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,6 +26,8 @@
  *                                                    plaintext expansion
  *    Kai Hudalla (Bosch Software Innovations GmbH) - calculate max fragment size based on (P)MTU, explicit
  *                                                    value provided by peer and current write state
+ *    Bosch Software Innovations GmbH - add accessors for current read/write state cipher names
+ *                                      (fix GitHub issue #1)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -434,6 +436,15 @@ public final class DTLSSession {
 	}
 
 	/**
+	 * Gets the name of the current read state's cipher suite.
+	 * 
+	 * @return the name.
+	 */
+	public String getReadStateCipher() {
+		return readState.getCipherSuite().name();
+	}
+
+	/**
 	 * Gets the current write state of the connection.
 	 * 
 	 * The information in the current write state is used to en-crypt
@@ -474,6 +485,15 @@ public final class DTLSSession {
 		// re-calculate maximum fragment length based on cipher suite from updated write state
 		determineMaxFragmentLength(maxFragmentLength);
 		LOGGER.log(Level.FINEST, "Setting current write state to\n{0}", writeState);
+	}
+
+	/**
+	 * Gets the name of the current write state's cipher suite.
+	 * 
+	 * @return the name.
+	 */
+	public String getWriteStateCipher() {
+		return writeState.getCipherSuite().name();
 	}
 
 	final KeyExchangeAlgorithm getKeyExchange() {
