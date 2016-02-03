@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
+ *                                                    client & server keys and certificate chains
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -27,11 +29,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 
@@ -69,14 +69,8 @@ public class ServerHandshakerTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		privateKey = DtlsTestTools.getPrivateKey();
-		certificateChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD, DtlsTestTools.SERVER_NAME);
-		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
-		trustedCertificates = new Certificate[trustStore.size()];
-		int j = 0;
-		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
-			trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
-		}
+		certificateChain = DtlsTestTools.getServerCertificateChain();
+		trustedCertificates = DtlsTestTools.getTrustedCertificates();
 	}
 
 	@Before
@@ -297,10 +291,7 @@ public class ServerHandshakerTest {
 		processClientHello(0, null);
 		assertThat(handshaker.getNextReceiveSeq(), is(1));
 		// create client CERTIFICATE msg
-		Certificate[] clientChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD,
-				DtlsTestTools.CLIENT_NAME);
+		Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
 		CertificateMessage certificateMsg = new CertificateMessage(clientChain, endpoint);
 		certificateMsg.setMessageSeq(1);
 		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);

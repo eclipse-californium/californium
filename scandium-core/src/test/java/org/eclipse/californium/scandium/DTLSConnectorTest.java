@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,6 +21,8 @@
  *                                                    to a peer in a single place
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - add test case for bug 478538
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
+ *                                                    client & server keys and certificate chains
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -33,12 +35,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.Principal;
-import java.security.PrivateKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -97,18 +95,14 @@ public class DTLSConnectorTest {
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
-	private static KeyStore keyStore;
-	private static PrivateKey serverPrivateKey;
-	private static PrivateKey clientPrivateKey;
 	
 	private static DtlsConnectorConfig serverConfig;
 	private static DTLSConnector server;
 	private static InetSocketAddress serverEndpoint;
 	private static InMemoryConnectionStore serverConnectionStore;
-	private static Certificate[] trustedCertificates;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
-	
+
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
@@ -120,11 +114,6 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		// load the key store
-		keyStore = DtlsTestTools.loadKeyStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD);
-		serverPrivateKey = (PrivateKey) keyStore.getKey(DtlsTestTools.SERVER_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
-		clientPrivateKey = (PrivateKey) keyStore.getKey(DtlsTestTools.CLIENT_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray());
-		// load the trust store
-		trustedCertificates = DtlsTestTools.getTrustedCertificates();
 
 		serverConnectionStore = new InMemoryConnectionStore(2, 5 * 60); // capacity 1, connection timeout 5mins
 		serverRawDataProcessor = new ClientIdentityCapturingProcessor();
@@ -139,8 +128,8 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
-			.setIdentity(serverPrivateKey, keyStore.getCertificateChain(DtlsTestTools.SERVER_NAME), true)
-			.setTrustStore(trustedCertificates)
+			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
+			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
 			.build();
@@ -179,14 +168,14 @@ public class DTLSConnectorTest {
 		server.setErrorHandler(null);
 	}
 
-	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws KeyStoreException {
+	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws Exception {
 		return newStandardConfigBuilder(bindAddress).build();
 	}
 
-	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws KeyStoreException {
+	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
 		return new DtlsConnectorConfig.Builder(bindAddress)
-				.setIdentity(clientPrivateKey, keyStore.getCertificateChain(DtlsTestTools.CLIENT_NAME), true)
-				.setTrustStore(trustedCertificates);
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
+				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
 
 	@Test
@@ -653,9 +642,8 @@ public class DTLSConnectorTest {
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
 		clientConfig =  new DtlsConnectorConfig.Builder(clientEndpoint)
 			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256})
-			.setIdentity((PrivateKey) keyStore.getKey("client", DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain("client"), false)
-			.setTrustStore(trustedCertificates)
+			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
+			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
@@ -702,9 +690,8 @@ public class DTLSConnectorTest {
 
 		// given an established session with a client using X.509 based authentication
 		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
-			.setIdentity((PrivateKey) keyStore.getKey(DtlsTestTools.CLIENT_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-				keyStore.getCertificateChain(DtlsTestTools.CLIENT_NAME), false)
-			.setTrustStore(trustedCertificates)
+			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
+			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
@@ -725,10 +712,7 @@ public class DTLSConnectorTest {
 		// given an established session with a server that doesn't require
 		// clients to authenticate
 		serverConfig = new DtlsConnectorConfig.Builder(serverEndpoint)
-				.setIdentity(
-						(PrivateKey) keyStore.getKey(DtlsTestTools.SERVER_NAME, DtlsTestTools.KEY_STORE_PASSWORD.toCharArray()),
-						keyStore.getCertificateChain(DtlsTestTools.SERVER_NAME),
-						true)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 				.setClientAuthenticationRequired(false)
 				.build();
 		server = new DTLSConnector(serverConfig, serverConnectionStore);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,17 +14,20 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - inital creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for retrieving
  *                                                    trust anchor
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - explicitly support retrieving client & server keys
+ *                                                    and certificate chains 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.util.Arrays;
+import java.util.Enumeration;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -41,6 +44,28 @@ public final class DtlsTestTools {
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+	private static KeyStore keyStore;
+	private static KeyStore trustStore;
+	private static Certificate[] trustedCertificates = new Certificate[1];
+	private static Certificate[] serverCertificateChain;
+	private static Certificate[] clientCertificateChain;
+
+	static {
+		try {
+			// load key stores once only
+			keyStore = loadKeyStore(KEY_STORE_LOCATION, KEY_STORE_PASSWORD);
+			trustStore = loadKeyStore(TRUST_STORE_LOCATION, TRUST_STORE_PASSWORD);
+			trustedCertificates = new Certificate[trustStore.size()];
+			int j = 0;
+			for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
+				trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
+			}
+			serverCertificateChain = keyStore.getCertificateChain(SERVER_NAME);
+			clientCertificateChain = keyStore.getCertificateChain(CLIENT_NAME);
+		} catch (IOException | GeneralSecurityException e) {
+			// nothing we can do
+		}
+	}
 
 	private DtlsTestTools() {
 	}
@@ -118,7 +143,7 @@ public final class DtlsTestTools {
 		return writer.toByteArray();
 	}
 
-	public static KeyStore loadKeyStore(String keyStoreLocation, String keyStorePassword)
+	private static KeyStore loadKeyStore(String keyStoreLocation, String keyStorePassword)
 			throws IOException, GeneralSecurityException {
 		char[] passwd = keyStorePassword.toCharArray();
 		KeyStore keyStore = KeyStore.getInstance("JKS");
@@ -126,16 +151,12 @@ public final class DtlsTestTools {
 		return keyStore;
 	}
 
-	public static Key getKeyFromStore(String keyStoreLocation, String keyStorePassword, String keyAlias)
-			throws IOException, GeneralSecurityException {
-		KeyStore keyStore = loadKeyStore(keyStoreLocation, keyStorePassword);
-		return keyStore.getKey(keyAlias, keyStorePassword.toCharArray());
+	public static Certificate[] getServerCertificateChain()	throws IOException, GeneralSecurityException {
+		return Arrays.copyOf(serverCertificateChain, serverCertificateChain.length);
 	}
 
-	public static Certificate[] getCertificateChainFromStore(String keyStoreLocation, String keyStorePassword, String alias)
-			throws IOException, GeneralSecurityException {
-		KeyStore keyStore = loadKeyStore(keyStoreLocation, keyStorePassword);
-		return keyStore.getCertificateChain(alias);
+	public static Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
+		return Arrays.copyOf(clientCertificateChain, clientCertificateChain.length);
 	}
 
 	/**
@@ -146,8 +167,18 @@ public final class DtlsTestTools {
 	 * @throws GeneralSecurityException if the key cannot be found
 	 */
 	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
-		return (PrivateKey) DtlsTestTools.getKeyFromStore(DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD, SERVER_NAME);
+		return (PrivateKey) keyStore.getKey(SERVER_NAME, KEY_STORE_PASSWORD.toCharArray());
+	}
+
+	/**
+	 * Gets the client's private key from the example key store.
+	 * 
+	 * @return the key
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 */
+	public static PrivateKey getClientPrivateKey() throws IOException, GeneralSecurityException {
+		return (PrivateKey) keyStore.getKey(CLIENT_NAME, KEY_STORE_PASSWORD.toCharArray());
 	}
 
 	/**
@@ -158,16 +189,23 @@ public final class DtlsTestTools {
 	 * @throws GeneralSecurityException if the key cannot be found
 	 */
 	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
-		Certificate[] certChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD, SERVER_NAME);
+		Certificate[] certChain = keyStore.getCertificateChain(SERVER_NAME);
+		return certChain[0].getPublicKey();
+	}
+
+	/**
+	 * Gets the client's public key from the example key store.
+	 * 
+	 * @return the key
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 */
+	public static PublicKey getClientPublicKey() throws IOException, GeneralSecurityException {
+		Certificate[] certChain = keyStore.getCertificateChain(CLIENT_NAME);
 		return certChain[0].getPublicKey();
 	}
 
 	public static Certificate[] getTrustedCertificates() throws IOException, GeneralSecurityException {
-		KeyStore trustStore = loadKeyStore(TRUST_STORE_LOCATION, TRUST_STORE_PASSWORD);
-		// You can load multiple certificates if needed
-		Certificate[] trustedCertificates = new Certificate[1];
-		trustedCertificates[0] = trustStore.getCertificate("root");
 		return trustedCertificates;
 	}
 }
