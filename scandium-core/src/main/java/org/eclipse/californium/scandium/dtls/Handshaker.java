@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,6 +25,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace local compressionMethod and cipherSuite properties
  *                                                    with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -66,16 +68,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public abstract class Handshaker {
 
-	public final static int MASTER_SECRET_LABEL = 1;
-
-	public final static int KEY_EXPANSION_LABEL = 2;
-
-	public final static int CLIENT_FINISHED_LABEL = 3;
-
-	public final static int SERVER_FINISHED_LABEL = 4;
+	public static final int MASTER_SECRET_LABEL = 1;
+	public static final int KEY_EXPANSION_LABEL = 2;
+	public static final int CLIENT_FINISHED_LABEL = 3;
+	public static final int SERVER_FINISHED_LABEL = 4;
 
 	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
-
 	private static final Logger LOGGER = Logger.getLogger(Handshaker.class.getName());
 
 	/**
@@ -105,6 +103,9 @@ public abstract class Handshaker {
 	private SecretKey serverWriteKey;
 
 	protected final DTLSSession session;
+	protected final RecordLayer recordLayer;
+	/** list of trusted self-signed root certificates */
+	protected final Certificate[] rootCertificates;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)
@@ -139,9 +140,6 @@ public abstract class Handshaker {
 	/** The chain of certificates asserting this handshaker's identity */
 	protected Certificate[] certificateChain;
 
-	/** list of trusted self-signed root certificates */
-	protected final Certificate[] rootCertificates;
-
 	private Set<SessionListener> sessionListeners = new HashSet<>();
 
 	// Constructor ////////////////////////////////////////////////////
@@ -150,29 +148,32 @@ public abstract class Handshaker {
 	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
 	 * 
 	 * @param isClient
-	 *            indicates whether this handshaker plays the client or server role
+	 *            indicates whether this handshaker plays the client or server role.
 	 * @param session
-	 *            the session this handshaker is negotiating
+	 *            the session this handshaker is negotiating.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param rootCertificates
-	 *            the trusted root certificates
+	 *            the trusted root certificates.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws IllegalStateException if the message digest required for computing
-	 *            the FINISHED message hash cannot be instantiated
-	 * @throws NullPointerException if session is <code>null</code>
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session or recordLayer is <code>null</code>.
 	 */
-	protected Handshaker(boolean isClient, DTLSSession session, SessionListener sessionListener, 
+	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener, 
 			Certificate[] rootCertificates, int maxTransmissionUnit) {
-		this(isClient, 0, session, sessionListener, rootCertificates, maxTransmissionUnit);
+		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit);
 	}
 
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
 	 * 
 	 * @param isClient
-	 *            indicates whether this handshaker plays the client or server role
+	 *            indicates whether this handshaker plays the client or server role.
 	 * @param initialMessageSeq
 	 *            the initial message sequence number to use and expect in the exchange
 	 *            of handshake messages with the peer. This parameter can be used to
@@ -180,34 +181,39 @@ public abstract class Handshaker {
 	 *            counters to a value larger than 0, e.g. if one or more cookie exchange
 	 *            round-trips have been performed with the peer before the handshake starts.
 	 * @param session
-	 *            the session this handshaker is negotiating
+	 *            the session this handshaker is negotiating.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param rootCertificates
-	 *            the trusted root certificates
+	 *            the trusted root certificates.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws IllegalStateException if the message digest required for computing
-	 *            the FINISHED message hash cannot be instantiated
-	 * @throws NullPointerException if session is <code>null</code>
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session or recordLayer is <code>null</code>.
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
-	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, SessionListener sessionListener,
-			Certificate[] rootCertificates, int maxTransmissionUnit) {
+	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
+			SessionListener sessionListener, Certificate[] rootCertificates, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
-		}
-		if (initialMessageSeq < 0) {
+		} else if (recordLayer == null) {
+			throw new NullPointerException("Record layer must not be null");
+		} else if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
-		addSessionListener(sessionListener);
-		this.nextReceiveSeq = initialMessageSeq;
-		this.sequenceNumber = initialMessageSeq;
 		this.isClient = isClient;
+		this.sequenceNumber = initialMessageSeq;
+		this.nextReceiveSeq = initialMessageSeq;
 		this.session = session;
-		this.inboundMessageBuffer = new InboundMessageBuffer();
+		this.recordLayer = recordLayer;
+		addSessionListener(sessionListener);
 		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
+		this.inboundMessageBuffer = new InboundMessageBuffer();
 
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
@@ -346,14 +352,10 @@ public abstract class Handshaker {
      * 
 	 * @param record
 	 *            the handshake record
-	 * @return the handshake messages that need to be sent to the peer in
-	 *            response to the record received or <code>null</code> if
-	 *            the received record does not require a response to be sent
 	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
 	 *            a handshake message or cannot be processed properly
 	 */
-	public final DTLSFlight processMessage(Record record) throws HandshakeException {
-		DTLSFlight nextFlight = null;
+	public final void processMessage(Record record) throws HandshakeException {
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
@@ -361,7 +363,7 @@ public abstract class Handshaker {
 			try {
 				record.setSession(session);
 				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
-				while (nextFlight == null && messageToProcess != null) {
+				while (messageToProcess != null) {
 					if (messageToProcess instanceof FragmentedHandshakeMessage) {
 						messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
 					}
@@ -370,14 +372,11 @@ public abstract class Handshaker {
 						// messageToProcess is fragmented and not all parts have been received yet
 					} else {
 						// continue with the now fully re-assembled message
-						nextFlight = doProcessMessage(messageToProcess);
+						doProcessMessage(messageToProcess);
 					}
 
-					if (nextFlight == null) {
-						// no messages need to be sent back to the peer
-						// process next expected message (if available yet)
-						messageToProcess = inboundMessageBuffer.getNextMessage();
-					}
+					// process next expected message (if available yet)
+					messageToProcess = inboundMessageBuffer.getNextMessage();
 				}
 				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
@@ -393,9 +392,8 @@ public abstract class Handshaker {
 			LOGGER.log(Level.FINEST, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
 					new Object[]{record.getPeerAddress(), record});
 		}
-		return nextFlight;
 	}
-	
+
 	/**
 	 * Does the specific processing of a message received from a peer in
 	 * the course of an ongoing handshake.
@@ -405,28 +403,24 @@ public abstract class Handshaker {
 	 * record.
 	 * 
 	 * @param message the message received from the peer
-	 * @return the handshake messages to send to the peer in response to the
-	 *            received record
 	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
 	 *            a handshake message or cannot be processed properly
 	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
 	 */
-	protected DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
-		return null;
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 	}
 
 	/**
-	 * Gets the handshake flight which needs to be sent first to initiate
-	 * handshake.
+	 * Starts the handshake by sending the first flight to the peer.
+	 * <p>
+	 * The particular message to be sent depends on this peer's role in the
+	 * handshake, i.e. if this end represents the client or server.
+	 * </p>
 	 * 
-	 * The particular message to be sent depends on the role a peer plays in the
-	 * handshake.
-	 * 
-	 * @return the handshake message to start off the handshake protocol.
-	 * @throws HandshakeException if the message cannot be created using the
-	 *            session's current security parameters
+	 * @throws HandshakeException if the message to start the handshake cannot be
+	 *            created and sent using the session's current security parameters.
 	 */
-	public abstract DTLSFlight getStartHandshakeMessage() throws HandshakeException;
+	public abstract void startHandshake() throws HandshakeException;
 
 	// Methods ////////////////////////////////////////////////////////
 
