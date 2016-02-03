@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
+ *                                                    client & server keys and certificate chains
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -64,11 +66,8 @@ public class ClientHandshakerTest {
 		DtlsConnectorConfig.Builder builder = 
 				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 					.setIdentity(
-						DtlsTestTools.getPrivateKey(),
-						DtlsTestTools.getCertificateChainFromStore(
-											DtlsTestTools.KEY_STORE_LOCATION,
-											DtlsTestTools.KEY_STORE_PASSWORD,
-											DtlsTestTools.CLIENT_NAME),
+						DtlsTestTools.getClientPrivateKey(),
+						DtlsTestTools.getClientCertificateChain(),
 						false);
 
 		if (configureTrustStore) {
