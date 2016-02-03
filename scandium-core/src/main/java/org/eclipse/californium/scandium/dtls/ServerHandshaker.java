@@ -132,19 +132,22 @@ public class ServerHandshaker extends Handshaker {
 	 * following the full DTLS handshake protocol. 
 	 * 
 	 * @param session
-	 *            the session to negotiate with the client
+	 *            the session to negotiate with the client.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
-	 *            the DTLS configuration
+	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
+	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException if session is <code>null</code>
+	 * @throws NullPointerException
+	 *            if session or recordLayer is <code>null</code>.
 	 */
-	public ServerHandshaker(DTLSSession session, SessionListener sessionListener,
+	public ServerHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
-		this(0, session, sessionListener, config, maxTransmissionUnit);
+		this(0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 	}
 	
 	/**
@@ -155,23 +158,27 @@ public class ServerHandshaker extends Handshaker {
 	 *            the initial message sequence number to expect from the peer
 	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
 	 *            counter to another value than 0, e.g. if one or more cookie exchange round-trips
-	 *            have been performed with the peer before the handshake starts)
+	 *            have been performed with the peer before the handshake starts).
 	 * @param session
-	 *            the session to negotiate with the client
+	 *            the session to negotiate with the client.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
-	 *            the DTLS configuration
+	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws IllegalStateException if the message digest required for computing
-	 *            the FINISHED message hash cannot be instantiated
-	 * @throws IllegalArgumentException if the <code>initialMessageSequenceNo</code> is negative
-	 * @throws NullPointerException if <code>session</code> or <code>config</code> is <code>null</code>
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws IllegalArgumentException
+	 *            if the <code>initialMessageSequenceNo</code> is negative.
+	 * @throws NullPointerException
+	 *            if session, recordLayer or config is <code>null</code>.
 	 */
-	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, SessionListener sessionListener,
+	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -204,20 +211,19 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	// Methods ////////////////////////////////////////////////////////
-	
+
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
 			// its finished message again, so we simply retransmit our last flight
 			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
-			return lastFlight;
+			recordLayer.sendFlight(lastFlight);
+			return;
 		}
-
-		DTLSFlight flight = null;
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -227,7 +233,7 @@ public class ServerHandshaker extends Handshaker {
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
 			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(message);
+				msg.append(":").append(System.lineSeparator()).append(message);
 			}
 			LOGGER.fine(msg.toString());
 		}
@@ -245,7 +251,7 @@ public class ServerHandshaker extends Handshaker {
 
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
-				flight = receivedClientHello((ClientHello) handshakeMsg);
+				receivedClientHello((ClientHello) handshakeMsg);
 				break;
 
 			case CERTIFICATE:
@@ -283,7 +289,7 @@ public class ServerHandshaker extends Handshaker {
 				break;
 
 			case FINISHED:
-				flight = receivedClientFinished((Finished) handshakeMsg);
+				receivedClientFinished((Finished) handshakeMsg);
 				break;
 
 			default:
@@ -302,10 +308,8 @@ public class ServerHandshaker extends Handshaker {
 					String.format("Received unexpected %s message from peer %s", message.getContentType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
-
-		return flight;
 	}
-	
+
 	/**
 	 * If the server requires mutual authentication, the client must send its
 	 * certificate.
@@ -365,16 +369,15 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the client's {@link Finished} message.
-	 * @return the server's last {@link DTLSFlight}.
 	 * @throws HandshakeException if the client did not send the required <em>CLIENT_CERTIFICATE</em>
 	 *            and <em>CERTIFICATE_VERIFY</em> messages or if the server's FINISHED message
 	 *            cannot be created
 	 */
-	private DTLSFlight receivedClientFinished(Finished message) throws HandshakeException {
+	private void receivedClientFinished(Finished message) throws HandshakeException {
 		if (lastFlight != null) {
-			return null;
+			return;
 		}
-		
+
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
 		if (CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(getKeyExchangeAlgorithm()) && 
@@ -435,8 +438,8 @@ public class ServerHandshaker extends Handshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
+		recordLayer.sendFlight(flight);
 		sessionEstablished();
-		return flight;
 	}
 
 	/**
@@ -450,11 +453,10 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the client's hello message.
-	 * @return the server's next flight to be sent.
 	 * @throws HandshakeException if the server's response message(s) cannot be created
 	 */
-	private DTLSFlight receivedClientHello(ClientHello message) throws HandshakeException {
-		
+	private void receivedClientHello(ClientHello message) throws HandshakeException {
+
 		handshakeStarted();
 		DTLSFlight flight = new DTLSFlight(getSession());
 
@@ -611,7 +613,7 @@ public class ServerHandshaker extends Handshaker {
 		md.update(serverHelloDone.toByteArray());
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
 
-		return flight;
+		recordLayer.sendFlight(flight);
 	}
 
 	/**
@@ -679,12 +681,12 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+	public void startHandshake() throws HandshakeException {
 		HelloRequest helloRequest = new HelloRequest(session.getPeer());
 
 		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(helloRequest));
-		return flight;
+		recordLayer.sendFlight(flight);
 	}
 
 	/**

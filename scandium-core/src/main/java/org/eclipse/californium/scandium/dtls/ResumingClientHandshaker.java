@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,6 +20,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -29,7 +31,6 @@ import java.security.SecureRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -60,24 +61,26 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	/**
 	 * Creates a new handshaker for resuming an existing session with a server.
 	 * 
-	 * @param message
-	 *            the application layer message to send once the session has been resumed
 	 * @param session
-	 *            the session to resume
+	 *            the session to resume.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
-	 *            the DTLS configuration parameters to use for the handshake
+	 *            the DTLS configuration parameters to use for the handshake.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws IllegalArgumentException if the given session does not contain an identifier
-	 * @throws IllegalStateException if the message digest required for computing
-	 *            the FINISHED message hash cannot be instantiated
-	 * @throws NullPointerException if <code>session</code> or <code>config</code> is <code>null</code>
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalArgumentException
+	 *            if the given session does not contain an identifier.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ResumingClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener,
+	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(message, session, sessionListener, config, maxTransmissionUnit);
+		super(session, recordLayer, sessionListener, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
@@ -86,11 +89,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake
-			return super.doProcessMessage(message);
+			super.doProcessMessage(message);
+			return;
 		}
 
 		if (lastFlight != null) {
@@ -100,10 +104,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				Level.FINER,
 				"Received server's [{0}] FINISHED message again, retransmitting last flight...",
 				message.getPeer());
-			return lastFlight;
+			recordLayer.sendFlight(lastFlight);
+			return;
 		}
-
-		DTLSFlight flight = null;
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -132,7 +135,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			switch (handshakeMsg.getMessageType()) {
 
 			case HELLO_VERIFY_REQUEST:
-				flight = receivedHelloVerifyRequest((HelloVerifyRequest) message);
+				receivedHelloVerifyRequest((HelloVerifyRequest) message);
 				break;
 
 			case SERVER_HELLO:
@@ -167,7 +170,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				break;
 
 			case FINISHED:
-				flight = receivedServerFinished((Finished) handshakeMsg);
+				receivedServerFinished((Finished) handshakeMsg);
 				break;
 
 			default:
@@ -186,7 +189,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
-		return flight;
 	}
 
 	/**
@@ -196,15 +198,14 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * 
 	 * @param message
 	 *            the server's finished message.
-	 * @return the last flight of the short handshake.
 	 * @throws HandshakeException if the server's FINISHED message could not be
 	 *            verified or if the client's handshake messages cannot be created
 	 */
-	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException {
+	private void receivedServerFinished(Finished message) throws HandshakeException {
 		if (lastFlight != null) {
 			// the server retransmitted its last flight, therefore retransmit
 			// this last flight
-			return null;
+			return;
 		}
 		DTLSFlight flight = new DTLSFlight(getSession());
 
@@ -239,22 +240,18 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		handshakeHash = mdWithServerFinish.digest();
 		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
 		flight.addMessage(wrapMessage(finished));
-
-		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), message.getPeer());
-		flight.addMessage(wrapMessage(applicationMessage));
-		
 		state = HandshakeType.FINISHED.getCode();
 
 		flight.setRetransmissionNeeded(false);
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
+		recordLayer.sendFlight(flight);
 		sessionEstablished();
-		return flight;
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
 		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session,
 				supportedClientCertificateTypes, supportedServerCertificateTypes);
@@ -278,7 +275,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(message));
 
-		return flight;
+		recordLayer.sendFlight(flight);
 	}
 
 }

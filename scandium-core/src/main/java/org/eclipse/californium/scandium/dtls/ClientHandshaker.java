@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -24,12 +24,13 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -39,7 +40,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -64,7 +64,6 @@ public class ClientHandshaker extends Handshaker {
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
 
-	
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
 	
@@ -79,11 +78,6 @@ public class ClientHandshaker extends Handshaker {
 
 	/** the preferred cipher suites ordered by preference */
 	private final CipherSuite[] preferredCipherSuites;
-
-	/** The raw message that triggered the start of the handshake
-	 * and needs to be sent once the session is established.
-	 * */
-	protected final RawData message;
 
 	protected Integer maxFragmentLengthCode;
 
@@ -117,31 +111,29 @@ public class ClientHandshaker extends Handshaker {
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
 
-	
-	
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a server.
 	 * 
-	 * @param message
-	 *            the first application data message to be sent after the handshake is finished 
 	 * @param session
-	 *            the session to negotiate with the server
+	 *            the session to negotiate with the server.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
 	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events
+	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
-	 *            the DTLS configuration
+	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to
-	 * @throws IllegalStateException if the message digest required for computing
-	 *            the FINISHED message hash cannot be instantiated
-	 * @throws NullPointerException if <code>session</code> or <code>config</code> is <code>null</code>
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ClientHandshaker(RawData message, DTLSSession session, SessionListener sessionListener, DtlsConnectorConfig config,
-			int maxTransmissionUnit) {
-		super(true, session, sessionListener, config.getTrustStore(), maxTransmissionUnit);
-		this.message = message;
+	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
+			DtlsConnectorConfig config, int maxTransmissionUnit) {
+		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
@@ -172,8 +164,7 @@ public class ClientHandshaker extends Handshaker {
 	
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
-		DTLSFlight flight = null;
+	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -204,11 +195,11 @@ public class ClientHandshaker extends Handshaker {
 
 			switch (handshakeMsg.getMessageType()) {
 			case HELLO_REQUEST:
-				flight = receivedHelloRequest();
+				receivedHelloRequest();
 				break;
 
 			case HELLO_VERIFY_REQUEST:
-				flight = receivedHelloVerifyRequest((HelloVerifyRequest) handshakeMsg);
+				receivedHelloVerifyRequest((HelloVerifyRequest) handshakeMsg);
 				break;
 
 			case SERVER_HELLO:
@@ -247,11 +238,11 @@ public class ClientHandshaker extends Handshaker {
 				break;
 
 			case SERVER_HELLO_DONE:
-				flight = receivedServerHelloDone((ServerHelloDone) handshakeMsg);
+				receivedServerHelloDone((ServerHelloDone) handshakeMsg);
 				break;
 
 			case FINISHED:
-				flight = receivedServerFinished((Finished) handshakeMsg);
+				receivedServerFinished((Finished) handshakeMsg);
 				break;
 
 			default:
@@ -270,8 +261,6 @@ public class ClientHandshaker extends Handshaker {
 					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
-
-		return flight;
 	}
 
 	/**
@@ -280,27 +269,15 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the {@link Finished} message.
-	 * @return the list
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
 	 */
-	private DTLSFlight receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
-		DTLSFlight flight = new DTLSFlight(getSession());
+	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
 
 		message.verifyData(getMasterSecret(), false, handshakeHash);
-
 		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
-		// received server's Finished message, now able to send encrypted
-		// message
-		ApplicationMessage applicationMessage = new ApplicationMessage(this.message.getBytes(), session.getPeer());
-
-		flight.addMessage(wrapMessage(applicationMessage));
-		// application data is not retransmitted
-		flight.setRetransmissionNeeded(false);
-
-		return flight;
 	}
 
 	/**
@@ -310,12 +287,11 @@ public class ClientHandshaker extends Handshaker {
 	 *            the hello request message
 	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	private DTLSFlight receivedHelloRequest() throws HandshakeException {
+	private void receivedHelloRequest() throws HandshakeException {
 		if (state < HandshakeType.HELLO_REQUEST.getCode()) {
-			return getStartHandshakeMessage();
+			startHandshake();
 		} else {
 			// already started with handshake, drop this message
-			return null;
 		}
 	}
 
@@ -327,10 +303,9 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the server's {@link HelloVerifyRequest}.
-	 * @return {@link ClientHello} with server's Cookie set.
 	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	protected DTLSFlight receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
+	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
 
 		clientHello.setCookie(message.getCookie());
 		// update the length (cookie added)
@@ -338,8 +313,7 @@ public class ClientHandshaker extends Handshaker {
 
 		DTLSFlight flight = new DTLSFlight(getSession());
 		flight.addMessage(wrapMessage(clientHello));
-
-		return flight;
+		recordLayer.sendFlight(flight);
 	}
 
 	/**
@@ -454,11 +428,11 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
-	private DTLSFlight receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
+	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
 		DTLSFlight flight = new DTLSFlight(getSession());
 		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
 			// discard duplicate message
-			return flight;
+			return;
 		}
 		serverHelloDone = message;
 
@@ -544,11 +518,11 @@ public class ClientHandshaker extends Handshaker {
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
-			
+
 			// TODO make sure, that signature is supported
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = certificateRequest.getSupportedSignatureAlgorithms().get(0);
 			certificateVerify = new CertificateVerify(signatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
-			
+
 			flight.addMessage(wrapMessage(certificateVerify));
 		}
 
@@ -562,60 +536,55 @@ public class ClientHandshaker extends Handshaker {
 		/*
 		 * Fifth, send the finished message.
 		 */
-		try {
-			// create hash of handshake messages
-			// can't do this on the fly, since there is no explicit ordering of
-			// messages
+		// create hash of handshake messages
+		// can't do this on the fly, since there is no explicit ordering of
+		// messages
+		md.update(clientHello.toByteArray());
+		md.update(serverHello.toByteArray());
+		if (serverCertificate != null) {
+			md.update(serverCertificate.toByteArray());
+		}
+		if (serverKeyExchange != null) {
+			md.update(serverKeyExchange.toByteArray());
+		}
+		if (certificateRequest != null) {
+			md.update(certificateRequest.toByteArray());
+		}
+		md.update(serverHelloDone.toByteArray());
 
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			md.update(clientHello.toByteArray());
-			md.update(serverHello.toByteArray());
-			if (serverCertificate != null) {
-				md.update(serverCertificate.toByteArray());
-			}
-			if (serverKeyExchange != null) {
-				md.update(serverKeyExchange.toByteArray());
-			}
-			if (certificateRequest != null) {
-				md.update(certificateRequest.toByteArray());
-			}
-			md.update(serverHelloDone.toByteArray());
+		if (clientCertificate != null) {
+			md.update(clientCertificate.toByteArray());
+		}
+		md.update(clientKeyExchange.toByteArray());
 
-			if (clientCertificate != null) {
-				md.update(clientCertificate.toByteArray());
-			}
-			md.update(clientKeyExchange.toByteArray());
-
-			if (certificateVerify != null) {
-				md.update(certificateVerify.toByteArray());
-			}
-
-			MessageDigest mdWithClientFinished = null;
-			try {
-				mdWithClientFinished = (MessageDigest) md.clone();
-			} catch (CloneNotSupportedException e) {
-				LOGGER.log(Level.SEVERE,"Clone not supported.",e);
-			}
-
-			handshakeHash = md.digest();
-			Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
-			flight.addMessage(wrapMessage(finished));
-			
-			// compute handshake hash with client's finished message also
-			// included, used for server's finished message
-			mdWithClientFinished.update(finished.toByteArray());
-			handshakeHash = mdWithClientFinished.digest();
-
-		} catch (NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"No such Message Digest Algorithm available.",e);
+		if (certificateVerify != null) {
+			md.update(certificateVerify.toByteArray());
 		}
 
-		return flight;
+		MessageDigest mdWithClientFinished = null;
+		try {
+			mdWithClientFinished = (MessageDigest) md.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new HandshakeException(
+					"Cannot create FINISHED message",
+					new AlertMessage(
+							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, message.getPeer()));
+		}
 
+		handshakeHash = md.digest();
+		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		flight.addMessage(wrapMessage(finished));
+		
+		// compute handshake hash with client's finished message also
+		// included, used for server's finished message
+		mdWithClientFinished.update(finished.toByteArray());
+		handshakeHash = mdWithClientFinished.digest();
+
+		recordLayer.sendFlight(flight);
 	}
 
 	@Override
-	public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
 		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(),
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
@@ -645,6 +614,6 @@ public class ClientHandshaker extends Handshaker {
 		DTLSFlight flight = new DTLSFlight(session);
 		flight.addMessage(wrapMessage(startMessage));
 
-		return flight;
+		recordLayer.sendFlight(flight);
 	}
 }

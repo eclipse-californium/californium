@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,11 +16,15 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add convenience constructor for
  *                                                    setting the DTLS session
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - move code to set new sequence numbers
+ *                                                    from DTLSConnector here
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.TimerTask;
 
@@ -80,7 +84,7 @@ public class DTLSFlight {
 		this.tries = 0;
 		this.timeout = 0;
 	}
-	
+
 	/**
 	 * Creates an empty flight to be sent to a given peer.
 	 * 
@@ -99,7 +103,7 @@ public class DTLSFlight {
 		this.peerAddress = peerAddress;
 		this.messages = new ArrayList<Record>();
 	}
-	
+
 	/**
 	 * Creates an empty flight to be sent within a session with a peer.
 	 * 
@@ -115,7 +119,7 @@ public class DTLSFlight {
 		this.session = session;
 		retransmissionNeeded = true;
 	}
-	
+
 	public void addMessage(List<Record> message) {
 		messages.addAll(message);
 	}
@@ -125,7 +129,7 @@ public class DTLSFlight {
 	}
 
 	public List<Record> getMessages() {
-		return messages;
+		return Collections.unmodifiableList(messages);
 	}
 
 	public InetSocketAddress getPeerAddress() {
@@ -168,10 +172,6 @@ public class DTLSFlight {
 		this.tries++;
 	}
 
-	public void setTries(int tries) {
-		this.tries = tries;
-	}
-
 	public int getTimeout() {
 		return timeout;
 	}
@@ -202,6 +202,26 @@ public class DTLSFlight {
 
 	public void setRetransmitTask(TimerTask retransmitTask) {
 		this.retransmitTask = retransmitTask;
+	}
+
+	/**
+	 * Sets new sequence numbers on the records contained in this flight.
+	 * 
+	 * @throws GeneralSecurityException if setting a new sequence number on a record requires
+	 *          recalculation of the MAC and the calculation fails.
+	 * @throws IllegalStateException if this flight is not a retransmission (<code>tries == 0</code>)
+	 *          or the DTLS session is <code>null</code>.
+	 */
+	public void setNewSequenceNumbers() throws GeneralSecurityException {
+		if (getTries() > 0 && session != null) {
+			for (Record record : messages) {
+				// adjust the record sequence number
+				int epoch = record.getEpoch();
+				record.setSequenceNumber(session.getSequenceNumber(epoch));
+			}
+		} else {
+			throw new IllegalStateException("Can only set new sequence numbers for retransmitted flight with session");
+		}
 	}
 
 }
