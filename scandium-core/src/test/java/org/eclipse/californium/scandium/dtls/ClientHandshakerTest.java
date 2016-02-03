@@ -15,6 +15,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,7 +27,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
-import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
@@ -40,10 +41,12 @@ public class ClientHandshakerTest {
 
 	ClientHandshaker handshaker;
 	InetSocketAddress peerAddress;
+	SimpleRecordLayer recordLayer;
 
 	@Before
 	public void setUp() throws Exception {
 		peerAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+		recordLayer = new SimpleRecordLayer();
 	}
 
 	/**
@@ -54,11 +57,13 @@ public class ClientHandshakerTest {
 	@Test
 	public void testClientHelloContainsCorrectServerCertTypePreference() throws Exception {
 		givenAClientHandshaker(true);
-		ClientHello clientHello = getClientHello(handshaker.getStartHandshakeMessage());
+		handshaker.startHandshake();
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
 
 		givenAClientHandshaker(false);
-		clientHello = getClientHello(handshaker.getStartHandshakeMessage());
+		handshaker.startHandshake();
+		clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.RAW_PUBLIC_KEY);
 	}
 
@@ -75,8 +80,8 @@ public class ClientHandshakerTest {
 		}
 
 		handshaker = new ClientHandshaker(
-				new RawData(new byte[]{}, peerAddress),
 				new DTLSSession(peerAddress, true),
+				recordLayer,
 				null,
 				builder.build(),
 				MAX_TRANSMISSION_UNIT);
