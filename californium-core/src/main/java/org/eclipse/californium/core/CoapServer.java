@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -182,7 +184,7 @@ public class CoapServer implements ServerInterface {
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
-			LOGGER.info("No endpoints have been defined for server, setting up server endpoint on default port " + port);
+			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 		

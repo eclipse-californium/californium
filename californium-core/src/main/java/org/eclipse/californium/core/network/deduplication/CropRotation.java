@@ -147,7 +147,7 @@ public class CropRotation implements Deduplicator {
 		}
 		
 		private void schedule() {
-			LOGGER.fine("CR schedules in "+period+" ms");
+			LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
 			future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
 		}
 		

@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -88,7 +90,9 @@ public class Matcher {
 		
 		tokenSizeLimit = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT);
 		
-		LOGGER.config("Matcher uses USE_RANDOM_MID_START="+randomMID+" and TOKEN_SIZE_LIMIT="+tokenSizeLimit);
+		LOGGER.log(Level.CONFIG,
+				"Matcher uses USE_RANDOM_MID_START={0} and TOKEN_SIZE_LIMIT={1}",
+				new Object[]{randomMID, tokenSizeLimit});
 		
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
@@ -108,7 +112,10 @@ public class Matcher {
 			executor.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
-					LOGGER.log(healthStatusLevel, "Matcher state: " + exchangesByMID.size() + " exchangesByMID, " + exchangesByToken.size() + " exchangesByToken, " + ongoingExchanges.size() + " ongoingExchanges");
+					LOGGER.log(
+						healthStatusLevel,
+						"Matcher state: {0} exchangesByMID, {1} exchangesByToken, {2} ongoingExchanges",
+						new Object[]{exchangesByMID.size(), exchangesByToken.size(), ongoingExchanges.size()});
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 		}
@@ -151,13 +158,12 @@ public class Matcher {
 			idByToken = new KeyToken(request.getToken());
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount()>0 || request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
-				LOGGER.warning("Manual token overrides existing open request: "+idByToken);
+				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
 		}
 		
 		exchange.setObserver(exchangeObserver);
-		
-		if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Stored open request by "+idByMID+", "+idByToken);
+		LOGGER.log(Level.FINE, "Stored open request by {0}, {1}", new Object[]{idByMID, idByToken});
 		
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
@@ -189,12 +195,15 @@ public class Matcher {
 			if (exchange.getResponseBlockStatus()!=null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
 				if (ongoingExchanges.put(idByUri, exchange)==null) {
-					LOGGER.fine("Ongoing Block2 started late, storing "+idByUri + " for " + request);
+					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}",
+							new Object[]{idByUri, request});
 				} else {
-					LOGGER.fine("Ongoing Block2 continued, storing "+idByUri + " for " + request);
+					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}",
+							new Object[]{idByUri, request});
 				}
 			} else {
-				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + " for " + request);
+				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
+						new Object[]{idByUri, request});
 				ongoingExchanges.remove(idByUri);
 			}
 		}
@@ -253,7 +262,7 @@ public class Matcher {
 				return exchange;
 				
 			} else {
-				LOGGER.info("Duplicate request: "+request);
+				LOGGER.log(Level.INFO, "Duplicate request: {0}", request);
 				request.setDuplicate(true);
 				return previous;
 			}
@@ -261,22 +270,21 @@ public class Matcher {
 		} else {
 			
 			KeyUri idByUri = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-			
-			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Looking up ongoing exchange for "+idByUri);
+			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
 			
 			Exchange ongoing = ongoingExchanges.get(idByUri);
 			if (ongoing != null) {
 				
 				Exchange prev = deduplicator.findPrevious(idByMID, ongoing);
 				if (prev != null) {
-					LOGGER.info("Duplicate ongoing request: "+request);
+					LOGGER.log(Level.INFO, "Duplicate ongoing request: {0}", request);
 					request.setDuplicate(true);
 				} else {
 					// the exchange is continuing, we can (i.e., must) clean up the previous response
 					// check for null, in case no response was created (e.g., because the resource handler crashed...)
 					if (ongoing.getCurrentResponse()!=null && ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID(), null, 0);
-						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request, cleaning up "+idByMID);
+						LOGGER.log(Level.FINE, "Ongoing exchange got new request, cleaning up {0}", idByMID);
 						exchangesByMID.remove(idByMID);
 					}
 				}
@@ -295,12 +303,12 @@ public class Matcher {
 				Exchange exchange = new Exchange(request, Origin.REMOTE);
 				Exchange previous = deduplicator.findPrevious(idByMID, exchange);
 				if (previous == null) {
-					LOGGER.fine("New ongoing request, storing "+idByUri+" for "+request);
+					LOGGER.log(Level.FINE, "New ongoing request, storing {0} for {1}", new Object[]{idByUri, request});
 					exchange.setObserver(exchangeObserver);
 					ongoingExchanges.put(idByUri, exchange);
 					return exchange;
 				} else {
-					LOGGER.info("Duplicate initial request: "+request);
+					LOGGER.log(Level.INFO, "Duplicate initial request: {0}", request);
 					request.setDuplicate(true);
 					return previous;
 				}
@@ -334,17 +342,19 @@ public class Matcher {
 			// There is an exchange with the given token
 			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
 			if (prev != null) { // (and thus it holds: prev == exchange)
-				LOGGER.info("Duplicate response for open exchange: "+response);
+				LOGGER.log(Level.INFO, "Duplicate response for open exchange: {0}", response);
 				response.setDuplicate(true);
 			} else {
 				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
 				exchangesByMID.remove(idByMID);
-				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
+				LOGGER.log(Level.FINE, "Closed open request with {0}", idByMID);
 			}
 			
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
 				// The token matches but not the MID.
-				LOGGER.warning("Possible MID reuse before lifetime end: "+response.getTokenString()+" expected MID "+exchange.getCurrentRequest().getMID()+" but received "+response.getMID());
+				LOGGER.log(Level.WARNING,
+						"Possible MID reuse before lifetime end: {0} expected MID {1} but received {2}",
+						new Object[]{response.getTokenString(), exchange.getCurrentRequest().getMID(), response.getMID()});
 			}
 			
 			return exchange;
@@ -355,12 +365,14 @@ public class Matcher {
 				// only act upon separate responses
 				Exchange prev = deduplicator.find(idByMID);
 				if (prev != null) {
-					LOGGER.info("Duplicate response for completed exchange: "+response);
+					LOGGER.log(Level.INFO, "Duplicate response for completed exchange: {0}", response);
 					response.setDuplicate(true);
 					return prev;
 				}
 			} else {
-				LOGGER.info("Ignoring unmatchable piggy-backed response from "+response.getSource()+":"+response.getSourcePort()+": "+response);
+				LOGGER.log(Level.INFO,
+					"Ignoring unmatchable piggy-backed response from {0}:{1}: {2}",
+					new Object[]{response.getSource(), response.getSourcePort(), response});
 			}
 			// ignore response
 			return null;
@@ -375,11 +387,13 @@ public class Matcher {
 		Exchange exchange = exchangesByMID.get(idByMID);
 		
 		if (exchange != null) {
-			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Exchange got reply: Cleaning up "+idByMID);
+			LOGGER.log(Level.FINE, "Exchange got reply: Cleaning up {0}", idByMID);
 			exchangesByMID.remove(idByMID);
 			return exchange;
 		} else {
-			LOGGER.info("Ignoring unmatchable empty message from "+message.getSource()+":"+message.getSourcePort()+": "+message);
+			LOGGER.log(Level.INFO,
+					"Ignoring unmatchable empty message from {0}:{1}: {2}",
+					new Object[]{message.getSource(), message.getSourcePort(), message});
 			return null;
 		}
 	}
@@ -434,7 +448,7 @@ public class Matcher {
 				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 				
-//				LOGGER.fine("Exchange completed: Cleaning up "+idByTok);
+//				LOGGER.log(Level.FINE, "Exchange completed: Cleaning up {0}", idByToken);
 				exchangesByToken.remove(idByToken);
 				
 				// in case an empty ACK was lost
@@ -447,14 +461,14 @@ public class Matcher {
 				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
 					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
-//					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
+//					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
 					exchangesByMID.remove(midKey);
 				}
 				
 				Request request = exchange.getCurrentRequest();
 				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
+					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
 					ongoingExchanges.remove(uriKey);
 				}
 				

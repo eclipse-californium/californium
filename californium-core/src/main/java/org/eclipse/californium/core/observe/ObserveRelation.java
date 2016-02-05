@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,12 +16,15 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.Response;
@@ -112,7 +115,7 @@ public class ObserveRelation {
 	 * the resource and the endpoint.
 	 */
 	public void cancel() {
-		LOGGER.fine("Canceling observe relation "+getKey()+" with "+resource.getURI());
+		LOGGER.log(Level.FINE, "Canceling observe relation {0} with {1}", new Object[]{getKey(), resource.getURI()});
 		// stop ongoing retransmissions
 		if (exchange.getResponse()!=null) exchange.getResponse().cancel();
 		setEstablished(false);

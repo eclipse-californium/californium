@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,6 +19,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - log default_secure_endpoint
  *                                                    instead of default_endpoint 
  *                                                    in setDefaultSecureEndpoint
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -113,7 +115,7 @@ public class EndpointManager {
 		
 		try {
 			default_endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit default endpoint " + default_endpoint.getAddress());
+			LOGGER.log(Level.INFO, "Created implicit default endpoint {0}", default_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create default endpoint", e);
 		}
@@ -129,7 +131,7 @@ public class EndpointManager {
 			this.default_endpoint.destroy();
 		}
 
-		LOGGER.config(endpoint.getAddress()+" becomes default endpoint");
+		LOGGER.log(Level.CONFIG, "{0} becomes default endpoint", endpoint.getAddress());
 		
 		this.default_endpoint = endpoint;
 		
@@ -186,7 +188,7 @@ public class EndpointManager {
 		if (!this.default_secure_endpoint.isStarted()) {
 			try {
 				default_secure_endpoint.start();
-				LOGGER.log(Level.INFO, "Started new default secure endpoint " + default_secure_endpoint.getAddress());
+				LOGGER.log(Level.INFO, "Started new default secure endpoint {0}", default_secure_endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not start new default secure endpoint", e);
 			}
