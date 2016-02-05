@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use static reference to Serializer
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -682,8 +683,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(message);
 			
-			Serializer serializer = new Serializer();
-			RawData raw = serializer.serialize(message);
+			RawData raw = Serializer.serialize(message);
 			send(raw);
 		}
 	}
@@ -748,8 +748,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(request);
 			
-			Serializer serializer = new Serializer();
-			RawData raw = serializer.serialize(request);
+			RawData raw = Serializer.serialize(request);
 			send(raw);
 		}
 	}
@@ -835,8 +834,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(response);
 			
-			Serializer serializer = new Serializer();
-			RawData raw = serializer.serialize(response);
+			RawData raw = Serializer.serialize(response);
 			send(raw);
 		}
 	}

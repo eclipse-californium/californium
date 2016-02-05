@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - include client identity in Requests
  *                                                    (465073)
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use static reference to Serializer
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -137,10 +138,7 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private Matcher matcher;
-	
-	/** The serializer to serialize messages to bytes */
-	private Serializer serializer;
-	
+
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
 	 */
@@ -200,7 +198,6 @@ public class CoapEndpoint implements Endpoint {
 	public CoapEndpoint(Connector connector, NetworkConfig config) {
 		this.config = config;
 		this.connector = connector;
-		this.serializer = new Serializer();
 		this.matcher = new Matcher(config);		
 		this.coapstack = new CoapStack(config, new OutboxImpl());
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -474,7 +471,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled())
-				connector.send(serializer.serialize(request));
+				connector.send(Serializer.serialize(request));
 		}
 
 		@Override
@@ -498,7 +495,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled())
-				connector.send(serializer.serialize(response));
+				connector.send(Serializer.serialize(response));
 		}
 
 		@Override
@@ -522,7 +519,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled())
-				connector.send(serializer.serialize(message));
+				connector.send(Serializer.serialize(message));
 		}
 	}
 	
@@ -576,7 +573,7 @@ public class CoapEndpoint implements Endpoint {
 						rst.setDestinationPort(raw.getPort());
 						for (MessageInterceptor interceptor:interceptors)
 							interceptor.sendEmptyMessage(rst);
-						connector.send(serializer.serialize(rst));
+						connector.send(Serializer.serialize(rst));
 						log.append(" and reset");
 					}
 					if (LOGGER.isLoggable(Level.INFO)) {
@@ -678,7 +675,7 @@ public class CoapEndpoint implements Endpoint {
 			
 			// MessageInterceptor might have canceled
 			if (!rst.isCanceled())
-				connector.send(serializer.serialize(rst));
+				connector.send(Serializer.serialize(rst));
 		}
 
 	}
