@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,32 +16,27 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - remove obsolete dependencies
+ *                                                    introduced in JavaDoc
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Matcher;
-import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.Serializer;
-import org.eclipse.californium.core.network.stack.CoapStack;
-import org.eclipse.californium.elements.Connector;
-
 
 /**
  * MessageIntercepters registers at an endpoint. When messages arrive from the
  * connector, the corresponding receive-method is called. When a message is
  * about to be sent over a connector, the corresponding send-method is called.
- * The intercepter can be sought of being placed inside an {@link CoapEndpoint} just
- * between the message {@link Serializer} and the {@link Matcher}.
+ * The intercepter can be sought of being placed inside a <code>CoapEndpoint</code> just
+ * between the message <code>Serializer</code> and the <code>Matcher</code>.
  * <p>
  * A <code>MessageInterceptor</code> can cancel a message to stop it. If it is
- * an outgoing message that traversed down through the {@link CoapStack} to the
+ * an outgoing message that traversed down through the <code>CoapStack</code> to the
  * <code>Matcher</code> and is now intercepted and canceled, will not reach the
- * {@link Connector}. If it is an incoming message coming from the
- * <code>Connector</code> to the {@link DataParser} and is now intercepted and
+ * <code>Connector</code>. If it is an incoming message coming from the
+ * <code>Connector</code> to the <code>DataParser</code> and is now intercepted and
  * canceled, will not reach the <code>Matcher</code>.
  */
 public interface MessageInterceptor {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - make all methods static
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -29,7 +30,7 @@ import org.eclipse.californium.elements.RawData;
  * The serializer serializes requests, responses and empty messages to bytes,
  * i.e. {@link RawData}.
  */
-public class Serializer {
+public final class Serializer {
 
 	/**
 	 * Serializes the specified request. Message identifier, message code,
@@ -41,7 +42,7 @@ public class Serializer {
 	 *            the request
 	 * @return the request as raw data
 	 */
-	public RawData serialize(Request request) {
+	public static RawData serialize(Request request) {
 		byte[] bytes = request.getBytes();
 		if (bytes == null)
 			bytes = new DataSerializer().serializeRequest(request);
@@ -58,7 +59,7 @@ public class Serializer {
 	 * @param response the response
 	 * @return the response as raw data
 	 */
-	public RawData serialize(Response response) {
+	public static RawData serialize(Response response) {
 		byte[] bytes = response.getBytes();
 		if (bytes == null)
 			bytes = new DataSerializer().serializeResponse(response);
@@ -76,7 +77,7 @@ public class Serializer {
 	 *            the message
 	 * @return the empty message as raw data
 	 */
-	public RawData serialize(EmptyMessage message) {
+	public static RawData serialize(EmptyMessage message) {
 		byte[] bytes = message.getBytes();
 		if (bytes == null)
 			bytes = new DataSerializer().serializeEmptyMessage(message);
