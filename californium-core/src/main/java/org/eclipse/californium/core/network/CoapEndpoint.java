@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - include client identity in Requests
  *                                                    (465073)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use static reference to Serializer
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -229,7 +231,7 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
-			LOGGER.log(Level.FINE, "Endpoint at " + getAddress().toString() + " is already started");
+			LOGGER.log(Level.FINE, "Endpoint at {0} is already started", getAddress());
 			return;
 		}
 		
@@ -237,7 +239,7 @@ public class CoapEndpoint implements Endpoint {
 			this.coapstack.setDeliverer(new ClientMessageDeliverer());
 		
 		if (this.executor == null) {
-			LOGGER.config("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
+			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getAddress());
 			
 			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
 			setExecutor(executor);
@@ -251,7 +253,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 		
 		try {
-			LOGGER.log(Level.INFO, "Starting endpoint at " + getAddress());
+			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getAddress());
 			
 			started = true;
 			matcher.start();
@@ -286,9 +288,9 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void stop() {
 		if (!started) {
-			LOGGER.log(Level.INFO, "Endpoint at " + getAddress() + " is already stopped");
+			LOGGER.log(Level.INFO, "Endpoint at {0} is already stopped", getAddress());
 		} else {
-			LOGGER.log(Level.INFO, "Stopping endpoint at address " + getAddress());
+			LOGGER.log(Level.INFO, "Stopping endpoint at address {0}", getAddress());
 			started = false;
 			connector.stop();
 			matcher.stop();
@@ -303,7 +305,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Override
 	public synchronized void destroy() {
-		LOGGER.log(Level.INFO, "Destroying endpoint at address " + getAddress());
+		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getAddress());
 		if (started)
 			stop();
 		connector.destroy();
@@ -626,7 +628,7 @@ public class CoapEndpoint implements Endpoint {
 						response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
 						coapstack.receiveResponse(exchange, response);
 					} else if (response.getType() != Type.ACK) {
-						LOGGER.fine("Rejecting unmatchable response from " + raw.getInetSocketAddress());
+						LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
 						reject(response);
 					}
 				}
@@ -650,7 +652,7 @@ public class CoapEndpoint implements Endpoint {
 				if (!message.isCanceled()) {
 					// CoAP Ping
 					if (message.getType() == Type.CON || message.getType() == Type.NON) {
-						LOGGER.info("Responding to ping by " + raw.getInetSocketAddress());
+						LOGGER.log(Level.FINER, "Responding to ping by {0}", raw.getInetSocketAddress());
 						reject(message);
 					} else {
 						Exchange exchange = matcher.receiveEmptyMessage(message);
@@ -661,7 +663,7 @@ public class CoapEndpoint implements Endpoint {
 					}
 				}
 			} else {
-				LOGGER.finest("Silently ignoring non-CoAP message from " + raw.getInetSocketAddress());
+				LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 			}
 		}
 		
@@ -691,7 +693,7 @@ public class CoapEndpoint implements Endpoint {
 				try {
 					task.run();
 				} catch (Throwable t) {
-					LOGGER.log(Level.SEVERE, "Exception in protocol stage thread: "+t.getMessage(), t);
+					LOGGER.log(Level.SEVERE, String.format("Exception in protocol stage thread: %s", t.getMessage()), t);
 				}
 			}
 		});

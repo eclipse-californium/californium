@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -203,7 +205,7 @@ public class CoapClient {
 		if (!endpoint.isStarted()) {
 			try {
 				endpoint.start();
-				LOGGER.log(Level.INFO, "Started set client endpoint " + endpoint.getAddress());
+				LOGGER.log(Level.INFO, "Started set client endpoint {0}", endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not set and start client endpoint", e);
 			}
@@ -1043,7 +1045,7 @@ public class CoapClient {
 					relation.prepareReregistration(response, 2000);
 					handler.onLoad(response);
 				} else {
-					LOGGER.finer("Dropping old notification: "+response.advanced());
+					LOGGER.log(Level.FINER, "Dropping old notification: {0}", response.advanced());
 					return;
 				}
 			}

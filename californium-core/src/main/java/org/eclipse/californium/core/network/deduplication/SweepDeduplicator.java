@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -110,7 +112,7 @@ public class SweepDeduplicator implements Deduplicator {
 		@Override
 		public void run() {
 			try {
-				LOGGER.finest("Start Mark-And-Sweep with "+incommingMessages.size()+" entries");
+				LOGGER.log(Level.FINEST, "Start Mark-And-Sweep with {0} entries", incommingMessages.size());
 				sweep();
 				
 			} catch (Throwable t) {
@@ -138,7 +140,7 @@ public class SweepDeduplicator implements Deduplicator {
 				Exchange exchange = entry.getValue();
 				if (exchange.getTimestamp() < oldestAllowed) {
 					//TODO check if exchange of observe relationship is periodically created and sweeped
-					LOGGER.finer("Mark-And-Sweep removes "+entry.getKey());
+					LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
 					incommingMessages.remove(entry.getKey());
 				}
 			}

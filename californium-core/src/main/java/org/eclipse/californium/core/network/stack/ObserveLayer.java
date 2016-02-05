@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -24,6 +26,10 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
@@ -33,6 +39,8 @@ import org.eclipse.californium.core.observe.ObserveRelation;
 
 
 public class ObserveLayer extends AbstractLayer {
+
+	private static final Logger LOGGER = Logger.getLogger(ObserveLayer.class.getName());
 
 	public ObserveLayer(NetworkConfig config) {
 		// so far no configuration values for this layer
@@ -51,7 +59,7 @@ public class ObserveLayer extends AbstractLayer {
 			if (exchange.getRequest().isAcknowledged() || exchange.getRequest().getType()==Type.NON) {
 				// Transmit errors as CON
 				if (!ResponseCode.isSuccess(response.getCode())) {
-					LOGGER.fine("Response has error code "+response.getCode()+" and must be sent as CON");
+					LOGGER.log(Level.FINE, "Response has error code {0} and must be sent as CON", response.getCode());
 					response.setType(Type.CON);
 					relation.cancel();
 				} else {
@@ -96,7 +104,7 @@ public class ObserveLayer extends AbstractLayer {
 			synchronized (exchange) {
 				Response current = relation.getCurrentControlNotification();
 				if (current != null && isInTransit(current)) {
-					LOGGER.fine("A former notification is still in transit. Postpone " + response);
+					LOGGER.log(Level.FINE, "A former notification is still in transit. Postpone {0}", response);
 					// use the same MID
 					response.setMID(current.getMID());
 					relation.setNextControlNotification(response);
@@ -222,7 +230,9 @@ public class ObserveLayer extends AbstractLayer {
 		@Override
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
-			LOGGER.info("Notification " + relation.getExchange().getRequest().getTokenString() + " timed out. Cancel all relations with source " + relation.getSource());
+			LOGGER.log(Level.INFO,
+					"Notification {0} timed out. Cancel all relations with source {1}",
+					new Object[]{relation.getExchange().getRequest().getTokenString(), relation.getSource()});
 			relation.cancelAll();
 		}
 		

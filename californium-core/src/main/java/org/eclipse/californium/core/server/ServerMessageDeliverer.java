@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
@@ -23,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -82,7 +85,8 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				resource.handleRequest(exchange);
 			}
 		} else {
-			LOGGER.info("Did not find resource " + path.toString() + " requested by " + request.getSource()+":"+request.getSourcePort());
+			LOGGER.log(Level.INFO, "Did not find resource {0} requested by {1}:{2}",
+					new Object[]{path, request.getSource(), request.getSourcePort()});
 			exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 		}
 	}
@@ -110,7 +114,9 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 			
 			if (request.getOptions().getObserve()==0) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.finer("Initiate an observe relation between " + request.getSource() + ":" + request.getSourcePort() + " and resource " + resource.getURI());
+				LOGGER.log(Level.FINER,
+						"Initiate an observe relation between {0}:{1} and resource {2}",
+						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);

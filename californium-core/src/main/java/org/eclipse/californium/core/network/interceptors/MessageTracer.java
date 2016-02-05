@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,9 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -36,31 +39,31 @@ public class MessageTracer implements MessageInterceptor {
 	
 	@Override
 	public void sendRequest(Request request) {
-		LOGGER.info(String.format("%s:%d <== req %s", request.getDestination(), request.getDestinationPort(), request));
+		LOGGER.log(Level.INFO, "{0}:{1} <== req {2}", new Object[]{request.getDestination(), request.getDestinationPort(), request});
 	}
 	
 	@Override
 	public void sendResponse(Response response) {
-		LOGGER.info(String.format("%s:%d <== res %s", response.getDestination(), response.getDestinationPort(), response));
+		LOGGER.log(Level.INFO, "{0}:{1} <== res {2}", new Object[]{response.getDestination(), response.getDestinationPort(), response});
 	}
 	
 	@Override
 	public void sendEmptyMessage(EmptyMessage message) {
-		LOGGER.info(String.format("%s:%d <== emp %s", message.getDestination(), message.getDestinationPort(), message));
+		LOGGER.log(Level.INFO, "{0}:{1} <== emp {2}", new Object[]{message.getDestination(), message.getDestinationPort(), message});
 	}
 	
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.info(String.format("%s:%d ==> req %s", request.getSource(), request.getSourcePort(), request));
+		LOGGER.log(Level.INFO, "{0}:{1} ==> req {2}", new Object[]{request.getSource(), request.getSourcePort(), request});
 	}
 	
 	@Override
 	public void receiveResponse(Response response) {
-		LOGGER.info(String.format("%s:%d ==> res %s", response.getSource(), response.getSourcePort(), response));
+		LOGGER.log(Level.INFO, "{0}:{1} ==> res {2}", new Object[]{response.getSource(), response.getSourcePort(), response});
 	}	
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
-		LOGGER.info(String.format("%s:%d ==> emp %s", message.getSource(), message.getSourcePort(), message));
+		LOGGER.log(Level.INFO, "{0}:{1} ==> emp {2}", new Object[]{message.getSource(), message.getSourcePort(), message});
 	}
 }

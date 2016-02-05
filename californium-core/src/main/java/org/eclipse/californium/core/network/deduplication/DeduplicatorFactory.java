@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.network.Matcher;
@@ -67,7 +68,7 @@ public class DeduplicatorFactory {
 		else if (NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION.equals(type)) return new CropRotation(config);
 		else if (NetworkConfig.Keys.NO_DEDUPLICATOR.equals(type)) return new NoDeduplicator();
 		else {
-			LOGGER.warning("Unknown deduplicator type: " + type);
+			LOGGER.log(Level.WARNING, "Unknown deduplicator type: {0}", type);
 			return new NoDeduplicator();
 		}
 	}
