@@ -735,7 +735,7 @@ public class DTLSConnector implements Connector {
 			// client wants to re-negotiate established connection's crypto params
 			// evaluate message in context of established session
 			record.setSession(connection.getEstablishedSession());
-		} else if (connection.hasEstablishedSession() && record.getEpoch() == 0) {
+		} else if (record.getEpoch() == 0) {
 			// client has lost track of existing connection and wants to negotiate a new connection
 			// in epoch 0 no crypto params have been established yet, thus we do not need to set a session
 		} else {
