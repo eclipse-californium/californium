@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - consolidate and fix record buffering and message re-assembly
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -47,7 +49,7 @@ public class HandshakerTest {
 	Certificate[] certificateChain;
 	CertificateMessage certificateMessage;
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
-	
+
 	@Before
 	public void setUp() throws Exception {
 		for (int i = 0; i < receivedMessages.length; i++) {
@@ -58,20 +60,27 @@ public class HandshakerTest {
 		session.setReceiveRawPublicKey(false);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		certificateMessage = createCertificateMessage(1);
+		RecordLayer recordLayer = new RecordLayer() {
 
-		handshaker = new Handshaker(false, session, null, null, 1500) {
 			@Override
-			public DTLSFlight getStartHandshakeMessage() {
-				return new DTLSFlight(session);
+			public void sendRecord(Record record) {
 			}
-			
+
 			@Override
-			protected DTLSFlight doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+			public void sendFlight(DTLSFlight flight) {
+			}
+		};
+		handshaker = new Handshaker(false, session, recordLayer, null, null, 1500) {
+			@Override
+			public void startHandshake() {
+			}
+
+			@Override
+			protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
 				if (message instanceof HandshakeMessage) {
 					receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
 					incrementNextReceiveSeq();
 				}
-				return null;
 			}
 		};
 	}

@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -65,6 +67,7 @@ public class ServerHandshakerTest {
 	byte[] supportedClientCiphers;
 	byte[] random;
 	byte[] clientHelloMsg;
+	SimpleRecordLayer recordLayer;
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
@@ -77,12 +80,13 @@ public class ServerHandshakerTest {
 	public void setup() throws Exception {
 		endpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
 		session = new DTLSSession(endpoint, false);
+		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder(endpoint)
 				.setIdentity(privateKey, certificateChain, false)
 				.setTrustStore(trustedCertificates)
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
 				.build();
-		handshaker = new ServerHandshaker(session, null, config, ETHERNET_MTU);
+		handshaker = new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
@@ -107,7 +111,7 @@ public class ServerHandshakerTest {
 		int networkMtu = ETHERNET_MTU;
 
 		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(session, null, config, networkMtu);
+		handshaker = new ServerHandshaker(session, recordLayer, null, config, networkMtu);
 
 		// then a fragment created under the session's current write state should
 		// fit into a single unfragmented UDP datagram
@@ -122,14 +126,15 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newMaxFragmentLengthExtension(1)); // code 1 = 512 bytes
 
 		// when the client sends its CLIENT_HELLO message
-		DTLSFlight response = processClientHello(0, extensions);
+		processClientHello(0, extensions);
 
 		// then a fragment created under the session's current write state can
 		// not contain more than 512 bytes and the SERVER_HELLO message sent
 		// to the client contains a MaxFragmentLength extension indicating a length
 		// of 512 bytes
 		assertTrue(session.getMaxFragmentLength() <= 512);
-		Record record = response.getMessages().get(0);
+		assertThat(recordLayer.getSentFlight(), is(notNullValue()));
+		Record record = recordLayer.getSentFlight().getMessages().get(0);
 		ServerHello serverHello = (ServerHello) record.getFragment();
 		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLength(); 
 		assertThat(ext, is(notNullValue()));
@@ -320,12 +325,12 @@ public class ServerHandshakerTest {
 
 	}
 
-	private DTLSFlight processClientHello(int messageSeq, List<byte[]> helloExtensions) throws HandshakeException {
+	private void processClientHello(int messageSeq, List<byte[]> helloExtensions) throws HandshakeException {
 
-		return processClientHello(0, 0, messageSeq, null, supportedClientCiphers, helloExtensions);
+		processClientHello(0, 0, messageSeq, null, supportedClientCiphers, helloExtensions);
 	}
 
-	private DTLSFlight processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,
+	private void processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,
 			byte[] supportedCiphers, List<byte[]> helloExtensions) throws HandshakeException {
 
 		byte[] clientHelloFragment = newClientHelloFragment(cookie, supportedCiphers, helloExtensions);
@@ -335,7 +340,7 @@ public class ServerHandshakerTest {
 		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint);
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
-		return handshaker.processMessage(record);
+		handshaker.processMessage(record);
 	}
 
 	private byte[] newHandshakeMessage(HandshakeType type, int messageSeq, byte[] fragment) {

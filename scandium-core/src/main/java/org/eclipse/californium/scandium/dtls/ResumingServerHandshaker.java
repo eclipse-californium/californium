@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,6 +20,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace Handshaker's compressionMethod and cipherSuite
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
+ *                                                    APPLICATION messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -53,16 +55,15 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, SessionListener sessionListener,
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, sessionListener, config, maxTransmissionUnit);
+		super(sequenceNumber, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized DTLSFlight doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
-		DTLSFlight flight = null;
+	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -72,7 +73,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
 			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(message);
+				msg.append(":").append(System.lineSeparator()).append(message);
 			}
 			LOGGER.fine(msg.toString());
 		}
@@ -91,7 +92,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
-				flight = receivedClientHello((ClientHello) handshakeMsg);
+				receivedClientHello((ClientHello) handshakeMsg);
 				break;
 
 			case FINISHED:
@@ -114,7 +115,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 		}
-		return flight;
 	}
 
 	/**
@@ -124,10 +124,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 * 
 	 * @param clientHello
 	 *            the client's hello message.
-	 * @return the server's last flight.
 	 * @throws HandshakeException if the server's handshake records cannot be created
 	 */
-	private DTLSFlight receivedClientHello(ClientHello clientHello) throws HandshakeException {
+	private void receivedClientHello(ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
 		if (!clientHello.getCipherSuites().contains(session.getCipherSuite())) {
@@ -181,7 +180,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
 
-			return flight;
+			recordLayer.sendFlight(flight);
 		}
 	}
 
