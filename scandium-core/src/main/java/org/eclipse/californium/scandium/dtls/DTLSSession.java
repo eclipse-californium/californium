@@ -32,16 +32,21 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.DatagramReader;
+import org.eclipse.californium.scandium.util.DatagramWriter;
 
 /**
  * Represents a DTLS session between two peers. Keeps track of the current and
@@ -798,5 +803,34 @@ public final class DTLSSession {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 		receiveWindowLowerBoundary = 0;
+	}
+
+	public void serialize(DatagramWriter writer) {
+		BitSet flags = new BitSet(4);
+		flags.set(0, isClient);
+		flags.set(1, receiveRawPublicKey);
+		flags.set(2, sendRawPublicKey);
+		// we must set at least one bit to true in order for BitSet.length to be > 0
+		flags.set(3, true);
+		writer.writeBytes(flags.toByteArray());
+		writer.writeBytes(getMasterSecret());
+		getWriteState().serialize(writer);
+		if (peerIdentity != null) { 
+			PrincipalSerializer.serialize(peerIdentity, writer);
+		}
+	}
+
+	public static DTLSSession deserialize(SessionId sessionId, InetSocketAddress peerAddress, DatagramReader reader) throws GeneralSecurityException {
+		BitSet flags = BitSet.valueOf(reader.readBytes(1));
+		DTLSSession session = new DTLSSession(peerAddress, flags.get(0));
+		session.sessionIdentifier = sessionId;
+		session.receiveRawPublicKey = flags.get(1);
+		session.sendRawPublicKey = flags.get(2);
+		session.setMasterSecret(reader.readBytes(MASTER_SECRET_LENGTH));
+		session.setWriteState(DTLSConnectionState.deserialize(reader));
+		if (reader.bytesAvailable()) {
+			session.peerIdentity = PrincipalSerializer.deserialize(reader);
+		}
+		return session;
 	}
 }

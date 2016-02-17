@@ -52,13 +52,13 @@ public enum CipherSuite {
 	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CCM_8, MACAlgorithm.NULL),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CCM_8, MACAlgorithm.NULL);
 
+	// DTLS-specific constants ////////////////////////////////////////
+
+	public static final int CIPHER_SUITE_BITS = 16;
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(CipherSuite.class.getCanonicalName());
-
-	// DTLS-specific constants ////////////////////////////////////////
-
-	private static final int CIPHER_SUITE_BITS = 16;
 
 	// Members ////////////////////////////////////////////////////////
 

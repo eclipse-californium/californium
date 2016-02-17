@@ -32,7 +32,6 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 
-
 /**
  * A Finished message is always sent immediately after a
  * {@link ChangeCipherSpecMessage} to verify that the key exchange and

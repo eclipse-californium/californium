@@ -184,7 +184,7 @@ public class HandshakerTest {
 		assertThat(reassembled.getPublicKey(), is(certificateMessage.getPublicKey()));
 		assertThat(reassembled.getMessageSeq(), is(certificateMessage.getMessageSeq()));
 	}
-	
+
 	private Record createRecord(int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
 		ClientHello clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), session, null, null);
 		clientHello.setMessageSeq(messageSeqNo);

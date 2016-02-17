@@ -23,8 +23,11 @@ package org.eclipse.californium.scandium.dtls;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.DatagramReader;
+import org.eclipse.californium.scandium.util.DatagramWriter;
 
 /**
  * A set of algorithms and corresponding security parameters that together
@@ -43,6 +46,7 @@ class DTLSConnectionState {
 
 	// Members ////////////////////////////////////////////////////////
 
+	private static final String KEY_ALGORITHM_NAME = "AES";
 	private CipherSuite cipherSuite;
 	private CompressionMethod compressionMethod;
 	private SecretKey encryptionKey;
@@ -190,13 +194,51 @@ class DTLSConnectionState {
 	}
 
 	@Override
-	public String toString() {
+	public final String toString() {
 		StringBuffer b = new StringBuffer("DTLSConnectionState:");
-		b.append("\n\tCipher suite: ").append(cipherSuite);
-		b.append("\n\tCompression method: ").append(compressionMethod);
-		b.append("\n\tIV: ").append(iv == null ? "null" : "not null");
-		b.append("\n\tMAC key: ").append(macKey == null ? "null" : "not null");
-		b.append("\n\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
+		b.append(System.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
+		b.append(System.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
 		return b.toString();
+	}
+
+	final void serialize(DatagramWriter writer) {
+		writer.write(cipherSuite.getCode(), CipherSuite.CIPHER_SUITE_BITS);
+		writer.write(compressionMethod.getCode(), CompressionMethod.COMPRESSION_METHOD_BITS);
+		writeSecretKey(encryptionKey, writer);
+		if (cipherSuite.getFixedIvLength() > 0) {
+			writer.writeBytes(iv.getIV());
+		}
+		if (cipherSuite.getMacKeyLength() > 0) {
+			writeSecretKey(macKey, writer);
+		}
+	}
+
+	static final DTLSConnectionState deserialize(DatagramReader reader) {
+		CipherSuite cipher = CipherSuite.getTypeByCode(reader.read(CipherSuite.CIPHER_SUITE_BITS));
+		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(CompressionMethod.COMPRESSION_METHOD_BITS));
+		SecretKey encryptionKey = readSecretKey(reader);
+		IvParameterSpec iv = null;
+		if (cipher.getFixedIvLength() > 0) {
+			iv = new IvParameterSpec(reader.readBytes(cipher.getFixedIvLength()));
+		}
+		SecretKey macKey = null;
+		if (cipher.getMacKeyLength() > 0) {
+			macKey = readSecretKey(reader);
+		}
+		return new DTLSConnectionState(cipher, compressionMethod, encryptionKey, iv, macKey);
+	}
+
+	private static void writeSecretKey(SecretKey key, DatagramWriter writer) {
+		byte[] encodedKey = key.getEncoded();
+		writer.write(encodedKey.length, 16);
+		writer.writeBytes(encodedKey);
+	}
+
+	private static SecretKey readSecretKey(DatagramReader reader) {
+		int length = reader.read(16);
+		return new SecretKeySpec(reader.readBytes(length), KEY_ALGORITHM_NAME);
 	}
 }
