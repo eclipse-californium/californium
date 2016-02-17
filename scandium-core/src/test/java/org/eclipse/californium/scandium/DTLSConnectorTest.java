@@ -95,6 +95,7 @@ import org.junit.experimental.categories.Category;
 public class DTLSConnectorTest {
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
+	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
 	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
 	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
@@ -120,8 +121,8 @@ public class DTLSConnectorTest {
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		// load the key store
 
-		serverConnectionStore = new InMemoryConnectionStore(2, 5 * 60); // capacity 1, connection timeout 5mins
 		serverRawDataProcessor = new MessageCapturingProcessor();
+		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60); // connection timeout 5mins
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
@@ -709,7 +710,7 @@ public class DTLSConnectorTest {
 	@Test
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverConnectionStore.clear();
-		assertTrue(serverConnectionStore.getCapacity() == 2);
+		assertTrue(serverConnectionStore.remainingCapacity() == SERVER_CONNECTION_STORE_CAPACITY);
 		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))));
 		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050))));
 

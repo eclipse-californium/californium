@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for terminating a handshake
+ *    Bosch Software Innovations GmbH - add constructor based on current connection state
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -48,7 +49,7 @@ public final class Connection implements SessionListener {
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
 	public Connection(InetSocketAddress peerAddress) {
-		this(peerAddress, null);
+		this(peerAddress, (Handshaker) null);
 	}
 
 	/**
@@ -65,6 +66,21 @@ public final class Connection implements SessionListener {
 		} else {
 			this.peerAddress = peerAddress;
 			this.ongoingHandshake = ongoingHandshake;
+		}
+	}
+
+	/**
+	 * Creates a new new connection to a given peer based on <em>current</em> connection state.
+	 * 
+	 * @param currentConnectionState the session object holding the <em>current</em> connection state
+	 * @throws NullPointerException if any of the parameters is <code>null</code>
+	 */
+	public Connection(DTLSSession currentConnectionState) {
+		if (currentConnectionState == null) {
+				throw new NullPointerException("Current connection state must not be null");
+		} else {
+			this.peerAddress = currentConnectionState.getPeer();
+			this.establishedSession = currentConnectionState;
 		}
 	}
 

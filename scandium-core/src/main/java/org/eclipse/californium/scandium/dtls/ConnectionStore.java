@@ -48,7 +48,7 @@ public interface ConnectionStore {
 	 * @return the remaining capacity
 	 */
 	int remainingCapacity();
-	
+
 	/**
 	 * Gets a connection by its peer address.
 	 * 
@@ -57,7 +57,7 @@ public interface ConnectionStore {
 	 *     no connection exists for the given address
 	 */
 	Connection get(InetSocketAddress peerAddress);
-	
+
 	/**
 	 * Finds a connection by its session ID.
 	 * 

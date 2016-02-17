@@ -41,14 +41,14 @@ public enum CompressionMethod {
 	NULL(0x00),
 	DEFLATE(0x01);
 
+	// DTLS-specific constants ////////////////////////////////////////
+
+	public static final int COMPRESSION_METHOD_BITS = 8;
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(CompressionMethod.class.getCanonicalName());
 
-	// DTLS-specific constants ////////////////////////////////////////
-
-	private static final int COMPRESSION_METHOD_BITS = 8;
-	
 	// Members ////////////////////////////////////////////////////////
 
 	private int code;

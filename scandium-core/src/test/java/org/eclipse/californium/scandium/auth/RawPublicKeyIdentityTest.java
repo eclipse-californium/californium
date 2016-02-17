@@ -15,8 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.auth;
 
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 
 import org.eclipse.californium.scandium.category.Small;
@@ -27,16 +30,13 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class RawPublicKeyIdentityTest {
 
+	private static final String URI_PREFIX = "ni:///sha-256;";
+
 	@Test
 	public void testGetNameReturnsNamedInterfaceUri() throws Exception {
-		String uriPrefix = "ni:///sha-256;";
 		PublicKey key = DtlsTestTools.getPublicKey();
 		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
-		assertTrue(id.getName().startsWith(uriPrefix));
-		String hash = id.getName().substring(uriPrefix.length());
-		assertFalse(hash.endsWith("="));
-		assertFalse(hash.contains("+"));
-		assertFalse(hash.contains("/"));
+		assertThatNameIsValidNamedInterfaceUri(id.getName());
 	}
 
 	@Test
@@ -44,5 +44,26 @@ public class RawPublicKeyIdentityTest {
 		PublicKey key = DtlsTestTools.getPublicKey();
 		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
 		assertArrayEquals(id.getKey().getEncoded(), id.getSubjectInfo());
+	}
+
+	@Test
+	public void testConstructorCreatesPublicKeyFromSubjectInfo() throws IOException, GeneralSecurityException {
+		// GIVEN a SubjectPublicKeyInfo object
+		PublicKey key = DtlsTestTools.getPublicKey();
+		byte[] subjectInfo = key.getEncoded();
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo);
+
+		// THEN the principal contains the public key corresponding to the subject info
+		assertThat(principal.getKey(), is(key));
+	}
+
+	private void assertThatNameIsValidNamedInterfaceUri(String name) {
+		assertTrue(name.startsWith(URI_PREFIX));
+		String hash = name.substring(URI_PREFIX.length());
+		assertFalse(hash.endsWith("="));
+		assertFalse(hash.contains("+"));
+		assertFalse(hash.contains("/"));
 	}
 }

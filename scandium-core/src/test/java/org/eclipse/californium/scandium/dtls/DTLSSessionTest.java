@@ -20,9 +20,13 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 
+import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.DatagramReader;
+import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -31,19 +35,18 @@ import org.junit.experimental.categories.Category;
 public class DTLSSessionTest {
 
 	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384; //2^14 as defined in DTLS 1.2 spec
-	InetSocketAddress peerAddress;
+	static final InetSocketAddress PEER_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
 	DTLSSession session;
 
 	@Before
 	public void setUp() throws Exception {
-		peerAddress = new InetSocketAddress(InetAddress.getLocalHost(), 0);
-		session = new DTLSSession(peerAddress, false);
+		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
 	}
 
 	@Test
 	public void testDefaultMaxFragmentLengthCompliesWithSpec() {
 		// when instantiating a default server session
-		session = new DTLSSession(peerAddress, false);
+		session = new DTLSSession(PEER_ADDRESS, false);
 
 		// then the max fragment size is as specified in DTLS spec
 		assertThat(session.getMaxFragmentLength(), is(DEFAULT_MAX_FRAGMENT_LENGTH));
@@ -139,9 +142,9 @@ public class DTLSSessionTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
-		session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
+		session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
 		try {
-			session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
+			session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
 			fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// ok
@@ -150,7 +153,47 @@ public class DTLSSessionTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
-		session = new DTLSSession(peerAddress, false, DtlsTestTools.MAX_SEQUENCE_NO);
+		session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO);
 		session.getSequenceNumber(); // should throw exception
+	}
+
+	@Test
+	public void testSerializedSessionCanBeDeserialized() throws GeneralSecurityException {
+		// GIVEN an established server session
+		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+
+		// WHEN serializing the session state 
+		DatagramWriter writer = new DatagramWriter();
+		session.serialize(writer);
+		byte[] serializedSession = writer.toByteArray();
+
+		// THEN a session deserialized from the byte array contains the same state as the original session
+		DatagramReader reader = new DatagramReader(serializedSession);
+		DTLSSession deserializedSession = DTLSSession.deserialize(session.getSessionIdentifier(), PEER_ADDRESS, reader);
+		assertThat(deserializedSession, is(notNullValue()));
+		assertThatSessionsHaveSameRelevantPropertiesForResumption(deserializedSession, session);
+	}
+
+	public static void assertThatSessionsHaveSameRelevantPropertiesForResumption(DTLSSession one, DTLSSession two) {
+		assertThat(one.getSessionIdentifier(), is(two.getSessionIdentifier()));
+		assertThat(one.getWriteState().getCipherSuite(), is(two.getWriteState().getCipherSuite()));
+		assertThat(one.getPeerIdentity(), is(two.getPeerIdentity()));
+		assertThat(one.receiveRawPublicKey(), is(two.receiveRawPublicKey()));
+		assertThat(one.sendRawPublicKey(), is(two.sendRawPublicKey()));
+		assertThat(one.isClient(), is(two.isClient()));
+		assertThat(one.getMasterSecret(), is(two.getMasterSecret()));
+	}
+
+	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
+		DTLSSession session = new DTLSSession(peerAddress, false);
+		DTLSConnectionState currentState = DTLSConnectionStateTest.newConnectionState(cipherSuite);
+		session.setSessionIdentifier(new SessionId());
+		session.setReadState(currentState);
+		session.setWriteState(currentState);
+		session.setReceiveRawPublicKey(useRawPublicKeys);
+		session.setSendRawPublicKey(useRawPublicKeys);
+		session.setMasterSecret(DTLSConnectionStateTest.getRandomBytes(48));
+		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
+		return session;
 	}
 }
