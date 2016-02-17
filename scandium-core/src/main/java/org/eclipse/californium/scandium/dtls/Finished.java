@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,6 +15,7 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - log failure to verify FINISHED message
+ *    Bosch Software Innovations GmbH - remove dependency on Handshaker class
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,6 +26,8 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.DatagramReader;
 import org.eclipse.californium.scandium.util.DatagramWriter;
@@ -118,11 +121,14 @@ public final class Finished extends HandshakeMessage {
 	}
 
 	private byte[] getVerifyData(byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
-		int labelId = isClient ? Handshaker.CLIENT_FINISHED_LABEL : Handshaker.SERVER_FINISHED_LABEL;
 
 		// See http://tools.ietf.org/html/rfc5246#section-7.4.9:
 		// verify_data = PRF(master_secret, finished_label, Hash(handshake_messages)) [0..verify_data_length-1]
-		return Handshaker.doPRF(masterSecret, labelId, handshakeHash);
+		if (isClient) {
+			return PseudoRandomFunction.doPRF(masterSecret, Label.CLIENT_FINISHED_LABEL, handshakeHash);
+		} else {
+			return PseudoRandomFunction.doPRF(masterSecret, Label.SERVER_FINISHED_LABEL, handshakeHash);
+		}
 	}
 
 	@Override
