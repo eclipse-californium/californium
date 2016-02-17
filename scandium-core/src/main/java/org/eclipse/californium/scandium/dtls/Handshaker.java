@@ -27,6 +27,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Bosch Software Innovations GmbH - move PRF code to separate PseudoRandomFunction class
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -49,7 +50,6 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -57,6 +57,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -67,11 +69,6 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * Contains all functionality and fields needed by all types of handshakers.
  */
 public abstract class Handshaker {
-
-	public static final int MASTER_SECRET_LABEL = 1;
-	public static final int KEY_EXPANSION_LABEL = 2;
-	public static final int CLIENT_FINISHED_LABEL = 3;
-	public static final int SERVER_FINISHED_LABEL = 4;
 
 	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
 	private static final Logger LOGGER = Logger.getLogger(Handshaker.class.getName());
@@ -449,12 +446,11 @@ public abstract class Handshaker {
 	 *            the master secret.
 	 */
 	protected void calculateKeys(byte[] masterSecret) {
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.3:
-		 * key_block = PRF(SecurityParameters.master_secret, "key expansion", SecurityParameters.server_random + SecurityParameters.client_random);
-		 */
-
-		byte[] data = doPRF(masterSecret, KEY_EXPANSION_LABEL, ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes()));
+		// See http://tools.ietf.org/html/rfc5246#section-6.3:
+		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
+		//                      SecurityParameters.server_random + SecurityParameters.client_random);
+		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes());
+		byte[] data = PseudoRandomFunction.doPRF(masterSecret, Label.KEY_EXPANSION_LABEL, seed);
 
 		/*
 		 * Create keys as suggested in
@@ -498,7 +494,7 @@ public abstract class Handshaker {
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
 		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
-		return doPRF(premasterSecret, MASTER_SECRET_LABEL, randomSeed);
+		return PseudoRandomFunction.doPRF(premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	/**
@@ -527,97 +523,6 @@ public abstract class Handshaker {
 		byte[] premasterSecret = ByteArrayUtils.concatenate(lengthField, ByteArrayUtils.concatenate(zero, ByteArrayUtils.concatenate(lengthField, psk)));
 
 		return premasterSecret;
-	}
-
-	static byte[] doPRF(byte[] secret, byte[] label, byte[] seed, int length) {
-		try {
-			Mac hmac = Mac.getInstance("HmacSHA256");
-			hmac.init(new SecretKeySpec(secret, "MAC"));
-			return doExpansion(hmac, ByteArrayUtils.concatenate(label, seed), length);
-		} catch (GeneralSecurityException e) {
-			LOGGER.log(Level.SEVERE, "Message digest algorithm not available", e);
-			return null;
-		}
-		
-	}
-	
-	/**
-	 * Does the Pseudorandom function as defined in <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
-	 * 
-	 * @param secret the secret to use for the secure hash function
-	 * @param labelId the label to use for creating the original data
-	 * @param seed the seed to use for creating the original data
-	 * @return the expanded data
-	 */
-	static final byte[] doPRF(byte[] secret, int labelId, byte[] seed) {
-		int length;
-			String label;
-			switch (labelId) {
-			case MASTER_SECRET_LABEL:
-				// The master secret is always 48 bytes long, see
-				// http://tools.ietf.org/html/rfc5246#section-8.1
-				label = "master secret";
-			length = 48;
-			break;
-			case KEY_EXPANSION_LABEL:
-				// The most key material required is 128 bytes, see
-				// http://tools.ietf.org/html/rfc5246#section-6.3
-				label = "key expansion";
-			length = 128;
-			break;
-
-			case CLIENT_FINISHED_LABEL:
-				// The verify data is always 12 bytes long, see
-				// http://tools.ietf.org/html/rfc5246#section-7.4.9
-				label = "client finished";
-			length = 12;
-			break;
-
-			case SERVER_FINISHED_LABEL:
-				// The verify data is always 12 bytes long, see
-				// http://tools.ietf.org/html/rfc5246#section-7.4.9
-				label = "server finished";
-			length = 12;
-			break;
-
-			default:
-			LOGGER.log(Level.SEVERE, "Unknown label: {0}", labelId);
-				return null;
-			}
-		return doPRF(secret, label.getBytes(), seed, length);
-	}
-
-	/**
-	 * Performs the secret expansion as described in <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
-	 * 
-	 * @param hmac
-	 *            the cryptographic hash function to use for expansion
-	 * @param data
-	 *            the data to expand
-	 * @param length
-	 *            the length to expand the data to in <tt>bytes</tt>
-	 * @return the expanded data
-	 */
-	static final byte[] doExpansion(Mac hmac, byte[] data, int length) {
-		/*
-		 * P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-		 * HMAC_hash(secret, A(2) + seed) + HMAC_hash(secret, A(3) + seed) + ...
-		 * where + indicates concatenation. A() is defined as: A(0) = seed, A(i)
-		 * = HMAC_hash(secret, A(i-1))
-		 */
-
-		int iterations = (int) Math.ceil(length / (double) hmac.getMacLength());
-		byte[] expansion = new byte[0];
-
-		byte[] A = data;
-		for (int i = 0; i < iterations; i++) {
-			A = hmac.doFinal(A);
-			expansion = ByteArrayUtils.concatenate(expansion, hmac.doFinal(ByteArrayUtils.concatenate(A, data)));
-		}
-
-		return ByteArrayUtils.truncate(expansion, length);
 	}
 
 	protected final void setCurrentReadState() {
