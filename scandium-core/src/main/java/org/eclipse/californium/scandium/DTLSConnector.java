@@ -291,6 +291,9 @@ public class DTLSConnector implements Connector {
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
 		socket.bind(bindAddress);
+		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
+				connectionStore.clear();
+		}
 		NetworkInterface ni = NetworkInterface.getByInetAddress(bindAddress.getAddress());
 		if (ni != null && ni.getMTU() > 0) {
 			this.maximumTransmissionUnit = ni.getMTU();
