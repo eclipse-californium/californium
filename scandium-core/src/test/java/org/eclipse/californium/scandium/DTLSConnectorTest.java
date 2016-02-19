@@ -536,6 +536,68 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
+	public void testStartStopWithNewAddress() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		InetSocketAddress firstAddress = client.getAddress();
+		
+		// Stop the client
+		client.stop();
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		
+		// Restart it
+		client.start();
+		assertNotEquals(firstAddress,client.getAddress());
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+	
+	@Test
+	public void testStartStopWithSameAddress() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		InetSocketAddress firstAddress = client.getAddress();
+
+		// Stop the client
+		client.stop();
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		
+		// Restart it
+		client.restart();
+		assertEquals(firstAddress,client.getAddress());
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
 	public void testConnectorResumesSessionFromExistingConnection() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession();

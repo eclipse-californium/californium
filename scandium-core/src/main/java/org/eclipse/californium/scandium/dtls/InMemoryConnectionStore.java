@@ -16,6 +16,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,7 +51,7 @@ import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache;
  * 
  * Storing and reading to/from the store is thread safe.
  */
-public class InMemoryConnectionStore extends LeastRecentlyUsedCache<InetSocketAddress, Connection> implements ConnectionStore {
+public class InMemoryConnectionStore extends LeastRecentlyUsedCache<InetSocketAddress, Connection> implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = Logger.getLogger(InMemoryConnectionStore.class.getName());
 	
@@ -124,5 +125,14 @@ public class InMemoryConnectionStore extends LeastRecentlyUsedCache<InetSocketAd
 			});
 		}
 	}
-
+	
+	@Override
+	public synchronized void markAllAsResumptionRequired() {
+		for (Iterator<Connection> iterator = values(); iterator.hasNext();) {
+			Connection c = iterator.next();
+			if (c != null){
+				c.setResumptionRequired(true);;
+			}
+		}
+	}
 }
