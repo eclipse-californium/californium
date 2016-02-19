@@ -16,6 +16,7 @@
 package org.eclipse.californium.scandium.util;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -324,6 +325,27 @@ public class LeastRecentlyUsedCache<K, V> {
 
 	static interface EvictionListener<V> {
 		void onEviction(V evictedValue);
+	}
+
+	protected final Iterator<V> values() {
+		final Iterator<CacheEntry<K, V>> iter = cache.values().iterator();
+
+		return new Iterator<V>() {
+			@Override
+			public boolean hasNext() {
+				return iter.hasNext();
+			}
+
+			@Override
+			public V next() {
+				return iter.next().value;
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
 	}
 
 	private static class CacheEntry<K, V> {

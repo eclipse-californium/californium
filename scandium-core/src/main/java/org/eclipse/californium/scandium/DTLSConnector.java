@@ -43,7 +43,6 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
-import java.security.Principal;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -62,8 +61,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -94,6 +93,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionListener;
@@ -299,6 +299,13 @@ public class DTLSConnector implements Connector {
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
 		socket.bind(bindAddress);
+		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
+			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
+				((ResumptionSupportingConnectionStore) connectionStore).markAllAsResumptionRequired();
+			} else {
+				connectionStore.clear();
+			}
+		}
 		NetworkInterface ni = NetworkInterface.getByInetAddress(bindAddress.getAddress());
 		if (ni != null && ni.getMTU() > 0) {
 			this.maximumTransmissionUnit = ni.getMTU();
