@@ -27,7 +27,10 @@ import java.net.InetSocketAddress;
  * It is also assumed that the sessions are kept in memory. Thus, no
  * explicit <code>update</code> method is provided since all instances
  * are expected to be passed-in and stored by reference.
+ * 
+ * @deprecated use ResumptionSupportingConnectionStore
  */
+@Deprecated
 public interface ConnectionStore {
 
 	/**
