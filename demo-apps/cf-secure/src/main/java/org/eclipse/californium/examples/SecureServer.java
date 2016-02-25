@@ -99,7 +99,7 @@ public class SecureServer {
 					keyStore.getCertificateChain("server"), true);
 			config.setTrustStore(trustedCertificates);
 
-			DTLSConnector connector = new DTLSConnector(config.build(), null);
+			DTLSConnector connector = new DTLSConnector(config.build());
 
 			server.addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
 			server.start();
