@@ -14,24 +14,6 @@
 
 	<name>element-connector</name>
 	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
-	<scm>
-		<developerConnection>scm:git:https://github.com/eclipse/californium.element-connector.git</developerConnection>
-		<url>https://github.com/eclipse/californium.element-connector</url>
-		<tag>HEAD</tag>
-	</scm>
-
-	<repositories>
-		<repository>
-			<id>eclipse_snapshots</id>
-			<name>Eclipse Snapshots</name>
-			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
-		</repository>
-		<repository>
-			<id>eclipse_releases</id>
-			<name>Eclipse Releases</name>
-			<url>https://repo.eclipse.org/content/repositories/releases/</url>
-		</repository>
-	</repositories>
 
 	<dependencies>
 		<dependency>
