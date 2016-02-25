@@ -95,7 +95,6 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
-		<element.connector.version>${project.version}</element.connector.version>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 	</properties>
 
@@ -131,7 +130,7 @@
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
-				<version>${element.connector.version}</version>
+				<version>${project.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
