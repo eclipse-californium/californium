@@ -28,8 +28,9 @@ import java.net.InetSocketAddress;
  * explicit <code>update</code> method is provided since all instances
  * are expected to be passed-in and stored by reference.
  * 
- * @Deprecated use ResumptionSupportingConnectionStore
+ * @deprecated use ResumptionSupportingConnectionStore
  */
+@Deprecated
 public interface ConnectionStore {
 
 	/**
