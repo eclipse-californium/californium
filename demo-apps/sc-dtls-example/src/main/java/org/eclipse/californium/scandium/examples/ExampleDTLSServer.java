@@ -76,7 +76,7 @@ public class ExampleDTLSServer {
 			builder.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
 			builder.setTrustStore(trustedCertificates);
-			dtlsConnector = new DTLSConnector(builder.build(), null);
+			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
 		} catch (GeneralSecurityException | IOException e) {

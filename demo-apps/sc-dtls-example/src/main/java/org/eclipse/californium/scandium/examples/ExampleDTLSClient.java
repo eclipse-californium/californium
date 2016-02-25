@@ -75,7 +75,7 @@ public class ExampleDTLSClient {
 			builder.setIdentity((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("client"), true);
 			builder.setTrustStore(trustedCertificates);
-			dtlsConnector = new DTLSConnector(builder.build(), null);
+			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
 				
 				@Override
