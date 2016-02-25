@@ -374,20 +374,17 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				LOGGER.severe("ISO-8859-1 encoding not supported: " + e.getMessage());
 			}
 			byte[] payload = request.getPayload();
-			
+
 			// Implementation in new Cf (Only one accept option allowed)
-			Integer accept = request.getOptions().getAccept();
-			if (accept != null) {
-				int mediaType = accept.intValue();
-				CacheKey cacheKey = new CacheKey(proxyUri, mediaType, payload);
-				cacheKeys.add(cacheKey);
-			} else {
+			int accept = request.getOptions().getAccept();
+			if (accept < 0) {
 				// if the accept options are not set, simply set all media types
 				// FIXME not efficient
 				for (Integer acceptType : MediaTypeRegistry.getAllMediaTypes()) {
-					CacheKey cacheKey = new CacheKey(proxyUri, acceptType, payload);
-					cacheKeys.add(cacheKey);
+					cacheKeys.add(new CacheKey(proxyUri, acceptType, payload));
 				}
+			} else {
+				cacheKeys.add(new CacheKey(proxyUri, accept, payload));
 			}
 
 			return cacheKeys;
@@ -412,9 +409,11 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			}
 
 			String proxyUri = request.getOptions().getProxyUri();
-			Integer mediaType = response.getOptions().getContentFormat();
-			if (mediaType == null) 
+			int mediaType = response.getOptions().getContentFormat();
+			if (mediaType < 0) {
+				// content-format option not set, use default
 				mediaType = MediaTypeRegistry.TEXT_PLAIN;
+			}
 			byte[] payload = request.getPayload();
 
 			// create the new cacheKey
