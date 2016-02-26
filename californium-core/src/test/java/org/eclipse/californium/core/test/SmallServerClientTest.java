@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.net.InetAddress;
 
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
@@ -36,11 +37,13 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This is a small test that tests the exchange of one request and one response.
  */
+@Category(Medium.class)
 public class SmallServerClientTest {
 
 	private static String SERVER_RESPONSE = "server responds hi";

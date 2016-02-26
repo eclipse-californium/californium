@@ -21,6 +21,7 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -31,7 +32,9 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class MatcherTest {
 
 	static final String SESSION_ID = "010203";

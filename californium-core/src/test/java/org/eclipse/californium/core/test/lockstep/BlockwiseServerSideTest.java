@@ -37,6 +37,7 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import java.net.InetSocketAddress;
 
 import org.junit.Assert;
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -50,11 +51,13 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test implements all examples from the blockwise draft 14 for a server.
  */
+@Category(Large.class)
 public class BlockwiseServerSideTest {
 	public static final int TEST_EXCHANGE_LIFETIME = 247; // 0.247 seconds
 	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // 1 second

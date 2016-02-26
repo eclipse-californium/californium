@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
@@ -47,6 +48,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
@@ -55,6 +57,7 @@ import org.junit.Test;
  * sends messages blockwise. All four combinations with short and long requests
  * and responses are tested.
  */
+@Category(Medium.class)
 public class BlockwiseTransferTest {
 
 	private static final String SHORT_POST_REQUEST  = "<Short request>";
