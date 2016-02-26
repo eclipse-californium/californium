@@ -28,7 +28,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
@@ -57,7 +57,8 @@ import org.junit.experimental.categories.Category;
  * sends messages blockwise. All four combinations with short and long requests
  * and responses are tested.
  */
-@Category(Medium.class)
+// Category Large because shutdown of the CoapServer runs into timeout (after 5 secs)
+@Category(Large.class)
 public class BlockwiseTransferTest {
 
 	private static final String SHORT_POST_REQUEST  = "<Short request>";
@@ -232,7 +233,7 @@ public class BlockwiseTransferTest {
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		
-		CoapEndpoint endpoind = new CoapEndpoint(new InetSocketAddress(7777), config);
+		CoapEndpoint endpoind = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		endpoind.addInterceptor(interceptor);
 		server.addEndpoint(endpoind);
 		server.setMessageDeliverer(new MessageDeliverer() {

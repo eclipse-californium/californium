@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -150,7 +152,7 @@ public class ClientSynchronousTest {
 	}
 	
 	private void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();

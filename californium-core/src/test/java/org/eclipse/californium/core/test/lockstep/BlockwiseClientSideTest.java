@@ -33,9 +33,10 @@ import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -53,7 +54,7 @@ import org.junit.experimental.categories.Category;
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
  */
-@Category(Large.class)
+@Category(Medium.class)
 public class BlockwiseClientSideTest {
 
 	private static NetworkConfig CONFIG;
@@ -78,7 +79,7 @@ public class BlockwiseClientSideTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		client = new CoapEndpoint(new InetSocketAddress(0), CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());

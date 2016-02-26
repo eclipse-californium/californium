@@ -29,6 +29,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,6 +40,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
@@ -88,7 +90,8 @@ public class ObserveServerSideTest {
 
 		testObsResource = new TestObserveResource("obs");
 
-		server = new CoapServer(CONFIG, 0);
+		server = new CoapServer();
+		server.addEndpoint(new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG));
 		server.add(testObsResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		server.start();

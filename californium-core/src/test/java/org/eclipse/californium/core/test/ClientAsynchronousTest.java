@@ -24,6 +24,7 @@ package org.eclipse.californium.core.test;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -190,7 +191,7 @@ public class ClientAsynchronousTest {
 	}
 
 	private static void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();
