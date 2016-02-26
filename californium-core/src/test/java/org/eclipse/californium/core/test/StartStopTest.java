@@ -22,7 +22,7 @@ package org.eclipse.californium.core.test;
 import java.net.DatagramSocket;
 
 import org.junit.Assert;
-
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
@@ -31,6 +31,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
@@ -42,6 +43,7 @@ import org.junit.Test;
  * 1, start server 2 and again send a new request and validate that server 2
  * responds. Finally, we stop and destroy both servers.
  */
+@Category(Medium.class)
 public class StartStopTest {
 
 	public static final String SERVER_1_RESPONSE = "This is server one";

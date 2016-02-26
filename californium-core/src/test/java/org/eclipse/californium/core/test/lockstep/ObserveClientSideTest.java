@@ -29,6 +29,7 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import java.net.InetSocketAddress;
 
 import org.junit.Assert;
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -40,11 +41,13 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
  */
+@Category(Large.class)
 public class ObserveClientSideTest {
 
 	private static NetworkConfig CONFIG;

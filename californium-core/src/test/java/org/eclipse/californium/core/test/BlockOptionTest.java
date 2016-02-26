@@ -22,11 +22,13 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
@@ -34,6 +36,7 @@ import org.junit.Test;
  * converts the parameters SZX, M, NUM (defined in the draft) to a byte array
  * and extracts these parameters vice-versa form a specified byte array.
  */
+@Category(Small.class)
 public class BlockOptionTest {
 
 	@Before
