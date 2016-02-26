@@ -26,6 +26,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.junit.Assert;
@@ -72,7 +73,7 @@ public class ObserveClientSideTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		client = new CoapEndpoint(new InetSocketAddress(0), CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();

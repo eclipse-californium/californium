@@ -19,6 +19,9 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -99,7 +102,7 @@ public class ResourceTreeTest {
 	}
 	
 	private void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		
 		resource = new TestResource(NAME_1, PAYLOAD);
 		server = new CoapServer();

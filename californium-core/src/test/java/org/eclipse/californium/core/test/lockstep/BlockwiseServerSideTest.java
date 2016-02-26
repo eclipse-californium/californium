@@ -34,6 +34,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.junit.Assert;
@@ -89,7 +90,9 @@ public class BlockwiseServerSideTest {
 	public void setupEndpoints() throws Exception {
 
 		testResource = new TestResource("test");
-		server = new CoapServer(CONFIG, 0);
+		server = new CoapServer();
+		// bind server to loopback address using an ephemeral port
+		server.addEndpoint(new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG));
 		server.add(testResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		serverSurveillant = new EndpointSurveillant("server", (CoapEndpoint) (server.getEndpoints().get(0)));

@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -35,7 +35,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-@Category(Medium.class)
+// Category Large because CoapServer runs into timeout (after 5 secs) on shutdown
+@Category(Large.class)
 public class MemoryLeakingHashMapTest {
 
 	// Configuration for this test
@@ -72,7 +73,7 @@ public class MemoryLeakingHashMapTest {
 	public static void startupServer() throws Exception {
 		LOGGER.log(Level.FINE, "Start {0}", MemoryLeakingHashMapTest.class.getSimpleName());
 		timer = new ScheduledThreadPoolExecutor(1);
-		createServerAndClientEntpoints();
+		createServerAndClientEndpoints();
 	}
 
 	@AfterClass
@@ -235,7 +236,7 @@ public class MemoryLeakingHashMapTest {
 		assertFalse(isOnErrorInvoked.get()); // should not happen
 	}
 
-	private static void createServerAndClientEntpoints() throws Exception {
+	private static void createServerAndClientEndpoints() throws Exception {
 
 		NetworkConfig config = new NetworkConfig()
 			// We make sure that the sweep deduplicator is used
@@ -251,11 +252,11 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		serverEndpoint.addInterceptor(new MessageTracer());
 		serverSurveillant = new EndpointSurveillant("server", serverEndpoint);
 
-		clientEndpoint = new CoapEndpoint(config);
+		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		clientEndpoint.start();
 		clientSurveillant = new EndpointSurveillant("client", clientEndpoint);
 
