@@ -1,6 +1,10 @@
 package org.eclipse.californium.core.test;
 
 import org.junit.Assert;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -26,7 +30,7 @@ public class RandomAccessBlockTest {
 	@Before
 	public void startupServer() throws Exception {
 		System.out.println("\nStart "+getClass().getSimpleName());
-		CoapEndpoint endpoint = new CoapEndpoint();
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.add(new TestResource(TARGET));

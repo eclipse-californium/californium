@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
@@ -83,7 +84,7 @@ public class SmallServerClientTest {
 	
 	
 	private void createSimpleServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(0);
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapServer server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {

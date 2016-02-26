@@ -212,7 +212,7 @@ public class ObserveTest {
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 		
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress((InetAddress) null, 0), config);
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		
 		server = new CoapServer();
 		server.addEndpoint(endpoint);

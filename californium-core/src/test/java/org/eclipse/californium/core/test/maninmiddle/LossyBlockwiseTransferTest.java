@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Random;
 
 import org.junit.Assert;
@@ -69,7 +71,7 @@ public class LossyBlockwiseTransferTest {
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 		
-		client = new CoapEndpoint(config);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		client.start();
 		
 		server = new CoapServer(config, 0);

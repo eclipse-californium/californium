@@ -63,7 +63,7 @@ public class LockstepEndpoint {
 	public LockstepEndpoint() {
 		this.storage = new HashMap<String, Object>();
 		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(new InetSocketAddress(0));
+		this.connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 			public void receiveData(RawData raw) {
 				incoming.offer(raw);
