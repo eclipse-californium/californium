@@ -82,7 +82,13 @@ public class LockstepEndpoint {
 		this();
 		this.destination = destination;
 	}
-	
+
+	public void destroy() {
+		if (connector != null) {
+			connector.destroy();
+		}
+	}
+
 	public void print(String text) {
 		if (verbose) {
 			System.out.println(text);
@@ -394,27 +400,22 @@ public class LockstepEndpoint {
 
 		@Override 
 		public void go() throws Exception {
-			Request request = waitForRequest();
-			check(request);
-		}
-	}
-	
-	public Request waitForRequest() throws Exception {
-		RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
-		Assert.assertNotNull("Did not receive a request (but nothing)", raw);
-		DataParser parser = new DataParser(raw.getBytes());
-		
-		if (parser.isRequest()) {
-			Request request = parser.parseRequest();
-			request.setSource(raw.getAddress());
-			request.setSourcePort(raw.getPort());
-			return request;
+			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
+			Assert.assertNotNull("Did not receive a request (but nothing)", raw);
+			DataParser parser = new DataParser(raw.getBytes());
 			
-		} else {
-			throw new RuntimeException("Expected request but received " + parser);
+			if (parser.isRequest()) {
+				Request request = parser.parseRequest();
+				request.setSource(raw.getAddress());
+				request.setSourcePort(raw.getPort());
+				check(request);
+				
+			} else {
+				Assert.fail("Expected request but received " + parser);
+			}
 		}
 	}
-	
+
 	public class ResponseExpectation extends MessageExpectation {
 		
 		private Response response;
@@ -551,7 +552,7 @@ public class LockstepEndpoint {
 				check(response);
 				
 			} else {
-				throw new RuntimeException("Expected response but received " + parser);
+				Assert.fail("Expected response but received " + parser);
 			}
 		}
 		
@@ -569,14 +570,13 @@ public class LockstepEndpoint {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
 			DataParser parser = new DataParser(raw.getBytes());
-			
 			if (parser.isEmpty()) {
 				EmptyMessage empty = parser.parseEmptyMessage();
 				empty.setSource(raw.getAddress());
 				empty.setSourcePort(raw.getPort());
 				check(empty);
 			} else {
-				throw new RuntimeException("Expected empty message but received " + parser);
+				Assert.fail("Expected empty message but received " + parser);
 			}
 		}
 	}
