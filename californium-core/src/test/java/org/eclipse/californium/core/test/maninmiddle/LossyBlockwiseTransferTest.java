@@ -22,7 +22,7 @@ package org.eclipse.californium.core.test.maninmiddle;
 import java.util.Random;
 
 import org.junit.Assert;
-
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -34,12 +34,14 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test randomly drops packets of a blockwise transfer and checks if the
  * transfer still succeeds.
  */
+@Category(Large.class)
 public class LossyBlockwiseTransferTest {
 
 	private static boolean RANDOM_PAYLOAD_GENERATION = true;

@@ -21,6 +21,7 @@ package org.eclipse.californium.core.test;
 
 import java.util.LinkedList;
 
+import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
@@ -29,8 +30,9 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
-
+@Category(Small.class)
 public class ResourceAttributesTest {
 
 	private Resource root;

@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
@@ -29,8 +30,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
-
+@Category(Medium.class)
 public class ResourceTreeTest {
 
 	public static final String RES_A = "A";

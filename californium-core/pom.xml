@@ -32,13 +32,53 @@
 	<build>
 		<plugins>
 			<plugin>
-				<!-- configures the JDK Logging to use the CaliforniumFormatter by means 
-					of the Californium-logging.properties file (must be in target/test-classes) -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/Californium-logging.properties</argLine>
+					<systemPropertyVariables>
+						<!--
+						   configures the JDK Logging to use the CaliforniumFormatter
+						   by means of the Californium-logging.properties file
+						-->
+						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*$*</exclude>
+					</excludes>
+					<!-- 
+						Parallel test execution fails on OpenJDK 8 on linux :-(
+						For now, execute tests sequentially one by one.
+						We'll have to investigate this further ...
+					 -->
+					<!-- parallel>classes</parallel>
+					<threadCountClasses>8</threadCountClasses-->
+					<groups>org.eclipse.californium.category.Small</groups>
+					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
 				</configuration>
+				<executions>
+					<execution>
+						<id>medium-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>large-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium</excludedGroups>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

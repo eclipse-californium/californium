@@ -21,15 +21,18 @@ package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertEquals;
 
+import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * Tests that the mapping from a value to an enum is correct.
  */
+@Category(Small.class)
 public class CoapTest {
 	
 	@Test

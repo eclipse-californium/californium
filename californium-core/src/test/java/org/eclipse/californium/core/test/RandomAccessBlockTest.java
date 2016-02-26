@@ -1,7 +1,7 @@
 package org.eclipse.californium.core.test;
 
 import org.junit.Assert;
-
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -12,7 +12,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Medium.class)
 public class RandomAccessBlockTest {
 
 	public static String TARGET = "test";

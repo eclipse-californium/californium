@@ -10,6 +10,7 @@ import javax.swing.Timer;
 
 import org.junit.Assert;
 
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -28,7 +29,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Medium.class)
 public class MemoryLeakingHashMapTest {
 
 	// Configuration for this test

@@ -22,6 +22,7 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
@@ -34,11 +35,13 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test tests that the message type of responses is correct.
  */
+@Category(Medium.class)
 public class MessageTypeTest {
 
 	private static final String SERVER_RESPONSE = "server responds hi";

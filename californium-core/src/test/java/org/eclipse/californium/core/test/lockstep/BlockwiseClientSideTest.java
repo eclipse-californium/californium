@@ -35,6 +35,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -46,11 +47,13 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
  */
+@Category(Large.class)
 public class BlockwiseClientSideTest {
 
 	private static NetworkConfig CONFIG;

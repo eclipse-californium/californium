@@ -32,6 +32,7 @@ import java.net.InetSocketAddress;
 import org.junit.Assert;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -41,11 +42,13 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
+@Category(Medium.class)
 public class DeduplicationTest {
 	
 	private LockstepEndpoint server;
