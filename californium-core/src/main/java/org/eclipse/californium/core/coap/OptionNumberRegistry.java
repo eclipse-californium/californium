@@ -145,7 +145,7 @@ public final class OptionNumberRegistry {
 	 * @return {@code true} if the option is critical
 	 */
 	public static boolean isCritical(int optionNumber) {
-		return (optionNumber & 1) > 1;
+		return (optionNumber & 1) != 0;
 	}
 
 	/**
@@ -225,15 +225,16 @@ public final class OptionNumberRegistry {
 		case URI_HOST:
 		case URI_PORT:
 		case IF_NONE_MATCH:
+		case OBSERVE:
+		case ACCEPT:
+		default:
 			return true;
 		case ETAG:
-		case ACCEPT:
 		case IF_MATCH:
 		case URI_PATH:
 		case URI_QUERY:
 		case LOCATION_PATH:
 		case LOCATION_QUERY:
-		default:
 			return false;
 		}
 	}
