@@ -21,6 +21,8 @@ package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Assert;
 
@@ -47,6 +49,190 @@ public class OptionTest {
 	public void shutdownServer() {
 		System.out.println("End "+getClass().getSimpleName());
 	}
+
+    @Test
+    public void testIsCritical() {
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.IF_MATCH));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.URI_HOST));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.ETAG));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.IF_NONE_MATCH));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.OBSERVE));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.URI_PORT));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.LOCATION_PATH));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.URI_PATH));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.CONTENT_FORMAT));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.MAX_AGE));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.URI_QUERY));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.ACCEPT));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.LOCATION_QUERY));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.BLOCK2));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.BLOCK1));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.SIZE2));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.PROXY_URI));
+		assertTrue (OptionNumberRegistry.isCritical(OptionNumberRegistry.PROXY_SCHEME));
+		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsElective() {
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.IF_MATCH));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.URI_HOST));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.ETAG));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.IF_NONE_MATCH));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.OBSERVE));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.URI_PORT));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.LOCATION_PATH));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.URI_PATH));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.CONTENT_FORMAT));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.MAX_AGE));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.URI_QUERY));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.ACCEPT));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.LOCATION_QUERY));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.BLOCK2));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.BLOCK1));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.SIZE2));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.PROXY_URI));
+		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.PROXY_SCHEME));
+		assertTrue (OptionNumberRegistry.isElective(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsSafe() {
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.IF_MATCH));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.URI_HOST));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.ETAG));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.IF_NONE_MATCH));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.OBSERVE));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.URI_PORT));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.LOCATION_PATH));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.URI_PATH));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.CONTENT_FORMAT));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.MAX_AGE));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.URI_QUERY));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.ACCEPT));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.LOCATION_QUERY));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.BLOCK2));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.BLOCK1));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.SIZE2));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.PROXY_URI));
+		assertFalse(OptionNumberRegistry.isSafe(OptionNumberRegistry.PROXY_SCHEME));
+		assertTrue (OptionNumberRegistry.isSafe(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsUnsafe() {
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.IF_MATCH));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.URI_HOST));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.ETAG));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.IF_NONE_MATCH));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.OBSERVE));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.URI_PORT));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.LOCATION_PATH));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.URI_PATH));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.CONTENT_FORMAT));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.MAX_AGE));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.URI_QUERY));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.ACCEPT));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.LOCATION_QUERY));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.BLOCK2));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.BLOCK1));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.SIZE2));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.PROXY_URI));
+		assertTrue (OptionNumberRegistry.isUnsafe(OptionNumberRegistry.PROXY_SCHEME));
+		assertFalse(OptionNumberRegistry.isUnsafe(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsCacheKey() {
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.IF_MATCH));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.URI_HOST));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.ETAG));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.IF_NONE_MATCH));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.OBSERVE));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.URI_PORT));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.LOCATION_PATH));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.URI_PATH));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.CONTENT_FORMAT));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.MAX_AGE));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.URI_QUERY));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.ACCEPT));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.LOCATION_QUERY));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.BLOCK2));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.BLOCK1));
+		assertFalse(OptionNumberRegistry.isCacheKey(OptionNumberRegistry.SIZE2));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.PROXY_URI));
+		assertTrue (OptionNumberRegistry.isCacheKey(OptionNumberRegistry.PROXY_SCHEME));
+		assertFalse(OptionNumberRegistry.isCacheKey(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsNonCacheable() {
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.IF_MATCH));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.URI_HOST));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.ETAG));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.IF_NONE_MATCH));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.OBSERVE));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.URI_PORT));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.LOCATION_PATH));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.URI_PATH));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.CONTENT_FORMAT));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.MAX_AGE));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.URI_QUERY));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.ACCEPT));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.LOCATION_QUERY));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.BLOCK2));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.BLOCK1));
+		assertTrue (OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.SIZE2));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.PROXY_URI));
+		assertFalse(OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.PROXY_SCHEME));
+		assertTrue (OptionNumberRegistry.isNoCacheKey(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsSingleValue() {
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.IF_MATCH));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.URI_HOST));
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.ETAG));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.IF_NONE_MATCH));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.OBSERVE));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.URI_PORT));
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.LOCATION_PATH));
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.URI_PATH));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.CONTENT_FORMAT));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.MAX_AGE));
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.URI_QUERY));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.ACCEPT));
+		assertFalse(OptionNumberRegistry.isSingleValue(OptionNumberRegistry.LOCATION_QUERY));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.BLOCK2));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.BLOCK1));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.SIZE2));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.PROXY_URI));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.PROXY_SCHEME));
+		assertTrue (OptionNumberRegistry.isSingleValue(OptionNumberRegistry.SIZE1));
+    }
+
+    @Test
+    public void testIsUriOption() {
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.IF_MATCH));
+		assertTrue (OptionNumberRegistry.isUriOption(OptionNumberRegistry.URI_HOST));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.ETAG));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.IF_NONE_MATCH));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.OBSERVE));
+		assertTrue (OptionNumberRegistry.isUriOption(OptionNumberRegistry.URI_PORT));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.LOCATION_PATH));
+		assertTrue (OptionNumberRegistry.isUriOption(OptionNumberRegistry.URI_PATH));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.CONTENT_FORMAT));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.MAX_AGE));
+		assertTrue (OptionNumberRegistry.isUriOption(OptionNumberRegistry.URI_QUERY));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.ACCEPT));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.LOCATION_QUERY));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.BLOCK2));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.BLOCK1));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.SIZE2));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.PROXY_URI));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.PROXY_SCHEME));
+		assertFalse(OptionNumberRegistry.isUriOption(OptionNumberRegistry.SIZE1));
+    }
 	
 	@Test
 	public void testSetValue() {
