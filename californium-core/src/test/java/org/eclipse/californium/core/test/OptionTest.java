@@ -265,9 +265,9 @@ public class OptionTest {
 		assertArrayEquals(option.getValue(), new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
 		assertEquals(0xFFFFFFFFL, option.getLongValue());
 
-		//option.setLongValue(0x9823749837239845L);
-		//assertArrayEquals(option.getValue(), new byte[] {-104, 35, 116, -104, 55, 35, -104, 69});
-		//assertEquals(0x9823749837239845L, option.getLongValue());
+		option.setLongValue(0x9823749837239845L);
+		assertArrayEquals(option.getValue(), new byte[] {-104, 35, 116, -104, 55, 35, -104, 69});
+		assertEquals(0x9823749837239845L, option.getLongValue());
 
 		option.setLongValue(0xFFFFFFFFFFFFFFFFL);
 		assertArrayEquals(option.getValue(), new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
