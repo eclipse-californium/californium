@@ -176,7 +176,7 @@ public class Option implements Comparable<Option> {
 	public int getIntegerValue() {
 		int ret = 0;
 		for (int i=0; i<value.length; i++) {
-		    ret <<= 8;
+            ret <<= 8;
 			ret |= (int) value[i] & 0xff;
 		}
 		return ret;
@@ -190,7 +190,7 @@ public class Option implements Comparable<Option> {
 	public long getLongValue() {
 		long ret = 0;
 		for (int i=0; i<value.length; i++) {
-		    ret <<= 8;
+            ret <<= 8;
 			ret |= (int) value[i] & 0xff;
 		}
 		return ret;
