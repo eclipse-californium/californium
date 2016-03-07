@@ -52,8 +52,8 @@ public enum OptionNumberRegistry {
     private static Map<Integer, OptionNumberRegistry> m_mapByNumber;
     
     private int m_protocolValue;
-    private boolean m_isRepeatable;
-    private boolean m_isUriPart;
+    private boolean m_repeatable;
+    private boolean m_uriPart;
     private String m_name;
     private optionFormats m_format;
 
@@ -65,8 +65,8 @@ public enum OptionNumberRegistry {
             String name)
     {
         m_protocolValue = protocolValue;
-        m_isRepeatable = isRepeatable;
-        m_isUriPart = isUriPart;
+        m_repeatable = isRepeatable;
+        m_uriPart = isUriPart;
         m_name = name;
         m_format = format;
     }
@@ -171,7 +171,7 @@ public enum OptionNumberRegistry {
      * @return {@code true} if is repeatable.
      */
     public boolean isRepeatable() {
-        return m_isRepeatable;
+        return m_repeatable;
     }
     
     /**
@@ -182,7 +182,7 @@ public enum OptionNumberRegistry {
      * @return {@code true} if is single value
      */
     public boolean isSingleValue() {
-        return !m_isRepeatable;
+        return !m_repeatable;
     }
 
     /**
@@ -191,7 +191,7 @@ public enum OptionNumberRegistry {
      * @return {@code true} if is uri option
      */
     public boolean isUriOption() {
-        return m_isUriPart;
+        return m_uriPart;
     }
 
     /**
@@ -225,5 +225,4 @@ public enum OptionNumberRegistry {
         }
         return m_mapByNumber.get(protocolValue);
     }
-
 }
