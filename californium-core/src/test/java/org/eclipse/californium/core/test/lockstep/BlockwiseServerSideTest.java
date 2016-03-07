@@ -669,10 +669,10 @@ public class BlockwiseServerSideTest {
 
 		byte[] tok1 = generateNextToken();
 		client.sendRequest(CON, GET, tok1, ++mid).path(path).block2(1, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok1, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
+		client.expectResponse(ACK, CONTENT, tok1, mid).block2(1, true, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 256)).go();
 
 		client.sendRequest(CON, GET, tok1, ++mid).path(path).block2(2, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok1, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 300)).go();
+		client.expectResponse(ACK, CONTENT, tok1, mid).block2(2, false, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(256, 300)).go();
 
 		serverInterceptor.log("\n... time passes ...");
 		System.out.println("Send first notification");
@@ -685,10 +685,10 @@ public class BlockwiseServerSideTest {
 
 		byte[] tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(1, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
+		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 256)).go();
 		
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(2, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 280)).go();
+		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(256, 280)).go();
 		
 		System.out.println("Send second notification");
 		serverInterceptor.log("\n... time passes ...");
@@ -701,10 +701,10 @@ public class BlockwiseServerSideTest {
 
 		byte[] tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(1, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 256)).go();
 		
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(2, false, 128).go();
-		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 290)).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 128).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(256, 290)).go();
 		
 		printServerLog();
 	}
@@ -724,10 +724,10 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).observe(0).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(64, 128)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(2, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 150)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 150)).go();
 		
 		System.out.println("Send first notification");
 		serverInterceptor.log("\n... time passes ...");
@@ -740,10 +740,10 @@ public class BlockwiseServerSideTest {
 
 		byte[] tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(1, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(64, 128)).go();
 		
 		client.sendRequest(CON, GET, tok2, ++mid).path(path).block2(2, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 140)).go();
+		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 140)).go();
 		
 		System.out.println("Send second notification");
 		serverInterceptor.log("\n... time passes ...");
@@ -756,10 +756,10 @@ public class BlockwiseServerSideTest {
 
 		byte[] tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(1, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(64, 128)).go();
 		
 		client.sendRequest(CON, GET, tok3, ++mid).path(path).block2(2, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 145)).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 64).noOption(OBSERVE.getProtocolValue()).payload(respPayload.substring(128, 145)).go();
 		
 		printServerLog();
 	}

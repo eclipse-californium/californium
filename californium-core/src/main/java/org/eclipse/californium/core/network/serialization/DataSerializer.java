@@ -80,7 +80,7 @@ public class DataSerializer {
 		for (Option option:options) {
 			
 			// write 4-bit option delta
-			int optionDelta = option.getNumber() - lastOptionNumber;
+			int optionDelta = option.getNumber().getProtocolValue() - lastOptionNumber;
 			int optionDeltaNibble = getOptionNibble(optionDelta);
 			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
 			
@@ -107,7 +107,7 @@ public class DataSerializer {
 			writer.writeBytes(option.getValue());
 
 			// update last option number
-			lastOptionNumber = option.getNumber();
+			lastOptionNumber = option.getNumber().getProtocolValue();
 		}
 		
 		byte[] payload = message.getPayload();
