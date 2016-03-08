@@ -51,8 +51,13 @@ public class OptionTest {
 	}
 
     @Test
-    public void testEnumSize() {
+    public void testEnumSizeAndOrder() {
+        int last = 0;
         assertEquals(19, OptionNumberRegistry.values().length);
+        for (OptionNumberRegistry o: OptionNumberRegistry.values()) {
+            assertTrue(last < o.getProtocolValue());
+            last = o.getProtocolValue();
+        }
     }
 
     @Test
