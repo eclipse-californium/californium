@@ -92,6 +92,7 @@
 							org.eclipse.californium.scandium.util
 						</Private-Package>
 						<Import-Package>
+							org.eclipse.californium.elements;version="[1.0, 1.2)",
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
