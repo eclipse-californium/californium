@@ -443,11 +443,11 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeToken("At").storeMID("Am").observe(0).go();
 		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		
-		server.expectRequest(CON, GET, path).storeBoth("B").noOption(OBSERVE).block2(1, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").noOption(OBSERVE.getProtocolValue()).block2(1, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		
 		// TODO: Is is mandatory that token C is the same as B?
-		server.expectRequest(CON, GET, path).storeBoth("C").noOption(OBSERVE).block2(2, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").noOption(OBSERVE.getProtocolValue()).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256, 300)).go();
 		
 		Response response = request.waitForResponse(1000);
@@ -463,10 +463,10 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		server.expectEmpty(ACK, mid).go();
 		
-		server.expectRequest(CON, GET, path).storeBoth("D").noOption(OBSERVE).block2(1, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("D").noOption(OBSERVE.getProtocolValue()).block2(1, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		
-		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE).block2(2, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE.getProtocolValue()).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 128).payload(respPayload.substring(256, 280)).go();
 		
 		Response notification1 = request.waitForResponse(1000);
@@ -483,14 +483,14 @@ public class BlockwiseClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 
 		// expect blockwise transfer for second notification
-		server.expectRequest(CON, GET, path).storeBoth("F").noOption(OBSERVE).block2(1, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("F").noOption(OBSERVE.getProtocolValue()).block2(1, false, 128).go();
 		
 		System.out.println("Send third notification during transfer");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		server.expectEmpty(ACK, mid).go();
 		
 		// expect blockwise transfer for third notification
-		server.expectRequest(CON, GET, path).storeBoth("G").noOption(OBSERVE).block2(1, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("G").noOption(OBSERVE.getProtocolValue()).block2(1, false, 128).go();
 		
 		System.out.println("Send old notification during transfer");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
@@ -498,7 +498,7 @@ public class BlockwiseClientSideTest {
 		
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		
-		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE).block2(2, false, 128).go();
+		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE.getProtocolValue()).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 128).payload(respPayload.substring(256, 290)).go();
 
 		Response notification2 = request.waitForResponse(1000);

@@ -35,6 +35,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -147,7 +148,7 @@ public class DataParser {
 				int optionLength = readOptionValueFromNibble(optionLengthNibble);
 				
 				// read option
-				Option option = new Option(currentOption);
+				Option option = new Option(OptionNumberRegistry.parse(currentOption));
 				option.setValue(reader.readBytes(optionLength));
 				
 				// add option to message

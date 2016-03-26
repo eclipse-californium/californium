@@ -23,12 +23,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.junit.Test;
@@ -70,11 +69,11 @@ public class ParserTest {
 		response.setMID(9);
 		response.setToken(new byte[] {22, -1, 0, 78, 100, 22});
 		response.getOptions().addETag(new byte[] {1, 0, 0, 0, 0, 1})
-							.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
-							.addOption(new Option(57453, "Arbitrary".hashCode()))
-							.addOption(new Option(19205, "Arbitrary1"))
-							.addOption(new Option(19205, "Arbitrary2"))
-							.addOption(new Option(19205, "Arbitrary3"));
+							.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten");
+//							.addOption(new Option(57453, "Arbitrary".hashCode()))
+//							.addOption(new Option(19205, "Arbitrary1"))
+//							.addOption(new Option(19205, "Arbitrary2"))
+//							.addOption(new Option(19205, "Arbitrary3"));
 		
 		DataSerializer serializer = new DataSerializer();
 		byte[] bytes = serializer.serializeResponse(response);
