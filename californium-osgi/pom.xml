@@ -64,18 +64,21 @@
 				<artifactId>maven-bundle-plugin</artifactId>
 				<extensions>true</extensions>
 				<configuration>
+					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<niceManifest>true</niceManifest>
 					<instructions>
 						<Export-Package>
 							org.eclipse.californium.core,
 							org.eclipse.californium.core.coap,
 							org.eclipse.californium.core.network,
 							org.eclipse.californium.core.network.config,
+							org.eclipse.californium.core.network.interceptors,
+							org.eclipse.californium.core.network.stack,
+							org.eclipse.californium.core.observe,
 							org.eclipse.californium.core.server,
 							org.eclipse.californium.core.server.resources,
-							org.eclipse.californium.osgi,
 							org.eclipse.californium.elements,
-							org.eclipse.californium.core.observe,
-							org.eclipse.californium.core.network.interceptors
+							org.eclipse.californium.osgi
 						</Export-Package>
 						<Private-Package>
 							org.eclipse.californium.core.network.deduplication,
