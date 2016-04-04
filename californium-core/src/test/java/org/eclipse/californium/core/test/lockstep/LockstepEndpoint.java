@@ -272,7 +272,7 @@ public class LockstepEndpoint {
 					List<Option> options = message.getOptions().asSortedList();
 					for (Option option:options) {
 						for (int n:numbers) {
-							if (option.getNumber() == n) {
+							if (option.getNumber().getProtocolValue() == n) {
 								Assert.assertTrue("Must not have option number "+n+" but has", false);
 							}
 						}

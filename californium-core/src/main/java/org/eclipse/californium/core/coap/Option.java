@@ -50,7 +50,7 @@ import java.util.Arrays;
 public class Option implements Comparable<Option> {
 
 	/** The option number. */
-	private int number;
+	private OptionNumberRegistry number;
 	
 	/** The value as byte array. */
 	private byte[] value; // not null
@@ -69,7 +69,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param number the option number
 	 */
-	public Option(int number) {
+	public Option(OptionNumberRegistry number) {
 		this.number = number;
 		this.value = new byte[0];
 	}
@@ -81,7 +81,7 @@ public class Option implements Comparable<Option> {
 	 * @param number the number
 	 * @param str the option value as string
 	 */
-	public Option(int number, String str) {
+	public Option(OptionNumberRegistry number, String str) {
 		this.number = number;
 		setStringValue(str);
 	}
@@ -93,7 +93,7 @@ public class Option implements Comparable<Option> {
 	 * @param number the option number
 	 * @param val the option value as integer
 	 */
-	public Option(int number, int val) {
+	public Option(OptionNumberRegistry number, int val) {
 		this.number = number;
 		setIntegerValue(val);
 	}
@@ -105,7 +105,7 @@ public class Option implements Comparable<Option> {
 	 * @param number the option number
 	 * @param val the option value as long
 	 */
-	public Option(int number, long val) {
+	public Option(OptionNumberRegistry number, long val) {
 		this.number = number;
 		setLongValue(val);
 	}
@@ -116,7 +116,7 @@ public class Option implements Comparable<Option> {
 	 * @param number the option number
 	 * @param opaque the option value in bytes
 	 */
-	public Option(int number, byte[] opaque) {
+	public Option(OptionNumberRegistry number, byte[] opaque) {
 		this.number = number;
 		setValue(opaque);
 	}
@@ -137,7 +137,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @return the option number
 	 */
-	public int getNumber() {
+	public OptionNumberRegistry getNumber() {
 		return number;
 	}
 
@@ -146,7 +146,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param number the new option number
 	 */
-	public void setNumber(int number) {
+	public void setNumber(OptionNumberRegistry number) {
 		this.number = number;
 	}
 	
@@ -175,8 +175,9 @@ public class Option implements Comparable<Option> {
 	 */
 	public int getIntegerValue() {
 		int ret = 0;
-		for (int i=0;i<value.length;i++) {
-			ret += (value[value.length - i - 1] & 0xFF) << (i*8);
+		for (int i=0; i<value.length; i++) {
+			ret <<= 8;
+			ret |= (int) value[i] & 0xff;
 		}
 		return ret;
 	}
@@ -188,8 +189,9 @@ public class Option implements Comparable<Option> {
 	 */
 	public long getLongValue() {
 		long ret = 0;
-		for (int i=0;i<value.length;i++) {
-			ret += (long) (value[value.length - i - 1] & 0xFF) << (i*8);
+		for (int i=0; i<value.length; i++) {
+			ret <<= 8;
+			ret |= (int) value[i] & 0xff;
 		}
 		return ret;
 	}
@@ -222,30 +224,38 @@ public class Option implements Comparable<Option> {
 	 * @param val the new option value as integer
 	 */
 	public void setIntegerValue(int val) {
-		int length = 0;
-		for (int i=0;i<4;i++)
-			if (val >= 1<<(i*8) || val < 0) length++;
-			else break;
-		value = new byte[length];
-		for (int i=0;i<length;i++)
-			value[length - i - 1] = (byte) (val >> i*8);
+	    setLongValue((long)val & 0xffffffffL);
 	}
 	
-	/**
-	 * Sets the option value from a long.
-	 *
-	 * @param val the new option value as long
-	 */
 	public void setLongValue(long val) {
-		int length = 0;
-		for (int i=0;i<8;i++)
-			if (val >= 1L<<(i*8) || val < 0) length++;
-			else break;
-		value = new byte[length];
-		for (int i=0;i<length;i++)
-			value[length - i - 1] = (byte) (val >> i*8);
+	    long[] tab = {
+	                         0x00L, // 0 bytes
+	                         0x01L, // 1 byte
+	                        0x100L, // 2 bytes
+	                      0x10000L,
+	                    0x1000000L,
+	                  0x100000000L,
+	                0x10000000000L,
+	              0x1000000000000L, // 7 bytes
+	    };
+	    int length = 0, b = 4;
+	    if (val < 0L || val >= 0x100000000000000L)
+	        length = 8;
+	    else {
+	        // this loop repeats four times to get log_0x100(value) rounded upwards.
+	        while (b != 0) {
+	            if (val >= tab[length + b])
+	                length += b;
+	            b >>= 1;
+	        }
+	    }
+	    value = new byte[length];
+		while (length > 0) {
+		    value[--length] = (byte) (val & 0xff);
+		    val >>>= 8;
 		}
-	
+	}
+
 	/**
 	 * Checks if is this option is critical.
 	 *
@@ -253,7 +263,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isCritical() {
 		// Critical = (onum & 1);
-		return (number & 1) != 0;
+	    return number.isCritical();
 	}
 	
 	/**
@@ -263,7 +273,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isUnSafe() {
 		// UnSafe = (onum & 2);
-		return (number & 2) != 0;
+		return number.isUnsafe();
 	}
 	
 	/**
@@ -273,7 +283,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isNoCacheKey() {
 		// NoCacheKey = ((onum & 0x1e) == 0x1c);
-		return (number & 0x1E) == 0x1C;
+		return number.isNoCacheKey();
 	}
 	
 	/* (non-Javadoc)
@@ -281,7 +291,7 @@ public class Option implements Comparable<Option> {
 	 */
 	@Override
 	public int compareTo(Option o) {
-		return number - o.number;
+		return number.getProtocolValue() - o.number.getProtocolValue();
 	}
 	
 	/* (non-Javadoc)
@@ -303,7 +313,7 @@ public class Option implements Comparable<Option> {
 	 */
 	@Override
 	public int hashCode() {
-		return number*31 + value.hashCode();
+		return number.getProtocolValue()*31 + value.hashCode();
 	}
 	
 	/* (non-Javadoc)
@@ -312,7 +322,7 @@ public class Option implements Comparable<Option> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(OptionNumberRegistry.toString(number));
+		sb.append(number.toString());
 		sb.append(": ");
 		sb.append(toValueString());
 		return sb.toString();
@@ -324,7 +334,7 @@ public class Option implements Comparable<Option> {
 	 * @return the option value as string
 	 */
 	public String toValueString() {
-		switch (OptionNumberRegistry.getFormatByNr(number)) {
+		switch (number.getFormat()) {
 		case INTEGER:
 			if (number==OptionNumberRegistry.ACCEPT || number==OptionNumberRegistry.CONTENT_FORMAT) return "\""+MediaTypeRegistry.toString(getIntegerValue())+"\"";
 			else if (number==OptionNumberRegistry.BLOCK1 || number==OptionNumberRegistry.BLOCK2) return "\""+ new BlockOption(value) +"\"";

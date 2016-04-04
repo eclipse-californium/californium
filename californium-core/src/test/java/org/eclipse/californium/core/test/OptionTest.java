@@ -21,6 +21,8 @@ package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Assert;
 
@@ -47,6 +49,131 @@ public class OptionTest {
 	public void shutdownServer() {
 		System.out.println("End "+getClass().getSimpleName());
 	}
+
+    @Test
+    public void testEnumSizeAndOrder() {
+        int last = 0;
+        assertEquals(19, OptionNumberRegistry.values().length);
+        for (OptionNumberRegistry o: OptionNumberRegistry.values()) {
+            assertTrue(last < o.getProtocolValue());
+            last = o.getProtocolValue();
+        }
+    }
+
+    @Test
+    public void testIsElective() {
+		assertFalse(OptionNumberRegistry.IF_MATCH.isElective());
+		assertFalse(OptionNumberRegistry.URI_HOST.isElective());
+		assertTrue (OptionNumberRegistry.ETAG.isElective());
+		assertFalse(OptionNumberRegistry.IF_NONE_MATCH.isElective());
+		assertTrue (OptionNumberRegistry.OBSERVE.isElective());
+		assertFalse(OptionNumberRegistry.URI_PORT.isElective());
+		assertTrue (OptionNumberRegistry.LOCATION_PATH.isElective());
+		assertFalse(OptionNumberRegistry.URI_PATH.isElective());
+		assertTrue (OptionNumberRegistry.CONTENT_FORMAT.isElective());
+		assertTrue (OptionNumberRegistry.MAX_AGE.isElective());
+		assertFalse(OptionNumberRegistry.URI_QUERY.isElective());
+		assertFalse(OptionNumberRegistry.ACCEPT.isElective());
+		assertTrue (OptionNumberRegistry.LOCATION_QUERY.isElective());
+		assertFalse(OptionNumberRegistry.BLOCK2.isElective());
+		assertFalse(OptionNumberRegistry.BLOCK1.isElective());
+		assertTrue (OptionNumberRegistry.SIZE2.isElective());
+		assertFalse(OptionNumberRegistry.PROXY_URI.isElective());
+		assertFalse(OptionNumberRegistry.PROXY_SCHEME.isElective());
+		assertTrue (OptionNumberRegistry.SIZE1.isElective());
+    }
+
+    @Test
+    public void testIsSafe() {
+		assertTrue (OptionNumberRegistry.IF_MATCH.isSafe());
+		assertFalse(OptionNumberRegistry.URI_HOST.isSafe());
+		assertTrue (OptionNumberRegistry.ETAG.isSafe());
+		assertTrue (OptionNumberRegistry.IF_NONE_MATCH.isSafe());
+		assertFalse(OptionNumberRegistry.OBSERVE.isSafe());
+		assertFalse(OptionNumberRegistry.URI_PORT.isSafe());
+		assertTrue (OptionNumberRegistry.LOCATION_PATH.isSafe());
+		assertFalse(OptionNumberRegistry.URI_PATH.isSafe());
+		assertTrue (OptionNumberRegistry.CONTENT_FORMAT.isSafe());
+		assertFalse(OptionNumberRegistry.MAX_AGE.isSafe());
+		assertFalse(OptionNumberRegistry.URI_QUERY.isSafe());
+		assertTrue (OptionNumberRegistry.ACCEPT.isSafe());
+		assertTrue (OptionNumberRegistry.LOCATION_QUERY.isSafe());
+		assertFalse(OptionNumberRegistry.BLOCK2.isSafe());
+		assertFalse(OptionNumberRegistry.BLOCK1.isSafe());
+		assertTrue (OptionNumberRegistry.SIZE2.isSafe());
+		assertFalse(OptionNumberRegistry.PROXY_URI.isSafe());
+		assertFalse(OptionNumberRegistry.PROXY_SCHEME.isSafe());
+		assertTrue (OptionNumberRegistry.SIZE1.isSafe());
+    }
+
+    @Test
+    public void testIsCacheKey() {
+		assertTrue (OptionNumberRegistry.IF_MATCH.isCacheKey());
+		assertTrue (OptionNumberRegistry.URI_HOST.isCacheKey());
+		assertTrue (OptionNumberRegistry.ETAG.isCacheKey());
+		assertTrue (OptionNumberRegistry.IF_NONE_MATCH.isCacheKey());
+		assertTrue (OptionNumberRegistry.OBSERVE.isCacheKey());
+		assertTrue (OptionNumberRegistry.URI_PORT.isCacheKey());
+		assertTrue (OptionNumberRegistry.LOCATION_PATH.isCacheKey());
+		assertTrue (OptionNumberRegistry.URI_PATH.isCacheKey());
+		assertTrue (OptionNumberRegistry.CONTENT_FORMAT.isCacheKey());
+		assertTrue (OptionNumberRegistry.MAX_AGE.isCacheKey());
+		assertTrue (OptionNumberRegistry.URI_QUERY.isCacheKey());
+		assertTrue (OptionNumberRegistry.ACCEPT.isCacheKey());
+		assertTrue (OptionNumberRegistry.LOCATION_QUERY.isCacheKey());
+		assertTrue (OptionNumberRegistry.BLOCK2.isCacheKey());
+		assertTrue (OptionNumberRegistry.BLOCK1.isCacheKey());
+		assertFalse(OptionNumberRegistry.SIZE2.isCacheKey());
+		assertTrue (OptionNumberRegistry.PROXY_URI.isCacheKey());
+		assertTrue (OptionNumberRegistry.PROXY_SCHEME.isCacheKey());
+		assertFalse (OptionNumberRegistry.SIZE1.isCacheKey());
+    }
+
+    @Test
+    public void testIsSingleValue() {
+		assertFalse(OptionNumberRegistry.IF_MATCH.isSingleValue());
+		assertTrue (OptionNumberRegistry.URI_HOST.isSingleValue());
+		assertFalse(OptionNumberRegistry.ETAG.isSingleValue());
+		assertTrue (OptionNumberRegistry.IF_NONE_MATCH.isSingleValue());
+		assertTrue (OptionNumberRegistry.OBSERVE.isSingleValue());
+		assertTrue (OptionNumberRegistry.URI_PORT.isSingleValue());
+		assertFalse(OptionNumberRegistry.LOCATION_PATH.isSingleValue());
+		assertFalse(OptionNumberRegistry.URI_PATH.isSingleValue());
+		assertTrue (OptionNumberRegistry.CONTENT_FORMAT.isSingleValue());
+		assertTrue (OptionNumberRegistry.MAX_AGE.isSingleValue());
+		assertFalse(OptionNumberRegistry.URI_QUERY.isSingleValue());
+		assertTrue (OptionNumberRegistry.ACCEPT.isSingleValue());
+		assertFalse(OptionNumberRegistry.LOCATION_QUERY.isSingleValue());
+		assertTrue (OptionNumberRegistry.BLOCK2.isSingleValue());
+		assertTrue (OptionNumberRegistry.BLOCK1.isSingleValue());
+		assertTrue (OptionNumberRegistry.SIZE2.isSingleValue());
+		assertTrue (OptionNumberRegistry.PROXY_URI.isSingleValue());
+		assertTrue (OptionNumberRegistry.PROXY_SCHEME.isSingleValue());
+		assertTrue (OptionNumberRegistry.SIZE1.isSingleValue());
+    }
+
+    @Test
+    public void testIsUriOption() {
+		assertFalse(OptionNumberRegistry.IF_MATCH.isUriOption());
+		assertTrue (OptionNumberRegistry.URI_HOST.isUriOption());
+		assertFalse(OptionNumberRegistry.ETAG.isUriOption());
+		assertFalse(OptionNumberRegistry.IF_NONE_MATCH.isUriOption());
+		assertFalse(OptionNumberRegistry.OBSERVE.isUriOption());
+		assertTrue (OptionNumberRegistry.URI_PORT.isUriOption());
+		assertFalse(OptionNumberRegistry.LOCATION_PATH.isUriOption());
+		assertTrue (OptionNumberRegistry.URI_PATH.isUriOption());
+		assertFalse(OptionNumberRegistry.CONTENT_FORMAT.isUriOption());
+		assertFalse(OptionNumberRegistry.MAX_AGE.isUriOption());
+		assertTrue (OptionNumberRegistry.URI_QUERY.isUriOption());
+		assertFalse(OptionNumberRegistry.ACCEPT.isUriOption());
+		assertFalse(OptionNumberRegistry.LOCATION_QUERY.isUriOption());
+		assertFalse(OptionNumberRegistry.BLOCK2.isUriOption());
+		assertFalse(OptionNumberRegistry.BLOCK1.isUriOption());
+		assertFalse(OptionNumberRegistry.SIZE2.isUriOption());
+		assertFalse(OptionNumberRegistry.PROXY_URI.isUriOption());
+		assertFalse(OptionNumberRegistry.PROXY_SCHEME.isUriOption());
+		assertFalse(OptionNumberRegistry.SIZE1.isUriOption());
+    }
 	
 	@Test
 	public void testSetValue() {
@@ -211,25 +338,26 @@ public class OptionTest {
 	
 	@Test
 	public void testArbitraryOptions() {
+	    // arbitrary options not present in OptionNumberRegistry are not allowed anymore.
 		OptionSet options = new OptionSet();
 		options.addETag(new byte[] {1, 2, 3});
 		options.addLocationPath("abc");
-		options.addOption(new Option(7));
-		options.addOption(new Option(43));
-		options.addOption(new Option(33));
-		options.addOption(new Option(17));
+		options.addOption(new Option(OptionNumberRegistry.parse(7)));
+		//options.addOption(new Option(OptionNumberRegistry.parse(43)));
+		//options.addOption(new Option(OptionNumberRegistry.parse(33)));
+		options.addOption(new Option(OptionNumberRegistry.parse(17)));
 
 		// Check that options are in the set
 		Assert.assertTrue(options.hasOption(OptionNumberRegistry.ETAG));
 		Assert.assertTrue(options.hasOption(OptionNumberRegistry.LOCATION_PATH));
-		Assert.assertTrue(options.hasOption(7));
-		Assert.assertTrue(options.hasOption(17));
-		Assert.assertTrue(options.hasOption(33));
-		Assert.assertTrue(options.hasOption(43));
+		Assert.assertTrue(options.hasOption(OptionNumberRegistry.parse(7)));
+		Assert.assertTrue(options.hasOption(OptionNumberRegistry.parse(17)));
+		//Assert.assertTrue(options.hasOption(OptionNumberRegistry.parse(33)));
+		//Assert.assertTrue(options.hasOption(OptionNumberRegistry.parse(43)));
 		
 		// Check that others are not
-		Assert.assertFalse(options.hasOption(19));
-		Assert.assertFalse(options.hasOption(53));
+		//Assert.assertFalse(options.hasOption(OptionNumberRegistry.parse(19)));
+		//Assert.assertFalse(options.hasOption(OptionNumberRegistry.parse(53)));
 		
 		// Check that we can remove options
 		options.clearETags();

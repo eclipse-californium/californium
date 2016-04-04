@@ -1251,7 +1251,7 @@ public class OptionSet {
 	 * @param number the option number
 	 * @return true if present
 	 */
-	public boolean hasOption(int number) {
+	public boolean hasOption(OptionNumberRegistry number) {
 		return Collections.binarySearch(asSortedList(), new Option(number)) >= 0;
 	}
 	
@@ -1327,25 +1327,25 @@ public class OptionSet {
 	 */
 	public OptionSet addOption(Option option) {
 		switch (option.getNumber()) {
-			case OptionNumberRegistry.IF_MATCH:       addIfMatch(option.getValue()); break;
-			case OptionNumberRegistry.URI_HOST:       setUriHost(option.getStringValue()); break;
-			case OptionNumberRegistry.ETAG:           addETag(option.getValue()); break;
-			case OptionNumberRegistry.IF_NONE_MATCH:  setIfNoneMatch(true); break;
-			case OptionNumberRegistry.URI_PORT:       setUriPort(option.getIntegerValue()); break;
-			case OptionNumberRegistry.LOCATION_PATH:  addLocationPath(option.getStringValue()); break;
-			case OptionNumberRegistry.URI_PATH:       addUriPath(option.getStringValue()); break;
-			case OptionNumberRegistry.CONTENT_FORMAT: setContentFormat(option.getIntegerValue()); break;
-			case OptionNumberRegistry.MAX_AGE:        setMaxAge(option.getLongValue()); break;
-			case OptionNumberRegistry.URI_QUERY:      addUriQuery(option.getStringValue()); break;
-			case OptionNumberRegistry.ACCEPT:         setAccept(option.getIntegerValue()); break;
-			case OptionNumberRegistry.LOCATION_QUERY: addLocationQuery(option.getStringValue()); break;
-			case OptionNumberRegistry.PROXY_URI:      setProxyUri(option.getStringValue()); break;
-			case OptionNumberRegistry.PROXY_SCHEME:   setProxyScheme(option.getStringValue()); break;
-			case OptionNumberRegistry.BLOCK1:         setBlock1(option.getValue()); break;
-			case OptionNumberRegistry.BLOCK2:         setBlock2(option.getValue()); break;
-			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
-			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
-			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
+			case IF_MATCH:       addIfMatch(option.getValue()); break;
+			case URI_HOST:       setUriHost(option.getStringValue()); break;
+			case ETAG:           addETag(option.getValue()); break;
+			case IF_NONE_MATCH:  setIfNoneMatch(true); break;
+			case URI_PORT:       setUriPort(option.getIntegerValue()); break;
+			case LOCATION_PATH:  addLocationPath(option.getStringValue()); break;
+			case URI_PATH:       addUriPath(option.getStringValue()); break;
+			case CONTENT_FORMAT: setContentFormat(option.getIntegerValue()); break;
+			case MAX_AGE:        setMaxAge(option.getLongValue()); break;
+			case URI_QUERY:      addUriQuery(option.getStringValue()); break;
+			case ACCEPT:         setAccept(option.getIntegerValue()); break;
+			case LOCATION_QUERY: addLocationQuery(option.getStringValue()); break;
+			case PROXY_URI:      setProxyUri(option.getStringValue()); break;
+			case PROXY_SCHEME:   setProxyScheme(option.getStringValue()); break;
+			case BLOCK1:         setBlock1(option.getValue()); break;
+			case BLOCK2:         setBlock2(option.getValue()); break;
+			case SIZE1:          setSize1(option.getIntegerValue()); break;
+			case SIZE2:          setSize2(option.getIntegerValue()); break;
+			case OBSERVE:        setObserve(option.getIntegerValue()); break;
 			default: getOthers().add(option);
 		}
 		return this;
@@ -1355,14 +1355,14 @@ public class OptionSet {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		StringBuilder sbv = new StringBuilder();
-		int oldNr = -1;
+		OptionNumberRegistry oldNr = null;
 		boolean list = false;
 
 		sb.append('{');
 		
 		for (Option opt : asSortedList()) {
 			if (opt.getNumber()!=oldNr) {
-				if (oldNr!=-1) {
+				if (oldNr!=null) {
 					if (list) sbv.append(']');
 					sb.append(sbv.toString());
 					sbv = new StringBuilder();
@@ -1372,7 +1372,7 @@ public class OptionSet {
 				list = false;
 				
 				sb.append('"');
-				sb.append(OptionNumberRegistry.toString(opt.getNumber()));
+				sb.append(opt.getNumber().toString());
 				sb.append('"');
 				sb.append(':');
 			} else {
