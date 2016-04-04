@@ -19,11 +19,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.Assert;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -31,12 +32,13 @@ import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -76,105 +78,124 @@ public class ClientAsynchronousTest {
 		System.out.println("End "+getClass().getSimpleName());
 	}
 	
-	@Test
+	volatile CoapResponse theResponse = null;
+	
+	@Test(timeout=5000)
 	public void testAsynchronousCall() throws Exception {
+	    final long timeLeap = 100;
+	    final long timeout = 500;
 		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
 		CoapClient client = new CoapClient(uri).useExecutor();
 		
 		// Check that we get the right content when calling get()
 		client.get(new TestHandler("Test 1") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_1, response.getResponseText());
+			    theResponse = response;
 			}
 		});
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_1, theResponse.getResponseText());
+        theResponse = null;
 		
 		client.get(new TestHandler("Test 2") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_1, response.getResponseText());
+			    theResponse = response;
 			}
 		});
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_1, theResponse.getResponseText());
+        theResponse = null;
 		
 		// Change the content to "two" and check
 		client.post(new TestHandler("Test 3") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_1, response.getResponseText());
+			    theResponse = response;
 			}
 		}, CONTENT_2, MediaTypeRegistry.TEXT_PLAIN);
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_1, theResponse.getResponseText());
+        theResponse = null;
 		
 		client.get(new TestHandler("Test 4") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_2, response.getResponseText());
+			    theResponse = response;
 			}
 		});
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_2, theResponse.getResponseText());
+        theResponse = null;
 		
 		// Observe the resource
 		expected = CONTENT_2;
 		CoapObserveRelation obs1 = client.observe(new TestHandler("Test Observe") {
 			@Override public void onLoad(CoapResponse response) {
+			    theResponse = response;
 				notifications.incrementAndGet();
-				String payload = response.getResponseText();
-				assertEquals(expected, payload);
-				assertEquals(true, response.advanced().getOptions().hasObserve());
 			}
 		});
 		
-		Thread.sleep(100);
-		resource.changed();
-		Thread.sleep(100);
-		resource.changed();
-		Thread.sleep(100);
-		resource.changed();
-		
-		Thread.sleep(100);
+		for (int i = 0; i < 5; i++) {
+		    while (theResponse == null) Thread.sleep(timeLeap);
+		    assertEquals(expected, theResponse.getResponseText());
+		    assertTrue("try #" + i, theResponse.advanced().getOptions().hasObserve());
+		    theResponse = null;
+		    resource.changed();
+		}
+
 		expected = CONTENT_3;
 		client.post(new TestHandler("Test 5") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_2, response.getResponseText());
+			    theResponse = response;
 			}
 		}, CONTENT_3, MediaTypeRegistry.TEXT_PLAIN);
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(100);
+        assertEquals(CONTENT_2, theResponse.getResponseText());
+        theResponse = null;
 		
 		// Try a put and receive a METHOD_NOT_ALLOWED
 		client.put(new TestHandler("Test 6") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(ResponseCode.METHOD_NOT_ALLOWED, response.getCode());
+			    theResponse = response;
 			}
 		}, CONTENT_4, MediaTypeRegistry.TEXT_PLAIN);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(ResponseCode.METHOD_NOT_ALLOWED, theResponse.getCode());
+        theResponse = null;
 		
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
-		Thread.sleep(100);
+        obs1.reactiveCancel();
+		Thread.sleep(timeout);
+		assertNull(theResponse);
 		expected = null; // The next notification would now cause a failure
-		obs1.reactiveCancel();
-		Thread.sleep(100);
+		Thread.sleep(timeLeap);
 		resource.changed();
 		
 		// Make another post
-		Thread.sleep(100);
 		client.post(new TestHandler("Test 7") {
 			@Override public void onLoad(CoapResponse response) {
-				assertEquals(CONTENT_3, response.getResponseText());
+			    theResponse = response;
 			}
 		}, CONTENT_4, MediaTypeRegistry.TEXT_PLAIN);
-		Thread.sleep(100);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_3, theResponse.getResponseText());
+        theResponse = null;
 		
 		// Try to use the builder and add a query
 		new CoapClient.Builder("localhost", serverPort)
 			.path(TARGET).query(QUERY_UPPER_CASE).create()
 			.get(new TestHandler("Test 8") {
 				@Override public void onLoad(CoapResponse response) {
-					assertEquals(CONTENT_4.toUpperCase(), response.getResponseText());
+				    theResponse = response;
 				}
 			}
 		);
+		while (theResponse == null) Thread.sleep(timeLeap);
+        assertEquals(CONTENT_4.toUpperCase(), theResponse.getResponseText());
+        theResponse = null;
 		
 		// Check that we indeed received 5 notifications
 		// 1 from origin GET request, 3 x from changed(), 1 from post()
-		Thread.sleep(100);
-		Assert.assertEquals(5, notifications.get());
+		Assert.assertEquals(7, notifications.get());
 		
 		Assert.assertTrue(failed.isEmpty());
 		Assert.assertEquals(null, asyncThrowable);
