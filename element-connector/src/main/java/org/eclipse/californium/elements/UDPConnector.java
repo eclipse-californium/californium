@@ -46,7 +46,7 @@ import java.util.logging.Logger;
  */
 public class UDPConnector implements Connector {
 
-	public final static Logger LOGGER = Logger.getLogger(UDPConnector.class.toString());
+	public final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
 	
 	public static final int UNDEFINED = 0;
 	
