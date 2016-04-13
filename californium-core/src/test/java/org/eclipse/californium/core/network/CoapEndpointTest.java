@@ -52,7 +52,6 @@ import org.junit.experimental.categories.Category;
 public class CoapEndpointTest {
 
 	static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
-	static final DataSerializer SERIALIZER = new DataSerializer();
 	static final int MESSAGE_ID = 4711;
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	CoapEndpoint endpoint;
@@ -127,7 +126,7 @@ public class CoapEndpointTest {
 	private byte[] getSerializedRequest() {
 		Request request = new Request(Code.GET, Type.CON);
 		request.setToken(TOKEN);
-		return SERIALIZER.serializeRequest(request);
+		return DataSerializer.serializeRequest(request);
 	}
 
 	private class SimpleConnector implements Connector {

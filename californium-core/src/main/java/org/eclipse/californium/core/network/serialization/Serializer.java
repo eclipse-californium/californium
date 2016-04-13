@@ -28,7 +28,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 
-
 /**
  * The serializer serializes requests, responses and empty messages to bytes,
  * i.e. {@link RawData}.
@@ -44,14 +43,14 @@ public class Serializer {
 	 * a {@link RawData} object. The request's destination address and port are
 	 * stored as address and port in the RawData object.
 	 * 
-	 * @param request
-	 *            the request
+	 * @param request the request
 	 * @return the request as raw data
 	 */
 	public static RawData serialize(Request request) {
 		byte[] bytes = request.getBytes();
-		if (bytes == null)
-			bytes = new DataSerializer().serializeRequest(request);
+		if (bytes == null) {
+			bytes = DataSerializer.serializeRequest(request);
+		}
 		request.setBytes(bytes);
 		return new RawData(bytes, request.getDestination(), request.getDestinationPort());
 	}
@@ -59,26 +58,26 @@ public class Serializer {
 	/**
 	 * Serializes a given CoAP request.
 	 * <p>
-	 * Message identifier, message code, token, options and payload are converted
-	 * into a byte array and wrapped in a {@link RawData} object.
-	 * The request's destination address and port are stored as address and port
-	 * in the RawData object.
+	 * Message identifier, message code, token, options and payload are
+	 * converted into a byte array and wrapped in a {@link RawData} object. The
+	 * request's destination address and port are stored as address and port in
+	 * the RawData object.
 	 * </p>
 	 * 
-	 * @param request
-	 *            the request
-	 * @param callback
-	 *            the callback the transport layer should invoke to signal establishment
-	 *            of message context information. This information may be used for matching a response
-	 *            to a request.
+	 * @param request the request
+	 * @param callback the callback the transport layer should invoke to signal
+	 *            establishment of message context information. This information
+	 *            may be used for matching a response to a request.
 	 * @return the request as raw data
 	 */
 	public static RawData serialize(Request request, MessageCallback callback) {
 		byte[] bytes = request.getBytes();
-		if (bytes == null)
-			bytes = new DataSerializer().serializeRequest(request);
+		if (bytes == null) {
+			bytes = DataSerializer.serializeRequest(request);
+		}
 		request.setBytes(bytes);
-		return RawData.outbound(bytes, new InetSocketAddress(request.getDestination(), request.getDestinationPort()), callback, false);
+		return RawData.outbound(bytes, new InetSocketAddress(request.getDestination(), request.getDestinationPort()),
+				callback, false);
 	}
 
 	/**
@@ -92,26 +91,27 @@ public class Serializer {
 	 */
 	public static RawData serialize(Response response) {
 		byte[] bytes = response.getBytes();
-		if (bytes == null)
-			bytes = new DataSerializer().serializeResponse(response);
+		if (bytes == null) {
+			bytes = DataSerializer.serializeResponse(response);
+		}
 		response.setBytes(bytes);
 		return new RawData(bytes, response.getDestination(), response.getDestinationPort());
 	}
-	
+
 	/**
 	 * Serializes the specified empty message. Message identifier and code are
 	 * converted into a byte array and wrapped in a {@link RawData} object. The
 	 * message's destination address and port are stored as address and port in
 	 * the RawData object.
 	 * 
-	 * @param message
-	 *            the message
+	 * @param message the message
 	 * @return the empty message as raw data
 	 */
 	public static RawData serialize(EmptyMessage message) {
 		byte[] bytes = message.getBytes();
-		if (bytes == null)
-			bytes = new DataSerializer().serializeEmptyMessage(message);
+		if (bytes == null) {
+			bytes = DataSerializer.serializeEmptyMessage(message);
+		}
 		message.setBytes(bytes);
 		return new RawData(bytes, message.getDestination(), message.getDestinationPort());
 	}
