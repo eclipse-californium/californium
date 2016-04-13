@@ -35,8 +35,6 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -56,7 +54,7 @@ public class CoapEndpointTest {
 	static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
 	static final DataSerializer SERIALIZER = new DataSerializer();
 	static final int MESSAGE_ID = 4711;
-	static final byte[] TOKEN = new byte[]{0x01, 0x02, 0x03};
+	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
@@ -103,7 +101,8 @@ public class CoapEndpointTest {
 		// WHEN sending the request to the peer
 		endpoint.sendRequest(request);
 
-		// THEN assert that the message delivered to the Connector contains a MessageCallback
+		// THEN assert that the message delivered to the Connector contains a
+		// MessageCallback
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
 	}
 
@@ -118,8 +117,7 @@ public class CoapEndpointTest {
 		};
 		latch = new CountDownLatch(1);
 
-		RawData inboundRequest = new RawData(getSerializedRequest(),
-				new InetSocketAddress(CoAP.DEFAULT_COAP_PORT),
+		RawData inboundRequest = new RawData(getSerializedRequest(), new InetSocketAddress(CoAP.DEFAULT_COAP_PORT),
 				clientId);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
@@ -172,7 +170,7 @@ public class CoapEndpointTest {
 
 		@Override
 		public InetSocketAddress getAddress() {
-			return null;
+			return new InetSocketAddress(0);
 		}
 	}
 }
