@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,10 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Bosch Software Innovations GmbH - formatting & small improvements
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -30,17 +32,16 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
-
 /**
  * A layer processes requests, responses and empty messages. Layers can be
  * stacked upon each other to compose a processing stack.
  * <p>
- * When the {@link CoapEndpoint} receives a message, it forwards it to the bottom
- * layer by calling the corresponding receive-method. Each layer processes the
- * message and either forwards it to its upper layer or decides not to. The
- * uppermost layer forwards the message to the {@link MessageDeliverer} which
- * delivers the message to the server, e.g., a request to the target resource or
- * a response to the origin request.
+ * When the {@link CoapEndpoint} receives a message, it forwards it to the
+ * bottom layer by calling the corresponding receive-method. Each layer
+ * processes the message and either forwards it to its upper layer or decides
+ * not to. The uppermost layer forwards the message to the
+ * {@link MessageDeliverer} which delivers the message to the server, e.g., a
+ * request to the target resource or a response to the origin request.
  * <p>
  * When an {@link CoapEndpoint} sends a message, it forwards it to the uppermost
  * layer by calling the corresponding send-method. Each layer forwards the
@@ -68,135 +69,109 @@ public interface Layer {
 	 * @param exchange the exchange
 	 * @param request the request
 	 */
-	public void sendRequest(Exchange exchange, Request request);
-	
+	void sendRequest(Exchange exchange, Request request);
+
 	/**
 	 * Send response.
 	 *
 	 * @param exchange the exchange
 	 * @param response the response
 	 */
-	public void sendResponse(Exchange exchange, Response response);
-	
+	void sendResponse(Exchange exchange, Response response);
+
 	/**
 	 * Send empty message.
 	 *
 	 * @param exchange the exchange
 	 * @param emptyMessage the empty message
 	 */
-	public void sendEmptyMessage(Exchange exchange, EmptyMessage emptyMessage);
-	
-	
+	void sendEmptyMessage(Exchange exchange, EmptyMessage emptyMessage);
+
 	/**
 	 * Receive request.
 	 *
 	 * @param exchange the exchange
 	 * @param request the request
 	 */
-	public void receiveRequest(Exchange exchange, Request request);
-	
+	void receiveRequest(Exchange exchange, Request request);
+
 	/**
 	 * Receive response.
 	 *
 	 * @param exchange the exchange
 	 * @param response the response
 	 */
-	public void receiveResponse(Exchange exchange, Response response);
-	
+	void receiveResponse(Exchange exchange, Response response);
+
 	/**
 	 * Receive empty message.
 	 *
 	 * @param exchange the exchange
 	 * @param message the message
 	 */
-	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message);
-	
-	
+	void receiveEmptyMessage(Exchange exchange, EmptyMessage message);
+
 	/**
 	 * Sets the lower layer.
 	 *
 	 * @param layer the new lower layer
 	 */
-	public void setLowerLayer(Layer layer);
-	
+	void setLowerLayer(Layer layer);
+
 	/**
 	 * Sets the upper layer.
 	 *
 	 * @param layer the new upper layer
 	 */
-	public void setUpperLayer(Layer layer);
-	
+	void setUpperLayer(Layer layer);
+
 	/**
 	 * Sets the executor.
 	 *
 	 * @param executor the new executor
 	 */
-	public void setExecutor(ScheduledExecutorService executor);
+	void setExecutor(ScheduledExecutorService executor);
 
-	public void destroy();
-
+	/**
+	 * Stop this layer and release any resources.
+	 * 
+	 * The outcome of any operations invoked on this layer after this method has
+	 * returned is undetermined.
+	 */
+	void destroy();
 
 	/**
 	 * A builder that constructs the stack from the top to the bottom. The
 	 * returned list of layers is in the same order as added to the stack.
 	 */
-	public static class TopDownBuilder {
-		
+	public static final class TopDownBuilder {
+
 		/** The stack in order as added */
-		private LinkedList<Layer> stack = new LinkedList<Layer>();
-		
+		private final List<Layer> stack = new ArrayList<>();;
+		private Layer bottom;
+
 		/**
 		 * Adds the specified layer below the currently lowest layer.
 		 *
 		 * @param layer the layer
 		 * @return the builder
 		 */
-		public TopDownBuilder add(Layer layer) {
-			if (stack.size() > 0)
-				stack.getLast().setLowerLayer(layer);
+		public TopDownBuilder add(final Layer layer) {
+			if (bottom != null) {
+				bottom.setLowerLayer(layer);
+			}
 			stack.add(layer);
+			bottom = layer;
 			return this;
 		}
-		
+
 		/**
 		 * Creates the stack.
 		 *
-		 * @return the stack
+		 * @return the (unmodifiable) assembled stack
 		 */
 		public List<Layer> create() {
-			return stack;
-		}
-		
-	}
-	
-	/**
-	 * A builder that constructs the stack from the bottom upwards. The returned
-	 * list of layers is in the same order as added to the stack.
-	 */
-	public static class BottomUpBuilder {
-		
-		/** The layers in order as added. */
-		private LinkedList<Layer> stack = new LinkedList<Layer>();
-		
-		/**
-		 * Adds the specified layer above the currently uppermost layer.
-		 *
-		 * @param layer the layer
-		 * @return the bottom up builder
-		 */
-		public BottomUpBuilder add(Layer layer) {
-			stack.getLast().setUpperLayer(layer);
-			return this;
-		}
-		
-		/**
-		 * Creates the stack
-		 *
-		 * @return the stack
-		 */
-		public List<Layer> create() {
-			return stack;
+			return Collections.unmodifiableList(new ArrayList<Layer>(stack));
 		}
 	}
-	
 }
