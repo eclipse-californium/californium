@@ -23,6 +23,7 @@
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Bosch Software Innovations GmbH - adapt message parsing error handling
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -39,6 +40,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
@@ -52,8 +54,8 @@ import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -577,9 +579,9 @@ public class CoapEndpoint implements Endpoint {
 				Request request;
 				try {
 					request = parser.parseRequest();
-				} catch (IllegalStateException e) {
-					StringBuffer log = new StringBuffer("message format error caused by ")
-						.append(raw.getInetSocketAddress());
+				} catch (MessageFormatException e) {
+					StringBuilder log = new StringBuilder("received malformed request [source: ")
+						.append(raw.getInetSocketAddress()).append("]");
 					if (!parser.isReply()) {
 						// manually build RST from raw information
 						EmptyMessage rst = new EmptyMessage(Type.RST);
@@ -593,7 +595,7 @@ public class CoapEndpoint implements Endpoint {
 						log.append(" and reset");
 					}
 					if (LOGGER.isLoggable(Level.INFO)) {
-						LOGGER.info(log.toString());
+						LOGGER.log(Level.INFO, log.toString(), e);
 					}
 					return;
 				}
