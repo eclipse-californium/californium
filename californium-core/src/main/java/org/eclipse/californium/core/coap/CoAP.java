@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,8 +16,11 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Bosch Software Innovations GmbH - improve readability
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
+
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 import java.nio.charset.Charset;
 
@@ -34,51 +37,117 @@ import java.nio.charset.Charset;
  * @see OptionNumberRegistry
  * @see MediaTypeRegistry
  */
-public class CoAP {
-	
+public final class CoAP {
+
 	/** RFC 7252 CoAP version */
 	public static final int VERSION = 0x01;
-	
+
 	/** The CoAP URI scheme */
 	public static final String COAP_URI_SCHEME = "coap";
-	
+
 	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
-	
+
 	/** The default CoAP port for normal CoAP communication (coap) */
 	public static final int DEFAULT_COAP_PORT = 5683;
-	
+
 	/** The default CoAP port for secure CoAP communication (coaps) */
 	public static final int DEFAULT_COAP_SECURE_PORT = 5684;
-	
+
 	/** The CoAP charset is always UTF-8 */
 	public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
-	
+
 	private CoAP() {
-		// prevent initialization
+		// prevent instantiation
 	}
-	
+
+	/**
+	 * Gets the code class of a given CoAP code.
+	 * 
+	 * @param code the code.
+	 * @return the value represented by the three most significant bits of the code.
+	 */
+	public static int getCodeClass(final int code) {
+		return (code & 0b11100000) >> 5;
+	}
+
+	/**
+	 * Gets the code detail of a given CoAP code.
+	 * 
+	 * @param code the code.
+	 * @return the value represented by the five least significant bits of the code.
+	 */
+	public static int getCodeDetail(final int code) {
+		return code & 0b00011111;
+	}
+
+	/**
+	 * Gets the string representation of a CoAP code.
+	 * 
+	 * @param code the CoAP code.
+	 * @return a string following the pattern C.DD where C is the code class nd DD is the code detail.
+	 */
+	public static String formatCode(final int code) {
+		return formatCode(getCodeClass(code), getCodeDetail(code));
+	}
+
+	private static String formatCode(final int codeClass, final int codeDetail) {
+		return String.format("%d.%02d", codeClass, codeDetail);
+	}
+
+	/**
+	 * Checks if a given CoAP code is a request code.
+	 * 
+	 * @param code the code to check.
+	 * @return {@code true} if the code's class is 0 and 0 &lt;= detail &lt;= 31.
+	 */
+	public static boolean isRequest(final int code) {
+		return code >= REQUEST_CODE_LOWER_BOUND &&
+				code <= REQUEST_CODE_UPPER_BOUND;
+	}
+
+	/**
+	 * Checks if a given CoAP code is a response code.
+	 * 
+	 * @param code the code to check.
+	 * @return {@code true} if 1 &lt; code class &lt;6 and 0 &lt;= detail &lt;= 31.
+	 */
+	public static boolean isResponse(final int code) {
+		return code >= RESPONSE_CODE_LOWER_BOUND &&
+				code <= RESPONSE_CODE_UPPER_BOUND;
+	}
+
+	/**
+	 * Checks if a given CoAP code is the <em>empty message</em> code.
+	 * 
+	 * @param code the code to check.
+	 * @return {@code true} if code == 0.
+	 */
+	public static boolean isEmptyMessage(final int code) {
+		return code == EMPTY_CODE;
+	}
+
 	/**
 	 * CoAP defines four types of messages:
 	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
 	 */
 	public enum Type {
-		
+
 		/** The Confirmable. */
 		CON(0),
 
 		/** The Non-confirmable. */
 		NON(1),
-		
+
 		/** The Acknowledgment. */
 		ACK(2),
-		
+
 		/** The Reject. */
 		RST(3);
-		
+
 		/** The integer value of a message type. */
 		public final int value;
-		
+
 		/**
 		 * Instantiates a new type with the specified integer value.
 		 *
@@ -87,7 +156,7 @@ public class CoAP {
 		Type(int value) {
 			this.value = value;
 		}
-		
+
 		/**
 		 * Converts an integer into its corresponding message type.
 		 *
@@ -95,183 +164,215 @@ public class CoAP {
 		 * @return the message type
 		 * @throws IllegalArgumentException if the integer value is unrecognized
 		 */
-		public static Type valueOf(int value) {
+		public static Type valueOf(final int value) {
 			switch (value) {
 				case 0: return CON;
 				case 1: return NON;
 				case 2: return ACK;
 				case 3: return RST;
-				default: throw new IllegalArgumentException("Unknown CoAP type "+value);
+				default: throw new IllegalArgumentException("Unknown CoAP type " + value);
 			}
 		}
 	}
-	
+
 	/**
-	 * The enumeration of request codes: GET, POST; PUT and DELETE.
+	 * The enumeration of request codes: GET, POST, PUT and DELETE.
 	 */
 	public enum Code {
-		
+
 		/** The GET code. */
 		GET(1),
 
 		/** The POST code. */
 		POST(2),
-		
+
 		/** The PUT code. */
 		PUT(3),
-		
+
 		/** The DELETE code. */
 		DELETE(4);
-		
+
 		/** The code value. */
 		public final int value;
-		
+
 		/**
 		 * Instantiates a new code with the specified code value.
 		 *
 		 * @param value the integer value of the code
 		 */
-		Code(int value) {
+		private Code(final int value) {
 			this.value = value;
 		}
-		
+
 		/**
 		 * Converts the specified integer value to a request code.
 		 *
 		 * @param value the integer value
 		 * @return the request code
-		 * @throws IllegalArgumentException if the integer value is unrecognized
+		 * @throws MessageFormatException if the integer value does not represent a valid request code.
 		 */
-		public static Code valueOf(int value) {
-			switch (value) {
+		public static Code valueOf(final int value) {
+			int classCode = getCodeClass(value);
+			int detailCode = getCodeDetail(value);
+			if (classCode > 0) {
+				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(classCode, detailCode)));
+			}
+			switch (detailCode) {
 				case 1: return GET;
 				case 2: return POST;
 				case 3: return PUT;
 				case 4: return DELETE;
-				default: throw new IllegalArgumentException("Unknwon CoAP request code "+value);
+				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
 			}
 		}
 	}
-	
+
 	/**
 	 * The enumeration of response codes
 	 */
 	public enum ResponseCode {
 		
-		// Success: 64--95
-		_UNKNOWN_SUCCESS_CODE(64), // 2.00 is undefined -- only used to identify class
-		CREATED(65),
-		DELETED(66),
-		VALID(67),
-		CHANGED(68),
-		CONTENT(69),
-		CONTINUE(95),
+		// Success: 2.01 - 2.31
+		_UNKNOWN_SUCCESS_CODE(2, 0), // undefined -- only used to identify class
+		CREATED(2, 1),
+		DELETED(2, 2),
+		VALID(2, 3),
+		CHANGED(2, 4),
+		CONTENT(2, 5),
+		CONTINUE(2, 31),
 
-		// Client error: 128--159
-		BAD_REQUEST(128),
-		UNAUTHORIZED(129),
-		BAD_OPTION(130),
-		FORBIDDEN(131),
-		NOT_FOUND(132),
-		METHOD_NOT_ALLOWED(133),
-		NOT_ACCEPTABLE(134),
-		REQUEST_ENTITY_INCOMPLETE(136),
-		PRECONDITION_FAILED(140),
-		REQUEST_ENTITY_TOO_LARGE(141), 
-		UNSUPPORTED_CONTENT_FORMAT(143),
+		// Client error: 4.00 - 4.31
+		BAD_REQUEST(4, 0),
+		UNAUTHORIZED(4, 1),
+		BAD_OPTION(4, 2),
+		FORBIDDEN(4, 3),
+		NOT_FOUND(4, 4),
+		METHOD_NOT_ALLOWED(4, 5),
+		NOT_ACCEPTABLE(4, 6),
+		REQUEST_ENTITY_INCOMPLETE(4, 8),
+		PRECONDITION_FAILED(4, 12),
+		REQUEST_ENTITY_TOO_LARGE(4, 13),
+		UNSUPPORTED_CONTENT_FORMAT(4, 15),
 
-		// Server error: 160--192
-		INTERNAL_SERVER_ERROR(160),
-		NOT_IMPLEMENTED(161),
-		BAD_GATEWAY(162),
-		SERVICE_UNAVAILABLE(163),
-		GATEWAY_TIMEOUT(164),
-		PROXY_NOT_SUPPORTED(165);
-		
+		// Server error: 5.00 - 5.31
+		INTERNAL_SERVER_ERROR(5, 0),
+		NOT_IMPLEMENTED(5, 1),
+		BAD_GATEWAY(5, 2),
+		SERVICE_UNAVAILABLE(5, 3),
+		GATEWAY_TIMEOUT(5, 4),
+		PROXY_NOT_SUPPORTED(5, 5);
+
 		/** The code value. */
 		public final int value;
-		
+		public final int codeClass;
+		public final int codeDetail;
+
 		/**
 		 * Instantiates a new response code with the specified integer value.
 		 *
 		 * @param value the integer value
 		 */
-		private ResponseCode(int value) {
-			this.value = value;
+		private ResponseCode(final int codeClass, final int codeDetail) {
+			this.codeClass = codeClass;
+			this.codeDetail = codeDetail;
+			this.value = codeClass << 5 | codeDetail;
 		}
-		
+
 		/**
 		 * Converts the specified integer value to a response code.
 		 *
 		 * @param value the value
 		 * @return the response code
-		 * @throws IllegalArgumentException if integer value is not recognized
+		 * @throws MessageFormatException if the value does not represent a valid response code.
 		 */
-		public static ResponseCode valueOf(int value) {
-			switch (value) {
-				// CoAPTest.testResponseCode ensures we keep this up to date 
-				case 65: return CREATED;
-				case 66: return DELETED;
-				case 67: return VALID;
-				case 68: return CHANGED;
-				case 69: return CONTENT;
-				case 95: return CONTINUE;
-				case 128: return BAD_REQUEST;
-				case 129: return UNAUTHORIZED;
-				case 130: return BAD_OPTION;
-				case 131: return FORBIDDEN;
-				case 132: return NOT_FOUND;
-				case 133: return METHOD_NOT_ALLOWED;
-				case 134: return NOT_ACCEPTABLE;
-				case 136: return REQUEST_ENTITY_INCOMPLETE;
-				case 140: return PRECONDITION_FAILED;
-				case 141: return REQUEST_ENTITY_TOO_LARGE;
-				case 143: return UNSUPPORTED_CONTENT_FORMAT;
-				case 160: return INTERNAL_SERVER_ERROR;
-				case 161: return NOT_IMPLEMENTED;
-				case 162: return BAD_GATEWAY;
-				case 163: return SERVICE_UNAVAILABLE;
-				case 164: return GATEWAY_TIMEOUT;
-				case 165: return PROXY_NOT_SUPPORTED;
-				// codes unknown at release time
-				default:
-					// Fallback to class
-					if (value/32 == 2) return _UNKNOWN_SUCCESS_CODE;
-					else if (value/32 == 4) return BAD_REQUEST;
-					else if (value/32 == 5) return INTERNAL_SERVER_ERROR;
-					/// Undecidable
-					else throw new IllegalArgumentException("Unknown CoAP response code "+value);
+		public static ResponseCode valueOf(final int value) {
+			int codeClass = getCodeClass(value);
+			int codeDetail = getCodeDetail(value);
+			switch (codeClass) {
+			case 2:
+				return valueOfSuccessCode(codeDetail);
+			case 4:
+				return valueOfClientErrorCode(codeDetail);
+			case 5:
+				return valueOfServerErrorCode(codeDetail);
+			default:
+				throw new MessageFormatException(String.format("Not a CoAP response code: %s", formatCode(codeClass, codeDetail)));
 			}
 		}
-		
+
+		private static ResponseCode valueOfSuccessCode(final int codeDetail) {
+			switch(codeDetail) {
+			case 1: return CREATED;
+			case 2: return DELETED;
+			case 3: return VALID;
+			case 4: return CHANGED;
+			case 5: return CONTENT;
+			case 31: return CONTINUE;
+			default:
+				return _UNKNOWN_SUCCESS_CODE;
+			}
+		}
+
+		private static ResponseCode valueOfClientErrorCode(final int codeDetail) {
+			switch(codeDetail) {
+			case 0: return BAD_REQUEST;
+			case 1: return UNAUTHORIZED;
+			case 2: return BAD_OPTION;
+			case 3: return FORBIDDEN;
+			case 4: return NOT_FOUND;
+			case 5: return METHOD_NOT_ALLOWED;
+			case 6: return NOT_ACCEPTABLE;
+			case 8: return REQUEST_ENTITY_INCOMPLETE;
+			case 12: return PRECONDITION_FAILED;
+			case 13: return REQUEST_ENTITY_TOO_LARGE;
+			case 15: return UNSUPPORTED_CONTENT_FORMAT;
+			default:
+				return BAD_REQUEST;
+			}
+		}
+
+		private static ResponseCode valueOfServerErrorCode(final int codeDetail) {
+			switch(codeDetail) {
+			case 0: return INTERNAL_SERVER_ERROR;
+			case 1: return NOT_IMPLEMENTED;
+			case 2: return BAD_GATEWAY;
+			case 3: return SERVICE_UNAVAILABLE;
+			case 4: return GATEWAY_TIMEOUT;
+			case 5: return PROXY_NOT_SUPPORTED;
+			default:
+				return INTERNAL_SERVER_ERROR;
+			}
+		}
+
+		@Override
 		public String toString() {
-			return String.format("%d.%02d", this.value/32, this.value%32);
+			return formatCode(codeClass, codeDetail);
 		}
-		
-		public static boolean isSuccess(ResponseCode code) {
-			return 64 <= code.value && code.value < 96;
+
+		public static boolean isSuccess(final ResponseCode code) {
+			return code.codeClass == 2;
 		}
-		
-		public static boolean isClientError(ResponseCode code) {
-			return 128 <= code.value && code.value < 160;
+
+		public static boolean isClientError(final ResponseCode code) {
+			return code.codeClass == 4;
 		}
-		
-		public static boolean isServerError(ResponseCode code) {
-			return 160 <= code.value && code.value < 192;
+
+		public static boolean isServerError(final ResponseCode code) {
+			return code.codeClass == 5;
 		}
 	}
-	
+
 	/**
 	 * CoAP message format.
 	 */
-	public class MessageFormat {
-		
+	public final class MessageFormat {
+
 		/** number of bits used for the encoding of the CoAP version field. */
 		public static final int VERSION_BITS     = 2;
-		
+
 		/** number of bits used for the encoding of the message type field. */
 		public static final int TYPE_BITS        = 2;
-		
+
 		/** number of bits used for the encoding of the token length field. */
 		public static final int TOKEN_LENGTH_BITS = 4;
 
@@ -283,29 +384,33 @@ public class CoAP {
 
 		/** number of bits used for the encoding of the option delta field. */
 		public static final int OPTION_DELTA_BITS = 4;
-		
+
 		/** number of bits used for the encoding of the option delta field. */
 		public static final int OPTION_LENGTH_BITS = 4;
-		
+
 		/** One byte which indicates indicates the end of options and the start of the payload. */
 		public static final byte PAYLOAD_MARKER = (byte) 0xFF;
-		
+
 		/** CoAP version supported by this Californium version. */
 		public static final int VERSION = 1;
-		
+
 		/** The code value of an empty message. */
-		public static final int EMPTY_CODE = 0;
-		
+		public static final int EMPTY_CODE = 0b00000000; // 0.00
+
 		/** The lowest value of a request code. */
-		public static final int REQUEST_CODE_LOWER_BOUND = 1;
-		
+		public static final int REQUEST_CODE_LOWER_BOUND = 0b00000001; // 0.01
+
 		/** The highest value of a request code. */
-		public static final int REQUEST_CODE_UPPER_BOUND = 31;
-		
+		public static final int REQUEST_CODE_UPPER_BOUND = 0b00011111; // 0.31
+
 		/** The lowest value of a response code. */
-		public static final int RESPONSE_CODE_LOWER_BOUND = 64;
-		
+		public static final int RESPONSE_CODE_LOWER_BOUND = 0b01000000; // 2.00
+
 		/** The highest value of a response code. */
-		public static final int RESPONSE_CODE_UPPER_BOUND = 191;
+		public static final int RESPONSE_CODE_UPPER_BOUND = 0b10111111; // 5.31
+
+		private MessageFormat() {
+			// prevent instantiation
+		}
 	}
 }
