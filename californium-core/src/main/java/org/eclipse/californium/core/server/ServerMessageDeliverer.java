@@ -72,7 +72,7 @@ public final class ServerMessageDeliverer implements MessageDeliverer {
 		final Resource resource = findResource(path);
 		if (resource != null) {
 			checkForObserveOption(exchange, resource);
-			
+
 			// Get the executor and let it process the request
 			Executor executor = resource.getExecutor();
 			if (executor != null) {
@@ -113,7 +113,7 @@ public final class ServerMessageDeliverer implements MessageDeliverer {
 		InetSocketAddress source = new InetSocketAddress(request.getSource(), request.getSourcePort());
 
 		if (request.getOptions().hasObserve() && resource.isObservable()) {
-			
+
 			if (request.getOptions().getObserve()==0) {
 				// Requests wants to observe and resource allows it :-)
 				LOGGER.log(Level.FINER,
