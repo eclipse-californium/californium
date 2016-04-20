@@ -117,6 +117,8 @@ public class DTLSConnector implements Connector {
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
 
+	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -1490,8 +1492,8 @@ public class DTLSConnector implements Connector {
 		 *
 		 * @param name the name, e.g., of the transport protocol
 		 */
-		private Worker(String name) {
-			super(name);
+		protected Worker(String name) {
+			super(SCANDIUM_THREAD_GROUP, name);
 		}
 
 		@Override

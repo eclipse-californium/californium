@@ -159,7 +159,7 @@ public class CoapClient {
 	 * @return the CoAP client
 	 */
 	public CoapClient useExecutor() {
-		this.executor = Executors.newSingleThreadExecutor();
+		this.executor = Executors.newSingleThreadExecutor(new Utils.NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
 		
 		// activates the executor so that this user thread starts deterministically
 		executor.execute(new Runnable() {

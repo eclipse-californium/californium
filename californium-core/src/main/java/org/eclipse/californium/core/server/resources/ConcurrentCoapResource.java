@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 
 /**
@@ -101,7 +102,8 @@ public class ConcurrentCoapResource extends CoapResource {
 	public ConcurrentCoapResource(String name) {
 		super(name);
 		this.threads = getAvailableProcessors();
-		setExecutor(Executors.newFixedThreadPool(threads));
+		setExecutor(Executors.newFixedThreadPool(threads,
+				new Utils.NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
 	}
 	
 	/**
@@ -114,7 +116,8 @@ public class ConcurrentCoapResource extends CoapResource {
 	public ConcurrentCoapResource(String name, int threads) {
 		super(name);
 		this.threads = threads;
-		setExecutor(Executors.newFixedThreadPool(threads));
+		setExecutor(Executors.newFixedThreadPool(threads,
+				new Utils.NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
 	}
 	
 	/**
