@@ -36,9 +36,10 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
  * successfully established and to cancel or refresh the relation.
  */
 public class CoapObserveRelation {
-	
+
 	/** A executor service to schedule re-registrations */
-	private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
+	private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
+			new Utils.DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
 
 	/** The request. */
 	private Request request;
