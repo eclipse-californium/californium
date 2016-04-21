@@ -203,6 +203,10 @@ public class Exchange {
 		return origin;
 	}
 
+	public boolean isOfLocalOrigin() {
+	    return origin == Origin.LOCAL;
+	}
+
 	/**
 	 * Returns the request that this exchange is associated with. If the request
 	 * is sent blockwise, it might not have been assembled yet and this method
