@@ -49,7 +49,9 @@ public class UDPConnector implements Connector {
 	public final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
 	
 	public static final int UNDEFINED = 0;
-	
+
+	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
+
 	private boolean running;
 	
 	private DatagramSocket socket;
@@ -207,8 +209,8 @@ public class UDPConnector implements Connector {
 		 *
 		 * @param name the name
 		 */
-		private NetworkStageThread(String name) {
-			super(name);
+		protected NetworkStageThread(String name) {
+			super(ELEMENTS_THREAD_GROUP, name);
 			setDaemon(true);
 		}
 
