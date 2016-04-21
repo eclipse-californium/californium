@@ -247,7 +247,8 @@ public class CoapEndpoint implements Endpoint {
 		if (this.executor == null) {
 			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getAddress());
 
-			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
+			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(//
+					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#')); //$NON-NLS-1$
 			setExecutor(executor);
 			addObserver(new EndpointObserver() {
 				public void started(Endpoint endpoint) { }

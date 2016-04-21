@@ -48,11 +48,14 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,6 +120,8 @@ public class DTLSConnector implements Connector {
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
 
+	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -133,7 +138,8 @@ public class DTLSConnector implements Connector {
 	private DatagramSocket socket;
 
 	/** The timer daemon to schedule retransmissions. */
-	private Timer timer;
+	//private Timer timer;
+	private ScheduledExecutorService timer;
 
 	/** The thread that receives messages */
 	private Worker receiver;
@@ -294,7 +300,19 @@ public class DTLSConnector implements Connector {
 		if (running) {
 			return;
 		}
-		timer = new Timer(true); // run as daemon
+		timer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+
+			private final AtomicInteger index = new AtomicInteger(1);
+
+			@Override
+			public Thread newThread(Runnable r) {
+				final Thread ret = new Thread(SCANDIUM_THREAD_GROUP, r,
+						"DTLS RetransmitTask " + index.getAndIncrement(), 0);
+				ret.setDaemon(true);
+				ret.setPriority(Thread.NORM_PRIORITY);
+				return ret;
+			}
+		});
 		socket = new DatagramSocket(null);
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
@@ -381,7 +399,7 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 		LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
-		timer.cancel();
+		timer.shutdownNow();
 		releaseSocket();
 	}
 
@@ -1374,9 +1392,9 @@ public class DTLSConnector implements Connector {
 				// double timeout
 				flight.incrementTimeout();
 			}
-	
+
 			// schedule retransmission task
-			timer.schedule(flight.getRetransmitTask(), flight.getTimeout());
+			timer.schedule(flight.getRetransmitTask(), flight.getTimeout(), TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -1490,8 +1508,8 @@ public class DTLSConnector implements Connector {
 		 *
 		 * @param name the name, e.g., of the transport protocol
 		 */
-		private Worker(String name) {
-			super(name);
+		protected Worker(String name) {
+			super(SCANDIUM_THREAD_GROUP, name);
 		}
 
 		@Override
