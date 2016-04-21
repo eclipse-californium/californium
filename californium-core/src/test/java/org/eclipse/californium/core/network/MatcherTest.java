@@ -16,21 +16,20 @@
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -43,17 +42,11 @@ public class MatcherTest {
 	static final String OTHER_EPOCH = "2";
 	static final String CIPHER = "TLS_PSK";
 	static final String OTHER_CIPHER = "TLS_NULL";
-	InetSocketAddress dest;
-	InetSocketAddress source;
-
-	@Before
-	public void setUp() throws Exception {
-		source = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
-		dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
-	}
+	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
+	static final InetSocketAddress source = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 
 	@Test
-	public void testReceiveResponseAcceptsResponseWithArbitraryCorrelationInformation() {
+	public void testReceiveResponseAcceptsResponseWithoutCorrelationInformation() {
 		// GIVEN a request sent without any additional correlation information
 		//  using a matcher set to lax matching
 		Matcher matcher = newMatcher(false);
@@ -69,7 +62,7 @@ public class MatcherTest {
 	}
 
 	@Test
-	public void testReceiveResponseRejectsResponseWithoutCorrelationInformation() {
+	public void testReceiveResponseRejectsResponseWithArbitraryCorrelationInformation() {
 		// GIVEN a request sent with some additional correlation information
 		//  using a matcher set to lax matching
 		Matcher matcher = newMatcher(false);
@@ -210,7 +203,7 @@ public class MatcherTest {
 		return exchange;
 	}
 
-	private Response responseFor(Request request) {
+	private Response responseFor(final Request request) {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());

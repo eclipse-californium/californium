@@ -30,6 +30,7 @@ package org.eclipse.californium.core.network;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -121,7 +122,7 @@ import org.eclipse.californium.elements.UDPConnector;
 public class CoapEndpoint implements Endpoint {
 	
 	/** the logger. */
-	private final static Logger LOGGER = Logger.getLogger(CoapEndpoint.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(CoapEndpoint.class.getCanonicalName());
 	
 	/** The stack of layers that make up the CoAP protocol */
 	private final CoapStack coapstack;
@@ -132,6 +133,9 @@ public class CoapEndpoint implements Endpoint {
 	/** The configuration of this endpoint */
 	private final NetworkConfig config;
 	
+	/** The matcher which matches incoming responses, akcs and rsts an exchange */
+	private final Matcher matcher;
+
 	/** The executor to run tasks for this endpoint and its layers */
 	private ScheduledExecutorService executor;
 	
@@ -139,13 +143,10 @@ public class CoapEndpoint implements Endpoint {
 	private boolean started;
 	
 	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
-	private List<EndpointObserver> observers = new ArrayList<EndpointObserver>(0);
+	private List<EndpointObserver> observers = new ArrayList<>(0);
 	
 	/** The list of interceptors */
-	private List<MessageInterceptor> interceptors = new ArrayList<MessageInterceptor>(0);
-
-	/** The matcher which matches incoming responses, akcs and rsts an exchange */
-	private Matcher matcher;
+	private List<MessageInterceptor> interceptors = new ArrayList<>(0);
 
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
@@ -159,7 +160,7 @@ public class CoapEndpoint implements Endpoint {
 	 *
 	 * @param port the port
 	 */
-	public CoapEndpoint(int port) {
+	public CoapEndpoint(final int port) {
 		this(new InetSocketAddress(port));
 	}
 
@@ -168,11 +169,19 @@ public class CoapEndpoint implements Endpoint {
 	 *
 	 * @param address the address
 	 */
-	public CoapEndpoint(InetSocketAddress address) {
+	public CoapEndpoint(final InetSocketAddress address) {
 		this(address, NetworkConfig.getStandard());
 	}
 
-	public CoapEndpoint(NetworkConfig config) {
+	/**
+	 * Creates a new endpoint based on given network configuration parameters.
+	 * <p>
+	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
+	 * </p>
+	 * 
+	 * @param config the configuration to use.
+	 */
+	public CoapEndpoint(final NetworkConfig config) {
 		this(new InetSocketAddress(0), config);
 	}
 
@@ -182,7 +191,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param port the UDP port
 	 * @param config the network configuration
 	 */
-	public CoapEndpoint(int port, NetworkConfig config) {
+	public CoapEndpoint(final int port, final NetworkConfig config) {
 		this(new InetSocketAddress(port), config);
 	}
 
@@ -192,7 +201,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param address the address
 	 * @param config the network configuration
 	 */
-	public CoapEndpoint(InetSocketAddress address, NetworkConfig config) {
+	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
 		this(createUDPConnector(address, config), config);
 	}
 
@@ -218,7 +227,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the configuration
 	 * @return the connector
 	 */
-	private static Connector createUDPConnector(InetSocketAddress address, NetworkConfig config) {
+	private static Connector createUDPConnector(final InetSocketAddress address, final NetworkConfig config) {
 		UDPConnector c = new UDPConnector(address);
 
 		c.setReceiverThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT));
@@ -241,19 +250,26 @@ public class CoapEndpoint implements Endpoint {
 			return;
 		}
 
-		if (!this.coapstack.hasDeliverer())
-			this.coapstack.setDeliverer(new ClientMessageDeliverer());
+		if (!this.coapstack.hasDeliverer()) {
+			setMessageDeliverer(new ClientMessageDeliverer());
+		}
 
 		if (this.executor == null) {
 			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getAddress());
 
-			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(//
-					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#')); //$NON-NLS-1$
-			setExecutor(executor);
+			setExecutor(Executors.newSingleThreadScheduledExecutor(
+					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
-				public void started(Endpoint endpoint) { }
-				public void stopped(Endpoint endpoint) { }
-				public void destroyed(Endpoint endpoint) {
+				@Override
+				public void started(final Endpoint endpoint) {
+					// do nothing
+				}
+				@Override
+				public void stopped(final Endpoint endpoint) {
+					// do nothing
+				}
+				@Override
+				public void destroyed(final Endpoint endpoint) {
 					executor.shutdown();
 				}
 			});
@@ -265,8 +281,9 @@ public class CoapEndpoint implements Endpoint {
 			started = true;
 			matcher.start();
 			connector.start();
-			for (EndpointObserver obs:observers)
+			for (EndpointObserver obs : observers) {
 				obs.started(this);
+			}
 			startExecutor();
 		} catch (IOException e) {
 			// free partially acquired resources
@@ -285,7 +302,10 @@ public class CoapEndpoint implements Endpoint {
 		// Run a task that does nothing but make sure at least one thread of
 		// the executor has started.
 		runInProtocolStage(new Runnable() {
-			public void run() { /* do nothing */ }
+			@Override
+			public void run() {
+				// do nothing
+			}
 		});
 	}
 
@@ -301,8 +321,9 @@ public class CoapEndpoint implements Endpoint {
 			started = false;
 			connector.stop();
 			matcher.stop();
-			for (EndpointObserver obs:observers)
+			for (EndpointObserver obs:observers) {
 				obs.stopped(this);
+			}
 			matcher.clear();
 		}
 	}
@@ -313,12 +334,14 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void destroy() {
 		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getAddress());
-		if (started)
+		if (started) {
 			stop();
+		}
 		connector.destroy();
 		coapstack.destroy();
-		for (EndpointObserver obs:observers)
+		for (EndpointObserver obs : observers) {
 			obs.destroyed(this);
+		}
 	}
 
 	/* (non-Javadoc)
@@ -341,7 +364,8 @@ public class CoapEndpoint implements Endpoint {
 	 * @see org.eclipse.californium.core.network.Endpoint#setExecutor(java.util.concurrent.ScheduledExecutorService)
 	 */
 	@Override
-	public synchronized void setExecutor(ScheduledExecutorService executor) {
+	public synchronized void setExecutor(final ScheduledExecutorService executor) {
+		// TODO: don't we need to stop and shut down the previous executor?
 		this.executor = executor;
 		this.coapstack.setExecutor(executor);
 		this.matcher.setExecutor(executor);
@@ -351,23 +375,23 @@ public class CoapEndpoint implements Endpoint {
 	 * @see org.eclipse.californium.core.network.Endpoint#addObserver(org.eclipse.californium.core.network.EndpointObserver)
 	 */
 	@Override
-	public void addObserver(EndpointObserver obs) {
-		observers.add(obs);
+	public void addObserver(final EndpointObserver observer) {
+		observers.add(observer);
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.network.Endpoint#removeObserver(org.eclipse.californium.core.network.EndpointObserver)
 	 */
 	@Override
-	public void removeObserver(EndpointObserver obs) {
-		observers.remove(obs);
+	public void removeObserver(final EndpointObserver observer) {
+		observers.remove(observer);
 	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.network.Endpoint#addInterceptor(org.eclipse.californium.core.network.MessageIntercepter)
 	 */
 	@Override
-	public void addInterceptor(MessageInterceptor interceptor) {
+	public void addInterceptor(final MessageInterceptor interceptor) {
 		interceptors.add(interceptor);
 	}
 
@@ -375,7 +399,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @see org.eclipse.californium.core.network.Endpoint#removeInterceptor(org.eclipse.californium.core.network.MessageIntercepter)
 	 */
 	@Override
-	public void removeInterceptor(MessageInterceptor interceptor) {
+	public void removeInterceptor(final MessageInterceptor interceptor) {
 		interceptors.remove(interceptor);
 	}
 
@@ -384,7 +408,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Override
 	public List<MessageInterceptor> getInterceptors() {
-		return new ArrayList<MessageInterceptor>(interceptors);
+		return Collections.unmodifiableList(interceptors);
 	}
 
 	/* (non-Javadoc)
@@ -394,6 +418,7 @@ public class CoapEndpoint implements Endpoint {
 	public void sendRequest(final Request request) {
 		// always use endpoint executor
 		runInProtocolStage(new Runnable() {
+			@Override
 			public void run() {
 				coapstack.sendRequest(request);
 			}
@@ -408,6 +433,7 @@ public class CoapEndpoint implements Endpoint {
 		if (exchange.hasCustomExecutor()) {
 			// handle sending by protocol stage instead of business logic stage
 			runInProtocolStage(new Runnable() {
+				@Override
 				public void run() {
 					coapstack.sendResponse(exchange, response);
 				}
@@ -428,8 +454,15 @@ public class CoapEndpoint implements Endpoint {
 		coapstack.sendEmptyMessage(exchange, message);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#setMessageDeliverer(org.eclipse.californium.core.server.MessageDeliverer)
+	/**
+	 * Sets a processor for incoming requests and responses to.
+	 * <p>
+	 * Incoming responses that represent notifications for observations 
+	 * will also be forwarded to all notification listeners.
+	 * </p>
+	 * 
+	 *  @param deliverer the processor to deliver messages to.
+	 *  @throws NullPointerException if the given deliverer is {@code null}
 	 */
 	@Override
 	public void setMessageDeliverer(MessageDeliverer deliverer) {
@@ -462,11 +495,7 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void sendRequest(final Exchange exchange, final Request request) {
 
-			if (request.getDestination() == null)
-				throw new NullPointerException("Request has no destination address");
-			if (request.getDestinationPort() == 0)
-				throw new NullPointerException("Request has no destination port");
-
+			assertMessageHasDestinationAddress(request);
 			matcher.sendRequest(exchange, request);
 
 			/* 
@@ -475,8 +504,9 @@ public class CoapEndpoint implements Endpoint {
 			 * e.g., the MessageTracer.
 			 */
 
-			for (MessageInterceptor interceptor:interceptors)
-				interceptor.sendRequest(request);
+			for (MessageInterceptor messageInterceptor : interceptors) {
+				messageInterceptor.sendRequest(request);
+			}
 
 			// One of the interceptors may have cancelled the request
 			if (!request.isCanceled()) {
@@ -484,7 +514,7 @@ public class CoapEndpoint implements Endpoint {
 				MessageCallback callback = new MessageCallback() {
 
 					@Override
-					public void onContextEstablished(CorrelationContext context) {
+					public void onContextEstablished(final CorrelationContext context) {
 						exchange.setCorrelationContext(context);
 					}
 				};
@@ -496,11 +526,7 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
 
-			if (response.getDestination() == null)
-				throw new NullPointerException("Response has no destination address");
-			if (response.getDestinationPort() == 0)
-				throw new NullPointerException("Response has no destination port");
-
+			assertMessageHasDestinationAddress(response);
 			matcher.sendResponse(exchange, response);
 
 			/* 
@@ -513,18 +539,15 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!response.isCanceled())
+			if (!response.isCanceled()) {
 				connector.send(Serializer.serialize(response));
+			}
 		}
 
 		@Override
 		public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 
-			if (message.getDestination() == null)
-				throw new NullPointerException("Message has no destination address");
-			if (message.getDestinationPort() == 0)
-				throw new NullPointerException("Message has no destination port");
-
+			assertMessageHasDestinationAddress(message);
 			matcher.sendEmptyMessage(exchange, message);
 
 			/* 
@@ -540,6 +563,14 @@ public class CoapEndpoint implements Endpoint {
 			if (!message.isCanceled())
 				connector.send(Serializer.serialize(message));
 		}
+
+		private void assertMessageHasDestinationAddress(final Message message) {
+			if (message.getDestination() == null) {
+				throw new IllegalArgumentException("Message has no destination address");
+			} else if (message.getDestinationPort() == 0) {
+				throw new IllegalArgumentException("Message has no destination port");
+			}
+		}
 	}
 
 	/**
@@ -553,18 +584,20 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		public void receiveData(final RawData raw) {
-			if (raw.getAddress() == null)
-				throw new NullPointerException();
-			if (raw.getPort() == 0)
-				throw new NullPointerException();
+			if (raw.getAddress() == null) {
+				throw new IllegalArgumentException("received message does not have a source address");
+			} else if (raw.getPort() == 0) {
+				throw new IllegalArgumentException("received message does not have a source port");
+			} else {
 
 			// Create a new task to process this message
-			Runnable task = new Runnable() {
-				public void run() {
-					receiveMessage(raw);
-				}
-			};
-			runInProtocolStage(task);
+				runInProtocolStage(new Runnable() {
+					@Override
+					public void run() {
+						receiveMessage(raw);
+					}
+				});
+			}
 		}
 
 		/*
@@ -572,7 +605,7 @@ public class CoapEndpoint implements Endpoint {
 		 * into a message, look for an associated exchange and forward it to
 		 * the stack of layers.
 		 */
-		private void receiveMessage(RawData raw) {
+		private void receiveMessage(final RawData raw) {
 			DataParser parser = new DataParser(raw.getBytes());
 
 			if (parser.isRequest()) {
@@ -684,19 +717,20 @@ public class CoapEndpoint implements Endpoint {
 			}
 		}
 
-		private void reject(Message message) {
+		private void reject(final Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
 			// sending directly through connector, not stack, thus set token
 			rst.setToken(new byte[0]);
 
-			for (MessageInterceptor interceptor:interceptors)
-				interceptor.sendEmptyMessage(rst);
+			for (MessageInterceptor messageInterceptor : interceptors) {
+				messageInterceptor.sendEmptyMessage(rst);
+			}
 
 			// MessageInterceptor might have canceled
-			if (!rst.isCanceled())
+			if (!rst.isCanceled()) {
 				connector.send(Serializer.serialize(rst));
+			}
 		}
-
 	}
 
 	/**
@@ -706,10 +740,11 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	private void runInProtocolStage(final Runnable task) {
 		executor.execute(new Runnable() {
+			@Override
 			public void run() {
 				try {
 					task.run();
-				} catch (Throwable t) {
+				} catch (final Throwable t) {
 					LOGGER.log(Level.SEVERE, String.format("Exception in protocol stage thread: %s", t.getMessage()), t);
 				}
 			}

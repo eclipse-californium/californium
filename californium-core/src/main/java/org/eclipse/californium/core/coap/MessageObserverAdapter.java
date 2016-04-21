@@ -48,7 +48,7 @@ package org.eclipse.californium.core.coap;
 public abstract class MessageObserverAdapter implements MessageObserver {
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#retransmitting()
+	 * @see org.eclipse.californium.coap.MessageObserver#retransmitting()
 	 */
 	@Override
 	public void onRetransmission() {
@@ -56,7 +56,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 	
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#responded(ch.inf.vs.californium.coap.Response)
+	 * @see org.eclipse.californium.coap.MessageObserver#responded(ch.inf.vs.californium.coap.Response)
 	 */
 	@Override
 	public void onResponse(Response response) {
@@ -64,7 +64,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#acknowledged()
+	 * @see org.eclipse.californium.coap.MessageObserver#acknowledged()
 	 */
 	@Override
 	public void onAcknowledgement() {
@@ -72,7 +72,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#rejected()
+	 * @see org.eclipse.californium.coap.MessageObserver#rejected()
 	 */
 	@Override
 	public void onReject() {
@@ -80,7 +80,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#canceled()
+	 * @see org.eclipse.californium.coap.MessageObserver#canceled()
 	 */
 	@Override
 	public void onCancel() {
@@ -88,7 +88,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.coap.MessageObserver#timedOut()
+	 * @see org.eclipse.californium.coap.MessageObserver#timedOut()
 	 */
 	@Override
 	public void onTimeout() {

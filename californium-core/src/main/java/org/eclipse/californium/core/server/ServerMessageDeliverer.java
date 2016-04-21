@@ -42,15 +42,15 @@ import org.eclipse.californium.core.server.resources.Resource;
  * The ServerMessageDeliverer delivers requests to corresponding resources and
  * responses to corresponding requests.
  */
-public class ServerMessageDeliverer implements MessageDeliverer {
+public final class ServerMessageDeliverer implements MessageDeliverer {
 
-	private final static Logger LOGGER = Logger.getLogger(ServerMessageDeliverer.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(ServerMessageDeliverer.class.getCanonicalName());
 
 	/* The root of all resources */
 	private final Resource root;
 
 	/* The manager of the observe mechanism for this server */
-	private ObserveManager observeManager = new ObserveManager();
+	private final ObserveManager observeManager = new ObserveManager();
 
 	/**
 	 * Constructs a default message deliverer that delivers requests to the
@@ -58,12 +58,12 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * 
 	 * @param root the root resource
 	 */
-	public ServerMessageDeliverer(Resource root) {
+	public ServerMessageDeliverer(final Resource root) {
 		this.root = root;
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.MessageDeliverer#deliverRequest(ch.inf.vs.californium.network.Exchange)
+	 * @see org.eclipse.californium.MessageDeliverer#deliverRequest(org.eclipse.californium.network.Exchange)
 	 */
 	@Override
 	public void deliverRequest(final Exchange exchange) {
@@ -104,9 +104,11 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @param path
 	 *            the path to the resource
 	 */
-	private void checkForObserveOption(Exchange exchange, Resource resource) {
+	private void checkForObserveOption(final Exchange exchange, final Resource resource) {
 		Request request = exchange.getRequest();
-		if (request.getCode() != Code.GET) return;
+		if (request.getCode() != Code.GET) {
+			return;
+		}
 
 		InetSocketAddress source = new InetSocketAddress(request.getSource(), request.getSourcePort());
 
@@ -127,7 +129,9 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 			} else if (request.getOptions().getObserve() == 1) {
 				// Observe defines 1 for canceling
 				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
-				if (relation!=null) relation.cancel();
+				if (relation != null) {
+					relation.cancel();
+				}
 			}
 		}
 	}
@@ -140,7 +144,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @param list the path as list of resource names
 	 * @return the resource or null if not found
 	 */
-	private Resource findResource(List<String> list) {
+	private Resource findResource(final List<String> list) {
 		LinkedList<String> path = new LinkedList<String>(list);
 		Resource current = root;
 		while (!path.isEmpty() && current != null) {
@@ -151,13 +155,18 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	}
 
 	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.MessageDeliverer#deliverResponse(ch.inf.vs.californium.network.Exchange, ch.inf.vs.californium.coap.Response)
+	 * @see org.eclipse.californium.MessageDeliverer#deliverResponse(org.eclipse.californium.network.Exchange, org.eclipse.californium.coap.Response)
 	 */
 	@Override
 	public void deliverResponse(Exchange exchange, Response response) {
-		if (response == null) throw new NullPointerException();
-		if (exchange == null) throw new NullPointerException();
-		if (exchange.getRequest() == null) throw new NullPointerException();
-		exchange.getRequest().setResponse(response);
+		if (response == null) {
+			throw new NullPointerException("Response must not be null");
+		} else if (exchange == null) {
+			throw new NullPointerException("Exchange must not be null");
+		} else if (exchange.getRequest() == null) {
+			throw new IllegalArgumentException("Exchange does not contain request");
+		} else {
+			exchange.getRequest().setResponse(response);
+		}
 	}
 }

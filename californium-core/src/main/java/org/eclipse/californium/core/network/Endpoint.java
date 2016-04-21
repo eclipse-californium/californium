@@ -48,36 +48,41 @@ public interface Endpoint {
 	 * @throws IOException if the endpoint could not be started, e.g. because
 	 * the endpoint's port is already in use.
 	 */
-	public void start() throws IOException;
+	void start() throws IOException;
 
 	/**
 	 * Stop this endpoint and all its components, e.g., the connector. A
 	 * stopped endpoint can be started again.
 	 */
-	public void stop();
+	void stop();
 
 	/**
-	 * Destroys the endpoint and all its components. A destroyed endpoint cannot
+	 * Destroys this endpoint and all its components. A destroyed endpoint cannot
 	 * be started again.
 	 */
-	public void destroy();
-
-	// Needed for tests to remove duplicates
-	public void clear();
+	void destroy();
 
 	/**
-	 * Checks if the endpoint has started.
-	 *
-	 * @return true, if has started
+	 *  Clears this endpoint's internal registries for tracking message exchanges.
+	 *  <p>
+	 *  Needed for tests to remove duplicates.
+	 *  </p>
 	 */
-	public boolean isStarted();
+	void clear();
+
+	/**
+	 * Checks if this endpoint has started.
+	 *
+	 * @return {@code true} if this endpoint is running.
+	 */
+	boolean isStarted();
 
 	/**
 	 * Sets the executor for this endpoint and all its components.
 	 *
 	 * @param executor the new executor
 	 */
-	public void setExecutor(ScheduledExecutorService executor);
+	void setExecutor(ScheduledExecutorService executor);
 
 	/**
 	 * Adds the observer to the list of observers. This has nothing to do with
@@ -85,7 +90,7 @@ public interface Endpoint {
 	 * 
 	 * @param obs the observer
 	 */
-	public void addObserver(EndpointObserver obs);
+	void addObserver(EndpointObserver obs);
 
 	/**
 	 * Removes the endpoint observer.This has nothing to do with
@@ -93,35 +98,35 @@ public interface Endpoint {
 	 *
 	 * @param obs the observer
 	 */
-	public void removeObserver(EndpointObserver obs);
+	void removeObserver(EndpointObserver obs);
 
 	/**
-	 * Adds the interceptor.
+	 * Adds a message interceptor to this endpoint.
 	 *
 	 * @param interceptor the interceptor
 	 */
-	public void addInterceptor(MessageInterceptor interceptor);
+	void addInterceptor(MessageInterceptor interceptor);
 
 	/**
 	 * Removes the interceptor.
 	 *
 	 * @param interceptor the interceptor
 	 */
-	public void removeInterceptor(MessageInterceptor interceptor);
+	void removeInterceptor(MessageInterceptor interceptor);
 
 	/**
-	 * Gets the list of interceptors.
+	 * Gets all registered message interceptors.
 	 *
-	 * @return the interceptors
+	 * @return an immutable list of the registered interceptors.
 	 */
-	public List<MessageInterceptor> getInterceptors();
+	List<MessageInterceptor> getInterceptors();
 
 	/**
 	 * Send the specified request.
 	 *
 	 * @param request the request
 	 */
-	public void sendRequest(Request request);
+	void sendRequest(Request request);
 
 	/**
 	 * Send the specified response.
@@ -129,7 +134,7 @@ public interface Endpoint {
 	 * @param exchange the exchange
 	 * @param response the response
 	 */
-	public void sendResponse(Exchange exchange, Response response);
+	void sendResponse(Exchange exchange, Response response);
 
 	/**
 	 * Send the specified empty message.
@@ -137,27 +142,27 @@ public interface Endpoint {
 	 * @param exchange the exchange
 	 * @param message the message
 	 */
-	public void sendEmptyMessage(Exchange exchange, EmptyMessage message);
+	void sendEmptyMessage(Exchange exchange, EmptyMessage message);
 
 	/**
 	 * Sets the message deliverer.
 	 *
 	 * @param deliverer the new message deliverer
 	 */
-	public void setMessageDeliverer(MessageDeliverer deliverer);
+	void setMessageDeliverer(MessageDeliverer deliverer);
 
 	/**
 	 * Gets the address this endpoint is associated with.
 	 *
 	 * @return the address
 	 */
-	public InetSocketAddress getAddress();
+	InetSocketAddress getAddress();
 
 	/**
 	 * Gets this endpoint's configuration.
 	 *
 	 * @return the configuration
 	 */
-	public NetworkConfig getConfig();
+	NetworkConfig getConfig();
 
 }

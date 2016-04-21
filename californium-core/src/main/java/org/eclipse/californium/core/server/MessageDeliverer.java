@@ -39,8 +39,8 @@ public interface MessageDeliverer {
 	 * @param exchange
 	 *            the exchange containing the inbound {@code Request}
 	 */
-	public void deliverRequest(Exchange exchange);
-	
+	void deliverRequest(Exchange exchange);
+
 	/**
 	 * Delivers an inbound CoAP response message to its corresponding request.
 	 * 
@@ -49,6 +49,5 @@ public interface MessageDeliverer {
 	 * @param response
 	 *            the inbound CoAP response message
 	 */
-	public void deliverResponse(Exchange exchange, Response response);
-	
+	void deliverResponse(Exchange exchange, Response response);
 }
