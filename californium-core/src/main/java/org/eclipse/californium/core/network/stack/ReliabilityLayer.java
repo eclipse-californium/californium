@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -364,6 +365,15 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.log(Level.FINE, "Timeout: retransmission limit reached, exchange failed, message: {0}", message);
 					exchange.setTimedOut();
 					message.setTimedOut(true);
+					OptionSet options = message.getOptions();
+					boolean isBlockwise = options.hasBlock1() || options.hasBlock2();
+					if (exchange.isOfLocalOrigin() && isBlockwise) {
+					    Request request = exchange.getRequest();
+					    if (request != null && request.getMID() != message.getMID()) {
+					        // Notifying the original blockwise request about timeout
+					        request.setTimedOut(true);
+					    }
+					}
 				}
 			} catch (Exception e) {
 				LOGGER.log(Level.SEVERE, String.format("Exception in MessageObserver: %s", e.getMessage()), e);
