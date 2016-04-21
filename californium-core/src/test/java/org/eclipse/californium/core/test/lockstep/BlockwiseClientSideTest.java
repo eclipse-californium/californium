@@ -35,8 +35,13 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -73,7 +78,8 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
+				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
+				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2);
 	}
 
 	@Before
@@ -480,6 +486,63 @@ public class BlockwiseClientSideTest {
 		// TODO: This is not really a problem for the Cf client because it has
 		// no block size preference. We might only allow a developer to enforce
 		// a specific block size but this currently has low priority.
+	}
+
+	/**
+	 * This example shows a blockwise GET request which cannot get an
+	 * intermediate ACK so the client should call CoapHandler#onError
+	 *
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                            |
+	 * | CON [MID=1234], GET, /status                       ------> |
+	 * |                                                            |
+	 * | <------   ACK [MID=1234], 2.05 Content, 2:0/1/128          |
+	 * |                                                            |
+	 * | CON [MID=1235], GET, /status, 2:1/0/128            ------> |
+	 * |                                                            |
+	 * |     X----   ACK [MID=1235], 2.05 Content, 2:1/1/128        |
+	 * |                                                            |
+	 * | CON [MID=1235], GET, /status, 2:1/0/128            ------> |
+	 * |                                                            |
+	 * |     X----   ACK [MID=1235], 2.05 Content, 2:1/1/128        |
+	 * |__                                                          |
+	 * |  |                                                         |
+	 * |  |  calls CoapHandler#onError                              |
+	 * |<-                                                          |
+	 * |__                                                          |
+	 * </pre>
+	 */
+	@Test
+	public void testGETCallsOnErrorAfterLostACK() throws Exception {
+		String path = "test";
+
+		final CountDownLatch latch = new CountDownLatch(1);
+		System.out.println("Blockwise GET with Lost ACK:");
+
+		respPayload = generateRandomPayload(300);
+
+		CoapClient coapClient = new CoapClient("coap", server.getAddress().getHostAddress(), server.getPort(), path);
+		coapClient.setEndpoint(client);
+		Request request = createRequest(GET, path, server);
+
+		coapClient.advanced(new CoapHandler() {
+
+			@Override
+			public void onLoad(CoapResponse response) {}
+
+			@Override
+			public void onError() {
+				latch.countDown();
+			}
+		}, request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+
+		assertTrue(latch.await(3, TimeUnit.SECONDS));
+
+		printServerLog(clientInterceptor);
 	}
 
 }
