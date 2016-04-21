@@ -154,7 +154,7 @@ public class Exchange {
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 */
-	public Exchange(Request request, Origin origin) {
+	public Exchange(final Request request, final Origin origin) {
 		INSTANCE_COUNTER.incrementAndGet();
 		this.currentRequest = request; // might only be the first block of the whole request
 		this.origin = origin;
@@ -511,8 +511,11 @@ public class Exchange {
 	 * 
 	 * @param ctx the correlation information
 	 */
-	public void setCorrelationContext(CorrelationContext ctx) {
+	public void setCorrelationContext(final CorrelationContext ctx) {
 		correlationContext = ctx;
+		if (observer != null) {
+			observer.contextEstablished(this);
+		}
 	}
 
 	/**
@@ -573,18 +576,21 @@ public class Exchange {
 
 		@Override
 		public boolean equals(Object o) {
-			if (! (o instanceof KeyMID))
+			if (! (o instanceof KeyMID)) {
 				return false;
+			}
 			KeyMID key = (KeyMID) o;
 			return MID == key.MID && port == key.port && Arrays.equals(address, key.address);
 		}
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyMID[")
-					.append(MID).append(" for ").append(Utils.toHexString(address)).append(":")
-					.append(port).append("]")
-					.toString();
+			StringBuilder b = new StringBuilder("KeyMID[").append(MID);
+			if (address != null) {
+				b.append(" for ").append(Utils.toHexString(address)).append(":").append(port);
+			}
+			b.append("]");
+			return b.toString();
 		}
 
 		public static KeyMID fromInboundMessage(Message message) {

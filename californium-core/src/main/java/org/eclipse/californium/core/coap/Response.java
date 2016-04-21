@@ -111,4 +111,8 @@ public class Response extends Message {
 	public void setRTT(long rtt) {
 		this.rtt = rtt;
 	}
+
+	public boolean isNotification() {
+		return getOptions().hasObserve();
+	}
 }

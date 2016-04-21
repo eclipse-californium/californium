@@ -106,7 +106,7 @@ public class CoapServer implements ServerInterface {
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
 	
-	private NetworkConfig config;
+	private final NetworkConfig config;
 	
 	/**
 	 * Constructs a default server. The server starts after the method
@@ -123,7 +123,7 @@ public class CoapServer implements ServerInterface {
 	 * 
 	 * @param ports the ports to bind to
 	 */
-	public CoapServer(int... ports) {
+	public CoapServer(final int... ports) {
 		this(NetworkConfig.getStandard(), ports);
 	}
 	
@@ -135,7 +135,7 @@ public class CoapServer implements ServerInterface {
 	 * {@link NetworkConfig#getStandard()} is used.
 	 * @param ports the ports to bind to
 	 */
-	public CoapServer(NetworkConfig config, int... ports) {
+	public CoapServer(final NetworkConfig config, final int... ports) {
 		
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
@@ -148,29 +148,33 @@ public class CoapServer implements ServerInterface {
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
 		
-		CoapResource well_known = new CoapResource(".well-known");
-		well_known.setVisible(false);
-		well_known.add(new DiscoveryResource(root));
-		root.add(well_known);
+		CoapResource wellKnown = new CoapResource(".well-known");
+		wellKnown.setVisible(false);
+		wellKnown.add(new DiscoveryResource(root));
+		root.add(wellKnown);
 		
 		// endpoints
-		this.endpoints = new ArrayList<Endpoint>();
+		this.endpoints = new ArrayList<>();
 		// sets the central thread pool for the protocol stage over all endpoints
 		this.executor = Executors.newScheduledThreadPool(//
 				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 				new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
-		for (int port:ports)
+		for (int port : ports) {
 			addEndpoint(new CoapEndpoint(port, this.config));
+		}
 	}
 	
-	public void setExecutor(ScheduledExecutorService executor) {
+	public void setExecutor(final ScheduledExecutorService executor) {
 		
-		if (this.executor!=null) this.executor.shutdown();
+		if (this.executor != null) {
+			this.executor.shutdown();
+		}
 		
 		this.executor = executor;
-		for (Endpoint ep:endpoints)
+		for (Endpoint ep : endpoints) {
 			ep.setExecutor(executor);
+		}
 	}
 	
 	/**
@@ -197,7 +201,7 @@ public class CoapServer implements ServerInterface {
 				// only reached on success
 				++started;
 			} catch (IOException e) {
-				LOGGER.severe(e.getMessage() + " at " + ep.getAddress());
+				LOGGER.log(Level.SEVERE, "Cannot start server endpoint [" + ep.getAddress() + "]", e);
 			}
 		}
 		if (started==0) {
@@ -239,10 +243,11 @@ public class CoapServer implements ServerInterface {
 	 *
 	 * @param deliverer the new message deliverer
 	 */
-	public void setMessageDeliverer(MessageDeliverer deliverer) {
+	public void setMessageDeliverer(final MessageDeliverer deliverer) {
 		this.deliverer = deliverer;
-		for (Endpoint endpoint:endpoints)
+		for (Endpoint endpoint : endpoints) {
 			endpoint.setMessageDeliverer(deliverer);
+		}
 	}
 	
 	/**
@@ -264,7 +269,7 @@ public class CoapServer implements ServerInterface {
 	 * @param endpoint the endpoint to add
 	 */
 	@Override
-	public void addEndpoint(Endpoint endpoint) {
+	public void addEndpoint(final Endpoint endpoint) {
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.setExecutor(executor);
 		endpoints.add(endpoint);

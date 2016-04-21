@@ -46,44 +46,39 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
 
 public class Matcher {
 
-	private final static Logger LOGGER = Logger.getLogger(Matcher.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(Matcher.class.getCanonicalName());
+
+	private final ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
+	private final ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
+	private final ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
+	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
+	/* managing the MID per endpoint requires remote endpoint management */
+	private final AtomicInteger currendMID;
+	// TODO: Multicast Exchanges: should not be removed from deduplicator
+	private final Deduplicator deduplicator;
+	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
+
+	private final boolean useStrictResponseMatching;
+	/* limit the token size to save bytes in closed environments */
+	private final int tokenSizeLimit;
+	/* Health status output */
+	private final Level healthStatusLevel;
+	private final int healthStatusInterval; // seconds
 
 	private boolean started;
-	private ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 
 	/* the executor, by default the one of the protocol stage */
 	private ScheduledExecutorService executor;
 
-	/* managing the MID per endpoint requires remote endpoint management */
-	private AtomicInteger currendMID;
-
-	/* limit the token size to save bytes in closed environments */
-	private int tokenSizeLimit;
-
-	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
-	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
-	private ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
-
-	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private Deduplicator deduplicator;
-	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
-
-	/* Health status output */
-	private Level healthStatusLevel;
-	private int healthStatusInterval; // seconds
-
-	private boolean useStrictResponseMatching = false;
-
-	public Matcher(NetworkConfig config) {
-		this.started = false;
-		this.exchangesByMID = new ConcurrentHashMap<KeyMID, Exchange>();
-		this.exchangesByToken = new ConcurrentHashMap<KeyToken, Exchange>();
-		this.ongoingExchanges = new ConcurrentHashMap<KeyUri, Exchange>();
+	public Matcher(final NetworkConfig config) {
+		this.exchangesByMID = new ConcurrentHashMap<>();
+		this.exchangesByToken = new ConcurrentHashMap<>();
+		this.ongoingExchanges = new ConcurrentHashMap<>();
 
 		DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 		this.deduplicator = factory.createDeduplicator(config);
@@ -111,36 +106,40 @@ public class Matcher {
 	}
 
 	public synchronized void start() {
-		if (started) return;
-		else started = true;
-
-		if (executor == null)
+		if (started) {
+			return;
+		} else if (executor == null) {
 			throw new IllegalStateException("Matcher has no executor to schedule exchange removal");
-
-		deduplicator.start();
-
-		// this is a useful health metric that could later be exported to some kind of monitoring interface
-		if (LOGGER.isLoggable(healthStatusLevel)) {
-			executor.scheduleAtFixedRate(new Runnable() {
-				@Override
-				public void run() {
-					LOGGER.log(
-						healthStatusLevel,
-						"Matcher state: {0} exchangesByMID, {1} exchangesByToken, {2} ongoingExchanges",
-						new Object[]{exchangesByMID.size(), exchangesByToken.size(), ongoingExchanges.size()});
-				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		} else {
+			started = true;
+			deduplicator.start();
+	
+			// this is a useful health metric that could later be exported to some kind of monitoring interface
+			if (LOGGER.isLoggable(healthStatusLevel)) {
+				executor.scheduleAtFixedRate(new Runnable() {
+					@Override
+					public void run() {
+						LOGGER.log(
+							healthStatusLevel,
+							"Matcher state: {0} exchangesByMID, {1} exchangesByToken, {2} ongoingExchanges",
+							new Object[]{exchangesByMID.size(), exchangesByToken.size(), ongoingExchanges.size()});
+					}
+				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}
 		}
 	}
 
 	public synchronized void stop() {
-		if (!started) return;
-		else started = false;
-		deduplicator.stop();
-		clear();
+		if (!started) {
+			return;
+		} else {
+			started = false;
+			deduplicator.stop();
+			clear();
+		}
 	}
 
-	public synchronized void setExecutor(ScheduledExecutorService executor) {
+	public synchronized void setExecutor(final ScheduledExecutorService executor) {
 		deduplicator.setExecutor(executor);
 		this.executor = executor;
 		// health status runnable is not migrated at the moment
@@ -408,7 +407,7 @@ public class Matcher {
 		}
 	}
 
-	private boolean isResponseRelatedToDtlsRequest(DtlsCorrelationContext requestContext, CorrelationContext responseContext) {
+	private boolean isResponseRelatedToDtlsRequest(final DtlsCorrelationContext requestContext, final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
@@ -417,7 +416,7 @@ public class Matcher {
 		}
 	}
 
-	private boolean isResponseStrictlyRelatedToDtlsRequest(DtlsCorrelationContext requestContext, CorrelationContext responseContext) {
+	private boolean isResponseStrictlyRelatedToDtlsRequest(final DtlsCorrelationContext requestContext, final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
@@ -427,23 +426,22 @@ public class Matcher {
 		}
 	}
 
-	public Exchange receiveEmptyMessage(EmptyMessage message) {
+	public Exchange receiveEmptyMessage(final EmptyMessage message) {
 
 		// local namespace
-		KeyMID idByMID = new KeyMID(message.getMID(), null, 0);
+		KeyMID idByMID = new KeyMID(message.getMID());
 
 		Exchange exchange = exchangesByMID.get(idByMID);
 
 		if (exchange != null) {
 			LOGGER.log(Level.FINE, "Exchange got reply: Cleaning up {0}", idByMID);
 			exchangesByMID.remove(idByMID);
-			return exchange;
 		} else {
-			LOGGER.log(Level.INFO,
+			LOGGER.log(Level.FINE,
 					"Ignoring unmatchable empty message from {0}:{1}: {2}",
 					new Object[]{message.getSource(), message.getSourcePort(), message});
-			return null;
 		}
+		return exchange;
 	}
 
 	public void clear() {
@@ -488,7 +486,7 @@ public class Matcher {
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override
-		public void completed(Exchange exchange) {
+		public void completed(final Exchange exchange) {
 
 			/* 
 			 * Logging in this method leads to significant performance loss.
@@ -498,7 +496,7 @@ public class Matcher {
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 
-				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
+				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
 //				LOGGER.log(Level.FINE, "Exchange completed: Cleaning up {0}", idByToken);
@@ -531,6 +529,11 @@ public class Matcher {
 					removeNotificationsOf(relation);
 				}
 			}
+		}
+
+		@Override
+		public void contextEstablished(final Exchange exchange) {
+			// do nothing
 		}
 	}
 }
