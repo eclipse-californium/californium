@@ -15,9 +15,15 @@ package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -241,6 +247,56 @@ public class ClusteringTest {
 		server.expectEmpty(RST, mid).go();
 		printServerLog(clientInterceptor);
 		System.out.println("Recovered client 1 has rejected received notification");
+	}
+
+	@Test
+	public void testCancellingNotification1() throws Exception {
+		System.out.println(System.lineSeparator() + "Cancel failed over observation:");
+
+		// GIVEN a resource on server observed by client 1
+		byte[] requestToken = givenAResourceObservedByClient1(generateRandomPayload(10));
+
+		// WHEN sends notification to client 2
+		System.out.println("Server sends Observe response to client 2...");
+		String respPayload = generateRandomPayload(10); // changed
+		sendNotificationToClient(client2, respPayload);
+
+		// THEN client 2 successfully delivers the payload to the registered
+		// notification listener
+		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
+		printServerLog(clientInterceptor);
+		System.out.println("Client 2 received notification");
+
+		// WHEN client 2 cancels observation and next notification arrives from
+		// server
+		System.out.println();
+		System.out.println(System.lineSeparator() + "Now cancelling observation from client 2");
+		client2.cancelObservation(requestToken);
+
+		System.out.println();
+		System.out.println(System.lineSeparator() + "Server sends notification to client 2...");
+		respPayload = generateRandomPayload(10); // changed
+		server.setDestination(client2.getAddress());
+		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
+
+		// THEN client 2 rejects the notification and cancels the observation on
+		// the server
+		server.expectEmpty(RST, mid).go();
+		printServerLog(clientInterceptor);
+		System.out.println("Client 2 has rejected received notification");
+
+		// WHEN sends notification to client 1
+		System.out.println("Server sends Observe response to client 1...");
+		respPayload = generateRandomPayload(10); // changed
+		respPayload = generateRandomPayload(10); // changed
+		server.setDestination(client1.getAddress());
+		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
+
+		// THEN client 1 rejects the notification and cancels the observation on
+		// the server
+		server.expectEmpty(RST, mid).go();
+		printServerLog(clientInterceptor);
+		System.out.println("Client 1 has rejected received notification");
 	}
 
 	private byte[] givenAResourceObservedByClient1(final String expectedResponse) throws Exception {
