@@ -161,7 +161,7 @@ public class ClusteringTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		Thread.sleep(100);
+		Thread.sleep(200);
 
 		// THEN client 1 delivers the payload to the registered notification listener
 		assertClientDeliversNotificationToListener(notificationListener1, respPayload);
@@ -182,7 +182,7 @@ public class ClusteringTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		Thread.sleep(100);
+		Thread.sleep(200);
 
 		// THEN client 2 delivers the payload to the registered notification listener
 		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
