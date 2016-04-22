@@ -15,15 +15,9 @@ package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
-import static org.eclipse.californium.core.coap.CoAP.Type.RST;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -287,7 +281,6 @@ public class ClusteringTest {
 
 		// WHEN sends notification to client 1
 		System.out.println("Server sends Observe response to client 1...");
-		respPayload = generateRandomPayload(10); // changed
 		respPayload = generateRandomPayload(10); // changed
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
