@@ -360,4 +360,14 @@ public final class RawData {
 	public MessageCallback getMessageCallback() {
 		return callback;
 	}
+
+	/**
+	 * Determines if the correlation context of this object is secure.
+	 *
+	 * @return <code>true</code> if context is secure, <code>false</code> otherwise
+	 */
+	public boolean isSecure() {
+		return (correlationContext != null &&
+				correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
+	}
 }

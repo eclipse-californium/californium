@@ -38,6 +38,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -633,6 +634,10 @@ public class CoapEndpoint implements Endpoint {
 					}
 					return;
 				}
+
+				// set request attributes from raw data
+				request.setScheme(raw.isSecure()?
+						CoAP.COAP_SECURE_URI_SCHEME:CoAP.COAP_URI_SCHEME);
 				request.setSource(raw.getAddress());
 				request.setSourcePort(raw.getPort());
 				request.setSenderIdentity(raw.getSenderIdentity());
