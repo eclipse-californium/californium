@@ -40,6 +40,7 @@ import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -54,6 +55,7 @@ public class CoapEndpointTest {
 	static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
 	static final int MESSAGE_ID = 4711;
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
+	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
@@ -121,6 +123,26 @@ public class CoapEndpointTest {
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getSenderIdentity(), is(clientId));
+	}
+
+	@Test
+	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
+		latch = new CountDownLatch(1);
+
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, null, false);
+		connector.receiveMessage(inboundRequest);
+		assertTrue(latch.await(2, TimeUnit.SECONDS));
+		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_URI_SCHEME));
+	}
+
+	@Test
+	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
+		latch = new CountDownLatch(1);
+		CorrelationContext secureCtx = new DtlsCorrelationContext("session", "1", "CIPHER");
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, secureCtx, false);
+		connector.receiveMessage(inboundRequest);
+		assertTrue(latch.await(2, TimeUnit.SECONDS));
+		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
 	}
 
 	private byte[] getSerializedRequest() {
