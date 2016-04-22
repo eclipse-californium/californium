@@ -392,13 +392,8 @@ public class Matcher {
 		// try to look up the exchange based on the token contained in the response
 		Exchange exchange = exchangesByToken.get(idByToken);
 
-		if (exchange == null && response.isNotification()) {
-			// we might have received a notification for an observation that
-			// has been created on another node originally
-			// try to re-create exchange from shared observation registry
-			LOGGER.log(Level.FINE, "Received notification [token: {2}] from [{0}:{1}] without existing exchange",
-					new Object[]{response.getSource(), response.getSourcePort(), response.getTokenString()});
-			exchange = getExchangeForNotification(idByToken, response);
+		if (response.isNotification()) {
+			exchange = syncWithSharedObservationState(exchange, idByToken, response);
 		}
 
 		if (exchange == null) {
@@ -443,6 +438,44 @@ public class Matcher {
 		return exchange;
 	}
 
+	private Exchange syncWithSharedObservationState(final Exchange existingObservation, final KeyToken token, final Response response) {
+		if (existingObservation == null) {
+			// we might have received a notification for an observation that
+			// has been created on another node originally
+			// try to re-create exchange from shared observation registry
+			LOGGER.log(Level.FINE, "received notification [token: {2}] from [{0}:{1}] without existing exchange",
+					new Object[]{response.getSource(), response.getSourcePort(), response.getTokenString()});
+			return getExchangeForNotification(token, response);
+
+		} else if (sourceAddressHasChanged(existingObservation, response)) {
+			// we seem to have received a notification for an existing observation
+			// but the server's IP address seems to have changed since the last notification
+			// we received
+			LOGGER.log(Level.FINE, "received notification [token: {2}] for existing exchange from unexpected source [expected {3}:{4}, but was {0}:{1}]",
+					new Object[]{response.getSource(), response.getSourcePort(), response.getTokenString(),
+							existingObservation.getRequest().getDestination(), existingObservation.getRequest().getDestinationPort()});
+			// replace exchange with most recent state from shared observation registry and process the notification
+			Exchange syncedObservation = getExchangeForNotification(token, response);
+			if (syncedObservation == null) {
+				// observation has already been canceled by another node
+				// update local state accordingly
+				LOGGER.log(Level.FINE, "removing canceled observation exchange [{0}] from local map", token);
+				exchangesByToken.remove(token);
+			} else {
+				LOGGER.log(Level.FINE, "refreshed observation exchange [{0}] frmo shared observation state", token);
+			}
+			return syncedObservation;
+		} else {
+			// existing observation reflects most recent state, no need to refresh from shared observation store
+			return existingObservation;
+		}
+	}
+
+	private boolean sourceAddressHasChanged(final Exchange exchange, final Response response) {
+		return !exchange.getRequest().getDestination().equals(response.getSource()) ||
+				exchange.getRequest().getDestinationPort() != response.getSourcePort();
+	}
+
 	private KeyMID getMessageIdBasedKey(final Response response) {
 		if (response.getType() == Type.ACK) {
 			// own namespace
@@ -457,6 +490,7 @@ public class Matcher {
 		Exchange result = null;
 		final Observation obs = observationStore.get(token.token);
 		if (obs != null) {
+			LOGGER.log(Level.FINE, "found shared observation state for token [{0}]", token);
 			final Request request = obs.getRequest();
 			request.setDestination(response.getSource());
 			request.setDestinationPort(response.getSourcePort());
@@ -466,7 +500,10 @@ public class Matcher {
 			result.setObserver(exchangeObserver);
 			// add to map of exchanges for reference when next notification arrives
 			// TODO we probably need to synchronize access to the map
+			LOGGER.log(Level.FINE, "adding exchange created from shared observation state for token [{0}] to local map", token);
 			exchangesByToken.put(token, result);
+		} else {
+			LOGGER.log(Level.FINE, "could not find shared observation state for token [{0}]", token);
 		}
 		return result;
 	}

@@ -122,7 +122,7 @@ public class ClusteringTest {
 		sendNotificationToClient(client2, respPayload);
 
 		// THEN client 2 delivers the payload to the registered notification listener
-		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
+		assertClientAcksAndDeliversNotificationToListener(notificationListener2, respPayload);
 		printServerLog(clientInterceptor);
 		System.out.println("Client 2 received notification");
 
@@ -137,7 +137,7 @@ public class ClusteringTest {
 		sendNotificationToClient(client1, respPayload);
 
 		// THEN client1 delivers the payload to the registered notification listener
-		assertClientDeliversNotificationToListener(notificationListener1, respPayload);
+		assertClientAcksAndDeliversNotificationToListener(notificationListener1, respPayload);
 		printServerLog(clientInterceptor);
 		System.out.println("Client 1 received notification");
 	}
@@ -152,16 +152,16 @@ public class ClusteringTest {
 		// WHEN the server sends a notification using blockwise transfer to client 1
 		String respPayload = generateRandomPayload(40); // changed
 		System.out.println();
-		System.out.println(System.lineSeparator() + "Server sends blockwise observe response to client 1 [" + respPayload + "]");
+		System.out.println(System.lineSeparator() + "Server sends notification to client 1 [" + respPayload + "]");
 		server.setDestination(client1.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).mid(++mid).observe(observeCounter++).block2(0, true, 16)
+		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).mid(++mid).observe(++observeCounter).block2(0, true, 16)
 				.payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		Thread.sleep(200);
+		Thread.sleep(100);
 
 		// THEN client 1 delivers the payload to the registered notification listener
 		assertClientDeliversNotificationToListener(notificationListener1, respPayload);
@@ -175,14 +175,14 @@ public class ClusteringTest {
 		respPayload = generateRandomPayload(40); // changed
 		System.out.println(System.lineSeparator() + "Server sends blockwise observe response to client 2 [" + respPayload + "]");
 		server.setDestination(client2.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).mid(++mid).observe(observeCounter++).block2(0, true, 16)
+		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).mid(++mid).observe(++observeCounter).block2(0, true, 16)
 				.payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		Thread.sleep(200);
+		Thread.sleep(100);
 
 		// THEN client 2 delivers the payload to the registered notification listener
 		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
@@ -207,7 +207,7 @@ public class ClusteringTest {
 		sendNotificationToClient(client2, respPayload);
 
 		// THEN client 2 successfully delivers the payload to the registered notification listener
-		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
+		assertClientAcksAndDeliversNotificationToListener(notificationListener2, respPayload);
 		printServerLog(clientInterceptor);
 		System.out.println("Client 2 received notification");
 
@@ -219,8 +219,7 @@ public class ClusteringTest {
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Server sends notification to client 2...");
 		respPayload = generateRandomPayload(10); // changed
-		server.setDestination(client2.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
+		sendNotificationToClient(client2, respPayload);
 
 		// THEN client 2 rejects the notification and cancels the observation on the server
 		server.expectEmpty(RST, mid).go();
@@ -236,60 +235,49 @@ public class ClusteringTest {
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Server sends notification to recovered client 1...");
 		respPayload = generateRandomPayload(10); // changed
-		server.setDestination(client1.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(++observeCounter).go();
+		sendNotificationToClient(client1, respPayload);
+
+		// THEN client 1 rejects the notification and cancels the observation on the server
 		server.expectEmpty(RST, mid).go();
 		printServerLog(clientInterceptor);
 		System.out.println("Recovered client 1 has rejected received notification");
 	}
 
 	@Test
-	public void testCancellingNotification1() throws Exception {
+	public void testCanceledObservationIsDetectedIfServerAddressChanges() throws Exception {
 		System.out.println(System.lineSeparator() + "Cancel failed over observation:");
 
 		// GIVEN a resource on server observed by client 1
 		byte[] requestToken = givenAResourceObservedByClient1(generateRandomPayload(10));
 
-		// WHEN sends notification to client 2
-		System.out.println("Server sends Observe response to client 2...");
+		// WHEN the server's IP address changes (e.g. because it is on a mobile network)
+		//      and the server's next notification is routed to client 2 instead
+		System.out.println(System.lineSeparator() +
+				"Server's next notification is routed to client 2 (due to server IP address change)...");
+		server.forceAddressChange();
 		String respPayload = generateRandomPayload(10); // changed
 		sendNotificationToClient(client2, respPayload);
 
-		// THEN client 2 successfully delivers the payload to the registered
-		// notification listener
-		assertClientDeliversNotificationToListener(notificationListener2, respPayload);
+		// THEN client 2 is able to process the notification and forward it to the registered listener
+		assertClientAcksAndDeliversNotificationToListener(notificationListener2, respPayload);
 		printServerLog(clientInterceptor);
-		System.out.println("Client 2 received notification");
+		System.out.println("Client 2 has successfully processed notification");
 
-		// WHEN client 2 cancels observation and next notification arrives from
-		// server
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Now cancelling observation from client 2");
+		// WHEN client 2 cancels the observation (without sending a proactive cancel message to the server)
+		//      but the server's next notification is routed to client 1 again because the server's IP address
+		//      has changed again
+		System.out.println(System.lineSeparator() + "Client 2 cancels observation...");
 		client2.cancelObservation(requestToken);
 
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server sends notification to client 2...");
+		System.out.println("Server's next notification is routed to client 1 again (due to another server IP address change)...");
+		server.forceAddressChange();
 		respPayload = generateRandomPayload(10); // changed
-		server.setDestination(client2.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
+		sendNotificationToClient(client1, respPayload);
 
-		// THEN client 2 rejects the notification and cancels the observation on
-		// the server
+		// THEN client 1 rejects the notification and (reactively) cancels the observation by sending an RST
 		server.expectEmpty(RST, mid).go();
 		printServerLog(clientInterceptor);
-		System.out.println("Client 2 has rejected received notification");
-
-		// WHEN sends notification to client 1
-		System.out.println("Server sends Observe response to client 1...");
-		respPayload = generateRandomPayload(10); // changed
-		server.setDestination(client1.getAddress());
-		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(respPayload).mid(++mid).observe(observeCounter).go();
-
-		// THEN client 1 rejects the notification and cancels the observation on
-		// the server
-		server.expectEmpty(RST, mid).go();
-		printServerLog(clientInterceptor);
-		System.out.println("Client 1 has rejected received notification");
+		System.out.println("Client 1 has reactively cancelled observation");
 	}
 
 	private byte[] givenAResourceObservedByClient1(final String expectedResponse) throws Exception {
@@ -297,7 +285,7 @@ public class ClusteringTest {
 		observeCounter = 100;
 
 		// send observe request from client 1
-		System.out.println(System.lineSeparator() + "Establishing observation from client 1 ...");
+		System.out.println(System.lineSeparator() + "Client 1 starts observing resource on server...");
 		Request request = createRequest(GET, path, server);
 		request.setObserve();
 		client1.sendRequest(request);
@@ -317,6 +305,12 @@ public class ClusteringTest {
 		return request.getToken();
 	}
 
+	private void assertClientAcksAndDeliversNotificationToListener(final SynchronousNotificationListener listener,
+			final String expectedPayload) throws Exception {
+		server.expectEmpty(ACK, mid).go();
+		assertClientDeliversNotificationToListener(listener, expectedPayload);
+	}
+
 	private void assertClientDeliversNotificationToListener(final SynchronousNotificationListener listener,
 			final String expectedPayload) throws Exception {
 		Response receivedResponse =  listener.waitForResponse(1000);
@@ -332,6 +326,5 @@ public class ClusteringTest {
 	private void sendNotificationToClient(final Endpoint client, final String payload) throws Exception {
 		server.setDestination(client.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken(TOKEN_ID).payload(payload).mid(++mid).observe(++observeCounter).go();
-		server.expectEmpty(ACK, mid).go();
 	}
 }
