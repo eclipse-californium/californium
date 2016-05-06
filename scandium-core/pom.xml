@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
-		<version>1.0.4-SNAPSHOT</version>
+		<version>1.0.4</version>
 	</parent>
 	<artifactId>scandium</artifactId>
 	<packaging>bundle</packaging>
