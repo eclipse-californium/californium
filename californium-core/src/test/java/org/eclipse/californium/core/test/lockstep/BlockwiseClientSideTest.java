@@ -74,7 +74,8 @@ public class BlockwiseClientSideTest {
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseClientSideTest.class.getSimpleName());
-		CONFIG = new NetworkConfig()
+
+		CONFIG = NetworkConfig.createStandardWithoutFile()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
