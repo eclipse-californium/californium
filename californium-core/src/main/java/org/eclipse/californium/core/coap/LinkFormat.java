@@ -164,64 +164,71 @@ public class LinkFormat {
 	}
 	
 	public static boolean matches(Resource resource, List<String> queries) {
-		
-		if (resource==null) return false;
-		if (queries==null || queries.size()==0) return true;
-		
+
+		if (resource == null)
+			return false;
+		if (queries == null || queries.size() == 0)
+			return true;
+
 		ResourceAttributes attributes = resource.getAttributes();
-		String path = resource.getPath()+resource.getName();
-		
+		String path = resource.getPath() + resource.getName();
+
 		for (String s : queries) {
 			int delim = s.indexOf("=");
 			if (delim != -1) {
-				
+
 				// split name-value-pair
 				String attrName = s.substring(0, delim);
-				String expected = s.substring(delim+1);
-
+				String expected = s.substring(delim + 1);
 				if (attrName.equals(LinkFormat.LINK)) {
 					if (expected.endsWith("*")) {
-						return path.startsWith(expected.substring(0, expected.length()-1));
+						if (!path.startsWith(expected.substring(0, expected.length() - 1)))
+							return false;
 					} else {
-						return path.equals(expected);
+						if (!path.equals(expected))
+							return false;
 					}
 				} else if (attributes.containsAttribute(attrName)) {
 					// lookup attribute value
 					for (String actual : attributes.getAttributeValues(attrName)) {
-					
+
 						// get prefix length according to "*"
 						int prefixLength = expected.indexOf('*');
 						if (prefixLength >= 0 && prefixLength < actual.length()) {
-					
+
 							// reduce to prefixes
 							expected = expected.substring(0, prefixLength);
 							actual = actual.substring(0, prefixLength);
 						}
-						
+
 						// handle case like rt=[Type1 Type2]
-						if (actual.indexOf(" ") > -1) { // if contains white space
+						if (actual.indexOf(" ") > -1) { // if contains white
+														// space
 							String[] parts = actual.split(" ");
-							for (String part : parts) { // check each part for match
-								if (part.equals(expected)) {
-									return true;
+							for (String part : parts) { // check each part for
+														// match
+								if (!part.equals(expected)) {
+									return false;
 								}
 							}
 						}
-						
+
 						// compare strings
-						if (expected.equals(actual)) {
-							return true;
+						if (!expected.equals(actual)) {
+							return false;
 						}
 					}
+				} else if (!attributes.containsAttribute(attrName)) {
+					return false;
 				}
 			} else {
 				// flag attribute
-				if (attributes.getAttributeValues(s).size()>0) {
+				if (attributes.getAttributeValues(s).size() > 0) {
 					return true;
 				}
 			}
 		}
-		return false;
+		return true;
 	}
 	
 	public static Set<WebLink> parse(String linkFormat) {
