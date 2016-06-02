@@ -293,18 +293,18 @@ public final class CertificateMessage extends HandshakeMessage {
 		if (rawPublicKeyBytes == null) {
 
 			Set<TrustAnchor> trustAnchors = getTrustAnchors(trustedCertificates);
-			
+
 			try {
 				CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
 				CertPath certPath = certFactory.generateCertPath(Arrays.asList(certificateChain));
-				
+
 				PKIXParameters params = new PKIXParameters(trustAnchors);
 				// TODO: implement alternative means of revocation checking
 				params.setRevocationEnabled(false);
-				
+
 				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
 				validator.validate(certPath, params);
-				
+
 			} catch (GeneralSecurityException e) {
 				if (LOGGER.isLoggable(Level.FINEST)) {
 					LOGGER.log(Level.FINEST, "Certificate validation failed", e);
@@ -313,7 +313,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, getPeer());
 				throw new HandshakeException("Certificate chain could not be validated", alert);
-			}			
+			}
 		}
 	}
 
