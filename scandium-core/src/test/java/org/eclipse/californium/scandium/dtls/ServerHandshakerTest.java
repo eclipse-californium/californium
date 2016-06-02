@@ -24,25 +24,32 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -78,7 +85,7 @@ public class ServerHandshakerTest {
 
 	@Before
 	public void setup() throws Exception {
-		endpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		session = new DTLSSession(endpoint, false);
 		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder(endpoint)
@@ -86,7 +93,7 @@ public class ServerHandshakerTest {
 				.setTrustStore(trustedCertificates)
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
 				.build();
-		handshaker = new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
+		handshaker = newHandshaker(config, session);
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
@@ -173,6 +180,43 @@ public class ServerHandshakerTest {
 		}
 	}
 
+	/**
+	 * Verifies that the server considers the certificate types supported by the
+	 * client when selecting an appropriate cipher suite. In particular, the server
+	 * must not select a certificate based suite if it doesn't support the type of
+	 * certificate indicated by the client.
+	 */
+	@Test
+	public void testNegotiateCipherSuiteConsidersSupportedCertType() throws Exception {
+
+		// GIVEN a server handshaker that supports a public key based cipher using RawPublicKeys
+		// only as well as a pre-shared key based cipher
+		config = new DtlsConnectorConfig.Builder(endpoint)
+				.setIdentity(privateKey, DtlsTestTools.getPublicKey())
+				.setSupportedCipherSuites(new CipherSuite[]{
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
+				.setPskStore(new StaticPskStore("client", "secret".getBytes()))
+				.build();
+		handshaker = newHandshaker(config, session);
+
+		// WHEN a client sends a hello message indicating that it only supports X.509 certs
+		// but offering both a public key based as well as a pre-shared key based cipher
+		// supported by the server
+		supportedClientCiphers = new byte[]{(byte) 0xC0, (byte) 0xAE, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+																				(byte) 0xC0, (byte) 0xA8};// TLS_PSK_WITH_AES_128_CCM_8
+		List<byte[]> extensions = new LinkedList<>();
+		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
+		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(supportedGroup.getId()));
+
+		processClientHello(0, extensions);
+
+		// THEN the server selects the PSK based cipher because it does not consider the public
+		// key based cipher a valid option due to the client's lacking support for RPKs
+		assertThat(session.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+		assertThat(handshaker.getNegotiatedServerCertificateType(), is(nullValue()));
+	}
+
 	@Test
 	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() throws HandshakeException {
 
@@ -184,8 +228,8 @@ public class ServerHandshakerTest {
 			processClientHello(0, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch (HandshakeException e) {
-			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-			assertThat(handshaker.getNegotiatedClientCertificateType(), nullValue());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+			assertThat(handshaker.getNegotiatedClientCertificateType(), is(nullValue()));
 		}
 	}
 
@@ -201,9 +245,8 @@ public class ServerHandshakerTest {
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
-			assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
-			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-			assertThat(handshaker.getNegotiatedClientCertificateType(), nullValue());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+			assertThat(handshaker.getNegotiatedClientCertificateType(), is(nullValue()));
 		}
 	}
 
@@ -234,9 +277,8 @@ public class ServerHandshakerTest {
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
-			assertEquals(AlertDescription.UNSUPPORTED_CERTIFICATE, e.getAlert().getDescription());
-			assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-			assertThat(handshaker.getNegotiatedServerCertificateType(), nullValue());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+			assertThat(handshaker.getNegotiatedServerCertificateType(), is(nullValue()));
 		}
 	}
 
@@ -288,6 +330,10 @@ public class ServerHandshakerTest {
 		Record nextRecord = givenAHandshakerWithAQueuedMessage();
 		handshaker.processMessage(nextRecord);
 		assertThatAllMessagesHaveBeenProcessedInOrder();
+	}
+
+	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
+		return new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {

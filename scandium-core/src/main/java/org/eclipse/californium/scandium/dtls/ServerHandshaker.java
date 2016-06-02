@@ -476,9 +476,6 @@ public class ServerHandshaker extends Handshaker {
 		SessionId sessionId = new SessionId();
 		session.setSessionIdentifier(sessionId);
 
-		CipherSuite cipherSuite = negotiateCipherSuite(message);
-		session.setCipherSuite(cipherSuite);
-
 		// currently only NULL compression supported, no negotiation needed
 		if (!message.getCompressionMethods().contains(CompressionMethod.NULL)) {
 			// abort handshake
@@ -493,6 +490,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
+		negotiateCipherSuite(message, serverHelloExtensions);
 
 		MaxFragmentLengthExtension maxFragmentLengthExt = message.getMaxFragmentLengthExtension();
 		if (maxFragmentLengthExt != null) {
@@ -504,28 +502,10 @@ public class ServerHandshaker extends Handshaker {
 					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), message.getPeer()});
 		}
 
-		if (cipherSuite.requiresServerCertificateMessage()) {
-			// the negotiated cipher suite requires us (server side) to prove our identity
-			// using a certificate
-			serverHelloExtensions.addExtension(negotiateServerCertificateType(message));
-			if (clientAuthenticationRequired) {
-				// we (server side) will request a certificate from the client as well
-				// thus we need to indicate the type of certificate we expect
-				serverHelloExtensions.addExtension(negotiateClientCertificateType(message));
-			}
-		}
-
-		if (cipherSuite.isEccBased()) {
-			// if we chose a ECC cipher suite, the server should send the
-			// supported point formats extension in its ServerHello
-			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-			serverHelloExtensions.addExtension(new SupportedPointFormatsExtension(formats));
-		}
-
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
-				cipherSuite, session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
+				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
 		flight.addMessage(wrapMessage(serverHello));
-		
+
 		// update the handshake hash
 		md.update(serverHello.toByteArray());
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
@@ -534,7 +514,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Certificate (if required by key exchange algorithm)
 		 */
 		CertificateMessage certificateMessage = null;
-		if (cipherSuite.requiresServerCertificateMessage()) {
+		if (session.getCipherSuite().requiresServerCertificateMessage()) {
 			if (session.sendRawPublicKey()){
 				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
 			} else {
@@ -712,54 +692,103 @@ public class ServerHandshaker extends Handshaker {
 
 	/**
 	 * Selects one of the client's proposed cipher suites.
-	 * 
+	 * <p>
 	 * Iterates through the provided (ordered) list of the client's
 	 * preferred ciphers until one is found that is also contained
 	 * in the {@link #supportedCipherSuites}.
-	 * 
+	 * </p>
+	 * <p>
 	 * If the client proposes an ECC based cipher suite this method also
 	 * tries to determine an appropriate <em>Supported Group</em> by means
 	 * of invoking the {@link #negotiateNamedCurve(ClientHello)} method.
 	 * If a group is found it will be stored in the {@link #negotiatedSupportedGroup}
 	 * field. 
-	 * 
+	 * </p>
+	 * <p>
+	 * The selected cipher suite is set on the <em>session</em>  to be negotiated
+	 * using the {@link DTLSSession#setCipherSuite(CipherSuite)} method. The
+	 * <em>negotiatedServerCertificateType</em>, <em>negotiatedClientCertificateType</em>
+	 * and <em>negotiatedSupportedGroup</em> fields are set to values corresponding to
+	 * the selected cipher suite.
+	 * </p>
+	 * <p>
 	 * The <em>SSL_NULL_WITH_NULL_NULL</em> cipher suite is <em>never</em>
 	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5">
 	 * RFC 5246 Appendix A.5</a>
+	 * </p>
 	 * 
 	 * @param clientHello
-	 *            the message containing the list of cipher suites the client supports
-	 *            (ordered by preference)
-	 * @return The single cipher suite selected by the server from the list
-	 *         which will be used after handshake completion.
+	 *            the <em>CLIENT_HELLO</em> message containing the list of cipher suites
+	 *            the client supports (ordered by preference).
+	 * @param serverHelloExtensions
+	 *            the container object to add server extensions to that are required for the selected
+	 *            cipher suite.
 	 * @throws HandshakeException
-	 *             if this server does not support any of
-	 *             the cipher suites proposed by the client
+	 *             if this server's configuration does not support any of the cipher suites
+	 *             proposed by the client.
 	 */
-	private CipherSuite negotiateCipherSuite(ClientHello clientHello) throws HandshakeException {
-		
+	private void negotiateCipherSuite(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) throws HandshakeException {
+
+		CertificateType supportedServerCertType = getSupportedServerCertificateType(clientHello);
+		CertificateType supportedClientCertType = getSupportedClientCertificateType(clientHello);
+		SupportedGroup group = negotiateNamedCurve(clientHello);
+
 		for (CipherSuite cipherSuite : clientHello.getCipherSuites()) {
 			// NEVER negotiate NULL cipher suite
-			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL &&
-					supportedCipherSuites.contains(cipherSuite)) {
-				if (cipherSuite.isEccBased()) {
-					// we also need to check if we can agree on a named curve
-					SupportedGroup group = negotiateNamedCurve(clientHello);
-					if (group != null) {
-						negotiatedSupportedGroup = group;
-					} else {
-						// try next cipher suite
-						continue;
-					}
+			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supportedCipherSuites.contains(cipherSuite)) {
+				if (isEligible(cipherSuite, supportedServerCertType, supportedClientCertType, group)) {
+					negotiatedServerCertificateType = supportedServerCertType;
+					negotiatedClientCertificateType = supportedClientCertType;
+					negotiatedSupportedGroup = group;
+					session.setCipherSuite(cipherSuite);
+					addServerHelloExtensions(cipherSuite, serverHelloExtensions);
+					LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
+							new Object[]{cipherSuite.name(), getPeerAddress()});
+					return;
 				}
-				LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
-						new Object[]{cipherSuite.name(), getPeerAddress()});
-				return cipherSuite;
 			}
 		}
 		// if none of the client's proposed cipher suites matches throw exception
 		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 		throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
+	}
+
+	private boolean isEligible(final CipherSuite cipher, final CertificateType supportedServerCertType,
+			final CertificateType supportedClientCertType, final SupportedGroup group) {
+		boolean result = true;
+		if (cipher.isEccBased()) {
+			// check for matching curve
+			result &= group != null;
+		}
+		if (cipher.requiresServerCertificateMessage()) {
+			// make sure that we support the client's proposed server cert types
+			result &= supportedServerCertType != null;
+			if (clientAuthenticationRequired) {
+				result &= supportedClientCertType != null;
+			}
+		}
+		return result;
+	}
+
+	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final HelloExtensions extensions) {
+		if (negotiatedClientCertificateType != null) {
+			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
+			ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(false);
+			ext.addCertificateType(negotiatedClientCertificateType);
+			extensions.addExtension(ext);
+		}
+		if (negotiatedServerCertificateType != null) {
+			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
+			ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(false);
+			ext.addCertificateType(negotiatedServerCertificateType);
+			extensions.addExtension(ext);
+		}
+		if (negotiatedCipherSuite.isEccBased()) {
+			// if we chose a ECC cipher suite, the server should send the
+			// supported point formats extension in its ServerHello
+			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
+			extensions.addExtension(new SupportedPointFormatsExtension(formats));
+		}
 	}
 
 	/**
@@ -805,31 +834,46 @@ public class ServerHandshaker extends Handshaker {
 	 *             if none of the peer's preferred types is supported by this
 	 *             handshaker
 	 */
-	private ClientCertificateTypeExtension negotiateClientCertificateType(ClientHello clientHello)
+//	private ClientCertificateTypeExtension negotiateClientCertificateType(ClientHello clientHello)
+//			throws HandshakeException {
+//		
+//		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
+//		if (certTypeExt != null) {
+//			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+//				if (supportedClientCertificateTypes.contains(certType)) {
+//					negotiatedClientCertificateType = certType;
+//					break;
+//				}
+//			}
+//		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
+//			negotiatedClientCertificateType = CertificateType.X_509;
+//		}
+//		if (negotiatedClientCertificateType == null) {
+//			throw new HandshakeException(
+//					"Server does not support any of the client's preferred client certificate types",
+//					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
+//		} else {
+//			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
+//
+//			ClientCertificateTypeExtension result = new ClientCertificateTypeExtension(false);
+//			result.addCertificateType(negotiatedClientCertificateType);
+//			return result;
+//		}
+//	}	
+	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello)
 			throws HandshakeException {
-		
+
 		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
 		if (certTypeExt != null) {
 			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
 				if (supportedClientCertificateTypes.contains(certType)) {
-					negotiatedClientCertificateType = certType;
-					break;
+					return certType;
 				}
 			}
 		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
-			negotiatedClientCertificateType = CertificateType.X_509;
+			return CertificateType.X_509;
 		}
-		if (negotiatedClientCertificateType == null) {
-			throw new HandshakeException(
-					"Server does not support any of the client's preferred client certificate types",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
-		} else {
-			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
-
-			ClientCertificateTypeExtension result = new ClientCertificateTypeExtension(false);
-			result.addCertificateType(negotiatedClientCertificateType);
-			return result;
-		}
+		return null;
 	}	
 
 	/**
@@ -844,30 +888,44 @@ public class ServerHandshaker extends Handshaker {
 	 *             if none of the peer's preferred types is supported by this
 	 *             handshaker
 	 */
-	private ServerCertificateTypeExtension negotiateServerCertificateType(ClientHello clientHello)
-			throws HandshakeException {
+//	private void negotiateServerCertificateType(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
+//			throws HandshakeException {
+//		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
+//		if (certTypeExt != null) {
+//			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+//				if (supportedServerCertificateTypes.contains(certType)) {
+//					negotiatedServerCertificateType = certType;
+//					break;
+//				}
+//			}
+//		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
+//			negotiatedServerCertificateType = CertificateType.X_509;
+//		}
+//		if (negotiatedServerCertificateType == null) {
+//			throw new HandshakeException(
+//					"Server does not support any of the client's preferred server certificate types",
+//					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
+//		} else {
+//			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
+//
+//			ServerCertificateTypeExtension result = new ServerCertificateTypeExtension(false);
+//			result.addCertificateType(negotiatedServerCertificateType);
+//			serverHelloExtensions.addExtension(result);
+//		}
+//	}
+
+	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) throws HandshakeException {
 		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
 		if (certTypeExt != null) {
 			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
 				if (supportedServerCertificateTypes.contains(certType)) {
-					negotiatedServerCertificateType = certType;
-					break;
+					return certType;
 				}
 			}
 		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
-			negotiatedServerCertificateType = CertificateType.X_509;
+			return CertificateType.X_509;
 		}
-		if (negotiatedServerCertificateType == null) {
-			throw new HandshakeException(
-					"Server does not support any of the client's preferred server certificate types",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
-		} else {
-			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
-			
-			ServerCertificateTypeExtension result = new ServerCertificateTypeExtension(false);
-			result.addCertificateType(negotiatedServerCertificateType);
-			return result;
-		}
+		return null;
 	}
 
 	final CertificateType getNegotiatedClientCertificateType() {
