@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
@@ -52,7 +53,7 @@ public class CertificateMessageTest {
 
 	@Before
 	public void setUp() throws Exception {
-		peerAddress = new InetSocketAddress("localhost", 5684);
+		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
@@ -169,7 +170,7 @@ public class CertificateMessageTest {
 		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
 		assertThatCertificateValidationFailsForEmptyTrustAnchor();
 	}
-	
+
 	private void assertThatCertificateVerificationSucceeds() {
 		try {
 			message.verifyCertificate(trustAnchor);
@@ -178,7 +179,7 @@ public class CertificateMessageTest {
 			fail("Verification of certificate should have succeeded");
 		}
 	}
-	
+
 	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
 		try {
 			message.verifyCertificate(null);
