@@ -153,8 +153,7 @@ public final class Connection implements SessionListener {
 	 */
 	public void cancelPendingFlight() {
 		if (pendingFlight != null) {
-			pendingFlight.getRetransmitTask().cancel();
-			pendingFlight.setRetransmitTask(null);
+			pendingFlight.cancelRetransmission();
 			pendingFlight = null;
 		}
 	}

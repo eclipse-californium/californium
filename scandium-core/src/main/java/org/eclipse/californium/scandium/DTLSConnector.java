@@ -48,11 +48,11 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1375,14 +1375,10 @@ public class DTLSConnector implements Connector {
 
 	private void scheduleRetransmission(DTLSFlight flight) {
 
-		// cancel existing schedule (if any)
-		if (flight.getRetransmitTask() != null) {
-			flight.getRetransmitTask().cancel();
-		}
+		// cancel existing retransmission task (if any)
+		flight.cancelRetransmission();
 
 		if (flight.isRetransmissionNeeded()) {
-			// create new retransmission task
-			flight.setRetransmitTask(new RetransmitTask(flight));
 
 			// calculate timeout using exponential back-off
 			if (flight.getTimeout() == 0) {
@@ -1394,7 +1390,8 @@ public class DTLSConnector implements Connector {
 			}
 
 			// schedule retransmission task
-			timer.schedule(flight.getRetransmitTask(), flight.getTimeout(), TimeUnit.MILLISECONDS);
+			ScheduledFuture<?> f = timer.schedule(new RetransmitTask(flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
+			flight.setRetransmitTask(f);
 		}
 	}
 
@@ -1484,11 +1481,11 @@ public class DTLSConnector implements Connector {
 		};
 	}
 
-	private class RetransmitTask extends TimerTask {
+	private class RetransmitTask implements Runnable {
 
 		private DTLSFlight flight;
 
-		RetransmitTask(DTLSFlight flight) {
+		RetransmitTask(final DTLSFlight flight) {
 			this.flight = flight;
 		}
 
