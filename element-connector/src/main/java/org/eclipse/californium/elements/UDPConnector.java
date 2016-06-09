@@ -324,4 +324,9 @@ public class UDPConnector implements Connector {
 	public int getReceiverPacketSize() {
 		return receiverPacketSize;
 	}
+
+	@Override
+	public boolean isTcp() {
+		return false;
+	}
 }

@@ -88,6 +88,11 @@ public class NetworkConfigDefaults {
 		
 		config.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "FINEST");
 		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
+
+		config.setBoolean(NetworkConfig.Keys.USE_TCP_SERVER, false);
+		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s
+		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
+		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
 	}
 	
 	// prevent instantiation
