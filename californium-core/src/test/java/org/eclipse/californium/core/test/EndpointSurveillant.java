@@ -2,12 +2,11 @@ package org.eclipse.californium.core.test;
 
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.junit.Assert;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
@@ -17,6 +16,9 @@ import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
+import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.core.observe.NotificationListener;
+import org.junit.Assert;
 
 
 public class EndpointSurveillant {
@@ -28,6 +30,8 @@ public class EndpointSurveillant {
 	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // Outgoing to match with inc responses
 	private ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
 	private ConcurrentHashMap<KeyMID, Exchange> incommingMessages; // for deduplication
+	private InMemoryObservationStore observeRequestStore; // for observe
+	private List<NotificationListener> notificationListeners; // for observe too
 
 	private int exchangeLifecycle;
 	private int sweepDuplicatorInterval;
@@ -47,6 +51,8 @@ public class EndpointSurveillant {
 		exchangesByMID = extractField(matcher, "exchangesByMID");
 		exchangesByToken = extractField(matcher, "exchangesByToken");
 		ongoingExchanges = extractField(matcher, "ongoingExchanges");
+		observeRequestStore = extractField(matcher, "observationStore");
+		notificationListeners = extractField(endpoint, "notificationListeners");
 
 		SweepDeduplicator deduplicator = extractField(matcher, "deduplicator");
 		incommingMessages = extractField(deduplicator, "incommingMessages");
@@ -81,6 +87,8 @@ public class EndpointSurveillant {
 			Assert.assertEquals(0, exchangesByToken.size());
 			Assert.assertEquals(0, ongoingExchanges.size());
 			Assert.assertEquals(0, incommingMessages.size());
+			Assert.assertTrue(observeRequestStore.isEmpty());
+			Assert.assertTrue(notificationListeners.isEmpty());
 			System.out.println("Assertion passed: all HashMaps of "+name+" are empty");
 		} catch (Error e) {
 			System.out.println("Assertion failed: some HashMaps of "+name+" are NOT empty:");
@@ -101,9 +109,12 @@ public class EndpointSurveillant {
 		buffer.append("\nongoingExchanges: ");
 		printContent(ongoingExchanges, buffer);
 
-		buffer.append("\nincommingMessages: ");
-		printContent(incommingMessages, buffer);
-		
+		buffer.append("\nobserveRequestStore: ");
+		buffer.append(observeRequestStore.getSize()).append(" elements");
+
+		buffer.append("\nnotificationListeners: ");
+		buffer.append(notificationListeners.size()).append(" elements");
+
 		System.out.println(buffer.toString());
 	}
 	

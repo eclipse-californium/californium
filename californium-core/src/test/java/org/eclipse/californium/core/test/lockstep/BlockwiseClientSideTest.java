@@ -416,6 +416,8 @@ public class BlockwiseClientSideTest {
 
 		Request request = createRequest(GET, path, server);
 		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
 		client.sendRequest(request);
 
 		System.out.println("Establish observe relation to " + path);
@@ -446,7 +448,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 128).payload(respPayload.substring(256, 280)).go();
 
-		Response notification1 = request.waitForResponse(1000);
+		Response notification1 = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(notification1, respPayload);
 
 		System.out.println("Server sends second notification...");
@@ -469,13 +471,14 @@ public class BlockwiseClientSideTest {
 		System.out.println("Send old notification during transfer");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE).block2(1, false, 128).go();
 
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 
-		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE).block2(2, false, 128).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 128).payload(respPayload.substring(256, 290)).go();
+		server.expectRequest(CON, GET, path).storeBoth("I").noOption(OBSERVE).block2(2, false, 128).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 128).payload(respPayload.substring(256, 290)).go();
 
-		Response notification2 = request.waitForResponse(1000);
+		Response notification2 = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(notification2, respPayload);
 
 		printServerLog(clientInterceptor);

@@ -54,6 +54,9 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
+import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.core.observe.NotificationListener;
+import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -149,6 +152,9 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new ArrayList<>(0);
 
+	/** The list of Notification listener (use for CoAP observer relations) */
+	private List<NotificationListener> notificationListeners = new ArrayList<NotificationListener>(0);
+
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
 	 */
@@ -214,9 +220,35 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the config
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config) {
+		this(connector, config, null);
+	}
+
+	/**
+	 * Instantiates a new endpoint with the specified address and configuration
+	 * and observe request store (used to persist observation).
+	 *
+	 * @param connector the connector
+	 * @param config the config
+	 */
+	public CoapEndpoint(InetSocketAddress address, NetworkConfig config, ObservationStore store) {
+		this(createUDPConnector(address, config), config, store);
+	}
+
+	/**
+	 * Instantiates a new endpoint with the specified connector and configuration
+	 * and observe request store (used to persist observation).
+	 *
+	 * @param connector the connector
+	 * @param config the config
+	 */
+	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store) {
 		this.config = config;
 		this.connector = connector;
-		this.matcher = new Matcher(config);		
+		if (store == null) {
+			this.matcher = new Matcher(config, new NotificationDispatcher(), new InMemoryObservationStore());
+		} else {
+			this.matcher = new Matcher(config, new NotificationDispatcher(), store);
+		}
 		this.coapstack = new CoapStack(config, new OutboxImpl());
 		this.connector.setRawDataReceiver(new InboxImpl());
 	}
@@ -372,6 +404,28 @@ public class CoapEndpoint implements Endpoint {
 		this.matcher.setExecutor(executor);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * org.eclipse.californium.core.network.Endpoint#addNotificationListener(org.eclipse.californium.core.observe.NotificationListener)
+	 */
+	@Override
+	public void addNotificationListener(NotificationListener lis) {
+		notificationListeners.add(lis);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * org.eclipse.californium.core.network.Endpoint#removeNotificationListener(org.eclipse.californium.core.observe.NotificationListener)
+	 */
+	@Override
+	public void removeNotificationListener(NotificationListener lis) {
+		notificationListeners.remove(lis);
+	}
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.network.Endpoint#addObserver(org.eclipse.californium.core.network.EndpointObserver)
 	 */
@@ -484,6 +538,15 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public NetworkConfig getConfig() {
 		return config;
+	}
+
+	private class NotificationDispatcher implements NotificationListener {
+		@Override
+		public void onNotification(Request request, Response response) {
+			for (NotificationListener notificationListener : new ArrayList<>(notificationListeners)) {
+				notificationListener.onNotification(request, response);
+			}
+		}
 	}
 
 	/**
@@ -736,6 +799,11 @@ public class CoapEndpoint implements Endpoint {
 				connector.send(Serializer.serialize(rst));
 			}
 		}
+	}
+
+	@Override
+	public void cancelObservation(byte[] token) {
+		matcher.cancelObserve(token);
 	}
 
 	/**
