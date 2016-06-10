@@ -23,7 +23,9 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,6 +38,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
@@ -45,6 +48,10 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
+import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.core.observe.NotificationListener;
+import org.eclipse.californium.core.observe.Observation;
+import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
@@ -75,7 +82,17 @@ public class Matcher {
 	/* the executor, by default the one of the protocol stage */
 	private ScheduledExecutorService executor;
 
-	public Matcher(final NetworkConfig config) {
+	private NotificationListener notificationListener;
+	private final ObservationStore observationStore;
+
+	public Matcher(NetworkConfig config){
+		this(config, null, new InMemoryObservationStore());
+	}	
+
+	public Matcher(NetworkConfig config, NotificationListener notificationListener, ObservationStore observationStore) {
+		this.started = false;
+		this.notificationListener = notificationListener;
+		this.observationStore = observationStore;
 		this.exchangesByMID = new ConcurrentHashMap<>();
 		this.exchangesByToken = new ConcurrentHashMap<>();
 		this.ongoingExchanges = new ConcurrentHashMap<>();
@@ -145,7 +162,7 @@ public class Matcher {
 		// health status runnable is not migrated at the moment
 	}
 
-	public void sendRequest(Exchange exchange, Request request) {
+	public void sendRequest(Exchange exchange,final Request request) {
 
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
@@ -159,12 +176,39 @@ public class Matcher {
 		if (request.getToken() == null) {
 			idByToken = createUnusedToken();
 			request.setToken(idByToken.token);
+			// if original request has no token set it too.
+			// this is the case where request and currentRequest is not the same
+			if (exchange.getRequest() != null && exchange.getRequest().getToken() == null)
+				exchange.getRequest().setToken(idByToken.token);
 		} else {
 			idByToken = new KeyToken(request.getToken());
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount()>0 || request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
 				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
+		}
+
+		// for observe request.
+		// We ignore blockwise request, except when this is an early negociation (num and M is set to 0)  
+		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0 && (!request.getOptions().hasBlock2()
+				|| request.getOptions().getBlock2().getNum() == 0 && !request.getOptions().getBlock2().isM())) {
+			// add request to the store
+			observationStore.add(new Observation(request, null));
+			// remove it if the request is cancelled, rejected or timedout
+			request.addMessageObserver(new MessageObserverAdapter() {
+				@Override
+				public void onCancel() {
+					observationStore.remove(request.getToken());
+				}
+				@Override
+				public void onReject() {
+					observationStore.remove(request.getToken());
+				}
+				@Override
+				public void onTimeout() {
+					observationStore.remove(request.getToken());
+				}
+			});
 		}
 
 		exchange.setObserver(exchangeObserver);
@@ -342,6 +386,39 @@ public class Matcher {
 		KeyToken idByToken = new KeyToken(response.getToken());
 
 		Exchange exchange = exchangesByToken.get(idByToken);
+		if (exchange == null && observationStore != null ) {
+			final Observation obs = observationStore.get(response.getToken());
+			if (obs != null) {
+				final Request request = obs.getRequest();
+				request.setDestination(response.getSource());
+				request.setDestinationPort(response.getSourcePort());
+				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
+				exchange.setRequest(request);
+				exchange.setObserver(exchangeObserver);
+				request.addMessageObserver(new MessageObserverAdapter() {
+
+					@Override
+					public void onTimeout() {
+						observationStore.remove(request.getToken());
+					}
+
+					@Override
+					public void onResponse(Response response) {
+						notificationListener.onNotification(request, response);
+					}
+
+					@Override
+					public void onReject() {
+						observationStore.remove(request.getToken());
+					}
+
+					@Override
+					public void onCancel() {
+						observationStore.remove(request.getToken());
+					}
+				});
+			}
+		}
 
 		if (exchange == null) {
 			// There is no exchange with the given token.
@@ -478,7 +555,7 @@ public class Matcher {
 			// random value
 			random.nextBytes(token);
 			result = new KeyToken(token);
-		} while (exchangesByToken.get(result) != null);
+		} while (exchangesByToken.get(result) != null && observationStore.get(token) != null);
 
 		return result;
 	}
@@ -532,8 +609,20 @@ public class Matcher {
 		}
 
 		@Override
-		public void contextEstablished(final Exchange exchange) {
-			// do nothing
+		public void contextEstablished(Exchange exchange) {
+			if (exchange.getRequest() != null)
+				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
 		}
+	}
+
+	public void cancelObserve(byte[] token) {
+		// search for pending blockwise exchange for this observe request
+		for (Entry<KeyToken, Exchange> key : exchangesByToken.entrySet()) {
+			Request cachedRequest = key.getValue().getRequest();
+			if (cachedRequest != null && Arrays.equals(token, cachedRequest.getToken())) {
+				cachedRequest.cancel();
+			}
+		}
+		observationStore.remove(token);
 	}
 }
