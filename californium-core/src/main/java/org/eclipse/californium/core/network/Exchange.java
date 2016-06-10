@@ -160,6 +160,21 @@ public class Exchange {
 		this.origin = origin;
 		this.timestamp = System.currentTimeMillis();
 	}
+	
+	/**
+	 * Creates a new exchange with the specified request, origin and context.
+	 * 
+	 * @param request the request that starts the exchange
+	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param ctx the correlation context of this exchange
+	 */
+	public Exchange(Request request, Origin origin, CorrelationContext ctx) {
+		INSTANCE_COUNTER.incrementAndGet();
+		this.currentRequest = request; // might only be the first block of the whole request
+		this.origin = origin;
+		this.correlationContext = ctx;
+		this.timestamp = System.currentTimeMillis();
+	}
 
 	/**
 	 * Accept this exchange and therefore the request. Only if the request's

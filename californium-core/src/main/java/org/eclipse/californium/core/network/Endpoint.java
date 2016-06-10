@@ -29,6 +29,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
 /**
@@ -99,6 +100,22 @@ public interface Endpoint {
 	 * @param obs the observer
 	 */
 	void removeObserver(EndpointObserver obs);
+	
+	/**
+	 * Adds a listener for observe notification (This is related to CoAP
+	 * observe)
+	 * 
+	 * @param lis the listener
+	 */
+	void addNotificationListener(NotificationListener lis);
+
+	/**
+	 * Removes a listener for observe notification (This is related to CoAP
+	 * observe)
+	 * 
+	 * @param lis the listener
+	 */
+	void removeNotificationListener(NotificationListener lis);
 
 	/**
 	 * Adds a message interceptor to this endpoint.
@@ -165,4 +182,12 @@ public interface Endpoint {
 	 */
 	NetworkConfig getConfig();
 
+	/**
+	 * Cancel observation for this request.
+	 * 
+	 * @param token
+	 *            the token of the original request which establishes the
+	 *            observe relation to cancel.
+	 */
+	void cancelObservation(byte[] token);
 }

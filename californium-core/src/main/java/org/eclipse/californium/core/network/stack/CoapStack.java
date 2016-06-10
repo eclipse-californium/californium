@@ -190,8 +190,7 @@ public class CoapStack {
 
 		@Override
 		public void receiveResponse(Exchange exchange, Response response) {
-			if (!response.getOptions().hasObserve())
-				exchange.setComplete();
+			exchange.setComplete();
 			if (deliverer != null) {
 				deliverer.deliverResponse(exchange, response); // notify request that response has arrived
 			} else {

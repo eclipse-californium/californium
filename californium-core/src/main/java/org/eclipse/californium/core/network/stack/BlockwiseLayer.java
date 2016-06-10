@@ -461,6 +461,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					}
 
 					LOGGER.log(Level.FINE, "Assembled response: {0}", assembled);
+					// Set the original request as current request.
+					exchange.setCurrentRequest(exchange.getRequest());
+					// Set the assembled response as current response
 					exchange.setResponse(assembled);
 					super.receiveResponse(exchange, assembled);
 				}

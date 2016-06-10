@@ -23,13 +23,18 @@ package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import org.junit.Assert;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -39,6 +44,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -100,6 +106,8 @@ public class ObserveClientSideTest {
 		int obs = 100;
 
 		Request request = createRequest(GET, path, server);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
 		request.setObserve();
 		client.sendRequest(request);
 
@@ -119,6 +127,7 @@ public class ObserveClientSideTest {
 
 		assertResponseContainsExpectedPayload(response, respPayload);
 		System.out.println("Relation established");
+		Thread.sleep(1000);
 
 		respPayload = generateRandomPayload(10); // changed
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
@@ -127,10 +136,10 @@ public class ObserveClientSideTest {
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload + "_DUPLICATE").mid(mid).observe(obs).go();
 		server.expectEmpty(ACK, mid).go();
 
-		response = request.waitForResponse(1000);
+		Response notification1 = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		assertResponseContainsExpectedPayload(response, respPayload);
+		assertResponseContainsExpectedPayload(notification1, respPayload);
 	}
 
 	/**
@@ -149,6 +158,8 @@ public class ObserveClientSideTest {
 
 		Request request = createRequest(GET, path, server);
 		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
 		client.sendRequest(request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").go();
@@ -172,10 +183,10 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 
-		response = request.waitForResponse(1000);
+		Response notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		assertResponseContainsExpectedPayload(response, respPayload);
+		assertResponseContainsExpectedPayload(notification, respPayload);
 
 		// override transfer with new notification
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
@@ -196,10 +207,11 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("E").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32, 40)).go();
 
-		response = request.waitForResponse(1000);
+		Thread.sleep(50);
+		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		assertResponseContainsExpectedPayload(response, respPayload3);
+		assertResponseContainsExpectedPayload(notification, respPayload3);
 
 		// override transfer with new notification and conflicting block number
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
@@ -207,22 +219,28 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
 		clientInterceptor.log("\n\n//////// Overriding notification 2 ////////");
+		// start new block
 		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload4.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
+
 		// old block
 		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
 		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
-		// new block
-		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("H").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 16).payload(respPayload4.substring(32, 40)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(2, true, 16).payload(respPayload.substring(32, 40)).go();
 
-		response = request.waitForResponse(1000);
+		// new block
+		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("I").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 16).payload(respPayload4.substring(32, 40)).go();
+
+		Thread.sleep(50);
+		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		assertResponseContainsExpectedPayload(response, respPayload4);
+		assertResponseContainsExpectedPayload(notification, respPayload4);
 
 		// cancel
 		clientInterceptor.log("\n\n//////// Notification after cancellation ////////");
@@ -231,23 +249,23 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		// canceling in the middle of blockwise transfer
-		request.cancel();
+		client.cancelObservation(request.getToken());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
 		// notification must not be delivered
-		response = request.waitForResponse(1000);
+		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		Assert.assertNull("Client received notification although canceled", response);
+		Assert.assertNull("Client received notification although canceled", notification);
 
 		// next notification must be rejected
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(7).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(RST, mid).go();
 
 		// notification must not be delivered
-		response = request.waitForResponse(1000);
+		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
-		Assert.assertNull("Client received notification although canceled", response);
+		Assert.assertNull("Client received notification although canceled", notification);
 	}
 }

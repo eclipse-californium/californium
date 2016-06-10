@@ -33,7 +33,7 @@ public interface ExchangeObserver {
 	 * @param exchange the exchange
 	 */
 	void completed(Exchange exchange);
-	
+
 	/**
 	 * Invoked when a new correlation context is set.
 	 * 
