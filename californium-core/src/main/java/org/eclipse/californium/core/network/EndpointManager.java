@@ -93,7 +93,7 @@ public class EndpointManager {
 	 * 
 	 * @return the default endpoint
 	 */
-	public Endpoint getDefaultEndpoint() {
+	public synchronized Endpoint getDefaultEndpoint() {
 		if (default_endpoint == null) {
 			createDefaultEndpoint();
 		}
@@ -154,7 +154,7 @@ public class EndpointManager {
 	 * 
 	 * @return the default endpoint
 	 */
-	public Endpoint getDefaultSecureEndpoint() {
+	public synchronized Endpoint getDefaultSecureEndpoint() {
 		try {
 			if (default_secure_endpoint == null) {
 				createDefaultSecureEndpoint();
