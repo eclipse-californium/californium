@@ -41,6 +41,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.tcp.TcpServerConnector;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -161,7 +162,7 @@ public class CoapServer implements ServerInterface {
 				new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
 		for (int port : ports) {
-			addEndpoint(new CoapEndpoint(port, this.config));
+			addEndpoint(createEndpoint(port));
 		}
 	}
 	
@@ -176,7 +177,19 @@ public class CoapServer implements ServerInterface {
 			ep.setExecutor(executor);
 		}
 	}
-	
+
+	private Endpoint createEndpoint(int port) {
+		if (config.getBoolean(NetworkConfig.Keys.USE_TCP_SERVER)) {
+			TcpServerConnector connector = new TcpServerConnector(new InetSocketAddress(port),
+					config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT),
+					config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS));
+			return new CoapEndpoint(connector, config);
+		} else {
+			return new CoapEndpoint(port, config);
+		}
+
+	}
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
@@ -191,7 +204,7 @@ public class CoapServer implements ServerInterface {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
-			addEndpoint(new CoapEndpoint(port, this.config));
+			addEndpoint(createEndpoint(port));
 		}
 		
 		int started = 0;

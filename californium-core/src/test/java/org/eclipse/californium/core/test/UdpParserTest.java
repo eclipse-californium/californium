@@ -23,6 +23,7 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.*;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -32,31 +33,62 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.TcpDataParser;
+import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
+import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This test tests the serialization of messages to byte arrays and the parsing
  * back to messages.
  */
 @Category(Small.class)
-public class ParserTest {
+@RunWith(Parameterized.class)
+public class UdpParserTest {
+
+	private final DataSerializer serializer;
+	private final DataParser parser;
+	private final int expectedMid;
+
+	public UdpParserTest(DataSerializer serializer, DataParser parser, int expectedMid) {
+		this.serializer = serializer;
+		this.parser = parser;
+		this.expectedMid = expectedMid;
+	}
+
+	@Parameterized.Parameters
+	public static List<Object[]> parameters() {
+		List<Object[]> parameters = new ArrayList<>();
+		parameters.add(new Object[]{new UdpDataSerializer(), new UdpDataParser(), 7});
+		parameters.add(new Object[]{new TcpDataSerializer(), new TcpDataParser(), 0});
+		return parameters;
+	}
 
 	@Test
 	public void testRequestParsing() {
 		Request request = new Request(Code.POST);
 		request.setType(Type.NON);
-		request.setMID(7);
+		request.setMID(expectedMid);
 		request.setToken(new byte[] { 11, 82, -91, 77, 3 });
 		request.getOptions().addIfMatch(new byte[] { 34, -17 }).addIfMatch(new byte[] { 88, 12, -2, -99, 5 })
 				.setContentFormat(40).setAccept(40);
 
-		byte[] bytes = DataSerializer.serializeRequest(request);
+		byte[] bytes = serializer.serializeRequest(request);
 
-		DataParser parser = new DataParser(bytes);
-		assertTrue(parser.isRequest());
+		RawData rawData = new RawData(bytes, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
+		assertTrue(CoAP.isRequest(code));
 
-		Request result = parser.parseRequest();
+		Request result = parser.parseRequest(rawData, code);
 		assertEquals(request.getMID(), result.getMID());
 		assertArrayEquals(request.getToken(), result.getToken());
 		assertEquals(request.getOptions().asSortedList(), result.getOptions().asSortedList());
@@ -70,11 +102,13 @@ public class ParserTest {
 				0b00100001, // code: 1.01 -> class 1 is reserved
 				0x00, 0x10 // message ID
 		};
-		DataParser parser = new DataParser(malformedRequest);
+
+		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
 
 		// WHEN parsing the request
 		try {
-			parser.parseRequest();
+			parser.parseRequest(rawData, code);
 			fail("Parser should have detected that message is not a request");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -89,11 +123,12 @@ public class ParserTest {
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10 // message ID
 		};
-		DataParser parser = new DataParser(malformedRequest);
+		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
 
 		// WHEN parsing the request
 		try {
-			parser.parseResponse();
+			parser.parseResponse(rawData, code);
 			fail("Parser should have detected that message is not a response");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -108,11 +143,12 @@ public class ParserTest {
 				0b01000010, // code: 2.04 (CHANGED response)
 				0x00, 0x10 // message ID
 		};
-		DataParser parser = new DataParser(notAnEmptyMessage);
+		RawData rawData = new RawData(notAnEmptyMessage, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
 
 		// WHEN parsing the message as an empty message
 		try {
-			parser.parseEmptyMessage();
+			parser.parseEmptyMessage(rawData, code);
 			fail("Parser should have detected that message is not a CoAP empty message");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -128,12 +164,13 @@ public class ParserTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		DataParser parser = new DataParser(malformedGetRequest);
-		assertTrue(parser.isRequest());
+		RawData rawData = new RawData(malformedGetRequest, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
+		assertTrue(CoAP.isRequest(code));
 
 		// WHEN parsing the request
 		try {
-			parser.parseRequest();
+			parser.parseRequest(rawData, code);
 			fail("Parser should have detected missing payload");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -149,12 +186,13 @@ public class ParserTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		DataParser parser = new DataParser(malformedResponse);
-		assertTrue(parser.isResponse());
+		RawData rawData = new RawData(malformedResponse, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
+		assertTrue(CoAP.isResponse(code));
 
 		// WHEN parsing the response
 		try {
-			parser.parseResponse();
+			parser.parseResponse(rawData, code);
 			fail("Parser should have detected missing payload");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -165,19 +203,20 @@ public class ParserTest {
 	public void testResponseParsing() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setType(Type.NON);
-		response.setMID(9);
+		response.setMID(expectedMid);
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
 		response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
 				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
 				.addOption(new Option(57453, "Arbitrary".hashCode())).addOption(new Option(19205, "Arbitrary1"))
 				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
 
-		byte[] bytes = DataSerializer.serializeResponse(response);
+		byte[] bytes = serializer.serializeResponse(response);
 
-		DataParser parser = new DataParser(bytes);
-		assertTrue(parser.isResponse());
+		RawData rawData = new RawData(bytes, new InetSocketAddress(0));
+		int code = parser.readMessageCode(rawData);
+		assertTrue(CoAP.isResponse(code));
 
-		Response result = parser.parseResponse();
+		Response result = parser.parseResponse(rawData, code);
 		assertEquals(response.getMID(), result.getMID());
 		assertArrayEquals(response.getToken(), result.getToken());
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
@@ -193,12 +232,13 @@ public class ParserTest {
 				.addLocationPath("пустынных").addLocationQuery("ვეპხის=யாமறிந்த").addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
 		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");
 
-		byte[] bytes = DataSerializer.serializeResponse(response);
+		byte[] bytes = serializer.serializeResponse(response);
+		RawData rawData = new RawData(bytes, new InetSocketAddress(0));
 
-		DataParser parser = new DataParser(bytes);
-		assertTrue(parser.isResponse());
+		int code = parser.readMessageCode(rawData);
+		assertTrue(CoAP.isResponse(code));
 
-		Response result = parser.parseResponse();
+		Response result = parser.parseResponse(rawData, code);
 		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
 		assertEquals("ვეპხის=யாமறிந்த&⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎", response.getOptions().getLocationQueryString());
 		assertEquals("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", result.getPayloadString());

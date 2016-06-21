@@ -17,6 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - make all methods static
+ *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -34,7 +35,14 @@ import org.eclipse.californium.elements.RawData;
  */
 public class Serializer {
 
-	private Serializer() {
+	private final DataSerializer dataSerializer;
+
+	public Serializer() {
+		this.dataSerializer = new UdpDataSerializer();
+	}
+
+	public Serializer(DataSerializer dataSerializer) {
+		this.dataSerializer = dataSerializer;
 	}
 
 	/**
@@ -46,10 +54,10 @@ public class Serializer {
 	 * @param request the request
 	 * @return the request as raw data
 	 */
-	public static RawData serialize(Request request) {
+	public RawData serialize(Request request) {
 		byte[] bytes = request.getBytes();
 		if (bytes == null) {
-			bytes = DataSerializer.serializeRequest(request);
+			bytes = dataSerializer.serializeRequest(request);
 		}
 		request.setBytes(bytes);
 		return new RawData(bytes, request.getDestination(), request.getDestinationPort());
@@ -70,10 +78,10 @@ public class Serializer {
 	 *            may be used for matching a response to a request.
 	 * @return the request as raw data
 	 */
-	public static RawData serialize(Request request, MessageCallback callback) {
+	public RawData serialize(Request request, MessageCallback callback) {
 		byte[] bytes = request.getBytes();
 		if (bytes == null) {
-			bytes = DataSerializer.serializeRequest(request);
+			bytes = dataSerializer.serializeRequest(request);
 		}
 		request.setBytes(bytes);
 		return RawData.outbound(bytes, new InetSocketAddress(request.getDestination(), request.getDestinationPort()),
@@ -89,10 +97,10 @@ public class Serializer {
 	 * @param response the response
 	 * @return the response as raw data
 	 */
-	public static RawData serialize(Response response) {
+	public RawData serialize(Response response) {
 		byte[] bytes = response.getBytes();
 		if (bytes == null) {
-			bytes = DataSerializer.serializeResponse(response);
+			bytes = dataSerializer.serializeResponse(response);
 		}
 		response.setBytes(bytes);
 		return new RawData(bytes, response.getDestination(), response.getDestinationPort());
@@ -107,10 +115,10 @@ public class Serializer {
 	 * @param message the message
 	 * @return the empty message as raw data
 	 */
-	public static RawData serialize(EmptyMessage message) {
+	public RawData serialize(EmptyMessage message) {
 		byte[] bytes = message.getBytes();
 		if (bytes == null) {
-			bytes = DataSerializer.serializeEmptyMessage(message);
+			bytes = dataSerializer.serializeEmptyMessage(message);
 		}
 		message.setBytes(bytes);
 		return new RawData(bytes, message.getDestination(), message.getDestinationPort());

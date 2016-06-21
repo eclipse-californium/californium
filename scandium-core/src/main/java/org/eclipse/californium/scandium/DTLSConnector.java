@@ -1588,4 +1588,9 @@ public class DTLSConnector implements Connector {
 				new Object[]{record.getType(), record.getPeerAddress(), cause.getMessage()});
 		}
 	}
+
+	@Override
+	public boolean isTcp() {
+		return false;
+	}
 }
