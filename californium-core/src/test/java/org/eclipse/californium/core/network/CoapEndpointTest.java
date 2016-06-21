@@ -37,6 +37,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.Serializer;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -61,6 +63,7 @@ public class CoapEndpointTest {
 	List<Request> receivedRequests;
 	CountDownLatch latch;
 	CorrelationContext context;
+	DataSerializer dataSerializer;
 
 	@Before
 	public void setUp() throws Exception {
@@ -68,6 +71,7 @@ public class CoapEndpointTest {
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
+		dataSerializer = new UdpDataSerializer();
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override
@@ -148,7 +152,7 @@ public class CoapEndpointTest {
 	private byte[] getSerializedRequest() {
 		Request request = new Request(Code.GET, Type.CON);
 		request.setToken(TOKEN);
-		return DataSerializer.serializeRequest(request);
+		return dataSerializer.serializeRequest(request);
 	}
 
 	private class SimpleConnector implements Connector {
@@ -192,6 +196,11 @@ public class CoapEndpointTest {
 		@Override
 		public InetSocketAddress getAddress() {
 			return new InetSocketAddress(0);
+		}
+
+		@Override
+		public boolean isTcp() {
+			return false;
 		}
 	}
 }

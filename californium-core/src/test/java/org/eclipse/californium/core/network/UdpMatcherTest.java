@@ -34,7 +34,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
-public class MatcherTest {
+public class UdpMatcherTest {
 
 	static final String SESSION_ID = "010203";
 	static final String OTHER_SESSION_ID = "567322";
@@ -49,7 +49,7 @@ public class MatcherTest {
 	public void testReceiveResponseAcceptsResponseWithoutCorrelationInformation() {
 		// GIVEN a request sent without any additional correlation information
 		//  using a matcher set to lax matching
-		Matcher matcher = newMatcher(false);
+		UdpMatcher matcher = newMatcher(false);
 		Exchange exchange = sendRequest(matcher, null);
 
 		// WHEN a response arrives with arbitrary additional correlation information
@@ -65,7 +65,7 @@ public class MatcherTest {
 	public void testReceiveResponseRejectsResponseWithArbitraryCorrelationInformation() {
 		// GIVEN a request sent with some additional correlation information
 		//  using a matcher set to lax matching
-		Matcher matcher = newMatcher(false);
+		UdpMatcher matcher = newMatcher(false);
 		MapBasedCorrelationContext ctx = new MapBasedCorrelationContext();
 		ctx.put("key", "value");
 		Exchange exchange = sendRequest(matcher, ctx);
@@ -82,7 +82,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseAcceptsResponseFromDifferentEpochUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching 
-		Matcher matcher = newMatcher(false);
+		UdpMatcher matcher = newMatcher(false);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID within the same DTLS session, using
@@ -98,7 +98,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseRejectsResponseFromDifferentSessionUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
-		Matcher matcher = newMatcher(false);
+		UdpMatcher matcher = newMatcher(false);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID but a different DTLS session
@@ -113,7 +113,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseRejectsResponseUsingDifferentCipherUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
-		Matcher matcher = newMatcher(false);
+		UdpMatcher matcher = newMatcher(false);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID within the same DTLS session but using another cipher
@@ -130,7 +130,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseAcceptsResponseFromSameSessionEpochAndCipherUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport 
-		Matcher matcher = newMatcher(true);
+		UdpMatcher matcher = newMatcher(true);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID, epoch and cipher
@@ -145,7 +145,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseRejectsResponseFromDifferentEpochUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
-		Matcher matcher = newMatcher(true);
+		UdpMatcher matcher = newMatcher(true);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID and cipher but from a different epoch
@@ -160,7 +160,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseRejectsResponseFromDifferentSessionUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
-		Matcher matcher = newMatcher(true);
+		UdpMatcher matcher = newMatcher(true);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, epoch and cipher but a different session ID
@@ -175,7 +175,7 @@ public class MatcherTest {
 	@Test
 	public void testReceiveResponseRejectsResponseUsingDifferentCipherUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
-		Matcher matcher = newMatcher(true);
+		UdpMatcher matcher = newMatcher(true);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID and epoch but using a different cipher
@@ -187,13 +187,13 @@ public class MatcherTest {
 		assertThat(matchedExchange, is(nullValue()));
 	}
 
-	private Matcher newMatcher(boolean useStrictMatching) {
+	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		return new Matcher(config);
+		return new UdpMatcher(config);
 	}
 
-	private Exchange sendRequest(final Matcher matcher, final CorrelationContext ctx) {
+	private Exchange sendRequest(final UdpMatcher matcher, final CorrelationContext ctx) {
 		Request request = Request.newGet();
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
