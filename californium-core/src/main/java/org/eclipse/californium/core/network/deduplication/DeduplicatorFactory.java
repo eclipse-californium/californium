@@ -22,12 +22,12 @@ package org.eclipse.californium.core.network.deduplication;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.network.Matcher;
+import org.eclipse.californium.core.network.UdpMatcher;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 
 /**
- * The deduplication factory creates the deduplicator for a {@link Matcher}. If
+ * The deduplication factory creates the deduplicator for a {@link UdpMatcher}. If
  * a server wants to use another deduplicator than the three standard
  * deduplicators, it can create its own factory and install it with
  * {@link #setDeduplicatorFactory(DeduplicatorFactory)}.

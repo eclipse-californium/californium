@@ -37,7 +37,9 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.tcp.TcpClientConnector;
 
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
@@ -82,7 +84,10 @@ public class EndpointManager {
 	
 	/** The default endpoint for secure CoAP */
 	private Endpoint default_secure_endpoint;
-	
+
+	/** Endpoint for CoAP over TCP. */
+	private Endpoint tcp_endpoint;
+
 	/**
 	 * Gets the default endpoint for implicit use by clients. By default, the
 	 * endpoint has a single-threaded executor and is started. It is possible to
@@ -100,6 +105,18 @@ public class EndpointManager {
 			createDefaultEndpoint();
 		}
 		return default_endpoint;
+	}
+
+	/**
+	 * Gets the default tcp endping for implicit use by client. By default, the tcp endpoint has single worker
+	 * thread, and uses default TCP settings.
+	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
+     */
+	public Endpoint getTcpEndpoint() {
+		if (tcp_endpoint == null) {
+			createTcpEndpoint();
+		}
+		return tcp_endpoint;
 	}
 
 	/*
@@ -120,7 +137,42 @@ public class EndpointManager {
 			LOGGER.log(Level.SEVERE, "Could not create default endpoint", e);
 		}
 	}
-	
+
+	private synchronized void createTcpEndpoint() {
+		if (tcp_endpoint != null) return;
+
+		NetworkConfig config = NetworkConfig.getStandard();
+		TcpClientConnector connector = new TcpClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
+						config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
+						config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
+
+		tcp_endpoint = new CoapEndpoint(connector, config);
+		try {
+			tcp_endpoint.start();
+			LOGGER.log(Level.INFO, "Created implicit tcp endpoint {0}", tcp_endpoint.getAddress());
+		} catch (IOException e) {
+			LOGGER.log(Level.SEVERE, "Could not create tcp endpoint", e);
+		}
+	}
+
+	public void setTcpEndpiont(Endpoint endpoint) {
+		if (this.tcp_endpoint!=null) {
+			this.tcp_endpoint.destroy();
+		}
+
+		LOGGER.log(Level.CONFIG, "{0} becomes tcp endpoint", endpoint.getAddress());
+
+		this.tcp_endpoint = endpoint;
+
+		if (!this.tcp_endpoint.isStarted()) {
+			try {
+				tcp_endpoint.start();
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not start new tcp endpoint", e);
+			}
+		}
+	}
+
 	/**
 	 * Configures a new default endpoint. Any old default endpoint is destroyed.
 	 * @param endpoint the new default endpoint
