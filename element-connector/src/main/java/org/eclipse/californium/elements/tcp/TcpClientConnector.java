@@ -29,6 +29,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.pool.AbstractChannelPoolHandler;
 import io.netty.channel.pool.AbstractChannelPoolMap;
 import io.netty.channel.pool.ChannelPool;
+import io.netty.channel.pool.ChannelPoolMap;
 import io.netty.channel.pool.FixedChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -144,6 +145,15 @@ public class TcpClientConnector implements Connector {
         return new InetSocketAddress(0);
     }
 
+    @Override
+    public boolean isTcp() {
+        return true;
+    }
+
+    ChannelPoolMap<SocketAddress, ChannelPool> getPoolMap() {
+        return poolMap;
+    }
+
     private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
 
         private final SocketAddress key;
@@ -156,33 +166,32 @@ public class TcpClientConnector implements Connector {
         public void channelCreated(Channel ch) throws Exception {
             // Handler order:
             // 1. Generate Idle events
-            // 2. Remove (and close) endpoint pools when idle
-            // 3. Stream-to-message decoder
-            // 4. Hand-off decoded messages to CoAP stack
+            // 2. Close idle channels
+            // 3. Remove pools when they are empty.
+            // 4. Stream-to-message decoder
+            // 5. Hand-off decoded messages to CoAP stack
+            // 6. Close connections on errors
             ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
-            ch.pipeline().addLast(new ChannelDuplexHandler() {
-                @Override
-                public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                    if (evt instanceof IdleStateEvent) {
-                        // TODO: Small risk of race condition here if pool is being removed while new data is being
-                        // sent or received. The race would cause a send to fail.
-                        poolMap.remove(key);
-                    }
-                }
-            });
+            ch.pipeline().addLast(new CloseOnIdleHandler());
+            ch.pipeline().addLast(new RemoveEmptyPoolHandler(key));
             ch.pipeline().addLast(new DatagramFramer());
-            ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                    rawDataChannel.receiveData((RawData) msg);
-                }
-            });
+            ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
+            ch.pipeline().addLast(new CloseOnErrorHandler());
         }
     }
 
+    private class RemoveEmptyPoolHandler extends ChannelDuplexHandler {
+        private final SocketAddress key;
 
-    @Override
-    public boolean isTcp() {
-        return true;
+        RemoveEmptyPoolHandler(SocketAddress key) {
+            this.key = key;
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            // TODO: This only works with fixed sized pool with connection one. Otherwise it's not save to remove and
+            // close the pool as soon as a single channel is closed.
+            poolMap.remove(key);
+        }
     }
 }
