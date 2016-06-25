@@ -20,7 +20,6 @@ package org.eclipse.californium.elements.tcp;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -29,7 +28,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -39,6 +37,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -136,6 +135,17 @@ public class TcpServerConnector implements Connector {
         return localAddress;
     }
 
+
+
+    @Override
+    public boolean isTcp() {
+        return true;
+    }
+
+    Map<SocketAddress, Channel> getActiveChannels() {
+        return activeChannels;
+    }
+
     private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
@@ -145,38 +155,26 @@ public class TcpServerConnector implements Connector {
             // 2. Close idle channels.
             // 3. Stream-to-message decoder
             // 4. Hand-off decoded messages to CoAP stack
-            ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                    activeChannels.put(ctx.channel().remoteAddress(), ctx.channel());
-                }
-
-                @Override
-                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                    activeChannels.remove(ctx.channel().remoteAddress());
-                }
-            });
+            // 5. Close connections on errors.
+            ch.pipeline().addLast(new ChannelTracker());
             ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
-            ch.pipeline().addLast(new ChannelDuplexHandler() {
-                @Override
-                public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                    if (evt instanceof IdleStateEvent) {
-                        ctx.close();
-                    }
-                }
-            });
+            ch.pipeline().addLast(new CloseOnIdleHandler());
             ch.pipeline().addLast(new DatagramFramer());
-            ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                    rawDataChannel.receiveData((RawData) msg);
-                }
-            });
+            ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
+            ch.pipeline().addLast(new CloseOnIdleHandler());
         }
     }
 
-    @Override
-    public boolean isTcp() {
-        return true;
+    /** Tracks active channels to send messages over them. TCPServer connector does not establish new connections. */
+    private class ChannelTracker extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            activeChannels.put(ctx.channel().remoteAddress(), ctx.channel());
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            activeChannels.remove(ctx.channel().remoteAddress());
+        }
     }
 }
