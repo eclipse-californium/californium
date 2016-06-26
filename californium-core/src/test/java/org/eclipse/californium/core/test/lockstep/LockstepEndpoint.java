@@ -26,10 +26,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
-import org.junit.Assert;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -46,46 +48,66 @@ import org.eclipse.californium.core.network.serialization.Serializer;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.junit.Assert;
 
 
 public class LockstepEndpoint {
 
 	public static boolean DEFAULT_VERBOSE = false;
-	
+
+	private static final Logger LOG = Logger.getLogger(LockstepEndpoint.class.getName());
 	private UDPConnector connector;
 	private InetSocketAddress destination;
-	private LinkedBlockingQueue<RawData> incoming;
-	
-	private HashMap<String, Object> storage;
-	
+	private BlockingQueue<RawData> incoming;
+
+	private final Map<String, Object> storage;
+
 	private boolean verbose = DEFAULT_VERBOSE;
 
 	public LockstepEndpoint() {
-		this.storage = new HashMap<String, Object>();
-		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		this.connector.setRawDataReceiver(new RawDataChannel() {
-			public void receiveData(RawData raw) {
-				incoming.offer(raw);
-			}
-		});
-		
+		this.storage = new HashMap<>();
+		this.incoming = new LinkedBlockingQueue<>();
+
 		try {
-			connector.start();
-			Thread.sleep(100);
+			startNewConnector();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
-	public LockstepEndpoint(InetSocketAddress destination) {
+
+	public LockstepEndpoint(final InetSocketAddress destination) {
 		this();
 		this.destination = destination;
+	}
+
+	private void startNewConnector() throws Exception {
+		this.connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		this.connector.setRawDataReceiver(new RawDataChannel() {
+			@Override
+			public void receiveData(RawData raw) {
+				incoming.offer(raw);
+			}
+		});
+		connector.start();
+		Thread.sleep(100);
 	}
 
 	public void destroy() {
 		if (connector != null) {
 			connector.destroy();
+		}
+	}
+
+	public void forceAddressChange() throws Exception {
+		if (connector == null) {
+			startNewConnector();
+		} else {
+			InetSocketAddress oldAdress = connector.getAddress();
+			do {
+				destroy();
+				startNewConnector();
+			} while (oldAdress.equals(connector.getAddress()));
+			LOG.log(Level.INFO, "changed server address from {0} to {1}", new Object[]{oldAdress, connector.getAddress()});
 		}
 	}
 

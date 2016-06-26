@@ -96,18 +96,18 @@ public class CoapServer implements ServerInterface {
 
 	/** The root resource. */
 	private final Resource root;
-	
+
 	/** The message deliverer. */
 	private MessageDeliverer deliverer;
-	
+
 	/** The list of endpoints the server connects to the network. */
 	private final List<Endpoint> endpoints;
-	
+
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
-	
+
 	private final NetworkConfig config;
-	
+
 	/**
 	 * Constructs a default server. The server starts after the method
 	 * {@link #start()} is called. If a server starts and has no specific ports
@@ -116,7 +116,7 @@ public class CoapServer implements ServerInterface {
 	public CoapServer() {
 		this(NetworkConfig.getStandard());
 	}
-	
+
 	/**
 	 * Constructs a server that listens to the specified port(s) after method
 	 * {@link #start()} is called.
@@ -126,7 +126,7 @@ public class CoapServer implements ServerInterface {
 	public CoapServer(final int... ports) {
 		this(NetworkConfig.getStandard(), ports);
 	}
-	
+
 	/**
 	 * Constructs a server with the specified configuration that listens to the
 	 * specified ports after method {@link #start()} is called.
@@ -136,23 +136,23 @@ public class CoapServer implements ServerInterface {
 	 * @param ports the ports to bind to
 	 */
 	public CoapServer(final NetworkConfig config, final int... ports) {
-		
+
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
 		} else {
 			this.config = NetworkConfig.getStandard();
 		}
-		
+
 		// resources
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
-		
+
 		CoapResource wellKnown = new CoapResource(".well-known");
 		wellKnown.setVisible(false);
 		wellKnown.add(new DiscoveryResource(root));
 		root.add(wellKnown);
-		
+
 		// endpoints
 		this.endpoints = new ArrayList<>();
 		// sets the central thread pool for the protocol stage over all endpoints
@@ -164,19 +164,19 @@ public class CoapServer implements ServerInterface {
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 	}
-	
+
 	public void setExecutor(final ScheduledExecutorService executor) {
-		
+
 		if (this.executor != null) {
 			this.executor.shutdown();
 		}
-		
+
 		this.executor = executor;
 		for (Endpoint ep : endpoints) {
 			ep.setExecutor(executor);
 		}
 	}
-	
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
@@ -184,18 +184,18 @@ public class CoapServer implements ServerInterface {
 	 */
 	@Override
 	public void start() {
-		
+
 		LOGGER.info("Starting server");
-		
+
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
-		
+
 		int started = 0;
-		for (Endpoint ep:endpoints) {
+		for (Endpoint ep : endpoints) {
 			try {
 				ep.start();
 				// only reached on success
@@ -204,7 +204,7 @@ public class CoapServer implements ServerInterface {
 				LOGGER.log(Level.SEVERE, "Cannot start server endpoint [" + ep.getAddress() + "]", e);
 			}
 		}
-		if (started==0) {
+		if (started == 0) {
 			throw new IllegalStateException("None of the server endpoints could be started");
 		}
 	}
@@ -249,7 +249,7 @@ public class CoapServer implements ServerInterface {
 			endpoint.setMessageDeliverer(deliverer);
 		}
 	}
-	
+
 	/**
 	 * Gets the message deliverer.
 	 *
@@ -274,7 +274,7 @@ public class CoapServer implements ServerInterface {
 		endpoint.setExecutor(executor);
 		endpoints.add(endpoint);
 	}
-	
+
 	/**
 	 * Gets the list of endpoints this server is connected to.
 	 *
