@@ -3,8 +3,6 @@ package org.eclipse.californium.benchmark;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 
 import java.util.Arrays;
 import java.util.Random;

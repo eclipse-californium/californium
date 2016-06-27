@@ -22,7 +22,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -54,7 +53,7 @@ import java.util.logging.Logger;
  */
 public class TcpClientConnector implements Connector {
 
-    private final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
 
     private final int numberOfThreads;
     private final int connectionIdleTimeoutSeconds;

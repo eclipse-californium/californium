@@ -50,7 +50,7 @@ import java.util.logging.Logger;
  */
 public class TcpServerConnector implements Connector {
 
-    private final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
 
     private final int numberOfThreads;
     private final InetSocketAddress localAddress;
