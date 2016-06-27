@@ -3,7 +3,6 @@ package org.eclipse.californium.elements.tcp;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.IdleStateEvent;
-import org.eclipse.californium.elements.UDPConnector;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,7 +12,7 @@ import java.util.logging.Logger;
  */
 class CloseOnIdleHandler extends ChannelDuplexHandler {
 
-    private final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(CloseOnIdleHandler.class.getName());
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
