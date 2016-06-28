@@ -27,6 +27,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
@@ -43,7 +44,6 @@ public class UdpMatcherTest {
 	static final String CIPHER = "TLS_PSK";
 	static final String OTHER_CIPHER = "TLS_NULL";
 	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
-	static final InetSocketAddress source = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 
 	@Test
 	public void testReceiveResponseAcceptsResponseWithoutCorrelationInformation() {
@@ -190,7 +190,9 @@ public class UdpMatcherTest {
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		return new UdpMatcher(config);
+		UdpMatcher matcher = new UdpMatcher(config, null, new InMemoryObservationStore());
+		matcher.start();
+		return matcher;
 	}
 
 	private Exchange sendRequest(final UdpMatcher matcher, final CorrelationContext ctx) {
@@ -208,8 +210,10 @@ public class UdpMatcherTest {
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
 		response.setBytes(new byte[]{});
-		response.setSource(source.getAddress());
-		response.setSourcePort(source.getPort());
+		response.setSource(request.getDestination());
+		response.setSourcePort(request.getDestinationPort());
+		response.setDestination(request.getSource());
+		response.setDestinationPort(request.getSourcePort());
 		return response;
 	}
 }

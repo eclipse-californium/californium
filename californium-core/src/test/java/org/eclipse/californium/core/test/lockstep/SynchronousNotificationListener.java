@@ -24,7 +24,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 public class SynchronousNotificationListener implements NotificationListener {
 
 	private Request request; // request to listen
-	private Response currentResponse;
+	private Response response;
 	private Object lock = new Object();
 
 	public SynchronousNotificationListener() {
@@ -43,13 +43,13 @@ public class SynchronousNotificationListener implements NotificationListener {
 	public Response waitForResponse(long timeoutInMs) throws InterruptedException {
 		Response r;
 		synchronized (lock) {
-			if (currentResponse != null)
-				r = currentResponse;
+			if (response != null)
+				r = response;
 			else {
 				lock.wait(timeoutInMs);
-				r = currentResponse;
+				r = response;
 			}
-			currentResponse = null;
+			response = null;
 		}
 		return r;
 	}
@@ -58,7 +58,7 @@ public class SynchronousNotificationListener implements NotificationListener {
 	public void onNotification(Request req, Response resp) {
 		if (request == null || Arrays.equals(request.getToken(), req.getToken())) {
 			synchronized (lock) {
-				currentResponse = resp;
+				response = resp;
 				lock.notifyAll();
 			}
 		}

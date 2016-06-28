@@ -61,8 +61,6 @@ import org.eclipse.californium.elements.CorrelationContext;
  */
 public class Exchange {
 
-	private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
-
 	/**
 	 * The origin of an exchange. If Cf receives a new request and creates a new
 	 * exchange the origin is REMOTE since the request has been initiated from a
@@ -155,7 +153,6 @@ public class Exchange {
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 */
 	public Exchange(final Request request, final Origin origin) {
-		INSTANCE_COUNTER.incrementAndGet();
 		this.currentRequest = request; // might only be the first block of the whole request
 		this.origin = origin;
 		this.timestamp = System.currentTimeMillis();
@@ -169,7 +166,6 @@ public class Exchange {
 	 * @param ctx the correlation context of this exchange
 	 */
 	public Exchange(Request request, Origin origin, CorrelationContext ctx) {
-		INSTANCE_COUNTER.incrementAndGet();
 		this.currentRequest = request; // might only be the first block of the whole request
 		this.origin = origin;
 		this.correlationContext = ctx;
@@ -219,7 +215,7 @@ public class Exchange {
 	}
 
 	public boolean isOfLocalOrigin() {
-	    return origin == Origin.LOCAL;
+		return origin == Origin.LOCAL;
 	}
 
 	/**
@@ -548,44 +544,41 @@ public class Exchange {
 	}
 
 	/**
-	 * This class is used by the matcher to remember a message by its MID and
-	 * source/destination.
+	 * A CoAP message ID scoped to a remote endpoint.
+	 * <p>
+	 * This class is used by the matcher to correlate messages by MID and endpoint address.
 	 */
 	public static final class KeyMID {
 
-		protected final int MID;
-		protected final byte[] address;
-		protected final int port;
+		private static final int MAX_PORT_NO = (1 << 16) - 1;
+		private final int MID;
+		private final byte[] address;
+		private final int port;
 		private final int hash;
 
 		/**
-		 * Creates a key based on a message ID created locally.
-		 * <p>
-		 * Keys created using this constructor are used for messages being <em>sent</em> to a peer.
-		 * </p>
+		 * Creates a key based on a message ID and a remote endpoint address.
 		 * 
-		 * @param mid the message ID to use.
-		 */
-		public KeyMID(int mid) {
-			this(mid, null, 0);
-		}
-
-		/**
-		 * Creates a key based on a message ID created by a remote peer.
-		 * <p>
-		 * Keys created using this constructor are used for messages that have
-		 * been <em>received</em> from a peer.
-		 * </p>
+		 * @param mid the message ID.
+		 * @param address the IP address of the remote endpoint.
+		 * @param port the port of the remote endpoint.
+		 * @throws NullPointerException if address or origin is {@code null}
+		 * @throws IllegalArgumentException if mid or port &lt; 0 or &gt; 65535.
 		 * 
-		 * @param mid the message ID created by the peer.
-		 * @param address the IP address of the peer
-		 * @param port the port of the peer
 		 */
-		public KeyMID(int mid, byte[] address, int port) {
-			this.MID = mid;
-			this.address = address;
-			this.port = port;
-			this.hash = (port*31 + mid) * 31 + Arrays.hashCode(address);
+		private KeyMID(final int mid, final byte[] address, final int port) {
+			if (mid < 0 || mid > Message.MAX_MID) {
+				throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
+			} else if (address == null) {
+				throw new NullPointerException("address must not be null");
+			} else if (port < 0 || port > MAX_PORT_NO) {
+				throw new IllegalArgumentException("Port must be a 16 bit unsigned int");
+			} else {
+				this.MID = mid;
+				this.address = address;
+				this.port = port;
+				this.hash = createHashCode();
+			}
 		}
 
 		@Override
@@ -593,90 +586,216 @@ public class Exchange {
 			return hash;
 		}
 
+		private int createHashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + MID;
+			result = prime * result + Arrays.hashCode(address);
+			result = prime * result + port;
+			return result;
+		}
+
 		@Override
-		public boolean equals(Object o) {
-			if (! (o instanceof KeyMID)) {
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
 				return false;
-			}
-			KeyMID key = (KeyMID) o;
-			return MID == key.MID && port == key.port && Arrays.equals(address, key.address);
+			if (getClass() != obj.getClass())
+				return false;
+			KeyMID other = (KeyMID) obj;
+			if (MID != other.MID)
+				return false;
+			if (!Arrays.equals(address, other.address))
+				return false;
+			if (port != other.port)
+				return false;
+			return true;
 		}
 
 		@Override
 		public String toString() {
-			StringBuilder b = new StringBuilder("KeyMID[").append(MID);
-			if (address != null) {
-				b.append(" for ").append(Utils.toHexString(address)).append(":").append(port);
-			}
-			b.append("]");
-			return b.toString();
+			return new StringBuilder("KeyMID[").append(MID)
+				.append(", ").append(Utils.toHexString(address)).append(":").append(port)
+				.append("]").toString();
 		}
 
+		/**
+		 * Creates a key from an inbound CoAP message.
+		 * 
+		 * @param message the message.
+		 * @return the key derived from the message. The key's <em>mid</em> is scoped to the message's
+		 *         source address and port.
+		 */
 		public static KeyMID fromInboundMessage(Message message) {
 			return new KeyMID(message.getMID(), message.getSource().getAddress(), message.getSourcePort());
 		}
+
+		/**
+		 * Creates a key from an outbound CoAP message.
+		 * 
+		 * @param message the message.
+		 * @return the key derived from the message. The key's <em>mid</em> is scoped to the message's
+		 *         destination address and port.
+		 */
+		public static KeyMID fromOutboundMessage(Message message) {
+			return new KeyMID(message.getMID(), message.getDestination().getAddress(), message.getDestinationPort());
+		}
 	}
 
 	/**
-	 * This class is used by the matcher to remember a request by its token and
-	 * destination.
+	 * A CoAP message token scoped to a remote endpoint.
+	 * <p>
+	 * This class is used by the matcher to correlate messages by their token and
+	 * endpoint address.
 	 */
 	public static final class KeyToken {
 
-		protected final byte[] token;
+		private static final int MAX_PORT_NO = (1 << 16) - 1;
+		private final byte[] token;
+		private final byte[] address;
+		private final int port;
 		private final int hash;
 
-		public KeyToken(byte[] token) {
-			if (token == null)
-				throw new NullPointerException();
-			this.token = token;
-			this.hash = Arrays.hashCode(token);
+		private KeyToken(byte[] token, byte[] address, int port) {
+			if (token == null) {
+				throw new NullPointerException("token bytes must not be null");
+			} else if (address == null) {
+				throw new NullPointerException("address must not be null");
+			} else if (port < 0 || port > MAX_PORT_NO) {
+				throw new IllegalArgumentException("port must be a 16 bit unsigned int");
+			}
+			this.token = Arrays.copyOf(token, token.length);
+			this.address = address;
+			this.port = port;
+			this.hash = createHash();
 		}
 
-		@Override
-		public int hashCode() {
-			return hash;
+		/**
+		 * Creates a new key for an inbound CoAP message.
+		 * <p>
+		 * The key will be scoped to the message's source endpoint.
+		 *  
+		 * @param msg the message.
+		 * @return the key.
+		 */
+		public static KeyToken fromInboundMessage(final Message msg) {
+			return new KeyToken(msg.getToken(), msg.getSource().getAddress(), msg.getSourcePort());
 		}
 
-		@Override
-		public boolean equals(Object o) {
-			if (! (o instanceof KeyToken))
-				return false;
-			KeyToken key = (KeyToken) o;
-			return Arrays.equals(token, key.token);
+		/**
+		 * Creates a new key for an outbound CoAP message.
+		 * <p>
+		 * The key will be scoped to the message's destination endpoint.
+		 *  
+		 * @param msg the message.
+		 * @return the key.
+		 */
+		public static KeyToken fromOutboundMessage(final Message msg) {
+			return new KeyToken(msg.getToken(), msg.getDestination().getAddress(), msg.getDestinationPort());
+		}
+
+		/**
+		 * Creates a new key for a token and an endpoint address.
+		 *  
+		 * @param token the token.
+		 * @param address the endpoint's address.
+		 * @param port the endpoint's port.
+		 * @return the key.
+		 * @throws NullPointerException if token or address is {@code null}
+		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
+		 */
+		public static KeyToken fromValues(byte[] token, byte[] address, int port) {
+			return new KeyToken(token, address, port);
+		}
+
+		private int createHash() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + port;
+			result = prime * result + Arrays.hashCode(address);
+			result = prime * result + Arrays.hashCode(token);
+			return result;
 		}
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append("]").toString();
+			return new StringBuilder("KeyToken[").append(Utils.toHexString(token))
+				.append(", ").append(Utils.toHexString(address)).append(":").append(port)
+				.append("]").toString();
 		}
-	}
 
-	/**
-	 * This class is used by the matcher to remember a request by its 
-	 * destination URI (for observe relations).
-	 */
-	public static class KeyUri {
-
-		protected final String uri;
-		protected final byte[] address;
-		protected final int port;
-		private final int hash;
-		
-		public KeyUri(String uri, byte[] address, int port) {
-			if (uri == null) throw new NullPointerException();
-			if (address == null) throw new NullPointerException();
-			this.uri = uri;
-			this.address = address;
-			this.port = port;
-			this.hash = (port*31 + uri.hashCode()) * 31 + Arrays.hashCode(address);
-		}
-		
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			KeyToken other = (KeyToken) obj;
+			if (!Arrays.equals(address, other.address))
+				return false;
+			if (port != other.port)
+				return false;
+			if (!Arrays.equals(token, other.token))
+				return false;
+			return true;
+		}
+
+		public byte[] getToken() {
+			return Arrays.copyOf(token, token.length);
+		}
+	}
+
+	/**
+	 * A key based on a CoAP message's target URI that is scoped to an endpoint.
+	 * <p>
+	 * This class is used by the matcher to correlate requests by their target
+	 * URI (for observe relations).
+	 */
+	public static final class KeyUri {
+
+		private static final int MAX_PORT_NO = (1 << 16) - 1;
+		private final String uri;
+		private final byte[] address;
+		private final int port;
+		private final int hash;
+
+		/**
+		 * Creates a new key for a URI scoped to an endpoint address.
+		 * 
+		 * @param uri the URI.
+		 * @param address the endpoint's address.
+		 * @param port the endpoint's port.
+		 * @throws NullPointerException if uri or address is {@code null}
+		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
+		 */
+		public KeyUri(String uri, byte[] address, int port) {
+			if (uri == null) {
+				throw new NullPointerException("URI must not be null");
+			} else if (address == null) {
+				throw new NullPointerException("address must not be null");
+			} else if (port < 0 || port > MAX_PORT_NO) {
+				throw new IllegalArgumentException("port must be an unsigned 16 bit int");
+			} else {
+				this.uri = uri;
+				this.address = address;
+				this.port = port;
+				this.hash = (port * 31 + uri.hashCode()) * 31 + Arrays.hashCode(address);
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			return hash;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (! (o instanceof KeyUri))
@@ -684,10 +803,27 @@ public class Exchange {
 			KeyUri key = (KeyUri) o;
 			return uri.equals(key.uri) && port == key.port && Arrays.equals(address, key.address);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyUri["+uri+" for "+Utils.toHexString(address)+":"+port+"]";
+			return new StringBuilder("KeyUri[").append(uri)
+					.append(", ").append(Utils.toHexString(address)).append(":").append(port)
+					.append("]").toString();
+		}
+
+		/**
+		 * Creates a new key for a request scoped to the request's source endpoint address.
+		 * 
+		 * @param request the request.
+		 * @return the key.
+		 * @throws NullPointerException if the request is {@code null}.
+		 */
+		public static KeyUri fromInboundRequest(final Request request) {
+			if (request == null) {
+				throw new NullPointerException("request must not be null");
+			} else {
+				return new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
+			}
 		}
 	}
 }

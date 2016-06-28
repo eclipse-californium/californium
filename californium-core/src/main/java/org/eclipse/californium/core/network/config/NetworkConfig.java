@@ -66,27 +66,30 @@ public class NetworkConfig {
 		public static final String ACK_RANDOM_FACTOR = "ACK_RANDOM_FACTOR";
 		public static final String ACK_TIMEOUT_SCALE = "ACK_TIMEOUT_SCALE";
 		public static final String MAX_RETRANSMIT = "MAX_RETRANSMIT";
+		/**
+		 * The EXCHANGE_LIFETIME as defined by the CoAP spec in MILLISECONDS.
+		 */
 		public static final String EXCHANGE_LIFETIME = "EXCHANGE_LIFETIME";
 		public static final String NON_LIFETIME = "NON_LIFETIME";
 		public static final String MAX_TRANSMIT_WAIT = "MAX_TRANSMIT_WAIT";
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
-		
+
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
-		
+
 		public static final String PREFERRED_BLOCK_SIZE = "PREFERRED_BLOCK_SIZE";
 		public static final String MAX_MESSAGE_SIZE = "MAX_MESSAGE_SIZE";
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
-		
+
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
 		public static final String NOTIFICATION_REREGISTRATION_BACKOFF = "NOTIFICATION_REREGISTRATION_BACKOFF";
-	
+
 		public static final String USE_CONGESTION_CONTROL = "USE_CONGESTION_CONTROL";
 		public static final String CONGESTION_CONTROL_ALGORITHM = "CONGESTION_CONTROL_ALGORITHM";
-		
+
 		public static final String PROTOCOL_STAGE_THREAD_COUNT = "PROTOCOL_STAGE_THREAD_COUNT";
 		public static final String NETWORK_STAGE_RECEIVER_THREAD_COUNT = "NETWORK_STAGE_RECEIVER_THREAD_COUNT";
 		public static final String NETWORK_STAGE_SENDER_THREAD_COUNT = "NETWORK_STAGE_SENDER_THREAD_COUNT";
@@ -98,6 +101,9 @@ public class NetworkConfig {
 
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
+		/**
+		 * The interval after which the next sweep run should occur (in MILLISECONDS).
+		 */
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
