@@ -201,8 +201,9 @@ public class CoapUdpStack implements CoapStack {
 
 		@Override
 		public void receiveResponse(Exchange exchange, Response response) {
+			// we always complete the message exchange when we have received a response
 			exchange.setComplete();
-			if (deliverer != null) {
+			if (hasDeliverer()) {
 				deliverer.deliverResponse(exchange, response); // notify request that response has arrived
 			} else {
 				LOGGER.severe("Top of CoAP stack has no deliverer to deliver response");

@@ -76,7 +76,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000);
+		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
 		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, false);
 

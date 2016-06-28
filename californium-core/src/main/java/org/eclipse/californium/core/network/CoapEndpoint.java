@@ -168,6 +168,8 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new ArrayList<NotificationListener>(0);
 
+	private final MessageExchangeStore exchangeStore;
+
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
 	 */
@@ -222,7 +224,18 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the network configuration
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(createUDPConnector(address, config), config);
+		this(createUDPConnector(address, config), config, null, null);
+	}
+
+	/**
+	 * Creates a new UDP endpoint for a bind address, configuration and message exchange store.
+	 *
+	 * @param address the address
+	 * @param config the network configuration
+	 * @param exchangeStore the store to use for keeping track of message exchanges.
+	 */
+	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		this(createUDPConnector(address, config), config, null, exchangeStore);
 	}
 
 	/**
@@ -233,7 +246,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the config
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config) {
-		this(connector, config, null);
+		this(connector, config, null, null);
 	}
 
 	/**
@@ -244,7 +257,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the config
 	 */
 	public CoapEndpoint(InetSocketAddress address, NetworkConfig config, ObservationStore store) {
-		this(createUDPConnector(address, config), config, store);
+		this(createUDPConnector(address, config), config, store, null);
 	}
 
 	/**
@@ -254,10 +267,12 @@ public class CoapEndpoint implements Endpoint {
 	 * @param connector the connector
 	 * @param config the config
 	 */
-	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store) {
+	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store, MessageExchangeStore exchangeStore) {
 		this.config = config;
 		this.connector = connector;
+		this.connector.setRawDataReceiver(new InboxImpl());
 		ObservationStore observationStore = store != null ? store : new InMemoryObservationStore();
+		this.exchangeStore = exchangeStore;
 
 		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
 				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
@@ -271,7 +286,6 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
-		this.connector.setRawDataReceiver(new InboxImpl());
 	}
 
 	/**
@@ -329,6 +343,12 @@ public class CoapEndpoint implements Endpoint {
 			});
 		}
 
+		if (exchangeStore == null) {
+			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
+		} else {
+			matcher.setMessageExchangeStore(exchangeStore);
+		}
+
 		try {
 			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getAddress());
 
@@ -375,7 +395,7 @@ public class CoapEndpoint implements Endpoint {
 			started = false;
 			connector.stop();
 			matcher.stop();
-			for (EndpointObserver obs:observers) {
+			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
 			matcher.clear();
@@ -422,7 +442,6 @@ public class CoapEndpoint implements Endpoint {
 		// TODO: don't we need to stop and shut down the previous executor?
 		this.executor = executor;
 		this.coapstack.setExecutor(executor);
-		this.matcher.setExecutor(executor);
 	}
 
 	/*

@@ -24,108 +24,49 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.CorrelationContext;
-
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Matcher that runs over reliable TCP/TLS protocol. Based on
  * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02"/>
  */
-public class TcpMatcher implements Matcher {
+public final class TcpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = Logger.getLogger(UdpMatcher.class.getCanonicalName());
-
-	private final ConcurrentHashMap<Exchange.KeyToken, Exchange> exchangesByToken; // for outgoing
-	private final ConcurrentHashMap<Exchange.KeyUri, Exchange> ongoingExchanges; // for blockwise
+	private static final Logger LOGGER = Logger.getLogger(TcpMatcher.class.getName());
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 
-	/* limit the token size to save bytes in closed environments */
-	private final int tokenSizeLimit;
-	/* Health status output */
-	private final Level healthStatusLevel;
-	private final int healthStatusInterval; // seconds
-
-	private boolean started;
-
-	/* the executor, by default the one of the protocol stage */
-	private ScheduledExecutorService executor;
-
+	/**
+	 * Creates a new matcher for running CoAP over TCP.
+	 * 
+	 * @param config the configuration to use.
+	 * @throws NullPointerException if the configuration is {@code null}.
+	 */
 	public TcpMatcher(final NetworkConfig config) {
-		this.exchangesByToken = new ConcurrentHashMap<>();
-		this.ongoingExchanges = new ConcurrentHashMap<>();
-
-		tokenSizeLimit = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT);
-		if (LOGGER.isLoggable(Level.CONFIG)) {
-			LOGGER.log(Level.CONFIG, "Matcher uses {0}={1}",
-					new Object[] { NetworkConfig.Keys.TOKEN_SIZE_LIMIT, tokenSizeLimit });
-		}
-
-		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
-		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
-	}
-
-	@Override public synchronized void start() {
-		if (executor == null) {
-			throw new IllegalStateException("Matcher has no executor to publish health status.");
-		} else if (!started) {
-			started = true;
-
-			// this is a useful health metric that could later be exported to some kind of monitoring interface
-			if (LOGGER.isLoggable(healthStatusLevel)) {
-				executor.scheduleAtFixedRate(new Runnable() {
-
-					@Override public void run() {
-						LOGGER.log(healthStatusLevel, "Matcher state: {0} exchangesByToken, {1} ongoingExchanges",
-								new Object[] { exchangesByToken.size(), ongoingExchanges.size() });
-					}
-				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
-			}
-		}
-	}
-
-	@Override public synchronized void stop() {
-		if (started) {
-			started = false;
-			clear();
-		}
-	}
-
-	@Override public synchronized void setExecutor(final ScheduledExecutorService executor) {
-		this.executor = executor;
-		// health status runnable is not migrated at the moment
+		super(config);
 	}
 
 	@Override public void sendRequest(Exchange exchange, Request request) {
 
-		// ensure Token is set
-		Exchange.KeyToken idByToken;
-		if (request.getToken() == null) {
-			idByToken = createUnusedToken();
-			request.setToken(idByToken.token);
-		} else {
-			idByToken = new Exchange.KeyToken(request.getToken());
+		if (request.getToken() != null) {
+			KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(request);
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1() || request.getOptions()
-					.hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
+					.hasBlock2() || request.getOptions().hasObserve()) && exchangeStore.get(idByToken) != null) {
 				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
 		}
 
 		exchange.setObserver(exchangeObserver);
-		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { idByToken });
-
-		exchangesByToken.put(idByToken, exchange);
+		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
+		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { request.getTokenString() });
 	}
 
 	@Override public void sendResponse(Exchange exchange, Response response) {
@@ -141,7 +82,7 @@ public class TcpMatcher implements Matcher {
 			// Observe notifications only send the first block, hence do not store them as ongoing
 			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
-				if (ongoingExchanges.put(idByUri, exchange) == null) {
+				if (exchangeStore.registerBlockwiseExchange(idByUri, exchange) == null) {
 					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}",
 							new Object[] { idByUri, request });
 				} else {
@@ -151,7 +92,7 @@ public class TcpMatcher implements Matcher {
 			} else {
 				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
 						new Object[] { idByUri, request });
-				ongoingExchanges.remove(idByUri);
+				exchangeStore.remove(idByUri);
 			}
 		}
 
@@ -183,7 +124,7 @@ public class TcpMatcher implements Matcher {
 					request.getSourcePort());
 			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
 
-			Exchange ongoing = ongoingExchanges.get(idByUri);
+			Exchange ongoing = exchangeStore.get(idByUri);
 			if (ongoing != null) {
 				return ongoing;
 			} else {
@@ -199,7 +140,7 @@ public class TcpMatcher implements Matcher {
 				Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
 				LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}", new Object[] { idByUri, request });
 				exchange.setObserver(exchangeObserver);
-				ongoingExchanges.put(idByUri, exchange);
+				exchangeStore.registerBlockwiseExchange(idByUri, exchange);
 				return exchange;
 			} // if ongoing
 		} // if blockwise
@@ -207,8 +148,8 @@ public class TcpMatcher implements Matcher {
 
 	@Override public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
 
-		Exchange.KeyToken idByToken = new Exchange.KeyToken(response.getToken());
-		Exchange exchange = exchangesByToken.get(idByToken);
+		Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
 			// There is no exchange with the given token - ignore response
@@ -231,36 +172,13 @@ public class TcpMatcher implements Matcher {
 		return null;
 	}
 
-	@Override public void clear() {
-		this.exchangesByToken.clear();
-		this.ongoingExchanges.clear();
-	}
-
-	/**
-	 * Creates a new token that is never the empty token (i.e., always 1-8 bytes).
-	 * @return the new token
-	 */
-	private Exchange.KeyToken createUnusedToken() {
-
-		Random random = ThreadLocalRandom.current();
-		byte[] token;
-		Exchange.KeyToken result;
-		do {
-			token = new byte[tokenSizeLimit];
-			random.nextBytes(token);
-			result = new Exchange.KeyToken(token);
-		} while (exchangesByToken.get(result) != null);
-
-		return result;
-	}
-
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override public void completed(final Exchange exchange) {
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
-				Exchange.KeyToken idByToken = new Exchange.KeyToken(exchange.getCurrentRequest().getToken());
-				exchangesByToken.remove(idByToken);
+				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+				exchangeStore.remove(idByToken);
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
 				Response response = exchange.getCurrentResponse();
@@ -270,13 +188,14 @@ public class TcpMatcher implements Matcher {
 					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
-					ongoingExchanges.remove(uriKey);
+					exchangeStore.remove(uriKey);
 				}
 			}
 		}
 
 		@Override public void contextEstablished(final Exchange exchange) {
-			// do nothing
+			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 

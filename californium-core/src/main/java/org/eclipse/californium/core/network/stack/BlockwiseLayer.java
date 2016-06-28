@@ -698,10 +698,10 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			if (exchange.getRequest()==null) {
+			if (exchange.getRequest() == null) {
 				LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
 			} else {
-				LOGGER.log(Level.INFO, "Block2 transfer timed out: {1}", exchange.getRequest());
+				LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
 			}
 			exchange.setComplete();
 		}

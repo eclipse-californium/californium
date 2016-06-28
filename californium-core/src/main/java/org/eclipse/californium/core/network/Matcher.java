@@ -5,8 +5,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.CorrelationContext;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
  * <p>
@@ -36,9 +34,13 @@ public interface Matcher {
 	void stop();
 
 	/**
-	 * Sets executor over which this matcher will perform match and clean up tasks.
+	 * Sets the exchange store to use for keeping track of message exchanges with endpoints.
+	 * 
+	 * @param store the store to use.
+	 * @throws NullPointerException if store is {@code null}.
+	 * @throws IllegalStateException if this Matcher is already started.
 	 */
-	void setExecutor(ScheduledExecutorService executor);
+	void setMessageExchangeStore(MessageExchangeStore store);
 
 	/**
 	 * Notifies this matcher about a request message being sent to a peer.

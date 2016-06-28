@@ -63,6 +63,12 @@ public abstract class Message {
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
+	/**
+	 * The largest message ID allowed by CoAP.
+	 * <p>
+	 * The value of this constant is 2^16 - 1.
+	 */
+	public static final int MAX_MID = (1 << 16) - 1;
 
 	/** The type. One of {CON, NON, ACK or RST}. */
 	private CoAP.Type type;
@@ -70,8 +76,15 @@ public abstract class Message {
 	/** The 16-bit Message Identification. */
 	private int mid = NONE; // Message ID
 
-	/** The token, a 0-8 byte array. */
-	private byte[] token;
+	/**
+	 * The token, a 0-8 byte array.
+	 * <p>
+	 * This field is initialized to {@code null} so that client code can
+	 * determine whether the message already has a token assigned or not.
+	 * An empty array would not work here because it is already a valid token
+	 * according to the CoAP spec.
+	 */
+	private byte[] token = null;
 
 	/** The set of options of this message. */
 	private OptionSet options;
@@ -202,6 +215,15 @@ public abstract class Message {
 	}
 
 	/**
+	 * Checks whether this message has a valid ID.
+	 * 
+	 * @return {@code true} if this message's ID is a 16 bit unsigned integer.
+a	 */
+	public boolean hasMID() {
+		return mid != NONE;
+	}
+
+	/**
 	 * Sets the 16-bit message identification.
 	 * Provides a fluent API to chain setters.
 	 *
@@ -209,8 +231,9 @@ public abstract class Message {
 	 * @return this Message
 	 */
 	public Message setMID(int mid) {
-		if (mid >= 1<<16 || mid < NONE)
-			throw new IllegalArgumentException("The MID must be a 16-bit number between 0 and "+((1<<16)-1)+" inclusive but was "+mid);
+		if (mid > MAX_MID || mid < NONE) { // NONE is allowed as a temporary placeholder
+			throw new IllegalArgumentException("The MID must be an unsigned 16-bit number but was " + mid);
+		}
 		this.mid = mid;
 		return this;
 	}

@@ -498,9 +498,9 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CHANGED).loadBoth("F").block2(3, false, 128).payload(respPayload.substring(384, 500)).go();
 
 		Response response = request.waitForResponse(1000);
+		printServerLog(clientInterceptor);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
 
-		printServerLog(clientInterceptor);
 	}
 
 	@Test

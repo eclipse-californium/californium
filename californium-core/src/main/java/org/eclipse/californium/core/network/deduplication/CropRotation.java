@@ -20,12 +20,14 @@
 package org.eclipse.californium.core.network.deduplication;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -44,18 +46,24 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class CropRotation implements Deduplicator {
 
 	private final static Logger LOGGER = Logger.getLogger(CropRotation.class.getCanonicalName());
-	
+	private boolean running = false;
 	private ScheduledExecutorService executor;
-	
+
 	private ExchangeMap[] maps;
 	private int first;
 	private int second;
-	
-	private boolean started;
 
 	private long period;
 	private Rotation rotation;
-	
+
+	/**
+	 * Creates a new crop rotation deduplicator for configuration properties.
+	 * <p>
+	 * Uses the value of the {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#CROP_ROTATION_PERIOD}
+	 * param from the given configuration as the waiting period between crop rotation (in milliseconds).
+	 * 
+	 * @param config The configuration properties.
+	 */
 	public CropRotation(NetworkConfig config) {
 		this.rotation = new Rotation();
 		maps = new ExchangeMap[3];
@@ -66,27 +74,26 @@ public class CropRotation implements Deduplicator {
 		second = 1;
 		period = config.getInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
 	}
-	
+
 	@Override
 	public synchronized void start() {
-		started = true;
-		rotation.schedule();
+		if (!running) {
+			if (executor == null || executor.isShutdown()) {
+				executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("Deduplicator"));
+			}
+			rotation.schedule();
+			running = true;
+		}
 	}
 
 	@Override
 	public synchronized void stop() {
-		started = false;
-		rotation.cancel();
-		clear();
-	}
-
-	@Override
-	public synchronized void setExecutor(ScheduledExecutorService executor) {
-		started = false;
-		rotation.cancel();
-		this.executor = executor;
-		if (started)
-			start();
+		if (running) {
+			rotation.cancel();
+			executor.shutdown();
+			clear();
+			running = false;
+		}
 	}
 
 	@Override
@@ -113,11 +120,23 @@ public class CropRotation implements Deduplicator {
 
 	@Override
 	public void clear() {
-		maps[0].clear();
-		maps[1].clear();
-		maps[2].clear();
+		synchronized (maps) {
+			maps[0].clear();
+			maps[1].clear();
+			maps[2].clear();
+		}
 	}
-	
+
+	@Override
+	public boolean isEmpty() {
+		for (ExchangeMap map : maps) {
+			if (!map.isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private class Rotation implements Runnable {
 		
 		private ScheduledFuture<?> future;
@@ -125,8 +144,6 @@ public class CropRotation implements Deduplicator {
 		public void run() {
 			try {
 				rotation();
-				System.gc();
-				
 			} catch (Throwable t) {
 				LOGGER.log(Level.WARNING, "Exception in Crop-Rotation algorithm", t);
 			
@@ -140,20 +157,25 @@ public class CropRotation implements Deduplicator {
 		}
 		
 		private void rotation() {
-			int third = first;
-			first = second;
-			second = (second+1)%3;
-			maps[third].clear();
+			synchronized (maps) {
+				int third = first;
+				first = second;
+				second = (second+1)%3;
+				maps[third].clear();
+			}
 		}
 		
 		private void schedule() {
-			LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
-			future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
+			if (!executor.isShutdown()) {
+				LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
+				future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
+			}
 		}
-		
+
 		private void cancel() {
-			if (future != null)
+			if (future != null) {
 				future.cancel(true);
+			}
 		}
 	}
 	

@@ -24,7 +24,6 @@ package org.eclipse.californium.core.test.lockstep;
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.Code.POST;
 import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
-import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
@@ -32,23 +31,29 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import org.junit.Assert;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.test.EndpointSurveillant;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -68,7 +73,6 @@ public class BlockwiseServerSideTest {
 	private static NetworkConfig CONFIG;
 
 	private CoapServer server;
-	private EndpointSurveillant serverSurveillant;
 	private LockstepEndpoint client;
 	private int mid = 7000;
 	private TestResource testResource;
@@ -76,6 +80,7 @@ public class BlockwiseServerSideTest {
 	private String reqtPayload;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 	String path;
+	MessageExchangeStore exchangeStore;
 
 	@BeforeClass
 	public static void init() {
@@ -85,8 +90,8 @@ public class BlockwiseServerSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 100)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_EXCHANGE_LIFETIME)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
 	}
 
 	@Before
@@ -94,14 +99,13 @@ public class BlockwiseServerSideTest {
 
 		path = "test";
 		testResource = new TestResource(path);
+		exchangeStore = new InMemoryMessageExchangeStore(CONFIG);
 		// bind to loopback address using an ephemeral port
-		CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, null);
+		CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 		server = new CoapServer();
-		// bind server to loopback address using an ephemeral port
-		server.addEndpoint(new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG));
+		server.addEndpoint(udpEndpoint);
 		server.add(testResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
-		serverSurveillant = new EndpointSurveillant("server", (CoapEndpoint) (server.getEndpoints().get(0)));
 		server.start();
 		InetSocketAddress serverAddress = server.getEndpoints().get(0).getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
@@ -184,8 +188,10 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
 
-		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
-		serverSurveillant.assertHashMapsEmpty();
+		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+		Assert.assertTrue(
+				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
+				exchangeStore.isEmpty());
 	}
 
 	/**

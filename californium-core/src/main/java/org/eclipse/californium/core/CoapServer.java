@@ -238,7 +238,7 @@ public class CoapServer implements ServerInterface {
 			running = false;
 		}
 	}
-	
+
 	/**
 	 * Destroys the server, i.e., unbinds from all ports and frees all system resources.
 	 */
@@ -248,6 +248,9 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		executor.shutdown(); // cannot be started again
+		for (Endpoint ep : endpoints) {
+			ep.destroy();
+		}
 		try {
 			// wait for currently executing tasks to complete
 			if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
