@@ -238,7 +238,7 @@ public class CoapServer implements ServerInterface {
 			running = false;
 		}
 	}
-	
+
 	/**
 	 * Destroys the server, i.e., unbinds from all ports and frees all system resources.
 	 */

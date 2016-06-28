@@ -161,6 +161,7 @@ public class CoapEndpoint implements Endpoint {
 	
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new ArrayList<>(0);
+	private final MessageExchangeStore exchangeStore;
 
 	/**
 	 * Instantiates a new endpoint with an ephemeral port.
@@ -216,7 +217,18 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the network configuration
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(createUDPConnector(address, config), config);
+		this(address, config, null);
+	}
+
+	/**
+	 * Creates a new UDP endpoint for a bind address, configuration and message exchange store.
+	 *
+	 * @param address the address
+	 * @param config the network configuration
+	 * @param exchangeStore the store to use for keeping track of message exchanges.
+	 */
+	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		this(createUDPConnector(address, config), config, exchangeStore);
 	}
 
 	/**
@@ -226,9 +238,22 @@ public class CoapEndpoint implements Endpoint {
 	 * @param connector the connector
 	 * @param config the config
 	 */
-	public CoapEndpoint(Connector connector, NetworkConfig config) {
+	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
+		this(connector, config, null);
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration and message exchange store.
+	 *
+	 * @param connector the connector
+	 * @param config the config
+	 * @param exchangeStore the store to use for keeping track of message exchanges.
+	 */
+	public CoapEndpoint(final Connector connector, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
 		this.config = config;
 		this.connector = connector;
+		this.connector.setRawDataReceiver(new InboxImpl());
+		this.exchangeStore = exchangeStore;
 
 		// To make TCP support backwards compatible using less clean "instanceof" shortcut in 1.1 branch.
 		// In 2.0 branch, the connector API has been expected to export a new isSchemeSupported(String scheme)
@@ -244,7 +269,6 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
-		this.connector.setRawDataReceiver(new InboxImpl());
 	}
 
 	/**
@@ -302,6 +326,12 @@ public class CoapEndpoint implements Endpoint {
 			});
 		}
 
+		if (exchangeStore == null) {
+			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
+		} else {
+			matcher.setMessageExchangeStore(exchangeStore);
+		}
+
 		try {
 			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getAddress());
 
@@ -348,7 +378,7 @@ public class CoapEndpoint implements Endpoint {
 			started = false;
 			connector.stop();
 			matcher.stop();
-			for (EndpointObserver obs:observers) {
+			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
 			matcher.clear();
@@ -395,7 +425,6 @@ public class CoapEndpoint implements Endpoint {
 		// TODO: don't we need to stop and shut down the previous executor?
 		this.executor = executor;
 		this.coapstack.setExecutor(executor);
-		this.matcher.setExecutor(executor);
 	}
 
 	/* (non-Javadoc)

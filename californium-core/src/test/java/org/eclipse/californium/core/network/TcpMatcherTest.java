@@ -34,7 +34,6 @@ import static org.junit.Assert.assertSame;
 public class TcpMatcherTest {
 
 	private static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
-	private static final InetSocketAddress source = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 
 	@Test
 	public void testRequestMatchesResponse() {
@@ -48,7 +47,9 @@ public class TcpMatcherTest {
 	private TcpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		return new TcpMatcher(config);
+		TcpMatcher matcher = new TcpMatcher(config);
+		matcher.start();
+		return matcher;
 	}
 
 	private Exchange sendRequest(final TcpMatcher matcher, final CorrelationContext ctx) {
@@ -67,8 +68,10 @@ public class TcpMatcherTest {
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
 		response.setBytes(new byte[]{});
-		response.setSource(source.getAddress());
-		response.setSourcePort(source.getPort());
+		response.setSource(request.getDestination());
+		response.setSourcePort(request.getDestinationPort());
+		response.setDestination(request.getSource());
+		response.setDestinationPort(request.getSourcePort());
 		return response;
 	}
 }
