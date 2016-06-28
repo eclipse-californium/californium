@@ -99,8 +99,20 @@ public final class IntegrationTestTools {
 
 	private static byte[] b(int... is) {
 		byte[] bytes = new byte[is.length];
-		for (int i=0;i<bytes.length;i++)
+		for (int i=0; i < bytes.length; i++) {
 			bytes[i] = (byte) is[i];
+		}
 		return bytes;
 	}
+
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval) {
+		try {
+			int timeToWait = exchangeLifetime + sweepInterval + 100; // milliseconds
+			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
+			Thread.sleep(timeToWait);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
 }

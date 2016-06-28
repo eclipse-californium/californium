@@ -5,8 +5,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.CorrelationContext;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 /**
  * Matcher is the component that matches incoming messages to Exchanges. A {@link UdpMatcher} (used by Coap stack
  * running over UDP or DTLS connector) will support matching ACKs and RSTs based on MID. {@link TcpMatcher} (used by
@@ -25,9 +23,13 @@ public interface Matcher {
 	void stop();
 
 	/**
-	 * Sets executor over which this matcher will perform match and clean up tasks.
+	 * Sets the exchange store to use for keeping track of message exchanges with endpoints.
+	 * 
+	 * @param store the store to use.
+	 * @throws NullPointerException if store is {@code null}.
+	 * @throws IllegalStateException if this Matcher is already started.
 	 */
-	void setExecutor(ScheduledExecutorService executor);
+	void setMessageExchangeStore(MessageExchangeStore store);
 
 	/**
 	 * Notified when Coap stack is sending a request. Signal for matcher to begin tracking.

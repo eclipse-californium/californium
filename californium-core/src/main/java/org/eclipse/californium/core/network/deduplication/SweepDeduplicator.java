@@ -23,60 +23,76 @@ package org.eclipse.californium.core.network.deduplication;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
-
 /**
- * This deduplicator uses a hash map to store incoming messages. The
- * deduplicator periodically iterates through all entries and removes obsolete
- * messages (exchanges).
+ * This deduplicator uses an in-memory map to store incoming messages.
+ * <p>
+ * The deduplicator periodically iterates through all entries and removes
+ * messages (exchanges) that have been received before EXCHANGE_LIFETIME seconds.
+ * </p>
  */
-public class SweepDeduplicator implements Deduplicator {
+public final class SweepDeduplicator implements Deduplicator {
 
-	/** The logger. */
-	private final static Logger LOGGER = Logger.getLogger(SweepDeduplicator.class.getCanonicalName());
-	
+	private final static Logger LOGGER = Logger.getLogger(SweepDeduplicator.class.getName());
+
 	/** The hash map with all incoming messages. */
-	private ConcurrentHashMap<KeyMID, Exchange> incommingMessages;
-	
-	private NetworkConfig config;
+	private final ConcurrentMap<KeyMID, Exchange> incomingMessages = new ConcurrentHashMap<>();
+	private boolean running = false;
+	private ScheduledExecutorService scheduler;
 	private SweepAlgorithm algorithm;
-	
-	private ScheduledExecutorService executor;
-	
-	private boolean started = false;
-	
-	public SweepDeduplicator(NetworkConfig config) {
-		this.config = config;
-		incommingMessages = new ConcurrentHashMap<KeyMID, Exchange>();
-		algorithm = new SweepAlgorithm();
+
+	/**
+	 * Creates a new deduplicator from configuration values.
+	 * <p>
+	 * The following configuration values are used to initialize the
+	 * sweep algorithm used by this deduplicator:
+	 * <ul>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME} -
+	 * an exchange is removed from this deduplicator if no messages have been received for this number
+	 * of milliseconds</li>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MARK_AND_SWEEP_INTERVAL} -
+	 * the interval at which to check for expired exchanges in milliseconds</li>
+	 * </ul>
+	 * 
+	 * @param config the configuration to use.
+	 */
+	public SweepDeduplicator(final NetworkConfig config) {
+		algorithm = new SweepAlgorithm(config);
 	}
-	
-	public void start() {
-		started = true;
-		algorithm.schedule();
+
+	@Override
+	public synchronized void start() {
+		if (!running) {
+			if (scheduler == null || scheduler.isShutdown()) {
+				scheduler = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("Deduplicator"));
+			}
+			algorithm.schedule();
+			running = true;
+		}
 	}
-	
-	public void stop() {
-		started = false;
-		algorithm.cancel();
+
+	@Override
+	public synchronized void stop() {
+		if (running) {
+			algorithm.cancel();
+			scheduler.shutdown();
+			clear();
+			running = false;
+		}
 	}
-	
-	public void setExecutor(ScheduledExecutorService executor) {
-		stop();
-		this.executor = executor;
-		if (started)
-			start();
-	}
-	
+
 	/**
 	 * If the message with the specified {@link KeyMID} has already arrived
 	 * before, this method returns the corresponding exchange. If this
@@ -84,27 +100,44 @@ public class SweepDeduplicator implements Deduplicator {
 	 * the message with the KeyMID is not a duplicate. In this case, the
 	 * exchange is added to the deduplicator.
 	 */
-	public Exchange findPrevious(KeyMID key, Exchange exchange) {
-		Exchange previous = incommingMessages.putIfAbsent(key, exchange);
-		return previous;
+	@Override
+	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
+		return incomingMessages.putIfAbsent(key, exchange);
 	}
-	
+
+	@Override
 	public Exchange find(KeyMID key) {
-		return incommingMessages.get(key);
+		return incomingMessages.get(key);
 	}
-	
+
+	@Override
 	public void clear() {
-		incommingMessages.clear();
+		incomingMessages.clear();
 	}
-	
+
+	@Override
+	public boolean isEmpty() {
+		return incomingMessages.isEmpty();
+	}
+
 	/**
-	 * The sweep algorithm periodically iterate through the hash map and removes
+	 * The sweep algorithm periodically iterates over all exchanges and removes
 	 * obsolete entries.
 	 */
 	private class SweepAlgorithm implements Runnable {
 
+		private final long sweepInterval;
+		private final long exchangeLifetime;
 		private ScheduledFuture<?> future;
-		
+
+		/**
+		 * @param config
+		 */
+		public SweepAlgorithm(final NetworkConfig config) {
+			this.exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+			this.sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		}
+
 		/**
 		 * This method wraps the method sweep() to catch any Exceptions that
 		 * might be thrown.
@@ -112,12 +145,12 @@ public class SweepDeduplicator implements Deduplicator {
 		@Override
 		public void run() {
 			try {
-				LOGGER.log(Level.FINEST, "Start Mark-And-Sweep with {0} entries", incommingMessages.size());
+				LOGGER.log(Level.FINEST, "Start Mark-And-Sweep with {0} entries", incomingMessages.size());
 				sweep();
-				
+
 			} catch (Throwable t) {
 				LOGGER.log(Level.WARNING, "Exception in Mark-and-Sweep algorithm", t);
-			
+
 			} finally {
 				try {
 					schedule();
@@ -126,41 +159,42 @@ public class SweepDeduplicator implements Deduplicator {
 				}
 			}
 		}
-		
+
 		/**
 		 * Iterate through all entries and remove the obsolete ones.
 		 */
 		private void sweep() {
-			int lifecycle = config.getInt(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-			long oldestAllowed = System.currentTimeMillis() - lifecycle;
-			
-			// Notice that the guarantees from the ConcurrentHashMap guarantee
-			// the correctness for this iteration.
-			for (Map.Entry<?,Exchange> entry:incommingMessages.entrySet()) {
+			final long oldestAllowed = System.currentTimeMillis() - exchangeLifetime;
+
+			// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
+			final long start = System.currentTimeMillis();
+			for (Map.Entry<?, Exchange> entry : incomingMessages.entrySet()) {
 				Exchange exchange = entry.getValue();
 				if (exchange.getTimestamp() < oldestAllowed) {
 					//TODO check if exchange of observe relationship is periodically created and sweeped
 					LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
-					incommingMessages.remove(entry.getKey());
+					incomingMessages.remove(entry.getKey());
 				}
 			}
+			LOGGER.log(Level.FINE, "Sweep run took {0}ms", System.currentTimeMillis() - start);
 		}
-		
+
 		/**
 		 * Reschedule this task again.
 		 */
 		private void schedule() {
-			long period = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
-			future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
+			if (!scheduler.isShutdown()) {
+				future = scheduler.schedule(this, sweepInterval, TimeUnit.MILLISECONDS);
+			}
 		}
-		
+
 		/**
-		 * Cancel the schedule for this algorithm.
+		 * Cancels sweep-run scheduled next.
 		 */
 		private void cancel() {
-			if (future != null)
-				future.cancel(true);
+			if (future != null) {
+				future.cancel(false);
+			}
 		}
-		
 	}
 }

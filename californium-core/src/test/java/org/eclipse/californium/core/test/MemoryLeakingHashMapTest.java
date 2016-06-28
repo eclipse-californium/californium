@@ -1,13 +1,18 @@
 package org.eclipse.californium.core.test;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -25,12 +30,15 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -40,21 +48,21 @@ import org.junit.experimental.categories.Category;
 public class MemoryLeakingHashMapTest {
 
 	// Configuration for this test
-	public static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
-	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
-	public static final int TEST_BLOCK_SIZE = 16; // 16 bytes
+	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_BLOCK_SIZE = 16; // 16 bytes
 
-	public static final String LONG_REQUEST = "123456789.123456789.";
-	public static final String LONG_RESPONSE = LONG_REQUEST + LONG_REQUEST;
+	private static final String LONG_REQUEST = "123456789.123456789.";
+	private static final String LONG_RESPONSE = LONG_REQUEST + LONG_REQUEST;
 
-	public static final int OBS_NOTIFICATION_INTERVAL = 50; // send one notification per 50 ms
-	public static final int HOW_MANY_NOTIFICATION_WE_WAIT_FOR = 3;
-	public static final int ACK_TIMEOUT = 500; // ms
+	private static final int OBS_NOTIFICATION_INTERVAL = 50; // send a notification every 50 ms
+	private static final int HOW_MANY_NOTIFICATION_WE_WAIT_FOR = 3;
+	private static final int ACK_TIMEOUT = 500; // ms
 
 	// The names of the two resources of the server
-	public static final String PIGGY = "piggy";
-	public static final String SEPARATE = "separate";
-	
+	private static final String PIGGY = "piggy";
+	private static final String SEPARATE = "separate";
+
 	private static final Logger LOGGER = Logger.getLogger(MemoryLeakingHashMapTest.class.getName());
 	private static ScheduledExecutorService timer;
 	private static CoapServer server;
@@ -63,8 +71,8 @@ public class MemoryLeakingHashMapTest {
 	// The server endpoint that we test
 	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
-	private static EndpointSurveillant serverSurveillant;
-	private static EndpointSurveillant clientSurveillant;
+	private static MessageExchangeStore clientExchangeStore;
+	private static MessageExchangeStore serverExchangeStore;
 
 	private static String currentRequestText;
 	private static String currentResponseText;
@@ -72,22 +80,34 @@ public class MemoryLeakingHashMapTest {
 	@BeforeClass
 	public static void startupServer() throws Exception {
 		LOGGER.log(Level.FINE, "Start {0}", MemoryLeakingHashMapTest.class.getSimpleName());
-		timer = new ScheduledThreadPoolExecutor(1);
+		timer = Executors.newSingleThreadScheduledExecutor();
 		createServerAndClientEndpoints();
 	}
 
 	@AfterClass
 	public static void shutdownServer() {
-		server.destroy();
 		timer.shutdown();
+		clientEndpoint.stop();
+		server.destroy();
 		LOGGER.log(Level.FINE, "End {0}", MemoryLeakingHashMapTest.class.getSimpleName());
 	}
 
+	@Before
+	public void startExchangeStores() {
+		clientExchangeStore.start();
+		serverExchangeStore.start();
+	}
+
 	@After
-	public void assertHashMapsEmpty() {
-		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
-		serverSurveillant.assertHashMapsEmpty();
-		clientSurveillant.assertHashMapsEmpty();
+	public void assertAllExchangesAreCompleted() {
+		try {
+			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+			assertTrue(clientExchangeStore.isEmpty());
+			assertTrue(serverExchangeStore.isEmpty());
+		} finally {
+			clientExchangeStore.stop();
+			serverExchangeStore.stop();
+		}
 	}
 
 	@Test
@@ -252,13 +272,13 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		serverExchangeStore = new InMemoryMessageExchangeStore(config);
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, serverExchangeStore);
 		serverEndpoint.addInterceptor(new MessageTracer());
-		serverSurveillant = new EndpointSurveillant("server", serverEndpoint);
 
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		clientExchangeStore = new InMemoryMessageExchangeStore(config);
+		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, clientExchangeStore);
 		clientEndpoint.start();
-		clientSurveillant = new EndpointSurveillant("client", clientEndpoint);
 
 		// Create a server with two resources: one that sends piggy-backed
 		// responses and one that sends separate responses
@@ -274,7 +294,7 @@ public class MemoryLeakingHashMapTest {
 	private String uriOf(String resourcePath) {
 		return "coap://localhost:" + serverPort + "/" + resourcePath;
 	}
-	
+
 	public enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONE; }
 	
 	public static class TestResource extends CoapResource {

@@ -62,13 +62,16 @@ public class DeduplicatorFactory {
 	 * @param config the configuration
 	 * @return the deduplicator
 	 */
-	public Deduplicator createDeduplicator(NetworkConfig config) {
+	public Deduplicator createDeduplicator(final NetworkConfig config) {
 		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR);
-		if (NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP.equals(type)) return new SweepDeduplicator(config);
-		else if (NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION.equals(type)) return new CropRotation(config);
-		else if (NetworkConfig.Keys.NO_DEDUPLICATOR.equals(type)) return new NoDeduplicator();
-		else {
-			LOGGER.log(Level.WARNING, "Unknown deduplicator type: {0}", type);
+		if (NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP.equals(type)) {
+			return new SweepDeduplicator(config);
+		} else if (NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION.equals(type)) {
+			return new CropRotation(config);
+		} else if (NetworkConfig.Keys.NO_DEDUPLICATOR.equals(type)) {
+			return new NoDeduplicator();
+		} else {
+			LOGGER.log(Level.WARNING, "Unsupported deduplicator type: {0}", type);
 			return new NoDeduplicator();
 		}
 	}

@@ -524,7 +524,7 @@ public class Request extends Message {
 		synchronized (lock) {
 			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected()) {
 				lock.wait(timeout);
-				long now = System.currentTimeMillis();				
+				long now = System.currentTimeMillis();
 				// timeout expired?
 				if (timeout > 0 && expired <= now) {
 					// break loop since response is still null

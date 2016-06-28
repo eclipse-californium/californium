@@ -19,8 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 
@@ -34,20 +32,13 @@ public interface Deduplicator {
 	/**
 	 * Starts the deduplicator
 	 */
-	public void start();
-	
+	void start();
+
 	/**
 	 * Stops the deduplicator. The deduplicator should NOT clear its state.
 	 */
-	public void stop();
-	
-	/**
-	 * Set the specified executor. This method might call stop(), replace the
-	 * executor and then start() again.
-	 * @param executor the executor
-	 */
-	public void setExecutor(ScheduledExecutorService executor);
-	
+	void stop();
+
 	/**
 	 * Checks if the specified key is already associated with a previous
 	 * exchange and otherwise associates the key with the exchange specified. 
@@ -66,12 +57,14 @@ public interface Deduplicator {
 	 * @return the previous exchange associated with the specified key, or
      *         <tt>null</tt> if there was no mapping for the key.
 	 */
-	public Exchange findPrevious(KeyMID key, Exchange exchange);
-	
-	public Exchange find(KeyMID key);
-	
+	Exchange findPrevious(KeyMID key, Exchange exchange);
+
+	Exchange find(KeyMID key);
+
+	boolean isEmpty();
+
 	/**
 	 * Clears the state of this deduplicator.
 	 */
-	public void clear();
+	void clear();
 }
