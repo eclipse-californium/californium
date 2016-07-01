@@ -167,6 +167,8 @@ public class TcpMatcher implements Matcher {
 
     @Override
     public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
+        // ensure Token is set
+        message.setToken(new byte[0]);
     }
 
     @Override
