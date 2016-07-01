@@ -24,7 +24,7 @@
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -236,7 +236,7 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new Serializer(new TcpDataSerializer());
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new TcpMatcher(config);
+			this.matcher = new UdpMatcher(config);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new Serializer(new UdpDataSerializer());
 			this.parser = new UdpDataParser();

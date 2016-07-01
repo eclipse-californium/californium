@@ -17,7 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - turn into utility class with static methods only
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 

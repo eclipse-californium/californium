@@ -11,9 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
  * Contributors:
- *    Matthias Kovatsch - creator and main architect
- *    Martin Lanter - architect and initial implementation
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 

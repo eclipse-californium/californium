@@ -18,7 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -80,7 +80,7 @@ import java.util.logging.Logger;
 public class CoapTcpStack implements CoapStack {
 
 	/** The LOGGER. */
-	final static Logger LOGGER = Logger.getLogger(CoapTcpStack.class.getCanonicalName());
+	private final static Logger LOGGER = Logger.getLogger(CoapTcpStack.class.getCanonicalName());
 
 	private List<Layer> layers;
 	private Outbox outbox;

@@ -17,7 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - make all methods static
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 

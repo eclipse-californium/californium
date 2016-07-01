@@ -13,7 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and initial implementation
- *    Joe Magerramov (Amazon AWS) - CoAP over TCP support
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -32,7 +32,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.UDPConnector;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

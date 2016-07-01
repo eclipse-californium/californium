@@ -1,6 +1,29 @@
+/*******************************************************************************
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
+ * Contributors:
+ *    Matthias Kovatsch - creator and main architect
+ *    Martin Lanter - architect and re-implementation
+ *    Dominique Im Obersteg - parsers and initial implementation
+ *    Daniel Pauli - parsers and initial implementation
+ *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
+ *    Bosch Software Innovations GmbH - use correlation context to improve matching
+ *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
