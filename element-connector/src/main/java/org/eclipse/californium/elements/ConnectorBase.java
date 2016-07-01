@@ -273,4 +273,9 @@ public abstract class ConnectorBase implements Connector {
 	public boolean isRunning() {
 		return running;
 	}
+
+	@Override
+	public boolean isTcp() {
+		return false;
+	}
 }

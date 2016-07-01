@@ -91,4 +91,12 @@ public interface Connector {
 	 * @return the address
 	 */
 	public InetSocketAddress getAddress();
+
+	/**
+	 * Returns true if this is a TCP connector. TCP connector is subject to a different spec (CoAP-over-TCP) and
+	 * will requir CoAP endpoint to instantiate a different matcher, serializer and coap stack.
+	 *
+	 * @return true if this is a TCP based connector.
+     */
+	public boolean isTcp();
 }
