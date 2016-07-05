@@ -34,7 +34,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.BlockwiseStatus;
-import org.eclipse.californium.core.network.stack.CoapUdpStack;
+import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -439,7 +439,7 @@ public class Exchange {
 	/**
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
-	 * the StackTopAdapter in the {@link CoapUdpStack}, when timing out, when
+	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
 	 * rejecting a response, or when sending the (last) response.
 	 */
 	public void setComplete() {
