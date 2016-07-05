@@ -112,7 +112,6 @@ public class Request extends Message {
 	 * @param code the request code
 	 */
 	public Request(Code code) {
-		super();
 		this.code = code;
 	}
 	
@@ -202,7 +201,7 @@ public class Request extends Message {
 	 */
 	public Request setURI(String uri) {
 		try {
-			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://"))
+			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://"))
 				uri = "coap://" + uri;
 			return setURI(new URI(uri));
 		} catch (URISyntaxException e) {

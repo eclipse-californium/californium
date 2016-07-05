@@ -21,6 +21,7 @@
  *                                                    in setDefaultSecureEndpoint
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -37,7 +38,9 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.tcp.TcpClientConnector;
 
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
@@ -82,7 +85,10 @@ public class EndpointManager {
 	
 	/** The default endpoint for secure CoAP */
 	private Endpoint default_secure_endpoint;
-	
+
+	/** Endpoint for CoAP over TCP. */
+	private Endpoint default_tcp_endpoint;
+
 	/**
 	 * Gets the default endpoint for implicit use by clients. By default, the
 	 * endpoint has a single-threaded executor and is started. It is possible to
@@ -100,6 +106,18 @@ public class EndpointManager {
 			createDefaultEndpoint();
 		}
 		return default_endpoint;
+	}
+
+	/**
+	 * Gets the default tcp endping for implicit use by client. By default, the tcp endpoint has single worker
+	 * thread, and uses default TCP settings.
+	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
+     */
+	public Endpoint getTcpEndpoint() {
+		if (default_tcp_endpoint == null) {
+			createTcpEndpoint();
+		}
+		return default_tcp_endpoint;
 	}
 
 	/*
@@ -120,14 +138,53 @@ public class EndpointManager {
 			LOGGER.log(Level.SEVERE, "Could not create default endpoint", e);
 		}
 	}
-	
+
+	private synchronized void createTcpEndpoint() {
+		if (default_tcp_endpoint != null) return;
+
+		NetworkConfig config = NetworkConfig.getStandard();
+		TcpClientConnector connector = new TcpClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
+						config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
+						config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
+
+		default_tcp_endpoint = new CoapEndpoint(connector, config);
+		try {
+			default_tcp_endpoint.start();
+			LOGGER.log(Level.INFO, "Created implicit tcp endpoint {0}", default_tcp_endpoint.getAddress());
+		} catch (IOException e) {
+			LOGGER.log(Level.SEVERE, "Could not create tcp endpoint", e);
+		}
+	}
+
+	/**
+	 * Configures a new tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 * @param endpoint the new default tcp endpoint.
+     */
+	public synchronized void setTcpEndpoint(Endpoint endpoint) {
+		if (this.default_tcp_endpoint != null) {
+			this.default_tcp_endpoint.destroy();
+		}
+
+		LOGGER.log(Level.CONFIG, "{0} becomes tcp endpoint", endpoint.getAddress());
+
+		this.default_tcp_endpoint = endpoint;
+
+		if (!this.default_tcp_endpoint.isStarted()) {
+			try {
+				default_tcp_endpoint.start();
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not start new tcp endpoint", e);
+			}
+		}
+	}
+
 	/**
 	 * Configures a new default endpoint. Any old default endpoint is destroyed.
 	 * @param endpoint the new default endpoint
 	 */
-	public void setDefaultEndpoint(Endpoint endpoint) {
+	public synchronized void setDefaultEndpoint(Endpoint endpoint) {
 		
-		if (this.default_endpoint!=null) {
+		if (this.default_endpoint != null) {
 			this.default_endpoint.destroy();
 		}
 
@@ -177,7 +234,7 @@ public class EndpointManager {
 	 * Configures a new default secure endpoint. Any old default endpoint is destroyed.
 	 * @param endpoint the new default endpoint
 	 */
-	public void setDefaultSecureEndpoint(Endpoint endpoint) {
+	public synchronized void setDefaultSecureEndpoint(Endpoint endpoint) {
 
 		if (this.default_secure_endpoint!=null) {
 			this.default_secure_endpoint.destroy();
@@ -221,6 +278,8 @@ public class EndpointManager {
 			it.default_endpoint.clear();
 		if (it.default_secure_endpoint != null)
 			it.default_secure_endpoint.clear();
+		if (it.default_tcp_endpoint != null)
+			it.default_tcp_endpoint.clear();
 	}
 	
 	/**
