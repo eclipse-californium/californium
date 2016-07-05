@@ -17,6 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - add key for selecting strict request/response matching
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -111,6 +112,11 @@ public class NetworkConfig {
 		
 		public static final String HEALTH_STATUS_PRINT_LEVEL = "HEALTH_STATUS_PRINT_LEVEL";
 		public static final String HEALTH_STATUS_INTERVAL = "HEALTH_STATUS_INTERVAL";
+
+		/** Properties for TCP connector. */
+		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
+		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
+		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
 	}
 	
 	/**
