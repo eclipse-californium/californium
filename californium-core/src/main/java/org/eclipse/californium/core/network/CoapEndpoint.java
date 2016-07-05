@@ -24,6 +24,7 @@
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -49,9 +50,16 @@ import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliver
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.Serializer;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.MessageHeader;
+import org.eclipse.californium.core.network.serialization.TcpDataParser;
+import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.core.network.stack.CoapTcpStack;
+import org.eclipse.californium.core.network.stack.CoapUdpStack;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -107,7 +115,7 @@ import org.eclipse.californium.elements.UDPConnector;
  * | +--------+-+--------+ |
  * |          v A          |
  * |          v A          |
- * |        {@link Matcher}        |
+ * |        {@link UdpMatcher}        |
  * |          v A          |
  * |   {@link MessageInterceptor}  |  
  * |          v A          |
@@ -139,6 +147,12 @@ public class CoapEndpoint implements Endpoint {
 	
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private final Matcher matcher;
+
+	/** Serializer to convert messages to datagrams. */
+	private final DataSerializer serializer;
+
+	/** Parser to convert datagrams to messages. */
+	private final DataParser parser;
 
 	/** The executor to run tasks for this endpoint and its layers */
 	private ScheduledExecutorService executor;
@@ -244,12 +258,19 @@ public class CoapEndpoint implements Endpoint {
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store) {
 		this.config = config;
 		this.connector = connector;
-		if (store == null) {
-			this.matcher = new Matcher(config, new NotificationDispatcher(), new InMemoryObservationStore());
+
+		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
+				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+			this.matcher = new TcpMatcher(config);
+			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
+			this.serializer = new TcpDataSerializer();
+			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new Matcher(config, new NotificationDispatcher(), store);
+			this.matcher = new UdpMatcher(config);
+			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
+			this.serializer = new UdpDataSerializer();
+			this.parser = new UdpDataParser();
 		}
-		this.coapstack = new CoapStack(config, new OutboxImpl());
 		this.connector.setRawDataReceiver(new InboxImpl());
 	}
 
@@ -582,7 +603,7 @@ public class CoapEndpoint implements Endpoint {
 						exchange.setCorrelationContext(context);
 					}
 				};
-				RawData message = Serializer.serialize(request, callback);
+				RawData message = serializer.serializeRequest(request, callback);
 				connector.send(message);
 			}
 		}
@@ -604,7 +625,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				connector.send(Serializer.serialize(response));
+				connector.send(serializer.serializeResponse(response));
 			}
 		}
 
@@ -625,7 +646,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled())
-				connector.send(Serializer.serialize(message));
+				connector.send(serializer.serializeEmptyMessage(message));
 		}
 
 		private void assertMessageHasDestinationAddress(final Message message) {
@@ -654,7 +675,7 @@ public class CoapEndpoint implements Endpoint {
 				throw new IllegalArgumentException("received message does not have a source port");
 			} else {
 
-			// Create a new task to process this message
+				// Create a new task to process this message
 				runInProtocolStage(new Runnable() {
 					@Override
 					public void run() {
@@ -670,28 +691,28 @@ public class CoapEndpoint implements Endpoint {
 		 * the stack of layers.
 		 */
 		private void receiveMessage(final RawData raw) {
-			DataParser parser = new DataParser(raw.getBytes());
+			MessageHeader header = parser.parseHeader(raw);
 
-			if (parser.isRequest()) {
+			if (CoAP.isRequest(header.getCode())) {
 				// This is a request
 				Request request;
+
 				try {
-					request = parser.parseRequest();
+					request = parser.parseRequest(raw);
 				} catch (MessageFormatException e) {
 					StringBuilder log = new StringBuilder("received malformed request [source: ")
 						.append(raw.getInetSocketAddress()).append("]");
-					if (!parser.isReply()) {
-						// manually build RST from raw information
-						EmptyMessage rst = new EmptyMessage(Type.RST);
-						rst.setMID(parser.getMID());
-						rst.setToken(new byte[0]);
-						rst.setDestination(raw.getAddress());
-						rst.setDestinationPort(raw.getPort());
-						for (MessageInterceptor interceptor:interceptors)
-							interceptor.sendEmptyMessage(rst);
-						connector.send(Serializer.serialize(rst));
-						log.append(" and reset");
-					}
+
+					// Generate rst, and send it if it's not null.
+					EmptyMessage rst = new EmptyMessage(Type.RST);
+					rst.setMID(header.getMID());
+					rst.setToken(header.getToken());
+					rst.setDestination(raw.getAddress());
+					rst.setDestinationPort(raw.getPort());
+					for (MessageInterceptor interceptor : interceptors)
+						interceptor.sendEmptyMessage(rst);
+					connector.send(serializer.serializeEmptyMessage(rst));
+					log.append(" and reset");
 					if (LOGGER.isLoggable(Level.INFO)) {
 						LOGGER.log(Level.INFO, log.toString(), e);
 					}
@@ -723,9 +744,9 @@ public class CoapEndpoint implements Endpoint {
 					}
 				}
 
-			} else if (parser.isResponse()) {
+			} else if (CoAP.isResponse(header.getCode())) {
 				// This is a response
-				Response response = parser.parseResponse();
+				Response response = parser.parseResponse(raw);
 				response.setSource(raw.getAddress());
 				response.setSourcePort(raw.getPort());
 
@@ -751,9 +772,9 @@ public class CoapEndpoint implements Endpoint {
 					}
 				}
 
-			} else if (parser.isEmpty()) {
+			} else if (CoAP.isEmptyMessage(header.getCode())) {
 				// This is an empty message
-				EmptyMessage message = parser.parseEmptyMessage();
+				EmptyMessage message = parser.parseEmptyMessage(raw);
 				message.setSource(raw.getAddress());
 				message.setSourcePort(raw.getPort());
 
@@ -796,7 +817,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!rst.isCanceled()) {
-				connector.send(Serializer.serialize(rst));
+				connector.send(serializer.serializeEmptyMessage(rst));
 			}
 		}
 	}
