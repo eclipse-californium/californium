@@ -509,7 +509,6 @@ public class UdpMatcher implements Matcher {
 				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
-//				LOGGER.log(Level.FINE, "Exchange completed: Cleaning up {0}", idByToken);
 				exchangesByToken.remove(idByToken);
 
 				// in case an empty ACK was lost
@@ -522,7 +521,6 @@ public class UdpMatcher implements Matcher {
 				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
 					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
-//					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
 					exchangesByMID.remove(midKey);
 				}
 
