@@ -91,4 +91,12 @@ public interface Connector {
 	 * @return the address
 	 */
 	public InetSocketAddress getAddress();
+
+	/**
+	 * Returns true if this connector supports specified scheme (e.g. coap for CoAP over UDP, coaps for coap over DTLS,
+	 * coap+tcp for coap over TCP).
+	 *
+	 * @return true if connector supports 'scheme'
+     */
+	public boolean isSchemeSupported(String scheme);
 }
