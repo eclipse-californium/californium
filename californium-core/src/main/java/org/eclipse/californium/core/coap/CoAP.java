@@ -45,6 +45,9 @@ public final class CoAP {
 	/** The CoAP URI scheme */
 	public static final String COAP_URI_SCHEME = "coap";
 
+	/** The CoAP URI scheme */
+	public static final String COAP_TCP_URI_SCHEME = "coap+tcp";
+
 	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
 
@@ -366,6 +369,8 @@ public final class CoAP {
 	 * CoAP message format.
 	 */
 	public final class MessageFormat {
+		/** The length of len nibble when running in TCP mode. */
+		public static final int LENGTH_NIBBLE_BITS = 4;
 
 		/** number of bits used for the encoding of the CoAP version field. */
 		public static final int VERSION_BITS     = 2;

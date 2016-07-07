@@ -919,6 +919,9 @@ public class CoapClient {
 		if (CoAP.COAP_SECURE_URI_SCHEME.equals(request.getScheme())) {
 			// this is the case when secure coap is supposed to be used
 			return EndpointManager.getEndpointManager().getDefaultSecureEndpoint();
+		} else if (CoAP.COAP_TCP_URI_SCHEME.equals(request.getScheme())) {
+			// Running over TCP.
+			return EndpointManager.getEndpointManager().getTcpEndpoint();
 		} else {
 			// this is the normal case
 			return EndpointManager.getEndpointManager().getDefaultEndpoint();
