@@ -69,6 +69,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.tcp.TcpConnector;
 
 
 /**
@@ -231,7 +232,9 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 
-		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)) {
+		// TODO: A way to keep Connector interface backwards compatible. In Californium 2.0 release, we will
+		// add a cleaner method by extending Connector interface with isSchemeSupported(String scheme) method.
+		if (connector instanceof TcpConnector) {
 			this.matcher = new TcpMatcher(config);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();

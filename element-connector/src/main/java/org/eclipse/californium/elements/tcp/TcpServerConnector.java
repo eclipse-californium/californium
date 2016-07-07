@@ -44,7 +44,7 @@ import java.util.logging.Logger;
  * TCP server connection is used by CoapEndpoint when instantiated by the CoapServer. Per RFC the server can both
  * send and receive messages, but cannot initiated new outgoing connections.
  */
-public class TcpServerConnector implements Connector {
+public class TcpServerConnector implements Connector, TcpConnector {
 
     private final static Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
 
@@ -161,10 +161,5 @@ public class TcpServerConnector implements Connector {
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             activeChannels.remove(ctx.channel().remoteAddress());
         }
-    }
-
-    @Override
-    public boolean isSchemeSupported(String scheme) {
-        return "coap+tcp".equals(scheme);
     }
 }
