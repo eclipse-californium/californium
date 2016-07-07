@@ -44,7 +44,7 @@ public abstract class DataParser {
         MessageHeader header = parseHeader(reader);
         Request request = new Request(CoAP.Code.valueOf(header.getCode()));
         request.setMID(header.getMID());
-        request.setType(CoAP.Type.valueOf(header.getType()));
+        request.setType(header.getType());
         request.setToken(header.getToken());
 
         parseOptionsAndPayload(reader, request);
@@ -57,7 +57,7 @@ public abstract class DataParser {
         MessageHeader header = parseHeader(reader);
         Response response = new Response(CoAP.ResponseCode.valueOf(header.getCode()));
         response.setMID(header.getMID());
-        response.setType(CoAP.Type.valueOf(header.getType()));
+        response.setType(header.getType());
         response.setToken(header.getToken());
 
         parseOptionsAndPayload(reader, response);
@@ -72,9 +72,9 @@ public abstract class DataParser {
             throw new MessageFormatException("Code " + header.getCode() + " not an empty message");
         }
 
-        EmptyMessage emptyMessage = new EmptyMessage(CoAP.Type.valueOf(header.getType()));
+        EmptyMessage emptyMessage = new EmptyMessage(header.getType());
         emptyMessage.setMID(header.getMID());
-        emptyMessage.setType(CoAP.Type.valueOf(header.getType()));
+        emptyMessage.setType(header.getType());
         emptyMessage.setToken(header.getToken());
         parseOptionsAndPayload(reader, emptyMessage);
         return emptyMessage;

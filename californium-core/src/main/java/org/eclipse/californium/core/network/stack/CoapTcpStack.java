@@ -22,7 +22,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -107,9 +106,6 @@ public class CoapTcpStack implements CoapStack {
 	// delegate to top
 	@Override
 	public void sendRequest(Request request) {
-		// Initialize request type to CON, even though that is meaningless in TCP stack. The rest of the codebase
-		// assumes type is never null, and in UDP stack reliability layer initializes the type.
-		request.setType(CoAP.Type.CON);
 		top.sendRequest(request);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		request.setAcknowledged(true);
@@ -118,7 +114,6 @@ public class CoapTcpStack implements CoapStack {
 	// delegate to top
 	@Override
 	public void sendResponse(Exchange exchange, Response response) {
-		response.setType(CoAP.Type.CON);
 		top.sendResponse(exchange, response);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		response.setAcknowledged(true);
@@ -235,7 +230,7 @@ public class CoapTcpStack implements CoapStack {
 		}
 
 	}
-	
+
 	@Override
 	public boolean hasDeliverer() {
 		return deliverer != null;

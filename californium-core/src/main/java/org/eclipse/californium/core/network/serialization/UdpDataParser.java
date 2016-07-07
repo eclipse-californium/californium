@@ -41,7 +41,7 @@ public final class UdpDataParser extends DataParser {
 		byte token[] = reader.readBytes(tokenLength);
 
 		assertCorrectVersion(version);
-		return new MessageHeader(version, type, token, code, mid, 0);
+		return new MessageHeader(version, CoAP.Type.valueOf(type), token, code, mid, 0);
 	}
 
 	private void assertCorrectVersion(int version) {

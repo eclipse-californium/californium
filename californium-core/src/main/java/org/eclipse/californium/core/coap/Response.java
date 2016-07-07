@@ -57,7 +57,6 @@ public class Response extends Message {
 	 */
 	public static Response createResponse(Request request, ResponseCode code) {
 		Response response = new Response(code);
-		response.setType(request.getType());
 		response.setDestination(request.getSource());
 		response.setDestinationPort(request.getSourcePort());
 		return response;
