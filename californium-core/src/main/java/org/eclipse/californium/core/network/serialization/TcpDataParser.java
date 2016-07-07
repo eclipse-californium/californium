@@ -42,6 +42,6 @@ public final class TcpDataParser extends DataParser {
 		byte token[] = reader.readBytes(tokenLength);
 
 		// No MID/Type/VERSION in TCP message. Use defaults.
-		return new MessageHeader(CoAP.VERSION, CoAP.Type.CON.value, token, code, 0, 0);
+		return new MessageHeader(CoAP.VERSION, CoAP.Type.CON, token, code, 0, 0);
 	}
 }

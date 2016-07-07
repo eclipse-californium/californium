@@ -52,7 +52,7 @@ public abstract class DataSerializer {
             DatagramWriter writer = new DatagramWriter();
             byte[] body = serializeOptionsAndPayload(request);
 
-            MessageHeader header = new MessageHeader(CoAP.VERSION, request.getType().value,
+            MessageHeader header = new MessageHeader(CoAP.VERSION, request.getType(),
                     request.getToken(), request.getCode().value, request.getMID(), body.length);
             serializeHeader(writer, header);
             writer.writeBytes(body);
@@ -70,7 +70,7 @@ public abstract class DataSerializer {
             DatagramWriter writer = new DatagramWriter();
             byte[] body = serializeOptionsAndPayload(response);
 
-            MessageHeader header = new MessageHeader(CoAP.VERSION, response.getType().value,
+            MessageHeader header = new MessageHeader(CoAP.VERSION, response.getType(),
                     response.getToken(), response.getCode().value, response.getMID(), body.length);
             serializeHeader(writer, header);
             writer.writeBytes(body);
@@ -87,7 +87,7 @@ public abstract class DataSerializer {
             DatagramWriter writer = new DatagramWriter();
             byte[] body = serializeOptionsAndPayload(emptyMessage);
 
-            MessageHeader header = new MessageHeader(CoAP.VERSION, emptyMessage.getType().value,
+            MessageHeader header = new MessageHeader(CoAP.VERSION, emptyMessage.getType(),
                     emptyMessage.getToken(), 0, emptyMessage.getMID(), body.length);
             serializeHeader(writer, header);
             writer.writeBytes(body);
