@@ -48,6 +48,9 @@ public final class CoAP {
 	/** The CoAP URI scheme */
 	public static final String COAP_TCP_URI_SCHEME = "coap+tcp";
 
+	/** The CoAP URI scheme */
+	public static final String COAP_SECURE_TCP_URI_SCHEME = "coaps+tcp";
+
 	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
 

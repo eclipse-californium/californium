@@ -231,7 +231,8 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 
-		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)) {
+		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
+				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
 			this.matcher = new TcpMatcher(config);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();

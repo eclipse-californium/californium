@@ -19,6 +19,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -38,6 +39,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -139,6 +141,12 @@ public class TcpClientConnector implements Connector {
         return new InetSocketAddress(0);
     }
 
+    /**
+     * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
+     */
+    protected void onNewChannelCreated(Channel ch) {
+    }
+
     private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
 
         private final SocketAddress key;
@@ -149,6 +157,8 @@ public class TcpClientConnector implements Connector {
 
         @Override
         public void channelCreated(Channel ch) throws Exception {
+            onNewChannelCreated(ch);
+
             // Handler order:
             // 1. Generate Idle events
             // 2. Close idle channels

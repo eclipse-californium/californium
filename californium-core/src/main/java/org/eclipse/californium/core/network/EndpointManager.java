@@ -41,6 +41,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.tcp.TcpClientConnector;
+import org.eclipse.californium.elements.tcp.TlsClientConnector;
 
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
@@ -89,6 +90,9 @@ public class EndpointManager {
 	/** Endpoint for CoAP over TCP. */
 	private Endpoint default_tcp_endpoint;
 
+	/** Endponit for CoAP over TLS. */
+	private Endpoint default_secure_tpc_endpoint;
+
 	/**
 	 * Gets the default endpoint for implicit use by clients. By default, the
 	 * endpoint has a single-threaded executor and is started. It is possible to
@@ -113,11 +117,23 @@ public class EndpointManager {
 	 * thread, and uses default TCP settings.
 	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
      */
-	public Endpoint getTcpEndpoint() {
+	public Endpoint getDefaultTcpEndpoint() {
 		if (default_tcp_endpoint == null) {
 			createTcpEndpoint();
 		}
 		return default_tcp_endpoint;
+	}
+
+	/**
+	 * Gets the default tcp endping for implicit use by client. By default, the tcp endpoint has single worker
+	 * thread, and uses default TCP settings.
+	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
+	 */
+	public Endpoint getDefaultSecureTcpEndpoint() {
+		if (default_secure_tpc_endpoint == null) {
+			createSecureTcpEndpoint();
+		}
+		return default_secure_tpc_endpoint;
 	}
 
 	/*
@@ -156,9 +172,26 @@ public class EndpointManager {
 		}
 	}
 
+	private synchronized void createSecureTcpEndpoint() {
+		if (default_secure_tpc_endpoint != null) return;
+
+		NetworkConfig config = NetworkConfig.getStandard();
+		TlsClientConnector connector = new TlsClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
+				config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
+				config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
+
+		default_secure_tpc_endpoint = new CoapEndpoint(connector, config);
+		try {
+			default_secure_tpc_endpoint.start();
+			LOGGER.log(Level.INFO, "Created implicit secure tcp endpoint {0}", default_secure_tpc_endpoint.getAddress());
+		} catch (IOException e) {
+			LOGGER.log(Level.SEVERE, "Could not create secure tcp endpoint", e);
+		}
+	}
+
 	/**
-	 * Configures a new tcp endpoint to use by default. Any old tcp endpoint is destroyed.
-	 * @param endpoint the new default tcp endpoint.
+	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 * @param endpoint the new default secure tcp endpoint.
      */
 	public synchronized void setTcpEndpoint(Endpoint endpoint) {
 		if (this.default_tcp_endpoint != null) {
@@ -174,6 +207,28 @@ public class EndpointManager {
 				default_tcp_endpoint.start();
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not start new tcp endpoint", e);
+			}
+		}
+	}
+
+	/**
+	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 * @param endpoint the new default secure tcp endpoint.
+	 */
+	public synchronized void setSecureTcpEndpoint(Endpoint endpoint) {
+		if (this.default_secure_tpc_endpoint != null) {
+			this.default_secure_tpc_endpoint.destroy();
+		}
+
+		LOGGER.log(Level.CONFIG, "{0} becomes secure tcp endpoint", endpoint.getAddress());
+
+		this.default_secure_tpc_endpoint = endpoint;
+
+		if (!this.default_secure_tpc_endpoint.isStarted()) {
+			try {
+				default_secure_tpc_endpoint.start();
+			} catch (IOException e) {
+				LOGGER.log(Level.SEVERE, "Could not start new secure tcp endpoint", e);
 			}
 		}
 	}

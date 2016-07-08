@@ -201,8 +201,10 @@ public class Request extends Message {
 	 */
 	public Request setURI(String uri) {
 		try {
-			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://"))
+			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://")
+					&& !uri.startsWith("coaps+tcp://")) {
 				uri = "coap://" + uri;
+			}
 			return setURI(new URI(uri));
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException("Failed to set uri "+uri + ": " + e.getMessage());

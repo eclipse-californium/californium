@@ -131,9 +131,17 @@ public class TcpServerConnector implements Connector {
         return localAddress;
     }
 
+    /**
+     * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
+     */
+    protected void onNewChannelCreated(Channel ch) {
+    }
+
     private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
+            onNewChannelCreated(ch);
+
             // Handler order:
             // 0. Register/unregister new channel: all messages can only be sent over open connections.
             // 1. Generate Idle events
