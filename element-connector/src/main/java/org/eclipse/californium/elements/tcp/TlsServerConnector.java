@@ -15,38 +15,39 @@ import java.security.NoSuchAlgorithmException;
  */
 public class TlsServerConnector extends TcpServerConnector {
 
-    private final SSLContext sslContext;
+	private final SSLContext sslContext;
 
-    /** Initializes SSLEngine with specified SSL engine. */
-    public TlsServerConnector(SSLContext sslContext, InetSocketAddress socketAddress, int numberOfThreads,
-                              int idleTimeout) {
-        super(socketAddress, numberOfThreads, idleTimeout);
-        this.sslContext = sslContext;
-    }
+	/**
+	 * Initializes SSLEngine with specified SSL engine.
+	 */
+	public TlsServerConnector(SSLContext sslContext, InetSocketAddress socketAddress, int numberOfThreads,
+			int idleTimeout) {
+		super(socketAddress, numberOfThreads, idleTimeout);
+		this.sslContext = sslContext;
+	}
 
-    /** Initializes SSLEngine with specified SSL key management factory. */
-    public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress, int numberOfThreads,
-                              int idleTimeout) {
-        super(socketAddress, numberOfThreads, idleTimeout);
+	/**
+	 * Initializes SSLEngine with specified SSL key management factory.
+	 */
+	public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress, int numberOfThreads,
+			int idleTimeout) {
+		super(socketAddress, numberOfThreads, idleTimeout);
 
-        try {
-            this.sslContext = SSLContext.getInstance("TLS");
-            this.sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
-        } catch (KeyManagementException | NoSuchAlgorithmException e) {
-            throw new RuntimeException("Unable to initialize SSL engine", e);
-        }
-    }
+		try {
+			this.sslContext = SSLContext.getInstance("TLS");
+			this.sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
+		} catch (KeyManagementException | NoSuchAlgorithmException e) {
+			throw new RuntimeException("Unable to initialize SSL engine", e);
+		}
+	}
 
+	@Override protected void onNewChannelCreated(Channel ch) {
+		SSLEngine sslEngine = sslContext.createSSLEngine();
+		sslEngine.setUseClientMode(false);
+		ch.pipeline().addFirst(new SslHandler(sslEngine));
+	}
 
-    @Override
-    protected void onNewChannelCreated(Channel ch) {
-        SSLEngine sslEngine = sslContext.createSSLEngine();
-        sslEngine.setUseClientMode(false);
-        ch.pipeline().addFirst(new SslHandler(sslEngine));
-    }
-
-    @Override
-    public boolean isSchemeSupported(String scheme) {
-        return "coaps+tcp".equals(scheme);
-    }
+	@Override public boolean isSchemeSupported(String scheme) {
+		return "coaps+tcp".equals(scheme);
+	}
 }

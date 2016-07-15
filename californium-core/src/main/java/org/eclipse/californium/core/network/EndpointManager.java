@@ -1,15 +1,15 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ *
  * The Eclipse Public License is available at
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
@@ -17,13 +17,21 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - log default_secure_endpoint
- *                                                    instead of default_endpoint 
+ *                                                    instead of default_endpoint
  *                                                    in setDefaultSecureEndpoint
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
+
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.tcp.TcpClientConnector;
+import org.eclipse.californium.elements.tcp.TlsClientConnector;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -35,18 +43,10 @@ import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.elements.tcp.TcpClientConnector;
-import org.eclipse.californium.elements.tcp.TlsClientConnector;
-
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
  * outbound CoAP requests.
- * 
+ *
  * The EndpointManager contains the default endpoint for coap (on port 5683) and
  * coaps (CoAP over DTLS). When an application serves only as client but not
  * server it can just use the default endpoint to send requests. When the
@@ -65,13 +65,13 @@ import org.eclipse.californium.elements.tcp.TlsClientConnector;
  * }</pre>
  */
 public class EndpointManager {
-	
+
 	/** The logger */
 	private final static Logger LOGGER = Logger.getLogger(EndpointManager.class.getCanonicalName());
-	
+
 	/** The singleton manager instance */
 	private static EndpointManager manager = new EndpointManager();
-	
+
 	/**
 	 * Gets the singleton manager.
 	 *
@@ -80,10 +80,10 @@ public class EndpointManager {
 	public static EndpointManager getEndpointManager() {
 		return manager;
 	}
-	
+
 	/** The default endpoint for CoAP */
 	private Endpoint default_endpoint;
-	
+
 	/** The default endpoint for secure CoAP */
 	private Endpoint default_secure_endpoint;
 
@@ -102,7 +102,7 @@ public class EndpointManager {
 	 * endpoint must be added to an instance of {@link CoapServer}. Be careful with
 	 * stopping or destroying the default endpoint as it affects all messages
 	 * that are supposed to be sent over it.
-	 * 
+	 *
 	 * @return the default endpoint
 	 */
 	public synchronized Endpoint getDefaultEndpoint() {
@@ -113,10 +113,10 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Gets the default tcp endping for implicit use by client. By default, the tcp endpoint has single worker
+	 * Gets the default tcp endpoint for implicit use by client. By default, the tcp endpoint has single worker
 	 * thread, and uses default TCP settings.
-	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
-     */
+	 * Be careful to stop default tcp endpoint, as it stops all messages sent over it.
+	 */
 	public Endpoint getDefaultTcpEndpoint() {
 		if (default_tcp_endpoint == null) {
 			createTcpEndpoint();
@@ -125,9 +125,9 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Gets the default tcp endping for implicit use by client. By default, the tcp endpoint has single worker
+	 * Gets the default tcp endpoint for implicit use by client. By default, the tcp endpoint has single worker
 	 * thread, and uses default TCP settings.
-	 * Be careful to stop default tcp endpoing, as it stops all messages sent over it.
+	 * Be careful to stop default tcp endpoint, as it stops all messages sent over it.
 	 */
 	public Endpoint getDefaultSecureTcpEndpoint() {
 		if (default_secure_tpc_endpoint == null) {
@@ -144,9 +144,9 @@ public class EndpointManager {
 	 */
 	private synchronized void createDefaultEndpoint() {
 		if (default_endpoint != null) return;
-		
+
 		default_endpoint = new CoapEndpoint();
-		
+
 		try {
 			default_endpoint.start();
 			LOGGER.log(Level.INFO, "Created implicit default endpoint {0}", default_endpoint.getAddress());
@@ -156,12 +156,13 @@ public class EndpointManager {
 	}
 
 	private synchronized void createTcpEndpoint() {
-		if (default_tcp_endpoint != null) return;
+		if (default_tcp_endpoint != null)
+			return;
 
 		NetworkConfig config = NetworkConfig.getStandard();
 		TcpClientConnector connector = new TcpClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
-						config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
-						config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
+				config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
+				config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
 
 		default_tcp_endpoint = new CoapEndpoint(connector, config);
 		try {
@@ -173,7 +174,8 @@ public class EndpointManager {
 	}
 
 	private synchronized void createSecureTcpEndpoint() {
-		if (default_secure_tpc_endpoint != null) return;
+		if (default_secure_tpc_endpoint != null)
+			return;
 
 		NetworkConfig config = NetworkConfig.getStandard();
 		TlsClientConnector connector = new TlsClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
@@ -183,7 +185,8 @@ public class EndpointManager {
 		default_secure_tpc_endpoint = new CoapEndpoint(connector, config);
 		try {
 			default_secure_tpc_endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit secure tcp endpoint {0}", default_secure_tpc_endpoint.getAddress());
+			LOGGER.log(Level.INFO, "Created implicit secure tcp endpoint {0}",
+					default_secure_tpc_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create secure tcp endpoint", e);
 		}
@@ -191,8 +194,9 @@ public class EndpointManager {
 
 	/**
 	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 *
 	 * @param endpoint the new default secure tcp endpoint.
-     */
+	 */
 	public synchronized void setTcpEndpoint(Endpoint endpoint) {
 		if (this.default_tcp_endpoint != null) {
 			this.default_tcp_endpoint.destroy();
@@ -213,6 +217,7 @@ public class EndpointManager {
 
 	/**
 	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 *
 	 * @param endpoint the new default secure tcp endpoint.
 	 */
 	public synchronized void setSecureTcpEndpoint(Endpoint endpoint) {
@@ -238,15 +243,15 @@ public class EndpointManager {
 	 * @param endpoint the new default endpoint
 	 */
 	public synchronized void setDefaultEndpoint(Endpoint endpoint) {
-		
+
 		if (this.default_endpoint != null) {
 			this.default_endpoint.destroy();
 		}
 
 		LOGGER.log(Level.CONFIG, "{0} becomes default endpoint", endpoint.getAddress());
-		
+
 		this.default_endpoint = endpoint;
-		
+
 		if (!this.default_endpoint.isStarted()) {
 			try {
 				default_endpoint.start();
@@ -255,7 +260,7 @@ public class EndpointManager {
 			}
 		}
 	}
-	
+
 	/**
 	 * Gets the default endpoint for coaps for implicit use by clients.
 	 * By default, the endpoint has a single-threaded executor and is started.
@@ -265,7 +270,7 @@ public class EndpointManager {
 	 * receive requests, the endpoint must be added to an instance of
 	 * {@link CoapServer}. Be careful with stopping or destroying the default
 	 * endpoint as it affects all messages that are supposed to be sent over it.
-	 * 
+	 *
 	 * @return the default endpoint
 	 */
 	public synchronized Endpoint getDefaultSecureEndpoint() {
@@ -278,11 +283,11 @@ public class EndpointManager {
 		}
 		return default_secure_endpoint;
 	}
-	
+
 	private synchronized void createDefaultSecureEndpoint() {
 		if (default_secure_endpoint != null) return;
-		
-		LOGGER.config("Secure endpoint must be injected via setDefaultSecureEndpoint()");	
+
+		LOGGER.config("Secure endpoint must be injected via setDefaultSecureEndpoint()");
 	}
 
 	/**
@@ -294,7 +299,7 @@ public class EndpointManager {
 		if (this.default_secure_endpoint!=null) {
 			this.default_secure_endpoint.destroy();
 		}
-		
+
 		this.default_secure_endpoint = endpoint;
 
 		if (!this.default_secure_endpoint.isStarted()) {
@@ -322,7 +327,7 @@ public class EndpointManager {
 		}
 		return interfaces;
 	}
-	
+
 	// Needed for JUnit Tests to remove state for deduplication
 	/**
 	 * Clear the state for deduplication in both default endpoints.
@@ -336,7 +341,7 @@ public class EndpointManager {
 		if (it.default_tcp_endpoint != null)
 			it.default_tcp_endpoint.clear();
 	}
-	
+
 	/**
 	 * ClientMessageDeliverer is a simple implementation of the interface
 	 * {@link MessageDeliverer}. When a response arrives it adds it to the
@@ -344,7 +349,7 @@ public class EndpointManager {
 	 * ClientMessageDeliverer rejects them.
 	 */
 	public static class ClientMessageDeliverer implements MessageDeliverer {
-		
+
 		/* (non-Javadoc)
 		 * @see ch.inf.vs.californium.MessageDeliverer#deliverRequest(ch.inf.vs.californium.network.Exchange)
 		 */
@@ -353,7 +358,7 @@ public class EndpointManager {
 			LOGGER.severe("Default endpoint without CoapServer has received a request.");
 			exchange.sendReject();
 		}
-		
+
 		/* (non-Javadoc)
 		 * @see ch.inf.vs.californium.MessageDeliverer#deliverResponse(ch.inf.vs.californium.network.Exchange, ch.inf.vs.californium.coap.Response)
 		 */

@@ -1,29 +1,27 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ * <p>
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
- *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ * http://www.eclipse.org/org/documents/edl-v10.html.
+ * <p>
  * Contributors:
- *    Matthias Kovatsch - creator and main architect
- *    Martin Lanter - architect and re-implementation
- *    Dominique Im Obersteg - parsers and initial implementation
- *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
- *    Bosch Software Innovations GmbH - turn into utility class with static methods only
- *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Matthias Kovatsch - creator and main architect
+ * Martin Lanter - architect and re-implementation
+ * Dominique Im Obersteg - parsers and initial implementation
+ * Daniel Pauli - parsers and initial implementation
+ * Kai Hudalla - logging
+ * Bosch Software Innovations GmbH - turn into utility class with static methods only
+ * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.LENGTH_NIBBLE_BITS;
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
  * The DataSerialized serializes outgoing messages to byte arrays based on CoAP TCP/TLS spec:
@@ -31,8 +29,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_
  */
 public final class TcpDataSerializer extends DataSerializer {
 
-	@Override
-	protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
+	@Override protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
 		// Variable length encoding per: https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02
 		if (header.getBodyLength() < 13) {
 			writer.write(header.getBodyLength(), LENGTH_NIBBLE_BITS);
@@ -41,7 +38,7 @@ public final class TcpDataSerializer extends DataSerializer {
 			writer.write(13, LENGTH_NIBBLE_BITS);
 			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
 			writer.write(header.getBodyLength() - 13, Byte.SIZE);
-		} else if (header.getBodyLength() < (1 << 16) + 269){
+		} else if (header.getBodyLength() < (1 << 16) + 269) {
 			writer.write(14, LENGTH_NIBBLE_BITS);
 			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
 			writer.write(header.getBodyLength() - 269, 2 * Byte.SIZE);

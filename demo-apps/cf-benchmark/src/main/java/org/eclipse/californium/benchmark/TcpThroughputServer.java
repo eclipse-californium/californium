@@ -13,30 +13,29 @@ import java.net.InetSocketAddress;
 
 public class TcpThroughputServer {
 
-    public static void main(String[] args) {
-        NetworkConfig net = NetworkConfig.createStandardWithoutFile()
-                .setLong(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16 * 1024)
-                .setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, 2)
-                .setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 10000);
+	public static void main(String[] args) {
+		NetworkConfig net = NetworkConfig.createStandardWithoutFile()
+				.setLong(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16 * 1024)
+				.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, 2)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 10000);
 
-        Connector serverConnector = new TcpServerConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT), 100, 1);
-        CoapEndpoint endpoint = new CoapEndpoint(serverConnector, net);
+		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT), 100, 1);
+		CoapEndpoint endpoint = new CoapEndpoint(serverConnector, net);
 
-        CoapServer server = new CoapServer(net);
-        server.addEndpoint(endpoint);
-        server.add(new Resource());
-        server.start();
-    }
+		CoapServer server = new CoapServer(net);
+		server.addEndpoint(endpoint);
+		server.add(new Resource());
+		server.start();
+	}
 
-    static class Resource extends CoapResource {
+	static class Resource extends CoapResource {
 
-        Resource() {
-            super("echo");
-        }
+		Resource() {
+			super("echo");
+		}
 
-        @Override
-        public void handlePUT(CoapExchange exchange) {
-            exchange.respond(CoAP.ResponseCode.CONTENT, exchange.getRequestPayload());
-        }
-    }
+		@Override public void handlePUT(CoapExchange exchange) {
+			exchange.respond(CoAP.ResponseCode.CONTENT, exchange.getRequestPayload());
+		}
+	}
 }

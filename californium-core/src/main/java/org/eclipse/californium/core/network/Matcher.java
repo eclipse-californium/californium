@@ -13,33 +13,54 @@ import java.util.concurrent.ScheduledExecutorService;
  * Coap stack running over TCP or TLS connector).
  */
 public interface Matcher {
-    /** Starts this matcher. */
-    void start();
 
-    /** Stops this matcher. */
-    void stop();
+	/**
+	 * Starts this matcher.
+	 */
+	void start();
 
-    /** Sets executor over which this matcher will perform match and clean up tasks. */
-    void setExecutor(ScheduledExecutorService executor);
+	/**
+	 * Stops this matcher.
+	 */
+	void stop();
 
-    /** Notified when Coap stack is sending a request. Signal for matcher to begin tracking. */
-    void sendRequest(Exchange exchange, Request request);
+	/**
+	 * Sets executor over which this matcher will perform match and clean up tasks.
+	 */
+	void setExecutor(ScheduledExecutorService executor);
 
-    /** Notified when Coap stack is sending a response. Signal for matcher to begin tracking. */
-    void sendResponse(Exchange exchange, Response response);
+	/**
+	 * Notified when Coap stack is sending a request. Signal for matcher to begin tracking.
+	 */
+	void sendRequest(Exchange exchange, Request request);
 
-    /** Notified when Coap stack is sending ACK or RST. Signal for matcher to begin tracking. */
-    void sendEmptyMessage(Exchange exchange, EmptyMessage message);
+	/**
+	 * Notified when Coap stack is sending a response. Signal for matcher to begin tracking.
+	 */
+	void sendResponse(Exchange exchange, Response response);
 
-    /** Notified when Coap stack is receiving a request. Matcher is expecting to match to Exchange. */
-    Exchange receiveRequest(Request request);
+	/**
+	 * Notified when Coap stack is sending ACK or RST. Signal for matcher to begin tracking.
+	 */
+	void sendEmptyMessage(Exchange exchange, EmptyMessage message);
 
-    /** Notified when Coap stack is receiving a response. Matcher is expecting to match to Exchange. */
-    Exchange receiveResponse(Response response, CorrelationContext responseContext);
+	/**
+	 * Notified when Coap stack is receiving a request. Matcher is expecting to match to Exchange.
+	 */
+	Exchange receiveRequest(Request request);
 
-    /** Notified when Coap stack is receiving an ACK or RST. Matcher is expecting to match to Exchange. */
-    Exchange receiveEmptyMessage(EmptyMessage message);
+	/**
+	 * Notified when Coap stack is receiving a response. Matcher is expecting to match to Exchange.
+	 */
+	Exchange receiveResponse(Response response, CorrelationContext responseContext);
 
-    /** Clears internal state. */
-    void clear();
+	/**
+	 * Notified when Coap stack is receiving an ACK or RST. Matcher is expecting to match to Exchange.
+	 */
+	Exchange receiveEmptyMessage(EmptyMessage message);
+
+	/**
+	 * Clears internal state.
+	 */
+	void clear();
 }

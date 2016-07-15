@@ -12,6 +12,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * CoapStack is what CoapEndpoint uses to send messages through distinct layers.
  */
 public interface CoapStack {
+
 	// delegate to top
 	void sendRequest(Request request);
 

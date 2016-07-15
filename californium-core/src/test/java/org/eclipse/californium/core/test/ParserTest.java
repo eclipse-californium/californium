@@ -1,43 +1,31 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ * <p>
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
- *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ * http://www.eclipse.org/org/documents/edl-v10.html.
+ * <p>
  * Contributors:
- *    Matthias Kovatsch - creator and main architect
- *    Martin Lanter - architect and re-implementation
- *    Dominique Im Obersteg - parsers and initial implementation
- *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
- *    Bosch Software Innovations GmbH - add test cases
+ * Matthias Kovatsch - creator and main architect
+ * Martin Lanter - architect and re-implementation
+ * Dominique Im Obersteg - parsers and initial implementation
+ * Daniel Pauli - parsers and initial implementation
+ * Kai Hudalla - logging
+ * Bosch Software Innovations GmbH - add test cases
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import static org.junit.Assert.*;
-
 import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.MessageFormatException;
-import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.DataSerializer;
-import org.eclipse.californium.core.network.serialization.MessageHeader;
-import org.eclipse.californium.core.network.serialization.TcpDataParser;
-import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
-import org.eclipse.californium.core.network.serialization.UdpDataParser;
-import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
+import org.eclipse.californium.core.network.serialization.*;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -48,13 +36,13 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.*;
+
 /**
  * This test tests the serialization of messages to byte arrays and the parsing
  * back to messages.
  */
-@Category(Small.class)
-@RunWith(Parameterized.class)
-public class ParserTest {
+@Category(Small.class) @RunWith(Parameterized.class) public class ParserTest {
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
@@ -66,16 +54,14 @@ public class ParserTest {
 		this.expectedMid = expectedMid;
 	}
 
-	@Parameterized.Parameters
-	public static List<Object[]> parameters() {
+	@Parameterized.Parameters public static List<Object[]> parameters() {
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[]{new UdpDataSerializer(), new UdpDataParser(), 7});
-		parameters.add(new Object[]{new TcpDataSerializer(), new TcpDataParser(), 0});
+		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(), 7 });
+		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), 0 });
 		return parameters;
 	}
 
-	@Test
-	public void testRequestParsing() {
+	@Test public void testRequestParsing() {
 		Request request = new Request(Code.POST);
 		request.setType(Type.NON);
 		request.setMID(expectedMid);
@@ -93,11 +79,9 @@ public class ParserTest {
 		assertEquals(request.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
-	@Test
-	public void testRequestParsingDetectsWrongCodeClass() {
+	@Test public void testRequestParsingDetectsWrongCodeClass() {
 		// GIVEN a message with a class code of 1, i.e. not a request
-		byte[] malformedRequest = new byte[] {
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00100001, // code: 1.01 -> class 1 is reserved
 				0x00, 0x10 // message ID
 		};
@@ -113,11 +97,9 @@ public class ParserTest {
 		}
 	}
 
-	@Test
-	public void testResponseParsingDetectsWrongCodeClass() {
+	@Test public void testResponseParsingDetectsWrongCodeClass() {
 		// GIVEN a message with a class code of 0, i.e. not a response but a request
-		byte[] malformedRequest = new byte[] {
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10 // message ID
 		};
@@ -132,11 +114,9 @@ public class ParserTest {
 		}
 	}
 
-	@Test
-	public void testEmptyMessageParsingDetectsWrongCode() {
+	@Test public void testEmptyMessageParsingDetectsWrongCode() {
 		// GIVEN a message with a code of 2.04, i.e. a CHANGED response
-		byte[] notAnEmptyMessage = new byte[] {
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] notAnEmptyMessage = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b01000010, // code: 2.04 (CHANGED response)
 				0x00, 0x10 // message ID
 		};
@@ -151,11 +131,9 @@ public class ParserTest {
 		}
 	}
 
-	@Test
-	public void testRequestParsingDetectsMissingPayloadInRequest() {
+	@Test public void testRequestParsingDetectsMissingPayloadInRequest() {
 		// GIVEN a request with a payload delimiter but empty payload
-		byte[] malformedGetRequest = new byte[] {
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
@@ -173,11 +151,9 @@ public class ParserTest {
 		}
 	}
 
-	@Test
-	public void testRequestParsingDetectsMissingPayloadInResponse() {
+	@Test public void testRequestParsingDetectsMissingPayloadInResponse() {
 		// GIVEN a request with a payload delimiter but empty payload
-		byte[] malformedResponse = new byte[] {
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedResponse = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b01000101, // code: 2.05 (CONTENT response)
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
@@ -195,8 +171,7 @@ public class ParserTest {
 		}
 	}
 
-	@Test
-	public void testResponseParsing() {
+	@Test public void testResponseParsing() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
@@ -216,8 +191,7 @@ public class ParserTest {
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
-	@Test
-	public void testUTF8Encoding() {
+	@Test public void testUTF8Encoding() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setType(Type.NON);
 		response.setMID(9);

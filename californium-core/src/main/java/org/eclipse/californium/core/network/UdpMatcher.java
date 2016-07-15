@@ -1,37 +1,27 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ * <p>
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
- *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ * http://www.eclipse.org/org/documents/edl-v10.html.
+ * <p>
  * Contributors:
- *    Matthias Kovatsch - creator and main architect
- *    Martin Lanter - architect and re-implementation
- *    Dominique Im Obersteg - parsers and initial implementation
- *    Daniel Pauli - parsers and initial implementation
- *    Kai Hudalla - logging
- *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
- *                                                    explicit String concatenation
- *    Bosch Software Innovations GmbH - use correlation context to improve matching
- *                                      of Response(s) to Request (fix GitHub issue #1)
+ * Matthias Kovatsch - creator and main architect
+ * Martin Lanter - architect and re-implementation
+ * Dominique Im Obersteg - parsers and initial implementation
+ * Daniel Pauli - parsers and initial implementation
+ * Kai Hudalla - logging
+ * Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ * explicit String concatenation
+ * Bosch Software Innovations GmbH - use correlation context to improve matching
+ * of Response(s) to Request (fix GitHub issue #1)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
-
-import java.util.Iterator;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -48,6 +38,16 @@ import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
+
+import java.util.Iterator;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class UdpMatcher implements Matcher {
 
@@ -87,17 +87,16 @@ public class UdpMatcher implements Matcher {
 		useStrictResponseMatching = config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING);
 		boolean randomMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
 		if (randomMID) {
-			currendMID = new AtomicInteger(new Random().nextInt(1<<16));
+			currendMID = new AtomicInteger(new Random().nextInt(1 << 16));
 		} else {
 			currendMID = new AtomicInteger(0);
 		}
 
 		if (LOGGER.isLoggable(Level.CONFIG)) {
-			String msg = new StringBuilder("Matcher uses ")
-					.append(NetworkConfig.Keys.USE_RANDOM_MID_START).append("=").append(randomMID).append(", ")
-					.append(NetworkConfig.Keys.TOKEN_SIZE_LIMIT).append("=").append(tokenSizeLimit).append(" and ")
-					.append(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING).append("=").append(useStrictResponseMatching)
-					.toString();
+			String msg = new StringBuilder("Matcher uses ").append(NetworkConfig.Keys.USE_RANDOM_MID_START).append("=")
+					.append(randomMID).append(", ").append(NetworkConfig.Keys.TOKEN_SIZE_LIMIT).append("=")
+					.append(tokenSizeLimit).append(" and ").append(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING)
+					.append("=").append(useStrictResponseMatching).toString();
 			LOGGER.config(msg);
 		}
 
@@ -105,8 +104,7 @@ public class UdpMatcher implements Matcher {
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
 	}
 
-	@Override
-	public synchronized void start() {
+	@Override public synchronized void start() {
 		if (started) {
 			return;
 		} else if (executor == null) {
@@ -114,24 +112,23 @@ public class UdpMatcher implements Matcher {
 		} else {
 			started = true;
 			deduplicator.start();
-	
+
 			// this is a useful health metric that could later be exported to some kind of monitoring interface
 			if (LOGGER.isLoggable(healthStatusLevel)) {
 				executor.scheduleAtFixedRate(new Runnable() {
-					@Override
-					public void run() {
-						LOGGER.log(
-							healthStatusLevel,
-							"Matcher state: {0} exchangesByMID, {1} exchangesByToken, {2} ongoingExchanges",
-							new Object[]{exchangesByMID.size(), exchangesByToken.size(), ongoingExchanges.size()});
+
+					@Override public void run() {
+						LOGGER.log(healthStatusLevel,
+								"Matcher state: {0} exchangesByMID, {1} exchangesByToken, {2} ongoingExchanges",
+								new Object[] { exchangesByMID.size(), exchangesByToken.size(),
+										ongoingExchanges.size() });
 					}
 				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 			}
 		}
 	}
 
-	@Override
-	public synchronized void stop() {
+	@Override public synchronized void stop() {
 		if (!started) {
 			return;
 		} else {
@@ -141,19 +138,17 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	@Override
-	public synchronized void setExecutor(final ScheduledExecutorService executor) {
+	@Override public synchronized void setExecutor(final ScheduledExecutorService executor) {
 		deduplicator.setExecutor(executor);
 		this.executor = executor;
 		// health status runnable is not migrated at the moment
 	}
 
-	@Override
-	public void sendRequest(Exchange exchange, Request request) {
+	@Override public void sendRequest(Exchange exchange, Request request) {
 
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
-			request.setMID(currendMID.getAndIncrement()%(1<<16)); // wrap at 2^16
+			request.setMID(currendMID.getAndIncrement() % (1 << 16)); // wrap at 2^16
 		}
 		// request MID is from the local namespace -- use blank address
 		KeyMID idByMID = new KeyMID(request.getMID());
@@ -166,24 +161,24 @@ public class UdpMatcher implements Matcher {
 		} else {
 			idByToken = new KeyToken(request.getToken());
 			// ongoing requests may reuse token
-			if (!(exchange.getFailedTransmissionCount()>0 || request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
+			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1() || request.getOptions()
+					.hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
 				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
 		}
 
 		exchange.setObserver(exchangeObserver);
-		LOGGER.log(Level.FINE, "Tracking open request using {0}, {1}", new Object[]{idByMID, idByToken});
+		LOGGER.log(Level.FINE, "Tracking open request using {0}, {1}", new Object[] { idByMID, idByToken });
 
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
 	}
 
-	@Override
-	public void sendResponse(Exchange exchange, Response response) {
+	@Override public void sendResponse(Exchange exchange, Response response) {
 
 		// ensure MID is set
 		if (response.getMID() == Message.NONE) {
-			response.setMID(currendMID.getAndIncrement()%(1<<16));
+			response.setMID(currendMID.getAndIncrement() % (1 << 16));
 		}
 
 		// ensure Token is set
@@ -200,20 +195,21 @@ public class UdpMatcher implements Matcher {
 		// Blockwise transfers are identified by URI and remote endpoint
 		if (response.getOptions().hasBlock2()) {
 			Request request = exchange.getCurrentRequest();
-			KeyUri idByUri = new KeyUri(request.getURI(), response.getDestination().getAddress(), response.getDestinationPort());
+			KeyUri idByUri = new KeyUri(request.getURI(), response.getDestination().getAddress(),
+					response.getDestinationPort());
 			// Observe notifications only send the first block, hence do not store them as ongoing
 			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
 				if (ongoingExchanges.put(idByUri, exchange) == null) {
 					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}",
-							new Object[]{idByUri, request});
+							new Object[] { idByUri, request });
 				} else {
 					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}",
-							new Object[]{idByUri, request});
+							new Object[] { idByUri, request });
 				}
 			} else {
 				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
-						new Object[]{idByUri, request});
+						new Object[] { idByUri, request });
 				ongoingExchanges.remove(idByUri);
 			}
 		}
@@ -231,8 +227,7 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	@Override
-	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
+	@Override public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 
 		// ensure Token is set
 		message.setToken(new byte[0]);
@@ -243,8 +238,7 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	@Override
-	public Exchange receiveRequest(Request request) {
+	@Override public Exchange receiveRequest(Request request) {
 		/*
 		 * This request could be
 		 *  - Complete origin request => deliver with new exchange
@@ -294,7 +288,8 @@ public class UdpMatcher implements Matcher {
 				} else {
 					// the exchange is continuing, we can (i.e., must) clean up the previous response
 					// check for null, in case no response was created (e.g., because the resource handler crashed...)
-					if (ongoing.getCurrentResponse() != null && ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
+					if (ongoing.getCurrentResponse() != null && ongoing.getCurrentResponse().getType() != Type.ACK
+							&& !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID());
 						LOGGER.log(Level.FINE, "Ongoing exchange got new request, cleaning up {0}", idByMID);
 						exchangesByMID.remove(idByMID);
@@ -311,11 +306,12 @@ public class UdpMatcher implements Matcher {
 				 * hash map 'ongoing' and the deduplicator. They must agree on
 				 * which exchange they store!
 				 */
-				
+
 				Exchange exchange = new Exchange(request, Origin.REMOTE);
 				Exchange previous = deduplicator.findPrevious(idByMID, exchange);
 				if (previous == null) {
-					LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}", new Object[]{idByUri, request});
+					LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}",
+							new Object[] { idByUri, request });
 					exchange.setObserver(exchangeObserver);
 					ongoingExchanges.put(idByUri, exchange);
 					return exchange;
@@ -328,8 +324,7 @@ public class UdpMatcher implements Matcher {
 		} // if blockwise
 	}
 
-	@Override
-	public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
+	@Override public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
 
 		/*
 		 * This response could be
@@ -363,7 +358,7 @@ public class UdpMatcher implements Matcher {
 				}
 			} else {
 				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
-						new Object[]{response.getSource(), response.getSourcePort(), response});
+						new Object[] { response.getSource(), response.getSourcePort(), response });
 			}
 			// ignore response
 			return null;
@@ -384,12 +379,15 @@ public class UdpMatcher implements Matcher {
 				// The token matches but not the MID.
 				LOGGER.log(Level.WARNING,
 						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
-						new Object[]{response.getTokenString(), exchange.getCurrentRequest().getMID(), response.getMID()});
+						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
+								response.getMID() });
 			}
 
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO, "Ignoring potentially forged response for token {0} with non-matching correlation context", idByToken);
+			LOGGER.log(Level.INFO,
+					"Ignoring potentially forged response for token {0} with non-matching correlation context",
+					idByToken);
 			return null;
 		}
 	}
@@ -415,7 +413,8 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	private boolean isResponseRelatedToDtlsRequest(final DtlsCorrelationContext requestContext, final CorrelationContext responseContext) {
+	private boolean isResponseRelatedToDtlsRequest(final DtlsCorrelationContext requestContext,
+			final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
@@ -424,7 +423,8 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	private boolean isResponseStrictlyRelatedToDtlsRequest(final DtlsCorrelationContext requestContext, final CorrelationContext responseContext) {
+	private boolean isResponseStrictlyRelatedToDtlsRequest(final DtlsCorrelationContext requestContext,
+			final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
@@ -434,8 +434,7 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	@Override
-	public Exchange receiveEmptyMessage(final EmptyMessage message) {
+	@Override public Exchange receiveEmptyMessage(final EmptyMessage message) {
 
 		// local namespace
 		KeyMID idByMID = new KeyMID(message.getMID());
@@ -446,15 +445,13 @@ public class UdpMatcher implements Matcher {
 			LOGGER.log(Level.FINE, "Exchange got reply: Cleaning up {0}", idByMID);
 			exchangesByMID.remove(idByMID);
 		} else {
-			LOGGER.log(Level.FINE,
-					"Ignoring unmatchable empty message from {0}:{1}: {2}",
-					new Object[]{message.getSource(), message.getSourcePort(), message});
+			LOGGER.log(Level.FINE, "Ignoring unmatchable empty message from {0}:{1}: {2}",
+					new Object[] { message.getSource(), message.getSourcePort(), message });
 		}
 		return exchange;
 	}
 
-	@Override
-	public void clear() {
+	@Override public void clear() {
 		this.exchangesByMID.clear();
 		this.exchangesByToken.clear();
 		this.ongoingExchanges.clear();
@@ -463,7 +460,7 @@ public class UdpMatcher implements Matcher {
 
 	private void removeNotificationsOf(ObserveRelation relation) {
 		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
-		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
 			Response previous = iterator.next();
 			// notifications are local MID namespace
 			KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
@@ -484,7 +481,7 @@ public class UdpMatcher implements Matcher {
 		do {
 			// random length between 1 and tokenSizeLimit
 			// TODO: why would we want to have a random length token?
-			token = new byte[random.nextInt(tokenSizeLimit)+1];
+			token = new byte[random.nextInt(tokenSizeLimit) + 1];
 			// random value
 			random.nextBytes(token);
 			result = new KeyToken(token);
@@ -495,8 +492,7 @@ public class UdpMatcher implements Matcher {
 
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
-		@Override
-		public void completed(final Exchange exchange) {
+		@Override public void completed(final Exchange exchange) {
 
 			/* 
 			 * Logging in this method leads to significant performance loss.
@@ -525,8 +521,9 @@ public class UdpMatcher implements Matcher {
 				}
 
 				Request request = exchange.getCurrentRequest();
-				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
-					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
+				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
+					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
+							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
 					ongoingExchanges.remove(uriKey);
 				}
@@ -539,8 +536,7 @@ public class UdpMatcher implements Matcher {
 			}
 		}
 
-		@Override
-		public void contextEstablished(final Exchange exchange) {
+		@Override public void contextEstablished(final Exchange exchange) {
 			// do nothing
 		}
 	}
