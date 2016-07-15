@@ -946,8 +946,8 @@ public class DTLSConnectorTest {
 			client.releaseSocket();
 			// in order to prevent sporadic BindExceptions during test execution
 			// give OS some time before allowing test cases to re-bind to same port
-			synchronized (this) {
-				wait(50);
+			synchronized (client) {
+				client.wait(100);
 			}
 		}
 	}
