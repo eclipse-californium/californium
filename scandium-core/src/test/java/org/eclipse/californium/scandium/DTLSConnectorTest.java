@@ -944,6 +944,10 @@ public class DTLSConnectorTest {
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
 			client.releaseSocket();
+			// wait for some time to let the OS mark the port as free again
+			synchronized (client) {
+				client.wait(100);
+			}
 		}
 	}
 
