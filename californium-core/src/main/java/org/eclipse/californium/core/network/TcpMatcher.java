@@ -280,4 +280,9 @@ public class TcpMatcher implements Matcher {
 		}
 	}
 
+	@Override
+	public void cancelObserve(byte[] token) {
+		// TODO Auto-generated method stub
+		
+	}
 }

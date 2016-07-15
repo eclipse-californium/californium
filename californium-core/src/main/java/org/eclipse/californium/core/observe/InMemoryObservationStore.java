@@ -19,12 +19,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.Serializer;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.RawData;
 
 public class InMemoryObservationStore implements ObservationStore {
 
+	private static final DataSerializer serializer = new UdpDataSerializer();
 	private Map<KeyToken, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
@@ -38,9 +41,9 @@ public class InMemoryObservationStore implements ObservationStore {
 	public Observation get(byte[] token) {
 		Observation obs = map.get(new KeyToken(token));
 		if (obs != null) {
-			RawData serialize = Serializer.serialize(obs.getRequest(), null);
-			DataParser parser = new DataParser(serialize.getBytes());
-			Request newRequest = parser.parseRequest();
+			RawData serialize = serializer.serializeRequest(obs.getRequest(), null);
+			DataParser parser = new UdpDataParser();
+			Request newRequest = parser.parseRequest(serialize);
 			return new Observation(newRequest, obs.getContext());
 		}
 		return null;

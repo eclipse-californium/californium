@@ -115,7 +115,7 @@ import org.eclipse.californium.elements.UDPConnector;
  * | +--------+-+--------+ |
  * |          v A          |
  * |          v A          |
- * |        {@link UdpMatcher}        |
+ * |        {@link Matcher}        |
  * |          v A          |
  * |   {@link MessageInterceptor}  |  
  * |          v A          |
@@ -258,6 +258,7 @@ public class CoapEndpoint implements Endpoint {
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store) {
 		this.config = config;
 		this.connector = connector;
+		ObservationStore observationStore = store != null ? store : new InMemoryObservationStore();
 
 		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
 				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
@@ -266,7 +267,7 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config);
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
