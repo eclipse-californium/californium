@@ -42,7 +42,7 @@ import java.util.logging.Logger;
  * TCP client connection is used by CoapEndpoint when instantiated by the CoapClient. Per RFC the client can both
  * send and receive messages, but cannot accept new incoming connections.
  */
-public class TcpClientConnector implements Connector {
+public class TcpClientConnector implements Connector, TcpConnector {
 
 	private final static Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
 
@@ -129,10 +129,6 @@ public class TcpClientConnector implements Connector {
 	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
 	 */
 	protected void onNewChannelCreated(Channel ch) {
-	}
-
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coap+tcp".equals(scheme);
 	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
