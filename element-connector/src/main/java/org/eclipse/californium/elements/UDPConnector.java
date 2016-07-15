@@ -324,9 +324,4 @@ public class UDPConnector implements Connector {
 	public int getReceiverPacketSize() {
 		return receiverPacketSize;
 	}
-
-	@Override
-	public boolean isSchemeSupported(String scheme) {
-		return "coap".equals(scheme);
-	}
 }

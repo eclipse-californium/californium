@@ -69,7 +69,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
-
+import org.eclipse.californium.elements.tcp.TcpConnector;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -231,8 +231,10 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 
-		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
-				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+		// To make TCP support backwards compatible using less clean "instanceof" shortcut in 1.1 branch.
+		// In 2.0 branch, the connector API has been expected to export a new isSchemeSupported(String scheme)
+		// method, which is used instead.
+		if (connector instanceof TcpConnector) {
 			this.matcher = new TcpMatcher(config);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();

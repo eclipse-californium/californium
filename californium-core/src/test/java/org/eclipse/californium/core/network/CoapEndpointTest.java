@@ -197,10 +197,5 @@ public class CoapEndpointTest {
 		public InetSocketAddress getAddress() {
 			return new InetSocketAddress(0);
 		}
-
-		@Override
-		public boolean isSchemeSupported(String scheme) {
-			return CoAP.COAP_URI_SCHEME.equals(scheme);
-		}
 	}
 }

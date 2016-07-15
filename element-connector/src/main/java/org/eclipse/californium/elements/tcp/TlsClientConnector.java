@@ -43,8 +43,4 @@ public class TlsClientConnector extends TcpClientConnector {
 		sslEngine.setUseClientMode(true);
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
-
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coaps+tcp".equals(scheme);
-	}
 }
