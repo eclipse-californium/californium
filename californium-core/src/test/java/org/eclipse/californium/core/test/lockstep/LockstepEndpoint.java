@@ -29,6 +29,12 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.network.serialization.DataParser;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.MessageHeader;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.junit.Assert;
 
 import org.eclipse.californium.core.Utils;
@@ -41,8 +47,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.Serializer;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -57,7 +61,9 @@ public class LockstepEndpoint {
 	private LinkedBlockingQueue<RawData> incoming;
 	
 	private HashMap<String, Object> storage;
-	
+
+	private final DataSerializer serializer;
+	private final DataParser parser;
 	private boolean verbose = DEFAULT_VERBOSE;
 
 	public LockstepEndpoint() {
@@ -69,7 +75,9 @@ public class LockstepEndpoint {
 				incoming.offer(raw);
 			}
 		});
-		
+		this.serializer = new UdpDataSerializer();
+		this.parser = new UdpDataParser();
+
 		try {
 			connector.start();
 			Thread.sleep(100);
@@ -402,10 +410,11 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
 			Assert.assertNotNull("Did not receive a request (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
-			
-			if (parser.isRequest()) {
-				Request request = parser.parseRequest();
+
+			MessageHeader header = parser.parseHeader(raw);
+
+			if (CoAP.isRequest(header.getCode())) {
+				Request request = parser.parseRequest(raw);
 				request.setSource(raw.getAddress());
 				request.setSourcePort(raw.getPort());
 				check(request);
@@ -543,10 +552,10 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive a response (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
+			MessageHeader header = parser.parseHeader(raw);
 			
-			if (parser.isResponse()) {
-				this.response = parser.parseResponse();
+			if (CoAP.isResponse(header.getCode())) {
+				this.response = parser.parseResponse(raw);
 				response.setSource(raw.getAddress());
 				response.setSourcePort(raw.getPort());
 				check(response);
@@ -569,9 +578,10 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
-			if (parser.isEmpty()) {
-				EmptyMessage empty = parser.parseEmptyMessage();
+			MessageHeader header = parser.parseHeader(raw);
+
+			if (CoAP.isEmptyMessage(header.getCode())) {
+				EmptyMessage empty = parser.parseEmptyMessage(raw);
 				empty.setSource(raw.getAddress());
 				empty.setSourcePort(raw.getPort());
 				check(empty);
@@ -683,7 +693,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(message);
 
-			RawData raw = Serializer.serialize(message);
+			RawData raw = serializer.serializeEmptyMessage(message);
 			send(raw);
 		}
 	}
@@ -748,7 +758,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(request);
 
-			RawData raw = Serializer.serialize(request);
+			RawData raw = serializer.serializeRequest(request);
 			send(raw);
 		}
 	}
@@ -834,7 +844,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(response);
 
-			RawData raw = Serializer.serialize(response);
+			RawData raw = serializer.serializeResponse(response);
 			send(raw);
 		}
 	}
