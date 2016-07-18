@@ -57,6 +57,8 @@ import java.util.logging.Logger;
  * | +---------v-+-------+ |
  * | | Stack Top         | |
  * | +-------------------+ |
+ * | | {@link ExchangeCleanupLayer}      | |
+ * * | +-------------------+ |
  * | | {@link ObserveLayer}      | |
  * | +-------------------+ |
  * | | {@link BlockwiseLayer}    | |
@@ -91,8 +93,13 @@ public class CoapTcpStack implements CoapStack {
 		this.top = new StackTopAdapter();
 		this.outbox = outbox;
 
-		this.layers = new Layer.TopDownBuilder().add(top).add(new ObserveLayer(config)).add(new BlockwiseLayer(config))
-				.add(bottom = new StackBottomAdapter()).create();
+		this.layers = new Layer.TopDownBuilder()
+				.add(top)
+				.add(new ExchangeCleanupLayer())
+				.add(new ObserveLayer(config))
+				.add(new BlockwiseLayer(config))
+				.add(bottom = new StackBottomAdapter())
+				.create();
 
 		// make sure the endpoint sets a MessageDeliverer
 	}
