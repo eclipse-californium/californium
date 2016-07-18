@@ -767,8 +767,13 @@ public class CoapClient {
 	private CoapResponse synchronous(Request request, Endpoint outEndpoint) {
 		try {
 			Response response = send(request, outEndpoint).waitForResponse(getTimeout());
-			if (response == null) return null;
-			else return new CoapResponse(response);
+			if (response == null) {
+				// Cancel request so appropriate clean up can happen.
+				request.cancel();
+				return null;
+			} else {
+				return new CoapResponse(response);
+			}
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}

@@ -57,6 +57,8 @@ import org.eclipse.californium.elements.Connector;
  * | +---------v-+-------+ |
  * | | Stack Top         | |
  * | +-------------------+ |
+ * | | {@link ExchangeCleanupLayer} | |
+ * * | +-------------------+ |
  * | | {@link ObserveLayer}      | |
  * | +-------------------+ |
  * | | {@link BlockwiseLayer}    | |
@@ -101,9 +103,9 @@ public class CoapUdpStack implements CoapStack {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
 
-		this.layers = 
-				new Layer.TopDownBuilder()
+		this.layers = new Layer.TopDownBuilder()
 				.add(top)
+				.add(new ExchangeCleanupLayer())
 				.add(new ObserveLayer(config))
 				.add(new BlockwiseLayer(config))
 				.add(reliabilityLayer)
