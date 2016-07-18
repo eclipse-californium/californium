@@ -81,7 +81,7 @@ public class UdpMatcherTest {
 
 	@Test
 	public void testReceiveResponseAcceptsResponseFromDifferentEpochUsingLaxMatching() {
-		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching 
+		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
 		UdpMatcher matcher = newMatcher(false);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 
@@ -129,7 +129,7 @@ public class UdpMatcherTest {
 
 	@Test
 	public void testReceiveResponseAcceptsResponseFromSameSessionEpochAndCipherUsingStrictMatching() {
-		// GIVEN a request sent via a DTLS transport 
+		// GIVEN a request sent via a DTLS transport
 		UdpMatcher matcher = newMatcher(true);
 		Exchange exchange = sendRequest(matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
 

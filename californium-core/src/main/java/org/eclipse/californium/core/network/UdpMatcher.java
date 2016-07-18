@@ -246,7 +246,7 @@ public class UdpMatcher implements Matcher {
 		 * This request could be
 		 *  - Complete origin request => deliver with new exchange
 		 *  - One origin block        => deliver with ongoing exchange
-		 *  - Complete duplicate request or one duplicate block (because client got no ACK) 
+		 *  - Complete duplicate request or one duplicate block (because client got no ACK)
 		 *      =>
 		 * 		if ACK got lost => resend ACK
 		 * 		if ACK+response got lost => resend ACK+response
@@ -301,7 +301,7 @@ public class UdpMatcher implements Matcher {
 				return ongoing;
 
 			} else {
-				// We have no ongoing exchange for that request block. 
+				// We have no ongoing exchange for that request block.
 				/*
 				 * Note the difficulty of the following code: The first message
 				 * of a blockwise transfer might arrive twice due to a
@@ -497,7 +497,7 @@ public class UdpMatcher implements Matcher {
 
 		@Override public void completed(final Exchange exchange) {
 
-			/* 
+			/*
 			 * Logging in this method leads to significant performance loss.
 			 * Uncomment logging code only for debugging purposes.
 			 */
