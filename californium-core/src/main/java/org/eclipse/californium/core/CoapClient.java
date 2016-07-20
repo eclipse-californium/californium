@@ -889,8 +889,9 @@ public class CoapClient {
 	 * @return the request
 	 */
 	protected Request send(Request request, Endpoint outEndpoint) {
-		// use the specified message type
-		request.setType(this.type);
+		if (request.getType() == null) {
+		  request.setType(this.type);
+		}
 
 		if (blockwise!=0) {
 			request.getOptions().setBlock2(new BlockOption(BlockOption.size2Szx(this.blockwise), false, 0));

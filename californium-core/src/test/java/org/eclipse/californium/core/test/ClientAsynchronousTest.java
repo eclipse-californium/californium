@@ -40,7 +40,10 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -188,6 +191,14 @@ public class ClientAsynchronousTest {
 		);
 
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
+	}
+
+	@Test
+	public void testUseRequestType() throws Exception {
+		Request request = new Request(Code.GET, Type.NON);
+		client.useCONs();
+		client.advanced(request);
+		assertEquals(Type.NON, request.getType());
 	}
 
 	private static void createServer() {
