@@ -40,7 +40,10 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -156,7 +159,7 @@ public class ClientAsynchronousTest {
 	}
 
 	@Test
-	public void testAsycPutIsNotAllowed() throws Exception {
+	public void testAsyncPutIsNotAllowed() throws Exception {
 		final CountDownLatch latch = new CountDownLatch(1);
 
 		// Try a put and receive a METHOD_NOT_ALLOWED
@@ -172,7 +175,7 @@ public class ClientAsynchronousTest {
 	}
 
 	@Test
-	public void testAsycGetUsingBuilder() throws Exception {
+	public void testAsyncGetUsingBuilder() throws Exception {
 		final CountDownLatch latch = new CountDownLatch(1);
 
 		// Try to use the builder and add a query
@@ -186,6 +189,45 @@ public class ClientAsynchronousTest {
 				}
 			}
 		);
+
+		assertTrue(latch.await(1, TimeUnit.SECONDS));
+	}
+
+	@Test
+	public void testAdvancedUsesTypeFromRequest() throws Exception {
+		final CountDownLatch latch = new CountDownLatch(1);
+
+		// But expecting CONs as specified in request
+		client.useNONs();
+
+		Request request = new Request(Code.GET, Type.CON);
+		// Try a put and receive a METHOD_NOT_ALLOWED
+		client.advanced(new TestHandler("Test 9") {
+			@Override public void onLoad(CoapResponse response) {
+				// It is CON
+				latch.countDown();
+			}
+		}, request);
+
+		assertTrue(latch.await(1, TimeUnit.SECONDS));
+	}
+
+	@Test
+	public void testAdvancedUsesUriFromRequest() throws Exception {
+		String unexistingUri =
+				String.format("coap://%s:%d/%s", serverAddress.getHostString(), serverAddress.getPort(), "unexisting");
+		client.setURI(unexistingUri);
+		final CountDownLatch latch = new CountDownLatch(1);
+
+		Request request = new Request(Code.GET, Type.CON);
+		request.setURI(uri);
+
+		// Try a put and receive a METHOD_NOT_ALLOWED
+		client.advanced(new TestHandler("Test 10") {
+			@Override public void onLoad(CoapResponse response) {
+				latch.countDown();
+			}
+		}, request);
 
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
 	}

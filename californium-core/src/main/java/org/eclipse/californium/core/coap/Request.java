@@ -113,6 +113,7 @@ public class Request extends Message {
 	 */
 	public Request(Code code) {
 		this.code = code;
+		setType(Type.CON);
 	}
 	
 	/**
