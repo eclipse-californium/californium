@@ -47,49 +47,31 @@ package org.eclipse.californium.core.coap;
  */
 public abstract class MessageObserverAdapter implements MessageObserver {
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#retransmitting()
-	 */
 	@Override
 	public void onRetransmission() {
 		// empty default implementation
 	}
-	
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#responded(ch.inf.vs.californium.coap.Response)
-	 */
+
 	@Override
-	public void onResponse(Response response) {
+	public void onResponse(final Response response) {
 		// empty default implementation
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#acknowledged()
-	 */
 	@Override
 	public void onAcknowledgement() {
 		// empty default implementation
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#rejected()
-	 */
 	@Override
 	public void onReject() {
 		// empty default implementation
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#canceled()
-	 */
 	@Override
 	public void onCancel() {
 		// empty default implementation
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.coap.MessageObserver#timedOut()
-	 */
 	@Override
 	public void onTimeout() {
 		// empty default implementation

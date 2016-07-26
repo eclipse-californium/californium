@@ -350,18 +350,12 @@ public class EndpointManager {
 	 */
 	public static class ClientMessageDeliverer implements MessageDeliverer {
 
-		/* (non-Javadoc)
-		 * @see ch.inf.vs.californium.MessageDeliverer#deliverRequest(ch.inf.vs.californium.network.Exchange)
-		 */
 		@Override
 		public void deliverRequest(Exchange exchange) {
 			LOGGER.severe("Default endpoint without CoapServer has received a request.");
 			exchange.sendReject();
 		}
 
-		/* (non-Javadoc)
-		 * @see ch.inf.vs.californium.MessageDeliverer#deliverResponse(ch.inf.vs.californium.network.Exchange, ch.inf.vs.californium.coap.Response)
-		 */
 		@Override
 		public void deliverResponse(Exchange exchange, Response response) {
 			if (exchange == null) throw new NullPointerException();
