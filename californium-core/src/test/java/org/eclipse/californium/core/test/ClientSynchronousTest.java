@@ -33,7 +33,10 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -149,6 +152,34 @@ public class ClientSynchronousTest {
 		Thread.sleep(100);
 		Assert.assertEquals(5, notifications.get());
 		Assert.assertFalse(failed);
+	}
+
+	@Test
+	public void testAdvancedUsesTypeFromRequest() throws Exception {
+		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+		CoapClient client = new CoapClient(uri).useExecutor();
+
+		// Set NONs but expecting CONs as specified in request
+		client.useNONs();
+
+		Request request = new Request(Code.GET, Type.CON);
+
+		CoapResponse resp = client.advanced(request);
+
+		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+	}
+
+	@Test
+	public void testAdvancedUsesUriFromRequest() throws Exception {
+		CoapClient client = new CoapClient("some invalid uri").useExecutor();
+
+		Request request = new Request(Code.GET, Type.CON);
+		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+		request.setURI(uri);
+
+		CoapResponse resp = client.advanced(request);
+
+		Assert.assertEquals(CONTENT_1, resp.getResponseText());
 	}
 	
 	private void createServer() {
