@@ -44,7 +44,7 @@ import java.util.logging.Logger;
  */
 public class TcpMatcher implements Matcher {
 
-	private static final Logger LOGGER = Logger.getLogger(UdpMatcher.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(TcpMatcher.class.getCanonicalName());
 
 	private final ConcurrentHashMap<Exchange.KeyToken, Exchange> exchangesByToken; // for outgoing
 	private final ConcurrentHashMap<Exchange.KeyUri, Exchange> ongoingExchanges; // for blockwise

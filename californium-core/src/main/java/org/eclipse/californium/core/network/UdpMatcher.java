@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * A Matcher for CoAP messages transmitted over UDP.
+ */
 public class UdpMatcher implements Matcher {
 
 	private static final Logger LOGGER = Logger.getLogger(UdpMatcher.class.getCanonicalName());
@@ -438,15 +441,13 @@ public class UdpMatcher implements Matcher {
 
 		// local namespace
 		KeyMID idByMID = new KeyMID(message.getMID());
-
-		Exchange exchange = exchangesByMID.get(idByMID);
+		Exchange exchange = exchangesByMID.remove(idByMID);
 
 		if (exchange != null) {
-			LOGGER.log(Level.FINE, "Exchange got reply: Cleaning up {0}", idByMID);
-			exchangesByMID.remove(idByMID);
+			LOGGER.log(Level.FINE, "Received expected reply for Exchange {0}", idByMID);
 		} else {
-			LOGGER.log(Level.FINE, "Ignoring unmatchable empty message from {0}:{1}: {2}",
-					new Object[] { message.getSource(), message.getSourcePort(), message });
+			LOGGER.log(Level.FINER, "Ignoring non-matchable empty message from {0}:{1}: {2}",
+					new Object[] {message.getSource(), message.getSourcePort(), message});
 		}
 		return exchange;
 	}
