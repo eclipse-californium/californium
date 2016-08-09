@@ -19,6 +19,7 @@ package org.eclipse.californium.elements;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A map based correlation context.
@@ -45,6 +46,14 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	@Override
 	public String get(String key) {
 		return entries.get(key);
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<String> getKeys() {
+		return entries.keySet();
 	}
 
 	/**

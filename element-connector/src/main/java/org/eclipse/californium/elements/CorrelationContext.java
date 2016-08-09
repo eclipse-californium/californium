@@ -17,9 +17,11 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.util.Set;
+
 /**
- * A container for storing transport specific information about the context
- * in which a message has been sent or received.
+ * A container for storing transport specific information about the context in
+ * which a message has been sent or received.
  */
 public interface CorrelationContext {
 
@@ -27,8 +29,15 @@ public interface CorrelationContext {
 	 * Gets a value from this context.
 	 * 
 	 * @param key the key to retrieve the value for.
-	 * @return the value or <code>null</code> if this context does not contain
-	 *         a value for the given key.
+	 * @return the value or <code>null</code> if this context does not contain a
+	 *         value for the given key.
 	 */
 	String get(String key);
+
+	/**
+	 * Sends the list of keys available in the context.
+	 *
+	 * @return list of keys set in the context.
+	 */
+	Set<String> getKeys();
 }
