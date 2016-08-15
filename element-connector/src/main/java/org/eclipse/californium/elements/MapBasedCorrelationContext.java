@@ -52,8 +52,8 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Set<String> getKeys() {
-		return entries.keySet();
+	public Set<Map.Entry<String, String>> entrySet() {
+		return entries.entrySet();
 	}
 
 	/**

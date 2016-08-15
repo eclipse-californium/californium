@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -35,9 +36,9 @@ public interface CorrelationContext {
 	String get(String key);
 
 	/**
-	 * Sends the list of keys available in the context.
+	 * Gets a Set of a Map.Entry which contains the key-value pair of the CorrelationContext.
 	 *
-	 * @return list of keys set in the context.
+	 * @return A set of a map entry containing the key value pair.
 	 */
-	Set<String> getKeys();
+	Set<Map.Entry<String, String>> entrySet();
 }
