@@ -400,14 +400,13 @@ public class UdpMatcher implements Matcher {
 			// no correlation information available for request, thus any
 			// additional correlation information available in the response is ignored
 			return true;
-		} else if (exchange.getCorrelationContext() instanceof DtlsCorrelationContext) {
+		} else if (exchange.getCorrelationContext().get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
 			// original request has been sent via a DTLS protected transport
-			DtlsCorrelationContext exchangeDtlsContext = (DtlsCorrelationContext) exchange.getCorrelationContext();
 			// check if the response has been received in the same DTLS session
 			if (useStrictResponseMatching) {
-				return isResponseStrictlyRelatedToDtlsRequest(exchangeDtlsContext, responseContext);
+				return isResponseStrictlyRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
 			} else {
-				return isResponseRelatedToDtlsRequest(exchangeDtlsContext, responseContext);
+				return isResponseRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
 			}
 		} else {
 			// compare message context used for sending original request to context
@@ -416,24 +415,27 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	private boolean isResponseRelatedToDtlsRequest(final DtlsCorrelationContext requestContext,
-			final CorrelationContext responseContext) {
+	private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
-			return requestContext.getSessionId().equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.getCipher().equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
+			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
+					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
+					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
+							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
 		}
 	}
 
-	private boolean isResponseStrictlyRelatedToDtlsRequest(final DtlsCorrelationContext requestContext,
-			final CorrelationContext responseContext) {
+	private boolean isResponseStrictlyRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
 		if (responseContext == null) {
 			return false;
 		} else {
-			return requestContext.getSessionId().equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.getEpoch().equals(responseContext.get(DtlsCorrelationContext.KEY_EPOCH))
-					&& requestContext.getCipher().equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
+			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
+					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
+					&& requestContext.get(DtlsCorrelationContext.KEY_EPOCH)
+							.equals(responseContext.get(DtlsCorrelationContext.KEY_EPOCH))
+					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
+							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
 		}
 	}
 
