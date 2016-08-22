@@ -20,6 +20,7 @@
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Bosch Software Innovations GmbH - introduce TokenProvider
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -71,8 +72,6 @@ public class UdpMatcher implements Matcher {
 	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
 
 	private final boolean useStrictResponseMatching;
-	/* limit the token size to save bytes in closed environments */
-	private final int tokenSizeLimit;
 	/* Health status output */
 	private final Level healthStatusLevel;
 	private final int healthStatusInterval; // seconds
@@ -84,17 +83,15 @@ public class UdpMatcher implements Matcher {
 
 	private NotificationListener notificationListener;
 	private final ObservationStore observationStore;
-
-	public UdpMatcher(final NetworkConfig config){
-		this(config, null, new InMemoryObservationStore());
-	}	
+	private final TokenProvider tokenProvider;
 
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore) {
+			final ObservationStore observationStore, TokenProvider tokenProvider) {
 
 		this.started = false;
 		this.notificationListener = notificationListener;
 		this.observationStore = observationStore;
+		this.tokenProvider = tokenProvider;
 		this.exchangesByMID = new ConcurrentHashMap<>();
 		this.exchangesByToken = new ConcurrentHashMap<>();
 		this.ongoingExchanges = new ConcurrentHashMap<>();
@@ -102,7 +99,6 @@ public class UdpMatcher implements Matcher {
 		DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 		this.deduplicator = factory.createDeduplicator(config);
 
-		tokenSizeLimit = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT);
 		useStrictResponseMatching = config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING);
 		boolean randomMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
 		if (randomMID) {
@@ -112,11 +108,11 @@ public class UdpMatcher implements Matcher {
 		}
 
 		if (LOGGER.isLoggable(Level.CONFIG)) {
-			String msg = new StringBuilder("Matcher uses ")
-					.append(NetworkConfig.Keys.USE_RANDOM_MID_START).append("=").append(randomMID).append(", ")
-					.append(NetworkConfig.Keys.TOKEN_SIZE_LIMIT).append("=").append(tokenSizeLimit).append(" and ")
-					.append(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING).append("=").append(useStrictResponseMatching)
-					.toString();
+			String msg = new StringBuilder("Matcher uses ").append(NetworkConfig.Keys.USE_RANDOM_MID_START).append("=")
+					.append(randomMID).append(", ").append(NetworkConfig.Keys.TOKEN_SIZE_LIMIT).append("=")
+					.append(config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT)).append(" and ")
+					.append(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING).append("=")
+					.append(useStrictResponseMatching).toString();
 			LOGGER.config(msg);
 		}
 
@@ -178,9 +174,9 @@ public class UdpMatcher implements Matcher {
 		KeyMID idByMID = new KeyMID(request.getMID());
 
 		// ensure Token is set
-		KeyToken idByToken;
+		final KeyToken idByToken;
 		if (request.getToken() == null) {
-			idByToken = createUnusedToken();
+			idByToken = new KeyToken(tokenProvider.getUnusedToken());
 			request.setToken(idByToken.token);
 			// if original request has no token set it too.
 			// this is the case where request and currentRequest is not the same
@@ -189,7 +185,9 @@ public class UdpMatcher implements Matcher {
 		} else {
 			idByToken = new KeyToken(request.getToken());
 			// ongoing requests may reuse token
-			if (!(exchange.getFailedTransmissionCount()>0 || request.getOptions().hasBlock1() || request.getOptions().hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
+			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
+					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
+					&& tokenProvider.isTokenInUse(idByToken.token)) {
 				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
 		}
@@ -205,14 +203,17 @@ public class UdpMatcher implements Matcher {
 				@Override
 				public void onCancel() {
 					observationStore.remove(request.getToken());
+					tokenProvider.releaseToken(idByToken.token);
 				}
 				@Override
 				public void onReject() {
 					observationStore.remove(request.getToken());
+					tokenProvider.releaseToken(idByToken.token);
 				}
 				@Override
 				public void onTimeout() {
 					observationStore.remove(request.getToken());
+					tokenProvider.releaseToken(idByToken.token);
 				}
 			});
 		}
@@ -393,7 +394,7 @@ public class UdpMatcher implements Matcher {
 			idByMID = KeyMID.fromInboundMessage(response);
 		}
 
-		KeyToken idByToken = new KeyToken(response.getToken());
+		final KeyToken idByToken = new KeyToken(response.getToken());
 
 		Exchange exchange = exchangesByToken.get(idByToken);
 		if (exchange == null && observationStore != null ) {
@@ -410,6 +411,7 @@ public class UdpMatcher implements Matcher {
 					@Override
 					public void onTimeout() {
 						observationStore.remove(request.getToken());
+						tokenProvider.releaseToken(idByToken.token);
 					}
 
 					@Override
@@ -420,11 +422,13 @@ public class UdpMatcher implements Matcher {
 					@Override
 					public void onReject() {
 						observationStore.remove(request.getToken());
+						tokenProvider.releaseToken(idByToken.token);
 					}
 
 					@Override
 					public void onCancel() {
 						observationStore.remove(request.getToken());
+						tokenProvider.releaseToken(idByToken.token);
 					}
 				});
 			}
@@ -555,27 +559,6 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	/**
-	 * Creates a new token that is never the empty token (i.e., always 1-8 bytes).
-	 * @return the new token
-	 */
-	private KeyToken createUnusedToken() {
-
-		Random random = ThreadLocalRandom.current();
-		byte[] token;
-		KeyToken result;
-		do {
-			// random length between 1 and tokenSizeLimit
-			// TODO: why would we want to have a random length token?
-			token = new byte[random.nextInt(tokenSizeLimit)+1];
-			// random value
-			random.nextBytes(token);
-			result = new KeyToken(token);
-		} while (exchangesByToken.get(result) != null && observationStore.get(token) != null);
-
-		return result;
-	}
-
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override
@@ -585,15 +568,18 @@ public class UdpMatcher implements Matcher {
 			 * Logging in this method leads to significant performance loss.
 			 * Uncomment logging code only for debugging purposes.
 			 */
-
+			final Request request = exchange.getCurrentRequest();
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 
-				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
-				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
+				KeyMID idByMID = new KeyMID(request.getMID());
+				KeyToken idByToken = new KeyToken(request.getToken());
 
 //				LOGGER.log(Level.FINE, "Exchange completed: Cleaning up {0}", idByToken);
 				exchangesByToken.remove(idByToken);
+				if(!request.getOptions().hasObserve()) {
+					tokenProvider.releaseToken(idByToken.token);
+				}
 
 				// in case an empty ACK was lost
 				exchangesByMID.remove(idByMID);
@@ -609,7 +595,6 @@ public class UdpMatcher implements Matcher {
 					exchangesByMID.remove(midKey);
 				}
 
-				Request request = exchange.getCurrentRequest();
 				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
@@ -641,5 +626,6 @@ public class UdpMatcher implements Matcher {
 			}
 		}
 		observationStore.remove(token);
+		tokenProvider.releaseToken(token);
 	}
 }
