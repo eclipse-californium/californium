@@ -44,6 +44,7 @@ public class InMemoryObservationStore implements ObservationStore {
 			RawData serialize = serializer.serializeRequest(obs.getRequest(), null);
 			DataParser parser = new UdpDataParser();
 			Request newRequest = (Request) parser.parseMessage(serialize);
+			newRequest.setUserContext(obs.getRequest().getUserContext());
 			return new Observation(newRequest, obs.getContext());
 		}
 		return null;

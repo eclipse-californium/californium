@@ -30,6 +30,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.Principal;
+import java.util.Collections;
+import java.util.Map;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -107,8 +109,11 @@ public class Request extends Message {
 	/** The lock object used to wait for a response. */
 	private Object lock;
 
-	/** the authenticated (remote) sender's identity **/
+	/** the authenticated (remote) sender's identity */
 	private Principal senderIdentity;
+
+	/** Contextual information about this request */
+	private Map<String, String> userContext;
 
 	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
@@ -549,6 +554,28 @@ public class Request extends Message {
 				lock.notifyAll();
 			}
 		}
+	}
+
+	/**
+	 * @return an unmodifiable map containing additional information about this
+	 *         request.
+	 */
+	public Map<String, String> getUserContext() {
+		if (userContext == null) {
+			return Collections.emptyMap();
+		}
+		return Collections.unmodifiableMap(userContext);
+	}
+
+	/**
+	 * Set contextual information about this request.
+	 * 
+	 * @param userContext
+	 * @return this request
+	 */
+	public Request setUserContext(Map<String, String> userContext) {
+		this.userContext = userContext;
+		return this;
 	}
 
 	/* (non-Javadoc)
