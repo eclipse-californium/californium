@@ -44,14 +44,15 @@ import org.eclipse.californium.core.observe.ObserveManager;
  * a collection of options ({@link OptionSet}) and a payload.
  * <p>
  * Furthermore, a message can be acknowledged, rejected, canceled, or time out;
- * the meaning of which is defined more specifically in the subclasses. A
- * message can be observed by {@link MessageObserver} which will be notified
- * when an event triggers one of the properties from above become true.
+ * the meaning of which is defined more specifically in the subclasses. Clients
+ * can register {@link MessageObserver}s with a message which will be notified
+ * when any of the events listed above occur.
  * <p>
- * Note: The variables {@link #messageObservers} and {@link #options} are
- * lazy-initialized. This saves a few bytes in case it the variables are not in
- * use. For instance an empty message should not have options and most messages
- * will not have a {@link MessageObserver} registered.
+ * Note: The {@link #messageObservers} and {@link #options} properties are
+ * initialized lazily. This saves a few bytes in case the properties are not in
+ * use. For instance an empty message should not have any options and most messages
+ * will not have any observers registered.
+ * 
  * @see Request
  * @see Response
  * @see EmptyMessage
@@ -114,7 +115,7 @@ public abstract class Message {
 	 * (lazy-initialization). If a handler is added, the list will be created
 	 * and from then on must never again become null.
 	 */
-	private List<MessageObserver> messageObservers = null;
+	private List<MessageObserver> messageObservers;
 
 	/**
 	 * The timestamp when this message has been received or sent or 0 if neither
@@ -123,13 +124,15 @@ public abstract class Message {
 	private long timestamp;
 
 	/**
-	 * Instantiates a new message with no specified message type.
+	 * Creates a new message with no specified message type.
 	 */
-	public Message() { }
+	protected Message() {
+	}
 
 	/**
-	 * Instantiates a new message with the given type. The type must be one of
-	 * CON, NON, ACK or RST.
+	 * Creates a new message of a given type.
+	 * <p>
+	 * The type must be one of CON, NON, ACK or RST.
 	 * 
 	 * @param type the type
 	 */
@@ -204,17 +207,25 @@ public abstract class Message {
 		this.mid = mid;
 		return this;
 	}
-	
+
+	/**
+	 * Clears this message's MID.
+	 */
 	public void removeMID() {
 		setMID(NONE);
 	}
-	
+
+	/**
+	 * Checks whether this message has a non-zero length token.
+	 * 
+	 * @return {@code true} if this message has a token of a non-zero length
+	 */
 	public boolean hasEmptyToken() {
 		return token == null || token.length == 0;
 	}
 
 	/**
-	 * Gets the 0--8 byte token.
+	 * Gets this message's 0- -8 byte token.
 	 *
 	 * @return the token
 	 */
@@ -228,9 +239,7 @@ public abstract class Message {
 	 * @return the token as string
 	 */
 	public String getTokenString() {
-		StringBuffer tok = new StringBuffer(getToken()==null?"null":"");
-		if (getToken()!=null) for(byte b:getToken()) tok.append(String.format("%02x", b&0xff));
-		return tok.toString();
+		return Utils.toHexString(getToken());
 	}
 
 	/**
@@ -241,8 +250,9 @@ public abstract class Message {
 	 * @return this Message
 	 */
 	public Message setToken(byte[] token) {
-		if (token != null && token.length > 8)
+		if (token != null && token.length > 8) {
 			throw new IllegalArgumentException("Token length must be between 0 and 8 inclusive");
+		}
 		this.token = token;
 		return this;
 	}
@@ -254,8 +264,9 @@ public abstract class Message {
 	 * @return the options
 	 */
 	public OptionSet getOptions() {
-		if (options == null)
+		if (options == null) {
 			options = new OptionSet();
+		}
 		return options;
 	}
 
@@ -303,11 +314,13 @@ public abstract class Message {
 		return new String(payload, CoAP.UTF8_CHARSET);
 	}
 
-	public String getPayloadTracingString() {
-		if (null == payload || 0 == payload.length)
+	protected String getPayloadTracingString() {
+
+		if (null == payload || 0 == payload.length) {
 			return "no payload";
+		}
 		boolean text = true;
-		for (byte b:payload) {
+		for (byte b : payload) {
 			if (' ' > b) {
 				switch(b) {
 				case '\t':
@@ -531,9 +544,11 @@ public abstract class Message {
 	 */
 	public void setCanceled(boolean canceled) {
 		this.canceled = canceled;
-		if (canceled)
-			for (MessageObserver handler:getMessageObservers())
+		if (canceled) {
+			for (MessageObserver handler:getMessageObservers()) {
 				handler.onCancel();
+			}
+		}
 	}
 
 	/**
@@ -602,6 +617,10 @@ public abstract class Message {
 		setCanceled(true);
 	}
 
+	/**
+	 * Notifies all registered {@code MessageObserver}s that this message
+	 * is about to be re-transmitted.
+	 */
 	public void retransmitting() {
 		for (MessageObserver observer : getMessageObservers()) {
 			try {
