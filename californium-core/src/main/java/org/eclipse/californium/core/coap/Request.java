@@ -40,29 +40,33 @@ import org.eclipse.californium.core.network.EndpointManager;
  * Request represents a CoAP request and has either the {@link Type} CON or NON
  * and one of the {@link CoAP.Code}s GET, POST, PUT or DELETE. A request must be
  * sent over an {@link Endpoint} to its destination. By default, a request
- * chooses the default endpoint defined in {@link EndpointManager}. The server
- * responds with a {@link Response}. The client can wait for such a response
- * with a synchronous call, for instance:
- * 
+ * uses the default endpoint defined by {@link EndpointManager}. The server
+ * responds with a {@link Response}.
+ * <p>
+ * A client can send a request and wait for for a response using a synchronous
+ * (blocking) call like this:
+ * </p>
  * <pre>
  * Request request = new Request(Code.GET);
  * request.setURI(&quot;coap://example.com:5683/sensors/temperature&quot;);
  * request.send();
  * Response response = request.waitForResponse();
  * </pre>
- * 
- * The client can also send requests asynchronously and define a handler that is
- * invoked when a response arrives. This is in particular useful, when a client
- * wants to observe the target resource and react to notifications. For
- * instance:
- * 
+ * <p>
+ * A client may also send requests asynchronously (non-blocking) and define a
+ * handler to be invoked when a response arrives. This is in particular useful
+ * when a client wants to observe the target resource and react to notifications.
+ * For instance:
+ * </p>
  * <pre>
  * Request request = new Request(Code.GET);
  * request.setURI(&quot;coap://example.com:5683/sensors/temperature&quot;);
  * request.setObserve();
  * 
  * request.addMessageObserver(new MessageObserverAdapter() {
- *   public void responded(Response response) {
+ * 
+ *   @Override
+ *   public void onResponse(Response response) {
  *     if (response.getCode() == ResponseCode.CONTENT) {
  *       System.out.println(&quot;Received &quot; + response.getPayloadString());
  *     } else {
@@ -72,9 +76,9 @@ import org.eclipse.californium.core.network.EndpointManager;
  * });
  * request.send();
  * </pre>
- * 
- * We can also modify the options of a request. For example:
- * 
+ * <p>
+ * A client can also modify the options of a request. For example:
+ * </p>
  * <pre>
  * Request post = new Request(Code.POST);
  * post.setPayload("Plain text");
@@ -84,49 +88,48 @@ import org.eclipse.californium.core.network.EndpointManager;
  *   .setIfNoneMatch(true);
  * String response = post.send().waitForResponse().getPayloadString();
  * </pre>
+ * 
  * @see Response
  */
 public class Request extends Message {
-	
+
 	/** The request code. */
 	private final CoAP.Code code;
-	
+
 	/** Marks this request as multicast request */
 	private boolean multicast;
-	
+
 	/** The current response for the request. */
 	private Response response;
-	
+
 	private String scheme;
-	
+
 	/** The lock object used to wait for a response. */
 	private Object lock;
-	
+
 	/** the authenticated (remote) sender's identity **/
 	private Principal senderIdentity;
-	
+
 	/**
-	 * Instantiates a new request with the specified CoAP code and no (null)
-	 * message type.
+	 * Creates a request of type {@code CON} for a CoAP code.
 	 * 
-	 * @param code the request code
+	 * @param code the request code.
 	 */
 	public Request(Code code) {
-		this.code = code;
-		setType(Type.CON);
+		this(code, Type.CON);
 	}
-	
+
 	/**
-	 * Instantiates a new request with the specified CoAP code and message type.
+	 * Creates a request for a CoAP code and message type.
 	 * 
-	 * @param code the request code
-	 * @param type the message type
+	 * @param code the request code.
+	 * @param type the message type.
 	 */
 	public Request(Code code, Type type) {
 		super(type);
 		this.code = code;
 	}
-	
+
 	/**
 	 * Gets the request code.
 	 *
@@ -135,7 +138,7 @@ public class Request extends Message {
 	public Code getCode() {
 		return code;
 	}
-	
+
 	/**
 	 * Gets the scheme.
 	 *
@@ -144,7 +147,7 @@ public class Request extends Message {
 	public String getScheme() {
 		return scheme;
 	}
-	
+
 	/**
 	 * Sets the scheme.
 	 *
@@ -153,7 +156,7 @@ public class Request extends Message {
 	public void setScheme(String scheme) {
 		this.scheme = scheme;
 	}
-	
+
 	/**
 	 * Tests if this request is a multicast request
 	 * 
@@ -171,12 +174,13 @@ public class Request extends Message {
 	public void setMulticast(boolean multicast) {
 		this.multicast = multicast;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 * 
 	 * Required in Request to keep class for fluent API.
 	 */
+	@Override
 	public Request setPayload(String payload) {
 		super.setPayload(payload);
 		return this;
@@ -187,13 +191,14 @@ public class Request extends Message {
 	 * 
 	 * Required in Request to keep class for fluent API.
 	 */
+	@Override
 	public Request setPayload(byte[] payload) {
 		super.setPayload(payload);
 		return this;
 	}
-	
+
 	/**
-	 * This is a convenience method to set the reques's options for host, port
+	 * This is a convenience method to set this request's options for host, port
 	 * and path with a string of the form
 	 * <code>[scheme]://[host]:[port]{/resource}*?{&amp;query}*</code>
 	 * 
@@ -211,7 +216,7 @@ public class Request extends Message {
 			throw new IllegalArgumentException("Failed to set uri "+uri + ": " + e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * This is a convenience method to set the request's options for host, port
 	 * and path with a URI object.
@@ -235,27 +240,25 @@ public class Request extends Message {
 			setDestination(InetAddress.getByName(host));
 		} catch (UnknownHostException e) {
 			throw new IllegalArgumentException("Failed to set unknown host "+host);
-    	}
-
-		String scheme = uri.getScheme();
-		if (scheme != null) {
-			// decide according to URI scheme whether DTLS is enabled for the client
-			this.scheme = scheme;
 		}
-		
-		/*
-		 * The Uri-Port is only for special cases where it differs from the UDP port,
-		 * usually when Proxy-Scheme is used.
-		 */
+
+		String uriScheme = uri.getScheme();
+		if (uriScheme != null) {
+			// decide according to URI scheme whether DTLS is enabled for the client
+			this.scheme = uriScheme;
+		}
+
+		// The Uri-Port is only for special cases where it differs from the UDP port,
+		// usually when Proxy-Scheme is used.
 		int port = uri.getPort();
 		if (port >= 0) {
 			if (port != CoAP.DEFAULT_COAP_PORT)
 				getOptions().setUriPort(port);
 			setDestinationPort(port);
 		} else if (getDestinationPort() == 0) {
-			if (scheme == null || scheme.equals(CoAP.COAP_URI_SCHEME))
+			if (uriScheme == null || uriScheme.equals(CoAP.COAP_URI_SCHEME))
 				setDestinationPort(CoAP.DEFAULT_COAP_PORT);
-			else if (scheme.equals(CoAP.COAP_SECURE_URI_SCHEME))
+			else if (uriScheme.equals(CoAP.COAP_SECURE_URI_SCHEME))
 				setDestinationPort(CoAP.DEFAULT_COAP_SECURE_PORT);
 		}
 
@@ -272,32 +275,45 @@ public class Request extends Message {
 		}
 		return this;
 	}
-	
+
 	// TODO: test this method.
 	/**
-	 * Returns the absolute Request-URI as string.
+	 * Gets the absolute Request-URI as string.
+	 * <p>
 	 * To support virtual servers, it either uses the Uri-Host option
 	 * or "localhost" if the option is not present.
+	 * </p>
+	 * 
 	 * @return the absolute URI string
 	 */
 	public String getURI() {
+
 		StringBuilder builder = new StringBuilder();
-		String scheme = getScheme();
-		if (scheme != null) builder.append(scheme).append("://");
-		else builder.append("coap://");
+		if (getScheme() != null) {
+			builder.append(getScheme()).append("://");
+		} else {
+			builder.append("coap://");
+		}
 		String host = getOptions().getUriHost();
-		if (host != null) builder.append(host);
-		else builder.append("localhost");
+		if (host != null) {
+			builder.append(host);
+		} else {
+			builder.append("localhost");
+		}
 		Integer port = getOptions().getUriPort();
-		if (port != null) builder.append(":").append(port);
+		if (port != null) {
+			builder.append(":").append(port);
+		}
 		String path = getOptions().getUriPathString();
 		builder.append("/").append(path);
 		String query = getOptions().getUriQueryString();
-		if (query.length()>0) builder.append("?").append(query);
+		if (query.length() > 0) {
+			builder.append("?").append(query);
+		}
 		// TODO: Query as well?
 		return builder.toString();
 	}
-	
+
 	/**
 	 * Gets the authenticated (remote) sender's identity.
 	 * 
@@ -307,7 +323,7 @@ public class Request extends Message {
 	public Principal getSenderIdentity() {
 		return this.senderIdentity;
 	}
-	
+
 	/**
 	 * Sets the authenticated (remote) sender's identity.
 	 * 
@@ -325,11 +341,13 @@ public class Request extends Message {
 		this.senderIdentity = senderIdentity;
 		return this;
 	}
-	
+
 	/**
 	 * Sends the request over the default endpoint to its destination and
 	 * expects a response back.
+	 * 
 	 * @return this request
+	 * @throws NullPointerException if this request has no destination set.
 	 */
 	public Request send() {
 		validateBeforeSending();
@@ -342,20 +360,21 @@ public class Request extends Message {
 		}
 		return this;
 	}
-	
+
 	/**
-	 * Sends the request over the specified endpoint to its destination and
+	 * Sends this request over the specified endpoint to its destination and
 	 * expects a response back.
 	 * 
 	 * @param endpoint the endpoint
 	 * @return this request
+	 * @throws NullPointerException if this request has no destination set.
 	 */
 	public Request send(Endpoint endpoint) {
 		validateBeforeSending();
 		endpoint.sendRequest(this);
 		return this;
 	}
-	
+
 	/**
 	 * Validate before sending that there is a destination set.
 	 */
@@ -365,7 +384,7 @@ public class Request extends Message {
 		if (getDestinationPort() == 0)
 			throw new NullPointerException("Destination port is 0");
 	}
-	
+
 	/**
 	 * Sets CoAP's observe option. If the target resource of this request
 	 * responds with a success code and also sets the observe option, it will
@@ -377,7 +396,7 @@ public class Request extends Message {
 		getOptions().setObserve(0);
 		return this;
 	}
-	
+
 	/**
 	 * Sets CoAP's observe option to the value of 1 to proactively cancel.
 	 * 
@@ -387,7 +406,7 @@ public class Request extends Message {
 		getOptions().setObserve(1);
 		return this;
 	}
-	
+
 	/**
 	 * Gets the response or null if none has arrived yet.
 	 *
@@ -399,13 +418,17 @@ public class Request extends Message {
 
 	/**
 	 * Sets the response.
-	 * 
+	 * <p>
+	 * Also notifies waiting threads and invokes this request's registered
+	 * @code MessageHandler}s <em>onResponse</em> method with the response.
+	 * </p>
+
 	 * @param response
 	 *            the new response
 	 */
 	public void setResponse(Response response) {
 		this.response = response;
-		
+
 		// only for synchronous/blocking requests
 		if (lock != null) {
 			synchronized (lock) {
@@ -413,11 +436,12 @@ public class Request extends Message {
 			}
 		}
 		// else: we know that nobody is waiting on the lock
-		
-		for (MessageObserver handler:getMessageObservers())
+
+		for (MessageObserver handler : getMessageObservers()) {
 			handler.onResponse(response);
+		}
 	}
-	
+
 	/**
 	 * Wait for the response. This function blocks until there is a response or
 	 * the request has been canceled.
@@ -429,9 +453,11 @@ public class Request extends Message {
 	public Response waitForResponse() throws InterruptedException {
 		return waitForResponse(0);
 	}
-	
+
 	/**
-	 * Wait for the response. This function blocks until there is a response,
+	 * Waits for the arrival of the response to this request.
+	 * <p>
+	 * This function blocks until there is a response,
 	 * the request has been canceled or the specified timeout has expired. A
 	 * timeout of 0 is interpreted as infinity. If a response is already here,
 	 * this method returns it immediately.
@@ -456,8 +482,9 @@ public class Request extends Message {
 		// Lazy initialization of a lock
 		if (lock == null) {
 			synchronized (this) {
-				if (lock == null)
+				if (lock == null) {
 					lock = new Object();
+				}
 			}
 		}
 		// wait for response
@@ -476,7 +503,7 @@ public class Request extends Message {
 			return r;
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 * 
@@ -492,7 +519,7 @@ public class Request extends Message {
 			}
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 * 
@@ -508,7 +535,7 @@ public class Request extends Message {
 			}
 		}
 	}
-	
+
 	@Override
 	public void setRejected(boolean rejected) {
 		super.setRejected(rejected);
@@ -518,7 +545,7 @@ public class Request extends Message {
 			}
 		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
@@ -527,39 +554,46 @@ public class Request extends Message {
 		String payload = getPayloadTracingString();
 		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
 	}
-	
+
 	////////// Some static factory methods for convenience //////////
-	
+
 	/**
 	 * Convenience factory method to construct a GET request and equivalent to
 	 * <code>new Request(Code.GET);</code>
 	 * 
 	 * @return a new GET request
 	 */
-	public static Request newGet() { return new Request(Code.GET); }
-	
+	public static Request newGet() {
+		return new Request(Code.GET);
+	}
+
 	/**
 	 * Convenience factory method to construct a POST request and equivalent to
 	 * <code>new Request(Code.POST);</code>
 	 * 
 	 * @return a new POST request
 	 */
-	public static Request newPost() { return new Request(Code.POST); }
-	
+	public static Request newPost() {
+		return new Request(Code.POST);
+	}
+
 	/**
 	 * Convenience factory method to construct a PUT request and equivalent to
 	 * <code>new Request(Code.PUT);</code>
 	 * 
 	 * @return a new PUT request
 	 */
-	public static Request newPut() { return new Request(Code.PUT); }
-	
+	public static Request newPut() {
+		return new Request(Code.PUT);
+	}
+
 	/**
 	 * Convenience factory method to construct a DELETE request and equivalent
 	 * to <code>new Request(Code.DELETE);</code>
 	 * 
 	 * @return a new DELETE request
 	 */
-	public static Request newDelete() { return new Request(Code.DELETE); }
-
+	public static Request newDelete() {
+		return new Request(Code.DELETE);
+	}
 }
