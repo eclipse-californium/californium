@@ -27,13 +27,17 @@ import org.eclipse.californium.elements.tcp.DatagramFramer;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
- * The DataParser parses incoming byte arrays to messages.
+ * A parser for messages encoded following the encoding defined by the
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-03">CoAP-over-TCP draft</a>.
  */
 public final class TcpDataParser extends DataParser {
 
-	@Override public MessageHeader parseHeader(final DatagramReader reader) {
+	@Override
+	public MessageHeader parseHeader(final DatagramReader reader) {
+
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
+		assertValidTokenLength(tokenLength);
 		reader.readBytes(DatagramFramer.getLengthFieldSize(len));
 		int code = reader.read(CODE_BITS);
 		byte token[] = reader.readBytes(tokenLength);

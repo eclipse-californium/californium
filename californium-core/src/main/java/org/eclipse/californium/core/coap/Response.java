@@ -84,9 +84,11 @@ public class Response extends Message {
 		return code;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+	@Override
+	public int getRawCode() {
+		return code.value;
+	}
+
 	@Override
 	public String toString() {
 		String payload = getPayloadTracingString();

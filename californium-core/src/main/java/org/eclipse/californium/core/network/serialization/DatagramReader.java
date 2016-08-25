@@ -187,6 +187,18 @@ public class DatagramReader {
 		return byteStream.available() > 0;
 	}
 
+	/**
+	 * Checks whether a given number of bytes can be read.
+	 * 
+	 * @param expectedBytes the number of bytes. 
+	 * @return {@code true} if the remaining number of bytes in the buffer is at least
+	 *         <em>expectedBytes</em>.
+	 */
+	public boolean bytesAvailable(int expectedBytes) {
+		int bytesLeft = byteStream.available();
+		return bytesLeft >= expectedBytes;
+	}
+
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**

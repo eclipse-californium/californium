@@ -18,37 +18,41 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - add test cases
  ******************************************************************************/
-package org.eclipse.californium.core.test;
+package org.eclipse.californium.core.network.serialization;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.network.serialization.*;
+import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.*;
-
 /**
  * This test tests the serialization of messages to byte arrays and the parsing
  * back to messages.
  */
-@Category(Small.class) @RunWith(Parameterized.class) public class ParserTest {
+@Category(Small.class) @RunWith(Parameterized.class) public class DataParserTest {
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
 	private final int expectedMid;
 
-	public ParserTest(DataSerializer serializer, DataParser parser, int expectedMid) {
+	public DataParserTest(DataSerializer serializer, DataParser parser, int expectedMid) {
 		this.serializer = serializer;
 		this.parser = parser;
 		this.expectedMid = expectedMid;
@@ -70,16 +74,17 @@ import static org.junit.Assert.*;
 				.setContentFormat(40).setAccept(40);
 
 		RawData rawData = serializer.serializeRequest(request);
-		MessageHeader header = parser.parseHeader(rawData);
-		assertTrue(CoAP.isRequest(header.getCode()));
-
-		Request result = parser.parseRequest(rawData);
+//		MessageHeader header = parser.parseHeader(rawData);
+//		assertTrue(CoAP.isRequest(header.getCode()));
+//
+//		Request result = parser.parseRequest(rawData);
+		Request result = (Request) parser.parseMessage(rawData);
 		assertEquals(request.getMID(), result.getMID());
 		assertArrayEquals(request.getToken(), result.getToken());
 		assertEquals(request.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
-	@Test public void testRequestParsingDetectsWrongCodeClass() {
+	@Test public void testParseMessageDetectsIllegalCodeClass() {
 		// GIVEN a message with a class code of 1, i.e. not a request
 		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00100001, // code: 1.01 -> class 1 is reserved
@@ -90,48 +95,34 @@ import static org.junit.Assert.*;
 
 		// WHEN parsing the request
 		try {
-			parser.parseRequest(rawData);
+			parser.parseMessage(rawData);
 			fail("Parser should have detected that message is not a request");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
 		}
 	}
 
-	@Test public void testResponseParsingDetectsWrongCodeClass() {
-		// GIVEN a message with a class code of 0, i.e. not a response but a request
-		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+	@Test public void testParseMessageDetectsMalformedOption() {
+		// GIVEN a request with an option value shorter than specified
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
-				0x00, 0x10 // message ID
+				0x00, 0x10, // message ID
+				0x24, // option number 2, length: 4
+				0x01, 0x02, 0x03 // token value is one byte short
 		};
-		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
+
+		RawData rawData = new RawData(malformedGetRequest, new InetSocketAddress(0));
 
 		// WHEN parsing the request
 		try {
-			parser.parseResponse(rawData);
-			fail("Parser should have detected that message is not a response");
+			parser.parseMessage(rawData);
+			fail("Parser should have detected malformed options");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
 		}
 	}
 
-	@Test public void testEmptyMessageParsingDetectsWrongCode() {
-		// GIVEN a message with a code of 2.04, i.e. a CHANGED response
-		byte[] notAnEmptyMessage = new byte[] { 0b01000000, // ver 1, CON, token length: 0
-				0b01000010, // code: 2.04 (CHANGED response)
-				0x00, 0x10 // message ID
-		};
-		RawData rawData = new RawData(notAnEmptyMessage, new InetSocketAddress(0));
-
-		// WHEN parsing the message as an empty message
-		try {
-			parser.parseEmptyMessage(rawData);
-			fail("Parser should have detected that message is not a CoAP empty message");
-		} catch (MessageFormatException e) {
-			// THEN an exception is thrown by the parser
-		}
-	}
-
-	@Test public void testRequestParsingDetectsMissingPayloadInRequest() {
+	@Test public void testParseMessageDetectsMissingPayload() {
 		// GIVEN a request with a payload delimiter but empty payload
 		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
@@ -139,32 +130,10 @@ import static org.junit.Assert.*;
 				(byte) 0xFF // payload marker
 		};
 		RawData rawData = new RawData(malformedGetRequest, new InetSocketAddress(0));
-		MessageHeader header = parser.parseHeader(rawData);
-		assertTrue(CoAP.isRequest(header.getCode()));
 
 		// WHEN parsing the request
 		try {
-			parser.parseRequest(rawData);
-			fail("Parser should have detected missing payload");
-		} catch (MessageFormatException e) {
-			// THEN an exception is thrown by the parser
-		}
-	}
-
-	@Test public void testRequestParsingDetectsMissingPayloadInResponse() {
-		// GIVEN a request with a payload delimiter but empty payload
-		byte[] malformedResponse = new byte[] { 0b01000000, // ver 1, CON, token length: 0
-				0b01000101, // code: 2.05 (CONTENT response)
-				0x00, 0x10, // message ID
-				(byte) 0xFF // payload marker
-		};
-		RawData rawData = new RawData(malformedResponse, new InetSocketAddress(0));
-		MessageHeader header = parser.parseHeader(rawData);
-		assertTrue(CoAP.isResponse(header.getCode()));
-
-		// WHEN parsing the response
-		try {
-			parser.parseResponse(rawData);
+			parser.parseMessage(rawData);
 			fail("Parser should have detected missing payload");
 		} catch (MessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -182,10 +151,8 @@ import static org.junit.Assert.*;
 				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
 
 		RawData rawData = serializer.serializeResponse(response);
-		MessageHeader header = parser.parseHeader(rawData);
-		assertTrue(CoAP.isResponse(header.getCode()));
 
-		Response result = parser.parseResponse(rawData);
+		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals(response.getMID(), result.getMID());
 		assertArrayEquals(response.getToken(), result.getToken());
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
@@ -202,10 +169,7 @@ import static org.junit.Assert.*;
 
 		RawData rawData = serializer.serializeResponse(response);
 
-		MessageHeader header = parser.parseHeader(rawData);
-		assertTrue(CoAP.isResponse(header.getCode()));
-
-		Response result = parser.parseResponse(rawData);
+		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
 		assertEquals("ვეპხის=யாமறிந்த&⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎", response.getOptions().getLocationQueryString());
 		assertEquals("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", result.getPayloadString());

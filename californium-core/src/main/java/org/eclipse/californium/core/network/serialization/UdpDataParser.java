@@ -27,19 +27,21 @@ import org.eclipse.californium.core.coap.MessageFormatException;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
- * The DataParser parses incoming byte arrays to messages.
+ * A parser for messages encoded following the standard CoAP encoding.
  */
 public final class UdpDataParser extends DataParser {
 
-	@Override protected MessageHeader parseHeader(final DatagramReader reader) {
+	@Override
+	protected MessageHeader parseHeader(final DatagramReader reader) {
 		int version = reader.read(VERSION_BITS);
+		assertCorrectVersion(version);
 		int type = reader.read(TYPE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
+		assertValidTokenLength(tokenLength);
 		int code = reader.read(CODE_BITS);
 		int mid = reader.read(MESSAGE_ID_BITS);
 		byte token[] = reader.readBytes(tokenLength);
 
-		assertCorrectVersion(version);
 		return new MessageHeader(version, CoAP.Type.valueOf(type), token, code, mid, 0);
 	}
 
