@@ -181,9 +181,16 @@ public abstract class Message {
 	 * @return this Message
 	 */
 	public Message setConfirmable(boolean con) {
-		setType(con?Type.CON:Type.NON);
+		setType(con ? Type.CON : Type.NON);
 		return this;
 	}
+
+	/**
+	 * Gets the raw integer value of this message's <em>code</em>.
+	 * 
+	 * @return the code value.
+	 */
+	public abstract int getRawCode();
 
 	/**
 	 * Gets the 16-bit message identification.

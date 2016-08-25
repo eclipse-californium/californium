@@ -51,7 +51,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
-import org.eclipse.californium.core.network.serialization.MessageHeader;
 import org.eclipse.californium.core.network.serialization.TcpDataParser;
 import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -671,9 +670,9 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void receiveData(final RawData raw) {
 			if (raw.getAddress() == null) {
-				throw new IllegalArgumentException("received message does not have a source address");
+				throw new IllegalArgumentException("received message that does not have a source address");
 			} else if (raw.getPort() == 0) {
-				throw new IllegalArgumentException("received message does not have a source port");
+				throw new IllegalArgumentException("received message that does not have a source port");
 			} else {
 
 				// Create a new task to process this message
@@ -689,122 +688,63 @@ public class CoapEndpoint implements Endpoint {
 		/*
 		 * The endpoint's executor executes this method to convert the raw bytes
 		 * into a message, look for an associated exchange and forward it to
-		 * the stack of layers.
+		 * the stack of layers. If the message is a CON and cannot be parsed,
+		 * e.g. because the message is malformed, an RST is sent back to the sender.
 		 */
 		private void receiveMessage(final RawData raw) {
-			MessageHeader header = parser.parseHeader(raw);
 
-			if (CoAP.isRequest(header.getCode())) {
-				// This is a request
-				Request request;
+			Message msg = null;
 
-				try {
-					request = parser.parseRequest(raw);
-				} catch (MessageFormatException e) {
-					StringBuilder log = new StringBuilder("received malformed request [source: ")
-						.append(raw.getInetSocketAddress()).append("]");
+			try {
+				msg = parser.parseMessage(raw);
+				msg.setSource(raw.getAddress());
+				msg.setSourcePort(raw.getPort());
 
-					// Generate rst, and send it if it's not null.
-					EmptyMessage rst = new EmptyMessage(Type.RST);
-					rst.setMID(header.getMID());
-					rst.setToken(header.getToken());
-					rst.setDestination(raw.getAddress());
-					rst.setDestinationPort(raw.getPort());
-					for (MessageInterceptor interceptor : interceptors)
-						interceptor.sendEmptyMessage(rst);
-					connector.send(serializer.serializeEmptyMessage(rst));
-					log.append(" and reset");
-					if (LOGGER.isLoggable(Level.INFO)) {
-						LOGGER.log(Level.INFO, log.toString(), e);
-					}
-					return;
+				if (CoAP.isRequest(msg.getRawCode())) {
+
+					receiveRequest((Request) msg, raw);
+
+				} else if (CoAP.isResponse(msg.getRawCode())) {
+
+					receiveResponse((Response) msg, raw);
+
+				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
+
+					receiveEmptyMessage((EmptyMessage) msg, raw);
+
+				} else {
+					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 				}
 
-				// set request attributes from raw data
-				request.setScheme(raw.isSecure()?
-						CoAP.COAP_SECURE_URI_SCHEME:CoAP.COAP_URI_SCHEME);
-				request.setSource(raw.getAddress());
-				request.setSourcePort(raw.getPort());
-				request.setSenderIdentity(raw.getSenderIdentity());
+			} catch (MessageFormatException e) {
 
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveRequest(request);
+				if (e.isConfirmable() && e.hasMid()) {
+					// reject erroneous reliably transmitted message as mandated by CoAP spec
+					// https://tools.ietf.org/html/rfc7252#section-4.2
+					reject(raw, e);
+				} else {
+					// ignore erroneous messages that are not transmitted reliably
+					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 				}
-
-				// MessageInterceptor might have canceled
-				if (!request.isCanceled()) {
-					Exchange exchange = matcher.receiveRequest(request);
-					if (exchange != null) {
-						exchange.setEndpoint(CoapEndpoint.this);
-						coapstack.receiveRequest(exchange, request);
-					}
-				}
-
-			} else if (CoAP.isResponse(header.getCode())) {
-				// This is a response
-				Response response = parser.parseResponse(raw);
-				response.setSource(raw.getAddress());
-				response.setSourcePort(raw.getPort());
-
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveResponse(response);
-				}
-
-				// MessageInterceptor might have canceled
-				if (!response.isCanceled()) {
-					Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
-					if (exchange != null) {
-						exchange.setEndpoint(CoapEndpoint.this);
-						response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
-						coapstack.receiveResponse(exchange, response);
-					} else if (response.getType() != Type.ACK) {
-						LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
-						reject(response);
-					}
-				}
-
-			} else if (CoAP.isEmptyMessage(header.getCode())) {
-				// This is an empty message
-				EmptyMessage message = parser.parseEmptyMessage(raw);
-				message.setSource(raw.getAddress());
-				message.setSourcePort(raw.getPort());
-
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveEmptyMessage(message);
-				}
-
-				// MessageInterceptor might have canceled
-				if (!message.isCanceled()) {
-					// CoAP Ping
-					if (message.getType() == Type.CON || message.getType() == Type.NON) {
-						LOGGER.log(Level.FINER, "Responding to ping by {0}", raw.getInetSocketAddress());
-						reject(message);
-					} else {
-						Exchange exchange = matcher.receiveEmptyMessage(message);
-						if (exchange != null) {
-							exchange.setEndpoint(CoapEndpoint.this);
-							coapstack.receiveEmptyMessage(exchange, message);
-						}
-					}
-				}
-			} else {
-				LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 			}
+		}
+
+		private void reject(final RawData raw, final MessageFormatException cause) {
+
+			// Generate RST, and send it if not cancelled by one of the interceptors
+			EmptyMessage rst = new EmptyMessage(Type.RST);
+			rst.setMID(cause.getMid());
+			rst.setToken(new byte[0]);
+			rst.setDestination(raw.getAddress());
+			rst.setDestinationPort(raw.getPort());
+			for (MessageInterceptor interceptor : interceptors) {
+				interceptor.sendEmptyMessage(rst);
+			}
+			connector.send(serializer.serializeEmptyMessage(rst));
+			LOGGER.log(
+				Level.FINE,
+				"rejected malformed message from [{0}], reason: {1}",
+				new Object[]{raw.getInetSocketAddress(), cause.getMessage()});
 		}
 
 		private void reject(final Message message) {
@@ -819,6 +759,83 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!rst.isCanceled()) {
 				connector.send(serializer.serializeEmptyMessage(rst));
+			}
+		}
+
+		private void receiveRequest(final Request request, final RawData raw) {
+
+			// set request attributes from raw data
+			request.setScheme(raw.isSecure() ? CoAP.COAP_SECURE_URI_SCHEME : CoAP.COAP_URI_SCHEME);
+			request.setSenderIdentity(raw.getSenderIdentity());
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveRequest(request);
+			}
+
+			// MessageInterceptor might have canceled
+			if (!request.isCanceled()) {
+				Exchange exchange = matcher.receiveRequest(request);
+				if (exchange != null) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					coapstack.receiveRequest(exchange, request);
+				}
+			}
+		}
+
+		private void receiveResponse(final Response response, final RawData raw) {
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveResponse(response);
+			}
+
+			// MessageInterceptor might have canceled
+			if (!response.isCanceled()) {
+				Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
+				if (exchange != null) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+					coapstack.receiveResponse(exchange, response);
+				} else if (response.getType() != Type.ACK) {
+					LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
+					reject(response);
+				}
+			}
+		}
+
+		private void receiveEmptyMessage(final EmptyMessage message, final RawData raw) {
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveEmptyMessage(message);
+			}
+
+			// MessageInterceptor might have canceled
+			if (!message.isCanceled()) {
+				// CoAP Ping
+				if (message.getType() == Type.CON || message.getType() == Type.NON) {
+					LOGGER.log(Level.FINER, "Responding to ping by {0}", raw.getInetSocketAddress());
+					reject(message);
+				} else {
+					Exchange exchange = matcher.receiveEmptyMessage(message);
+					if (exchange != null) {
+						exchange.setEndpoint(CoapEndpoint.this);
+						coapstack.receiveEmptyMessage(exchange, message);
+					}
+				}
 			}
 		}
 	}

@@ -27,84 +27,107 @@ import org.eclipse.californium.elements.RawData;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
 /**
- * Interface for parsing messages. Two implementations exists: TcpParser (based on CoAP over TCP RFC), and UDP parser,
- * based on original CoAP spec.
+ * A base class for parsing CoAP messages from a byte array.
  */
 public abstract class DataParser {
 
-	/** Parses request out of raw data. */
-	public Request parseRequest(RawData rawData) {
-		DatagramReader reader = new DatagramReader(rawData.getBytes());
+	/**
+	 * Parses a byte array into a CoAP Message.
+	 * 
+	 * @param raw contains the byte array to parse.
+	 * @return the message.
+	 * @throws MessageFormatException if the array cannot be parsed into a message.
+	 */
+	public final Message parseMessage(final RawData raw) {
+
+		DatagramReader reader = new DatagramReader(raw.getBytes());
 		MessageHeader header = parseHeader(reader);
-		Request request = new Request(CoAP.Code.valueOf(header.getCode()));
-		request.setMID(header.getMID());
-		request.setType(header.getType());
-		request.setToken(header.getToken());
-
-		parseOptionsAndPayload(reader, request);
-		return request;
-	}
-
-	/** Parses Response out of the raw data. */
-	public Response parseResponse(RawData rawData) {
-		DatagramReader reader = new DatagramReader(rawData.getBytes());
-		MessageHeader header = parseHeader(reader);
-		Response response = new Response(CoAP.ResponseCode.valueOf(header.getCode()));
-		response.setMID(header.getMID());
-		response.setType(header.getType());
-		response.setToken(header.getToken());
-
-		parseOptionsAndPayload(reader, response);
-		return response;
-	}
-
-	/** Parses empty message out of the raw data. */
-	public EmptyMessage parseEmptyMessage(RawData rawData) {
-		DatagramReader reader = new DatagramReader(rawData.getBytes());
-		MessageHeader header = parseHeader(reader);
-		if (!CoAP.isEmptyMessage(header.getCode())) {
-			throw new MessageFormatException("Code " + header.getCode() + " not an empty message");
+		if (CoAP.isRequest(header.getCode())) {
+			return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
+		} else if (CoAP.isResponse(header.getCode())) {
+			return parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
+		} else if (CoAP.isEmptyMessage(header.getCode())) {
+			return parseMessage(reader, header, new EmptyMessage(header.getType()));
+		} else {
+			throw new MessageFormatException("illegal message code", header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
 		}
-
-		EmptyMessage emptyMessage = new EmptyMessage(header.getType());
-		emptyMessage.setMID(header.getMID());
-		emptyMessage.setType(header.getType());
-		emptyMessage.setToken(header.getToken());
-		parseOptionsAndPayload(reader, emptyMessage);
-		return emptyMessage;
-
 	}
 
-	/** Parses message code out of the message. */
-	public MessageHeader parseHeader(RawData raw) {
+	private Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
+		target.setMID(header.getMID());
+		target.setType(header.getType());
+		target.setToken(header.getToken());
+
+		parseOptionsAndPayload(source, target);
+		return target;
+	}
+
+	/**
+	 * Parses a byte array into a CoAP message header.
+	 * 
+	 * @param raw contains the byte array to parse.
+	 * @return the message header the array has been parsed into.
+	 * @throws MessageFormatException if the array cannot be parsed into a message header.
+	 */
+	public final MessageHeader parseHeader(RawData raw) {
 		DatagramReader reader = new DatagramReader(raw.getBytes());
 		return parseHeader(reader);
 	}
 
+	/**
+	 * Parses a byte array into a CoAP message header.
+	 * <p>
+	 * Subclasses need to override this method according to the concrete type of message
+	 * encoding to support.
+	 * 
+	 * @param reader for reading the byte array to parse.
+	 * @return the message header the array has been parsed into.
+	 */
 	protected abstract MessageHeader parseHeader(DatagramReader reader);
+
+	/**
+	 * Asserts that the length of the token as read from the encoded message complies
+	 * with the CoAP spec.
+	 * 
+	 * @param tokenLength the length value read from the message header.
+	 * @throws MessageFormatException if the value is greater than eight.
+	 */
+	protected final void assertValidTokenLength(int tokenLength) {
+		if (tokenLength > 8) {
+			// must be treated as a message format error according to CoAP spec
+			// https://tools.ietf.org/html/rfc7252#section-3
+			throw new MessageFormatException("Message has invalid token length (> 8)" + tokenLength);
+		}
+	}
 
 	private void parseOptionsAndPayload(DatagramReader reader, Message message) {
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
 
-		// TODO detect malformed options
 		while (reader.bytesAvailable()) {
 			nextByte = reader.readNextByte();
 			if (nextByte != PAYLOAD_MARKER) {
 				// the first 4 bits of the byte represent the option delta
 				int optionDeltaNibble = (0xF0 & nextByte) >> 4;
-				currentOptionNumber = calculateNextOptionNumber(reader, currentOptionNumber, optionDeltaNibble);
+				currentOptionNumber = calculateNextOptionNumber(reader, currentOptionNumber, optionDeltaNibble, message);
 
 				// the second 4 bits represent the option length
 				int optionLengthNibble = 0x0F & nextByte;
-				int optionLength = determineValueFromNibble(reader, optionLengthNibble);
+				int optionLength = determineValueFromNibble(reader, optionLengthNibble, message);
 
 				// read option
-				Option option = new Option(currentOptionNumber);
-				option.setValue(reader.readBytes(optionLength));
-
-				// add option to message
-				message.getOptions().addOption(option);
+				if (reader.bytesAvailable(optionLength)) {
+					Option option = new Option(currentOptionNumber);
+					option.setValue(reader.readBytes(optionLength));
+	
+					// add option to message
+					message.getOptions().addOption(option);
+				} else {
+					String msg = String.format(
+							"Message contains option of length %d with only fewer bytes left in the message",
+							optionLength);
+					throw new MessageFormatException(msg, message.getMID(), message.getRawCode(), message.isConfirmable());
+				}
 			} else
 				break;
 		}
@@ -112,13 +135,15 @@ public abstract class DataParser {
 		if (nextByte == PAYLOAD_MARKER) {
 			// the presence of a marker followed by a zero-length payload must be processed as a message format error
 			if (!reader.bytesAvailable()) {
-				throw new MessageFormatException("Found payload marker (0xFF) but message contains no payload");
+				throw new MessageFormatException(
+						"Found payload marker (0xFF) but message contains no payload",
+						message.getMID(), message.getRawCode(), message.isConfirmable());
 			} else {
 				// get payload
 				message.setPayload(reader.readBytesLeft());
 			}
 		} else {
-			message.setPayload(new byte[0]); // or null?
+			message.setPayload((String) null);
 		}
 	}
 
@@ -131,11 +156,15 @@ public abstract class DataParser {
 	 * @return the next option number.
 	 * @throws MessageFormatException if the option number cannot be determined due to a message format error.
 	 */
-	private int calculateNextOptionNumber(final DatagramReader reader, final int currentOptionNumber, final int delta) {
-		return currentOptionNumber + determineValueFromNibble(reader, delta);
+	private int calculateNextOptionNumber(
+			final DatagramReader reader,
+			final int currentOptionNumber,
+			final int delta,
+			final Message message) {
+		return currentOptionNumber + determineValueFromNibble(reader, delta, message);
 	}
 
-	private int determineValueFromNibble(final DatagramReader reader, final int delta) {
+	private int determineValueFromNibble(final DatagramReader reader, final int delta, final Message message) {
 		if (delta <= 12) {
 			return delta;
 		} else if (delta == 13) {
@@ -143,7 +172,9 @@ public abstract class DataParser {
 		} else if (delta == 14) {
 			return reader.read(16) + 269;
 		} else {
-			throw new MessageFormatException("Message contains illegal option delta/length: " + delta);
+			throw new MessageFormatException(
+					"Message contains illegal option delta/length: " + delta,
+					message.getMID(), message.getRawCode(), message.isConfirmable());
 		}
 	}
 }

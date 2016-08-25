@@ -63,6 +63,11 @@ public class EmptyMessage extends Message {
 		return String.format("%s        MID=%5d%s", getType(), getMID(), appendix);
 	}
 
+	@Override
+	public int getRawCode() {
+		return 0;
+	}
+
 	/**
 	 * Create a new acknowledgment for the specified message.
 	 *

@@ -139,6 +139,11 @@ public class Request extends Message {
 		return code;
 	}
 
+	@Override
+	public int getRawCode() {
+		return code.value;
+	}
+
 	/**
 	 * Gets the scheme.
 	 *

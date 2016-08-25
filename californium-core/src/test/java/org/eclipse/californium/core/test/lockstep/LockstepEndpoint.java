@@ -411,14 +411,13 @@ public class LockstepEndpoint {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
 			Assert.assertNotNull("Did not receive a request (but nothing)", raw);
 
-			MessageHeader header = parser.parseHeader(raw);
-
-			if (CoAP.isRequest(header.getCode())) {
-				Request request = parser.parseRequest(raw);
+			Message msg = parser.parseMessage(raw);
+			if (CoAP.isRequest(msg.getRawCode())) {
+				Request request = (Request) msg;
 				request.setSource(raw.getAddress());
 				request.setSourcePort(raw.getPort());
 				check(request);
-				
+
 			} else {
 				Assert.fail("Expected request but received " + parser);
 			}
@@ -552,14 +551,14 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive a response (but nothing)", raw);
-			MessageHeader header = parser.parseHeader(raw);
+			Message msg = parser.parseMessage(raw);
 			
-			if (CoAP.isResponse(header.getCode())) {
-				this.response = parser.parseResponse(raw);
+			if (CoAP.isResponse(msg.getRawCode())) {
+				this.response = (Response) msg;
 				response.setSource(raw.getAddress());
 				response.setSourcePort(raw.getPort());
 				check(response);
-				
+
 			} else {
 				Assert.fail("Expected response but received " + parser);
 			}
@@ -578,13 +577,12 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
 			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
-			MessageHeader header = parser.parseHeader(raw);
+			Message msg = parser.parseMessage(raw);
 
-			if (CoAP.isEmptyMessage(header.getCode())) {
-				EmptyMessage empty = parser.parseEmptyMessage(raw);
-				empty.setSource(raw.getAddress());
-				empty.setSourcePort(raw.getPort());
-				check(empty);
+			if (CoAP.isEmptyMessage(msg.getRawCode())) {
+				msg.setSource(raw.getAddress());
+				msg.setSourcePort(raw.getPort());
+				check(msg);
 			} else {
 				Assert.fail("Expected empty message but received " + parser);
 			}
