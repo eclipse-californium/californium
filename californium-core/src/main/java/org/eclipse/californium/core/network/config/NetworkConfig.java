@@ -40,22 +40,22 @@ public class NetworkConfig {
 
 	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(NetworkConfig.class.getCanonicalName());
-	
+
 	/** The default name for the configuration. */
 	public static final String DEFAULT = "Californium.properties";
-	
+
 	/** The default header for a configuration file. */
 	public static final String DEFAULT_HEADER = "Californium CoAP Properties file";
-	
+
 	/** The standard configuration that is used if none is defined. */
 	private static NetworkConfig standard;
-	
+
 	/** The properties. */
 	private Properties properties;
-	
+
 	/** The list of config observers. */
 	private List<NetworkConfigObserver> observers = new LinkedList<NetworkConfigObserver>();
-	
+
 	/**
 	 * Network configuration key names
 	 */
@@ -90,12 +90,12 @@ public class NetworkConfig {
 		public static final String PROTOCOL_STAGE_THREAD_COUNT = "PROTOCOL_STAGE_THREAD_COUNT";
 		public static final String NETWORK_STAGE_RECEIVER_THREAD_COUNT = "NETWORK_STAGE_RECEIVER_THREAD_COUNT";
 		public static final String NETWORK_STAGE_SENDER_THREAD_COUNT = "NETWORK_STAGE_SENDER_THREAD_COUNT";
-		
+
 		public static final String UDP_CONNECTOR_DATAGRAM_SIZE = "UDP_CONNECTOR_DATAGRAM_SIZE";
 		public static final String UDP_CONNECTOR_RECEIVE_BUFFER = "UDP_CONNECTOR_RECEIVE_BUFFER";
 		public static final String UDP_CONNECTOR_SEND_BUFFER = "UDP_CONNECTOR_SEND_BUFFER";
 		public static final String UDP_CONNECTOR_OUT_CAPACITY = "UDP_CONNECTOR_OUT_CAPACITY";
-		
+
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
@@ -118,7 +118,7 @@ public class NetworkConfig {
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
 	}
-	
+
 	/**
 	 * Gives access to the standard network configuration. When a new endpoint
 	 * or server is created without a specific network configuration, it will
@@ -135,7 +135,7 @@ public class NetworkConfig {
 		}
 		return standard;
 	}
-	
+
 	/**
 	 * Sets the standard configuration.
 	 *
@@ -144,17 +144,17 @@ public class NetworkConfig {
 	public static void setStandard(NetworkConfig standard) {
 		NetworkConfig.standard = standard;
 	}
-	
+
 	/**
 	 * Creates the standard without reading it or writing it to a file.
 	 *
 	 * @return the configuration
 	 */
 	public static NetworkConfig createStandardWithoutFile() {
-		LOGGER.info("Creating standard network configuration properties without a file");
+		LOGGER.config("Creating standard network configuration properties without a file");
 		return standard = new NetworkConfig();
 	}
-	
+
 	/**
 	 * Creates the standard with a file. If the file with the name
 	 * {@link #DEFAULT} exists, the configuration reads the properties from this
@@ -182,16 +182,16 @@ public class NetworkConfig {
 		}
 		return standard;
 	}
-	
+
 	/**
-	 * Instantiates a new network configiguration and sets the default values
+	 * Instantiates a new network configuration and sets the default values
 	 * defined in {@link NetworkConfigDefaults}.
 	 */
 	public NetworkConfig() {
 		this.properties = new Properties();
 		NetworkConfigDefaults.setDefaults(this);
 	}
-	
+
 	/**
 	 * Load the properties from the specified configuration file.
 	 *
@@ -202,7 +202,7 @@ public class NetworkConfig {
 		InputStream inStream = new FileInputStream(file);
 		properties.load(inStream);
 	}
-	
+
 	/**
 	 * Store the configuration in the specified file.
 	 *
@@ -212,7 +212,7 @@ public class NetworkConfig {
 	public void store(File file) throws IOException {
 		store(file, DEFAULT_HEADER);
 	}
-	
+
 	/**
 	 * Store the configuration in the specified file with the specified header.
 	 * 
@@ -221,104 +221,165 @@ public class NetworkConfig {
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
 	public void store(File file, String header) throws IOException {
-		if (file == null)
-			throw new NullPointerException();
+		if (file == null) {
+			throw new NullPointerException("file must not be null");
+		}
 		properties.store(new FileWriter(file), header);
 	}
-	
+
 	/**
-	 * Gets the value for the specified key as String or null if not found.
+	 * Gets the string value for a key.
 	 *
-	 * @param key the key
-	 * @return the string
+	 * @param key the key to look up.
+	 * @return the value or {@code null} if this configuration does not contain the given key.
 	 */
-	public String getString(String key) {
+	public String getString(final String key) {
 		return properties.getProperty(key);
 	}
-	
+
 	/**
-	 * Gets the value for the specified key as int or 0 if not found.
+	 * Gets the string value for a key.
 	 *
-	 * @param key the key
-	 * @return the int
+	 * @param key the key the key to look up.
+	 * @param defaultValue the default value.
+	 * @return the value for the key if this configuration contains a value for the key,
+	 *         otherwise the default value.
 	 */
-	public int getInt(String key) {
-		String value = properties.getProperty(key);
-		if (value != null) {
-			try {
+	public String getString(final String key, final String defaultValue) {
+		String result = properties.getProperty(key);
+		return result != null ? result : defaultValue;
+	}
+
+	/**
+	 * Gets the integer value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @return the value for the key or {@code 0} if this configuration does not contain a value
+	 *         for the given key or the value is not an integer.
+	 */
+	public int getInt(final String key) {
+		return getInt(key, 0);
+	}
+
+	/**
+	 * Gets the integer value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @param defaultValue the default value to return if there is no value registered for the key.
+	 * @return the value for the key if this configuration contains a value for the key
+	 *         and the value is an integer, otherwise the default value.
+	 */
+	public int getInt(final String key, final int defaultValue) {
+		return getNumberValue(new PropertyParser<Integer>() {
+			@Override
+			public Integer parseValue(String value) {
 				return Integer.parseInt(value);
-			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "Could not convert property \"" + key + "\" with value \"" + value + "\" to integer", e);
 			}
-		} else {
-			LOGGER.warning("Property \"" + key + "\" is undefined");
-		}
-		return 0;
+		}, key, defaultValue);
 	}
-	
+
 	/**
-	 * Gets the value for the specified key as long or 0 if not found.
+	 * Gets the long value for a key.
 	 *
-	 * @param key the key
-	 * @return the long
+	 * @param key the key to look up.
+	 * @return the value for the key or {@code 0} if this configuration does not contain a value
+	 *         for the given key or the value is not a long.
 	 */
-	public long getLong(String key) {
-		String value = properties.getProperty(key);
-		if (value != null) {
-			try {
+	public long getLong(final String key) {
+		return getLong(key, 0L);
+	}
+
+	/**
+	 * Gets the long value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @param defaultValue the default value to return if there is no value registered for the key.
+	 * @return the value for the key if this configuration contains a value for the key
+	 *         and the value is a long, otherwise the default value.
+	 */
+	public long getLong(final String key, final long defaultValue) {
+		return getNumberValue(new PropertyParser<Long>() {
+			@Override
+			public Long parseValue(String value) {
 				return Long.parseLong(value);
-			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "Could not convert property \"" + key + "\" with value \"" + value + "\" to long", e);
-				return 0;
 			}
-		} else {
-			LOGGER.warning("Property \"" + key + "\" is undefined");
-		}
-		return 0;
+		}, key, defaultValue);
 	}
-	
+
 	/**
-	 * Gets the value for the specified key as float or 0.0 if not found.
+	 * Gets the float value for a key.
 	 *
-	 * @param key the key
-	 * @return the float
+	 * @param key the key to look up.
+	 * @return the value for the key or {@code 0.0} if this configuration does not contain a value
+	 *         for the given key or the value is not a float.
 	 */
-	public float getFloat(String key) {
-		String value = properties.getProperty(key);
-		if (value != null) {
-			try {
+	public float getFloat(final String key) {
+		return getFloat(key, 0.0F);
+	}
+
+	/**
+	 * Gets the float value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @param defaultValue the default value to return if there is no value registered for the key.
+	 * @return the value for the key if this configuration contains a value for the key
+	 *         and the value is a float, otherwise the default value.
+	 */
+	public float getFloat(final String key, final float defaultValue) {
+		return getNumberValue(new PropertyParser<Float>() {
+			@Override
+			public Float parseValue(String value) {
 				return Float.parseFloat(value);
-			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "Could not convert property \"" + key + "\" with value \"" + value + "\" to float", e);
-				return 0;
 			}
-		} else {
-			LOGGER.warning("Property \"" + key + "\" is undefined");
-		}
-		return 0;
+		}, key, defaultValue);
 	}
-	
+
 	/**
-	 * Gets the value for the specified key as double or 0.0 if not found.
+	 * Gets the double value for a key.
 	 *
-	 * @param key the key
-	 * @return the double
+	 * @param key the key to look up.
+	 * @return the value for the key or {@code 0.0} if this configuration does not contain a value
+	 *         for the given key or the value is not a double.
 	 */
-	public double getDouble(String key) {
+	public double getDouble(final String key) {
+		return getDouble(key, 0.0D);
+	}
+
+	/**
+	 * Gets the double value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @param defaultValue the default value to return if there is no value registered for the key.
+	 * @return the value for the key if this configuration contains the key
+	 *         and the value is an double, otherwise the default value.
+	 */
+	public double getDouble(final String key, final double defaultValue) {
+		return getNumberValue(new PropertyParser<Double>() {
+			@Override
+			public Double parseValue(String value) {
+				return Double.parseDouble(value);
+			}
+		}, key, defaultValue);
+	}
+
+	private <T> T getNumberValue(PropertyParser<T> parser, String key, T defaultValue) {
+		T result = defaultValue;
 		String value = properties.getProperty(key);
 		if (value != null) {
 			try {
-				return Double.parseDouble(value);
+				result = parser.parseValue(value);
 			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "Could not convert property \"" + key + "\" with value \"" + value + "\" to double", e);
-				return 0;
+				LOGGER.log(
+						Level.WARNING,
+						"value for key [{0}] is not a {1}: {2}",
+						new Object[]{key, defaultValue.getClass(), value});
 			}
 		} else {
-			LOGGER.warning("Property \"" + key + "\" is undefined");
+			LOGGER.log(Level.WARNING, "key [{0}] is undefined, returning default value", key);
 		}
-		return 0;
+		return result;
 	}
-	
+
 	/**
 	 * Gets the value for the specified key as boolean or false if not found.
 	 *
@@ -328,18 +389,17 @@ public class NetworkConfig {
 	public boolean getBoolean(String key) {
 		String value = properties.getProperty(key);
 		if (value != null) {
-			try {
-				return Boolean.parseBoolean(value);
-			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "Could not convert property \"" + key + "\" with value \"" + value + "\" to boolean", e);
-				return false;
-			}
+			return Boolean.parseBoolean(value);
 		} else {
-			LOGGER.warning("Property \"" + key + "\" is undefined");
+			LOGGER.log(Level.WARNING, "Key [{0}] is undefined", key);
+			return false;
 		}
-		return false;
 	}
-	
+
+	private interface PropertyParser<T> {
+		T parseValue(String value);
+	}
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -348,12 +408,19 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig set(String key, Object value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		if (key == null) {
+			throw new NullPointerException("key must not be null");
+		} else if (value == null) {
+			throw new NullPointerException("value must not be null");
+		} else {
+			properties.put(key, String.valueOf(value));
+			for (NetworkConfigObserver obs:observers) {
+				obs.changed(key, value);
+			}
+			return this;
+		}
 	}
-	
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -362,12 +429,9 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setString(String key, String value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, value);
 	}
-	
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -376,12 +440,9 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setInt(String key, int value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, String.valueOf(value));
 	}
-	
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -390,12 +451,9 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setLong(String key, long value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, String.valueOf(value));
 	}
-	
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -404,12 +462,9 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setFloat(String key, float value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, String.valueOf(value));
 	}
-	
+
 	/**
 	 * Associates the specified value with the specified key.
 	 *
@@ -418,10 +473,7 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setDouble(String key, double value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, String.valueOf(value));
 	}
 
 	/**
@@ -432,20 +484,16 @@ public class NetworkConfig {
 	 * @return the network configuration
 	 */
 	public NetworkConfig setBoolean(String key, boolean value) {
-		properties.put(key, String.valueOf(value));
-		for (NetworkConfigObserver obs:observers)
-			obs.changed(key, value);
-		return this;
+		return set(key, String.valueOf(value));
 	}
-	
+
 	public NetworkConfig addConfigObserver(NetworkConfigObserver observer) {
 		observers.add(observer);
 		return this;
 	}
-	
+
 	public NetworkConfig removeConfigObserver(NetworkConfigObserver observer) {
 		observers.remove(observer);
 		return this;
 	}
-	
 }
