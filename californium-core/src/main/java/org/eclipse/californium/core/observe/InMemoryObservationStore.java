@@ -13,6 +13,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,10 +33,11 @@ public class InMemoryObservationStore implements ObservationStore {
 	private Map<KeyToken, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
-	public void add(Observation obs) {
+	public List<Observation> add(Observation obs) {
 		if (obs != null) {
 			map.put(new KeyToken(obs.getRequest().getToken()), obs);
 		}
+		return Collections.emptyList();
 	}
 
 	@Override
