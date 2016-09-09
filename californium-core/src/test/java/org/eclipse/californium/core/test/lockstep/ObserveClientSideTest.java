@@ -173,6 +173,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(response, respPayload);
+		System.out.println("observe relation has been established, server now sends a notification");
 
 		// normal notification
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
@@ -187,6 +188,8 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload);
+		System.out.println("client has successfully retrieved content for notification using blockwise transfer");
+		System.out.println("server now sends notifications interfering with ongoing blockwise transfer");
 
 		// override transfer with new notification
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
@@ -195,8 +198,10 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+
 		clientInterceptor.log("\n\n//////// Overriding notification ////////");
 		String respPayload3 = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
+
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload3.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
 		// old block
@@ -212,15 +217,19 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload3);
+		System.out.println("client has detected newly arriving notification while doing blockwise transfer of previous notification");
+		System.out.println("server now sends notifications interfering with ongoing blockwise transfer using conflicting block numbers");
 
 		// override transfer with new notification and conflicting block number
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
+
 		clientInterceptor.log("\n\n//////// Overriding notification 2 ////////");
-		// start new block
 		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
+
+		// start new block
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload4.substring(0, 16)).go();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
@@ -229,7 +238,14 @@ public class ObserveClientSideTest {
 		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
 		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("H").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(2, true, 16).payload(respPayload.substring(32, 40)).go();
+		// this is the original response the server was expected to send
+		// however, I do not see why the server should respond to a new request 
+		// with a new MID with the response for the previous request for block 1 (which
+		// used a different MID)
+//		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(2, true, 16).payload(respPayload.substring(32, 40)).go();
+		// I think that the server should instead respond with block 2 echoing
+		// the MID of the latest request for block 2
+		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 
 		// new block
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
