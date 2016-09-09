@@ -48,7 +48,7 @@ import org.eclipse.californium.core.network.Exchange;
 public abstract class AbstractLayer implements Layer {
 
 	/** The logger. */
-	protected final static Logger LOGGER = Logger.getLogger(AbstractLayer.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(AbstractLayer.class.getCanonicalName());
 
 	/** The upper layer. */
 	private Layer upperLayer;
