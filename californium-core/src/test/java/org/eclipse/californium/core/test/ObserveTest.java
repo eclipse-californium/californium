@@ -84,57 +84,58 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ObserveTest {
-	
-	public static final String TARGET_X = "resX";
-	public static final String TARGET_Y = "resY";
-	public static final String RESPONSE = "hi";
-	
+
+	static final String TARGET_X = "resX";
+	static final String TARGET_Y = "resY";
+	static final String RESPONSE = "hi";
+
 	private CoapServer server;
 	private MyResource resourceX;
 	private MyResource resourceY;
 	private ClientMessageInterceptor interceptor;
-	
+
 	private boolean waitforit = true;
-	
+
 	private int serverPort;
 	private String uriX;
 	private String uriY;
-	
+
 	private int notificationCounter = 0;
 	private int resetCounter = 0;
-	
+
 	@Before
 	public void startupServer() {
-		System.out.println("\nStart "+getClass().getSimpleName());
+		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		createServer();
 	}
-	
+
 	@After
 	public void shutdownServer() {
 		EndpointManager.getEndpointManager().getDefaultEndpoint().removeInterceptor(interceptor);
 		server.destroy();
-		System.out.println("End "+getClass().getSimpleName());
+		System.out.println("End " + getClass().getSimpleName());
 	}
-	
+
 	@Test
 	public void testObserveLifecycle() throws Exception {
-		
-		this.interceptor = new ClientMessageInterceptor();
+
+		interceptor = new ClientMessageInterceptor();
 		EndpointManager.getEndpointManager().getDefaultEndpoint().addInterceptor(interceptor);
-		
+
 		// setup observe relation to resource X and Y
 		Request requestA = Request.newGet();
 		requestA.setURI(uriX);
 		requestA.setObserve();
 		requestA.send();
-		
+
+
 		Request requestB = Request.newGet();
 		requestB.setURI(uriY);
 		requestB.setObserve();
 		requestB.send();
-		
-		// ensure relations are established
+
 		Response resp1 = requestA.waitForResponse(1000);
+		// ensure relations are established
 		assertNotNull("Client received no response", resp1);
 		assertTrue(resp1.getOptions().hasObserve());
 		assertTrue(resourceX.getObserverCount() == 1);
@@ -145,42 +146,43 @@ public class ObserveTest {
 		assertTrue(resp2.getOptions().hasObserve());
 		assertTrue(resourceY.getObserverCount() == 1);
 		assertEquals(resp2.getPayloadString(), resourceY.currentResponse);
-		System.out.println("\nObserve relation established, resource changes");
-		
+
+		System.out.println(System.lineSeparator() + "Observe relation established, resource changes");
+
 		// change resource but lose response
 		Thread.sleep(50);
-		resourceX.changed(); // change to "resX sais hi for the 2 time"
+		resourceX.changed(); // change to "resX says hi for the 2 time"
 		// => trigger notification (which will go lost, see ClientMessageInterceptor)
-		
+
 		// wait for the server to timeout, see ClientMessageInterceptor.
 		while (waitforit) {
 			Thread.sleep(1000);
 		}
-		
+
 		Thread.sleep(500);
-		
+
 		// the server should now have canceled all observer relations with 5683
 		// - request A to resource X
 		// - request B to resource Y
-		
+
 		// check that relations to resource X AND Y have been canceled
 		assertTrue(resourceX.getObserverCount() == 0);
 		assertTrue(resourceY.getObserverCount() == 0);
 	}
-	
+
 	@Test
 	public void testObserveClient() throws Exception {
-		
+
 		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor());
 		resourceX.setObserveType(Type.NON);
-		
+
 		notificationCounter = 0;
 		resetCounter = 0;
-		
+
 		int repeat = 3;
-		
+
 		CoapClient client = new CoapClient(uriX);
-		
+
 		CoapObserveRelation rel = client.observeAndWait(new CoapHandler() {
 			@Override
 			public void onLoad(CoapResponse response) {
@@ -190,30 +192,29 @@ public class ObserveTest {
 			@Override
 			public void onError() { }
 		});
-		
-		rel.reactiveCancel();
-		Thread.sleep(50);
 
-		for (int i=0; i<repeat; ++i) {
+		rel.reactiveCancel();
+		Thread.sleep(50); // wait for cancel to take effect
+
+		for (int i=0; i < repeat; ++i) {
 			resourceX.changed();
 			Thread.sleep(50);
 		}
-		
+
 		assertEquals(1, notificationCounter); // only one notification received
 		assertEquals(repeat, resetCounter); // repeat RST received
 		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered (interceptor)
-		
 	}
-	
+
 	private void createServer() {
-		// retransmit constantly all 2 seconds
+		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = new NetworkConfig()
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
-		
+
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
-		
+
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		resourceX = new MyResource(TARGET_X);
@@ -221,99 +222,98 @@ public class ObserveTest {
 		server.add(resourceX);
 		server.add(resourceY);
 		server.start();
-		
+
 		serverPort = endpoint.getAddress().getPort();
-		uriX = "localhost:"+serverPort+"/"+TARGET_X;
-		uriY = "localhost:"+serverPort+"/"+TARGET_Y;
+		uriX = String.format("127.0.0.1:%d/%s", serverPort, TARGET_X);
+		uriY = String.format("127.0.0.1:%d/%s", serverPort, TARGET_Y);
 	}
-	
+
 	private class ClientMessageInterceptor implements MessageInterceptor {
 
 		private int counter = 0; // counts the incoming responses
-		
+
 		@Override
 		public void receiveResponse(Response response) {
 			counter++;
-			// frist responses for request A and B
-			if (counter == 1) ; // resp 1 ok
-			if (counter == 2) ; // resp 2 ok
-			
-			// notifications:
-			if (counter == 3) lose(response); // lose transm. 0 of X's first notification
-			if (counter == 4) lose(response); // lose transm. 1 of X's first notification
-			if (counter == 5) {
+			switch(counter) {
+			case 1:
+			case 2:
+				// first responses for request A and B
+				break;
+			case 3: // lose transm. 0 of X's first notification
+			case 4: // lose transm. 1 of X's first notification
+				lose(response);
+				break;
+			case 5:
 				lose(response); // lose transm. 2 of X's first notification
 				resourceX.changed(); // change to "resX sais hi for the 3 time"
-			}
-			
-			/*
-			 * Note: The resource has changed and needs to send a second
-			 * notification. However, the first notification has not been
-			 * acknowledged yet. Therefore, the second notification keeps the
-			 * transmission counter of the first notification. There are no
-			 * transm. 0 and 1 of X's second notification.
-			 */
-			
-//			if (counter == 6) lose(response); // lose transm. 2 of X's second notification
-			if (counter == 6) lose(response); // lose transm. 3 of X's second notification
-			if (counter == 7) {
+				break;
+
+				// Note: The resource has changed and needs to send a second
+				// notification. However, the first notification has not been
+				// acknowledged yet. Therefore, the second notification keeps the
+				// transmission counter of the first notification. There are no
+				// transm. 0 and 1 of X's second notification.
+
+			case 6:
+				lose(response); // lose transm. 3 of X's second notification
+				break;
+			case 7:
 				lose(response); // lose transm. 4 of X's second notification
 
-				/*
-				 * Note: The server now reaches the retransmission limit and
-				 * cancels the response. Since it was an observe notification,
-				 * the server now removes all observe relations from the
-				 * endpoint 5683 which are request A to resource X and request B
-				 * to resource Y.
-				 */
+				// Note: The server now reaches the retransmission limit and
+				// cancels the response. Since it was an observe notification,
+				// the server now removes all observe relations from the
+				// endpoint 5683 which are request A to resource X and request B
+				// to resource Y.
+
 				waitforit = false;
+				break;
+			default:
+				throw new IllegalStateException("Should not receive " + counter + " responses");
 			}
-			
-			if (counter >= 8) // error
-				System.exit(-1);
-//				throw new RuntimeException("Should not receive "+counter+" responses");
 		}
-		
+
 		private void lose(Response response) {
-			System.out.println("\nLose response "+counter+" with MID "+response.getMID()+", payload = "+response.getPayloadString());
+			System.out.println(System.lineSeparator() + "Lose response " + counter + " with MID " + response.getMID() + ", payload = "+response.getPayloadString());
 			response.cancel();
 		}
-		
+
 		@Override public void sendRequest(Request request) { }
 		@Override public void sendResponse(Response response) { }
 		@Override public void sendEmptyMessage(EmptyMessage message) { }
 		@Override public void receiveRequest(Request request) { }
 		@Override public void receiveEmptyMessage(EmptyMessage message) { }
 	}
-	
+
 	private class ServerMessageInterceptor implements MessageInterceptor {
-		
+
 		@Override public void receiveResponse(Response response) { }
 		@Override public void sendRequest(Request request) { }
 		@Override public void sendResponse(Response response) { }
 		@Override public void sendEmptyMessage(EmptyMessage message) { }
 		@Override public void receiveRequest(Request request) { }
 		@Override public void receiveEmptyMessage(EmptyMessage message) {
-			if (message.getType()==Type.RST) {
+			if (message.getType() == Type.RST) {
 				++resetCounter;
-				System.out.println("Received RST: "+message.getMID());
+				System.out.println("Received RST: " + message.getMID());
 				message.cancel();
 			}
 		}
 	}
-	
+
 	private static class MyResource extends CoapResource {
-		
+
 		private Type type = Type.CON;
 		private int counter = 0;
 		private String currentResponse;
-		
+
 		public MyResource(String name) {
 			super(name);
 			setObservable(true);
 			changed();
 		}
-		
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Response response = new Response(ResponseCode.CONTENT);
@@ -321,11 +321,11 @@ public class ObserveTest {
 			response.setType(type);
 			exchange.respond(response);
 		}
-		
+
 		@Override
 		public void changed() {
-			currentResponse = "\""+getName()+" says hi for the "+(++counter)+" time\"";
-			System.out.println("Resource "+getName()+" changed to "+currentResponse);
+			currentResponse = String.format("\"%s says hi for the %d time\"", getName(), ++counter);
+			System.out.println("Resource " + getName() + " changed to " + currentResponse);
 			super.changed();
 		}
 	}
