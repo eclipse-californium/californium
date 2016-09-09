@@ -289,7 +289,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
 		LOGGER.log(Level.FINER, "received response {0}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 
@@ -321,8 +321,22 @@ public final class UdpMatcher extends BaseMatcher {
 					}
 
 					@Override
-					public void onResponse(final Response resp) {
-						notificationListener.onNotification(request, resp);
+					public void onResponse(Response response) {
+						// check whether the client has established the observe
+						// requested
+						if (!response.getOptions().hasObserve()) {
+							// Observe response received with no observe option
+							// set. It could be that the Client was not able to
+							// establish the observe. So remove the observe
+							// relation from observation store, which was stored
+							// earlier when the request was sent.
+							LOGGER.log(Level.FINE,
+									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
+									idByToken);
+							observationStore.remove(request.getToken());
+						} else {
+							notificationListener.onNotification(request, response);
+						}
 					}
 
 					@Override
