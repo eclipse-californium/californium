@@ -289,7 +289,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
 		LOGGER.log(Level.FINER, "received response {0}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 
@@ -321,8 +321,17 @@ public final class UdpMatcher extends BaseMatcher {
 					}
 
 					@Override
-					public void onResponse(final Response resp) {
-						notificationListener.onNotification(request, resp);
+					public void onResponse(Response response) {
+						if (!response.getOptions().hasObserve()) {
+							LOGGER.log(Level.FINE,
+									"Removed entry from observation store as observe response with token {0} didn't have observe option: ",
+									idByToken);
+							// no observe option set. Client was not able to
+							// establish observe
+							observationStore.remove(request.getToken());
+						} else {
+							notificationListener.onNotification(request, response);
+						}
 					}
 
 					@Override
