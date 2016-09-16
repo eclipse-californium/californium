@@ -1,25 +1,15 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
- * <p>
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * and Eclipse Distribution License v1.0 which accompany this distribution.
- * <p>
- * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
- * and the Eclipse Distribution License is available at
- * http://www.eclipse.org/org/documents/edl-v10.html.
- * <p>
- * Contributors:
- * Matthias Kovatsch - creator and main architect
- * Martin Lanter - architect and re-implementation
- * Dominique Im Obersteg - parsers and initial implementation
- * Daniel Pauli - parsers and initial implementation
- * Kai Hudalla - logging
- * Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
- * explicit String concatenation
- * Bosch Software Innovations GmbH - use correlation context to improve matching
- * of Response(s) to Request (fix GitHub issue #1)
+ * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others. <p> All rights
+ * reserved. This program and the accompanying materials are made available under the terms of the
+ * Eclipse Public License v1.0 and Eclipse Distribution License v1.0 which accompany this
+ * distribution. <p> The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at http://www.eclipse.org/org/documents/edl-v10.html.
+ * <p> Contributors: Matthias Kovatsch - creator and main architect Martin Lanter - architect and
+ * re-implementation Dominique Im Obersteg - parsers and initial implementation Daniel Pauli -
+ * parsers and initial implementation Kai Hudalla - logging Kai Hudalla (Bosch Software Innovations
+ * GmbH) - use Logger's message formatting instead of explicit String concatenation Bosch Software
+ * Innovations GmbH - use correlation context to improve matching of Response(s) to Request (fix
+ * GitHub issue #1)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -349,198 +339,228 @@ public class UdpMatcher implements Matcher {
 
 		Exchange exchange = exchangesByToken.get(idByToken);
 
-		if (exchange == null) {
-			// There is no exchange with the given token.
-			if (response.getType() != Type.ACK) {
-				// only act upon separate (non piggy-backed) responses
-				Exchange prev = deduplicator.find(idByMID);
-				if (prev != null) {
-					LOGGER.log(Level.FINER, "Received response for already completed exchange: {0}", response);
-					response.setDuplicate(true);
-					return prev;
-				}
-			} else {
-				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
-						new Object[] { response.getSource(), response.getSourcePort(), response });
-			}
-			// ignore response
-			return null;
-		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
-			// we have received a Response matching the Request of an ongoing Exchange
-			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
-			if (prev != null) { // (and thus it holds: prev == exchange)
-				LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
-				response.setDuplicate(true);
-			} else {
-				// we have received the expected response for the original request
-				idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
-				exchangesByMID.remove(idByMID);
-				LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
-			}
+    if (exchange == null) {
+      // There is no exchange with the given token.
+      if (response.getType() != Type.ACK) {
+        // only act upon separate (non piggy-backed) responses
+        Exchange prev = deduplicator.find(idByMID);
+        if (prev != null) {
+          LOGGER.log(Level.FINER, "Received response for already completed exchange: {0}", response);
+          response.setDuplicate(true);
+          return prev;
+        }
+      } else {
+        LOGGER.log(Level.WARNING, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
+            new Object[]{response.getSource(), response.getSourcePort(), response});
+      }
+      // ignore response
+      return null;
+    } else if (isResponseRelatedToMulticastRequest(exchange, responseContext)) {
+      if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+        // The token matches but not the MID.
+        LOGGER.log(Level.WARNING,
+            "Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+            new Object[]{response.getTokenString(), exchange.getCurrentRequest().getMID(),
+                response.getMID()});
+      }
 
-			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
-				// The token matches but not the MID.
-				LOGGER.log(Level.WARNING,
-						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
-						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
-								response.getMID() });
-			}
+      return exchange;
+    } else if (isResponseRelatedToRequest(exchange, responseContext)) {
+      // we have received a Response matching the Request of an ongoing Exchange
+      Exchange prev = deduplicator.findPrevious(idByMID, exchange);
+      if (prev != null) { // (and thus it holds: prev == exchange)
+        LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
+        response.setDuplicate(true);
+      } else {
+        // we have received the expected response for the original request
+        idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
+        exchangesByMID.remove(idByMID);
+        LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
+      }
 
-			return exchange;
-		} else {
-			LOGGER.log(Level.INFO,
-					"Ignoring potentially forged response for token {0} with non-matching correlation context",
-					idByToken);
-			return null;
-		}
-	}
+      if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+        // The token matches but not the MID.
+        LOGGER.log(Level.WARNING,
+            "Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+            new Object[]{response.getTokenString(), exchange.getCurrentRequest().getMID(),
+                response.getMID()});
+      }
 
-	private boolean isResponseRelatedToRequest(final Exchange exchange, final CorrelationContext responseContext) {
-		if (exchange.getCorrelationContext() == null) {
-			// no correlation information available for request, thus any
-			// additional correlation information available in the response is ignored
-			return true;
-		} else if (exchange.getCorrelationContext().get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
-			// original request has been sent via a DTLS protected transport
-			// check if the response has been received in the same DTLS session
-			if (useStrictResponseMatching) {
-				return isResponseStrictlyRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
-			} else {
-				return isResponseRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
-			}
-		} else {
-			// compare message context used for sending original request to context
-			// the response has been received in
-			return exchange.getCorrelationContext().equals(responseContext);
-		}
-	}
+      return exchange;
+    } else {
+      LOGGER.log(Level.INFO,
+          "Ignoring potentially forged response for token {0} with non-matching correlation context",
+          idByToken);
+      return null;
+    }
+  }
 
-	private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
-		if (responseContext == null) {
-			return false;
-		} else {
-			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
-					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
-		}
-	}
+  private boolean isResponseRelatedToRequest(final Exchange exchange,
+      final CorrelationContext responseContext) {
+    if (exchange.getCorrelationContext() == null) {
+      // no correlation information available for request, thus any
+      // additional correlation information available in the response is ignored
+      return true;
+    } else if (exchange.getCorrelationContext().get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
+      // original request has been sent via a DTLS protected transport
+      // check if the response has been received in the same DTLS session
+      if (useStrictResponseMatching) {
+        return isResponseStrictlyRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
+      } else {
+        return isResponseRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
+      }
+    } else {
+      // compare message context used for sending original request to context
+      // the response has been received in
+      return exchange.getCorrelationContext().equals(responseContext);
+    }
+  }
 
-	private boolean isResponseStrictlyRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
-		if (responseContext == null) {
-			return false;
-		} else {
-			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
-					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.get(DtlsCorrelationContext.KEY_EPOCH)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_EPOCH))
-					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
-		}
-	}
+  private boolean isResponseRelatedToMulticastRequest(final Exchange exchange,
+      final CorrelationContext responseContext) {
+    if (exchange.getCorrelationContext() == null) {
+      return true;
+    } else if (exchange.getRequest().isMulticast()) {
+      return exchange.getCorrelationContext().equals(responseContext);
+    } else {
+      return false;
+    }
+  }
 
-	@Override public Exchange receiveEmptyMessage(final EmptyMessage message) {
+  private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
+    if (responseContext == null) {
+      return false;
+    } else {
+      return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
+          .equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
+          && requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
+          .equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
+    }
+  }
 
-		// local namespace
-		KeyMID idByMID = new KeyMID(message.getMID());
-		Exchange exchange = exchangesByMID.remove(idByMID);
+  private boolean isResponseStrictlyRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
+    if (responseContext == null) {
+      return false;
+    } else {
+      return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
+          .equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
+          && requestContext.get(DtlsCorrelationContext.KEY_EPOCH)
+          .equals(responseContext.get(DtlsCorrelationContext.KEY_EPOCH))
+          && requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
+          .equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
+    }
+  }
 
-		if (exchange != null) {
-			LOGGER.log(Level.FINE, "Received expected reply for Exchange {0}", idByMID);
-		} else {
-			LOGGER.log(Level.FINER, "Ignoring non-matchable empty message from {0}:{1}: {2}",
-					new Object[] {message.getSource(), message.getSourcePort(), message});
-		}
-		return exchange;
-	}
+  @Override
+  public Exchange receiveEmptyMessage(final EmptyMessage message) {
 
-	@Override public void clear() {
-		this.exchangesByMID.clear();
-		this.exchangesByToken.clear();
-		this.ongoingExchanges.clear();
-		deduplicator.clear();
-	}
+    // local namespace
+    KeyMID idByMID = new KeyMID(message.getMID());
+    Exchange exchange = exchangesByMID.remove(idByMID);
 
-	private void removeNotificationsOf(ObserveRelation relation) {
-		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
-		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
-			Response previous = iterator.next();
-			// notifications are local MID namespace
-			KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
-			exchangesByMID.remove(idByMID);
-			iterator.remove();
-		}
-	}
+    if (exchange != null) {
+      LOGGER.log(Level.FINE, "Received expected reply for Exchange {0}", idByMID);
+    } else {
+      LOGGER.log(Level.FINER, "Ignoring non-matchable empty message from {0}:{1}: {2}",
+          new Object[]{message.getSource(), message.getSourcePort(), message});
+    }
+    return exchange;
+  }
 
-	/**
-	 * Creates a new token that is never the empty token (i.e., always 1-8 bytes).
-	 * @return the new token
-	 */
-	private KeyToken createUnusedToken() {
+  @Override
+  public void clear() {
+    this.exchangesByMID.clear();
+    this.exchangesByToken.clear();
+    this.ongoingExchanges.clear();
+    deduplicator.clear();
+  }
 
-		Random random = ThreadLocalRandom.current();
-		byte[] token;
-		KeyToken result;
-		do {
-			// random length between 1 and tokenSizeLimit
-			// TODO: why would we want to have a random length token?
-			token = new byte[random.nextInt(tokenSizeLimit) + 1];
-			// random value
-			random.nextBytes(token);
-			result = new KeyToken(token);
-		} while (exchangesByToken.get(result) != null);
+  private void removeNotificationsOf(ObserveRelation relation) {
+    LOGGER.fine("Remove all remaining NON-notifications of observe relation");
+    for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
+      Response previous = iterator.next();
+      // notifications are local MID namespace
+      KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
+      exchangesByMID.remove(idByMID);
+      iterator.remove();
+    }
+  }
 
-		return result;
-	}
+  /**
+   * Creates a new token that is never the empty token (i.e., always 1-8 bytes).
+   * @return the new token
+   */
+  private KeyToken createUnusedToken() {
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+    Random random = ThreadLocalRandom.current();
+    byte[] token;
+    KeyToken result;
+    do {
+      // random length between 1 and tokenSizeLimit
+      // TODO: why would we want to have a random length token?
+      token = new byte[random.nextInt(tokenSizeLimit) + 1];
+      // random value
+      random.nextBytes(token);
+      result = new KeyToken(token);
+    } while (exchangesByToken.get(result) != null);
 
-		@Override public void completed(final Exchange exchange) {
+    return result;
+  }
+
+  private class ExchangeObserverImpl implements ExchangeObserver {
+
+    @Override
+    public void completed(final Exchange exchange) {
 
 			/*
 			 * Logging in this method leads to significant performance loss.
 			 * Uncomment logging code only for debugging purposes.
 			 */
 
-			if (exchange.getOrigin() == Origin.LOCAL) {
-				// this endpoint created the Exchange by issuing a request
+      if (exchange.getOrigin() == Origin.LOCAL) {
+        // this endpoint created the Exchange by issuing a request
+        KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
+        KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
-				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
-				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
+        if(!exchange.getRequest().isMulticast() || isMulticastTimedOut(exchange)) {
+          exchangesByToken.remove(idByToken);
 
-				exchangesByToken.remove(idByToken);
+          // in case an empty ACK was lost
+          exchangesByMID.remove(idByMID);
+        }
+      } else { // Origin.REMOTE
+        // this endpoint created the Exchange to respond to a request
 
-				// in case an empty ACK was lost
-				exchangesByMID.remove(idByMID);
+        Response response = exchange.getCurrentResponse();
+        if (response != null && response.getType() != Type.ACK) {
+          // only response MIDs are stored for ACK and RST, no reponse Tokens
+          KeyMID midKey = new KeyMID(response.getMID(), null, 0);
+          exchangesByMID.remove(midKey);
+        }
 
-			} else { // Origin.REMOTE
-				// this endpoint created the Exchange to respond to a request
+        Request request = exchange.getCurrentRequest();
+        if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
+          KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
+              request.getSourcePort());
+          LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
+          ongoingExchanges.remove(uriKey);
+        }
 
-				Response response = exchange.getCurrentResponse();
-				if (response != null && response.getType() != Type.ACK) {
-					// only response MIDs are stored for ACK and RST, no reponse Tokens
-					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
-					exchangesByMID.remove(midKey);
-				}
+        // Remove all remaining NON-notifications if this exchange is an observe relation
+        ObserveRelation relation = exchange.getRelation();
+        if (relation != null) {
+          removeNotificationsOf(relation);
+        }
+      }
+    }
 
-				Request request = exchange.getCurrentRequest();
-				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
-					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
-							request.getSourcePort());
-					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
-					ongoingExchanges.remove(uriKey);
-				}
+    private boolean isMulticastTimedOut(final Exchange exchange) {
+      return System.currentTimeMillis() - exchange.getTimestamp() > exchange.getCurrentTimeout();
+    }
 
-				// Remove all remaining NON-notifications if this exchange is an observe relation
-				ObserveRelation relation = exchange.getRelation();
-				if (relation != null) {
-					removeNotificationsOf(relation);
-				}
-			}
-		}
-
-		@Override public void contextEstablished(final Exchange exchange) {
-			// do nothing
-		}
-	}
+    @Override
+    public void contextEstablished(final Exchange exchange) {
+      // do nothing
+    }
+  }
 }
