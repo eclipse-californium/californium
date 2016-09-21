@@ -72,6 +72,7 @@ public class UdpMatcher implements Matcher {
 	/* Health status output */
 	private final Level healthStatusLevel;
 	private final int healthStatusInterval; // seconds
+    private final int multicastKeepAliveTimeout; //seconds
 
 	private boolean started;
 
@@ -105,6 +106,11 @@ public class UdpMatcher implements Matcher {
 
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+
+        //As defined in https://tools.ietf.org/html/rfc7390#section-2.5
+        multicastKeepAliveTimeout = config.getInt(NetworkConfig.Keys.NON_LIFETIME)
+                + config.getInt(NetworkConfig.Keys.MAX_LATENCY)
+                + config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
 	}
 
 	@Override public synchronized void start() {
@@ -154,10 +160,10 @@ public class UdpMatcher implements Matcher {
 			request.setMID(currendMID.getAndIncrement() % (1 << 16)); // wrap at 2^16
 		}
 		// request MID is from the local namespace -- use blank address
-		KeyMID idByMID = new KeyMID(request.getMID());
+		final KeyMID idByMID = new KeyMID(request.getMID());
 
 		// ensure Token is set
-		KeyToken idByToken;
+		final KeyToken idByToken;
 		if (request.getToken() == null) {
 			idByToken = createUnusedToken();
 			request.setToken(idByToken.token);
@@ -175,6 +181,16 @@ public class UdpMatcher implements Matcher {
 
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
+
+		if(request.isMulticast()) {
+			executor.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    exchangesByMID.remove(idByMID);
+                    exchangesByToken.remove(idByToken);
+                }
+			}, multicastKeepAliveTimeout, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	@Override public void sendResponse(Exchange exchange, Response response) {
@@ -365,7 +381,7 @@ public class UdpMatcher implements Matcher {
 			}
 			// ignore response
 			return null;
-		} else if (isResponseRelatedToMulticastRequest(exchange, responseContext)) {
+		} else if (isResponseRelatedToMulticastRequest(exchange)) {
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
 				// The token matches but not the MID.
 				LOGGER.log(Level.FINER,
@@ -424,16 +440,8 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	private boolean isResponseRelatedToMulticastRequest(final Exchange exchange, final CorrelationContext responseContext) {
-		if (exchange.getRequest() != null && exchange.getRequest().isMulticast()) {
-			if (exchange.getCorrelationContext() == null) {
-				return true;
-			} else {
-				return exchange.getCorrelationContext().equals(responseContext);
-			}
-		} else {
-			return false;
-		}
+	private boolean isResponseRelatedToMulticastRequest(final Exchange exchange) {
+		return exchange.getRequest() != null && exchange.getRequest().isMulticast();
 	}
 
 	private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
@@ -529,7 +537,11 @@ public class UdpMatcher implements Matcher {
 				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
-				if (!exchange.getRequest().isMulticast() || isMulticastTimedOut(exchange)) {
+				/**
+				 * If it's a multicast request then it will be removed by timeout,
+				 * see sendRequest(Exchange, Request) method.
+				 */
+				if (!exchange.getRequest().isMulticast()) {
 					exchangesByToken.remove(idByToken);
 
 					// in case an empty ACK was lost
@@ -559,10 +571,6 @@ public class UdpMatcher implements Matcher {
 					removeNotificationsOf(relation);
 				}
 			}
-		}
-
-		private boolean isMulticastTimedOut(final Exchange exchange) {
-			return System.currentTimeMillis() - exchange.getTimestamp() > exchange.getCurrentTimeout();
 		}
 
 		@Override public void contextEstablished(final Exchange exchange) {

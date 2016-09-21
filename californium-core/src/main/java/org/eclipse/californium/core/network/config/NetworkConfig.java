@@ -72,6 +72,8 @@ public class NetworkConfig {
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
+		public static final String MAX_LATENCY = "MAX_LATENCY";
+		public static final String MAX_SERVER_RESPONSE_DELAY = "MAX_SERVER_RESPONSE_DELAY";
 		
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";

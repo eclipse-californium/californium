@@ -51,6 +51,8 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.NSTART, 1);
 		config.setInt(NetworkConfig.Keys.LEISURE, 5000);
 		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
+		config.setInt(NetworkConfig.Keys.MAX_LATENCY, 100 * 1000); //ms
+		config.setInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
 
 		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, true);
 		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
