@@ -365,6 +365,15 @@ public class UdpMatcher implements Matcher {
 			}
 			// ignore response
 			return null;
+		} else if (isResponseRelatedToMulticastRequest(exchange, responseContext)) {
+			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+				// The token matches but not the MID.
+				LOGGER.log(Level.FINER,
+						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
+								response.getMID() });
+			}
+			return exchange;
 		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
 			// we have received a Response matching the Request of an ongoing Exchange
 			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
@@ -412,6 +421,18 @@ public class UdpMatcher implements Matcher {
 			// compare message context used for sending original request to context
 			// the response has been received in
 			return exchange.getCorrelationContext().equals(responseContext);
+		}
+	}
+
+	private boolean isResponseRelatedToMulticastRequest(final Exchange exchange, final CorrelationContext responseContext) {
+		if (exchange.getRequest() != null && exchange.getRequest().isMulticast()) {
+			if (exchange.getCorrelationContext() == null) {
+				return true;
+			} else {
+				return exchange.getCorrelationContext().equals(responseContext);
+			}
+		} else {
+			return false;
 		}
 	}
 
@@ -508,11 +529,12 @@ public class UdpMatcher implements Matcher {
 				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
-				exchangesByToken.remove(idByToken);
+				if (!exchange.getRequest().isMulticast() || isMulticastTimedOut(exchange)) {
+					exchangesByToken.remove(idByToken);
 
-				// in case an empty ACK was lost
-				exchangesByMID.remove(idByMID);
-
+					// in case an empty ACK was lost
+					exchangesByMID.remove(idByMID);
+				}
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
 
@@ -537,6 +559,10 @@ public class UdpMatcher implements Matcher {
 					removeNotificationsOf(relation);
 				}
 			}
+		}
+
+		private boolean isMulticastTimedOut(final Exchange exchange) {
+			return System.currentTimeMillis() - exchange.getTimestamp() > exchange.getCurrentTimeout();
 		}
 
 		@Override public void contextEstablished(final Exchange exchange) {
