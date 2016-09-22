@@ -32,6 +32,9 @@ import java.net.UnknownHostException;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -94,6 +97,8 @@ import org.eclipse.californium.core.network.EndpointManager;
  * @see Response
  */
 public class Request extends Message {
+
+	private static final Pattern IP_PATTERN = Pattern.compile("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/** The request code. */
 	private final CoAP.Code code;
@@ -208,22 +213,25 @@ public class Request extends Message {
 	}
 
 	/**
-	 * This is a convenience method to set this request's options for host, port
-	 * and path with a string of the form
-	 * <code>[scheme]://[host]:[port]{/resource}*?{&amp;query}*</code>
+	 * Sets this request's CoAP URI.
 	 * 
-	 * @param uri the URI defining the target resource
-	 * @return this request
+	 * @param uri A CoAP URI as specified by <a href="https://tools.ietf.org/html/rfc7252#section-6">
+	 *            Section 6 of RFC 7252</a>
+	 * @return This request for command chaining.
+	 * @throws IllegalArgumentException if the given string is not a valid CoAP URI, contains a non-resolvable
+	 *                                  host name or contains an unsupported scheme.
 	 */
-	public Request setURI(String uri) {
+	public Request setURI(final String uri) {
 		try {
+			String coapUri = uri;
 			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://")
 					&& !uri.startsWith("coaps+tcp://")) {
-				uri = "coap://" + uri;
+				coapUri = "coap://" + uri;
+				LOGGER.log(Level.WARNING, "update your code to supply an RFC 7252 compliant URI including a scheme");
 			}
-			return setURI(new URI(uri));
+			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("Failed to set uri "+uri + ": " + e.getMessage());
+			throw new IllegalArgumentException("invalid uri: " + uri, e);
 		}
 	}
 
@@ -233,57 +241,77 @@ public class Request extends Message {
 	 * 
 	 * @param uri the URI defining the target resource
 	 * @return this request
+	 * @throws IllegalArgumentException if the URI contains a non-resolvable host name.
 	 */
-	public Request setURI(URI uri) {
-		/*
-		 * Implementation from old Cf from Dominique Im Obersteg, Daniel Pauli
-		 * and Francesco Corazza.
-		 */
-		String host = uri.getHost();
-		// set Uri-Host option if not IP literal
-		if (host != null && !host.toLowerCase().matches("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})")) {
-			if (!host.equals("localhost"))
-				getOptions().setUriHost(host);
-		}
+	public Request setURI(final URI uri) {
+
+		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
+		final String uriScheme = uri.getScheme();
 
 		try {
-			setDestination(InetAddress.getByName(host));
-		} catch (UnknownHostException e) {
-			throw new IllegalArgumentException("Failed to set unknown host "+host);
-		}
 
-		String uriScheme = uri.getScheme();
-		if (uriScheme != null) {
-			// decide according to URI scheme whether DTLS is enabled for the client
+			// first validate URI for correctness
+
+			if (!isSupportedScheme(uriScheme)) {
+				throw new IllegalArgumentException("unsupported URI scheme: " + uriScheme);
+			}
+
+			InetAddress destAddress = InetAddress.getByName(host);
+
+			// now set properties of this request accordingly
+
 			this.scheme = uriScheme;
-		}
+			setDestination(destAddress);
 
-		// The Uri-Port is only for special cases where it differs from the UDP port,
-		// usually when Proxy-Scheme is used.
-		int port = uri.getPort();
-		if (port >= 0) {
-			if (port != CoAP.DEFAULT_COAP_PORT)
-				getOptions().setUriPort(port);
+			if (!host.equals("localhost")) {
+				Matcher matcher = IP_PATTERN.matcher(host.toLowerCase());
+				if (!matcher.matches()) {
+					// host part of URI is a host name (not an IP address)
+					// which we need to put into Uri-Host option
+					getOptions().setUriHost(host);
+				}
+			}
+
+			// The Uri-Port is only for special cases where it differs from the UDP port,
+			// usually when Proxy-Scheme is used.
+			int port = uri.getPort();
+			if (port <= 0) {
+				// port has not been specified in URI, use default port for scheme
+				if (uriScheme.equals(CoAP.COAP_URI_SCHEME) || uriScheme.equals(CoAP.COAP_TCP_URI_SCHEME)) {
+					port = CoAP.DEFAULT_COAP_PORT;
+				} else if (uriScheme.equals(CoAP.COAP_SECURE_URI_SCHEME)|| uriScheme.equals(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+					port = CoAP.DEFAULT_COAP_SECURE_PORT;
+				}
+			}
+
 			setDestinationPort(port);
-		} else if (getDestinationPort() == 0) {
-			if (uriScheme == null || uriScheme.equals(CoAP.COAP_URI_SCHEME))
-				setDestinationPort(CoAP.DEFAULT_COAP_PORT);
-			else if (uriScheme.equals(CoAP.COAP_SECURE_URI_SCHEME))
-				setDestinationPort(CoAP.DEFAULT_COAP_SECURE_PORT);
-		}
+			if (port != CoAP.DEFAULT_COAP_PORT) {
+				getOptions().setUriPort(port);
+			}
 
-		// set Uri-Path options
-		String path = uri.getPath();
-		if (path != null && path.length() > 1) {
-			getOptions().setUriPath(path);
-		}
+			// set Uri-Path options
+			String path = uri.getPath();
+			if (path != null && path.length() > 1) {
+				getOptions().setUriPath(path);
+			}
 
-		// set Uri-Query options
-		String query = uri.getQuery();
-		if (query != null) {
-			getOptions().setUriQuery(query);
+			// set Uri-Query options
+			String query = uri.getQuery();
+			if (query != null) {
+				getOptions().setUriQuery(query);
+			}
+			return this;
+
+		} catch (UnknownHostException e) {
+			throw new IllegalArgumentException("cannot resolve host name: " + host);
 		}
-		return this;
+	}
+
+	private boolean isSupportedScheme(final String uriScheme) {
+		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
 
 	// TODO: test this method.

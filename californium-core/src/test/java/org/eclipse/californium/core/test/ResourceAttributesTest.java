@@ -36,13 +36,13 @@ import org.junit.experimental.categories.Category;
 public class ResourceAttributesTest {
 
 	private Resource root;
-	
+
 	@Before
 	public void setup() {
 		try {
-			System.out.println("\nStart "+getClass().getSimpleName());
+			System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 			EndpointManager.clear();
-			
+
 			root = new CoapResource("");
 			Resource sensors = new CoapResource("sensors");
 			Resource temp = new CoapResource("temp");
@@ -50,7 +50,7 @@ public class ResourceAttributesTest {
 			root.add(sensors);
 			sensors.add(temp);
 			sensors.add(light);
-			
+
 			sensors.getAttributes().setTitle("Sensor Index");
 			temp.getAttributes().addResourceType("temperature-c");
 			temp.getAttributes().addInterfaceDescription("sensor");
@@ -63,30 +63,31 @@ public class ResourceAttributesTest {
 			t.printStackTrace();
 		}
 	}
-	
+
 	@Test
 	public void testDiscovery() {
+
+		final String expectedTree = new StringBuilder()
+				.append("</sensors>;title=\"Sensor Index\",")
+				.append("</sensors/light>;if=\"sensor\";rt=\"light-lux\",")
+				.append("</sensors/temp>;bar=\"one two\";foo;if=\"sensor\";rt=\"temperature-c\"")
+				.toString();
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, new LinkedList<String>());
 		System.out.println(serialized);
-		Assert.assertEquals(
-		        "</sensors>;title=\"Sensor Index\","
-		        + "</sensors/light>;if=\"sensor\";rt=\"light-lux\","
-		        + "</sensors/temp>;bar=\"one two\";foo;if=\"sensor\";rt=\"temperature-c\"",
-				serialized);
+		Assert.assertEquals(expectedTree, serialized);
 	}
-	
+
 	@Test
 	public void testDiscoveryFiltering() {
+
+		final String expectedTree = "</sensors/light>;if=\"sensor\";rt=\"light-lux\"";
 		Request request = Request.newGet();
-		request.setURI("/.well-known/core?rt=light-lux");
-		
+		request.setURI("coap://localhost/.well-known/core?rt=light-lux");
+
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
 		System.out.println(serialized);
-		Assert.assertEquals(
-		        "</sensors/light>;if=\"sensor\";rt=\"light-lux\"",
-		        serialized);
+		Assert.assertEquals(expectedTree, serialized);
 	}
-	
 }
