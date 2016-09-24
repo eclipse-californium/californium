@@ -33,7 +33,7 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
+import java.security.cert.CertPath;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +42,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -67,8 +68,8 @@ public class ClientHandshaker extends Handshaker {
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
 	
-	/** The server's X.509 certificate */
-	private X509Certificate peerCertificate;
+	// The server's X.509 certificate chain.
+	private CertPath peerCertPath;
 
 	/** The server's ephemeral public key, used for key agreement */
 	private ECPublicKey ephemeralServerPublicKey;
@@ -374,9 +375,7 @@ public class ClientHandshaker extends Handshaker {
 		serverCertificate = message;
 		serverCertificate.verifyCertificate(rootCertificates);
 		serverPublicKey = serverCertificate.getPublicKey();
-		if (message.getCertificateChain() != null) {
-			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
-		}
+		peerCertPath = message.getCertificateChain();
 	}
 
 	/**
@@ -399,8 +398,8 @@ public class ClientHandshaker extends Handshaker {
 		serverKeyExchange = message;
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
-		if (peerCertificate != null) {
-			session.setPeerIdentity(peerCertificate.getSubjectX500Principal());
+		if (peerCertPath != null) {
+			session.setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
 		}
@@ -424,7 +423,6 @@ public class ClientHandshaker extends Handshaker {
 	 * necessary messages (depending on server's previous flight) and returns
 	 * the next flight.
 	 * 
-	 * @return the client's next flight to be sent.
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */

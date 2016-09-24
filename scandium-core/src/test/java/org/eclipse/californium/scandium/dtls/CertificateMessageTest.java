@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 
@@ -65,9 +66,9 @@ public class CertificateMessageTest {
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
 
-	private void assertThatCertificateChainDoesNotContainRootCert(Certificate[] chain) {
+	private void assertThatCertificateChainDoesNotContainRootCert(CertPath chain) {
 		X500Principal issuer = null;
-		for (Certificate c : chain) {
+		for (Certificate c : chain.getCertificates()) {
 			assertThat(c, instanceOf(X509Certificate.class));
 			X509Certificate cert = (X509Certificate) c;
 			assertThat(cert.getSubjectX500Principal(), is(not(cert.getIssuerX500Principal())));
