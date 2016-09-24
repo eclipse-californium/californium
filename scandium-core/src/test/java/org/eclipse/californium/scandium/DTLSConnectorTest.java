@@ -56,6 +56,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.auth.X509CertPath;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -797,7 +798,7 @@ public class DTLSConnectorTest {
 	 * layer.
 	 */
 	@Test
-	public void testProcessApplicationMessageAddsX500Principal() throws Exception {
+	public void testProcessApplicationMessageAddsX509CertPath() throws Exception {
 
 		// given an established session with a client using X.509 based authentication
 		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
@@ -807,7 +808,7 @@ public class DTLSConnectorTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
 
-		assertClientIdentity(X500Principal.class);
+		assertClientIdentity(X509CertPath.class);
 	}
 
 	/**

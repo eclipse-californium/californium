@@ -17,10 +17,13 @@
 package org.eclipse.californium.scandium.auth;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
 import org.eclipse.californium.scandium.util.Base64;
@@ -46,6 +49,23 @@ public class RawPublicKeyIdentity implements Principal {
 		} else {
 			this.publicKey = key;
 			createNamedInformationUri(publicKey.getEncoded());
+		}
+	}
+
+	/**
+	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * 
+	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
+	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws GeneralSecurityException if the JVM does not support Elliptic Curve cryptography.
+	 */
+	public RawPublicKeyIdentity(byte[] subjectInfo) throws GeneralSecurityException {
+		if (subjectInfo == null) {
+			throw new NullPointerException("SubjectPublicKeyInfo must not be null");
+		} else {
+			X509EncodedKeySpec spec = new X509EncodedKeySpec(subjectInfo);
+			this.publicKey = KeyFactory.getInstance("EC").generatePublic(spec);
+			createNamedInformationUri(subjectInfo);
 		}
 	}
 

@@ -36,7 +36,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.cert.X509Certificate;
+import java.security.cert.CertPath;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,6 +45,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -85,11 +86,10 @@ public class ServerHandshaker extends Handshaker {
 	private PublicKey clientPublicKey;
 
 	/**
-	 * The client's X.509 certificate.
+	 * The client's X.509 certificate chain.
 	 */
-	private X509Certificate peerCertificate;
-	
-	
+	private CertPath peerCertPath;
+
 	/**
 	 * The cryptographic options this server supports, e.g. for exchanging keys,
 	 * digital signatures etc.
@@ -328,32 +328,32 @@ public class ServerHandshaker extends Handshaker {
 		clientCertificate = message;
 		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
-		if (message.getCertificateChain() != null && message.getCertificateChain().length > 0) {
-			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
-		} else {
-			// TODO: decide whether the handshake needs to be aborted or can proceed with an unauthenticated client
-		}
+		peerCertPath = message.getCertificateChain();
+//		if (message.getCertificateChain() != null && message.getCertificateChain().length > 0) {
+//			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
+//		} else {
+//			// TODO: decide whether the handshake needs to be aborted or can proceed with an unauthenticated client
+//		}
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
 	}
 
 	/**
-	 * Verifies the client's CertificateVerify message and if verification fails,
-	 * aborts and sends Alert message.
+	 * Verifies the client's CertificateVerify message.
+	 * <p>
+	 * If verification succeeds, the session's <em>peerIdentity</em> property
+	 * contains a principal reflecting the client's authenticated identity.
 	 * 
-	 * @param message
-	 *            the client's CertificateVerify.
-	 * @return <code>null</code> if the signature can be verified, otherwise a
-	 *         flight containing an Alert.
-	 * @throws HandshakeException 
+	 * @param message The client's <em>CERTIFICATE_VERIFY</em> message.
+	 * @throws HandshakeException if verification of the signature fails.
 	 */
 	private void receivedCertificateVerify(CertificateVerify message) throws HandshakeException {
 		certificateVerify = message;
 
 		message.verifySignature(clientPublicKey, handshakeMessages);
 		// at this point we have successfully authenticated the client
-		if (peerCertificate != null) {
-			session.setPeerIdentity(peerCertificate.getSubjectX500Principal());
+		if (peerCertPath != null) {
+			session.setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
 		}
