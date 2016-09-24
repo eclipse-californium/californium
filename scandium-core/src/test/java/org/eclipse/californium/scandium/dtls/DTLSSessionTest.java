@@ -15,18 +15,24 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.util.Random;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -36,6 +42,7 @@ public class DTLSSessionTest {
 
 	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384; //2^14 as defined in DTLS 1.2 spec
 	static final InetSocketAddress PEER_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
+	private static final Random RANDOM = new Random();
 	DTLSSession session;
 
 	@Before
@@ -158,42 +165,53 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testSerializedSessionCanBeDeserialized() throws GeneralSecurityException {
-		// GIVEN an established server session
+	public void testSessionCanBeResumedFromSessionTicket() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		SessionTicket ticket = session.getSessionTicket();
 
-		// WHEN serializing the session state 
-		DatagramWriter writer = new DatagramWriter();
-		session.serialize(writer);
-		byte[] serializedSession = writer.toByteArray();
+		// WHEN creating a new session to be resumed from the ticket
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
 
-		// THEN a session deserialized from the byte array contains the same state as the original session
-		DatagramReader reader = new DatagramReader(serializedSession);
-		DTLSSession deserializedSession = DTLSSession.deserialize(session.getSessionIdentifier(), PEER_ADDRESS, reader);
-		assertThat(deserializedSession, is(notNullValue()));
-		assertThatSessionsHaveSameRelevantPropertiesForResumption(deserializedSession, session);
+		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
+		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
 	}
 
-	public static void assertThatSessionsHaveSameRelevantPropertiesForResumption(DTLSSession one, DTLSSession two) {
-		assertThat(one.getSessionIdentifier(), is(two.getSessionIdentifier()));
-		assertThat(one.getWriteState().getCipherSuite(), is(two.getWriteState().getCipherSuite()));
-		assertThat(one.getPeerIdentity(), is(two.getPeerIdentity()));
-		assertThat(one.receiveRawPublicKey(), is(two.receiveRawPublicKey()));
-		assertThat(one.sendRawPublicKey(), is(two.sendRawPublicKey()));
-		assertThat(one.isClient(), is(two.isClient()));
-		assertThat(one.getMasterSecret(), is(two.getMasterSecret()));
+	public static void assertThatSessionsHaveSameRelevantPropertiesForResumption(DTLSSession sessionToResume, DTLSSession establishedSession) {
+		assertThat(sessionToResume.getSessionIdentifier(), is(establishedSession.getSessionIdentifier()));
+		assertThat(sessionToResume.getCipherSuite(), is(establishedSession.getWriteState().getCipherSuite()));
+		assertThat(sessionToResume.getCompressionMethod(), is(establishedSession.getWriteState().getCompressionMethod()));
+		assertThat(sessionToResume.getMasterSecret(), is(establishedSession.getMasterSecret()));
+		assertThat(sessionToResume.getPeerIdentity(), is(establishedSession.getPeerIdentity()));
 	}
 
 	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
 		DTLSSession session = new DTLSSession(peerAddress, false);
-		DTLSConnectionState currentState = DTLSConnectionStateTest.newConnectionState(cipherSuite);
+		DTLSConnectionState currentState = newConnectionState(cipherSuite);
 		session.setSessionIdentifier(new SessionId());
 		session.setReadState(currentState);
 		session.setWriteState(currentState);
 		session.setReceiveRawPublicKey(useRawPublicKeys);
 		session.setSendRawPublicKey(useRawPublicKeys);
-		session.setMasterSecret(DTLSConnectionStateTest.getRandomBytes(48));
+		session.setMasterSecret(getRandomBytes(48));
 		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
 		return session;
 	}
+
+	private static DTLSConnectionState newConnectionState(CipherSuite cipherSuite) {
+		SecretKey macKey = null;
+		if (cipherSuite.getMacKeyLength() > 0) {
+			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
+		}
+		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
+		IvParameterSpec iv = new IvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
+		return new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+	}
+
+	private static byte[] getRandomBytes(int length) {
+		byte[] result = new byte[length];
+		RANDOM.nextBytes(result);
+		return result;
+	}
+
 }

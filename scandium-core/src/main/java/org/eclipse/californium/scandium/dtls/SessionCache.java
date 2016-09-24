@@ -38,14 +38,12 @@ public interface SessionCache {
 	 * @return The session with the given ID or {@code null} if the cache does not contain
 	 *         a session with the given ID.
 	 */
-	DTLSSession get(SessionId id);
+	SessionTicket get(SessionId id);
 
 	/**
 	 * Removes a session from the cache.
 	 * 
 	 * @param id The identifier of the session to remove.
-	 * @return The session with the given ID or {@code null} if the cache does not contain
-	 *         a session with the given ID.
 	 */
-	DTLSSession remove(SessionId id);
+	void remove(SessionId id);
 }

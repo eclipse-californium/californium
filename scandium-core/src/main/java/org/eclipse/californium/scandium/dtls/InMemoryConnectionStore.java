@@ -169,8 +169,8 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			} else {
 
 				// make sure a stale session cannot be resumed
-				DTLSSession establishedSession = sessionCache.get(id);
-				if (establishedSession == null) {
+				SessionTicket ticket = sessionCache.get(id);
+				if (ticket == null) {
 					// either a session with the given ID has never been established (on other nodes)
 					// or another node has removed the session from the cache, e.g. because it became
 					// stale
@@ -184,11 +184,10 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 					return null;
 
 				} else if (conFromLocalCache == null) {
-						// this probably means that we are taking over the session from a failed node
-						return new Connection(establishedSession);
-						// connection will be put to first level cache once the
-						// abbreviated handshake has finished by means of the
-						// sessionEstablished() callback
+					// this probably means that we are taking over the session from a failed node
+						return new Connection(ticket);
+						// connection will be put to first level cache as part of
+						// the abbreviated handshake
 				} else {
 					// resume connection found in local cache (i.e. this store)
 					return conFromLocalCache;
@@ -235,11 +234,9 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 		return removedConnection;
 	}
 
-	private synchronized DTLSSession removeSessionFromCache(final Connection connection) {
+	private synchronized void removeSessionFromCache(final Connection connection) {
 		if (sessionCache != null && connection.hasEstablishedSession()) {
-			return sessionCache.remove(connection.getEstablishedSession().getSessionIdentifier());
-		} else {
-			return null;
+			sessionCache.remove(connection.getEstablishedSession().getSessionIdentifier());
 		}
 	}
 

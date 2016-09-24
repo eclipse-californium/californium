@@ -21,8 +21,6 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -58,7 +56,7 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	@Test
-	public void testFindRetrievesSession() {
+	public void testFindRetrievesLocalConnection() {
 		// given a connection store containing a connection with a peer
 		store.put(con);
 
@@ -68,9 +66,9 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	@Test
-	public void testFindRetrievesEstablishedSessionFromSessionCache() {
+	public void testFindRetrievesSharedConnection() {
 
-		// GIVEN an empty connection store with a cached established session with a peer
+		// GIVEN an empty connection store with a cached session shared by another node
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
@@ -78,28 +76,28 @@ public class InMemoryConnectionStoreTest {
 		// WHEN retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
 
-		// THEN assert that the retrieved connection contains the established session
+		// THEN assert that the retrieved connection contains a session ticket
 		assertThat(connectionWithPeer, is(notNullValue()));
-		assertThat(connectionWithPeer.getEstablishedSession(), is(notNullValue()));
-		DTLSSessionTest.assertThatSessionsHaveSameRelevantPropertiesForResumption(connectionWithPeer.getEstablishedSession(), con.getEstablishedSession());
+		SessionTicket ticket = connectionWithPeer.getSessionTicket();
+		assertThat(ticket, is(notNullValue()));
+		assertThat(ticket.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
 	@Test
-	public void testFindRemovesStaleSessionFromStore() {
+	public void testFindRemovesStaleConnectionFromStore() {
 
-		// GIVEN a connection store with a cached established session with a peer
-		// and a connection based on this session
+		// GIVEN a connection store with a cached session shared by another node
+		// and a (local) connection based on this session
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
 		store.put(con);
 
 		// WHEN the session is removed from the cache (e.g. because it became stale)
-		// a client wants to resume the session
 		sessionCache.remove(con.getEstablishedSession().getSessionIdentifier());
-		Connection connectionToResume = store.find(sessionId);
 
 		// THEN assert that the connection has been removed from the local cache
+		Connection connectionToResume = store.find(sessionId);
 		assertThat(connectionToResume, is(nullValue()));
 		assertThat(store.get(con.getPeerAddress()), is(nullValue()));
 	}
@@ -114,9 +112,9 @@ public class InMemoryConnectionStoreTest {
 		store.sessionEstablished(null, con.getEstablishedSession());
 
 		// THEN assert that the established session has been put to the session cache
-		DTLSSession sessionFromCache = sessionCache.get(sessionId);
-		assertThat(sessionFromCache, is(notNullValue()));
-		DTLSSessionTest.assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionFromCache, con.getEstablishedSession());
+		SessionTicket ticketFromCache = sessionCache.get(sessionId);
+		assertThat(ticketFromCache, is(notNullValue()));
+		assertThat(ticketFromCache.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
 	@Test
@@ -154,25 +152,5 @@ public class InMemoryConnectionStoreTest {
 			ip >>= 8;
 		}
 		return result;
-	}
-
-	private class InMemorySessionCache implements SessionCache {
-
-		Map<SessionId, DTLSSession> cache = new HashMap<>();
-
-		@Override
-		public void put(final DTLSSession session) {
-			cache.put(session.getSessionIdentifier(), session);
-		}
-
-		@Override
-		public DTLSSession get(final SessionId id) {
-			return cache.get(id);
-		}
-
-		@Override
-		public DTLSSession remove(final SessionId id) {
-			return cache.remove(sessionId);
-		}
 	}
 }
