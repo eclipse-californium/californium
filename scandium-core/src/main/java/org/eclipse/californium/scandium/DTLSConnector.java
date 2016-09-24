@@ -101,6 +101,7 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SessionListener;
+import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -1021,35 +1022,54 @@ public class DTLSConnector implements Connector {
 		LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
 				new Object[]{clientHello.getPeer(), clientHello.getSessionId()});
 		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
-		if (previousConnection != null && previousConnection.hasEstablishedSession()) {
-			// session has been found in cache, resume it
-			DTLSSession resumableSession = new DTLSSession(record.getPeerAddress(),
-					previousConnection.getEstablishedSession(), record.getSequenceNumber());
-			Connection peerConnection = new Connection(record.getPeerAddress());
+		if (previousConnection != null && previousConnection.isActive()) {
 
-			Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), resumableSession,
+			// session has been found in cache, resume it
+			Connection peerConnection = new Connection(record.getPeerAddress());
+			SessionTicket ticket = null;
+			if (previousConnection.hasEstablishedSession()) {
+				ticket = previousConnection.getEstablishedSession().getSessionTicket();
+			} else if (previousConnection.hasSessionTicket()) {
+				ticket = previousConnection.getSessionTicket();
+			} else {
+				// TODO: fall back to full handshake
+			}
+//			DTLSSession sessionToResume = new DTLSSession(record.getPeerAddress(),
+//					previousConnection.getEstablishedSession(), record.getSequenceNumber());
+			DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
+					ticket, record.getSequenceNumber());
+
+			Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 
-			if (!previousConnection.getPeerAddress().equals(peerConnection.getPeerAddress())) {
-				// client has a new IP address, terminate previous connection once new session has been established
-				handshaker.addSessionListener(new SessionAdapter() {
-					@Override
-					public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-							throws HandshakeException {
-						LOGGER.log(Level.FINER,
-								"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
-								new Object[]{
-										previousConnection.getPeerAddress(),
-										establishedSession.getSessionIdentifier(),
-										establishedSession.getPeer()});
-						terminateConnection(previousConnection);
-					}
-				});
+			if (previousConnection.hasEstablishedSession()) {
+				// client wants to resume a session that has been negotiated by this node
+				// make sure that the same client only has a single active connection to this server
+				if (!previousConnection.getPeerAddress().equals(peerConnection.getPeerAddress())) {
+					// client has a new IP address, terminate previous connection once new session has been established
+					handshaker.addSessionListener(new SessionAdapter() {
+						@Override
+						public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+								throws HandshakeException {
+							LOGGER.log(Level.FINER,
+									"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
+									new Object[]{
+											previousConnection.getPeerAddress(),
+											establishedSession.getSessionIdentifier(),
+											establishedSession.getPeer()});
+							terminateConnection(previousConnection);
+						}
+					});
+				} else {
+					// immediately remove previous connection
+					terminateConnection(previousConnection);
+				}
 			} else {
-				// immediately remove previous connection
-				terminateConnection(previousConnection);
+				// client wants to resume a session that has been established with another node
+				// simply start the abbreviated handshake
 			}
+
 			// add the new one to the store
 			connectionStore.put(peerConnection);
 
@@ -1223,7 +1243,7 @@ public class DTLSConnector implements Connector {
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
 			// create the session to resume from the previous one.
-			DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
+			DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress, session.getSessionTicket(), 0);
 
 			// terminate the previous connection and add the new one to the store
 			Connection newConnection = new Connection(peerAddress);

@@ -75,10 +75,12 @@ import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
+import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -106,6 +108,7 @@ public class DTLSConnectorTest {
 	private static DTLSConnector server;
 	private static InetSocketAddress serverEndpoint;
 	private static InMemoryConnectionStore serverConnectionStore;
+	private static InMemorySessionCache serverSessionCache;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
 
@@ -122,7 +125,8 @@ public class DTLSConnectorTest {
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
-		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60); // connection timeout 5mins
+		serverSessionCache = new InMemorySessionCache();
+		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
@@ -596,6 +600,39 @@ public class DTLSConnectorTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testConnectorResumesSessionFromSharedSessionTicket() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession();
+		SessionId establishedSessionId = establishedServerSession.getSessionIdentifier();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverEndpoint);
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
+		client.start();
+
+		// remove connection from server's connection store and add ticket to session cache
+		// to mimic a fail over from another node
+		serverConnectionStore.remove(clientEndpoint);
+		assertThat(serverSessionCache.get(establishedSessionId), is(nullValue()));
+		serverSessionCache.put(establishedSessionId, establishedServerSession.getSessionTicket());
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		client.send(new RawData(msg.getBytes(), serverEndpoint));
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
