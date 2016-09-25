@@ -153,7 +153,7 @@ public class UdpMatcher implements Matcher {
 		// health status runnable is not migrated at the moment
 	}
 
-	@Override public void sendRequest(Exchange exchange, Request request) {
+	@Override public void sendRequest(final Exchange exchange, Request request) {
 
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
@@ -183,13 +183,17 @@ public class UdpMatcher implements Matcher {
 		exchangesByToken.put(idByToken, exchange);
 
 		if(request.isMulticast()) {
-			executor.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    exchangesByMID.remove(idByMID);
-                    exchangesByToken.remove(idByToken);
-                }
-			}, multicastKeepAliveTimeout, TimeUnit.MILLISECONDS);
+			if(executor != null) {
+				executor.schedule(new Runnable() {
+					@Override
+					public void run() {
+						exchange.getCurrentRequest().setTimedOut(true);
+						exchange.setTimedOut();
+					}
+				}, multicastKeepAliveTimeout, TimeUnit.MILLISECONDS);
+			} else {
+				throw new IllegalStateException("Matcher has no executor to schedule exchange removal");
+			}
 		}
 	}
 
@@ -537,16 +541,10 @@ public class UdpMatcher implements Matcher {
 				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID());
 				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
 
-				/**
-				 * If it's a multicast request then it will be removed by timeout,
-				 * see sendRequest(Exchange, Request) method.
-				 */
-				if (!exchange.getRequest().isMulticast()) {
-					exchangesByToken.remove(idByToken);
+				exchangesByToken.remove(idByToken);
 
-					// in case an empty ACK was lost
-					exchangesByMID.remove(idByMID);
-				}
+				// in case an empty ACK was lost
+				exchangesByMID.remove(idByMID);
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
 
