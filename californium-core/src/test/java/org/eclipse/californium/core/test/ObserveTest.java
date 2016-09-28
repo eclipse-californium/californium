@@ -205,6 +205,52 @@ public class ObserveTest {
 		
 	}
 	
+	/**
+	 * Test case for CoapClient.observeAndWait(Request request, CoapHandler handler).
+	 * @author Praful Bhatnagar (prafulbhatnagar@gmail.com)
+	 * @throws Exception
+	 */
+	@Test
+	public void testObserveAndWait() throws Exception {
+
+		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(Type.NON);
+
+		notificationCounter = 0;
+		resetCounter = 0;
+
+		int repeat = 3;
+
+		CoapClient client = new CoapClient(uriX);
+
+		Request request = Request.newGet().setObserve().setURI(uriX);
+
+		CoapObserveRelation rel = client.observeAndWait(request, new CoapHandler() {
+			@Override
+			public void onLoad(CoapResponse response) {
+				System.out.println("Received Notification: " + response.advanced().getMID());
+				++notificationCounter;
+			}
+
+			@Override
+			public void onError() {
+			}
+		});
+
+		rel.reactiveCancel();
+		Thread.sleep(50);
+
+		for (int i = 0; i < repeat; ++i) {
+			resourceX.changed();
+			Thread.sleep(50);
+		}
+
+		assertEquals(1, notificationCounter); // only one notification received
+		assertEquals(repeat, resetCounter); // repeat RST received
+		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered
+														// (interceptor)
+	}
+	
 	private void createServer() {
 		// retransmit constantly all 2 seconds
 		NetworkConfig config = new NetworkConfig()

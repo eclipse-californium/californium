@@ -840,39 +840,55 @@ public class CoapClient {
 		return request;
 	}
 	
-	/*
+	/**
 	 * Sends the specified observe request and waits for the response whereupon
 	 * the specified handler is invoked when a notification arrives.
 	 *
 	 * @param request the request
+	 * 
 	 * @param handler the Response handler
+	 * 
 	 * @return the CoAP observe relation
+	 * @throws IllegalStateException if the observe option is not set in the
+	 *             request
 	 */
 	public CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		CoapResponse response = synchronous(request, outEndpoint);
-		if (response == null || !response.advanced().getOptions().hasObserve())
-			relation.setCanceled(true);
-		relation.setCurrent(response);
-		return relation;
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			CoapResponse response = synchronous(request, outEndpoint);
+			if (response == null || !response.advanced().getOptions().hasObserve())
+				relation.setCanceled(true);
+			relation.setCurrent(response);
+			return relation;
+		} else {
+			throw new IllegalStateException("please make sure that the request has observe option set.");
+		}
 	}
 	
-	/*
+	/**
 	 * Sends the specified observe request and invokes the specified handler
 	 * each time a notification arrives.
 	 *
 	 * @param request the request
+	 * 
 	 * @param handler the Response handler
+	 * 
 	 * @return the CoAP observe relation
+	 * @throws IllegalStateException if the observe option is not set in the
+	 *             request
 	 */
 	public CoapObserveRelation observe(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		send(request, outEndpoint);
-		return relation;
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			send(request, outEndpoint);
+			return relation;
+		} else {
+			throw new IllegalStateException("please make sure that the request has observe option set.");
+		}
 	}
 	
 	/**
