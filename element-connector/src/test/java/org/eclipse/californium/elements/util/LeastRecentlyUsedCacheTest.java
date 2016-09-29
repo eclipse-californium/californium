@@ -13,25 +13,24 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.util;
+package org.eclipse.californium.elements.util;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache.EvictionListener;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
-@Category(Small.class)
 public class LeastRecentlyUsedCacheTest {
 
-	LeastRecentlyUsedCache<InetSocketAddress, DTLSSession> cache;
+	LeastRecentlyUsedCache<Integer, String> cache;
 
 	@Before
 	public void setUp() {
@@ -40,28 +39,28 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testStoreAddsNewValueIfCapacityNotReached() {
 		int capacity = 10;
-		
+
 		givenACacheWithEntries(capacity, 0L, capacity - 1);
 		assertThat(cache.remainingCapacity(), is(1));
-		DTLSSession eldest = cache.getEldest();
-		
-		DTLSSession newSession = newSession(50L);
-		assertTrue(cache.put(newSession.getPeer(), newSession));
-		assertNotNull(cache.get(eldest.getPeer()));
+		String eldest = cache.getEldest();
+
+		String newValue = "50";
+		assertTrue(cache.put(50, newValue));
+		assertNotNull(cache.get(Integer.valueOf(eldest)));
 		assertThat(cache.remainingCapacity(), is(0));
 	}
-	
+
 	@Test
 	public void testStoreEvictsEldestStaleEntry() {
 		int capacity = 10;
-		
+
 		givenACacheWithEntries(capacity, 0L, capacity);
 		assertThat(cache.remainingCapacity(), is(0));
-		DTLSSession eldest = cache.getEldest();
-		
-		DTLSSession newSession = newSession(50L);
-		assertTrue(cache.put(newSession.getPeer(), newSession));
-		assertNull(cache.get(eldest.getPeer()));
+		String eldest = cache.getEldest();
+
+		String newValue = "50";
+		assertTrue(cache.put(Integer.valueOf(newValue), newValue));
+		assertNull(cache.get(Integer.valueOf(eldest)));
 	}
 
 	@Test
@@ -69,37 +68,39 @@ public class LeastRecentlyUsedCacheTest {
 		long threshold =  10; // seconds
 		int capacity = 10;
 		int numberOfSessions = 10;
-		
+
 		givenACacheWithEntries(capacity, threshold, numberOfSessions);
 		assertThat(cache.remainingCapacity(), is(0));
-		DTLSSession eldest = cache.getEldest();
-		
-		DTLSSession newSession = newSession(50L);
-		assertFalse(cache.put(newSession.getPeer(), newSession));
-		assertNull(cache.get(newSession.getPeer()));
-		assertNotNull(cache.get(eldest.getPeer()));
+		String eldest = cache.getEldest();
+
+		String newValue = "50";
+		Integer key = Integer.valueOf(newValue);
+		assertFalse(cache.put(key, newValue));
+		assertNull(cache.get(key));
+		assertNotNull(cache.get(Integer.valueOf(eldest)));
 	}
 
 	@Test
 	public void testContinuousEviction() {
 		int capacity = 10;
-		
+
 		givenACacheWithEntries(capacity, 0L, 0);
 		assertThat(cache.remainingCapacity(), is(capacity));
 		final AtomicInteger evicted = new AtomicInteger(0);
-		
-		cache.addEvictionListener(new EvictionListener<DTLSSession>() {
-			
+
+		cache.addEvictionListener(new EvictionListener<String>() {
+
 			@Override
-			public void onEviction(DTLSSession evictedSession) {
+			public void onEviction(String evictedSession) {
 				evicted.incrementAndGet();
 			}
 		});
 
 		int noOfSessions = 50000;
 		for (int i = 0; i < noOfSessions; i++) {
-			DTLSSession session = newSession(i + 1000L);
-			assertTrue(cache.put(session.getPeer(), session));
+			Integer key = i +1000;
+			String value = String.valueOf(key);
+			assertTrue(cache.put(key, value));
 		}
 		assertThat(evicted.get(), is(noOfSessions - capacity));
 		assertThat(cache.remainingCapacity(), is(0));
@@ -115,29 +116,7 @@ public class LeastRecentlyUsedCacheTest {
 		cache = new LeastRecentlyUsedCache<>(capacity, expirationThreshold);
 
 		for (int i = 0; i < noOfEntries; i++) {
-			DTLSSession session = newSession(i + 1000);
-			cache.put(session.getPeer(), session);
+			cache.put(i, String.valueOf(i));
 		}
-	}
-
-	private DTLSSession newSession(long ip) {
-		DTLSSession result = new DTLSSession(new InetSocketAddress(longToIp(ip), 5050), false);
-		return result;
-	}
-	
-	private String longToIp(long ip) {
-		StringBuilder sb = new StringBuilder(15);
-
-		for (int i = 0; i < 4; i++) {
-			sb.insert(0, Long.toString(ip & 0xff));
-
-			if (i < 3) {
-				sb.insert(0, '.');
-			}
-
-			ip >>= 8;
-		}
-
-		return sb.toString();
 	}
 }

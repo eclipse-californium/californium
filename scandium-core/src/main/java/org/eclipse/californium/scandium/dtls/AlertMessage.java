@@ -20,8 +20,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * 

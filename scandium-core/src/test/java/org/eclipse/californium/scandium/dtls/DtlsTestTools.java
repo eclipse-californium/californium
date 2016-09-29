@@ -32,8 +32,8 @@ import java.util.Enumeration;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 
 public final class DtlsTestTools {
 

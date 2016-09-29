@@ -14,7 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  ******************************************************************************/
-package org.eclipse.californium.scandium.util;
+package org.eclipse.californium.elements.util;
 
 import java.io.ByteArrayOutputStream;
 

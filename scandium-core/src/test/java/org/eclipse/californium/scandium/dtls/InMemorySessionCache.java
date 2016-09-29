@@ -18,8 +18,8 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * A simple session cache that stores {@code SessionTickets} in a hash map.

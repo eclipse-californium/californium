@@ -20,8 +20,8 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache;
-import org.eclipse.californium.scandium.util.LeastRecentlyUsedCache.Predicate;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 
 /**
  * An in-memory <code>ConnectionStore</code> with a configurable maximum capacity
