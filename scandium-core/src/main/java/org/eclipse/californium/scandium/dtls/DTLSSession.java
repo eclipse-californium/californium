@@ -33,7 +33,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +48,18 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
  */
 public final class DTLSSession {
 
-	// 53 bytes overall header length
+	/**
+	 * The overall length of all headers around a DTLS handshake message payload.
+	 * <p>
+	 * <ol>
+	 * <li>12 bytes DTLS message header</li>
+	 * <li>13 bytes DTLS record header</li>
+	 * <li>8 bytes UDP header</li>
+	 * <li>20 bytes IP header</li>
+	 * </ol>
+	 * <p>
+	 * 53 bytes in total.
+	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
 								+ 13 // bytes DTLS record headers
 								+ 8 // bytes UDP headers
@@ -92,16 +102,6 @@ public final class DTLSSession {
 	 * key material from.
 	 */
 	private byte[] masterSecret = null;
-
-	/**
-	 * The identity used for PSK authentication
-	 */
-	private String pskIdentity;
-
-	/**
-	 * The peer public key for RPK authentication
-	 */
-	private PublicKey peerRawPublicKey;	
 
 	/**
 	 * Indicates whether this object represents the <em>client</em> or the <em>server</em>
@@ -239,29 +239,6 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Gets the public key presented by a peer during an ECDH based
-	 * handshake.
-	 * 
-	 * @return the public key or <code>null</code> if the peer has not
-	 * been authenticated or the handshake was PSK based
-	 * @deprecated Use {@link #getPeerIdentity()} instead
-	 */
-	@Deprecated
-	public PublicKey getPeerRawPublicKey() {
-		return peerRawPublicKey;
-	}
-
-	/**
-	 * 
-	 * @param key
-	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
-	 */
-	@Deprecated
-	void setPeerRawPublicKey(PublicKey key) {
-		peerRawPublicKey = key;
-	}
-
-	/**
 	 * Gets the cipher and MAC algorithm to be used for this session.
 	 * <p>
 	 * The value returned is part of the <em>pending connection state</em> which
@@ -331,6 +308,11 @@ public final class DTLSSession {
 		return this.isClient;
 	}
 
+	/**
+	 * Gets this session's current write epoch.
+	 * 
+	 * @return The epoch.
+	 */
 	public int getWriteEpoch() {
 		return writeEpoch;
 	}
@@ -343,6 +325,11 @@ public final class DTLSSession {
 		}
 	}
 
+	/**
+	 * Gets this session's current read epoch.
+	 * 
+	 * @return The epoch.
+	 */
 	public int getReadEpoch() {
 		return readEpoch;
 	}
@@ -655,6 +642,11 @@ public final class DTLSSession {
 		this.receiveRawPublicKey = receiveRawPublicKey;
 	}
 
+	/**
+	 * Gets the IP address and socket of this session's peer.
+	 * 
+	 * @return The peer's address.
+	 */
 	public InetSocketAddress getPeer() {
 		return peer;
 	}
@@ -680,29 +672,6 @@ public final class DTLSSession {
 			throw new NullPointerException("Peer identity must not be null");
 		}
 		this.peerIdentity = peerIdentity;
-	}
-
-	/**
-	 * Gets the identity presented by a peer during a <em>pre-shared key</em>
-	 * based handshake.
-	 * 
-	 * @return the (authenticated) identity or <code>null</code> if the peer
-	 * has not been authenticated at all or the handshake was ECDH based
-	 * @deprecated Use {@link #getPeerIdentity()} instead
-	 */
-	@Deprecated
-	public String getPskIdentity() {
-		return pskIdentity;
-	}
-
-	/**
-	 * 
-	 * @param pskIdentity
-	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
-	 */
-	@Deprecated
-	void setPskIdentity(String pskIdentity) {
-		this.pskIdentity = pskIdentity;
 	}
 
 	/**
