@@ -157,6 +157,7 @@ public class ClientAsynchronousTest {
 		Thread.sleep(50);
 		assertThat(receivedNotifications.get(), is(3));
 	}
+	
 
 	@Test
 	public void testAsyncPutIsNotAllowed() throws Exception {
