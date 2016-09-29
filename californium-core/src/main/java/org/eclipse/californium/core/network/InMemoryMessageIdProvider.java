@@ -16,10 +16,9 @@
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 
 /**
@@ -30,7 +29,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
-	private final Map<InetSocketAddress, MessageIdTracker> trackers;
+	private final LeastRecentlyUsedCache<InetSocketAddress, MessageIdTracker> trackers;
 	private final NetworkConfig config;
 
 	/**
@@ -39,21 +38,28 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 	 * @param config the configuration to use. In particular, the <em>EXCHANGE_LIFETIME</em>
 	 *         configuration parameter is used as the period of time a message ID is marked as
 	 *         <em>in use</em> when it is allocated for a message exchange.
+	 * @throws NullPointerException if the config is {@code null}.
 	 */
 	public InMemoryMessageIdProvider(final NetworkConfig config) {
+		if (config == null) {
+			throw new NullPointerException("Config must not be null");
+		}
 		this.config = config;
-		trackers = new ConcurrentHashMap<>(32000);
+		trackers = new LeastRecentlyUsedCache<>(
+				config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 500000),
+				config.getLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 36 * 60 * 60)); // 36h
 	}
 
 	@Override
-	public int getNextMessageId(final InetSocketAddress destination) {
+	public synchronized int getNextMessageId(final InetSocketAddress destination) {
 		MessageIdTracker tracker = trackers.get(destination);
 		if (tracker == null) {
 			// create new tracker for destination lazily
 			tracker = new MessageIdTracker(config);
-			MessageIdTracker existingTracker = trackers.putIfAbsent(destination, tracker);
-			if (existingTracker != null) {
-				tracker = existingTracker;
+			if (!trackers.put(destination, tracker)) {
+				// we have reached the maximum number of active peers
+				// TODO: throw an exception?
+				return -1;
 			}
 		}
 		return tracker.getNextMessageId();

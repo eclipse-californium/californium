@@ -60,6 +60,23 @@ public class NetworkConfig {
 	 * Network configuration key names
 	 */
 	public class Keys {
+
+		/**
+		 * The maximum number of active peers supported.
+		 * <p>
+		 * An active peer is a node with which we exchange CoAP messages.
+		 * For each active peer we need to maintain some state, e.g. we need
+		 * to keep track of MIDs and tokens in use with the peer. It
+		 * therefore is reasonable to limit the number of peers so that
+		 * memory consumption can be better predicted.
+		 */
+		public static final String MAX_ACTIVE_PEERS = "MAX_ACTIVE_PEERS";
+		/**
+		 * The maximum number of seconds a peer may be inactive for before it is
+		 * considered stale and all state associated with it can be discarded.
+		 */
+		public static final String MAX_PEER_INACTIVITY_PERIOD = "MAX_PEER_INACTIVITY_PERIOD";
+
 		public static final String COAP_PORT = "COAP_PORT";
 		public static final String COAP_SECURE_PORT = "COAP_SECURE_PORT";
 		public static final String ACK_TIMEOUT = "ACK_TIMEOUT";
