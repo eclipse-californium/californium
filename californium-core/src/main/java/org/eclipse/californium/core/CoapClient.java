@@ -849,7 +849,7 @@ public class CoapClient {
 	 * @param handler the Response handler
 	 * 
 	 * @return the CoAP observe relation
-	 * @throws IllegalStateException if the observe option is not set in the
+	 * @throws IllegalArgumentException if the observe option is not set in the
 	 *             request
 	 */
 	public CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
@@ -876,7 +876,7 @@ public class CoapClient {
 	 * @param handler the Response handler
 	 * 
 	 * @return the CoAP observe relation
-	 * @throws IllegalStateException if the observe option is not set in the
+	 * @throws IllegalArgumentException if the observe option is not set in the
 	 *             request
 	 */
 	public CoapObserveRelation observe(Request request, CoapHandler handler) {
