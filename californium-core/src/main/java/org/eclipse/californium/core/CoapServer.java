@@ -92,22 +92,24 @@ import org.eclipse.californium.core.server.resources.Resource;
 public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private final static Logger LOGGER = Logger.getLogger(CoapServer.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(CoapServer.class.getName());
 
 	/** The root resource. */
 	private final Resource root;
-	
+
+	private final NetworkConfig config;
+
 	/** The message deliverer. */
 	private MessageDeliverer deliverer;
-	
+
 	/** The list of endpoints the server connects to the network. */
 	private final List<Endpoint> endpoints;
-	
+
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
-	
-	private final NetworkConfig config;
-	
+
+	private boolean running;
+
 	/**
 	 * Constructs a default server. The server starts after the method
 	 * {@link #start()} is called. If a server starts and has no specific ports
@@ -126,7 +128,7 @@ public class CoapServer implements ServerInterface {
 	public CoapServer(final int... ports) {
 		this(NetworkConfig.getStandard(), ports);
 	}
-	
+
 	/**
 	 * Constructs a server with the specified configuration that listens to the
 	 * specified ports after method {@link #start()} is called.
@@ -164,38 +166,48 @@ public class CoapServer implements ServerInterface {
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 	}
-	
-	public void setExecutor(final ScheduledExecutorService executor) {
-		
-		if (this.executor != null) {
-			this.executor.shutdown();
-		}
-		
-		this.executor = executor;
-		for (Endpoint ep : endpoints) {
-			ep.setExecutor(executor);
+
+	/**
+	 * Sets the executor service to use for running tasks in the protocol stage.
+	 * 
+	 * @param executor The thread pool to use.
+	 * @throws IllegalStateException if this server is running.
+	 */
+	public synchronized void setExecutor(final ScheduledExecutorService executor) {
+
+		if (running) {
+			throw new IllegalStateException("executor service can not be set on running server");
+		} else {
+			this.executor = executor;
+			for (Endpoint ep : endpoints) {
+				ep.setExecutor(executor);
+			}
 		}
 	}
-	
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
 	 * server, an endpoint is started on the port defined in the config.
 	 */
 	@Override
-	public void start() {
-		
+	public synchronized void start() {
+
+		if (running) {
+			return;
+		}
+
 		LOGGER.info("Starting server");
-		
+
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
-		
+
 		int started = 0;
-		for (Endpoint ep:endpoints) {
+		for (Endpoint ep : endpoints) {
 			try {
 				ep.start();
 				// only reached on success
@@ -204,40 +216,64 @@ public class CoapServer implements ServerInterface {
 				LOGGER.log(Level.SEVERE, "Cannot start server endpoint [" + ep.getAddress() + "]", e);
 			}
 		}
-		if (started==0) {
+		if (started == 0) {
 			throw new IllegalStateException("None of the server endpoints could be started");
+		} else {
+			running = true;
 		}
 	}
-	
+
 	/**
 	 * Stops the server, i.e., unbinds it from all ports. Frees as much system
 	 * resources as possible to still be able to be re-started with the previous binds.
 	 */
 	@Override
-	public void stop() {
-		LOGGER.info("Stopping server");
-		for (Endpoint ep:endpoints)
-			ep.stop();
+	public synchronized void stop() {
+
+		if (running) {
+			LOGGER.info("Stopping server");
+			for (Endpoint ep : endpoints) {
+				ep.stop();
+			}
+			running = false;
+		}
 	}
 	
 	/**
 	 * Destroys the server, i.e., unbinds from all ports and frees all system resources.
 	 */
 	@Override
-	public void destroy() {
-		LOGGER.info("Destroy server");
-		for (Endpoint ep:endpoints)
-			ep.destroy();
+	public synchronized void destroy() {
+
+		LOGGER.info("Destroying server");
+		// prevent new tasks from being submitted
 		executor.shutdown(); // cannot be started again
 		try {
-			boolean succ = executor.awaitTermination(5, TimeUnit.SECONDS);
-			if (!succ)
-				LOGGER.warning("Server executor did not shutdown in time");
+			// wait for currently executing tasks to complete
+			if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+				// cancel still executing tasks
+				// and ignore all remaining tasks scheduled for later
+				List<Runnable> runningTasks = executor.shutdownNow();
+				if (runningTasks.size() > 0) {
+					// this is e.g. the case if we have performed an incomplete blockwise transfer
+					// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
+					LOGGER.log(Level.FINE, "Ignoring remaining {0} scheduled task(s)", runningTasks.size());
+				}
+				// wait for executing tasks to respond to being cancelled
+				executor.awaitTermination(1, TimeUnit.SECONDS);
+			}
 		} catch (InterruptedException e) {
-			LOGGER.log(Level.WARNING, "Exception while terminating server executor", e);
+			executor.shutdownNow();
+			Thread.currentThread().interrupt();
+		} finally {
+			for (Endpoint ep : endpoints) {
+				ep.destroy();
+			}
+			LOGGER.log(Level.INFO, "CoAP server has been destroyed");
+			running = false;
 		}
 	}
-	
+
 	/**
 	 * Sets the message deliverer.
 	 *
@@ -249,7 +285,7 @@ public class CoapServer implements ServerInterface {
 			endpoint.setMessageDeliverer(deliverer);
 		}
 	}
-	
+
 	/**
 	 * Gets the message deliverer.
 	 *
@@ -258,7 +294,7 @@ public class CoapServer implements ServerInterface {
 	public MessageDeliverer getMessageDeliverer() {
 		return deliverer;
 	}
-	
+
 	/**
 	 * Adds an Endpoint to the server. WARNING: It automatically configures the
 	 * default executor of the server. Endpoints that should use their own
@@ -274,7 +310,7 @@ public class CoapServer implements ServerInterface {
 		endpoint.setExecutor(executor);
 		endpoints.add(endpoint);
 	}
-	
+
 	/**
 	 * Gets the list of endpoints this server is connected to.
 	 *
@@ -332,7 +368,7 @@ public class CoapServer implements ServerInterface {
 			root.add(r);
 		return this;
 	}
-	
+
 	@Override
 	public boolean remove(Resource resource) {
 		return root.delete(resource);
@@ -346,7 +382,7 @@ public class CoapServer implements ServerInterface {
 	public Resource getRoot() {
 		return root;
 	}
-	
+
 	/**
 	 * Creates a root for this server. Can be overridden to create another root.
 	 *
@@ -355,7 +391,7 @@ public class CoapServer implements ServerInterface {
 	protected Resource createRoot() {
 		return new RootResource();
 	}
-	
+
 	/**
 	 * Represents the root of a resource tree.
 	 */
@@ -369,27 +405,24 @@ public class CoapServer implements ServerInterface {
 			.append("************************************************************\n")
 			.append("CoAP RFC 7252").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
 			.append("************************************************************\n")
-			.append("This server is using the Californium (Cf) CoAP framework\n")
-			.append("published by the Eclipse Foundation under EPL+EDL:\n")
-			.append("http://www.eclipse.org/californium/\n")
+			.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
+			.append("published under EPL+EDL: http://www.eclipse.org/californium/\n")
 			.append("\n")
-			.append("(c) 2014, Institute for Pervasive Computing, ETH Zurich\n")
-			.append("Contact: Matthias Kovatsch <kovatsch@inf.ethz.ch>\n")
+			.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
 			.append("************************************************************")
 			.toString();
-		
+
 		public RootResource() {
 			super("");
 		}
-		
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			exchange.respond(ResponseCode.CONTENT, msg);
 		}
-		
+
 		public List<Endpoint> getEndpoints() {
 			return CoapServer.this.getEndpoints();
 		}
 	}
-
 }
