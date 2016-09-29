@@ -23,6 +23,7 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
@@ -53,7 +54,7 @@ public abstract class DataParser {
 		}
 	}
 
-	private Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
+	private static Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
 		target.setMID(header.getMID());
 		target.setType(header.getType());
 		target.setToken(header.getToken());
@@ -92,7 +93,7 @@ public abstract class DataParser {
 	 * @param tokenLength the length value read from the message header.
 	 * @throws MessageFormatException if the value is greater than eight.
 	 */
-	protected final void assertValidTokenLength(int tokenLength) {
+	protected static final void assertValidTokenLength(int tokenLength) {
 		if (tokenLength > 8) {
 			// must be treated as a message format error according to CoAP spec
 			// https://tools.ietf.org/html/rfc7252#section-3
@@ -100,7 +101,7 @@ public abstract class DataParser {
 		}
 	}
 
-	private void parseOptionsAndPayload(DatagramReader reader, Message message) {
+	private static void parseOptionsAndPayload(DatagramReader reader, Message message) {
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
 
@@ -156,7 +157,7 @@ public abstract class DataParser {
 	 * @return the next option number.
 	 * @throws MessageFormatException if the option number cannot be determined due to a message format error.
 	 */
-	private int calculateNextOptionNumber(
+	private static int calculateNextOptionNumber(
 			final DatagramReader reader,
 			final int currentOptionNumber,
 			final int delta,
@@ -164,7 +165,7 @@ public abstract class DataParser {
 		return currentOptionNumber + determineValueFromNibble(reader, delta, message);
 	}
 
-	private int determineValueFromNibble(final DatagramReader reader, final int delta, final Message message) {
+	private static int determineValueFromNibble(final DatagramReader reader, final int delta, final Message message) {
 		if (delta <= 12) {
 			return delta;
 		} else if (delta == 13) {

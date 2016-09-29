@@ -24,6 +24,7 @@ package org.eclipse.californium.core.network.serialization;
 import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 import java.net.InetSocketAddress;
 import java.util.List;
