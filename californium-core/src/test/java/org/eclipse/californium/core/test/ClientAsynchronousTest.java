@@ -158,45 +158,6 @@ public class ClientAsynchronousTest {
 		assertThat(receivedNotifications.get(), is(3));
 	}
 	
-	/**
-	 * Test case for CoapClient.observe(Request request, CoapHandler handler).
-	 * 
-	 * @author Praful Bhatnagar (prafulbhatnagar@gmail.com)
-	 * @throws Exception
-	 */
-	@Test
-	public void testAsyncObserveWithRequestTriggersOnLoad() throws Exception {
-		final CountDownLatch latch = new CountDownLatch(1);
-		final CountDownLatch expectedNotifications = new CountDownLatch(3);
-		final AtomicInteger receivedNotifications = new AtomicInteger();
-
-		Request request = Request.newGet().setURI(uri).setObserve();
-
-		// Observe the resource
-		CoapObserveRelation obs1 = client.observe(request, new TestHandler("Test Observe") {
-
-			@Override
-			public void onLoad(final CoapResponse response) {
-				if (CONTENT_1.equals(response.getResponseText()) && response.advanced().getOptions().hasObserve()) {
-					if (latch.getCount() > 0) {
-						latch.countDown();
-					} else {
-						expectedNotifications.countDown();
-						receivedNotifications.incrementAndGet();
-					}
-				}
-			}
-		});
-		assertTrue(latch.await(1, TimeUnit.SECONDS));
-		resource.changed();
-		resource.changed();
-		resource.changed();
-		assertTrue(expectedNotifications.await(1, TimeUnit.SECONDS));
-		obs1.reactiveCancel();
-		resource.changed();
-		Thread.sleep(50);
-		assertThat(receivedNotifications.get(), is(3));
-	}
 
 	@Test
 	public void testAsyncPutIsNotAllowed() throws Exception {

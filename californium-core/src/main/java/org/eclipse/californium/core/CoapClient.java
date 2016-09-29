@@ -863,7 +863,7 @@ public class CoapClient {
 			relation.setCurrent(response);
 			return relation;
 		} else {
-			throw new IllegalStateException("please make sure that the request has observe option set.");
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
 		}
 	}
 	
@@ -887,7 +887,7 @@ public class CoapClient {
 			send(request, outEndpoint);
 			return relation;
 		} else {
-			throw new IllegalStateException("please make sure that the request has observe option set.");
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
 		}
 	}
 	

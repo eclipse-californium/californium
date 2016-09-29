@@ -206,49 +206,60 @@ public class ObserveTest {
 	}
 	
 	/**
-	 * Test case for CoapClient.observeAndWait(Request request, CoapHandler handler).
-	 * @author Praful Bhatnagar (prafulbhatnagar@gmail.com)
+	 * Test case for CoapClient.observeAndWait(Request request, CoapHandler
+	 * handler) exception handling.
+	 * 
 	 * @throws Exception
 	 */
 	@Test
-	public void testObserveAndWait() throws Exception {
-
-		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor());
-		resourceX.setObserveType(Type.NON);
-
-		notificationCounter = 0;
-		resetCounter = 0;
-
-		int repeat = 3;
-
+	public void testObserveAndWaitExceptionHandling() throws Exception {
 		CoapClient client = new CoapClient(uriX);
+		Request request = Request.newGet().setURI(uriX);
 
-		Request request = Request.newGet().setObserve().setURI(uriX);
+		@SuppressWarnings("unused")
+		CoapObserveRelation rel =null;
+		try {
+			rel = client.observeAndWait(request, new CoapHandler() {
 
-		CoapObserveRelation rel = client.observeAndWait(request, new CoapHandler() {
-			@Override
-			public void onLoad(CoapResponse response) {
-				System.out.println("Received Notification: " + response.advanced().getMID());
-				++notificationCounter;
-			}
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
 
-			@Override
-			public void onError() {
-			}
-		});
-
-		rel.reactiveCancel();
-		Thread.sleep(50);
-
-		for (int i = 0; i < repeat; ++i) {
-			resourceX.changed();
-			Thread.sleep(50);
+				@Override
+				public void onError() {
+				}
+			});
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalArgumentException);
 		}
+	}
+	
+	/**
+	 * Test case for CoapClient.observe(Request request, CoapHandler
+	 * handler) exception handling.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testObserveExceptionHandling() throws Exception {
+		CoapClient client = new CoapClient(uriX);
+		Request request = Request.newGet().setURI(uriX);
 
-		assertEquals(1, notificationCounter); // only one notification received
-		assertEquals(repeat, resetCounter); // repeat RST received
-		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered
-														// (interceptor)
+		@SuppressWarnings("unused")
+		CoapObserveRelation rel =null;
+		try {
+			rel = client.observe(request, new CoapHandler() {
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
+
+				@Override
+				public void onError() {
+				}
+			});
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalArgumentException);
+		}
 	}
 	
 	private void createServer() {
