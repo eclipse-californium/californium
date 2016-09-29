@@ -19,7 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  ******************************************************************************/
-package org.eclipse.californium.core;
+
+ package org.eclipse.californium.core;
 
 import java.io.IOException;
 import java.net.URI;
