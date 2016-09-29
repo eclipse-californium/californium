@@ -403,8 +403,6 @@ public class ClientHandshaker extends Handshaker {
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
 		}
-		// for backwards compatibility only
-		session.setPeerRawPublicKey(serverPublicKey);
 		ephemeralServerPublicKey = message.getPublicKey();
 		try {
 			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
@@ -474,8 +472,6 @@ public class ClientHandshaker extends Handshaker {
 				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
-			// for backward compatibility only
-			session.setPskIdentity(identity);
 
 			byte[] psk = pskStore.getKey(identity);
 			if (psk == null) {

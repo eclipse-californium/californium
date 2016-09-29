@@ -357,7 +357,6 @@ public class ServerHandshaker extends Handshaker {
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
 		}
-		session.setPeerRawPublicKey(clientPublicKey);
 	}
 
 	/**
@@ -631,17 +630,15 @@ public class ServerHandshaker extends Handshaker {
 		
 		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
 				new Object[]{getPeerAddress(), identity});
-		
+
 		if (psk == null) {
 			throw new HandshakeException(
 					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
-		
+
 		session.setPeerIdentity(new PreSharedKeyIdentity(identity));
-		// for backwards compatibility only
-		session.setPskIdentity(identity);
-		
+
 		return generatePremasterSecretFromPSK(psk);
 	}
 

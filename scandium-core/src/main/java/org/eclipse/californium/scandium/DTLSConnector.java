@@ -44,7 +44,6 @@ import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -69,7 +68,6 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -78,7 +76,6 @@ import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
-import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -124,6 +121,14 @@ public class DTLSConnector implements Connector {
 
 	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
 
+	/** all the configuration options for the DTLS connector */ 
+	private final DtlsConnectorConfig config;
+
+	private final ResumptionSupportingConnectionStore connectionStore;
+
+	/** A queue for buffering outgoing messages */
+	private final BlockingQueue<RawData> outboundMessages;
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -133,9 +138,6 @@ public class DTLSConnector implements Connector {
 	// last time when the master key was generated
 	private long lastGenerationDate = System.currentTimeMillis();
 	private SecretKey cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
-
-	/** all the configuration options for the DTLS connector */ 
-	private final DtlsConnectorConfig config;
 
 	private DatagramSocket socket;
 
@@ -148,11 +150,6 @@ public class DTLSConnector implements Connector {
 
 	/** The thread that sends messages */
 	private Worker sender;
-
-	private final ConnectionStore connectionStore;
-
-	/** A queue for buffering outgoing messages */
-	private final BlockingQueue<RawData> outboundMessages;
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private boolean running;
@@ -186,108 +183,23 @@ public class DTLSConnector implements Connector {
 	 * @throws NullPointerException if the configuration is <code>null</code>
 	 */
 	public DTLSConnector(DtlsConnectorConfig configuration, SessionCache sessionCache) {
-		if (configuration == null) {
-			throw new NullPointerException("Configuration must not be null");
-		} else {
-			this.config = configuration;
-		}
-		this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
-		this.connectionStore = new InMemoryConnectionStore(sessionCache);
-		this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
+		this(configuration,
+				new InMemoryConnectionStore(
+						configuration.getMaxConnections(),
+						configuration.getStaleConnectionThreshold(),
+						sessionCache));
 	}
 
-	/**
-	 * Creates a DTLS connector from a given configuration object.
-	 * 
-	 * @param configuration the configuration options
-	 * @param connectionStore the store to use for keeping track of connection information,
-	 *       if <code>null</code> connection information is kept in-memory.
-	 *       If the given connection store also implements {@link SessionListener} then its
-	 *       <code>sessionEstablished</code> method will be invoked whenever a handshake with
-	 *       a client has been successfully finished.
-	 * @throws NullPointerException if the configuration is <code>null</code>
-	 * @deprecated Support for providing an <code>ConnectionStore</code> has been deprecated
-	 *       due to the fact that implementation is not trivial. Instead, clients can provide
-	 *       an implementation of <code>SessionCache</code> in order to provide their own strategy
-	 *       for persisting or sharing session state at the end of a handshake.
-	 */
-	@Deprecated
-	public DTLSConnector(DtlsConnectorConfig configuration, ConnectionStore connectionStore) {
+	DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
+		} else if (connectionStore == null) {
+			throw new NullPointerException("Connection store must not be null");
 		} else {
 			this.config = configuration;
-		}
-		this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
-		if (connectionStore != null) {
+			this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
-		} else {
-			this.connectionStore = new InMemoryConnectionStore();
-		}
-		if (SessionListener.class.isInstance(this.connectionStore)) {
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
-		}
-	}
-
-	/**
-	 * Creates a DTLS connector for PSK based authentication only.
-	 * 
-	 * @param address the IP address and port to bind to
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address) {
-		this(address, null);
-	}
-
-	/**
-	 * Creates a DTLS connector that can also do certificate based authentication.
-	 * 
-	 * @param address the address to bind
-	 * @param rootCertificates list of trusted root certificates, e.g. from well known
-	 * Certificate Authorities or self-signed certificates.
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
-		this(address, rootCertificates, null, null);
-	}
-
-	/**
-	 * Creates a DTLS connector that can also do certificate based authentication.
-	 * 
-	 * @param address the address to bind
-	 * @param rootCertificates list of trusted root certificates, e.g. from well known
-	 * Certificate Authorities or self-signed certificates (may be <code>null</code>)
-	 * @param connectionStore the store to use for keeping track of connection information,
-	 *       if <code>null</code> connection information is kept in-memory
-	 * @param config the configuration options to use
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,
-			ConnectionStore connectionStore, DTLSConnectorConfig config) {
-		Builder builder = new Builder(address);
-		if (config != null) {
-			builder.setMaxRetransmissions(config.getMaxRetransmit());
-			builder.setRetransmissionTimeout(config.getRetransmissionTimeout());
-			if (rootCertificates != null) {
-				builder.setTrustStore(rootCertificates);
-			}
-			if (config.pskStore != null) {
-				builder.setPskStore(config.pskStore);
-			} else if (config.certChain != null) {
-				builder.setIdentity(config.privateKey, config.certChain, config.sendRawKey);
-			} else {
-				builder.setIdentity(config.privateKey, config.publicKey);
-			}
-		}
-		this.config = builder.build();
-		this.outboundMessages = new LinkedBlockingQueue<>(this.config.getOutboundMessageBufferSize());
-		if (connectionStore != null) {
-			this.connectionStore = connectionStore;
-		} else {
-			this.connectionStore = new InMemoryConnectionStore();
 		}
 	}
 
@@ -1034,8 +946,6 @@ public class DTLSConnector implements Connector {
 			} else {
 				// TODO: fall back to full handshake
 			}
-//			DTLSSession sessionToResume = new DTLSSession(record.getPeerAddress(),
-//					previousConnection.getEstablishedSession(), record.getSequenceNumber());
 			DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
 					ticket, record.getSequenceNumber());
 
@@ -1521,6 +1431,11 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
+	/**
+	 * Checks if this connector is running.
+	 * 
+	 * @return {@code true} if running.
+	 */
 	public final boolean isRunning() {
 		return running;
 	}
