@@ -28,25 +28,24 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -57,8 +56,9 @@ import org.junit.experimental.categories.Category;
  * sends messages blockwise. All four combinations with short and long requests
  * and responses are tested.
  */
-// Category Large because shutdown of the CoapServer runs into timeout (after 5 secs)
-@Category(Large.class)
+// Category Medium because shutdown of the CoapServer runs into timeout (after 1 sec)
+// because of pending BlockCleanupTask
+@Category(Medium.class)
 public class BlockwiseTransferTest {
 
 	private static final String SHORT_POST_REQUEST  = "<Short request>";
@@ -67,7 +67,9 @@ public class BlockwiseTransferTest {
 	private static final String LONG_POST_RESPONSE  = "<Long response 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
 	private static final String SHORT_GET_RESPONSE = SHORT_POST_RESPONSE.toLowerCase();
 	private static final String LONG_GET_RESPONSE  = LONG_POST_RESPONSE.toLowerCase();
-	
+
+	private static NetworkConfig config;
+
 	private boolean request_short = true;
 	private boolean respond_short = true;
 	private boolean cancel_request = false;
@@ -77,30 +79,30 @@ public class BlockwiseTransferTest {
 	private int serverPort;
 	
 	private Endpoint clientEndpoint;
-	
-	@Before
-	public void setupServer() throws IOException {
-		System.out.println("\nStart "+getClass().getSimpleName());
-		
-		EndpointManager.clear();
-		server = createSimpleServer();
-		NetworkConfig config = new NetworkConfig()
+
+	@BeforeClass
+	public static void prepare() {
+		config = new NetworkConfig()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
+	}
+
+	@Before
+	public void setupServer() throws IOException {
+		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
+
+		server = createSimpleServer();
 		clientEndpoint = new CoapEndpoint(config);
 		clientEndpoint.start();
 	}
-	
+
 	@After
-	public void shutdownServer() {
-		try {
-			server.destroy();
-			System.out.println("End "+getClass().getSimpleName());
-		} catch (Throwable t) {
-			t.printStackTrace();
-		}
+	public void shutdownServer() throws Exception {
+		clientEndpoint.destroy();
+		server.destroy();
+		System.out.println("End " + getClass().getSimpleName());
 	}
-	
+
 	@Test
 	public void test_all() throws Exception {
 		test_POST_short_short();
@@ -169,7 +171,7 @@ public class BlockwiseTransferTest {
 			interceptor.clear();
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
-			request.setDestination(InetAddress.getByName("localhost")); // InetAddress.getLocalHost() returns different address on Linux
+			request.setDestination(InetAddress.getLoopbackAddress());
 			request.setDestinationPort(serverPort);
 			interceptor.handler = new ReceiveRequestHandler() {
 				@Override
@@ -206,8 +208,13 @@ public class BlockwiseTransferTest {
 		String payload = "--no payload--";
 		try {
 			interceptor.clear();
-			Request request = new Request(CoAP.Code.POST);
-			request.setURI("coap://localhost:" + serverPort + "/" + request_short + respond_short);
+			String uri = String.format(
+					"coap://%s:%d/%s%s",
+					InetAddress.getLoopbackAddress().getHostAddress(),
+					serverPort,
+					request_short,
+					respond_short);
+			Request request = Request.newPost().setURI(uri);
 			if (request_short) request.setPayload(SHORT_POST_REQUEST);
 			else request.setPayload(LONG_POST_REQUEST);
 			clientEndpoint.sendRequest(request);
@@ -226,17 +233,15 @@ public class BlockwiseTransferTest {
 				+ "\n" + interceptor.toString() + "\n");
 		}
 	}
-	
+
 	private CoapServer createSimpleServer() {
-		CoapServer server = new CoapServer();
-		NetworkConfig config = new NetworkConfig();
-		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
-		
-		CoapEndpoint endpoind = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
-		endpoind.addInterceptor(interceptor);
-		server.addEndpoint(endpoind);
-		server.setMessageDeliverer(new MessageDeliverer() {
+
+		CoapServer result = new CoapServer();
+
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		endpoint.addInterceptor(interceptor);
+		result.addEndpoint(endpoint);
+		result.setMessageDeliverer(new MessageDeliverer() {
 			@Override
 			public void deliverRequest(Exchange exchange) {
 				if (exchange.getRequest().getCode() == Code.GET)
@@ -244,7 +249,7 @@ public class BlockwiseTransferTest {
 				else
 					processPOST(exchange);
 			}
-			
+
 			private void processPOST(Exchange exchange) {
 				String payload = exchange.getRequest().getPayloadString();
 				if (request_short)assertEquals(payload, SHORT_POST_REQUEST);
@@ -257,7 +262,7 @@ public class BlockwiseTransferTest {
 				else response.setPayload(LONG_POST_RESPONSE);
 				exchange.sendResponse(response);
 			}
-			
+
 			private void processGET(Exchange exchange) {
 				System.out.println("Server received GET request");
 				Response response = new Response(ResponseCode.CONTENT);
@@ -266,16 +271,16 @@ public class BlockwiseTransferTest {
 				else response.setPayload(LONG_GET_RESPONSE);
 				exchange.sendResponse(response);
 			}
-			
+
 			@Override
 			public void deliverResponse(Exchange exchange, Response response) { }
 		});
-		server.start();
-		serverPort = endpoind.getAddress().getPort();
-		System.out.println("serverPort: "+serverPort);
-		return server;
+		result.start();
+		serverPort = endpoint.getAddress().getPort();
+		System.out.println("serverPort: " + serverPort);
+		return result;
 	}
-	
+
 	public static class ServerBlockwiseInterceptor implements MessageInterceptor {
 
 		private StringBuilder buffer = new StringBuilder();
