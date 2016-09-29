@@ -21,15 +21,10 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.core.coap.CoAP.Code.GET;
-import static org.eclipse.californium.core.coap.CoAP.Code.POST;
-import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
+import static org.eclipse.californium.core.coap.CoAP.Code.*;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.junit.Assert.*;
 
@@ -328,6 +323,62 @@ public class BlockwiseClientSideTest {
 
 		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).payload(respPayload).go();	
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * a server receiving a block-wise PUT indicate a smaller block size
+	 * preference. In this case, the client SHOULD continue with a smaller block
+	 * size; if it does, it MUST adjust the block number to properly count in
+	 * that smaller size.
+	 * 
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                          |
+	 * | CON [MID=1234], PUT, /options, 1:0/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1234], 2.31 Continue, 1:0/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1235], PUT, /options, 1:4/1/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:4/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1236], PUT, /options, 1:5/1/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:5/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1237], PUT, /options, 1:6/0/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1236], 2.04 Changed, 1:6/0/32         |
+	 * </pre>
+	 */
+	@Test
+	public void testSimpleAtomicBlockwisePUTWithSmallerNegociation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with smaller size negociation");
+		reqtPayload = generateRandomPayload(200);
+		respPayload = generateRandomPayload(50);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(4, true, 32).payload(reqtPayload.substring(128, 160)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(4, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(5, true, 32).payload(reqtPayload.substring(160, 192)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(5, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(6, false, 32)
+				.payload(reqtPayload.substring(192, 200)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(6, false, 32).payload(respPayload).go();
 
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
