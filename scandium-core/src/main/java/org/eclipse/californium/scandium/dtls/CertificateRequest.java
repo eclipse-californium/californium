@@ -27,8 +27,8 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 
 /**

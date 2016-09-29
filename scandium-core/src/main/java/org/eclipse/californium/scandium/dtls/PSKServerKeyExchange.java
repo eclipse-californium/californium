@@ -21,8 +21,8 @@ import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 
 /**

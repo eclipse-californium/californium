@@ -25,10 +25,10 @@ import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

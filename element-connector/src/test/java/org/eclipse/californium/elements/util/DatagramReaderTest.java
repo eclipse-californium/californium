@@ -13,21 +13,18 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.util;
+package org.eclipse.californium.elements.util;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
-import org.eclipse.californium.scandium.category.Small;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
-@Category(Small.class)
 public class DatagramReaderTest {
 
 	DatagramReader reader;
-	
+
 	@Before
 	public void setUp() throws Exception {
 	}
@@ -42,13 +39,12 @@ public class DatagramReaderTest {
 	public void testBitsLeftWorksForByteWiseReading() {
 		givenABuffer(new byte[]{0x01, 0x02, 0x03});
 		assertThat(reader.bitsLeft(), is(24));
-		
+
 		reader.readBytes(1);
 		assertThat(reader.bitsLeft(), is(16));
-		
+
 		reader.readBytes(1);
 		assertThat(reader.bitsLeft(), is(8));
-
 		reader.readBytes(1);
 		assertThat(reader.bitsLeft(), is(0));
 	}
@@ -56,17 +52,17 @@ public class DatagramReaderTest {
 	@Test
 	public void testBitsLeftWorksForBitWiseReading() {
 		givenABuffer(new byte[]{0x01, 0x02, 0x03});
-		
+
 		reader.read(6);
 		assertThat(reader.bitsLeft(), is(18));
-		
+
 		reader.readBytes(1);
 		assertThat(reader.bitsLeft(), is(10));
-		
+
 		reader.read(10);
 		assertThat(reader.bitsLeft(), is(0));
 	}
-	
+
 	private void givenABuffer(byte[] buffer) {
 		reader = new DatagramReader(buffer);
 	}
