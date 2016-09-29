@@ -30,17 +30,19 @@ public class NetworkConfigDefaults {
 	 * Refuse unknown options
 	 * Disable dedupl for GET/..
 	 */
-	
-	
-	public static void setDefaults(NetworkConfig config) {
+
+	public static void setDefaults(final NetworkConfig config) {
 
 		final int CORES = Runtime.getRuntime().availableProcessors();
 		final String OS = System.getProperty("os.name");
 		final boolean WINDOWS = OS.startsWith("Windows");
-		
+
+		config.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 500000);
+		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 36 * 60 * 60); // 36h
+
 		config.setInt(NetworkConfig.Keys.COAP_PORT, CoAP.DEFAULT_COAP_PORT);
 		config.setInt(NetworkConfig.Keys.COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
-		
+
 		config.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 2000);
 		config.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1.5f);
 		config.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 2f);
@@ -62,14 +64,14 @@ public class NetworkConfigDefaults {
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
 		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // ms
-		
+
 		config.setBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL, false);
 		config.setString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa"); // see org.eclipse.californium.core.network.stack.congestioncontrol
-		
+
 		config.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, CORES);
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, WINDOWS ? CORES : 1);
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, WINDOWS ? CORES : 1);
-		
+
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 2048);
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
@@ -85,7 +87,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_SIZE, 32);
-		
+
 		config.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "FINEST");
 		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
 
@@ -93,7 +95,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
 	}
-	
+
 	// prevent instantiation
 	private NetworkConfigDefaults() { }
 }
