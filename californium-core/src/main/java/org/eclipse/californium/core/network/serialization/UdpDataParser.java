@@ -23,6 +23,7 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 

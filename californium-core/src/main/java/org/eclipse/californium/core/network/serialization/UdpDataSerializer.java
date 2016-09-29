@@ -23,6 +23,8 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import org.eclipse.californium.elements.util.DatagramWriter;
+
 /**
  * The DataSerialized serializes outgoing messages to byte arrays.
  */

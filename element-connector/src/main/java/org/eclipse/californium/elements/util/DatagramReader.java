@@ -23,24 +23,24 @@ import java.util.Arrays;
  * This class describes the functionality to read raw network-ordered datagrams
  * on bit-level.
  */
-public class DatagramReader {
+public final class DatagramReader {
 
 	// Attributes //////////////////////////////////////////////////////////////
 
-	private ByteArrayInputStream byteStream;
+	private final ByteArrayInputStream byteStream;
 
 	private byte currentByte;
 	private int currentBitIndex;
-	
+
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
-	 * Initializes a new BitReader object
+	 * Creates a new reader for an array of bytes.
 	 * 
 	 * @param byteArray
-	 *            The byte array to read from
+	 *            The byte array to read from.
 	 */
-	public DatagramReader(byte[] byteArray) {
+	public DatagramReader(final byte[] byteArray) {
 
 		// initialize underlying byte stream
 		byteStream = new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length));
@@ -54,14 +54,14 @@ public class DatagramReader {
 
 	/**
 	 * 
-	 * Reads a sequence of bits from the stream
+	 * Reads a sequence of bits from the stream.
 	 * 
 	 * @param numBits
-	 *            The number of bits to read
+	 *            The number of bits to read.
 	 * 
-	 * @return A Long containing the bits read
+	 * @return A Long containing the bits read.
 	 */
-	public long readLong(int numBits) {
+	public long readLong(final int numBits) {
 
 		long bits = 0; // initialize all bits to zero
 
@@ -88,14 +88,14 @@ public class DatagramReader {
 	}
 
 	/**
-	 * Reads a sequence of bits from the stream
+	 * Reads a sequence of bits from the stream.
 	 * 
 	 * @param numBits
-	 *            The number of bits to read
+	 *            The number of bits to read.
 	 * 
-	 * @return An integer containing the bits read
+	 * @return An integer containing the bits read.
 	 */
-	public int read(int numBits) {
+	public int read(final int numBits) {
 
 		int bits = 0; // initialize all bits to zero
 
@@ -122,12 +122,12 @@ public class DatagramReader {
 	}
 
 	/**
-	 * Reads a sequence of bytes from the stream
+	 * Reads a sequence of bytes from the stream.
 	 * 
 	 * @param count
-	 *            The number of bytes to read
+	 *            The number of bytes to read.
 	 * 
-	 * @return The sequence of bytes read from the stream
+	 * @return The sequence of bytes read from the stream.
 	 */
 	public byte[] readBytes(final int count) {
 
@@ -168,21 +168,34 @@ public class DatagramReader {
 	}
 
 	/**
-	 * Reads the complete sequence of bytes left in the stream
+	 * Reads the complete sequence of bytes left in the stream.
 	 * 
-	 * @return The sequence of bytes left in the stream
+	 * @return The sequence of bytes left in the stream.
 	 */
 	public byte[] readBytesLeft() {
 		return readBytes(-1);
 	}
 
 	/**
+	 * Checks if there are any more bytes available on the stream.
 	 * 
 	 * @return <code>true</code> if there are bytes left to read,
 	 *         <code>false</code> otherwise.
 	 */
 	public boolean bytesAvailable() {
 		return byteStream.available() > 0;
+	}
+
+	/**
+	 * Checks whether a given number of bytes can be read.
+	 * 
+	 * @param expectedBytes the number of bytes. 
+	 * @return {@code true} if the remaining number of bytes in the buffer is at least
+	 *         <em>expectedBytes</em>.
+	 */
+	public boolean bytesAvailable(final int expectedBytes) {
+		int bytesLeft = byteStream.available();
+		return bytesLeft >= expectedBytes;
 	}
 
 	/**
@@ -193,7 +206,7 @@ public class DatagramReader {
 	public int bitsLeft() {
 		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
 	}
-	
+
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**

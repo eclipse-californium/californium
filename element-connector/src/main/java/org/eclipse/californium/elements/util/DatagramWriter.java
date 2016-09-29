@@ -22,19 +22,19 @@ import java.io.ByteArrayOutputStream;
  * This class describes the functionality to write raw network-ordered datagrams
  * on bit-level.
  */
-public class DatagramWriter {
+public final class DatagramWriter {
 
 	// Attributes //////////////////////////////////////////////////////////////
 
-	private ByteArrayOutputStream byteStream;
+	private final ByteArrayOutputStream byteStream;
 
 	private byte currentByte;
 	private int currentBitIndex;
-	
+
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
-	 * Initializes a new BitWriter object
+	 * Creates a new empty writer.
 	 */
 	public DatagramWriter() {
 
@@ -49,48 +49,15 @@ public class DatagramWriter {
 	// Methods /////////////////////////////////////////////////////////////////
 
 	/**
-	 * Writes a sequence of bits to the stream
+	 * Writes a sequence of bits to the stream.
 	 * 
 	 * @param data
-	 *            A Long containing the bits to write
+	 *            A Long containing the bits to write.
 	 * 
 	 * @param numBits
-	 *            The number of bits to write
+	 *            The number of bits to write.
 	 */
-	public void writeLong(long data, int numBits) {
-		if (numBits < 32 && data >= (1 << numBits)) {
-			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
-		}
-
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// test bit
-			boolean bit = (data >> i & 1) != 0;
-			if (bit) {
-				// set bit in current byte
-				currentByte |= (1 << currentBitIndex);
-			}
-
-			// decrease current bit index
-			--currentBitIndex;
-
-			// check if current byte can be written
-			if (currentBitIndex < 0) {
-				writeCurrentByte();
-			}
-		}
-	}
-
-	/**
-	 * Writes a sequence of bits to the stream
-	 * 
-	 * @param data
-	 *            An integer containing the bits to write
-	 * 
-	 * @param numBits
-	 *            The number of bits to write
-	 */
-	public void write(int data, int numBits) {
+	public void writeLong(final long data, final int numBits) {
 
 		if (numBits < 32 && data >= (1 << numBits)) {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
@@ -116,12 +83,46 @@ public class DatagramWriter {
 	}
 
 	/**
-	 * Writes a sequence of bytes to the stream
+	 * Writes a sequence of bits to the stream.
+	 * 
+	 * @param data
+	 *            An integer containing the bits to write.
+	 * 
+	 * @param numBits
+	 *            The number of bits to write.
+	 */
+	public void write(final int data, final int numBits) {
+
+		if (numBits < 32 && data >= (1 << numBits)) {
+			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
+		}
+
+		for (int i = numBits - 1; i >= 0; i--) {
+
+			// test bit
+			boolean bit = (data >> i & 1) != 0;
+			if (bit) {
+				// set bit in current byte
+				currentByte |= (1 << currentBitIndex);
+			}
+
+			// decrease current bit index
+			--currentBitIndex;
+
+			// check if current byte can be written
+			if (currentBitIndex < 0) {
+				writeCurrentByte();
+			}
+		}
+	}
+
+	/**
+	 * Writes a sequence of bytes to the stream.
 	 * 
 	 * @param bytes
-	 *            The sequence of bytes to write
+	 *            The sequence of bytes to write.
 	 */
-	public void writeBytes(byte[] bytes) {
+	public void writeBytes(final byte[] bytes) {
 
 		// check if anything to do at all
 		if (bytes == null)
@@ -148,16 +149,16 @@ public class DatagramWriter {
 	 * @param b
 	 *            The byte to be written.
 	 */
-	public void writeByte(byte b) {
+	public void writeByte(final byte b) {
 		writeBytes(new byte[] { b });
 	}
 
 	// Functions ///////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns a byte array containing the sequence of bits written
+	 * Returns a byte array containing the sequence of bits written.
 	 * 
-	 * @return The byte array containing the written bits
+	 * @return The byte array containing the written bits.
 	 */
 	public byte[] toByteArray() {
 
@@ -177,7 +178,7 @@ public class DatagramWriter {
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
-	 * Writes pending bits to the stream
+	 * Writes pending bits to the stream.
 	 */
 	private void writeCurrentByte() {
 
