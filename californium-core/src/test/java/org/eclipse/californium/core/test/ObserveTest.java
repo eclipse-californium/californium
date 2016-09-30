@@ -206,6 +206,63 @@ public class ObserveTest {
 		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered (interceptor)
 	}
 
+	/**
+	 * Test case for CoapClient.observeAndWait(Request request, CoapHandler
+	 * handler) exception handling.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testObserveAndWaitExceptionHandling() throws Exception {
+		CoapClient client = new CoapClient(uriX);
+		Request request = Request.newGet().setURI(uriX);
+
+		@SuppressWarnings("unused")
+		CoapObserveRelation rel =null;
+		try {
+			rel = client.observeAndWait(request, new CoapHandler() {
+
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
+
+				@Override
+				public void onError() {
+				}
+			});
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalArgumentException);
+		}
+	}
+
+	/**
+	 * Test case for CoapClient.observe(Request request, CoapHandler
+	 * handler) exception handling.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testObserveExceptionHandling() throws Exception {
+		CoapClient client = new CoapClient(uriX);
+		Request request = Request.newGet().setURI(uriX);
+
+		@SuppressWarnings("unused")
+		CoapObserveRelation rel =null;
+		try {
+			rel = client.observe(request, new CoapHandler() {
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
+
+				@Override
+				public void onError() {
+				}
+			});
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalArgumentException);
+		}
+	}
+
 	private void createServer() {
 		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = new NetworkConfig()
