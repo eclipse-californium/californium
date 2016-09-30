@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class TcpConnectorTest {
 
-    @Rule public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+    @Rule public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
 
     private final int messageSize;
     private final Random random = new Random();
@@ -128,7 +128,7 @@ public class TcpConnectorTest {
         }
     }
 
-    private int findEphemeralPort() {
+    private static int findEphemeralPort() {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
         } catch (IOException e) {
