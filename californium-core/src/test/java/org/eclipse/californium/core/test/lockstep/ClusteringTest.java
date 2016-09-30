@@ -29,6 +29,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.InMemoryRandomTokenProvider;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -57,6 +58,8 @@ public class ClusteringTest {
 	private int clientPort2;
 
 	private InMemoryObservationStore store;
+	
+	private InMemoryRandomTokenProvider tokenProvider;
 
 	private SynchronousNotificationListener notificationListener1;
 
@@ -75,9 +78,10 @@ public class ClusteringTest {
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
 		store = new InMemoryObservationStore();
+		tokenProvider = new InMemoryRandomTokenProvider(config);
 		notificationListener1 = new SynchronousNotificationListener();
 
-		client1 = new CoapEndpoint(new InetSocketAddress(0), config, store);
+		client1 = new CoapEndpoint(new InetSocketAddress(0), config, store, tokenProvider);
 		client1.addNotificationListener(notificationListener1);
 		client1.addInterceptor(clientInterceptor);
 		client1.addInterceptor(new MessageTracer());
@@ -86,7 +90,7 @@ public class ClusteringTest {
 		System.out.println("Client 1 binds to port " + clientPort1);
 
 		notificationListener2 = new SynchronousNotificationListener();
-		client2 = new CoapEndpoint(new InetSocketAddress(0), config, store);
+		client2 = new CoapEndpoint(new InetSocketAddress(0), config, store, tokenProvider);
 		client2.addNotificationListener(notificationListener2);
 		client2.addInterceptor(clientInterceptor);
 		client2.addInterceptor(new MessageTracer());

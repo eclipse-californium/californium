@@ -25,6 +25,7 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Bosch Software Innovations GmbH - introduce TokenProvider
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -233,31 +234,40 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the config
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config) {
-		this(connector, config, null);
+		this(connector, config, null, null);
 	}
 
 	/**
 	 * Instantiates a new endpoint with the specified address and configuration
 	 * and observe request store (used to persist observation).
 	 *
-	 * @param connector the connector
-	 * @param config the config
+	 * @param address the address
+	 * @param config the network configuration
+	 * @param store to store observations, if <code>null</code> default
+	 *            {@link InMemoryObservationStore} gets used
+	 * @param tokenProvider to obtain unused CoAP tokens, if <code>null</code>
+	 *            default {@link InMemoryRandomTokenProvider} gets used
 	 */
-	public CoapEndpoint(InetSocketAddress address, NetworkConfig config, ObservationStore store) {
-		this(createUDPConnector(address, config), config, store);
+	public CoapEndpoint(InetSocketAddress address, NetworkConfig config, ObservationStore store, TokenProvider tokenProvider) {
+		this(createUDPConnector(address, config), config, store, tokenProvider);
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified connector and configuration
-	 * and observe request store (used to persist observation).
+	 * Instantiates a new endpoint with the specified connector and
+	 * configuration and observe request store (used to persist observation).
 	 *
 	 * @param connector the connector
 	 * @param config the config
+	 * @param store to store observations, if <code>null</code> default
+	 *            {@link InMemoryObservationStore} gets used
+	 * @param tokenProvider to obtain unused CoAP tokens, if <code>null</code>
+	 *            default {@link InMemoryRandomTokenProvider} gets used
 	 */
-	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store) {
+	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store, TokenProvider tokenProvider) {
 		this.config = config;
 		this.connector = connector;
 		ObservationStore observationStore = store != null ? store : new InMemoryObservationStore();
+		TokenProvider actualTokenProvider = tokenProvider != null ? tokenProvider : new InMemoryRandomTokenProvider(config);
 
 		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
 				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
@@ -266,7 +276,7 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore);
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, actualTokenProvider);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
