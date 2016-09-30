@@ -319,7 +319,8 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 *             if the certificate could not be verified.
 	 */
-	private void receivedClientCertificate(CertificateMessage message) throws HandshakeException {
+	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
+
 		if (clientCertificate != null && (clientCertificate.getMessageSeq() == message.getMessageSeq())) {
 			// discard duplicate message
 			return;
@@ -329,11 +330,6 @@ public class ServerHandshaker extends Handshaker {
 		clientCertificate.verifyCertificate(rootCertificates);
 		clientPublicKey = clientCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
-//		if (message.getCertificateChain() != null && message.getCertificateChain().length > 0) {
-//			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
-//		} else {
-//			// TODO: decide whether the handshake needs to be aborted or can proceed with an unauthenticated client
-//		}
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
 	}
@@ -794,9 +790,9 @@ public class ServerHandshaker extends Handshaker {
 	 * @param clientHello
 	 *            the peer's <em>CLIENT_HELLO</em> message containing its
 	 *            preferred elliptic curves
-	 * @return the selected curve
+	 * @return the selected curve or {@code null} if server and client have no curves in common
 	 */
-	private SupportedGroup negotiateNamedCurve(ClientHello clientHello) {
+	private static SupportedGroup negotiateNamedCurve(ClientHello clientHello) {
 		SupportedGroup result = null;
 		List<SupportedGroup> preferredGroups = SupportedGroup.getPreferredGroups();
 		SupportedEllipticCurvesExtension extension = clientHello.getSupportedEllipticCurvesExtension();
@@ -819,46 +815,7 @@ public class ServerHandshaker extends Handshaker {
 		return result;
 	}
 
-	/**
-	 * Determines the type of certificate this handshaker expects from the peer
-	 * in its <em>CERTIFICATE</em> message.
-	 * 
-	 * @param clientHello
-	 *            the peer's <em>CLIENT_HELLO</em> message containing the
-	 *            peer's preferred client certificate types
-	 * @return the hello extension containing the selected certificate type
-	 * @throws HandshakeException
-	 *             if none of the peer's preferred types is supported by this
-	 *             handshaker
-	 */
-//	private ClientCertificateTypeExtension negotiateClientCertificateType(ClientHello clientHello)
-//			throws HandshakeException {
-//		
-//		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
-//		if (certTypeExt != null) {
-//			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-//				if (supportedClientCertificateTypes.contains(certType)) {
-//					negotiatedClientCertificateType = certType;
-//					break;
-//				}
-//			}
-//		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
-//			negotiatedClientCertificateType = CertificateType.X_509;
-//		}
-//		if (negotiatedClientCertificateType == null) {
-//			throw new HandshakeException(
-//					"Server does not support any of the client's preferred client certificate types",
-//					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
-//		} else {
-//			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
-//
-//			ClientCertificateTypeExtension result = new ClientCertificateTypeExtension(false);
-//			result.addCertificateType(negotiatedClientCertificateType);
-//			return result;
-//		}
-//	}	
-	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello)
-			throws HandshakeException {
+	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) throws HandshakeException {
 
 		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
 		if (certTypeExt != null) {
@@ -871,45 +828,7 @@ public class ServerHandshaker extends Handshaker {
 			return CertificateType.X_509;
 		}
 		return null;
-	}	
-
-	/**
-	 * Determines the type of certificate this handshaker will send to the peer
-	 * in its <em>CERTIFICATE</em> message.
-	 * 
-	 * @param clientHello
-	 *            the peer's <em>CLIENT_HELLO</em> message containing the
-	 *            peer's preferred server certificate types
-	 * @return the hello extension containing the selected certificate type
-	 * @throws HandshakeException
-	 *             if none of the peer's preferred types is supported by this
-	 *             handshaker
-	 */
-//	private void negotiateServerCertificateType(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
-//			throws HandshakeException {
-//		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
-//		if (certTypeExt != null) {
-//			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-//				if (supportedServerCertificateTypes.contains(certType)) {
-//					negotiatedServerCertificateType = certType;
-//					break;
-//				}
-//			}
-//		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
-//			negotiatedServerCertificateType = CertificateType.X_509;
-//		}
-//		if (negotiatedServerCertificateType == null) {
-//			throw new HandshakeException(
-//					"Server does not support any of the client's preferred server certificate types",
-//					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE, session.getPeer()));
-//		} else {
-//			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
-//
-//			ServerCertificateTypeExtension result = new ServerCertificateTypeExtension(false);
-//			result.addCertificateType(negotiatedServerCertificateType);
-//			serverHelloExtensions.addExtension(result);
-//		}
-//	}
+	}
 
 	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) throws HandshakeException {
 		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
