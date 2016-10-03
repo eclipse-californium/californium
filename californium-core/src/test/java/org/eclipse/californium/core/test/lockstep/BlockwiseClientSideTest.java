@@ -387,6 +387,56 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * a server receiving a block-wise PUT and indicate a bigger block size
+	 * preference. In this case, the client SHOULD continue with the same block
+	 * size as requesting a bigger size is not allowed.
+	 * 
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                          |
+	 * | CON [MID=1234], PUT, /options, 1:0/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1234], 2.31 Continue, 1:0/1/256       |
+	 * |                                                          |
+	 * | CON [MID=1235], PUT, /options, 1:1/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:1/1/256       |
+	 * |                                                          |
+	 * | CON [MID=1236], PUT, /options, 1:2/0/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1236], 2.04 Changed, 1:2/0/256        |
+	 * </pre>
+	 */
+	@Test
+	public void testSimpleAtomicBlockwisePUTWithBiggerNegociation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with bigger size negociation");
+		reqtPayload = generateRandomPayload(300);
+		respPayload = generateRandomPayload(50);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128))
+				.go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 256).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128)
+				.payload(reqtPayload.substring(128, 256)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 256).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, false, 128)
+				.payload(reqtPayload.substring(256, 300)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 256).payload(respPayload).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
 	 * Block options may be used in both directions of a single exchange. The
 	 * following example demonstrates a blockwise POST request, resulting in a
 	 * separate blockwise response.
