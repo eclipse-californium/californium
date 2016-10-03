@@ -28,15 +28,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
@@ -333,10 +333,19 @@ public class BlockwiseLayer extends AbstractLayer {
 				// TODO: the response code should be CONTINUE. Otherwise deliver random access response.
 				// Send next block
 				int currentSize = 1 << (4 + status.getCurrentSzx());
-				int nextNum = status.getCurrentNum() + currentSize / block1.getSize();
+				// Define new size of the block depending of preferred size block
+				int newSize, newSzx;
+				if (block1.getSize() < currentSize){
+					newSize = block1.getSize();
+					newSzx = block1.getSzx();
+				}else{
+					newSize = currentSize;
+					newSzx = status.getCurrentSzx();
+				}
+				int nextNum = status.getCurrentNum() + currentSize / newSize;
 				LOGGER.log(Level.FINER, "Sending next Block1 num={0}", nextNum);
 				status.setCurrentNum(nextNum);
-				status.setCurrentSzx(block1.getSzx());
+				status.setCurrentSzx(newSzx);
 				Request nextBlock = getNextRequestBlock(exchange.getRequest(), status);
 				// we use the same token to ease traceability
 				nextBlock.setToken(response.getToken());
