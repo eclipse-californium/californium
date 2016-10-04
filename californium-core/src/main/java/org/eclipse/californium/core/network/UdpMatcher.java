@@ -72,6 +72,7 @@ public class UdpMatcher implements Matcher {
 	/* Health status output */
 	private final Level healthStatusLevel;
 	private final int healthStatusInterval; // seconds
+    private final int multicastKeepAliveTimeout; //seconds
 
 	private boolean started;
 
@@ -105,6 +106,11 @@ public class UdpMatcher implements Matcher {
 
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+
+        //As defined in https://tools.ietf.org/html/rfc7390#section-2.5
+        multicastKeepAliveTimeout = config.getInt(NetworkConfig.Keys.NON_LIFETIME)
+                + config.getInt(NetworkConfig.Keys.MAX_LATENCY)
+                + config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
 	}
 
 	@Override public synchronized void start() {
@@ -147,17 +153,17 @@ public class UdpMatcher implements Matcher {
 		// health status runnable is not migrated at the moment
 	}
 
-	@Override public void sendRequest(Exchange exchange, Request request) {
+	@Override public void sendRequest(final Exchange exchange, Request request) {
 
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
 			request.setMID(currendMID.getAndIncrement() % (1 << 16)); // wrap at 2^16
 		}
 		// request MID is from the local namespace -- use blank address
-		KeyMID idByMID = new KeyMID(request.getMID());
+		final KeyMID idByMID = new KeyMID(request.getMID());
 
 		// ensure Token is set
-		KeyToken idByToken;
+		final KeyToken idByToken;
 		if (request.getToken() == null) {
 			idByToken = createUnusedToken();
 			request.setToken(idByToken.token);
@@ -175,6 +181,20 @@ public class UdpMatcher implements Matcher {
 
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
+
+		if(request.isMulticast()) {
+			if(executor != null) {
+				executor.schedule(new Runnable() {
+					@Override
+					public void run() {
+						exchange.getCurrentRequest().setTimedOut(true);
+						exchange.setTimedOut();
+					}
+				}, multicastKeepAliveTimeout, TimeUnit.MILLISECONDS);
+			} else {
+				throw new IllegalStateException("Matcher has no executor to schedule exchange removal");
+			}
+		}
 	}
 
 	@Override public void sendResponse(Exchange exchange, Response response) {
@@ -365,6 +385,15 @@ public class UdpMatcher implements Matcher {
 			}
 			// ignore response
 			return null;
+		} else if (isResponseRelatedToMulticastRequest(exchange)) {
+			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+				// The token matches but not the MID.
+				LOGGER.log(Level.FINER,
+						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
+								response.getMID() });
+			}
+			return exchange;
 		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
 			// we have received a Response matching the Request of an ongoing Exchange
 			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
@@ -413,6 +442,10 @@ public class UdpMatcher implements Matcher {
 			// the response has been received in
 			return exchange.getCorrelationContext().equals(responseContext);
 		}
+	}
+
+	private boolean isResponseRelatedToMulticastRequest(final Exchange exchange) {
+		return exchange.getRequest() != null && exchange.getRequest().isMulticast();
 	}
 
 	private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
@@ -512,7 +545,6 @@ public class UdpMatcher implements Matcher {
 
 				// in case an empty ACK was lost
 				exchangesByMID.remove(idByMID);
-
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
 

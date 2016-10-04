@@ -20,6 +20,7 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.Executors;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -187,10 +188,31 @@ public class UdpMatcherTest {
 		assertThat(matchedExchange, is(nullValue()));
 	}
 
+	// tests verifying multicast requests
+
+	@Test
+	public void testReceiveResponsesForMulticastRequest() {
+		UdpMatcher matcher = newMatcher(false);
+		Exchange exchange = sendMulticastRequest(matcher);
+		Exchange matchedExchange;
+
+		// First response to the multicast request
+		matchedExchange = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
+		assertThat(matchedExchange, is(notNullValue()));
+
+		// Second response to the multicast request
+		matchedExchange = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
+		assertThat(matchedExchange, is(notNullValue()));
+
+		// matchedExchange will be deleted by a timeout specified in Section 2.5 RFC 7390
+	}
+
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		return new UdpMatcher(config);
+		UdpMatcher matcher = new UdpMatcher(config);
+		matcher.setExecutor(Executors.newSingleThreadScheduledExecutor()); // Set at CoapEndpoint.start() method
+		return matcher;
 	}
 
 	private Exchange sendRequest(final UdpMatcher matcher, final CorrelationContext ctx) {
@@ -200,6 +222,17 @@ public class UdpMatcherTest {
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		matcher.sendRequest(exchange, request);
 		exchange.setCorrelationContext(ctx);
+		return exchange;
+	}
+
+	private Exchange sendMulticastRequest(final UdpMatcher matcher) {
+		Request request = Request.newGet();
+		request.setMulticast(true);
+		request.setConfirmable(false);
+		request.setDestination(dest.getAddress());
+		request.setDestinationPort(dest.getPort());
+		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		matcher.sendRequest(exchange, request);
 		return exchange;
 	}
 
