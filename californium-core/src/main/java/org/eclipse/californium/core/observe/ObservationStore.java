@@ -13,6 +13,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import java.util.List;
+
 import org.eclipse.californium.elements.CorrelationContext;
 
 /**
@@ -28,8 +30,12 @@ public interface ObservationStore {
 
 	/**
 	 * Adds an observation to the store.
+	 * 
+	 * @return observations removed from the store pending this addition. (Could
+	 *         be used to ensure there is only one observation for a target
+	 *         resource)
 	 */
-	void add(Observation obs);
+	List<Observation> add(Observation obs);
 
 	/**
 	 * Removes the observation initiated by the request with the given token.

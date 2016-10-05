@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -199,7 +200,7 @@ public class UdpMatcher implements Matcher {
 		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0 && (!request.getOptions().hasBlock2()
 				|| request.getOptions().getBlock2().getNum() == 0 && !request.getOptions().getBlock2().isM())) {
 			// add request to the store
-			observationStore.add(new Observation(request, null));
+			List<Observation> observationRemoved = observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected or timedout
 			request.addMessageObserver(new MessageObserverAdapter() {
 				@Override
@@ -215,6 +216,10 @@ public class UdpMatcher implements Matcher {
 					observationStore.remove(request.getToken());
 				}
 			});
+			// cancel observation remove from the store
+			for (Observation o : observationRemoved) {
+				cancelPendingRequest(o.getRequest().getToken());
+			}
 		}
 
 		exchange.setObserver(exchangeObserver);
@@ -631,15 +636,22 @@ public class UdpMatcher implements Matcher {
 		}
 	}
 
-	@Override
-	public void cancelObserve(final byte[] token) {
-		// search for pending blockwise exchange for this observe request
+	private void cancelPendingRequest(byte[] token) {
+		// Cancel all request in pending exchange which are linked to this
+		// token.
+		// (this means also block-wised request relative to the original request
+		// with the given token)
 		for (Entry<KeyToken, Exchange> key : exchangesByToken.entrySet()) {
 			Request cachedRequest = key.getValue().getRequest();
 			if (cachedRequest != null && Arrays.equals(token, cachedRequest.getToken())) {
 				cachedRequest.cancel();
 			}
 		}
+	}
+
+	@Override
+	public void cancelObserve(final byte[] token) {
+		cancelPendingRequest(token);
 		observationStore.remove(token);
 	}
 }
