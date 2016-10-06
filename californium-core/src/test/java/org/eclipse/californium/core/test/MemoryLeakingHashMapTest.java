@@ -1,6 +1,6 @@
 package org.eclipse.californium.core.test;
 
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertEquals;
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -30,8 +30,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
@@ -43,8 +43,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-// Category Large because CoapServer runs into timeout (after 5 secs) on shutdown
-@Category(Large.class)
+// Category Medium because CoapServer may run into timeout (after 2 secs) on shutdown
+@Category(Medium.class)
 public class MemoryLeakingHashMapTest {
 
 	// Configuration for this test
@@ -57,7 +57,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static final int OBS_NOTIFICATION_INTERVAL = 50; // send a notification every 50 ms
 	private static final int HOW_MANY_NOTIFICATION_WE_WAIT_FOR = 3;
-	private static final int ACK_TIMEOUT = 500; // ms
+	private static final int ACK_TIMEOUT = 100; // ms
 
 	// The names of the two resources of the server
 	private static final String PIGGY = "piggy";
@@ -258,7 +258,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static void createServerAndClientEndpoints() throws Exception {
 
-		NetworkConfig config = new NetworkConfig()
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
 			// We make sure that the sweep deduplicator is used
 			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)
 			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
@@ -266,6 +266,7 @@ public class MemoryLeakingHashMapTest {
 
 			// set ACK timeout to 500ms
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
+			.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 1)
 
 			// We set the block size to 16 bytes
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, TEST_BLOCK_SIZE)
