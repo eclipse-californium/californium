@@ -1,20 +1,8 @@
 package org.eclipse.californium.elements.tcp;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
 
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,8 +20,18 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.RawData;
+import org.junit.After;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class TlsConnectorTest {
 
@@ -105,6 +103,7 @@ public class TlsConnectorTest {
         int port = findEphemeralPort();
         int clients = 100;
         TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), 100, 1);
+        assertThat(server.getUri().getScheme(), is("coaps+tcp"));
         cleanup.add(server);
 
         Catcher serverCatcher = new Catcher();

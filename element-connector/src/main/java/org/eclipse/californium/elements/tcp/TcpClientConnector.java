@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,8 +45,9 @@ import java.util.logging.Logger;
  */
 public class TcpClientConnector implements Connector {
 
-	private final static Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
 
+	private final URI listenUri;
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
@@ -57,6 +59,7 @@ public class TcpClientConnector implements Connector {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.connectTimeoutMillis = connectTimeoutMillis;
+		this.listenUri = URI.create(String.format("%s://127.0.0.1:0", getSupportedScheme()));
 	}
 
 	@Override public void start() throws IOException {
@@ -131,8 +134,18 @@ public class TcpClientConnector implements Connector {
 	protected void onNewChannelCreated(Channel ch) {
 	}
 
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coap+tcp".equals(scheme);
+	protected String getSupportedScheme() {
+		return "coap+tcp";
+	}
+
+	@Override
+	public final boolean isSchemeSupported(String scheme) {
+		return getSupportedScheme().equals(scheme);
+	}
+
+	@Override
+	public final URI getUri() {
+		return listenUri;
 	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {

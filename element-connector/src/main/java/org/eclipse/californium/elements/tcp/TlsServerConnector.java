@@ -47,7 +47,8 @@ public class TlsServerConnector extends TcpServerConnector {
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
 
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coaps+tcp".equals(scheme);
+	@Override
+	protected String getSupportedScheme() {
+		return "coaps+tcp";
 	}
 }

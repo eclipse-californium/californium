@@ -21,6 +21,7 @@ package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -174,6 +175,16 @@ public interface Endpoint {
 	 * @return the address
 	 */
 	InetSocketAddress getAddress();
+
+	/**
+	 * Gets the URI for accessing this endpoint.
+	 * <p>
+	 * The URI will be built using this endpoint's supported <em>scheme</em> (e.g. {@code coap} or {@code coaps})
+	 * and the host name or IP address and port this endpoint is bound to.
+	 * 
+	 * @return The URI.
+	 */
+	URI getUri();
 
 	/**
 	 * Gets this endpoint's configuration.

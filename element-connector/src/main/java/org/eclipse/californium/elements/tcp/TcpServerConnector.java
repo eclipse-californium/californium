@@ -29,6 +29,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +42,8 @@ import java.util.logging.Logger;
  */
 public class TcpServerConnector implements Connector {
 
-	private final static Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
+	private final String SUPPORTED_SCHEME = "coap+tcp";
 
 	private final int numberOfThreads;
 	private final InetSocketAddress localAddress;
@@ -51,11 +53,13 @@ public class TcpServerConnector implements Connector {
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
+	private URI listenUri;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int idleTimeout, int numberOfThreads) {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.localAddress = localAddress;
+		this.listenUri = getListenUri(localAddress);
 	}
 
 	@Override public void start() throws IOException {
@@ -78,7 +82,14 @@ public class TcpServerConnector implements Connector {
 				.option(ChannelOption.AUTO_READ, true).childHandler(new ChannelRegistry());
 
 		// Start the server.
-		bootstrap.bind(localAddress).syncUninterruptibly();
+		bootstrap.bind(localAddress).syncUninterruptibly().addListener(new ChannelFutureListener() {
+
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				InetSocketAddress listenAddress = (InetSocketAddress) future.channel().localAddress();
+				listenUri = getListenUri(listenAddress);
+			}
+		});
 	}
 
 	@Override public void stop() {
@@ -123,8 +134,14 @@ public class TcpServerConnector implements Connector {
 	protected void onNewChannelCreated(Channel ch) {
 	}
 
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coap+tcp".equals(scheme);
+	@Override
+	public final boolean isSchemeSupported(String scheme) {
+		return getSupportedScheme().equals(scheme);
+	}
+
+	@Override
+	public final URI getUri() {
+		return getListenUri(getAddress());
 	}
 
 	private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
@@ -158,5 +175,13 @@ public class TcpServerConnector implements Connector {
 		@Override public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.remove(ctx.channel().remoteAddress());
 		}
+	}
+
+	protected String getSupportedScheme() {
+		return "coap+tcp";
+	}
+
+	private URI getListenUri(final InetSocketAddress listenAddress) {
+		return URI.create(String.format("%s://%s:%d", getSupportedScheme(), listenAddress.getHostString(), listenAddress.getPort()));
 	}
 }

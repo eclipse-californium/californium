@@ -5,6 +5,8 @@ import io.netty.handler.ssl.SslHandler;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
+import java.net.URI;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
@@ -44,7 +46,8 @@ public class TlsClientConnector extends TcpClientConnector {
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
 
-	@Override public boolean isSchemeSupported(String scheme) {
-		return "coaps+tcp".equals(scheme);
+	@Override
+	protected String getSupportedScheme() {
+		return "coaps+tcp";
 	}
 }

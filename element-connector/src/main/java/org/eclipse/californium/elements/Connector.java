@@ -18,6 +18,7 @@ package org.eclipse.californium.elements;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 
 /**
  * A managed interface for exchanging messages between networked clients and a
@@ -45,7 +46,7 @@ public interface Connector {
 	 * @throws IOException
 	 *             Signals that an I/O exception has occurred.
 	 */
-	public void start() throws IOException;
+	void start() throws IOException;
 
 	/**
 	 * Stops the connector.
@@ -55,14 +56,14 @@ public interface Connector {
 	 * been stopped using this method can be started again using the
 	 * {@link #start()} method.
 	 */
-	public void stop();
+	void stop();
 
 	/**
 	 * Stops the connector and cleans up any leftovers.
 	 * 
 	 * A destroyed connector cannot be expected to be able to start again.
 	 */
-	public void destroy();
+	void destroy();
 
 	/**
 	 * Sends a raw message to a client via the network.
@@ -71,7 +72,7 @@ public interface Connector {
 	 * 
 	 * @param msg the message to be sent
 	 */
-	public void send(RawData msg);
+	void send(RawData msg);
 
 	/**
 	 * Sets the handler for incoming messages.
@@ -82,21 +83,33 @@ public interface Connector {
 	 * 
 	 * @param messageHandler the message handler
 	 */
-	public void setRawDataReceiver(RawDataChannel messageHandler);
-	
-	
+	void setRawDataReceiver(RawDataChannel messageHandler);
+
 	/**
 	 * Gets the address of the socket this connector is bound to.
 	 *
 	 * @return the address
 	 */
-	public InetSocketAddress getAddress();
+	InetSocketAddress getAddress();
 
 	/**
 	 * Returns true if this connector supports specified scheme (e.g. coap for CoAP over UDP, coaps for coap over DTLS,
 	 * coap+tcp for coap over TCP).
-	 *
-	 * @return true if connector supports 'scheme'
+	 * 
+	 * @param scheme The scheme to check support of.
+	 * @return {@code true} if this connector supports the scheme.
      */
-	public boolean isSchemeSupported(String scheme);
+	boolean isSchemeSupported(String scheme);
+
+	/**
+	 * Gets the URI this connector is accepting messages at.
+	 * <p>
+	 * Possible schemes include <em>coap</em> for CoAP over UDP, <em>coaps</em> for CoAP over DTLS or
+	 * <em>coap+tcp</em> for CoAP over TCP.
+	 * 
+	 * @return The URI this connector is accessible at. Note that the host name or IP address and port of the
+	 *         returned URI may not reflect the real IP address and port this connector will be listening on
+	 *         if the connector has not been started already.
+	 */
+	URI getUri();
 }

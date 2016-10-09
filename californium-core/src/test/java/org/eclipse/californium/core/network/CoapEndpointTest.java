@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
@@ -218,6 +219,11 @@ public class CoapEndpointTest {
 		@Override
 		public boolean isSchemeSupported(String scheme) {
 			return CoAP.COAP_URI_SCHEME.equals(scheme);
+		}
+
+		@Override
+		public URI getUri() {
+			return URI.create(String.format("%s://127.0.0.1:0", CoAP.COAP_URI_SCHEME));
 		}
 	}
 }

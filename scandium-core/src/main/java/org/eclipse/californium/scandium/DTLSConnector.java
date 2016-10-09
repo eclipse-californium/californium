@@ -41,6 +41,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.URI;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -111,6 +112,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public class DTLSConnector implements Connector {
 
 	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
+	private static final String SUPPORTED_SCHEME = "coaps";
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION =
 			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getMaxCiphertextExpansion(); // CBC cipher has largest expansion
@@ -119,8 +121,7 @@ public class DTLSConnector implements Connector {
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
 
-	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
-
+	private static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
@@ -1565,6 +1566,11 @@ public class DTLSConnector implements Connector {
 
 	@Override
 	public boolean isSchemeSupported(String scheme) {
-		return "coaps".contentEquals(scheme);
+		return SUPPORTED_SCHEME.contentEquals(scheme);
+	}
+
+	@Override
+	public URI getUri() {
+		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
 	}
 }

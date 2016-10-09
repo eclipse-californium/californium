@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -46,36 +47,37 @@ import java.util.logging.Logger;
  */
 public class UDPConnector implements Connector {
 
-	public final static Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
-	
+	private static final String SUPPORTED_SCHEME = "coap";
+
+	public static final Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
+
 	public static final int UNDEFINED = 0;
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
 	private boolean running;
-	
+
 	private DatagramSocket socket;
-	
+
 	private final InetSocketAddress localAddr;
-	
+
 	private List<Thread> receiverThreads;
 	private List<Thread> senderThreads;
 
 	/** The outbound message queue. */
 	private final BlockingQueue<RawData> outgoing;
-	
+
 	/** The receiver of incoming messages. */
 	private RawDataChannel receiver;
-	
+
 	private int receiveBufferSize = UNDEFINED;
 	private int sendBufferSize = UNDEFINED;
-	
+
 	private int senderCount = 1;
 	private int receiverCount = 1;
-	
+
 	private int receiverPacketSize = 2048;
-	private boolean logPackets = false;
-	
+
 	/**
 	 * Creates a connector on the wildcard address listening on an
 	 * ephemeral port, i.e. a port chosen by the system.
@@ -86,7 +88,7 @@ public class UDPConnector implements Connector {
 	public UDPConnector() {
 		this(null);
 	}
-	
+
 	/**
 	 * Creates a connector bound to a given IP address and port.
 	 *  
@@ -100,49 +102,54 @@ public class UDPConnector implements Connector {
 			this.localAddr = address;
 		}
 		this.running = false;
-		
+
 		//TODO: think about restricting the outbound queue's capacity
 		this.outgoing = new LinkedBlockingQueue<RawData>();
 	}
-	
+
 	@Override
 	public synchronized void start() throws IOException {
-		if (running) return;
-		
+
+		if (running) {
+			return;
+		}
+
 		// if localAddr is null or port is 0, the system decides
 		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
 
 		this.running = true;
-		
+
 		if (receiveBufferSize != UNDEFINED) {
 			socket.setReceiveBufferSize(receiveBufferSize);
 		}
 		receiveBufferSize = socket.getReceiveBufferSize();
-		
+
 		if (sendBufferSize != UNDEFINED) {
 			socket.setSendBufferSize(sendBufferSize);
 		}
 		sendBufferSize = socket.getSendBufferSize();
-		
+
 		// start receiver and sender threads
 		LOGGER.log(Level.CONFIG, "UDPConnector starts up {0} sender threads and {1} receiver threads",
 				new Object[]{senderCount, receiverCount});
-		
+
 		receiverThreads = new LinkedList<Thread>();
 		for (int i=0;i<receiverCount;i++) {
 			receiverThreads.add(new Receiver("UDP-Receiver-"+localAddr+"["+i+"]"));
 		}
-		
+
 		senderThreads = new LinkedList<Thread>();
 		for (int i=0;i<senderCount;i++) {
 			senderThreads.add(new Sender("UDP-Sender-"+localAddr+"["+i+"]"));
 		}
 
-		for (Thread t:receiverThreads)
+		for (Thread t:receiverThreads) {
 			t.start();
-		for (Thread t:senderThreads)
+		}
+		for (Thread t:senderThreads) {
 			t.start();
-		
+		}
+
 		/*
 		 * Java bug: sometimes, socket.getReceiveBufferSize() and
 		 * socket.setSendBufferSize() block forever when called here. When
@@ -172,8 +179,9 @@ public class UDPConnector implements Connector {
 			}
 		outgoing.clear();
 		String address = socket.getLocalSocketAddress().toString();
-		if (socket != null)
+		if (socket != null) {
 			socket.close();
+		}
 		socket = null;
 		LOGGER.log(Level.CONFIG, "UDPConnector on [{0}] has stopped.", address);
 	}
@@ -196,12 +204,12 @@ public class UDPConnector implements Connector {
 	public void setRawDataReceiver(RawDataChannel receiver) {
 		this.receiver = receiver;
 	}
-	
+
 	public InetSocketAddress getAddress() {
 		if (socket == null) return localAddr;
 		else return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 	}
-	
+
 	private abstract class NetworkStageThread extends Thread {
 
 		/**
@@ -263,14 +271,14 @@ public class UDPConnector implements Connector {
 	}
 	
 	private class Sender extends NetworkStageThread {
-		
+
 		private DatagramPacket datagram;
-		
+
 		private Sender(String name) {
 			super(name);
 			this.datagram = new DatagramPacket(new byte[0], 0);
 		}
-		
+
 		protected void work() throws InterruptedException, IOException {
 			RawData raw = outgoing.take(); // Blocking
 			datagram.setData(raw.getBytes());
@@ -284,49 +292,54 @@ public class UDPConnector implements Connector {
 			socket.send(datagram);
 		}
 	}
-	
+
 	public void setReceiveBufferSize(int size) {
 		this.receiveBufferSize = size;
 	}
-	
+
 	public int getReceiveBufferSize() {
 		return receiveBufferSize;
 	}
-	
+
 	public void setSendBufferSize(int size) {
 		this.sendBufferSize = size;
 	}
-	
+
 	public int getSendBufferSize() {
 		return sendBufferSize;
 	}
-	
+
 	public void setReceiverThreadCount(int count) {
 		this.receiverCount = count;
 	}
-	
+
 	public int getReceiverThreadCount() {
 		return receiverCount;
 	}
-	
+
 	public void setSenderThreadCount(int count) {
 		this.senderCount = count;
 	}
-	
+
 	public int getSenderThreadCount() {
 		return senderCount;
 	}
-	
+
 	public void setReceiverPacketSize(int size) {
 		this.receiverPacketSize = size;
 	}
-	
+
 	public int getReceiverPacketSize() {
 		return receiverPacketSize;
 	}
 
 	@Override
 	public boolean isSchemeSupported(String scheme) {
-		return "coap".equals(scheme);
+		return SUPPORTED_SCHEME.equals(scheme);
+	}
+
+	@Override
+	public URI getUri() {
+		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
 	}
 }

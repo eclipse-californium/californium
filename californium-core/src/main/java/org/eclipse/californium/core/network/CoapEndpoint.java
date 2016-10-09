@@ -30,6 +30,7 @@ package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -564,17 +565,16 @@ public class CoapEndpoint implements Endpoint {
 		coapstack.setDeliverer(deliverer);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#getAddress()
-	 */
 	@Override
 	public InetSocketAddress getAddress() {
 		return connector.getAddress();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#getConfig()
-	 */
+	@Override
+	public URI getUri() {
+		return connector.getUri();
+	}
+
 	@Override
 	public NetworkConfig getConfig() {
 		return config;

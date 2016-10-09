@@ -1,13 +1,7 @@
 package org.eclipse.californium.elements.tcp;
 
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -20,8 +14,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.RawData;
+import org.junit.After;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class TcpConnectorTest {
@@ -93,6 +93,7 @@ public class TcpConnectorTest {
         int port = findEphemeralPort();
         int clients = 100;
         TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), 100, 1);
+        assertThat(server.getUri().getScheme(), is("coap+tcp"));
         cleanup.add(server);
 
         Catcher serverCatcher = new Catcher();
