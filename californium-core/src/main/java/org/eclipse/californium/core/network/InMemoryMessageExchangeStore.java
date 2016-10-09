@@ -16,13 +16,12 @@
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
-import java.util.Random;
+import java.security.SecureRandom;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,6 +57,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledExecutorService scheduler;
 	private MessageIdProvider messageIdProvider;
+	private SecureRandom secureRandom;
 
 	/**
 	 * Creates a new store for configuration values.
@@ -206,13 +206,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * @return the newly created token.
 	 */
 	private KeyToken createUnusedToken(final int maxLength, final Message msg) {
-		Random random = ThreadLocalRandom.current();
 		byte[] token;
 		KeyToken result;
 		do {
 			token = new byte[maxLength];
 			// random value
-			random.nextBytes(token);
+			secureRandom.nextBytes(token);
 			result = KeyToken.fromValues(token, msg.getDestination().getAddress(), msg.getDestinationPort());
 		} while (exchangesByToken.get(result) != null);
 
@@ -346,6 +345,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				LOGGER.log(Level.CONFIG, "no MessageIdProvider set, using default {0}", InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
+			secureRandom = new SecureRandom();
+			secureRandom.nextInt(10); // trigger self-seeding of the PRNG
 			running = true;
 		}
 	}
