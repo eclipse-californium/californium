@@ -172,7 +172,7 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
-	 * Creates a DTLS connector from a given configuration object.
+	 * Creates a DTLS connector for a given set of configuration options.
 	 * 
 	 * @param configuration the configuration options
 	 * @param sessionCache an (optional) cache for <code>DTLSSession</code> objects that can be used for
@@ -183,7 +183,7 @@ public class DTLSConnector implements Connector {
 	 *       not available from the connection store's in-memory (first-level) cache.
 	 * @throws NullPointerException if the configuration is <code>null</code>
 	 */
-	public DTLSConnector(DtlsConnectorConfig configuration, SessionCache sessionCache) {
+	public DTLSConnector(final DtlsConnectorConfig configuration, final SessionCache sessionCache) {
 		this(configuration,
 				new InMemoryConnectionStore(
 						configuration.getMaxConnections(),
@@ -322,10 +322,31 @@ public class DTLSConnector implements Connector {
 	 * The abbreviated handshake will be done next time data will be sent with {@link #send(RawData)}.
 	 * @param peer the peer for which we will force to do an abbreviated handshake
 	 */
-	public final synchronized void forceResumeSessionFor(InetSocketAddress peer){
+	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
 		if (peerConnection != null && peerConnection.getEstablishedSession() != null)
 			peerConnection.setResumptionRequired(true);
+	}
+
+	/**
+	 * Marks all established sessions currently maintained by this connector to be resumed by means
+	 * of an <a href="https://tools.ietf.org/html/rfc5246#section-7.3">abbreviated handshake</a> the
+	 * next time a message is being sent to the corresponding peer using {@link #send(RawData)}.
+	 * <p>
+	 * This method's execution time is proportional to the number of connections this connector maintains.
+	 */
+	public final synchronized void forceResumeAllSesions() {
+		connectionStore.markAllAsResumptionRequired();
+	}
+
+	/**
+	 * Clears all connection state this connector maintains for peers.
+	 * <p>
+	 * After invoking this method a new connection needs to be established with a peer using a 
+	 * full handshake in order to exchange messages with it again.
+	 */
+	public final synchronized void clearConnectionState() {
+		connectionStore.clear();
 	}
 
 	/**
