@@ -128,7 +128,7 @@ public class DTLSConnectorTest {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
 				new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -183,6 +183,13 @@ public class DTLSConnectorTest {
 		return new DtlsConnectorConfig.Builder(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+	}
+
+	@Test
+	public void testGetUriContainsCorrectSchemeAndAddress() {
+		assertThat(server.getUri().getScheme(), is("coaps"));
+		assertThat(server.getUri().getHost(), is(serverEndpoint.getHostString()));
+		assertThat(server.getUri().getPort(), is(serverEndpoint.getPort()));
 	}
 
 	@Test

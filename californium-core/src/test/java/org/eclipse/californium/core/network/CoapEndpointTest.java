@@ -54,6 +54,7 @@ public class CoapEndpointTest {
 	static final int MESSAGE_ID = 4711;
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
+	static final InetSocketAddress CONNECTOR_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 13000);
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
@@ -88,6 +89,11 @@ public class CoapEndpointTest {
 	@After
 	public void shutDownEndpoint() {
 		endpoint.stop();
+	}
+
+	@Test
+	public void testGetUriReturnsConnectorUri() {
+		assertThat(endpoint.getUri(), is(connector.getUri()));
 	}
 
 	@Test
@@ -164,7 +170,7 @@ public class CoapEndpointTest {
 		assertTrue(receivedRequests.isEmpty());
 	}
 
-	private byte[] getSerializedRequest() {
+	private static byte[] getSerializedRequest() {
 		return new byte[] { 0b01000011, // ver 1, CON, token length: 3
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
@@ -213,7 +219,7 @@ public class CoapEndpointTest {
 
 		@Override
 		public InetSocketAddress getAddress() {
-			return new InetSocketAddress(0);
+			return CONNECTOR_ADDRESS;
 		}
 
 		@Override
@@ -223,7 +229,7 @@ public class CoapEndpointTest {
 
 		@Override
 		public URI getUri() {
-			return URI.create(String.format("%s://127.0.0.1:0", CoAP.COAP_URI_SCHEME));
+			return URI.create(String.format("%s://%s:%d", CoAP.COAP_URI_SCHEME, CONNECTOR_ADDRESS.getHostString(), CONNECTOR_ADDRESS.getPort()));
 		}
 	}
 }
