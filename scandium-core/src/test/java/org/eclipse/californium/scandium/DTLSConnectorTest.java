@@ -157,7 +157,7 @@ public class DTLSConnectorTest {
 	public void setUp() throws Exception {
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -523,7 +523,7 @@ public class DTLSConnectorTest {
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
 
 		// create a new client with different inetAddress but with the same session store.
-		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10001);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
 		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
