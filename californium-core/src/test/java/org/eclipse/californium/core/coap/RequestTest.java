@@ -61,7 +61,7 @@ public class RequestTest {
 	public void testSetURISetsDestination() throws UnknownHostException {
 		InetSocketAddress dest = InetSocketAddress.createUnresolved("192.168.0.1", 12000);
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
-		assertThat(req.getDestination().getHostName(), is(dest.getHostName()));
+		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
 		assertThat(req.getDestinationPort(), is(dest.getPort()));
 	}
 
