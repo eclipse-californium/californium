@@ -701,9 +701,11 @@ public abstract class Message {
 	 * method is thread-safe and creates exactly one list.
 	 */
 	private void initMessageObserverList() {
-		synchronized (this) {
-			if (messageObservers == null) {
-				messageObservers = new CopyOnWriteArrayList<MessageObserver>();
+		if (messageObservers == null) {
+			synchronized (this) {
+				if (messageObservers == null) {
+					messageObservers = new CopyOnWriteArrayList<MessageObserver>();
+				}
 			}
 		}
 	}

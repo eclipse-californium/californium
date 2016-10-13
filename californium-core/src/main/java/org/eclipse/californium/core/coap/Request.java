@@ -513,9 +513,11 @@ public class Request extends Message {
 		long before = System.currentTimeMillis();
 		long expired = timeout>0 ? (before + timeout) : 0;
 		// Lazy initialization of a lock
-		synchronized (this) {
-			if (lock == null) {
-				lock = new Object();
+		if (lock == null) {
+			synchronized (this) {
+				if (lock == null) {
+					lock = new Object();
+				}
 			}
 		}
 		// wait for response

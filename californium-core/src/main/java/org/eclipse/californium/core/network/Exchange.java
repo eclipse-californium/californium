@@ -398,10 +398,12 @@ public class Exchange {
 	}
 
 	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
-		// avoid race condition of multiple responses (e.g., notifications)
-		synchronized (this) {
-			if (this.retransmissionHandle!=null) {
-				this.retransmissionHandle.cancel(false);
+		if (this.retransmissionHandle!=null) {
+			// avoid race condition of multiple responses (e.g., notifications)
+			synchronized (this) {
+				if (this.retransmissionHandle!=null) {
+					this.retransmissionHandle.cancel(false);
+				}
 			}
 		}
 		this.retransmissionHandle = retransmissionHandle;
@@ -412,10 +414,12 @@ public class Exchange {
 	}
 
 	public void setBlockCleanupHandle(ScheduledFuture<?> blockCleanupHandle) {
-		// avoid race condition of multiple block requests
-		synchronized (this) {
-			if (this.blockCleanupHandle!=null) {
-				this.blockCleanupHandle.cancel(false);
+		if (this.blockCleanupHandle!=null) {
+			// avoid race condition of multiple block requests
+			synchronized (this) {
+				if (this.blockCleanupHandle!=null) {
+					this.blockCleanupHandle.cancel(false);
+				}
 			}
 		}
 		this.blockCleanupHandle = blockCleanupHandle;
