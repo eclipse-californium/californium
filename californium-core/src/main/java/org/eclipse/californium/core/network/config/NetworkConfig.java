@@ -150,11 +150,9 @@ public class NetworkConfig {
 	 * @return the standard configuration
 	 */
 	public static NetworkConfig getStandard() {
-		if (standard == null) {
-			synchronized (NetworkConfig.class) {
-				if (standard == null)
-					createStandardWithFile(new File(DEFAULT));
-			}
+		synchronized (NetworkConfig.class) {
+			if (standard == null)
+				createStandardWithFile(new File(DEFAULT));
 		}
 		return standard;
 	}
