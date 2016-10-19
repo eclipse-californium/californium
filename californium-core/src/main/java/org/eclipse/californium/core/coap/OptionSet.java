@@ -170,11 +170,10 @@ public class OptionSet {
 	 * @return the list of If-Match ETags
 	 */
 	public List<byte[]> getIfMatch() {
-		if (if_match_list == null)
-			synchronized (this) {
-				if (if_match_list == null)
-					if_match_list = new LinkedList<byte[]>();
-			}
+		synchronized (this) {
+			if (if_match_list == null)
+				if_match_list = new LinkedList<byte[]>();
+		}
 		return if_match_list;
 	}
 
@@ -295,11 +294,10 @@ public class OptionSet {
 	 * @return the list of ETags
 	 */
 	public List<byte[]> getETags() {
-		if (etag_list == null)
-			synchronized (this) {
-				if (etag_list == null)
-					etag_list = new LinkedList<byte[]>();
-			}
+		synchronized (this) {
+			if (etag_list == null)
+				etag_list = new LinkedList<byte[]>();
+		}
 		return etag_list;
 	}
 
@@ -427,11 +425,10 @@ public class OptionSet {
 	 * @return the list of Location-Path segments
 	 */
 	public List<String> getLocationPath() {
-		if (location_path_list == null)
-			synchronized (this) {
-				if (location_path_list == null)
-					location_path_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (location_path_list == null)
+				location_path_list = new LinkedList<String>();
+		}
 		return location_path_list;
 	}
 
@@ -525,11 +522,10 @@ public class OptionSet {
 	 * @return the list of Uri-Path segments
 	 */
 	public List<String> getUriPath() {
-		if (uri_path_list == null)
-			synchronized (this) {
-				if (uri_path_list == null)
-					uri_path_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (uri_path_list == null)
+				uri_path_list = new LinkedList<String>();
+		}
 		return uri_path_list;
 	}
 
@@ -702,11 +698,10 @@ public class OptionSet {
 	 * @return the list of query arguments
 	 */
 	public List<String> getUriQuery() {
-		if (uri_query_list == null)
-			synchronized (this) {
-				if (uri_query_list == null)
-					uri_query_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (uri_query_list == null)
+				uri_query_list = new LinkedList<String>();
+		}
 		return uri_query_list;
 	}
 
@@ -844,11 +839,10 @@ public class OptionSet {
 	 * @return the list of query arguments
 	 */
 	public List<String> getLocationQuery() {
-		if (location_query_list == null)
-			synchronized (this) {
-				if (location_query_list == null)
-					location_query_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (location_query_list == null)
+				location_query_list = new LinkedList<String>();
+		}
 		return location_query_list;
 	}
 
@@ -1256,11 +1250,10 @@ public class OptionSet {
 	}
 	
 	private List<Option> getOthers() {
-		if (others == null)
-			synchronized (this) {
-				if (others == null)
-					others = new LinkedList<Option>();
-			}
+		synchronized (this) {
+			if (others == null)
+				others = new LinkedList<Option>();
+		}
 		return others;
 	}
 	
