@@ -986,10 +986,11 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			client.releaseSocket();
-			// wait for some time to let the OS mark the port as free again
 			synchronized (client) {
-				client.wait(100);
+				client.releaseSocket();
+				// in order to prevent sporadic BindExceptions during test execution
+				// give OS some time before allowing test cases to re-bind to same port
+				client.wait(200);
 			}
 		}
 	}
@@ -1064,7 +1065,12 @@ public class DTLSConnectorTest {
 		assertNotNull(con);
 		Handshaker ongoingHandshake = con.getOngoingHandshake();
 		assertNotNull(ongoingHandshake);
-		rawClient.stop();
+		synchronized (rawClient) {
+			rawClient.stop();
+			// in order to prevent sporadic BindExceptions during test execution
+			// give OS some time before allowing test cases to re-bind to same port
+			rawClient.wait(200);
+		}
 	}
 
 	private class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
