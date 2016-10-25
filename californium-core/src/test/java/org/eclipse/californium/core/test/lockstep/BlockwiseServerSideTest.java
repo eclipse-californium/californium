@@ -46,6 +46,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
+import org.eclipse.californium.core.network.InMemoryRandomTokenProvider;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -99,7 +100,7 @@ public class BlockwiseServerSideTest {
 
 		path = "test";
 		testResource = new TestResource(path);
-		exchangeStore = new InMemoryMessageExchangeStore(CONFIG);
+		exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
 		// bind to loopback address using an ephemeral port
 		CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 		server = new CoapServer();

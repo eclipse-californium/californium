@@ -215,4 +215,11 @@ public interface MessageExchangeStore {
 	 * @return the exchanges.
 	 */
 	List<Exchange> findByToken(byte[] token);
+	
+	/**
+	 * Releases the given token to be used again.
+	 * 
+	 * @param keyToken the KeyToken to release.
+	 */
+	void releaseToken(KeyToken keyToken);
 }
