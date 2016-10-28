@@ -204,4 +204,11 @@ public interface MessageExchangeStore {
 	 * @return {@code true} if there no exchanges registered.
 	 */
 	boolean isEmpty();
+
+	/**
+	 * Releases the given token to be used again.
+	 * 
+	 * @param keyToken the KeyToken to release.
+	 */
+	void releaseToken(KeyToken keyToken);
 }

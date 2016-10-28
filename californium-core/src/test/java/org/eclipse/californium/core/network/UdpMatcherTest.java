@@ -15,7 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
@@ -25,11 +26,13 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -43,6 +46,17 @@ public class UdpMatcherTest {
 	static final String CIPHER = "TLS_PSK";
 	static final String OTHER_CIPHER = "TLS_NULL";
 	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
+
+	private InMemoryRandomTokenProvider tokenProvider; 
+	private InMemoryMessageExchangeStore messageExchangeStore;
+	private NetworkConfig config;
+
+	@Before
+	public void before(){
+		config = NetworkConfig.createStandardWithoutFile();
+		tokenProvider = new InMemoryRandomTokenProvider(config);
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
+	}
 
 	@Test
 	public void testReceiveResponseAcceptsResponseWithoutCorrelationInformation() {
@@ -185,11 +199,38 @@ public class UdpMatcherTest {
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));
 	}
+	
+	@Test
+	public void testReceiveResponseReleasesToken() {
+		// GIVEN a request without token sent
+		UdpMatcher matcher = newMatcher(false);
+		Exchange exchange = sendRequest(matcher, null);
+				// WHEN request gets completed
+		exchange.completeCurrentRequest();
+
+		// THEN assert that token got released
+		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+		assertThat(tokenProvider.isTokenInUse(keyToken), is(false));
+	}
+	
+	@Test
+	public void testReceiveResponseForObserveDoesNotReleaseToken() {
+		// GIVEN a request without token sent
+		UdpMatcher matcher = newMatcher(false);
+		Exchange exchange = sendObserveRequest(matcher);
+		
+		// WHEN observe request gets completed
+		exchange.completeCurrentRequest();
+
+		// THEN assert that token got not released
+		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+		assertThat(tokenProvider.isTokenInUse(keyToken), is(true));
+	}
 
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
 		UdpMatcher matcher = new UdpMatcher(config);
+		matcher.setMessageExchangeStore(messageExchangeStore);
 		matcher.start();
 		return matcher;
 	}
@@ -199,8 +240,19 @@ public class UdpMatcherTest {
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		exchange.setRequest(request);
 		matcher.sendRequest(exchange, request);
 		exchange.setCorrelationContext(ctx);
+		return exchange;
+	}
+
+	private Exchange sendObserveRequest(final UdpMatcher matcher) {
+		Request request = Request.newGet();
+		request.setDestination(dest.getAddress());
+		request.setDestinationPort(dest.getPort());
+		request.setObserve();
+		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		matcher.sendRequest(exchange, request);
 		return exchange;
 	}
 

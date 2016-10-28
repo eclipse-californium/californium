@@ -58,7 +58,7 @@ public class ObserveClientSideTest {
 	private int mid = 8000;
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
-
+	
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + ObserveClientSideTest.class.getSimpleName());
@@ -72,6 +72,9 @@ public class ObserveClientSideTest {
 
 	@Before
 	public void setupEndpoints() throws Exception {
+		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
+		// bind to loopback address using an ephemeral port
+	//	CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 
 		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
 		client.addInterceptor(clientInterceptor);

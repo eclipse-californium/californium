@@ -401,6 +401,10 @@ public final class UdpMatcher extends BaseMatcher {
 
 				// in case an empty ACK was lost
 				exchangeStore.remove(idByMID);
+
+				if(!exchange.getCurrentRequest().getOptions().hasObserve()) {
+					exchangeStore.releaseToken(idByToken);
+				}
 				LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 
 			} else { // Origin.REMOTE

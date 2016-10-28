@@ -45,33 +45,47 @@ import org.eclipse.californium.elements.CorrelationContext;
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private static final Logger LOGGER = Logger.getLogger(InMemoryMessageExchangeStore.class.getName());
-	private static final int MAX_TOKEN_LENGTH = 8; // bytes
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>(); // for all
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>(); // for outgoing
 	private final ConcurrentMap<KeyUri, Exchange> ongoingExchanges = new ConcurrentHashMap<>();
 
 	private final NetworkConfig config;
-	private final int tokenLength;
 	private boolean running = false;
 	private Deduplicator deduplicator;
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledExecutorService scheduler;
 	private MessageIdProvider messageIdProvider;
+	private TokenProvider tokenProvider;
 	private SecureRandom secureRandom;
+	
+	/**
+	 * Creates a new store for configuration values.
+	 * 
+	 * @param config the configuration to use.
+	 * 
+	 */
+	public InMemoryMessageExchangeStore(final NetworkConfig config) {
+		this(config, new InMemoryRandomTokenProvider(config));
+		LOGGER.log(Level.CONFIG, "using default TokenProvider {0}", InMemoryRandomTokenProvider.class.getName());
+	}
 
 	/**
 	 * Creates a new store for configuration values.
 	 * 
 	 * @param config the configuration to use.
+	 * @param tokenProvider the TokenProvider which provides CoAP tokens that
+	 *            are guaranteed to be not in use.
+	 * 
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config) {
+	public InMemoryMessageExchangeStore(final NetworkConfig config, TokenProvider tokenProvider) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
-		}else {
-			this.config = config;
-			this.tokenLength = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
-			LOGGER.log(Level.CONFIG, "using tokens of {1} bytes in length", tokenLength);
 		}
+		if (tokenProvider == null) {
+			throw new NullPointerException("TokenProvider must not be null");
+		}
+		this.tokenProvider = tokenProvider;
+		this.config = config;
 	}
 
 	private void startStatusLogging() {
@@ -185,37 +199,18 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		KeyToken idByToken;
 		synchronized (exchangesByToken) {
 			if (request.getToken() == null) {
-				idByToken = createUnusedToken(tokenLength, request);
+				idByToken = tokenProvider.getUnusedToken(request);								
 				request.setToken(idByToken.getToken());
 			} else {
 				idByToken = KeyToken.fromOutboundMessage(request);
 				// ongoing requests may reuse token
 				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1() || request.getOptions()
-						.hasBlock2() || request.getOptions().hasObserve()) && exchangesByToken.get(idByToken) != null) {
-					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
+						.hasBlock2() || request.getOptions().hasObserve()) && tokenProvider.isTokenInUse(idByToken)) {
+					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);					
 				}
 			}
 			exchangesByToken.put(idByToken, exchange);
 		}
-	}
-
-	/**
-	 * Creates a new token.
-	 * 
-	 * @param length the length of the token in bytes.
-	 * @return the newly created token.
-	 */
-	private KeyToken createUnusedToken(final int maxLength, final Message msg) {
-		byte[] token;
-		KeyToken result;
-		do {
-			token = new byte[maxLength];
-			// random value
-			secureRandom.nextBytes(token);
-			result = KeyToken.fromValues(token, msg.getDestination().getAddress(), msg.getDestinationPort());
-		} while (exchangesByToken.get(result) != null);
-
-		return result;
 	}
 
 	@Override
@@ -340,7 +335,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 				this.deduplicator = factory.createDeduplicator(config);
 			}
-			deduplicator.start();
+			this.deduplicator.start();
 			if (messageIdProvider == null) {
 				LOGGER.log(Level.CONFIG, "no MessageIdProvider set, using default {0}", InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
@@ -374,5 +369,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public Exchange find(final KeyMID messageId) {
 		return deduplicator.find(messageId);
+	}
+	
+	@Override
+	public void releaseToken(KeyToken keyToken){
+		tokenProvider.releaseToken(keyToken);
 	}
 }
