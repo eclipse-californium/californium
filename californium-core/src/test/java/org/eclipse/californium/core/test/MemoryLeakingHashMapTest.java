@@ -32,7 +32,9 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
+import org.eclipse.californium.core.network.InMemoryRandomTokenProvider;
 import org.eclipse.californium.core.network.MessageExchangeStore;
+import org.eclipse.californium.core.network.TokenProvider;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -273,12 +275,12 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
-		serverExchangeStore = new InMemoryMessageExchangeStore(config);
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, serverExchangeStore);
+		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,serverExchangeStore);
 		serverEndpoint.addInterceptor(new MessageTracer());
-
+		
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, clientExchangeStore);
+		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,  clientExchangeStore);
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed

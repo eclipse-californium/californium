@@ -15,22 +15,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-
-import java.net.InetAddress;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -109,6 +106,17 @@ public class InMemoryMessageExchangeStoreTest {
 			fail("should have thrown IllegalArgumentException");
 		} catch (IllegalArgumentException e) {
 			// THEN the store rejects the re-registration
+		}
+	}
+	
+	@Test
+	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutTokenProvider() {
+		//WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
+		try {
+			store = new InMemoryMessageExchangeStore(config, null);
+			fail("should have thrown NullPointerException");
+		} catch (NullPointerException e) {
+			//THEN NullPointerException is thrown 
 		}
 	}
 

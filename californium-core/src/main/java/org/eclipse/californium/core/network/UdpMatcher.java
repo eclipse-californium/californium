@@ -84,7 +84,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequest(exchange);
-
+		final KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 		// for observe request.
 		// We ignore blockwise request, except when this is an early negociation (num and M is set to 0)  
 		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0 && (!request.getOptions().hasBlock2()
@@ -96,15 +96,18 @@ public final class UdpMatcher extends BaseMatcher {
 			request.addMessageObserver(new MessageObserverAdapter() {
 				@Override
 				public void onCancel() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(request.getToken());	
+					exchangeStore.releaseToken(idByToken);
 				}
 				@Override
 				public void onReject() {
 					observationStore.remove(request.getToken());
+					exchangeStore.releaseToken(idByToken);
 				}
 				@Override
 				public void onTimeout() {
 					observationStore.remove(request.getToken());
+					exchangeStore.releaseToken(idByToken);
 				}
 			});
 		}
@@ -318,6 +321,7 @@ public final class UdpMatcher extends BaseMatcher {
 					@Override
 					public void onTimeout() {
 						observationStore.remove(request.getToken());
+						exchangeStore.releaseToken(idByToken);
 					}
 
 					@Override
@@ -334,6 +338,7 @@ public final class UdpMatcher extends BaseMatcher {
 									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
 									idByToken);
 							observationStore.remove(request.getToken());
+							exchangeStore.releaseToken(idByToken);
 						} else {
 							notificationListener.onNotification(request, response);
 						}
@@ -341,12 +346,15 @@ public final class UdpMatcher extends BaseMatcher {
 
 					@Override
 					public void onReject() {
-						observationStore.remove(request.getToken());
+						observationStore.remove(request.getToken());	
+						exchangeStore.releaseToken(idByToken);
 					}
 
 					@Override
 					public void onCancel() {
 						observationStore.remove(request.getToken());
+						exchangeStore.releaseToken(idByToken);
+						
 					}
 				});
 			}
@@ -509,6 +517,9 @@ public final class UdpMatcher extends BaseMatcher {
 				}
 				KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
 				exchangeStore.remove(idByToken);
+				if(!exchange.getCurrentRequest().getOptions().hasObserve()) {
+					exchangeStore.releaseToken(idByToken);
+				}
 				LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 
 			} else { // Origin.REMOTE
@@ -565,6 +576,8 @@ public final class UdpMatcher extends BaseMatcher {
 		// therefore we need to find them by token only
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
 			exchange.getRequest().cancel();
+			KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+			exchangeStore.releaseToken(idByToken);
 		}
 		observationStore.remove(token);
 	}
