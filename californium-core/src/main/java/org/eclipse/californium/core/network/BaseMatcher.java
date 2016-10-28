@@ -58,7 +58,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final void assertMessageExchangeStoreIsSet() {
 		if (exchangeStore == null) {
 			LOG.log(Level.CONFIG, "no MessageExchangeStore set, using default {0}", InMemoryMessageExchangeStore.class.getName());
-			exchangeStore = new InMemoryMessageExchangeStore(config, new InMemoryRandomTokenProvider(config));
+			exchangeStore = new InMemoryMessageExchangeStore(config);
 		}
 	}
 

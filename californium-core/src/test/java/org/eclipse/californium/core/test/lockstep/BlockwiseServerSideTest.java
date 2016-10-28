@@ -100,7 +100,7 @@ public class BlockwiseServerSideTest {
 
 		path = "test";
 		testResource = new TestResource(path);
-		exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
+		exchangeStore = new InMemoryMessageExchangeStore(CONFIG);
 		// bind to loopback address using an ephemeral port
 		CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 		server = new CoapServer();

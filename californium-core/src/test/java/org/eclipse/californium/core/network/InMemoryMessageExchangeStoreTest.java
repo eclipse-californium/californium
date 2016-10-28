@@ -44,15 +44,13 @@ public class InMemoryMessageExchangeStoreTest {
 	 */
 	private static final int PEER_PORT = 12000;
 	InMemoryMessageExchangeStore store;
-	TokenProvider tokenProvider;
 	NetworkConfig config;
 
 	@Before
 	public void createConfig() {
 		config = NetworkConfig.createStandardWithoutFile();
 		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 200); //ms
-		tokenProvider = new InMemoryRandomTokenProvider(config);
-		store = new InMemoryMessageExchangeStore(config, tokenProvider);
+		store = new InMemoryMessageExchangeStore(config);
 		store.start();
 	}
 

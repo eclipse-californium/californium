@@ -345,7 +345,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		if (exchangeStore == null) {
-			InMemoryMessageExchangeStore inMemoryMessageExchangeStore = new InMemoryMessageExchangeStore(config, new InMemoryRandomTokenProvider(config));			
+			InMemoryMessageExchangeStore inMemoryMessageExchangeStore = new InMemoryMessageExchangeStore(config);			
 			matcher.setMessageExchangeStore(inMemoryMessageExchangeStore);
 		} else {
 			matcher.setMessageExchangeStore(exchangeStore);

@@ -36,6 +36,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class InMemoryRandomTokenProvider implements TokenProvider {
 
 	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
+	private static final int MAX_TOKEN_LENGTH = 8; // bytes
 	private final int tokenSizeLimit;
 
 	/**
@@ -44,7 +45,7 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 	 * @param networkConfig used to obtain the configured token size
 	 */
 	public InMemoryRandomTokenProvider(NetworkConfig networkConfig) {
-		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT);
+		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
 	}
 
 	@Override

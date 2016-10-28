@@ -49,13 +49,11 @@ import org.eclipse.californium.elements.CorrelationContext;
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private static final Logger LOGGER = Logger.getLogger(InMemoryMessageExchangeStore.class.getName());
-	private static final int MAX_TOKEN_LENGTH = 8; // bytes
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>(); // for all
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>(); // for outgoing
 	private final ConcurrentMap<KeyUri, Exchange> ongoingExchanges = new ConcurrentHashMap<>();
 
 	private final NetworkConfig config;
-	private final int tokenLength;
 	private boolean running = false;
 	private Deduplicator deduplicator;
 	private ScheduledFuture<?> statusLogger;
@@ -63,6 +61,24 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private MessageIdProvider messageIdProvider;
 	private TokenProvider tokenProvider;
 	private SecureRandom secureRandom;
+	
+	/**
+	 * Creates a new store for configuration values.
+	 * 
+	 * @param config the configuration to use.
+	 * 
+	 */
+	public InMemoryMessageExchangeStore(final NetworkConfig config) {
+		if (config == null) {
+			throw new NullPointerException("Configuration must not be null");
+		}
+
+		this.config = config;
+		this.tokenProvider = new InMemoryRandomTokenProvider(this.config);
+		LOGGER.log(Level.CONFIG, "using default TokenProvider {0}", InMemoryRandomTokenProvider.class.getName());
+		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
+				config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT));
+	}
 
 	/**
 	 * Creates a new store for configuration values.
@@ -81,8 +97,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 		this.tokenProvider = tokenProvider;
 		this.config = config;
-		this.tokenLength = config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
-		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length", tokenLength);
+		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
+				config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT));
 	}
 
 	private void startStatusLogging() {

@@ -75,8 +75,6 @@ public class MemoryLeakingHashMapTest {
 	private static CoapEndpoint clientEndpoint;
 	private static MessageExchangeStore clientExchangeStore;
 	private static MessageExchangeStore serverExchangeStore;
-	private static TokenProvider serverTokenProvider;
-	private static TokenProvider clientTokenProvider;
 
 	private static String currentRequestText;
 	private static String currentResponseText;
@@ -277,13 +275,11 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
-		serverTokenProvider = new InMemoryRandomTokenProvider(config);
-		serverExchangeStore = new InMemoryMessageExchangeStore(config, serverTokenProvider);	
+		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
 		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,serverExchangeStore);
 		serverEndpoint.addInterceptor(new MessageTracer());
 		
-		clientTokenProvider = new InMemoryRandomTokenProvider(config);
-		clientExchangeStore = new InMemoryMessageExchangeStore(config, clientTokenProvider);
+		clientExchangeStore = new InMemoryMessageExchangeStore(config);
 		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,  clientExchangeStore);
 		clientEndpoint.start();
 
