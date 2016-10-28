@@ -69,15 +69,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * 
 	 */
 	public InMemoryMessageExchangeStore(final NetworkConfig config) {
-		if (config == null) {
-			throw new NullPointerException("Configuration must not be null");
-		}
-
-		this.config = config;
-		this.tokenProvider = new InMemoryRandomTokenProvider(this.config);
+		this(config, new InMemoryRandomTokenProvider(config));
 		LOGGER.log(Level.CONFIG, "using default TokenProvider {0}", InMemoryRandomTokenProvider.class.getName());
-		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
-				config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT));
 	}
 
 	/**
@@ -97,8 +90,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 		this.tokenProvider = tokenProvider;
 		this.config = config;
-		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
-				config.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT));
 	}
 
 	private void startStatusLogging() {

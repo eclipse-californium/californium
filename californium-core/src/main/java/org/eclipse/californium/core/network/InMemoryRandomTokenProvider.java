@@ -21,6 +21,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
@@ -35,6 +37,8 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public class InMemoryRandomTokenProvider implements TokenProvider {
 
+	private static final Logger LOGGER = Logger.getLogger(InMemoryRandomTokenProvider.class.getName());
+	
 	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
 	private static final int MAX_TOKEN_LENGTH = 8; // bytes
 	private final int tokenSizeLimit;
@@ -45,7 +49,12 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 	 * @param networkConfig used to obtain the configured token size
 	 */
 	public InMemoryRandomTokenProvider(NetworkConfig networkConfig) {
+		if (networkConfig == null) {
+			throw new NullPointerException("NetworkConfig must not be null");
+		}
 		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
+		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
+				networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH));
 	}
 
 	@Override
