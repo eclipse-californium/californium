@@ -26,6 +26,9 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class TcpConnectorTest {
 
+    private static final int NUMBER_OF_THREADS = 1;
+    private static final int IDLE_TIMEOUT = 100;
+
     @Rule public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
 
     private final int messageSize;
@@ -62,8 +65,8 @@ public class TcpConnectorTest {
     @Test
     public void serverClientPingPong() throws Exception {
         int port = findEphemeralPort();
-        TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), 100, 1);
-        TcpClientConnector client = new TcpClientConnector(1, 100, 100);
+        TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS, IDLE_TIMEOUT);
+        TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 
         cleanup.add(server);
         cleanup.add(client);
@@ -92,7 +95,7 @@ public class TcpConnectorTest {
     public void singleServerManyClients() throws Exception {
         int port = findEphemeralPort();
         int clients = 100;
-        TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), 100, 1);
+        TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS, IDLE_TIMEOUT);
         cleanup.add(server);
 
         Catcher serverCatcher = new Catcher();
@@ -101,7 +104,7 @@ public class TcpConnectorTest {
 
         List<RawData> messages = new ArrayList<>();
         for (int i = 0; i < clients; i++) {
-            TcpClientConnector client = new TcpClientConnector(1, 100, 100);
+            TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
             cleanup.add(client);
             Catcher clientCatcher = new Catcher();
             client.setRawDataReceiver(clientCatcher);

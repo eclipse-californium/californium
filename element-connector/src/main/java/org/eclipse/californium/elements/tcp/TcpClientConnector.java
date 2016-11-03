@@ -59,7 +59,7 @@ public class TcpClientConnector implements Connector, TcpConnector {
 		this.connectTimeoutMillis = connectTimeoutMillis;
 	}
 
-	@Override public void start() throws IOException {
+	@Override public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -83,9 +83,11 @@ public class TcpClientConnector implements Connector, TcpConnector {
 		};
 	}
 
-	@Override public void stop() {
-		workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
-		workerGroup = null;
+	@Override public synchronized void stop() {
+		if (null != workerGroup) {
+			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			workerGroup = null;
+		}
 	}
 
 	@Override public void destroy() {
