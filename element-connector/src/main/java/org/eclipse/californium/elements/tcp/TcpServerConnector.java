@@ -62,7 +62,7 @@ public class TcpServerConnector implements Connector {
 		this.listenUri = getListenUri(localAddress);
 	}
 
-	@Override public void start() throws IOException {
+	@Override public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -92,12 +92,15 @@ public class TcpServerConnector implements Connector {
 		});
 	}
 
-	@Override public void stop() {
-		bossGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
-		workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
-
-		workerGroup = null;
-		bossGroup = null;
+	@Override public synchronized void stop() {
+		if (null != bossGroup) {
+			bossGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			bossGroup = null;
+		}
+		if (null != workerGroup) {
+			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			workerGroup = null;
+		}
 	}
 
 	@Override public void destroy() {
