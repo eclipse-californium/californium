@@ -55,7 +55,7 @@ public class TcpServerConnector implements Connector {
 	private EventLoopGroup workerGroup;
 	private URI listenUri;
 
-	public TcpServerConnector(InetSocketAddress localAddress, int idleTimeout, int numberOfThreads) {
+	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.localAddress = localAddress;

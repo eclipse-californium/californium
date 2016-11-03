@@ -19,7 +19,7 @@ public class TcpThroughputServer {
 				.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, 2)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 10000);
 
-		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT), 100, 1);
+		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT), 1, 100);
 		CoapEndpoint endpoint = new CoapEndpoint(serverConnector, net);
 
 		CoapServer server = new CoapServer(net);
