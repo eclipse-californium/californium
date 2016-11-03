@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network.stack;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.Outbox;
@@ -106,6 +107,7 @@ public class CoapTcpStack implements CoapStack {
 
 	// delegate to top
 	@Override public void sendRequest(Request request) {
+		if (null == request.getType()) request.setType(Type.CON);
 		top.sendRequest(request);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		request.setAcknowledged(true);
@@ -113,6 +115,7 @@ public class CoapTcpStack implements CoapStack {
 
 	// delegate to top
 	@Override public void sendResponse(Exchange exchange, Response response) {
+		if (null == response.getType()) response.setType(Type.CON);
 		top.sendResponse(exchange, response);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		response.setAcknowledged(true);
