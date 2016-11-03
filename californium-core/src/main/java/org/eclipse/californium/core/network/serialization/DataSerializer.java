@@ -48,7 +48,7 @@ public abstract class DataSerializer {
 			byte[] body = serializeOptionsAndPayload(request);
 
 			MessageHeader header = new MessageHeader(CoAP.VERSION, request.getType(), request.getToken(),
-					request.getCode()==null?0:request.getCode().value, request.getMID(), body.length);
+					request.getCode().value, request.getMID(), body.length);
 			serializeHeader(writer, header);
 			writer.writeBytes(body);
 
