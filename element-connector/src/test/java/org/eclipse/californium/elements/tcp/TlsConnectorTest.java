@@ -35,6 +35,8 @@ import org.junit.rules.Timeout;
 
 public class TlsConnectorTest {
 
+    private static final int NUMBER_OF_THREADS = 1;
+    private static final int IDLE_TIMEOUT = 100;
     private static SSLContext serverContext;
     private static SSLContext clientContext;
     private final Random random = new Random(0);
@@ -73,8 +75,8 @@ public class TlsConnectorTest {
     @Test
     public void pingPongMessage() throws Exception {
         int port = findEphemeralPort();
-        TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), 100, 1);
-        TlsClientConnector client = new TlsClientConnector(clientContext, 1, 100, 10);
+        TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), NUMBER_OF_THREADS, IDLE_TIMEOUT);
+        TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
 
         Catcher serverCatcher = new Catcher();
         Catcher clientCatcher = new Catcher();
@@ -102,7 +104,7 @@ public class TlsConnectorTest {
     public void singleServerManyClients() throws Exception {
         int port = findEphemeralPort();
         int clients = 100;
-        TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), 100, 1);
+        TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), NUMBER_OF_THREADS, IDLE_TIMEOUT);
         assertThat(server.getUri().getScheme(), is("coaps+tcp"));
         cleanup.add(server);
 
@@ -112,7 +114,7 @@ public class TlsConnectorTest {
 
         List<RawData> messages = new ArrayList<>();
         for (int i = 0; i < clients; i++) {
-            TlsClientConnector client = new TlsClientConnector(clientContext, 1, 100, 100);
+            TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
             cleanup.add(client);
             Catcher clientCatcher = new Catcher();
             client.setRawDataReceiver(clientCatcher);
@@ -145,7 +147,7 @@ public class TlsConnectorTest {
         Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
         for (int i = 0; i < serverCount; i++) {
             int port = findEphemeralPort();
-            TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), 100, 1);
+            TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port), NUMBER_OF_THREADS, IDLE_TIMEOUT);
             cleanup.add(server);
             Catcher serverCatcher = new Catcher();
             server.setRawDataReceiver(serverCatcher);
@@ -154,7 +156,7 @@ public class TlsConnectorTest {
             servers.put(server.getAddress(), serverCatcher);
         }
 
-        TlsClientConnector client = new TlsClientConnector(clientContext, 1, 100, 100);
+        TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
         cleanup.add(client);
         Catcher clientCatcher = new Catcher();
         client.setRawDataReceiver(clientCatcher);

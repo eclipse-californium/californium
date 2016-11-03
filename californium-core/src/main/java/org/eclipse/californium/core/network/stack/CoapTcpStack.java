@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network.stack;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.Outbox;
@@ -106,6 +107,9 @@ public class CoapTcpStack implements CoapStack {
 
 	// delegate to top
 	@Override public void sendRequest(Request request) {
+		if (null == request.getType()) {
+			request.setType(Type.CON);
+		}
 		top.sendRequest(request);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		request.setAcknowledged(true);
@@ -113,6 +117,9 @@ public class CoapTcpStack implements CoapStack {
 
 	// delegate to top
 	@Override public void sendResponse(Exchange exchange, Response response) {
+		if (null == response.getType()) {
+			response.setType(Type.CON);
+		}
 		top.sendResponse(exchange, response);
 		// CoAP over TCP does not have acknowledgements. Everything is automatically acknowledged.
 		response.setAcknowledged(true);
@@ -143,8 +150,9 @@ public class CoapTcpStack implements CoapStack {
 	}
 
 	@Override public void setExecutor(ScheduledExecutorService executor) {
-		for (Layer layer : layers)
+		for (Layer layer : layers) {
 			layer.setExecutor(executor);
+		}
 	}
 
 	@Override public void setDeliverer(MessageDeliverer deliverer) {
@@ -152,8 +160,9 @@ public class CoapTcpStack implements CoapStack {
 	}
 
 	@Override public void destroy() {
-		for (Layer layer : layers)
+		for (Layer layer : layers) {
 			layer.destroy();
+		}
 	}
 
 	private class StackTopAdapter extends AbstractLayer {
@@ -175,8 +184,9 @@ public class CoapTcpStack implements CoapStack {
 
 		@Override public void receiveRequest(Exchange exchange, Request request) {
 			// if there is no BlockwiseLayer we still have to set it
-			if (exchange.getRequest() == null)
+			if (exchange.getRequest() == null) {
 				exchange.setRequest(request);
+			}
 			if (hasDeliverer()) {
 				deliverer.deliverRequest(exchange);
 			} else {
@@ -185,8 +195,9 @@ public class CoapTcpStack implements CoapStack {
 		}
 
 		@Override public void receiveResponse(Exchange exchange, Response response) {
-			if (!response.getOptions().hasObserve())
+			if (!response.getOptions().hasObserve()) {
 				exchange.setComplete();
+			}
 			if (hasDeliverer()) {
 				deliverer.deliverResponse(exchange, response); // notify request that response has arrived
 			} else {
