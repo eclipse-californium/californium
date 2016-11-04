@@ -26,9 +26,9 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class TcpConnectorTest {
 
-	private static final int NUMBER_OF_THREADS = 1;
-	private static final int IDLE_TIMEOUT = 100;
-	
+    private static final int NUMBER_OF_THREADS = 1;
+    private static final int IDLE_TIMEOUT = 100;
+
     @Rule public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
 
     private final int messageSize;

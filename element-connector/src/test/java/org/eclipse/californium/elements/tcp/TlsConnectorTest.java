@@ -35,8 +35,8 @@ import org.junit.rules.Timeout;
 
 public class TlsConnectorTest {
 
-	private static final int NUMBER_OF_THREADS = 1;
-	private static final int IDLE_TIMEOUT = 100;
+    private static final int NUMBER_OF_THREADS = 1;
+    private static final int IDLE_TIMEOUT = 100;
     private static SSLContext serverContext;
     private static SSLContext clientContext;
     private final Random random = new Random(0);
