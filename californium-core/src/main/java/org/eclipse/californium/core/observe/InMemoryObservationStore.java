@@ -20,6 +20,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -51,9 +52,18 @@ public class InMemoryObservationStore implements ObservationStore {
 		if (obs != null) {
 			LOG.log(Level.FINER, "found observation for token {0}", key);
 			// clone registered Observation
-			RawData serialize = serializer.serializeRequest(obs.getRequest(), null);
+			Request request = obs.getRequest();
+			RawData serialize = serializer.serializeRequest(request, null);
 			DataParser parser = new UdpDataParser();
-			Request newRequest = (Request) parser.parseMessage(serialize);
+			Request newRequest;
+			try {
+				newRequest = (Request) parser.parseMessage(serialize);
+			} catch (MessageFormatException ex) {
+				/** second chance, may be TCP serializer was used for this message */
+				request.setBytes(null);
+				serialize = serializer.serializeRequest(request, null);
+				newRequest = (Request) parser.parseMessage(serialize);
+			}
 			newRequest.setUserContext(obs.getRequest().getUserContext());
 			return new Observation(newRequest, obs.getContext());
 		}

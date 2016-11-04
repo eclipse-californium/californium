@@ -195,9 +195,7 @@ public class CoapTcpStack implements CoapStack {
 		}
 
 		@Override public void receiveResponse(Exchange exchange, Response response) {
-			if (!response.getOptions().hasObserve()) {
-				exchange.setComplete();
-			}
+			exchange.setComplete();
 			if (hasDeliverer()) {
 				deliverer.deliverResponse(exchange, response); // notify request that response has arrived
 			} else {
