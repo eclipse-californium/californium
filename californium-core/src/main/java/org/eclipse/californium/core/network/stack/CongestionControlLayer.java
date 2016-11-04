@@ -19,6 +19,7 @@ package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -46,27 +47,27 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.*;
  */
 
 public abstract class CongestionControlLayer extends ReliabilityLayer {
-	
+
 	/** The configuration */ 
 	protected NetworkConfig config;
-	
+
 	private final static long MAX_REMOTE_TRANSACTION_DURATION = 255 * 1000; // Maximum duration of a transaction, after that, sweep the exchanges
 	// Amount of non-confirmables that can be transmitted before a NON is converted to a CON (to get an RTT measurement); this is a CoCoA feature
 	private final static int MAX_SUCCESSIVE_NONS = 7; 
-	
+
 	protected final static int OVERALLRTOTYPE = 0;
 	protected final static int STRONGRTOTYPE = 1;
 	protected final static int WEAKRTOTYPE = 2;
 	protected final static int NOESTIMATOR = 3;
-		
-	private final static int EXCHANGELIMIT = 50;    // An upper limit for the queue size of confirmables and non-confirmables (separate queues)
-	
+
+	private final static int EXCHANGELIMIT = 50; // An upper limit for the queue size of confirmables and non-confirmables (separate queues)
+
 	private final static int MAX_RTO = 60000;
-	 
+
 	private boolean appliesDithering; // In CoAP, dithering is applied to the initial RTO of a transmission; set to true to apply dithering
-	
+
 	private RemoteEndpointManager remoteEndpointmanager;
-	
+
 	/**
 	 * Constructs a new congestion control layer.
 	 * @param config the configuration
@@ -74,22 +75,22 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	public CongestionControlLayer(NetworkConfig config) {
 		super(config);
 		this.config = config;
-	    this.remoteEndpointmanager = new RemoteEndpointManager(config);
-	    setDithering(false);
+		this.remoteEndpointmanager = new RemoteEndpointManager(config);
+		setDithering(false);
 	}
-	
+
 	protected RemoteEndpoint getRemoteEndpoint(Exchange exchange){
 		return remoteEndpointmanager.getRemoteEndpoint(exchange);
 	}
-	
+
 	public boolean appliesDithering(){
 		return appliesDithering;
 	}
-	
+
 	public void setDithering(boolean mode){
 		this.appliesDithering = mode;
 	}
-	
+
 	/*
 	 * Calculate how long the maximum transmission duration will be when no ACK is received
 	 */
@@ -121,7 +122,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		// Put into queues for NON or CON messages
 		if (messageType == Type.CON) {
 			if (!checkNSTART(exchange)) { // Check if NSTART is not reached yet
-											// for confirmable transmissions
+										  // for confirmable transmissions
 				return false;
 			}
 		} else if (getRemoteEndpoint(exchange).getNonConfirmableCounter() > MAX_SUCCESSIVE_NONS) {
@@ -160,7 +161,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		return true;
 
 	}
-	
+
 	/*
 	 * Check if the limit of exchanges towards the remote endpoint has reached NSTART.
 	 */
@@ -200,7 +201,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		}
 		return false;
 	}
-	
+
 	/*
 	 * When a response or an ACK was received, update the RTO values with the measured RTT.
 	 */
@@ -214,7 +215,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			getRemoteEndpoint(exchange).removeExchangeInfo(exchange);
 		}
 	}
-	
+
 	/** 
 	 * Received a new RTT measurement, evaluate it and update correspondent estimators 
 	 * 
@@ -226,7 +227,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		//Default CoAP does not use RTT info, so do nothing
 		return;
 	}
-	
+
 	/**
 	 * Override this method in RTO algorithms that implement some sort of RTO aging
 	 * @param exchange the exchange
@@ -234,7 +235,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	protected void checkAging(Exchange exchange) {
 		return;
 	}
-	
+
 	/**
 	 * This method is only called if there hasn't been an RTO update yet. 
 	 * 
@@ -247,7 +248,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 		endpoint.updateRTO(newRTO);
 	}
-	
+
 	/**
 	 * If the RTO estimator already has been used previously, this function takes care of updating it according to the
 	 * new RTT measurement (or other trigger for non-CoCoA algorithms)
@@ -261,7 +262,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		endpoint.updateRTO(newRTO);
 	}	
-	
+
 	/**
 	 * Calculates the Backoff Factor for the retransmissions. By default this is a binary backoff (= 2)
 	 * 
@@ -271,7 +272,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	protected double calculateVBF(long rto){
 		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 	}
-	
+
 	/*
 	 * Gets a request or response from the dedicated queue and polls it
 	 */
@@ -290,7 +291,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 	}
-	
+
 	/**
 	 * Forward the request to the lower layer.
 	 * @param exchange the exchange
@@ -306,7 +307,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			super.sendRequest(exchange, request);
 		}
 	}
-	
+
 	/**
 	 * Forward the response to the lower layer.
 	 * @param exchange the exchange
@@ -322,7 +323,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			super.sendResponse(exchange, response);
 		}
 	}
-	
+
 	/**
 	 * The following method overrides the method provided by the reliability layer to include the advanced RTO calculation values
 	 * when determining the RTO.
@@ -355,7 +356,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
 		exchange.setRetransmissionHandle(f);	
 	}
-	
+
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
 		//August: change the state of the remote endpoint (STRONG/WEAK/NOESTIMATOR) if failedTransmissionCount = 0;
@@ -367,7 +368,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		calculateRTT(exchange);	
 		checkRemoteEndpointQueue(exchange);	
 	}
-	
+
 	/**
 	 * If we receive an ACK or RST, calculate the RTT and update the RTO values
 	 */
@@ -382,7 +383,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		calculateRTT(exchange);
 		checkRemoteEndpointQueue(exchange);
 	}	
-	
+
 	/**
 	 * Method to send NON packets chosen by the bucket Thread (no reliability)
 	 * 
@@ -392,7 +393,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	public void sendBucketRequest(Exchange exchange, Request request) {
 		super.sendRequest(exchange, request);
 	}
-	
+
 	/**
 	 * Method to send NON packets chosen by the bucket Thread (no reliability)
 	 * 
@@ -402,19 +403,19 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	public void sendBucketResponse(Exchange exchange, Response response) {
 		super.sendResponse(exchange, response);
 	}
-	
+
 	/*
 	 * This Thread is used to apply rate control to non-confirmables by polling them from the queue and
 	 * scheduling the task to run again later.
 	 */
 	private class bucketThread implements Runnable {
-		
+
 		RemoteEndpoint endpoint;
 
 		public bucketThread(RemoteEndpoint queue) {
 			endpoint = queue;
 		}
-		
+
 		@Override
 		public void run() {
 			if (!endpoint.getNonConfirmableQueue().isEmpty()) {
@@ -441,9 +442,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			} else {
 				endpoint.setProcessingNON(false);
 			}
-		}		
+		}
 	}
-	
+
 	/*
 	 * Task that deletes old exchanges from the remote endpoint list
 	 */
@@ -468,19 +469,27 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 	}
-	
-	public static CongestionControlLayer newImplementation(NetworkConfig config) {
-		final String implementation = config.getString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM);
-		if ("Cocoa".equals(implementation)) return new Cocoa(config);
-		else if ("CocoaStrong".equals(implementation)) return new CocoaStrong(config);
-		else if ("BasicRto".equals(implementation)) return new BasicRto(config);
-		else if ("LinuxRto".equals(implementation)) return new LinuxRto(config);
-		else if ("PeakhopperRto".equals(implementation)) return new PeakhopperRto(config);
-		else {
-			LOGGER.config("Unknown CONGESTION_CONTROL_ALGORITHM (" + implementation + "), using Cocoa");
+
+	public static CongestionControlLayer newImplementation(final NetworkConfig config) {
+
+		final String implementation = config.getString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa");
+		switch(implementation) {
+		case "Cocoa":
+			return new Cocoa(config);
+		case "CocoaStrong":
+			return new CocoaStrong(config);
+		case "BasicRto":
+			return new BasicRto(config);
+		case "LinuxRto":
+			return new LinuxRto(config);
+		case "PeakhopperRto":
+			return new PeakhopperRto(config);
+		default:
+			LOGGER.log(
+				Level.CONFIG,
+				"configuration contains unsupported {0}, using Cocoa",
+				NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM);
 			return new Cocoa(config);
 		}
 	}
 }
-
-

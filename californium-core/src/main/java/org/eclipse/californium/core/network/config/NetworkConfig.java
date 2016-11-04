@@ -407,7 +407,7 @@ public final class NetworkConfig {
 		}, key, defaultValue);
 	}
 
-	private <T> T getNumberValue(PropertyParser<T> parser, String key, T defaultValue) {
+	private <T> T getNumberValue(final PropertyParser<T> parser, final String key, final T defaultValue) {
 		T result = defaultValue;
 		String value = properties.getProperty(key);
 		if (value != null) {
@@ -416,8 +416,8 @@ public final class NetworkConfig {
 			} catch (NumberFormatException e) {
 				LOGGER.log(
 						Level.WARNING,
-						"value for key [{0}] is not a {1}: {2}",
-						new Object[]{key, defaultValue.getClass(), value});
+						"value for key [{0}] is not a {1}, returning default value",
+						new Object[]{key, defaultValue.getClass()});
 			}
 		} else {
 			LOGGER.log(Level.WARNING, "key [{0}] is undefined, returning default value", key);
