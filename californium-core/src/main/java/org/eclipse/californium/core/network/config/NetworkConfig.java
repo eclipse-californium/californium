@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -36,13 +37,12 @@ import java.util.logging.Logger;
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  */
-public class NetworkConfig {
+public final class NetworkConfig {
 
-	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(NetworkConfig.class.getCanonicalName());
+	private static final Logger LOGGER = Logger.getLogger(NetworkConfig.class.getName());
 
 	/** The default name for the configuration. */
-	public static final String DEFAULT = "Californium.properties";
+	public static final String DEFAULT_FILE_NAME = "Californium.properties";
 
 	/** The default header for a configuration file. */
 	public static final String DEFAULT_HEADER = "Californium CoAP Properties file";
@@ -152,7 +152,7 @@ public class NetworkConfig {
 	public static NetworkConfig getStandard() {
 		synchronized (NetworkConfig.class) {
 			if (standard == null)
-				createStandardWithFile(new File(DEFAULT));
+				createStandardWithFile(new File(DEFAULT_FILE_NAME));
 		}
 		return standard;
 	}
@@ -162,7 +162,7 @@ public class NetworkConfig {
 	 *
 	 * @param standard the new standard
 	 */
-	public static void setStandard(NetworkConfig standard) {
+	public static void setStandard(final NetworkConfig standard) {
 		NetworkConfig.standard = standard;
 	}
 
@@ -178,28 +178,18 @@ public class NetworkConfig {
 
 	/**
 	 * Creates the standard with a file. If the file with the name
-	 * {@link #DEFAULT} exists, the configuration reads the properties from this
+	 * {@link #DEFAULT_FILE_NAME} exists, the configuration reads the properties from this
 	 * file. Otherwise it creates the file.
 	 * 
 	 * @param file the configuration file
 	 * @return the network configuration
 	 */
-	public static NetworkConfig createStandardWithFile(File file) {
+	public static NetworkConfig createStandardWithFile(final File file) {
 		standard = new NetworkConfig();
 		if (file.exists()) {
-			LOGGER.info("Loading standard properties from file "+file);
-			try {
-				standard.load(file);
-			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "Error while loading properties from "+file.getAbsolutePath(), e);
-			}
+			standard.load(file);
 		} else {
-			LOGGER.info("Storing standard properties in file "+file);
-			try {
-				standard.store(file);
-			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "Error while storing properties to "+file.getAbsolutePath(), e);
-			}
+			standard.store(file);
 		}
 		return standard;
 	}
@@ -214,38 +204,72 @@ public class NetworkConfig {
 	}
 
 	/**
-	 * Load the properties from the specified configuration file.
+	 * Loads properties from a file.
 	 *
 	 * @param file the file
-	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	public void load(File file) throws IOException {
-		InputStream inStream = new FileInputStream(file);
-		properties.load(inStream);
+	public void load(final File file) {
+		if (file == null) {
+			throw new NullPointerException("file must not be null");
+		} else {
+			LOGGER.log(Level.INFO, "loading properties from file {0}", file.getAbsolutePath());
+			InputStream inStream = null;
+			try {
+				inStream = new FileInputStream(file);
+				properties.load(inStream);
+			} catch (IOException e) {
+				LOGGER.log(Level.WARNING, "cannot load properties from file {0}: {1}",
+						new Object[]{file.getAbsolutePath(), e.getMessage()});
+			} finally {
+				closeStream(inStream);
+			}
+		}
 	}
 
 	/**
-	 * Store the configuration in the specified file.
+	 * Stores the configuration to a file.
 	 *
-	 * @param file the file
-	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @param file The file to write to.
+	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	public void store(File file) throws IOException {
+	public void store(final File file) {
 		store(file, DEFAULT_HEADER);
 	}
 
 	/**
-	 * Store the configuration in the specified file with the specified header.
+	 * Stores the configuration to a file using a given header.
 	 * 
-	 * @param file the file
-	 * @param header the header
-	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @param file The file to write to.
+	 * @param header The header to write to the top of the file.
+	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	public void store(File file, String header) throws IOException {
+	public void store(File file, String header) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
+		} else {
+			LOGGER.log(Level.INFO, "writing properties to file {0}", file.getAbsolutePath());
+			FileWriter writer = null;
+			try {
+				writer = new FileWriter(file);
+				properties.store(writer, header);
+			} catch (IOException e) {
+				LOGGER.log(Level.WARNING, "cannot write properties to file {0}: {1}",
+						new Object[]{file.getAbsolutePath(), e.getMessage()});
+			} finally {
+				closeStream(writer);
+			}
 		}
-		properties.store(new FileWriter(file), header);
+	}
+
+	private static void closeStream(final Closeable stream) {
+		if (stream != null) {
+			try {
+				stream.close();
+			} catch (IOException e) {
+				// ignore
+			}
+		}
 	}
 
 	/**
