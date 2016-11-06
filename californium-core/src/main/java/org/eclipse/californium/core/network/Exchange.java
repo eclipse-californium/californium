@@ -23,7 +23,6 @@ package org.eclipse.californium.core.network;
 
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;

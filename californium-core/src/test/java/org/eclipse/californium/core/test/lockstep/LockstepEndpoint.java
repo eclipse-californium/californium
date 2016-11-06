@@ -29,16 +29,9 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.DataSerializer;
-import org.eclipse.californium.core.network.serialization.MessageHeader;
-import org.eclipse.californium.core.network.serialization.UdpDataParser;
-import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
-import org.junit.Assert;
-
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -47,9 +40,14 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.serialization.DataParser;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.junit.Assert;
 
 
 public class LockstepEndpoint {
