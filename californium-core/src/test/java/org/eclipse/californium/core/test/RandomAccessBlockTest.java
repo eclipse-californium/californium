@@ -1,7 +1,5 @@
 package org.eclipse.californium.core.test;
 
-import org.junit.Assert;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
@@ -12,9 +10,9 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
