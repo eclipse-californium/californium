@@ -25,6 +25,7 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Bosch Software Innovations GmbH - adjust request scheme for TCP
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -141,6 +142,10 @@ public class CoapEndpoint implements Endpoint {
 	
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
+	
+	private final String scheme;
+	
+	private final String secureScheme;
 	
 	/** The configuration of this endpoint */
 	private final NetworkConfig config;
@@ -281,11 +286,15 @@ public class CoapEndpoint implements Endpoint {
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
+			this.scheme = CoAP.COAP_TCP_URI_SCHEME;
+			this.secureScheme = CoAP.COAP_SECURE_TCP_URI_SCHEME;
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
+			this.scheme = CoAP.COAP_URI_SCHEME;
+			this.secureScheme = CoAP.COAP_SECURE_URI_SCHEME;
 		}
 	}
 
@@ -785,7 +794,7 @@ public class CoapEndpoint implements Endpoint {
 		private void receiveRequest(final Request request, final RawData raw) {
 
 			// set request attributes from raw data
-			request.setScheme(raw.isSecure() ? CoAP.COAP_SECURE_URI_SCHEME : CoAP.COAP_URI_SCHEME);
+			request.setScheme(raw.isSecure() ? secureScheme : scheme);
 			request.setSenderIdentity(raw.getSenderIdentity());
 
 			/* 
