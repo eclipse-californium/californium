@@ -230,10 +230,10 @@ public class Request extends Message {
 
 		try {
 			String coapUri = uri;
-			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://")
-					&& !uri.startsWith("coaps+tcp://")) {
+			if (!uri.contains("://")) {
 				coapUri = "coap://" + uri;
 				LOGGER.log(Level.WARNING, "update your code to supply an RFC 7252 compliant URI including a scheme");
+				
 			}
 			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {
@@ -263,7 +263,6 @@ public class Request extends Message {
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 
 		try {
-
 			InetAddress destAddress = InetAddress.getByName(host);
 			setDestination(destAddress);
 
@@ -297,7 +296,7 @@ public class Request extends Message {
 
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null");
-		} else if (!isSupportedScheme(uri.getScheme())) {
+		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
@@ -357,16 +356,6 @@ public class Request extends Message {
 		}
 
 		return this;
-	}
-
-	private static boolean isSupportedScheme(final String uriScheme) {
-		boolean result = false;
-		if (uriScheme != null) {
-			String scheme = uriScheme.toLowerCase();
-			result = CoAP.COAP_URI_SCHEME.equalsIgnoreCase(scheme) || CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(scheme) ||
-					CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(scheme) || CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(scheme);
-		}
-		return result;
 	}
 
 	// TODO: test this method.
@@ -444,13 +433,7 @@ public class Request extends Message {
 	 */
 	public Request send() {
 		validateBeforeSending();
-		if (CoAP.COAP_SECURE_URI_SCHEME.equals(getScheme())) {
-			// This is the case when secure coap is supposed to be used
-			EndpointManager.getEndpointManager().getDefaultSecureEndpoint().sendRequest(this);
-		} else {
-			// This is the normal case
-			EndpointManager.getEndpointManager().getDefaultEndpoint().sendRequest(this);
-		}
+		EndpointManager.getEndpointManager().getDefaultEndpoint(getScheme()).sendRequest(this);
 		return this;
 	}
 

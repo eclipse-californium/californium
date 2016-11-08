@@ -102,6 +102,41 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks, if provided scheme is {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * 
+	 * @param uriScheme scheme to be checked
+	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 */
+	public static boolean isTcpScheme(final String uriScheme) {
+		return COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)
+				|| COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
+	}
+
+	/**
+	 * Checks, if provided scheme is {@link #COAP_SECURE_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * 
+	 * @param scheme scheme to be checked
+	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 */
+	public static boolean isSecureScheme(final String uriScheme) {
+		return COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)
+				|| COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
+	}
+
+	/**
+	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME}, {@link #COAP_SECURE_URI_SCHEME}, {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * 
+	 * @param uriScheme scheme to be checked
+	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 */
+	public static boolean isSupportedScheme(final String uriScheme) {
+		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
+	}
+
+	/**
 	 * Checks if a given CoAP code is a request code.
 	 * 
 	 * @param code the code to check.
