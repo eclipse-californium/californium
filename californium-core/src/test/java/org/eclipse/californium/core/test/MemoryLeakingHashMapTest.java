@@ -364,11 +364,21 @@ public class MemoryLeakingHashMapTest {
 			this.cancelProactively = cancelProactively;
 		}
 
-		public void setObserveRelation(CoapObserveRelation relation) {
+		public synchronized void setObserveRelation(CoapObserveRelation relation) {
 			this.relation = relation;
 		}
 
 		public void onLoad(CoapResponse response) {
+			CoapObserveRelation relation;
+			synchronized (this) {
+				relation = this.relation;
+			}
+			
+			if (null == relation) {
+				LOGGER.log(Level.INFO, "Client ignore notification {0}: [{1}]", new Object[]{counter++, response.getResponseText()});
+				return;
+			}
+			
 			latch.countDown();
 			LOGGER.log(Level.FINE, "Client received notification {0}: [{1}]", new Object[]{counter++, response.getResponseText()});
 
