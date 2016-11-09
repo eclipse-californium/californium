@@ -185,6 +185,10 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong MID:", mid, message.getMID());
 					print("Correct MID: "+mid);
 				}
+
+				public String toString() {
+					return "Expected MID: " +mid;
+				}
 			});
 			return this;
 		}
@@ -196,6 +200,11 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong MID:", expected, message.getMID());
 					print("Correct MID: "+expected);
 				}
+
+				public String toString() {
+					int expected = (Integer) storage.get(var);
+					return "Expected MID: " + expected;
+				}
 			});
 			return this;
 		}
@@ -206,6 +215,10 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong type:", type, message.getType());
 					print("Correct type: "+type);
 				}
+
+				public String toString() {
+					return "Expected type: " + type;
+				}
 			});
 			return this;
 		}
@@ -215,6 +228,9 @@ public class LockstepEndpoint {
 				public void check(Message message) {
 					org.junit.Assert.assertArrayEquals("Wrong token:", token, message.getToken());
 					print("Correct token: "+Utils.toHexString(token));
+				}
+				public String toString() {
+					return "Expected token: " + Utils.toHexString(token);
 				}
 			});
 			return this;
@@ -228,6 +244,10 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong payload length: ", expectedLength, actualLength);
 					Assert.assertEquals("Wrong payload:", payload, message.getPayloadString());
 					print("Correct payload ("+actualLength+" bytes):\n"+message.getPayloadString());
+				}
+
+				public String toString() {
+					return "Expected payload: '"+ payload + "'";
 				}
 			});
 			return this;
@@ -248,6 +268,11 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong Block1 size:", size, block1.getSize());
 					print("Correct Block1 option: "+block1);
 				}
+
+				public String toString() {
+					BlockOption option = new BlockOption(BlockOption.size2Szx(size), m, num);
+					return "Expected Block1 option: "+ option;
+				}
 			});
 			return this;
 		}
@@ -262,6 +287,11 @@ public class LockstepEndpoint {
 					Assert.assertEquals("Wrong Block2 size:", size, block2.getSize());
 					print("Correct Block2 option: "+block2);
 				}
+
+				public String toString() {
+					BlockOption option = new BlockOption(BlockOption.size2Szx(size), m, num);
+					return "Expected Block2 option: "+ option;
+				}
 			});
 			return this;
 		}
@@ -273,6 +303,10 @@ public class LockstepEndpoint {
 					int actual = message.getOptions().getObserve();
 					Assert.assertEquals("Wrong observe sequence number:", observe, actual);
 					print("Correct observe sequence number: "+observe);
+				}
+
+				public String toString() {
+					return "Expected observe sequence number: "+observe;
 				}
 			});
 			return this;
@@ -290,6 +324,20 @@ public class LockstepEndpoint {
 						}
 					}
 				}
+
+				public String toString() {
+					StringBuffer result = new StringBuffer("Expected no options: [");
+					if (0 < numbers.length) {
+						final int end = numbers.length -1;
+						int index = 0;
+						for (; index < end; ++index) {
+							result.append(numbers[index]).append(",");
+						}
+						result.append(numbers[index]);
+					}
+					result.append(']');
+					return result.toString();
+				}
 			});
 			return this;
 		}
@@ -298,6 +346,10 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 				public void check(Message message) {
 					storage.put(var, message.getMID());
+				}
+
+				public String toString() {
+					return "";
 				}
 			});
 			return this;
@@ -308,6 +360,10 @@ public class LockstepEndpoint {
 				public void check(Message message) {
 					storage.put(var, message.getToken());
 				}
+
+				public String toString() {
+					return "";
+				}
 			});
 			return this;
 		}
@@ -315,6 +371,22 @@ public class LockstepEndpoint {
 		public void check(Message message) {
 			for (Expectation<Message> expectation:expectations)
 				expectation.check(message);
+		}
+		
+		public String toString() {
+			StringBuffer result = new StringBuffer("{");
+			for (Expectation<Message> expectation:expectations) {
+				String info = expectation.toString();
+				if (!info.isEmpty()) {
+					result.append(info).append(",");
+				}
+			}
+			int end = result.length() - 1;
+			if (0 <= end && ',' == result.charAt(end)) {
+				result.setLength(end);
+			}
+			result.append("}");
+			return result.toString();
 		}
 	}
 	
@@ -417,7 +489,7 @@ public class LockstepEndpoint {
 				check(request);
 
 			} else {
-				Assert.fail("Expected request but received " + msg);
+				Assert.fail("Expected request for " + this + ", but received " + msg);
 			}
 		}
 	}
@@ -558,7 +630,7 @@ public class LockstepEndpoint {
 				check(response);
 
 			} else {
-				Assert.fail("Expected response but received " + msg);
+				Assert.fail("Expected response for " + this + ", but received " + msg);
 			}
 		}
 		
@@ -582,7 +654,7 @@ public class LockstepEndpoint {
 				msg.setSourcePort(raw.getPort());
 				check(msg);
 			} else {
-				Assert.fail("Expected empty message but received " + msg);
+				Assert.fail("Expected empty message for " + this + ", but received " + msg);
 			}
 		}
 	}
