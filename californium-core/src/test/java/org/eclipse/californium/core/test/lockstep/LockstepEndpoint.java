@@ -417,7 +417,7 @@ public class LockstepEndpoint {
 				check(request);
 
 			} else {
-				Assert.fail("Expected request but received " + parser);
+				Assert.fail("Expected request but received " + msg);
 			}
 		}
 	}
@@ -558,7 +558,7 @@ public class LockstepEndpoint {
 				check(response);
 
 			} else {
-				Assert.fail("Expected response but received " + parser);
+				Assert.fail("Expected response but received " + msg);
 			}
 		}
 		
@@ -582,7 +582,7 @@ public class LockstepEndpoint {
 				msg.setSourcePort(raw.getPort());
 				check(msg);
 			} else {
-				Assert.fail("Expected empty message but received " + parser);
+				Assert.fail("Expected empty message but received " + msg);
 			}
 		}
 	}
