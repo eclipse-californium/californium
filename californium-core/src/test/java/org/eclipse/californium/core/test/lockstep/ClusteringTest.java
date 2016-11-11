@@ -208,8 +208,10 @@ public class ClusteringTest {
 		server.setDestination(client2.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(obs++).block2(0, true, 16)
 				.payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
@@ -228,8 +230,10 @@ public class ClusteringTest {
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(obs++).block2(0, true, 16)
 				.payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();

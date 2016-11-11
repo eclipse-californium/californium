@@ -541,9 +541,11 @@ public class BlockwiseClientSideTest {
 		respPayload = generateRandomPayload(280);
 
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("D").noOption(OBSERVE).block2(1, false, 128).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE).block2(2, false, 128).go();
@@ -557,22 +559,28 @@ public class BlockwiseClientSideTest {
 		respPayload = generateRandomPayload(290);
 
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		// expect blockwise transfer for second notification
 		server.expectRequest(CON, GET, path).storeBoth("F").noOption(OBSERVE).block2(1, false, 128).go();
-
+		server.goMultiExpectation();
+		
 		System.out.println("Server sends third notification during transfer ");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		// expect blockwise transfer for third notification
 		server.expectRequest(CON, GET, path).storeBoth("G").noOption(OBSERVE).block2(1, false, 128).go();
-
+		server.goMultiExpectation();
+		
 		System.out.println("Send old notification during transfer");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE).block2(1, false, 128).go();
+		server.goMultiExpectation();
 
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 

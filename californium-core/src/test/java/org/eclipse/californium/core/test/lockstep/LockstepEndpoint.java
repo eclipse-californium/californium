@@ -63,6 +63,7 @@ public class LockstepEndpoint {
 	private final DataSerializer serializer;
 	private final DataParser parser;
 	private boolean verbose = DEFAULT_VERBOSE;
+	private MultiMessageExpectation multi;
 
 	public LockstepEndpoint() {
 		this.storage = new HashMap<String, Object>();
@@ -120,7 +121,18 @@ public class LockstepEndpoint {
 	public Object get(String var) {
 		return storage.get(var);
 	}
-	
+
+	public MultiMessageExpectation startMultiExpectation() {
+		multi = new MultiMessageExpectation();
+		return multi;
+	}
+
+	public void goMultiExpectation() throws Exception {
+		Assert.assertNotNull("multi expectations not started!", multi);
+		multi.go();
+		multi = null;
+	}
+
 	public RequestExpectation expectRequest() {
 		return new RequestExpectation();
 	}
@@ -373,6 +385,22 @@ public class LockstepEndpoint {
 				expectation.check(message);
 		}
 		
+		@Override
+		public void go() throws Exception {
+			if (null != multi) {
+				add(multi);
+				return;
+			}
+			
+			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
+			Assert.assertNotNull("Did not receive a message (but nothing)", raw);
+
+			Message msg = parser.parseMessage(raw);
+			msg.setSource(raw.getAddress());
+			msg.setSourcePort(raw.getPort());
+			go(msg);
+		}
+		
 		public String toString() {
 			StringBuffer result = new StringBuffer("{");
 			for (Expectation<Message> expectation:expectations) {
@@ -388,6 +416,10 @@ public class LockstepEndpoint {
 			result.append("}");
 			return result.toString();
 		}
+
+		public abstract void go(Message msg) throws Exception;
+
+		public abstract void add(MultiMessageExpectation multi);
 	}
 	
 	public class RequestExpectation extends MessageExpectation {
@@ -476,27 +508,22 @@ public class LockstepEndpoint {
 				expectation.check(request);
 		}
 
-		@Override 
-		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
-			Assert.assertNotNull("Did not receive a request (but nothing)", raw);
-
-			Message msg = parser.parseMessage(raw);
+		@Override
+		public void go(Message msg) throws Exception {
 			if (CoAP.isRequest(msg.getRawCode())) {
-				Request request = (Request) msg;
-				request.setSource(raw.getAddress());
-				request.setSourcePort(raw.getPort());
-				check(request);
-
+				check((Request) msg);
 			} else {
 				Assert.fail("Expected request for " + this + ", but received " + msg);
 			}
 		}
+
+		@Override
+		public void add(MultiMessageExpectation multi) {
+			multi.add(this);
+		}
 	}
 
 	public class ResponseExpectation extends MessageExpectation {
-		
-		private Response response;
 		
 		private List<Expectation<Response>> expectations = new LinkedList<LockstepEndpoint.Expectation<Response>>();
 		
@@ -618,20 +645,18 @@ public class LockstepEndpoint {
 				expectation.check(response);
 		}
 
-		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
-			Assert.assertNotNull("Did not receive a response (but nothing)", raw);
-			Message msg = parser.parseMessage(raw);
-			
+		@Override
+		public void go(Message msg) throws Exception {
 			if (CoAP.isResponse(msg.getRawCode())) {
-				this.response = (Response) msg;
-				response.setSource(raw.getAddress());
-				response.setSourcePort(raw.getPort());
-				check(response);
-
+				check((Response) msg);
 			} else {
 				Assert.fail("Expected response for " + this + ", but received " + msg);
 			}
+		}
+
+		@Override
+		public void add(MultiMessageExpectation multi) {
+			multi.add(this);
 		}
 		
 	}
@@ -644,17 +669,99 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
-			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
-			Message msg = parser.parseMessage(raw);
-
+		public void go(Message msg) throws Exception {
 			if (CoAP.isEmptyMessage(msg.getRawCode())) {
-				msg.setSource(raw.getAddress());
-				msg.setSourcePort(raw.getPort());
 				check(msg);
 			} else {
 				Assert.fail("Expected empty message for " + this + ", but received " + msg);
+			}
+		}
+
+		@Override
+		public void add(MultiMessageExpectation multi) {
+			multi.add(this);
+		}
+	}
+
+	public class MultiMessageExpectation implements Action {
+
+		private int counter;
+		private EmptyMessageExpectation emptyExpectation;
+		private RequestExpectation requestExpectation;
+		private ResponseExpectation responseExpectation;
+
+		public MultiMessageExpectation add(final EmptyMessageExpectation emptyExpectation) {
+			if (null == emptyExpectation) {
+				throw new IllegalArgumentException("no empty message expectation!");
+			}
+			if (null != this.emptyExpectation) {
+				throw new IllegalStateException("empty message expectation already set!");
+			}
+			this.emptyExpectation = emptyExpectation;
+			this.counter++;
+			return this;
+		}
+
+		public MultiMessageExpectation add(final RequestExpectation requestExpectation) {
+			if (null == requestExpectation) {
+				throw new IllegalStateException("no request expectation!");
+			}
+			if (null != this.requestExpectation) {
+				throw new IllegalStateException("request expectation already set!");
+			}
+			this.requestExpectation = requestExpectation;
+			this.counter++;
+			return this;
+		}
+
+		public MultiMessageExpectation add(final ResponseExpectation responseExpectation) {
+			if (null == responseExpectation) {
+				throw new IllegalStateException("no response expectation!");
+			}
+			if (null != this.responseExpectation) {
+				throw new IllegalStateException("response expectation already set!");
+			}
+			this.responseExpectation = responseExpectation;
+			this.counter++;
+			return this;
+		}
+
+		@Override
+		public void go() throws Exception {
+			Assert.assertTrue("No expectations added!)", 0 < counter);
+			while (0 < counter) {
+				RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
+				Assert.assertNotNull("Did not receive a message (but nothing)", raw);
+
+				Message msg = parser.parseMessage(raw);
+				msg.setSource(raw.getAddress());
+				msg.setSourcePort(raw.getPort());
+				int rawCode = msg.getRawCode();
+				if (CoAP.isEmptyMessage(rawCode)) {
+					if (null != emptyExpectation) {
+						emptyExpectation.go(msg);
+						emptyExpectation = null;
+						--counter;
+					} else {
+						Assert.fail("No empty message expected " + msg);
+					}
+				} else if (CoAP.isRequest(rawCode)) {
+					if (null != requestExpectation) {
+						requestExpectation.go(msg);
+						requestExpectation = null;
+						--counter;
+					} else {
+						Assert.fail("No request expected " + msg);
+					}
+				} else if (CoAP.isResponse(rawCode)) {
+					if (null != responseExpectation) {
+						responseExpectation.go(msg);
+						responseExpectation = null;
+						--counter;
+					} else {
+						Assert.fail("No response expected " + msg);
+					}
+				}
 			}
 		}
 	}
