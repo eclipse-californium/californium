@@ -18,17 +18,23 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add Flavor for UPD/TCP support
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * The DataSerialized serializes outgoing messages to byte arrays.
  */
 public final class UdpDataSerializer extends DataSerializer {
+
+	public UdpDataSerializer() {
+		super(Message.Flavor.UDP);
+	}
 
 	@Override protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
 		writer.write(VERSION, VERSION_BITS);

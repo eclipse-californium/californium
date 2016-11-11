@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
@@ -278,7 +279,7 @@ public class UdpMatcherTest {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
-		response.setBytes(new byte[]{});
+		response.setBytes(new byte[]{}, Message.Flavor.UDP);
 		response.setSource(request.getDestination());
 		response.setSourcePort(request.getDestinationPort());
 		response.setDestination(request.getSource());

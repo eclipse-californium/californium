@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getPayloadTracingString 
  *                                                    (for message tracing)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce Flavor for UPD/TCP support
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -61,6 +62,10 @@ public abstract class Message {
 
 	protected final static Logger LOGGER = Logger.getLogger(Message.class.getCanonicalName());
 
+	public enum Flavor {
+		UDP, TCP
+	}
+	
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
 	/**
@@ -118,6 +123,9 @@ public abstract class Message {
 
 	/** Indicates if the message is a duplicate. */
 	private boolean duplicate;
+
+	/** The flavor of the serialized message as byte array. TCP or UDP */
+	private Flavor bytesFlavor;
 
 	/** The serialized message as byte array. */
 	private byte[] bytes;
@@ -610,12 +618,23 @@ a	 */
 	}
 
 	/**
+	 * Gets the flavor of the serialized message or null if not serialized yet.
+	 *
+	 * @return the flavor of the serialized message or null
+	 */
+	public Flavor getBytesFlavor() {
+		return bytesFlavor;
+	}
+	
+	/**
 	 * Sets the bytes of the serialized message.
 	 * Not part of the fluent API.
 	 *
+	 * @param bytesFlavor the flavor of the serialized bytes
 	 * @param bytes the serialized bytes
 	 */
-	public void setBytes(byte[] bytes) {
+	public void setBytes(byte[] bytes, Flavor flavor) {
+		this.bytesFlavor = flavor;
 		this.bytes = bytes;
 	}
 

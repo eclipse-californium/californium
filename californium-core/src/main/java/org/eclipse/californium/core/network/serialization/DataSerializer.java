@@ -18,6 +18,7 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add Flavor for UPD/TCP support
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -36,6 +37,12 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
  */
 public abstract class DataSerializer {
 
+	private final Message.Flavor flavor;
+	
+	protected DataSerializer(Message.Flavor flavor) {
+		this.flavor = flavor;
+	}
+	
 	/** Serializes request and caches bytes on the request object to skip future serializations. */
 	public RawData serializeRequest(Request request) {
 		return serializeRequest(request, null);
@@ -43,7 +50,7 @@ public abstract class DataSerializer {
 
 	/** Serializes request and caches bytes on the request object to skip future serializations. */
 	public RawData serializeRequest(Request request, MessageCallback outboundCallback) {
-		if (request.getBytes() == null) {
+		if (request.getBytesFlavor() != flavor || request.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(request);
 
@@ -53,7 +60,7 @@ public abstract class DataSerializer {
 			writer.writeBytes(body);
 
 			byte[] bytes = writer.toByteArray();
-			request.setBytes(bytes);
+			request.setBytes(bytes, flavor);
 		}
 		return RawData.outbound(request.getBytes(),
 				new InetSocketAddress(request.getDestination(), request.getDestinationPort()), outboundCallback, false);
@@ -61,7 +68,7 @@ public abstract class DataSerializer {
 
 	/** Serializes response and caches bytes on the request object to skip future serializations. */
 	public RawData serializeResponse(Response response) {
-		if (response.getBytes() == null) {
+		if (response.getBytesFlavor() != flavor || response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
 
@@ -71,14 +78,14 @@ public abstract class DataSerializer {
 			writer.writeBytes(body);
 
 			byte[] bytes = writer.toByteArray();
-			response.setBytes(bytes);
+			response.setBytes(bytes, flavor);
 		}
 		return new RawData(response.getBytes(), response.getDestination(), response.getDestinationPort());
 	}
 
 	/** Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations. */
 	public RawData serializeEmptyMessage(EmptyMessage emptyMessage) {
-		if (emptyMessage.getBytes() == null) {
+		if (emptyMessage.getBytesFlavor() != flavor || emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);
 
@@ -88,7 +95,7 @@ public abstract class DataSerializer {
 			writer.writeBytes(body);
 
 			byte[] bytes = writer.toByteArray();
-			emptyMessage.setBytes(bytes);
+			emptyMessage.setBytes(bytes, flavor);
 		}
 		return new RawData(emptyMessage.getBytes(), emptyMessage.getDestination(), emptyMessage.getDestinationPort());
 	}
