@@ -25,6 +25,8 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CON/NON to setup conditional sending
+ *                                                    for messages over TCP
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -69,6 +71,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
+import org.eclipse.californium.elements.MessageNotSentCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -616,20 +619,40 @@ public class CoapEndpoint implements Endpoint {
 			// One of the interceptors may have cancelled the request
 			if (!request.isCanceled()) {
 				// create callback for setting correlation context
-				MessageCallback callback = new MessageCallback() {
+				MessageCallback callback;
+				if (request.isConfirmable()) {
+					callback = new MessageCallback() {
 
-					@Override
-					public void onContextEstablished(final CorrelationContext context) {
-						exchange.setCorrelationContext(context);
-					}
-				};
+						@Override
+						public void onContextEstablished(final CorrelationContext context) {
+							exchange.setCorrelationContext(context);
+						}
+
+					};
+				} else {
+					/* NON, so the connector may decide not to sent it */
+					callback = new MessageNotSentCallback() {
+
+						@Override
+						public void onContextEstablished(final CorrelationContext context) {
+							exchange.setCorrelationContext(context);
+						}
+
+						@Override
+						public void onNotSent() {
+							/* if not sent, reject to indicate "transmission not successful" */
+							request.setRejected(true);
+						}
+
+					};
+				}
 				RawData message = serializer.serializeRequest(request, callback);
 				connector.send(message);
 			}
 		}
 
 		@Override
-		public void sendResponse(Exchange exchange, Response response) {
+		public void sendResponse(final Exchange exchange, final Response response) {
 
 			assertMessageHasDestinationAddress(response);
 			matcher.sendResponse(exchange, response);
@@ -645,7 +668,26 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				connector.send(serializer.serializeResponse(response));
+				MessageNotSentCallback callback = null;
+				if (!response.isConfirmable()) {
+					/* NON, so the connector may decide not to sent it */
+					callback = new MessageNotSentCallback() {
+
+						@Override
+						public void onContextEstablished(final CorrelationContext context) {
+						}
+
+						@Override
+						public void onNotSent() {
+							/* if not sent, reject to indicate "transmission not successful" */
+							response.setRejected(true);
+						}
+
+					};
+				}
+				
+				RawData message = serializer.serializeResponse(response, callback);
+				connector.send(message);
 			}
 		}
 

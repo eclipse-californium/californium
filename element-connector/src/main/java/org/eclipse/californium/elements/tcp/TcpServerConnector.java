@@ -23,6 +23,8 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.MessageCallback;
+import org.eclipse.californium.elements.MessageNotSentCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -111,8 +113,13 @@ public class TcpServerConnector implements Connector {
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
-			LOGGER.log(Level.WARNING, "Attempting to send message to an address without an active connection {0}",
-					msg.getAddress());
+			MessageCallback callback = msg.getMessageCallback();
+			if (callback instanceof MessageNotSentCallback) {
+				((MessageNotSentCallback) callback).onNotSent();
+			} else {
+				LOGGER.log(Level.WARNING, "Attempting to send message to an address without an active connection {0}",
+						msg.getAddress());
+			}
 			return;
 		}
 
@@ -181,7 +188,7 @@ public class TcpServerConnector implements Connector {
 	}
 
 	protected String getSupportedScheme() {
-		return "coap+tcp";
+		return SUPPORTED_SCHEME;
 	}
 
 	private URI getListenUri(final InetSocketAddress listenAddress) {

@@ -18,11 +18,15 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add MessageNotSentCallback to responses
+ *                                                 to indicate conditional sending of messages
+ *                                                 over TCP
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.elements.MessageCallback;
+import org.eclipse.californium.elements.MessageNotSentCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
@@ -59,8 +63,13 @@ public abstract class DataSerializer {
 				new InetSocketAddress(request.getDestination(), request.getDestinationPort()), outboundCallback, false);
 	}
 
-	/** Serializes response and caches bytes on the request object to skip future serializations. */
+	/** Serializes response and caches bytes on the response object to skip future serializations. */
 	public RawData serializeResponse(Response response) {
+		return serializeResponse(response, null);
+	}
+
+	/** Serializes response and caches bytes on the response object to skip future serializations. */
+	public RawData serializeResponse(Response response, MessageNotSentCallback outboundCallback) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -73,7 +82,8 @@ public abstract class DataSerializer {
 			byte[] bytes = writer.toByteArray();
 			response.setBytes(bytes);
 		}
-		return new RawData(response.getBytes(), response.getDestination(), response.getDestinationPort());
+		return RawData.outbound(response.getBytes(),
+				new InetSocketAddress(response.getDestination(), response.getDestinationPort()), outboundCallback, false);
 	}
 
 	/** Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations. */
