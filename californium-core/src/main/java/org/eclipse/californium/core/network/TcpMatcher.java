@@ -96,7 +96,7 @@ public final class TcpMatcher extends BaseMatcher {
 			}
 		}
 
-		// Only Observes keep the exchange active
+		// Only Observes keep the exchange active (CoAP server side)
 		if (response.isLast()) {
 			exchange.setComplete();
 		}
