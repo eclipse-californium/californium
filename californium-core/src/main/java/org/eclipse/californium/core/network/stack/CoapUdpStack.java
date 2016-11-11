@@ -11,30 +11,24 @@
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
  * Contributors:
- * Matthias Kovatsch - creator and main architect
- * Martin Lanter - architect and re-implementation
- * Dominique Im Obersteg - parsers and initial implementation
- * Daniel Pauli - parsers and initial implementation
- * Kai Hudalla - logging
- * Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
- * explicit String concatenation
+ *    Matthias Kovatsch - creator and main architect
+ *    Martin Lanter - architect and re-implementation
+ *    Dominique Im Obersteg - parsers and initial implementation
+ *    Daniel Pauli - parsers and initial implementation
+ *    Kai Hudalla - logging
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
+ *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.Origin;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
-
-import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The CoAPStack builds up the stack of CoAP layers that process the CoAP
@@ -44,55 +38,48 @@ import java.util.logging.Logger;
  * The class <code>CoapStack</code> builds up the part between the Stack Top and
  * Bottom.
  * <hr><blockquote><pre>
- * +-----------------------+
- * | {@link MessageDeliverer}      |
- * +-------------A---------+
- *               A
- *             * A
- * +-----------+-A---------+
- * |       CoAPEndpoint    |
- * |           v A         |
- * |           v A         |
- * | +---------v-+-------+ |
- * | | Stack Top         | |
- * | +-------------------+ |
+ * +--------------------------+
+ * | {@link MessageDeliverer}         |
+ * +--------------A-----------+
+ *                A
+ *              * A
+ * +------------+-A-----------+
+ * |       CoAPEndpoint       |
+ * |            v A           |
+ * |            v A           |
+ * | +----------v-+---------+ |
+ * | | Stack Top            | |
+ * | +----------------------+ |
  * | | {@link ExchangeCleanupLayer} | |
- * * | +-------------------+ |
- * | | {@link ObserveLayer}      | |
- * | +-------------------+ |
- * | | {@link BlockwiseLayer}    | |
- * | +-------------------+ |
- * | | {@link ReliabilityLayer}  | |
- * | +-------------------+ |
- * | | Stack Bottom      | |
- * | +---------+-A-------+ |
- * |           v A         |
- * |         Matcher       |
- * |           v A         |
- * |       Interceptor     |
- * |           v A         |
- * +-----------v-A---------+
- *             v A 
- *             v A 
- * +-----------v-+---------+
- * | {@link Connector}             |
- * +-----------------------+
+ * | +----------------------+ |
+ * | | {@link ObserveLayer}         | |
+ * | +----------------------+ |
+ * | | {@link BlockwiseLayer}       | |
+ * | +----------------------+ |
+ * | | {@link ReliabilityLayer}     | |
+ * | +----------------------+ |
+ * | | Stack Bottom         | |
+ * | +----------+-A---------+ |
+ * |            v A           |
+ * |          Matcher         |
+ * |            v A           |
+ * |        Interceptor       |
+ * |            v A           |
+ * +------------v-A-----------+
+ *              v A 
+ *              v A 
+ * +------------v-+-----------+
+ * | {@link Connector}                |
+ * +--------------------------+
  * </pre></blockquote><hr>
  */
-public class CoapUdpStack implements CoapStack {
+public class CoapUdpStack extends BaseCoapStack {
 
 	/** The LOGGER. */
 	private final static Logger LOGGER = Logger.getLogger(CoapUdpStack.class.getCanonicalName());
 
-	private List<Layer> layers;
-	private Outbox outbox;
-	private StackTopAdapter top;
-	private StackBottomAdapter bottom;
-	private MessageDeliverer deliverer;
-
 	public CoapUdpStack(NetworkConfig config, Outbox outbox) {
-		this.top = new StackTopAdapter();
-		this.outbox = outbox;
+		super(outbox);
 
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
@@ -103,122 +90,11 @@ public class CoapUdpStack implements CoapStack {
 		}
 
 
-		this.layers = new Layer.TopDownBuilder()
-				.add(top)
-				.add(new ExchangeCleanupLayer())
-				.add(new ObserveLayer(config))
-				.add(new BlockwiseLayer(config))
-				.add(reliabilityLayer)
-				.add(bottom = new StackBottomAdapter())
-				.create();
+		Layer layers[] = new Layer[] { new ExchangeCleanupLayer(), new ObserveLayer(config),
+				new BlockwiseLayer(config), reliabilityLayer };
+
+		setLayers(layers);
 
 		// make sure the endpoint sets a MessageDeliverer
-	}
-
-	// delegate to top
-	@Override public void sendRequest(Request request) {
-		top.sendRequest(request);
-	}
-
-	// delegate to top
-	@Override public void sendResponse(Exchange exchange, Response response) {
-		top.sendResponse(exchange, response);
-	}
-
-	// delegate to top
-	@Override public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
-		top.sendEmptyMessage(exchange, message);
-	}
-
-	// delegate to bottom
-	@Override public void receiveRequest(Exchange exchange, Request request) {
-		bottom.receiveRequest(exchange, request);
-	}
-
-	// delegate to bottom
-	@Override public void receiveResponse(Exchange exchange, Response response) {
-		bottom.receiveResponse(exchange, response);
-	}
-
-	// delegate to bottom
-	@Override public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
-		bottom.receiveEmptyMessage(exchange, message);
-	}
-
-	@Override public void setExecutor(ScheduledExecutorService executor) {
-		for (Layer layer : layers)
-			layer.setExecutor(executor);
-	}
-
-	@Override public void setDeliverer(MessageDeliverer deliverer) {
-		this.deliverer = deliverer;
-	}
-
-	@Override public void destroy() {
-		for (Layer layer : layers)
-			layer.destroy();
-	}
-
-	private class StackTopAdapter extends AbstractLayer {
-
-		public void sendRequest(Request request) {
-			Exchange exchange = new Exchange(request, Origin.LOCAL);
-			sendRequest(exchange, request); // layer method
-		}
-
-		@Override public void sendRequest(Exchange exchange, Request request) {
-			exchange.setRequest(request);
-			super.sendRequest(exchange, request);
-		}
-
-		@Override public void sendResponse(Exchange exchange, Response response) {
-			exchange.setResponse(response);
-			super.sendResponse(exchange, response);
-		}
-
-		@Override public void receiveRequest(Exchange exchange, Request request) {
-			// if there is no BlockwiseLayer we still have to set it
-			if (exchange.getRequest() == null)
-				exchange.setRequest(request);
-			if (hasDeliverer()) {
-				deliverer.deliverRequest(exchange);
-			} else {
-				LOGGER.severe("Top of CoAP stack has no deliverer to deliver request");
-			}
-		}
-
-		@Override public void receiveResponse(Exchange exchange, Response response) {
-			if (!response.getOptions().hasObserve())
-				exchange.setComplete();
-			if (hasDeliverer()) {
-				deliverer.deliverResponse(exchange, response); // notify request that response has arrived
-			} else {
-				LOGGER.severe("Top of CoAP stack has no deliverer to deliver response");
-			}
-		}
-
-		@Override public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
-			// When empty messages reach the top of the CoAP stack we can ignore them. 
-		}
-	}
-
-	private class StackBottomAdapter extends AbstractLayer {
-
-		@Override public void sendRequest(Exchange exchange, Request request) {
-			outbox.sendRequest(exchange, request);
-		}
-
-		@Override public void sendResponse(Exchange exchange, Response response) {
-			outbox.sendResponse(exchange, response);
-		}
-
-		@Override public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
-			outbox.sendEmptyMessage(exchange, message);
-		}
-
-	}
-
-	@Override public boolean hasDeliverer() {
-		return deliverer != null;
 	}
 }

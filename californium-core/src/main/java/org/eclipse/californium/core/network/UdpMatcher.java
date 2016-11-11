@@ -137,7 +137,7 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 		}
 
-		// Only CONs and Observe keep the exchange active
+		// Only CONs and Observe keep the exchange active (CoAP server side)
 		if (response.getType() != Type.CON && response.isLast()) {
 			exchange.setComplete();
 		}
