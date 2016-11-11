@@ -32,6 +32,7 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
@@ -61,7 +62,7 @@ import org.junit.runners.Parameterized;
 	@Parameterized.Parameters public static List<Object[]> parameters() {
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(), 7 });
-		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), 0 });
+		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), Message.NONE });
 		return parameters;
 	}
 
@@ -161,7 +162,7 @@ import org.junit.runners.Parameterized;
 	@Test public void testUTF8Encoding() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setType(Type.NON);
-		response.setMID(9);
+		response.setMID(expectedMid);
 		response.setToken(new byte[] {});
 		response.getOptions().addLocationPath("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ").addLocationPath("γλώσσα")
 				.addLocationPath("пустынных").addLocationQuery("ვეპხის=யாமறிந்த").addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
@@ -173,5 +174,6 @@ import org.junit.runners.Parameterized;
 		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
 		assertEquals("ვეპხის=யாமறிந்த&⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎", response.getOptions().getLocationQueryString());
 		assertEquals("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", result.getPayloadString());
+		assertEquals(response.getMID(), result.getMID());
 	}
 }
