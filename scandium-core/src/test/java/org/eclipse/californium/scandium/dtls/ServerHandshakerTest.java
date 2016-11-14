@@ -27,12 +27,7 @@ package org.eclipse.californium.scandium.dtls;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -51,6 +46,8 @@ import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.Certificat
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -146,6 +143,28 @@ public class ServerHandshakerTest {
 		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLength(); 
 		assertThat(ext, is(notNullValue()));
 		assertThat(ext.getFragmentLength().length(), is(512));
+	}
+
+	/**
+	 * Verifies that the server names indicated by a client are stored in the session being negotiated.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testReceiveClientHelloProcessesServerNameExtension() throws Exception {
+
+		// GIVEN a client indicating a host name in its CLIENT_HELLO
+		List<byte[]> extensions = new LinkedList<>();
+		extensions.add(DtlsTestTools.newServerNameExtension("iot.eclipse.org"));
+
+		// WHEN the client sends its CLIENT_HELLO message
+		processClientHello(0, extensions);
+
+		// THEN the server names conveyed in the CLIENT_HELLO message
+		// are stored in the session
+		ServerNames serverNames = session.getServerNames();
+		assertNotNull(serverNames);
+		assertThat(new String(serverNames.get(NameType.HOST_NAME)), is("iot.eclipse.org"));
 	}
 
 	@Test

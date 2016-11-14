@@ -432,4 +432,18 @@ public final class ClientHello extends HandshakeMessage {
 			return null;
 		}
 	}
+
+	/**
+	 * Gets the <em>Server Name Indication</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>Server Name Indication</em> extension.
+	 */
+	public ServerNameExtension getServerNameExtension() {
+		if (extensions != null) {
+			return (ServerNameExtension) extensions.getExtension(ExtensionType.SERVER_NAME);
+		} else {
+			return null;
+		}
+	}
 }

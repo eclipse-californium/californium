@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
@@ -95,6 +96,8 @@ public final class DtlsConnectorConfig {
 
 	private int maxConnections = 500000;
 	private long staleConnectionThreshold = 24 * 60 * 60; // 24h default
+
+	private ServerNameResolver serverNameResolver;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -207,6 +210,22 @@ public final class DtlsConnectorConfig {
 	 */
 	public PskStore getPskStore() {
 		return pskStore;
+	}
+
+	/**
+	 * Gets the resolver to use for determining the server names to include
+	 * in a <em>Server Name Indication</em> extension when initiating a handshake
+	 * with a peer.
+	 * <p>
+	 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
+	 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
+	 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
+	 * returned server names.
+	 * 
+	 * @return The resolver or {@code null} if no server names should be indicated to peers.
+	 */
+	public ServerNameResolver getServerNameResolver() {
+		return serverNameResolver;
 	}
 
 	/**
@@ -516,6 +535,24 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setPskStore(PskStore pskStore) {
 			config.pskStore = pskStore;
+			return this;
+		}
+
+		/**
+		 * Sets the resolver to use for determining the server names to include
+		 * in a <em>Server Name Indication</em> extension when initiating a handshake
+		 * with a peer.
+		 * <p>
+		 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
+		 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
+		 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
+		 * returned server names.
+		 * 
+		 * @param resolver The resolver.
+		 * @return This builder for command chaining.
+		 */
+		public Builder setServerNameResolver(final ServerNameResolver resolver) {
+			config.serverNameResolver = resolver;
 			return this;
 		}
 

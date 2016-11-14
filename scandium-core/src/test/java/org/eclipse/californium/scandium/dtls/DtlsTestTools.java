@@ -21,6 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -133,6 +134,16 @@ public final class DtlsTestTools {
 
 	public static byte[] newMaxFragmentLengthExtension(int lengthCode) {
 		return newHelloExtension(1, new byte[]{(byte) lengthCode});
+	}
+
+	public static byte[] newServerNameExtension(final String hostName) {
+
+		byte[] name = hostName.getBytes(StandardCharsets.US_ASCII);
+		DatagramWriter writer = new DatagramWriter();
+		writer.writeByte((byte) 0x00);
+		writer.write(name.length, 16);
+		writer.writeBytes(name);
+		return newHelloExtension(0, writer.toByteArray());
 	}
 
 	public static byte[] newHelloExtension(int typeCode, byte[] extensionBytes) {

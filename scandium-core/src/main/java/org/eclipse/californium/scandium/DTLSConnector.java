@@ -102,6 +102,7 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 
 
 /**
@@ -110,6 +111,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * exchanged between networked clients and a server application.
  */
 public class DTLSConnector implements Connector {
+
+	/**
+	 * The {@code CorrelationContext} key used to store the host name indicated by a
+	 * client in an SNI hello extension.
+	 */
+	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
 	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 	private static final String SUPPORTED_SCHEME = "coaps";
@@ -547,7 +554,7 @@ public class DTLSConnector implements Connector {
 		connectionClosed(connection.getPeerAddress());
 	}
 
-	private void processApplicationDataRecord(Record record) {
+	private void processApplicationDataRecord(final Record record) {
 
 		Connection connection = connectionStore.get(record.getPeerAddress());
 		if (connection != null && connection.hasEstablishedSession()) {
@@ -590,6 +597,13 @@ public class DTLSConnector implements Connector {
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
+			if (session.getServerNames() != null) {
+				// client has indicated some server names in its CLIENT_HELLO
+				byte[] hostName = session.getServerNames().get(NameType.HOST_NAME);
+				if (hostName != null) {
+					context.put(KEY_TLS_SERVER_HOST_NAME, new String(hostName));
+				}
+			}
 			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
 		}
 	}
