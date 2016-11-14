@@ -916,23 +916,6 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
-	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
-		// given a constrained client that can only handle fragments of max. 512 bytes
-		clientConfig = newStandardConfigBuilder(clientEndpoint)
-				.setMaxFragmentLengthCode(1)
-				.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-
-		// when the client negotiates a session with the server
-		givenAnEstablishedSession();
-
-		// then any message sent by either the client or server contains at most
-		// 512 bytes of payload data
-		assertThat(client.getMaximumFragmentLength(serverEndpoint), is(512));
-		assertThat(server.getMaximumFragmentLength(clientEndpoint), is(512));
-	}
-
-	@Test
 	public void testDestroyClearsConnectionStore() throws Exception {
 		// given a non-empty connection store
 		givenAnEstablishedSession();

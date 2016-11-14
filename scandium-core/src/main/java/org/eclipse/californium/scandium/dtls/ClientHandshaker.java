@@ -47,10 +47,12 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
@@ -60,7 +62,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public class ClientHandshaker extends Handshaker {
 
 	private static final Logger LOGGER = Logger.getLogger(ClientHandshaker.class.getName());
-	
+
 	// Members ////////////////////////////////////////////////////////
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
@@ -111,6 +113,8 @@ public class ClientHandshaker extends Handshaker {
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
+	protected final ServerNameResolver serverNameResolver;
+	protected ServerNames indicatedServerNames;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -139,6 +143,7 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
+		this.serverNameResolver = config.getServerNameResolver();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -354,6 +359,11 @@ public class ClientHandshaker extends Handshaker {
 		}
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
+
+		if (message.getExtensions().getExtension(ExtensionType.SERVER_NAME) != null) {
+			// server has indicated support for Server Name Indication hello extension
+			session.setServerNames(indicatedServerNames);
+		}
 	}
 
 	/**
@@ -600,6 +610,9 @@ public class ClientHandshaker extends Handshaker {
 					"Indicating max. fragment length [{0}] to server [{1}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
+
+		addServerNameIndication(startMessage);
+
 		// set current state
 		state = startMessage.getMessageType().getCode();
 
@@ -609,5 +622,15 @@ public class ClientHandshaker extends Handshaker {
 		flight.addMessage(wrapMessage(startMessage));
 
 		recordLayer.sendFlight(flight);
+	}
+
+	private void addServerNameIndication(final ClientHello helloMessage) {
+
+		if (serverNameResolver != null) {
+			indicatedServerNames = serverNameResolver.getServerNames(session.getPeer());
+			if (indicatedServerNames != null) {
+				helloMessage.addExtension(ServerNameExtension.forServerNames(indicatedServerNames));
+			}
+		}
 	}
 }
