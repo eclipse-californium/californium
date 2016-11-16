@@ -787,7 +787,7 @@ public class Exchange {
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyUri[)").append(uri)
+			return new StringBuilder("KeyUri[").append(uri)
 					.append(", ").append(Utils.toHexString(address)).append(":").append(port)
 					.append("]").toString();
 		}
