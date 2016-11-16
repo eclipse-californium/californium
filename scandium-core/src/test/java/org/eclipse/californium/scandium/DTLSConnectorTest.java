@@ -654,6 +654,11 @@ public class DTLSConnectorTest {
 		// Do a first handshake
 		givenAnEstablishedSession();
 		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		// save the current epoch
+		int readEpoch = establishedServerSession.getReadEpoch();
+		int writeEpoch = establishedServerSession.getWriteEpoch();
+		assertEquals(readEpoch, 1);
+		assertEquals(writeEpoch, 1);
 
 		// Force a resume session the next time we send data
 		client.forceResumeSessionFor(serverEndpoint);
@@ -674,6 +679,9 @@ public class DTLSConnectorTest {
 		connection = clientConnectionStore.get(serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
 		assertClientIdentity(RawPublicKeyIdentity.class);
+		// check epochs after resume
+		assertEquals(readEpoch, connection.getEstablishedSession().getReadEpoch());
+		assertEquals(writeEpoch, connection.getEstablishedSession().getWriteEpoch());
 	}
 
 	@Test
