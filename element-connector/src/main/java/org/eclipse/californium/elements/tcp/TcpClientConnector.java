@@ -28,6 +28,8 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.MessageCallback;
+import org.eclipse.californium.elements.MessageNotSentCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -98,6 +100,11 @@ public class TcpClientConnector implements Connector {
 	}
 
 	@Override public void send(final RawData msg) {
+		MessageCallback callback = msg.getMessageCallback();
+		if (callback instanceof MessageNotSentCallback && !poolMap.contains(msg.getInetSocketAddress())) {
+			((MessageNotSentCallback) callback).onNotSent();
+			return;
+		}
 		final ChannelPool channelPool = poolMap.get(new InetSocketAddress(msg.getAddress(), msg.getPort()));
 		Future<Channel> acquire = channelPool.acquire();
 		acquire.addListener(new GenericFutureListener<Future<Channel>>() {
