@@ -19,6 +19,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
@@ -67,8 +68,21 @@ public class RequestTest {
 
 	@Test
 	public void testSetURISetsUriHostOption() throws UnknownHostException {
-		Request req = Request.newGet().setURI("coap://iot.eclipse.org");
-		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
+		String host = "iot.eclipse.org";
+		
+		try {
+			/* check, id DNS is working */
+			InetAddress.getByName(host);
+			/* DNS OK! */
+		}
+		catch(UnknownHostException ex) {
+			/* DNS failed, so use own host name */
+			host = InetAddress.getLocalHost().getHostName();
+		}
+
+		Request req = Request.newGet().setURI("coap://" + host);
+		assertThat(req.getOptions().getUriHost(), is(host));
+
 	}
 
 	@Test
