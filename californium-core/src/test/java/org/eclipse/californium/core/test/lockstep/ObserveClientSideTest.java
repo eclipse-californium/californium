@@ -224,11 +224,12 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
 		server.goMultiExpectation();
 
-		// old block
 		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
+		// server sends the (delayed) response to the GET request triggered by notification 4
+		// this response should be ignored by the client because it doesn't match the latest (current) request's token
 		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
-		// new block
-		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
+		// server sends the response to the latest GET request triggered by notification 5
+		// this response in turn triggers additional GETs in order to do the full blockwise transfer
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("H").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 16).payload(respPayload4.substring(32, 40)).go();
