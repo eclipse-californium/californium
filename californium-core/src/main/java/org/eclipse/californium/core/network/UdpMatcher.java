@@ -391,8 +391,9 @@ public final class UdpMatcher extends BaseMatcher {
 			} else {
 				// we have received the expected response for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
-				exchangeStore.remove(idByMID);
-				LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
+				if (exchangeStore.remove(idByMID) != null) {
+					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
+				}
 			}
 
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
