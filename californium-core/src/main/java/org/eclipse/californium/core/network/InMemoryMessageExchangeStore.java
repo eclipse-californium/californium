@@ -179,7 +179,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 					LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
 				} else {
 					message.setMID(mid);
-					if (exchangesByMID.putIfAbsent(KeyMID.fromOutboundMessage(message), exchange) != null) {
+					KeyMID key = KeyMID.fromOutboundMessage(message);
+					if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 						LOGGER.log(Level.WARNING, "newly generated MID [{0}] already in use, overwriting already registered exchange",
 								message.getMID());
 					}
@@ -245,13 +246,22 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final KeyToken token) {
 		synchronized (exchangesByToken) {
 			exchangesByToken.remove(token);
+			LOGGER.log(
+					Level.FINE,
+					"removing exchange for token {0}, remaining exchanges by tokens: {1}",
+					new Object[]{token, exchangesByToken.size()});
 		}
 	}
 
 	@Override
 	public Exchange remove(final KeyMID messageId) {
 		synchronized (messageIdProvider) {
-			return exchangesByMID.remove(messageId);
+			Exchange removedExchange = exchangesByMID.remove(messageId);
+			LOGGER.log(
+					Level.FINE,
+					"removing exchange for MID {0}, remaining exchanges by MIDs: {1}",
+					new Object[]{messageId, exchangesByMID.size()});
+			return removedExchange;
 		}
 	}
 
@@ -328,7 +338,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public void remove(final KeyUri requestUri) {
-		ongoingExchanges.remove(requestUri);
+		synchronized(ongoingExchanges) {
+			ongoingExchanges.remove(requestUri);
+			LOGGER.log(Level.FINE, "removing transfer for URI {0}, remaining ongoing exchanges: {1}", new Object[]{requestUri, ongoingExchanges.size()});
+		}
 	}
 
 	@Override
