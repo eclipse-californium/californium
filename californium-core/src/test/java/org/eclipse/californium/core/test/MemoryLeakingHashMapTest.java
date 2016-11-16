@@ -137,7 +137,7 @@ public class MemoryLeakingHashMapTest {
 		testSimpleGet(uriOf(SEPARATE));
 	}
 
-	private void testSimpleGet(String uri) throws Exception {
+	private static void testSimpleGet(String uri) throws Exception {
 		LOGGER.log(Level.FINE, "Test simple GET to {0}", uri);
 
 		currentResponseText = "simple GET";
@@ -159,7 +159,7 @@ public class MemoryLeakingHashMapTest {
 		testBlockwise(uriOf(SEPARATE));
 	}
 
-	private void testBlockwise(String uri) throws Exception {
+	private static void testBlockwise(String uri) throws Exception {
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
 		testBlockwise(client);
@@ -172,7 +172,7 @@ public class MemoryLeakingHashMapTest {
 		testBlockwise(client);
 	}
 
-	private void testBlockwise(CoapClient client) {
+	private static void testBlockwise(CoapClient client) {
 		LOGGER.log(Level.FINE, "Test blockwise POST to {0}", client.getURI());
 
 		currentRequestText = LONG_REQUEST;
@@ -182,7 +182,7 @@ public class MemoryLeakingHashMapTest {
 		assertThatResponseContainsValue(response, currentResponseText);
 	}
 
-	private void assertThatResponseContainsValue(CoapResponse response, String expectedValue) {
+	private static void assertThatResponseContainsValue(CoapResponse response, String expectedValue) {
 		assertThat(response,  is(notNullValue()));
 		LOGGER.log(Level.FINE, "Client received response [{0}]", response.getResponseText());
 		assertThat(response.getResponseText(), is(expectedValue));
@@ -292,8 +292,8 @@ public class MemoryLeakingHashMapTest {
 		serverPort = serverEndpoint.getAddress().getPort();
 	}
 
-	private String uriOf(String resourcePath) {
-		return "coap://localhost:" + serverPort + "/" + resourcePath;
+	private static String uriOf(final String resourcePath) {
+		return String.format("coap://%s:%d/%s", InetAddress.getLoopbackAddress().getHostAddress(), serverPort, resourcePath);
 	}
 
 	public enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONE; }
