@@ -107,7 +107,7 @@ public final class IntegrationTestTools {
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval) {
 		try {
-			int timeToWait = exchangeLifetime + sweepInterval + 100; // milliseconds
+			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
 			Thread.sleep(timeToWait);
 		} catch (InterruptedException e) {
