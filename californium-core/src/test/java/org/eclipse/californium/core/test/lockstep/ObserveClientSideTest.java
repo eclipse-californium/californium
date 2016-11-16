@@ -181,8 +181,10 @@ public class ObserveClientSideTest {
 		// normal notification
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
@@ -197,8 +199,10 @@ public class ObserveClientSideTest {
 		// override transfer with new notification
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 
@@ -226,16 +230,20 @@ public class ObserveClientSideTest {
 		// override transfer with new notification and conflicting block number
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
+		server.goMultiExpectation();
 
 		clientInterceptor.log("\n\n//////// Overriding notification 2 ////////");
 		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
 
 		// start new block
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload4.substring(0, 16)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
+		server.goMultiExpectation();
 
 		// old block
 		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
@@ -265,8 +273,11 @@ public class ObserveClientSideTest {
 		clientInterceptor.log("\n\n//////// Notification after cancellation ////////");
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(6).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		
 		// canceling in the middle of blockwise transfer
 		client.cancelObservation(request.getToken());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
