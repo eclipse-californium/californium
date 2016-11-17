@@ -16,10 +16,12 @@
 package org.eclipse.californium.core.coap;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 
 import org.eclipse.californium.category.Small;
@@ -36,7 +38,7 @@ public class RequestTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetURIRejectsUnsupportedScheme() {
-		Request.newGet().setURI("unknown://localhost");
+		Request.newGet().setURI("unknown://127.0.0.1");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -58,7 +60,7 @@ public class RequestTest {
 	}
 
 	@Test
-	public void testSetURISetsDestination() throws UnknownHostException {
+	public void testSetURISetsDestination() {
 		InetSocketAddress dest = InetSocketAddress.createUnresolved("192.168.0.1", 12000);
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
 		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
@@ -66,13 +68,17 @@ public class RequestTest {
 	}
 
 	@Test
-	public void testSetURISetsUriHostOption() throws UnknownHostException {
-		Request req = Request.newGet().setURI("coap://iot.eclipse.org");
-		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
+	public void testSetURISetsUriHostOptionToHostName() {
+
+		assumeTrue(dnsIsWorking());
+		Request req = Request.newGet().setURI("coaps://localhost");
+		assertNotNull(req.getDestination());
+		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertThat(req.getOptions().getUriHost(), is("localhost"));
 	}
 
 	@Test
-	public void testSetURISetsDestinationPortBasedOnUriScheme() throws UnknownHostException {
+	public void testSetURISetsDestinationPortBasedOnUriScheme() {
 		Request req = Request.newGet().setURI("coap://127.0.0.1");
 		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
 
@@ -86,4 +92,27 @@ public class RequestTest {
 		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testSetOptionsFailsIfDestinationIsNotSet() {
+		Request.newGet().setOptions(URI.create("coap://iot.eclipse.org"));
+	}
+
+	@Test
+	public void testSetOptionsSetsUriHostOption() {
+
+		Request req = Request.newGet();
+		req.setDestination(InetAddress.getLoopbackAddress());
+		req.setOptions(URI.create("coap://iot.eclipse.org"));
+		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
+	}
+
+	private static boolean dnsIsWorking() {
+		try {
+			InetAddress.getByName("localhost");
+			return true;
+		} catch (UnknownHostException e) {
+			return false;
+		}
+	}
 }
