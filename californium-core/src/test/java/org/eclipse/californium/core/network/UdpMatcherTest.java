@@ -235,7 +235,7 @@ public class UdpMatcherTest {
 		return matcher;
 	}
 
-	private Exchange sendRequest(final UdpMatcher matcher, final CorrelationContext ctx) {
+	private static Exchange sendRequest(final UdpMatcher matcher, final CorrelationContext ctx) {
 		Request request = Request.newGet();
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
@@ -246,7 +246,7 @@ public class UdpMatcherTest {
 		return exchange;
 	}
 
-	private Exchange sendObserveRequest(final UdpMatcher matcher) {
+	private static Exchange sendObserveRequest(final UdpMatcher matcher) {
 		Request request = Request.newGet();
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
@@ -256,7 +256,7 @@ public class UdpMatcherTest {
 		return exchange;
 	}
 
-	private Response responseFor(final Request request) {
+	private static Response responseFor(final Request request) {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());

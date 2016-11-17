@@ -41,7 +41,19 @@ public abstract class DataParser {
 	 */
 	public final Message parseMessage(final RawData raw) {
 
-		DatagramReader reader = new DatagramReader(raw.getBytes());
+		return parseMessage(raw.getBytes());
+	}
+
+	/**
+	 * Parses a byte array into a CoAP Message.
+	 * 
+	 * @param msg the byte array to parse.
+	 * @return the message.
+	 * @throws MessageFormatException if the array cannot be parsed into a message.
+	 */
+	public final Message parseMessage(final byte[] msg) {
+
+		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
 		if (CoAP.isRequest(header.getCode())) {
 			return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
