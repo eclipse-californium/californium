@@ -30,6 +30,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.Principal;
+import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -87,24 +90,26 @@ import org.eclipse.californium.core.network.EndpointManager;
  * @see Response
  */
 public class Request extends Message {
-	
+
+	private static final Pattern IP_PATTERN = Pattern.compile("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
+
 	/** The request code. */
 	private final CoAP.Code code;
-	
+
 	/** Marks this request as multicast request */
 	private boolean multicast;
-	
+
 	/** The current response for the request. */
 	private Response response;
-	
+
 	private String scheme;
-	
+
 	/** The lock object used to wait for a response. */
 	private Object lock;
-	
+
 	/** the authenticated (remote) sender's identity **/
 	private Principal senderIdentity;
-	
+
 	/**
 	 * Instantiates a new request with the specified CoAP code and no (null)
 	 * message type.
@@ -115,18 +120,18 @@ public class Request extends Message {
 		super();
 		this.code = code;
 	}
-	
+
 	/**
-	 * Instantiates a new request with the specified CoAP code and message type.
+	 * Creates a request for a CoAP code and message type.
 	 * 
-	 * @param code the request code
-	 * @param type the message type
+	 * @param code the request code.
+	 * @param type the message type.
 	 */
 	public Request(Code code, Type type) {
 		super(type);
 		this.code = code;
 	}
-	
+
 	/**
 	 * Gets the request code.
 	 *
@@ -142,9 +147,9 @@ public class Request extends Message {
 	 * @return the scheme
 	 */
 	public String getScheme() {
-		return scheme;
+		return scheme == null ? CoAP.COAP_URI_SCHEME : scheme;
 	}
-	
+
 	/**
 	 * Sets the scheme.
 	 *
@@ -153,7 +158,7 @@ public class Request extends Message {
 	public void setScheme(String scheme) {
 		this.scheme = scheme;
 	}
-	
+
 	/**
 	 * Tests if this request is a multicast request
 	 * 
@@ -171,12 +176,13 @@ public class Request extends Message {
 	public void setMulticast(boolean multicast) {
 		this.multicast = multicast;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 * 
 	 * Required in Request to keep class for fluent API.
 	 */
+	@Override
 	public Request setPayload(String payload) {
 		super.setPayload(payload);
 		return this;
@@ -187,73 +193,141 @@ public class Request extends Message {
 	 * 
 	 * Required in Request to keep class for fluent API.
 	 */
+	@Override
 	public Request setPayload(byte[] payload) {
 		super.setPayload(payload);
 		return this;
 	}
-	
+
 	/**
-	 * This is a convenience method to set the reques's options for host, port
-	 * and path with a string of the form
-	 * <code>[scheme]://[host]:[port]{/resource}*?{&amp;query}*</code>
+	 * Sets this request's CoAP URI.
 	 * 
-	 * @param uri the URI defining the target resource
-	 * @return this request
+	 * @param uri A CoAP URI as specified by <a href="https://tools.ietf.org/html/rfc7252#section-6">
+	 *            Section 6 of RFC 7252</a>
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the URI is {@code null}.
+	 * @throws IllegalArgumentException if the given string is not a valid CoAP URI, contains a non-resolvable
+	 *                                  host name, an unsupported scheme or a fragment.
 	 */
-	public Request setURI(String uri) {
+	public Request setURI(final String uri) {
+
+		if (uri == null) {
+			throw new NullPointerException("URI must not be null");
+		}
+
 		try {
-			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://"))
-				uri = "coap://" + uri;
-			return setURI(new URI(uri));
+			String coapUri = uri;
+			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://")) {
+				coapUri = "coap://" + uri;
+				LOGGER.log(Level.WARNING, "update your code to supply an RFC 7252 compliant URI including a valid scheme");
+			}
+			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("Failed to set uri "+uri + ": " + e.getMessage());
+			throw new IllegalArgumentException("invalid uri: " + uri, e);
 		}
 	}
-	
+
 	/**
-	 * This is a convenience method to set the request's options for host, port
-	 * and path with a URI object.
+	 * Sets the destination address and port and options from a given URI.
+	 * <p>
+	 * This method sets the <em>destination</em> to the IP address that the host part of the URI
+	 * has been resolved to and then delegates to the {@link #setOptions(URI)} method in order
+	 * to populate the request's options.
 	 * 
-	 * @param uri the URI defining the target resource
-	 * @return this request
+	 * @param uri The target URI.
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the URI is {@code null}.
+	 * @throws IllegalArgumentException if the URI contains a non-resolvable host name, an
+	 *                                  unsupported scheme or a fragment.
 	 */
-	public Request setURI(URI uri) {
-		/*
-		 * Implementation from old Cf from Dominique Im Obersteg, Daniel Pauli
-		 * and Francesco Corazza.
-		 */
-		String host = uri.getHost();
-		// set Uri-Host option if not IP literal
-		if (host != null && !host.toLowerCase().matches("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})")) {
-			if (!host.equals("localhost"))
-				getOptions().setUriHost(host);
+	public Request setURI(final URI uri) {
+
+		if (uri == null) {
+			throw new NullPointerException("URI must not be null");
 		}
+
+		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 
 		try {
-			setDestination(InetAddress.getByName(host));
-		} catch (UnknownHostException e) {
-			throw new IllegalArgumentException("Failed to set unknown host "+host);
-    	}
 
-		String scheme = uri.getScheme();
-		if (scheme != null) {
-			// decide according to URI scheme whether DTLS is enabled for the client
-			this.scheme = scheme;
+			InetAddress destAddress = InetAddress.getByName(host);
+			setDestination(destAddress);
+
+			return setOptions(new URI(uri.getScheme(), null, host, uri.getPort(), uri.getPath(), uri.getQuery(), uri.getFragment()));
+
+		} catch (UnknownHostException e) {
+			throw new IllegalArgumentException("cannot resolve host name: " + host);
+		} catch (URISyntaxException e) {
+			// should not happen because we are creating the URI from an existing URI object
+			LOGGER.log(Level.WARNING, "cannot set URI on request", e);
+			throw new IllegalArgumentException(e);
 		}
-		
-		/*
-		 * The Uri-Port is only for special cases where it differs from the UDP port,
-		 * usually when Proxy-Scheme is used.
-		 */
+	}
+
+	/**
+	 * Sets this request's options from a given URI as defined in
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4">RFC 7252, Section 6.4</a>.
+	 * <p>
+	 * This method requires the <em>destination</em> to be set already because it does not
+	 * try to resolve a host name that is part of the given URI. Therefore, this method can be
+	 * used as an alternative to the {@link #setURI(String)} and {@link #setURI(URI)} methods
+	 * when DNS is not available.
+	 * 
+	 * @param uri The URI to set the options from.
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the URI is {@code null}.
+	 * @throws IllegalArgumentException if the URI contains an unsupported scheme or contains a fragment.
+	 * @throws IllegalStateException if the destination is not set.
+	 */
+	public Request setOptions(final URI uri) {
+
+		if (uri == null) {
+			throw new NullPointerException("URI must not be null");
+		} else if (!isSupportedScheme(uri.getScheme())) {
+			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
+		} else if (uri.getFragment() != null) {
+			throw new IllegalArgumentException("URI must not contain a fragment");
+		} else if (getDestination() == null) {
+			throw new IllegalStateException("destination address must be set");
+		}
+
+		if (uri.getHost() != null) {
+			String host = uri.getHost().toLowerCase();
+			Matcher matcher = IP_PATTERN.matcher(host);
+			if (matcher.matches()) {
+				try {
+					// host is a literal IP address, so we should be able
+					// to "wrap" it without invoking the resolver
+					InetAddress hostAddress = InetAddress.getByName(host);
+					if (!hostAddress.equals(getDestination())) {
+						throw new IllegalArgumentException("URI's literal host IP address does not match request's destination address");
+					}
+				} catch (UnknownHostException e) {
+					// this should not happen because we do not need to resolve a host name
+					LOGGER.warning("could not parse IP address of URI despite successful IP address pattern matching");
+				}
+			} else {
+				// host contains a host name, simply put it into Uri-Host option
+				getOptions().setUriHost(host);
+			}
+		}
+
+		scheme = uri.getScheme().toLowerCase();
+		// The Uri-Port is only for special cases where it differs from the UDP port,
+		// usually when Proxy-Scheme is used.
 		int port = uri.getPort();
-		if (port >= 0) {
-			// do not set the Uri-Port option unless it is used for proxying (setting Uri-Scheme option) 
-			setDestinationPort(port);
-		} else if (getDestinationPort() == 0) {
-			if (scheme == null || scheme.equals(CoAP.COAP_URI_SCHEME))
-				setDestinationPort(CoAP.DEFAULT_COAP_PORT);
-			else if (scheme.equals(CoAP.COAP_SECURE_URI_SCHEME))
-				setDestinationPort(CoAP.DEFAULT_COAP_SECURE_PORT);
+		if (port <= 0) {
+			// port has not been specified in URI, use default port for scheme
+			if (scheme.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
+				port = CoAP.DEFAULT_COAP_SECURE_PORT;
+			} else {
+				port = CoAP.DEFAULT_COAP_PORT;
+			}
+		}
+
+		setDestinationPort(port);
+		if (port != CoAP.DEFAULT_COAP_PORT) {
+			getOptions().setUriPort(port);
 		}
 
 		// set Uri-Path options
@@ -267,10 +341,19 @@ public class Request extends Message {
 		if (query != null) {
 			getOptions().setUriQuery(query);
 		}
+
 		return this;
 	}
-	
-	// TODO: test this method.
+
+	private static boolean isSupportedScheme(final String uriScheme) {
+		boolean result = false;
+		if (uriScheme != null) {
+			String scheme = uriScheme.toLowerCase();
+			result = CoAP.COAP_URI_SCHEME.equalsIgnoreCase(scheme) || CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(scheme);
+		}
+		return result;
+	}
+
 	/**
 	 * Returns the absolute Request-URI as string.
 	 * To support virtual servers, it either uses the Uri-Host option
