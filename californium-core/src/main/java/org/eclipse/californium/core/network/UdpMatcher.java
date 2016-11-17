@@ -557,9 +557,11 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 
 		@Override
-		public void contextEstablished(Exchange exchange) {
-			if (exchange.getRequest() != null)
+		public void contextEstablished(final Exchange exchange) {
+
+			if (exchange.getRequest() != null) {
 				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
+			}
 			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}

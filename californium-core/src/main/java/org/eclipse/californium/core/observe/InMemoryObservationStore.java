@@ -26,69 +26,95 @@ import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.RawData;
 
+/**
+ * An observation store that keeps all observations in-memory.
+ *
+ */
 public class InMemoryObservationStore implements ObservationStore {
 
 	private static final Logger LOG = Logger.getLogger(InMemoryObservationStore.class.getName());
 	private static final DataSerializer serializer = new UdpDataSerializer();
+	private static final DataParser parser = new UdpDataParser();
 	private Map<Key, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
-	public void add(Observation obs) {
-		if (obs != null) {
+	public void add(final Observation obs) {
+
+		if (obs == null) {
+			throw new NullPointerException("observation must not be null");
+		} else {
 			Key key = Key.fromToken(obs.getRequest().getToken());
 			LOG.log(Level.FINER, "adding observation for token {0}", key);
-			map.put(key, obs);
+
+			// clone request object here to make sure that future updates to
+			// the request have no impact on the stored Observation
+			byte[] serialize = serializer.getByteArray(obs.getRequest());
+			Request newRequest = (Request) parser.parseMessage(serialize);
+			newRequest.setUserContext(obs.getRequest().getUserContext());
+			map.put(key, new Observation(newRequest, obs.getContext()));
 		}
 	}
 
 	@Override
-	public Observation get(byte[] token) {
-		Key key = Key.fromToken(token);
-		LOG.log(Level.FINER, "looking up observation for token {0}", key);
-		Observation obs = map.get(key);
-		if (obs != null) {
-			LOG.log(Level.FINER, "found observation for token {0}", key);
-			// clone registered Observation
-			RawData serialize = serializer.serializeRequest(obs.getRequest(), null);
-			DataParser parser = new UdpDataParser();
-			Request newRequest = (Request) parser.parseMessage(serialize);
-			newRequest.setUserContext(obs.getRequest().getUserContext());
-			return new Observation(newRequest, obs.getContext());
+	public Observation get(final byte[] token) {
+		if (token == null) {
+			return null;
+		} else {
+			Key key = Key.fromToken(token);
+			LOG.log(Level.FINER, "looking up observation for token {0}", key);
+			return map.get(key);
 		}
-		return null;
 	}
 
 	@Override
 	public void remove(byte[] token) {
-		Key key = Key.fromToken(token);
-		map.remove(key);
-		LOG.log(Level.FINER, "removed observation for token {0}", key);
+		if (token != null) {
+			Key key = Key.fromToken(token);
+			map.remove(key);
+			LOG.log(Level.FINER, "removed observation for token {0}", key);
+		}
 	}
 
+	/**
+	 * Checks if this store is empty.
+	 * 
+	 * @return {@code true} if this store does not contain any observations.
+	 */
 	public boolean isEmpty(){
 		return map.isEmpty();
 	}
 
+	/**
+	 * Gets the number of observations currently held in this store.
+	 * 
+	 * @return The number of observations.
+	 */
 	public int getSize() {
 		return map.size();
 	}
 
+	/**
+	 * Removes all observations from this store.
+	 */
 	public void clear() {
 		map.clear();
 	}
 
 	@Override
-	public void setContext(byte[] token, CorrelationContext ctx) {
-		Key key = Key.fromToken(token);
-		Observation obs = map.get(key);
-		if (obs != null) {
-			map.put(key, new Observation(obs.getRequest(), ctx));
+	public void setContext(final byte[] token, final CorrelationContext ctx) {
+
+		if (token != null && ctx != null) {
+			Key key = Key.fromToken(token);
+			Observation obs = map.get(key);
+			if (obs != null) {
+				map.put(key, new Observation(obs.getRequest(), ctx));
+			}
 		}
 	}
 
 	private static class Key {
+
 		private final byte[] token;
 
 		private Key(final byte[] token) {

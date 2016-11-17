@@ -28,16 +28,24 @@ public interface ObservationStore {
 
 	/**
 	 * Adds an observation to the store.
+	 * 
+	 * @param obs The observation to add.
+	 * @throws NullPointerException if observation is {@code null}.
 	 */
 	void add(Observation obs);
 
 	/**
 	 * Removes the observation initiated by the request with the given token.
+	 * 
+	 * @param token The token of the observation to remove.
 	 */
 	void remove(byte[] token);
 
 	/**
 	 * Gets the observation initiated by the request with the given token.
+	 * 
+	 * @param token The token of the initiating request.
+	 * @return The corresponding observation or {@code null} if no observation is registered for the given token.
 	 */
 	Observation get(byte[] token);
 
@@ -51,6 +59,9 @@ public interface ObservationStore {
 	 * the transport layer when the request establishing the observation is sent
 	 * to the peer.
 	 * </p>
+	 * 
+	 * @param token The token of the observation to set the context on.
+	 * @param correlationContext The context to set.
 	 */
 	void setContext(byte[] token, CorrelationContext correlationContext);
 }
