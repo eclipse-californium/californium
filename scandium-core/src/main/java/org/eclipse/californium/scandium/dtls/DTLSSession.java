@@ -41,7 +41,6 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Represents a DTLS session between two peers. Keeps track of the current and
@@ -150,7 +149,6 @@ public final class DTLSSession {
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
-	private ServerNames serverNames;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -803,23 +801,5 @@ public final class DTLSSession {
 		} else {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
-	}
-
-	/**
-	 * Gets the server names the client has indicated as part of its <em>CLIENT_HELLO</em> message.
-	 * 
-	 * @return The server names or {@code null} if no server names have been indicated by the client.
-	 */
-	public final ServerNames getServerNames() {
-		return serverNames;
-	}
-
-	/**
-	 * Sets the server names the client has indicated as part of its <em>CLIENT_HELLO</em> message.
-	 * 
-	 * @param serverNames The server names.
-	 */
-	final void setServerNames(final ServerNames serverNames) {
-		this.serverNames = serverNames;
 	}
 }
