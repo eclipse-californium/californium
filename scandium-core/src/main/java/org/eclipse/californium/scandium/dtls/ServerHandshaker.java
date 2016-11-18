@@ -110,6 +110,7 @@ public class ServerHandshaker extends Handshaker {
 	private CertificateType negotiatedServerCertificateType;
 	private SupportedGroup negotiatedSupportedGroup;
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	private ServerNames indicatedServerNames;
 
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
@@ -518,7 +519,7 @@ public class ServerHandshaker extends Handshaker {
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
 		if (serverNameExt != null) {
 			// store the names indicated by peer for later reference during key exchange
-			session.setServerNames(serverNameExt.getServerNames());
+			indicatedServerNames = serverNameExt.getServerNames();
 			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
 			LOGGER.log(
 					Level.FINE,
@@ -648,10 +649,10 @@ public class ServerHandshaker extends Handshaker {
 		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
 				new Object[]{getPeerAddress(), identity});
 
-		if (session.getServerNames() == null) {
+		if (getIndicatedServerNames() == null) {
 			psk = pskStore.getKey(identity);
 		} else {
-			psk = pskStore.getKey(session.getServerNames(), identity);
+			psk = pskStore.getKey(getIndicatedServerNames(), identity);
 		}
 
 		if (psk == null) {
@@ -880,6 +881,10 @@ public class ServerHandshaker extends Handshaker {
 
 	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
+	}
+
+	final ServerNames getIndicatedServerNames() {
+		return indicatedServerNames;
 	}
 
 	/**

@@ -28,7 +28,6 @@
 package org.eclipse.californium.scandium;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -36,16 +35,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
-import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
-import org.eclipse.californium.scandium.dtls.ServerNameResolver;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.eclipse.californium.scandium.util.ServerName;
-import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -122,48 +116,6 @@ public class HelloExtensionNegotiationTest {
 			client.destroy();
 		}
 		serverHelper.cleanUpServer();
-	}
-
-	/**
-	 * Verifies that the connector includes server names provided by a client in a 
-	 * <em>Server Name Indication</em> hello extension in the <code>RawData</code> object
-	 * passed to the application layer.
-	 * 
-	 * @throws Exception if the test fails.
-	 */
-	@Test
-	public void testConnectorForwardsServerNamesToApplication() throws Exception {
-
-		final String hostName = "iot.eclipse.org";
-		final ServerNames serverNames = ServerNames.newInstance(ServerName.fromHostName(hostName));
-
-		// GIVEN a client configured to indicate server names to the server
-		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
-			.setPskStore(new StaticPskStore(ConnectorHelper.CLIENT_IDENTITY, ConnectorHelper.CLIENT_IDENTITY_SECRET.getBytes()))
-			.setServerNameResolver(new ServerNameResolver() {
-
-				@Override
-				public ServerNames getServerNames(final InetSocketAddress peerAddress) {
-					return serverNames;
-				}
-			})
-			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-
-		// WHEN a session has been established
-		serverHelper.givenAnEstablishedSession(client);
-
-		// THEN assert that the application layer is notified about the server names provided by the client
-		assertHostNameIsForwardedToApplicationLayer(hostName);
-	}
-
-	private static void assertHostNameIsForwardedToApplicationLayer(final String hostName) {
-
-		RawData msg = serverHelper.serverRawDataProcessor.getLatestInboundMessage();
-		assertNotNull(msg);
-
-		String value = msg.getCorrelationContext().get(DTLSConnector.KEY_TLS_SERVER_HOST_NAME);
-		assertThat(value, is(hostName));
 	}
 
 	/**

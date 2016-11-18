@@ -238,26 +238,56 @@ public final class ServerHello extends HandshakeMessage {
 		return 38 + sessionId.length() + extensionsLength;
 	}
 
+	/**
+	 * Gets the DTLS version the server is willing to use.
+	 * 
+	 * @return The DTLS version.
+	 */
 	public ProtocolVersion getServerVersion() {
 		return serverVersion;
 	}
 
+	/**
+	 * Gets the server's random value to use for generating the key material.
+	 * 
+	 * @return The random value.
+	 */
 	public Random getRandom() {
 		return random;
 	}
 
+	/**
+	 * Gets the identifier the server has created for the session being negotiated.
+	 * 
+	 * @return The session identifier.
+	 */
 	public SessionId getSessionId() {
 		return sessionId;
 	}
 
+	/**
+	 * Gets the cipher suite the server has chosen for the session being negotiated.
+	 * 
+	 * @return The cipher suite.
+	 */
 	public CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
+	/**
+	 * Gets the compression method the server has chosen for the session being negotiated.
+	 * 
+	 * @return The compression method.
+	 */
 	public CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
+	/**
+	 * Gets the server hello extensions the server has included in this message.
+	 * 
+	 * @return The extensions or {@code null} if no extensions are used.
+	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
 	}

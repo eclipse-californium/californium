@@ -101,7 +101,6 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ServerName.NameType;
 
 
 /**
@@ -596,13 +595,6 @@ public class DTLSConnector implements Connector {
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
-			if (session.getServerNames() != null) {
-				// client has indicated some server names in its CLIENT_HELLO
-				byte[] hostName = session.getServerNames().get(NameType.HOST_NAME);
-				if (hostName != null) {
-					context.put(KEY_TLS_SERVER_HOST_NAME, new String(hostName));
-				}
-			}
 			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
 		}
 	}
@@ -981,10 +973,10 @@ public class DTLSConnector implements Connector {
 			} else {
 				// TODO: fall back to full handshake
 			}
-			DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
+			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
 					ticket, record.getSequenceNumber());
 
-			Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
+			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 
@@ -995,7 +987,7 @@ public class DTLSConnector implements Connector {
 					// client has a new IP address, terminate previous connection once new session has been established
 					handshaker.addSessionListener(new SessionAdapter() {
 						@Override
-						public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+						public void sessionEstablished(final Handshaker currentHandshaker, final DTLSSession establishedSession)
 								throws HandshakeException {
 							LOGGER.log(Level.FINER,
 									"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
