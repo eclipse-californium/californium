@@ -42,7 +42,14 @@ public final class IntegrationTestTools {
 		// empty
 	}
 
-	public static LockstepEndpoint createLockstepEndpoint(InetSocketAddress destination) throws Exception {
+	/**
+	 * Creates an endpoint that can be used to <em>record</em> and <em>play back</em> expected behavior
+	 * when receiving certain messages.
+	 * 
+	 * @param destination The address to send messages to.
+	 * @return The created endpoint.
+	 */
+	public static LockstepEndpoint createLockstepEndpoint(final InetSocketAddress destination) {
 		LockstepEndpoint endpoint = new LockstepEndpoint();
 		endpoint.setDestination(destination);
 		return endpoint;
