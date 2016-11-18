@@ -360,7 +360,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
 
-		if (message.getExtensions().getExtension(ExtensionType.SERVER_NAME) != null) {
+		if (message.hasServerNameExtension()) {
 			// server has indicated support for Server Name Indication hello extension
 			session.setServerNames(indicatedServerNames);
 		}
