@@ -20,12 +20,26 @@ import org.eclipse.californium.elements.CorrelationContext;
  * An observation initiated by a given request, for a particular correlation
  * context.
  */
-public class Observation {
+public final class Observation {
 
 	private final Request request;
 	private final CorrelationContext context;
 
-	public Observation(Request request, CorrelationContext context) {
+	/**
+	 * Creates a new observation for a request and a correlation context.
+	 * 
+	 * @param request The request that initiated the observation.
+	 * @param context The correlation context of the request.
+	 * @throws NullPointerException if the request is {@code null}.
+	 * @throws IllegalArgumentException if the request doesn't have its observe option set to 0.
+	 */
+	public Observation(final Request request, final CorrelationContext context) {
+
+		if (request == null) {
+			throw new NullPointerException("request must not be null");
+		} else if (request.getOptions().getObserve() != 0) {
+			throw new IllegalArgumentException("request has no observe=0 option");
+		}
 		this.request = request;
 		this.context = context;
 	}
@@ -43,7 +57,4 @@ public class Observation {
 	public CorrelationContext getContext() {
 		return context;
 	}
-
-
-
 }

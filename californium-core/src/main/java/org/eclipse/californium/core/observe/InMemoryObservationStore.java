@@ -31,7 +31,7 @@ import org.eclipse.californium.elements.CorrelationContext;
  * An observation store that keeps all observations in-memory.
  *
  */
-public class InMemoryObservationStore implements ObservationStore {
+public final class InMemoryObservationStore implements ObservationStore {
 
 	private static final Logger LOG = Logger.getLogger(InMemoryObservationStore.class.getName());
 	private static final DataSerializer serializer = new UdpDataSerializer();
@@ -46,13 +46,7 @@ public class InMemoryObservationStore implements ObservationStore {
 		} else {
 			Key key = Key.fromToken(obs.getRequest().getToken());
 			LOG.log(Level.FINER, "adding observation for token {0}", key);
-
-			// clone request object here to make sure that future updates to
-			// the request have no impact on the stored Observation
-			byte[] serialize = serializer.getByteArray(obs.getRequest());
-			Request newRequest = (Request) parser.parseMessage(serialize);
-			newRequest.setUserContext(obs.getRequest().getUserContext());
-			map.put(key, new Observation(newRequest, obs.getContext()));
+			map.put(key, obs);
 		}
 	}
 
@@ -63,7 +57,17 @@ public class InMemoryObservationStore implements ObservationStore {
 		} else {
 			Key key = Key.fromToken(token);
 			LOG.log(Level.FINER, "looking up observation for token {0}", key);
-			return map.get(key);
+			Observation obs = map.get(key);
+			if (obs != null) {
+				// clone request in order to prevent accumulation of message observers
+				// on original request
+				byte[] serialize = serializer.getByteArray(obs.getRequest());
+				Request clonedRequest = (Request) parser.parseMessage(serialize);
+				clonedRequest.setUserContext(obs.getRequest().getUserContext());
+				return new Observation(clonedRequest, obs.getContext());
+			} else {
+				return null;
+			}
 		}
 	}
 
