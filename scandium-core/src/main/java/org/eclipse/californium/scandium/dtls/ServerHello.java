@@ -314,6 +314,18 @@ public final class ServerHello extends HandshakeMessage {
 		}
 	}
 
+	/**
+	 * Checks whether <em>server_name</em> extension is present in this message.
+	 * <p>
+	 * During a handshake it is sufficient to check for the mere presence of the
+	 * extension because when included in a <em>SERVER_HELLO</em> the extension data will be empty.
+	 * 
+	 * @return {@code true} if the extension is present.
+	 */
+	boolean hasServerNameExtension() {
+		return extensions != null && extensions.getExtension(ExtensionType.SERVER_NAME) != null;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
