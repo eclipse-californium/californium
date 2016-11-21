@@ -54,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -158,7 +159,7 @@ public class DTLSConnector implements Connector {
 	private Worker sender;
 
 	/** Indicates whether the connector has started and not stopped yet */
-	private boolean running;
+	private AtomicBoolean running = new AtomicBoolean(false);
 
 	private RawDataChannel messageHandler;
 
@@ -251,10 +252,12 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void start(InetSocketAddress bindAddress) throws IOException {
-		if (running) {
+	private void start(final InetSocketAddress bindAddress) throws IOException {
+
+		if (running.get()) {
 			return;
 		}
+
 		timer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
 
 			private final AtomicInteger index = new AtomicInteger(1);
@@ -297,7 +300,7 @@ public class DTLSConnector implements Connector {
 		}
 
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
-		running = true;
+		running.set(true);
 
 		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
 				@Override
@@ -359,7 +362,7 @@ public class DTLSConnector implements Connector {
 	 * used for sending and receiving datagrams.
 	 */
 	final synchronized void releaseSocket() {
-		running = false;
+		running.set(false);
 		sender.interrupt();
 		outboundMessages.clear();
 		if (socket != null) {
@@ -371,12 +374,11 @@ public class DTLSConnector implements Connector {
 
 	@Override
 	public final synchronized void stop() {
-		if (!running) {
-			return;
+		if (running.get()) {
+			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
+			timer.shutdownNow();
+			releaseSocket();
 		}
-		LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
-		timer.shutdownNow();
-		releaseSocket();
 	}
 
 	/**
@@ -663,9 +665,11 @@ public class DTLSConnector implements Connector {
 			} else {
 				// non-fatal alerts do not require any special handling
 			}
-	
-			if (errorHandler != null) {
-				errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
+
+			synchronized (cookieMacKeyLock) {
+				if (errorHandler != null) {
+					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
+				}
 			}
 		} catch (HandshakeException | GeneralSecurityException e) {
 			discardRecord(record, e);
@@ -1117,6 +1121,8 @@ public class DTLSConnector implements Connector {
 	public final void send(RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
+		} else if (!running.get()) {
+			throw new IllegalStateException("connector must be started before sending messages is possible");
 		} else if (msg.getBytes().length > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
@@ -1464,7 +1470,7 @@ public class DTLSConnector implements Connector {
 	 * @return {@code true} if running.
 	 */
 	public final boolean isRunning() {
-		return running;
+		return running.get();
 	}
 
 	private RecordLayer getRecordLayerForPeer(final Connection connection) {
@@ -1514,13 +1520,13 @@ public class DTLSConnector implements Connector {
 		public void run() {
 			try {
 				LOGGER.log(Level.CONFIG, "Starting worker thread [{0}]", getName());
-				while (running) {
+				while (running.get()) {
 					try {
 						doWork();
 					} catch (ClosedByInterruptException e) {
 						LOGGER.log(Level.CONFIG, "Worker thread [{0}] has been interrupted", getName());
 					} catch (Exception e) {
-						if (running) {
+						if (running.get()) {
 							LOGGER.log(Level.FINE, "Exception thrown by worker thread [" + getName() + "]", e);
 						}
 					}
@@ -1541,7 +1547,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public void setRawDataReceiver(RawDataChannel messageHandler) {
+	public void setRawDataReceiver(final RawDataChannel messageHandler) {
+		if (isRunning()) {
+			throw new IllegalStateException("message handler cannot be set on running connector");
+		}
 		this.messageHandler = messageHandler;
 	}
 
@@ -1550,8 +1559,10 @@ public class DTLSConnector implements Connector {
 	 * 
 	 * @param errorHandler the handler to invoke
 	 */
-	public final void setErrorHandler(ErrorHandler errorHandler) {
-		this.errorHandler = errorHandler;
+	public final void setErrorHandler(final ErrorHandler errorHandler) {
+		synchronized (cookieMacKeyLock) {
+			this.errorHandler = errorHandler;
+		}
 	}
 
 	private void connectionClosed(InetSocketAddress peerAddress) {
