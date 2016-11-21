@@ -21,8 +21,8 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
- * A base class for implementing Matchers that provides support for
- * using a {@code MessageExchangeStore}.
+ * A base class for implementing Matchers that provides support for using a
+ * {@code MessageExchangeStore}.
  */
 public abstract class BaseMatcher implements Matcher {
 
@@ -35,6 +35,8 @@ public abstract class BaseMatcher implements Matcher {
 	 * Creates a new matcher based on configuration values.
 	 * 
 	 * @param config the configuration to use.
+	 * @throws NullPointerException if the configuration, notification listener,
+	 *             or the observation store is {@code null}.
 	 */
 	public BaseMatcher(final NetworkConfig config) {
 		if (config == null) {
@@ -57,7 +59,8 @@ public abstract class BaseMatcher implements Matcher {
 
 	protected final void assertMessageExchangeStoreIsSet() {
 		if (exchangeStore == null) {
-			LOG.log(Level.CONFIG, "no MessageExchangeStore set, using default {0}", InMemoryMessageExchangeStore.class.getName());
+			LOG.log(Level.CONFIG, "no MessageExchangeStore set, using default {0}",
+					InMemoryMessageExchangeStore.class.getName());
 			exchangeStore = new InMemoryMessageExchangeStore(config);
 		}
 	}
@@ -83,7 +86,8 @@ public abstract class BaseMatcher implements Matcher {
 	/**
 	 * This method does nothing.
 	 * <p>
-	 * Subclasses should override this method in order to clear any internal state.
+	 * Subclasses should override this method in order to clear any internal
+	 * state.
 	 */
 	@Override
 	public void clear() {

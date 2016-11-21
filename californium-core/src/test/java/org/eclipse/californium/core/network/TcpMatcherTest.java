@@ -15,6 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import static org.junit.Assert.assertSame;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
@@ -24,11 +29,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
-import static org.junit.Assert.assertSame;
 
 @Category(Small.class)
 public class TcpMatcherTest {
