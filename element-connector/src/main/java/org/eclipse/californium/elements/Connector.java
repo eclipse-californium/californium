@@ -71,6 +71,11 @@ public interface Connector {
 	 * This should be a non-blocking operation.
 	 * 
 	 * @param msg the message to be sent
+	 * @throws NullPointerException if the message is {@code null}.
+	 * @throws IllegalArgumentException if the message cannot be sent due to formal
+	 *                                  constraints, e.g. because the message's payload
+	 *                                  is too large.
+	 * @throws IllegalStateException if the connector has not been started.
 	 */
 	void send(RawData msg);
 
@@ -82,13 +87,25 @@ public interface Connector {
 	 * via the network.
 	 * 
 	 * @param messageHandler the message handler
+	 * @throws IllegalStateException if the connector is running.
 	 */
 	void setRawDataReceiver(RawDataChannel messageHandler);
 
 	/**
 	 * Gets the address of the socket this connector is bound to.
+	 * <p>
+	 * Note that the IP address returned might be a <em>wildcard</em> address,
+	 * indicating that this connector is listening on all network interface's
+	 * IP addresses.
+	 * <p>
+	 * The connector may have been configured to bind to an <em>ephemeral</em> port.
+	 * In such cases the concrete port that the connector is bound to will only be known after
+	 * it has been started.
+	 * <p>
+	 * If the connector is not running, the semantics of the address returned is undefined.
+	 * It may be a default (wildcard) address or the address the connector has been configured to bind to.
 	 *
-	 * @return the address
+	 * @return The IP address and port.
 	 */
 	InetSocketAddress getAddress();
 
@@ -110,6 +127,7 @@ public interface Connector {
 	 * @return The URI this connector is accessible at. Note that the host name or IP address and port of the
 	 *         returned URI may not reflect the real IP address and port this connector will be listening on
 	 *         if the connector has not been started already.
+	 * @see #getAddress()
 	 */
 	URI getUri();
 }
