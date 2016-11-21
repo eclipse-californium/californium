@@ -23,7 +23,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Endpoint;
@@ -38,8 +41,11 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
  */
 public class CoapObserveRelation {
 
+	/** The logger. */
+	private static final Logger LOGGER = Logger.getLogger(CoapObserveRelation.class.getCanonicalName());
+
 	/** A executor service to schedule re-registrations */
-	private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
+	private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
 			new Utils.DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
 
 	/** The request. */
@@ -104,12 +110,11 @@ public class CoapObserveRelation {
 			this.orderer = new ObserveNotificationOrderer();
 		}
 	}
-	
-	/**
-	 * Proactive Observe cancellation:
-	 * Cancel the observe relation by sending a GET with Observe=1.
+
+	/** 
+	 * Send request with option "cancel observe" (GET with Observe=1). 
 	 */
-	public void proactiveCancel() {
+	private void sendCancelObserve() {
 		Request cancel = Request.newGet();
 		cancel.setDestination(request.getDestination());
 		cancel.setDestinationPort(request.getDestinationPort());
@@ -118,28 +123,48 @@ public class CoapObserveRelation {
 		// copy options, but set Observe to cancel
 		cancel.setOptions(request.getOptions());
 		cancel.setObserveCancel();
-		
+
 		// dispatch final response to the same message observers
-		for (MessageObserver mo: request.getMessageObservers()) {
+		for (MessageObserver mo : request.getMessageObservers()) {
 			cancel.addMessageObserver(mo);
 		}
-		
+
 		endpoint.sendRequest(cancel);
-		
-		// cancel old ongoing request
+	}
+
+	/** 
+	 * Cancel observer. 
+	 */
+	private void cancel() {
 		request.cancel();
 		endpoint.cancelObservation(request.getToken());
 		setCanceled(true);
 	}
 	
 	/**
+	 * Proactive Observe cancellation:
+	 * Cancel the observe relation by sending a GET with Observe=1.
+	 */
+	public void proactiveCancel() {
+		sendCancelObserve();
+
+		// cancel old ongoing request
+		cancel();
+	}
+	
+	/**
 	 * Reactive Observe cancellation:
 	 * Cancel the observe relation by forgetting, which will trigger a RST.
+	 * For TCP, {{@link #proactiveCancel()} will be executed.
 	 */
 	public void reactiveCancel() {
-		request.cancel();
-		endpoint.cancelObservation(request.getToken());
-		setCanceled(true);
+		if (CoAP.isTcpScheme(request.getScheme())) {
+			LOGGER.log(Level.INFO, "Change to cancel the observe {0} proactive over TCP.", request.getTokenString());
+			proactiveCancel();
+		} else {
+			// cancel old ongoing request
+			cancel();
+		}
 	}
 	
 	/**
