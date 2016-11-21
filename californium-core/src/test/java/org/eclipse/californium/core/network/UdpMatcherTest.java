@@ -30,6 +30,7 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
@@ -246,7 +247,15 @@ public class UdpMatcherTest {
 
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		UdpMatcher matcher = new UdpMatcher(config, null, observationStore);
+		NotificationListener notificationListener = new NotificationListener() {
+
+			@Override
+			public void onNotification(Request request, Response response) {
+			}
+			
+		};
+		
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore);
 
 		matcher.setMessageExchangeStore(messageExchangeStore);
 		matcher.start();

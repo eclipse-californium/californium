@@ -29,7 +29,6 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
@@ -38,7 +37,6 @@ import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
-import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -54,8 +52,6 @@ public final class UdpMatcher extends BaseMatcher {
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
 	private final boolean useStrictResponseMatching;
-	private NotificationListener notificationListener;
-	private ObservationStore observationStore;
 
 	/**
 	 * Creates a new matcher for running CoAP over UDP.
@@ -64,13 +60,12 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param notificationListener the callback to invoke for notifications received from peers.
 	 * @param observationStore the object to use for keeping track of observations created by the endpoint
 	 *        this matcher is part of.
-	 * @throws NullPointerException if the configuration is {@code null}.
+	 * @throws NullPointerException if the configuration, notification listener,
+	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
 			final ObservationStore observationStore) {
-		super(config);
-		this.notificationListener = notificationListener;
-		this.observationStore = observationStore;
+		super(config, notificationListener, observationStore);
 		useStrictResponseMatching = config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING);
 
 		LOGGER.log(Level.CONFIG, "{0} uses {1}={2}",
@@ -84,32 +79,9 @@ public final class UdpMatcher extends BaseMatcher {
 
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequest(exchange);
-		final KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 		// for observe request.
-		// We ignore blockwise request, except when this is an early negociation (num and M is set to 0)  
-		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0 && (!request.getOptions().hasBlock2()
-				|| request.getOptions().getBlock2().getNum() == 0 && !request.getOptions().getBlock2().isM())) {
-			// add request to the store
-			LOGGER.log(Level.FINER, "registering observe request {0}", request);
-			observationStore.add(new Observation(request, null));
-			// remove it if the request is cancelled, rejected or timedout
-			request.addMessageObserver(new MessageObserverAdapter() {
-				@Override
-				public void onCancel() {
-					observationStore.remove(request.getToken());	
-					exchangeStore.releaseToken(idByToken);
-				}
-				@Override
-				public void onReject() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-				@Override
-				public void onTimeout() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-			});
+		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0) {
+			registerObserve(request);
 		}
 
 		if (LOGGER.isLoggable(Level.FINER)) {
@@ -296,7 +268,7 @@ public final class UdpMatcher extends BaseMatcher {
 		LOGGER.log(Level.FINER, "received response {0}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 
-		if (exchange == null && observationStore != null ) {
+		if (exchange == null) {
 			// we didn't find a message exchange for the token from the response
 			// that is scoped to the response's source endpoint address
 			// let's try to find an existing observation for the token
@@ -304,60 +276,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// because we do not check that the notification's sender is
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
-			final Observation obs = observationStore.get(response.getToken());
-			if (obs != null) {
-				// there is an observation for the token from the response
-				// re-create a corresponding Exchange object for it so
-				// that the "upper" layers can correctly process the notification response
-				final Request request = obs.getRequest();
-				request.setDestination(response.getSource());
-				request.setDestinationPort(response.getSourcePort());
-				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
-				exchange.setRequest(request);
-				exchange.setObserver(exchangeObserver);
-				LOGGER.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
-				request.addMessageObserver(new MessageObserverAdapter() {
-
-					@Override
-					public void onTimeout() {
-						observationStore.remove(request.getToken());
-						exchangeStore.releaseToken(idByToken);
-					}
-
-					@Override
-					public void onResponse(Response response) {
-						// check whether the client has established the observe
-						// requested
-						if (!response.getOptions().hasObserve()) {
-							// Observe response received with no observe option
-							// set. It could be that the Client was not able to
-							// establish the observe. So remove the observe
-							// relation from observation store, which was stored
-							// earlier when the request was sent.
-							LOGGER.log(Level.FINE,
-									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
-									idByToken);
-							observationStore.remove(request.getToken());
-							exchangeStore.releaseToken(idByToken);
-						} else {
-							notificationListener.onNotification(request, response);
-						}
-					}
-
-					@Override
-					public void onReject() {
-						observationStore.remove(request.getToken());	
-						exchangeStore.releaseToken(idByToken);
-					}
-
-					@Override
-					public void onCancel() {
-						observationStore.remove(request.getToken());
-						exchangeStore.releaseToken(idByToken);
-						
-					}
-				});
-			}
+			exchange = matchNotifyResponse(exchangeObserver, response, responseContext);
 		}
 
 		if (exchange == null) {
@@ -565,23 +484,5 @@ public final class UdpMatcher extends BaseMatcher {
 			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
-	}
-
-	/**
-	 * Cancels all pending blockwise requests that have been induced by a notification
-	 * we have received indicating a blockwise transfer of the resource.
-	 * 
-	 * @param token the token of the observation.
-	 */
-	@Override
-	public void cancelObserve(final byte[] token) {
-		// we do not know the destination endpoint the requests have been sent to
-		// therefore we need to find them by token only
-		for (Exchange exchange : exchangeStore.findByToken(token)) {
-			exchange.getRequest().cancel();
-			KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.releaseToken(idByToken);
-		}
-		observationStore.remove(token);
 	}
 }

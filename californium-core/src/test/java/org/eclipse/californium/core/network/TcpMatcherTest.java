@@ -21,6 +21,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -47,7 +49,15 @@ public class TcpMatcherTest {
 	private TcpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		TcpMatcher matcher = new TcpMatcher(config);
+		NotificationListener notificationListener = new NotificationListener() {
+
+			@Override
+			public void onNotification(Request request, Response response) {
+			}
+			
+		};
+		
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore());
 		matcher.start();
 		return matcher;
 	}
