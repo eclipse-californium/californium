@@ -12,6 +12,10 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - use demo-cert and
+ *                                                 getAddress() of server.
+ *                                                 move initializeSsl to
+ *                                                 new ConnectorTestUtil
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -19,14 +23,8 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.ByteBuffer;
-import java.security.KeyStore;
-import java.security.Security;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
@@ -35,10 +33,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -62,21 +57,9 @@ public class TlsConnectorTest {
 
 	@BeforeClass
 	public static void initializeSsl() throws Exception {
-		String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
-
-		KeyStore ks = KeyStore.getInstance("JKS");
-		ks.load(TlsConnectorTest.class.getResourceAsStream("/cert.jks"), "secret".toCharArray());
-
-		// Set up key manager factory to use our key store
-		KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-		kmf.init(ks, "secret".toCharArray());
-
-		// Initialize the SSLContext to work with our key managers.
-		serverContext = SSLContext.getInstance("TLS");
-		serverContext.init(kmf.getKeyManagers(), null, null);
-
-		clientContext = SSLContext.getInstance("TLS");
-		clientContext.init(null, new TrustManager[] { new TrustEveryoneTrustManager() }, null);
+		ConnectorTestUtil.initializeSsl();
+		serverContext = ConnectorTestUtil.serverContext;
+		clientContext = ConnectorTestUtil.clientContext;
 	}
 
 	@After
@@ -88,8 +71,7 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		int port = findEphemeralPort();
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
 
@@ -102,7 +84,7 @@ public class TlsConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(new InetSocketAddress(port), 100);
+		RawData msg = createMessage(server.getAddress(), 100);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -118,9 +100,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int port = findEphemeralPort();
 		int clients = 100;
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coaps+tcp"));
 		cleanup.add(server);
@@ -137,7 +118,7 @@ public class TlsConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(new InetSocketAddress(port), 100);
+			RawData msg = createMessage(server.getAddress(), 100);
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -163,8 +144,7 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			int port = findEphemeralPort();
-			TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+			TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 					NUMBER_OF_THREADS, IDLE_TIMEOUT);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
@@ -191,14 +171,6 @@ public class TlsConnectorTest {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
 			catcher.blockUntilSize(1);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
-		}
-	}
-
-	private int findEphemeralPort() {
-		try (ServerSocket socket = new ServerSocket(0)) {
-			return socket.getLocalPort();
-		} catch (IOException e) {
-			throw new IllegalStateException("Unable to bind to ephemeral port");
 		}
 	}
 
@@ -230,28 +202,6 @@ public class TlsConnectorTest {
 			stream.write(data);
 			stream.flush();
 			return new RawData(stream.toByteArray(), address);
-		}
-	}
-
-	private static class TrustEveryoneTrustManager implements X509TrustManager {
-
-		@Override
-		public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-		}
-
-		@Override
-		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-			for (X509Certificate cert : x509Certificates) {
-				cert.checkValidity();
-				if (!cert.getSubjectDN().getName().equals("CN=californium")) {
-					throw new CertificateException("Unexpected domain name: " + cert.getSubjectDN());
-				}
-			}
-		}
-
-		@Override
-		public X509Certificate[] getAcceptedIssuers() {
-			return new X509Certificate[0];
 		}
 	}
 }

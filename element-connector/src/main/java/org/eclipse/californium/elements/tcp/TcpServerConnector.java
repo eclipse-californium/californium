@@ -14,6 +14,7 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust port when bound.
  * Achim Kraus (Bosch Software Innovations GmbH) - use CloseOnErrorHandler.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -25,10 +26,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.RawDataChannel;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -38,6 +35,11 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.RawDataChannel;
 
 /**
  * TCP server connection is used by CoapEndpoint when instantiated by the CoapServer. Per RFC the server can both
@@ -122,8 +124,10 @@ public class TcpServerConnector implements Connector {
 					msg.getAddress());
 			return;
 		}
+		CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
 
 		channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
+		msg.onContextEstablished(context);
 	}
 
 	@Override

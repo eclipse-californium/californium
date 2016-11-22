@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - setWantClientAuth(true).
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -21,14 +22,20 @@ import io.netty.handler.ssl.SslHandler;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A TCP client connector that establishes outbound TLS connections.
  */
 public class TlsServerConnector extends TcpServerConnector {
+
+	private static final Logger LOGGER = Logger.getLogger(TlsServerConnector.class.getName());
 
 	private final SSLContext sslContext;
 
@@ -44,8 +51,8 @@ public class TlsServerConnector extends TcpServerConnector {
 	/**
 	 * Initializes SSLEngine with specified SSL key management factory.
 	 */
-	public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress, int numberOfThreads,
-			int idleTimeout) {
+	public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress,
+			int numberOfThreads, int idleTimeout) {
 		super(socketAddress, numberOfThreads, idleTimeout);
 
 		try {
@@ -56,8 +63,10 @@ public class TlsServerConnector extends TcpServerConnector {
 		}
 	}
 
-	@Override protected void onNewChannelCreated(Channel ch) {
-		SSLEngine sslEngine = sslContext.createSSLEngine();
+	@Override
+	protected void onNewChannelCreated(Channel ch) {
+		SSLEngine sslEngine = createSllEngineForChannel(ch);
+		sslEngine.setWantClientAuth(true);
 		sslEngine.setUseClientMode(false);
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
@@ -66,4 +75,23 @@ public class TlsServerConnector extends TcpServerConnector {
 	protected String getSupportedScheme() {
 		return "coaps+tcp";
 	}
+
+	/**
+	 * Create SSL engine for channel.
+	 * 
+	 * @param ch channel to determine remote host
+	 * @return SSL engine
+	 */
+	private SSLEngine createSllEngineForChannel(Channel ch) {
+		SocketAddress remoteAddress = ch.remoteAddress();
+		if (remoteAddress instanceof InetSocketAddress) {
+			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
+			LOGGER.log(Level.INFO, "Connection from inet {0}", remote);
+			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+		} else {
+			LOGGER.log(Level.INFO, "Connection from {0}", remoteAddress);
+			return sslContext.createSSLEngine();
+		}
+	}
+
 }

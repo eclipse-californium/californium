@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -27,9 +28,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.RawDataChannel;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -38,6 +36,11 @@ import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.RawDataChannel;
 
 /**
  * TCP client connection is used by CoapEndpoint when instantiated by the CoapClient. Per RFC the client can both
@@ -51,6 +54,7 @@ public class TcpClientConnector implements Connector {
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
+	private final InetSocketAddress localSocketAddress = new InetSocketAddress(0);
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -59,10 +63,12 @@ public class TcpClientConnector implements Connector {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.connectTimeoutMillis = connectTimeoutMillis;
-		this.listenUri = URI.create(String.format("%s://127.0.0.1:0", getSupportedScheme()));
+		this.listenUri = URI.create(String.format("%s://%s:%d", getSupportedScheme(),
+				localSocketAddress.getHostString(), localSocketAddress.getPort()));
 	}
 
-	@Override public synchronized void start() throws IOException {
+	@Override
+	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -74,7 +80,8 @@ public class TcpClientConnector implements Connector {
 		workerGroup = new NioEventLoopGroup(numberOfThreads);
 		poolMap = new AbstractChannelPoolMap<SocketAddress, ChannelPool>() {
 
-			@Override protected ChannelPool newPool(SocketAddress key) {
+			@Override
+			protected ChannelPool newPool(SocketAddress key) {
 				Bootstrap bootstrap = new Bootstrap().group(workerGroup).channel(NioSocketChannel.class)
 						.option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.AUTO_READ, true)
 						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis).remoteAddress(key);
@@ -86,27 +93,38 @@ public class TcpClientConnector implements Connector {
 		};
 	}
 
-	@Override public synchronized void stop() {
+	@Override
+	public synchronized void stop() {
 		if (null != workerGroup) {
 			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
 
-	@Override public void destroy() {
+	@Override
+	public void destroy() {
 		stop();
 	}
 
-	@Override public void send(final RawData msg) {
+	@Override
+	public void send(final RawData msg) {
 		final ChannelPool channelPool = poolMap.get(new InetSocketAddress(msg.getAddress(), msg.getPort()));
 		Future<Channel> acquire = channelPool.acquire();
 		acquire.addListener(new GenericFutureListener<Future<Channel>>() {
 
-			@Override public void operationComplete(Future<Channel> future) throws Exception {
+			@Override
+			public void operationComplete(Future<Channel> future) throws Exception {
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
+
+					CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
 					try {
 						channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
+						if (null == context) {
+							NettyContextUtils.futureCorrelationContext(channel, msg);
+						} else {
+							msg.onContextEstablished(context);
+						}
 					} finally {
 						channelPool.release(channel);
 					}
@@ -117,7 +135,8 @@ public class TcpClientConnector implements Connector {
 		});
 	}
 
-	@Override public void setRawDataReceiver(RawDataChannel messageHandler) {
+	@Override
+	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		if (rawDataChannel != null) {
 			throw new IllegalStateException("Raw data channel already set.");
 		}
@@ -125,15 +144,16 @@ public class TcpClientConnector implements Connector {
 		this.rawDataChannel = messageHandler;
 	}
 
-	@Override public InetSocketAddress getAddress() {
+	@Override
+	public InetSocketAddress getAddress() {
 		// Client TCP connector doesn't really have an address it binds to.
-		return new InetSocketAddress(0);
+		return localSocketAddress;
 	}
 
 	/**
 	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
 	 */
-	protected void onNewChannelCreated(Channel ch) {
+	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 	}
 
 	protected String getSupportedScheme() {
@@ -158,8 +178,9 @@ public class TcpClientConnector implements Connector {
 			this.key = key;
 		}
 
-		@Override public void channelCreated(Channel ch) throws Exception {
-			onNewChannelCreated(ch);
+		@Override
+		public void channelCreated(Channel ch) throws Exception {
+			onNewChannelCreated(key, ch);
 
 			// Handler order:
 			// 1. Generate Idle events
@@ -185,7 +206,8 @@ public class TcpClientConnector implements Connector {
 			this.key = key;
 		}
 
-		@Override public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		@Override
+		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			// TODO: This only works with fixed sized pool with connection one. Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
 			poolMap.remove(key);
