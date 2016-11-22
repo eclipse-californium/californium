@@ -151,7 +151,7 @@ public class Request extends Message {
 
 	@Override
 	public int getRawCode() {
-		return code.value;
+		return code == null ? 0 : code.value;
 	}
 
 	/**
