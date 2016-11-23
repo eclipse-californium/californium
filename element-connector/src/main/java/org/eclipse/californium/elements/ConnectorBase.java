@@ -32,7 +32,11 @@ import java.util.logging.Logger;
  * constantly calls #sendNext() which is supposed to wait on the outgoing queue
  * for a {@link RawData} message to send. Both #sendNext() and #receiveNext()
  * are expected to be blocking.
+ * 
+ * @deprecated Use {@code UDPConnector} as a template for implementing a custom
+ *             {@code Connector}.
  */
+@Deprecated
 public abstract class ConnectorBase implements Connector {
 
 	/** The Logger. */
