@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -35,6 +36,16 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class RequestTest {
+
+	/**
+	 * Verifies that a Request that is instantiated with a {@code null} CoAP.Code
+	 * (used for a CoAP ping) has a code value of 0.
+	 */
+	@Test
+	public void testGetRawCodeReturnsZeroForNullCode() {
+		Request ping = new Request(null, Type.CON);
+		assertThat(ping.getRawCode(), is(0));
+	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetURIRejectsUnsupportedScheme() {
