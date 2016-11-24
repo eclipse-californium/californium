@@ -113,20 +113,26 @@ public class CoapClient {
 	}
 	
 	/**
-	 * Gets the timeout.
-	 *
-	 * @return the timeout
+	 * Gets the maximum amount of time that synchronous method calls will block and wait.
+	 * <p>
+	 * The default value of this property is read from configuration property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#ACK_TIMEOUT}.
+	 * 
+	 * @return The timeout in milliseconds.
 	 */
 	public long getTimeout() {
 		return timeout;
 	}
 	
 	/**
-	 * Sets the timeout how long synchronous method calls will wait until they
-	 * give up and return anyways. The value 0 is equal to infinity.
+	 * Sets the maximum amount of time that synchronous method calls will block and wait.
+	 * Setting this property to 0 will result in methods waiting infinitely.
+	 * <p>
+	 * The default value of this property is read from configuration property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#ACK_TIMEOUT}.
 	 *
-	 * @param timeout the timeout
-	 * @return the CoAP client
+	 * @param timeout The timeout in milliseconds.
+	 * @return This CoAP client for command chaining.
 	 */
 	public CoapClient setTimeout(long timeout) {
 		this.timeout = timeout;
@@ -786,7 +792,7 @@ public class CoapClient {
 	 * @param contentFormat the Content-Format
 	 * @return the request
 	 */
-	private Request format(Request request, int contentFormat) {
+	private static Request format(final Request request, final int contentFormat) {
 		request.getOptions().setContentFormat(contentFormat);
 		return request;
 	}
@@ -798,7 +804,7 @@ public class CoapClient {
 	 * @param accept the Accept option
 	 * @return the request
 	 */
-	private Request accept(Request request, int accept) {
+	private static Request accept(final Request request, final int accept) {
 		request.getOptions().setAccept(accept);
 		return request;
 	}
@@ -810,7 +816,7 @@ public class CoapClient {
 	 * @param etags the list of ETags
 	 * @return the request
 	 */
-	private Request etags(Request request, byte[] ... etags) {
+	private static Request etags(final Request request, final byte[] ... etags) {
 		for (byte[] etag : etags) {
 			request.getOptions().addETag(etag);
 		}
@@ -824,7 +830,7 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 * @return the request
 	 */
-	private Request ifMatch(Request request, byte[] ... etags) {
+	private static Request ifMatch(final Request request, final byte[] ... etags) {
 		for (byte[] etag : etags) {
 			request.getOptions().addIfMatch(etag);
 		}
@@ -838,7 +844,7 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 * @return the request
 	 */
-	private Request ifNoneMatch(Request request) {
+	private static Request ifNoneMatch(final Request request) {
 		request.getOptions().setIfNoneMatch(true);
 		return request;
 	}
