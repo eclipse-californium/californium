@@ -16,15 +16,20 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus - fixing race condition and visibility
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
@@ -33,11 +38,11 @@ import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -47,7 +52,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /*
  * This test is valid for both drafts observe-08 and observe-09.
@@ -100,9 +104,6 @@ public class ObserveTest {
 	private String uriX;
 	private String uriY;
 
-	private int notificationCounter = 0;
-	private int resetCounter = 0;
-
 	@Before
 	public void startupServer() {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
@@ -128,7 +129,6 @@ public class ObserveTest {
 		requestA.setObserve();
 		requestA.send();
 
-
 		Request requestB = Request.newGet();
 		requestB.setURI(uriY);
 		requestB.setObserve();
@@ -151,8 +151,10 @@ public class ObserveTest {
 
 		// change resource but lose response
 		Thread.sleep(50);
-		resourceX.changed(); // change to "resX says hi for the 2 time"
-		// => trigger notification (which will go lost, see ClientMessageInterceptor)
+		// change to "resX says Lifecycle for the 2 time"
+		resourceX.changed("Lifecycle");
+		// => trigger notification
+		// (which will go lost, see ClientMessageInterceptor)
 
 		// wait for the server to timeout, see ClientMessageInterceptor.
 		while (waitforit) {
@@ -173,37 +175,53 @@ public class ObserveTest {
 	@Test
 	public void testObserveClient() throws Exception {
 
-		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor());
-		resourceX.setObserveType(Type.NON);
+		final AtomicInteger resetCounter = new AtomicInteger(0);
+		final AtomicInteger notificationCounter = new AtomicInteger(0);
+		final CountDownLatch latch = new CountDownLatch(1);
 
-		notificationCounter = 0;
-		resetCounter = 0;
+		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor(resetCounter));
+		resourceX.setObserveType(Type.NON);
 
 		int repeat = 3;
 
 		CoapClient client = new CoapClient(uriX);
 
 		CoapObserveRelation rel = client.observeAndWait(new CoapHandler() {
+
 			@Override
 			public void onLoad(CoapResponse response) {
-				System.out.println("Received Notification: "+response.advanced().getMID());
-				++notificationCounter;
+				int counter = notificationCounter.incrementAndGet();
+				System.out.println("Received " + counter + ". Notification: " + response.advanced());
+				latch.countDown();
 			}
+
 			@Override
-			public void onError() { }
+			public void onError() {
+			}
 		});
 
-		rel.reactiveCancel();
-		Thread.sleep(50); // wait for cancel to take effect
+		assertFalse("Response not received", rel.isCanceled());
 
-		for (int i=0; i < repeat; ++i) {
-			resourceX.changed();
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for onLoad
+		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+
+		// only one notification (the response) received
+		assertEquals(1, notificationCounter.get());
+
+		rel.reactiveCancel();
+		System.out.println(uriX + " reactive canceled");
+
+		for (int i = 0; i < repeat; ++i) {
+			resourceX.changed("client");
 			Thread.sleep(50);
 		}
 
-		assertEquals(1, notificationCounter); // only one notification received
-		assertEquals(repeat, resetCounter); // repeat RST received
-		assertTrue(resourceX.getObserverCount() == 1); // no RST delivered (interceptor)
+		// still only one notification (the response) received
+		assertEquals(1, notificationCounter.get());
+		assertEquals(repeat, resetCounter.get()); // repeat RST received
+		// no RST delivered (interceptor)
+		assertEquals(1, resourceX.getObserverCount());
 	}
 
 	/**
@@ -218,7 +236,7 @@ public class ObserveTest {
 		Request request = Request.newGet().setURI(uriX);
 
 		@SuppressWarnings("unused")
-		CoapObserveRelation rel =null;
+		CoapObserveRelation rel = null;
 		try {
 			rel = client.observeAndWait(request, new CoapHandler() {
 
@@ -236,8 +254,8 @@ public class ObserveTest {
 	}
 
 	/**
-	 * Test case for CoapClient.observe(Request request, CoapHandler
-	 * handler) exception handling.
+	 * Test case for CoapClient.observe(Request request, CoapHandler handler)
+	 * exception handling.
 	 * 
 	 * @throws Exception
 	 */
@@ -247,9 +265,10 @@ public class ObserveTest {
 		Request request = Request.newGet().setURI(uriX);
 
 		@SuppressWarnings("unused")
-		CoapObserveRelation rel =null;
+		CoapObserveRelation rel = null;
 		try {
 			rel = client.observe(request, new CoapHandler() {
+
 				@Override
 				public void onLoad(CoapResponse response) {
 				}
@@ -265,10 +284,8 @@ public class ObserveTest {
 
 	private void createServer() {
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+		NetworkConfig config = new NetworkConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 
@@ -281,8 +298,8 @@ public class ObserveTest {
 		server.start();
 
 		serverPort = endpoint.getAddress().getPort();
-		uriX = String.format("127.0.0.1:%d/%s", serverPort, TARGET_X);
-		uriY = String.format("127.0.0.1:%d/%s", serverPort, TARGET_Y);
+		uriX = String.format("coap://127.0.0.1:%d/%s", serverPort, TARGET_X);
+		uriY = String.format("coap://127.0.0.1:%d/%s", serverPort, TARGET_Y);
 	}
 
 	private class ClientMessageInterceptor implements MessageInterceptor {
@@ -292,7 +309,7 @@ public class ObserveTest {
 		@Override
 		public void receiveResponse(Response response) {
 			counter++;
-			switch(counter) {
+			switch (counter) {
 			case 1:
 			case 2:
 				// first responses for request A and B
@@ -306,11 +323,11 @@ public class ObserveTest {
 				resourceX.changed(); // change to "resX sais hi for the 3 time"
 				break;
 
-				// Note: The resource has changed and needs to send a second
-				// notification. However, the first notification has not been
-				// acknowledged yet. Therefore, the second notification keeps the
-				// transmission counter of the first notification. There are no
-				// transm. 0 and 1 of X's second notification.
+			// Note: The resource has changed and needs to send a second
+			// notification. However, the first notification has not been
+			// acknowledged yet. Therefore, the second notification keeps the
+			// transmission counter of the first notification. There are no
+			// transm. 0 and 1 of X's second notification.
 
 			case 6:
 				lose(response); // lose transm. 3 of X's second notification
@@ -332,28 +349,67 @@ public class ObserveTest {
 		}
 
 		private void lose(Response response) {
-			System.out.println(System.lineSeparator() + "Lose response " + counter + " with MID " + response.getMID() + ", payload = "+response.getPayloadString());
+			System.out.println(System.lineSeparator() + "Lose response " + counter + " with MID " + response.getMID()
+					+ ", payload = " + response.getPayloadString());
 			response.cancel();
 		}
 
-		@Override public void sendRequest(Request request) { }
-		@Override public void sendResponse(Response response) { }
-		@Override public void sendEmptyMessage(EmptyMessage message) { }
-		@Override public void receiveRequest(Request request) { }
-		@Override public void receiveEmptyMessage(EmptyMessage message) { }
+		@Override
+		public void sendRequest(Request request) {
+		}
+
+		@Override
+		public void sendResponse(Response response) {
+		}
+
+		@Override
+		public void sendEmptyMessage(EmptyMessage message) {
+		}
+
+		@Override
+		public void receiveRequest(Request request) {
+		}
+
+		@Override
+		public void receiveEmptyMessage(EmptyMessage message) {
+		}
 	}
 
 	private class ServerMessageInterceptor implements MessageInterceptor {
 
-		@Override public void receiveResponse(Response response) { }
-		@Override public void sendRequest(Request request) { }
-		@Override public void sendResponse(Response response) { }
-		@Override public void sendEmptyMessage(EmptyMessage message) { }
-		@Override public void receiveRequest(Request request) { }
-		@Override public void receiveEmptyMessage(EmptyMessage message) {
+		private final AtomicInteger resetCounter;
+
+		public ServerMessageInterceptor(AtomicInteger resetCounter) {
+			this.resetCounter = resetCounter;
+		}
+
+		@Override
+		public void receiveResponse(Response response) {
+		}
+
+		@Override
+		public void sendRequest(Request request) {
+		}
+
+		@Override
+		public void sendResponse(Response response) {
+		}
+
+		@Override
+		public void sendEmptyMessage(EmptyMessage message) {
+		}
+
+		@Override
+		public void receiveRequest(Request request) {
+		}
+
+		@Override
+		public void receiveEmptyMessage(EmptyMessage message) {
 			if (message.getType() == Type.RST) {
-				++resetCounter;
-				System.out.println("Received RST: " + message.getMID());
+				int counter = resetCounter.incrementAndGet();
+				System.out.println("Received " + counter + ". RST: " + message.getMID());
+				// this cancel stops the message processing => notifies will
+				// continue
 				message.cancel();
 			}
 		}
@@ -363,12 +419,13 @@ public class ObserveTest {
 
 		private Type type = Type.CON;
 		private int counter = 0;
+		private String currentLabel;
 		private String currentResponse;
 
 		public MyResource(String name) {
 			super(name);
+			prepareResponse();
 			setObservable(true);
-			changed();
 		}
 
 		@Override
@@ -381,9 +438,23 @@ public class ObserveTest {
 
 		@Override
 		public void changed() {
-			currentResponse = String.format("\"%s says hi for the %d time\"", getName(), ++counter);
-			System.out.println("Resource " + getName() + " changed to " + currentResponse);
+			prepareResponse();
 			super.changed();
 		}
+
+		public void changed(String label) {
+			currentLabel = label;
+			changed();
+		}
+
+		public void prepareResponse() {
+			if (null == currentLabel) {
+				currentResponse = String.format("\"%s says hi for the %d time\"", getName(), ++counter);
+			} else {
+				currentResponse = String.format("\"%s says %s for the %d time\"", getName(), currentLabel, ++counter);
+			}
+			System.out.println("Resource " + getName() + " changed to " + currentResponse);
+		}
+
 	}
 }
