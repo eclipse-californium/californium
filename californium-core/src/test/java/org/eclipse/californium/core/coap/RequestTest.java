@@ -22,7 +22,9 @@ import static org.junit.Assume.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.util.List;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -45,6 +47,52 @@ public class RequestTest {
 	public void testGetRawCodeReturnsZeroForNullCode() {
 		Request ping = new Request(null, Type.CON);
 		assertThat(ping.getRawCode(), is(0));
+	}
+
+	/**
+	 * Verifies that the URI examples from <a href="https://tools.ietf.org/html/rfc7252#section-6.3">
+	 * RFC 7252, Section 6.3</a> result in the same option values.
+	 * @throws URISyntaxException 
+	 */
+	@Test
+	public void testSetOptionsCompliesWithRfcExample() throws URISyntaxException {
+
+		String[] exampleUris = new String[]{
+				"coap://example.com:5683/~sensors/temp.xml",
+				"coap://EXAMPLE.com/%7Esensors/temp.xml",
+				"coap://EXAMPLE.com:/%7esensors/temp.xml"
+		};
+
+		for (String uriString : exampleUris) {
+			URI uri = new URI(uriString);
+			Request req = Request.newGet();
+			// explicitly set destination address so that we do not rely on working DNS
+			req.setDestination(InetAddress.getLoopbackAddress());
+			req.setOptions(uri);
+			assertThat(req.getOptions().getUriHost(), is("example.com"));
+			assertThat(req.getDestinationPort(), is(5683));
+			assertThat(req.getOptions().getUriPort(), is(nullValue()));
+			assertThat(req.getOptions().getUriPathString(), is("~sensors/temp.xml"));
+		}
+	}
+
+	/**
+	 * Verifies that non-ASCII characters in the URI components are
+	 * not escaped when being put to Uri options.
+	 */
+	@Test
+	public void testSetUriStringDoesNotEscapeNonUsAsciiChars() {
+		String nonUsAsciiPath = "äöüß"; // german "Umlaute
+		String nonUsAsciiQuery = "ä=öß";
+		Request req = Request.newGet().setURI(String.format("coap://127.0.0.1/%s?%s", nonUsAsciiPath, nonUsAsciiQuery));
+
+		List<String> path = req.getOptions().getUriPath();
+		assertThat(path, is(notNullValue()));
+		assertThat(path.get(0), is(nonUsAsciiPath));
+
+		List<String> query = req.getOptions().getUriQuery();
+		assertThat(query, is(notNullValue()));
+		assertThat(query.get(0), is(nonUsAsciiQuery));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
