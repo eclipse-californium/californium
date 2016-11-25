@@ -57,7 +57,7 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class BlockwiseClientSideTest {
 
-	private static NetworkConfig CONFIG;
+	private static NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private Endpoint client;
@@ -70,7 +70,7 @@ public class BlockwiseClientSideTest {
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseClientSideTest.class.getSimpleName());
 
-		CONFIG = NetworkConfig.createStandardWithoutFile()
+		config = NetworkConfig.createStandardWithoutFile()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
@@ -81,7 +81,7 @@ public class BlockwiseClientSideTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
@@ -196,7 +196,7 @@ public class BlockwiseClientSideTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGETEarlyNegotion() throws Exception {
+	public void testGETEarlyNegotiation() throws Exception {
 		System.out.println("Blockwise GET with early negotiation: (low priority for Cf client)");
 		respPayload = generateRandomPayload(350);
 		String path = "test";
@@ -250,7 +250,7 @@ public class BlockwiseClientSideTest {
      * </pre>
 	 */
 	@Test
-	public void testGETLateNegotionAndLostACK() throws Exception {
+	public void testGETLateNegotiationAndLostACK() throws Exception {
 		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
@@ -357,8 +357,8 @@ public class BlockwiseClientSideTest {
 	 * </pre>
 	 */
 	@Test
-	public void testSimpleAtomicBlockwisePUTWithSmallerNegociation() throws Exception {
-		System.out.println("Simple atomic blockwise PUT with smaller size negociation");
+	public void testSimpleAtomicBlockwisePUTWithSmallerNegotiation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with smaller size negotiation");
 		reqtPayload = generateRandomPayload(200);
 		respPayload = generateRandomPayload(50);
 		String path = "test";
@@ -374,7 +374,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(4, true, 32).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("C").block1(5, true, 32).payload(reqtPayload.substring(160, 192)).go();
-		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(5, true, 32).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(5, true, 32).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("D").block1(6, false, 32)
 				.payload(reqtPayload.substring(192, 200)).go();
@@ -408,8 +408,8 @@ public class BlockwiseClientSideTest {
 	 * </pre>
 	 */
 	@Test
-	public void testSimpleAtomicBlockwisePUTWithBiggerNegociation() throws Exception {
-		System.out.println("Simple atomic blockwise PUT with bigger size negociation");
+	public void testSimpleAtomicBlockwisePUTWithBiggerNegotiation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with bigger size negotiation");
 		reqtPayload = generateRandomPayload(300);
 		respPayload = generateRandomPayload(50);
 		String path = "test";
