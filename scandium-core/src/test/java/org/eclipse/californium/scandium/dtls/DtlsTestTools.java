@@ -140,6 +140,7 @@ public final class DtlsTestTools {
 
 		byte[] name = hostName.getBytes(StandardCharsets.US_ASCII);
 		DatagramWriter writer = new DatagramWriter();
+		writer.write(name.length + 3, 16); //server_name_list_length
 		writer.writeByte((byte) 0x00);
 		writer.write(name.length, 16);
 		writer.writeBytes(name);

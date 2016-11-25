@@ -107,7 +107,8 @@ public final class ServerNameExtension extends HelloExtension {
 		if (serverNames == null) {
 			writer.write(0, LENGTH_BITS);
 		} else {
-			writer.write(serverNames.getEncodedLength(), LENGTH_BITS);
+		    writer.write(serverNames.getEncodedLength() + 2, LENGTH_BITS); //extension_length
+			writer.write(serverNames.getEncodedLength(), LIST_LENGTH_BITS); //server_names_list_length
 
 			for (ServerName serverName : serverNames) {
 				writer.writeByte(serverName.getType().getCode()); // name type
@@ -193,8 +194,9 @@ public final class ServerNameExtension extends HelloExtension {
 	public int getLength() {
 		int length = 2; // 2 bytes indicating extension type
 		length += 2; // overall extension length
-		if (serverNames != null) {
-			length += serverNames.getEncodedLength();
+        if (serverNames != null) {
+            length += 2; // server_name_list_length
+            length += serverNames.getEncodedLength();
 		}
 		return length;
 	}

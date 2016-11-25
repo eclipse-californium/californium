@@ -87,7 +87,7 @@ public class ServerNameExtensionTest {
 		// GIVEN a serialized server name extension object
 		ServerNameExtension ext = ServerNameExtension.forHostName("iot.eclipse.org");
 		ByteBuffer b = ByteBuffer.allocate(1024);
-		writeLength(ext.getLength(), b);
+		writeLength(ext.getLength(), b); //extension length
 		b.put(ext.toByteArray());
 		b.flip();
 		serverNameStructure = new byte[b.limit()];
@@ -157,6 +157,7 @@ public class ServerNameExtensionTest {
 
 		ByteBuffer ext = ByteBuffer.allocate(1024);
 		ext.put((byte) 0x00).put((byte) 0x00); // type code 0x0000 = server_name
+		writeLength(nameEntry.limit() + 2, ext); //extension_data length
 		writeLength(nameEntry.limit(), ext); // server name list length
 		ext.put(nameEntry);
 		ext.flip();
