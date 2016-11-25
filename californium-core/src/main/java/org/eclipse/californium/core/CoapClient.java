@@ -32,14 +32,19 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
@@ -282,11 +287,12 @@ public class CoapClient {
 	 */
 	public boolean ping(long timeout) {
 		try {
-			Request request = new Request(null, Type.CON);
-			request.setToken(new byte[0]);
+			Request request = new Request(Code.GET, Type.CON);
 			request.setURI(uri);
-			request.send().waitForResponse(timeout);
-			return request.isRejected();
+			Exchange exchange = new Exchange(request, Origin.LOCAL);
+			EmptyMessage message = EmptyMessage.newEMPTY(request);			
+			getEffectiveEndpoint(request).sendEmptyMessage(exchange, message);
+			return request.waitForResponse().isRejected();
 		} catch (InterruptedException e) {
 			// waiting was interrupted, which is fine
 		}

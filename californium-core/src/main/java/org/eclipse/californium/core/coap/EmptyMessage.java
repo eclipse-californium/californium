@@ -96,4 +96,19 @@ public class EmptyMessage extends Message {
 		return rst;
 	}
 	
+	/**
+	 * Create a new empty message for the specified message.
+	 *
+	 * @param message the message to reject
+	 * @return the empty message
+	 */
+	public static EmptyMessage newEMPTY(Message message) {
+		EmptyMessage empty = new EmptyMessage(Type.CON);
+		empty.setDestination(message.getDestination());
+		empty.setDestinationPort(message.getDestinationPort());
+		empty.setMID(message.getMID());
+		empty.setConfirmable(false);
+		return empty;
+	}
+	
 }
