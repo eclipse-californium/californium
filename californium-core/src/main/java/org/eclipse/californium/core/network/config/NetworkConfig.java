@@ -96,8 +96,36 @@ public final class NetworkConfig {
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
+		/**
+		 * The block size (number of bytes) to use when doing a blockwise transfer.
+		 * This value serves as the upper limit for block size in blockwise transfers.
+		 */
 		public static final String PREFERRED_BLOCK_SIZE = "PREFERRED_BLOCK_SIZE";
+		/**
+		 * The maximum payload size (in bytes) that can be transferred in a single message,
+		 * i.e. without requiring a blockwise transfer.
+		 * 
+		 * NB: this value MUST be adapted to the maximum message size supported by the
+		 * transport layer. In particular, this value cannot exceed the network's MTU if
+		 * UDP is used as the transport protocol.
+		 */
 		public static final String MAX_MESSAGE_SIZE = "MAX_MESSAGE_SIZE";
+		/**
+		 * The maximum size of a resource body (in bytes) that will be accepted as the payload of a
+		 * POST/PUT or the response to a GET request in a <em>transparent</em> blockwise transfer.
+		 * <p>
+		 * This option serves as a safeguard against excessive memory consumption when many resources
+		 * contain large bodies that cannot be transferred in a single CoAP message. This option
+		 * has no impact on *manually* managed blockwise transfers in which the blocks are handled
+		 * individually.
+		 * <p>Note that this option does not prevent local clients or resource implementations from
+		 * sending large bodies as part of a request or response to a peer.
+		 * <p>
+		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_MAX_RESOURCE_BODY_SIZE}.
+		 * <p>
+		 * A value of {@code 0} turns off transparent handling of blockwise transfers altogether.
+		 */
+		public static final String MAX_RESOURCE_BODY_SIZE = "MAX_RESOURCE_BODY_SIZE";
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
 
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";

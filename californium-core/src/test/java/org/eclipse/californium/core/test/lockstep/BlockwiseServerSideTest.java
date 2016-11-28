@@ -153,7 +153,7 @@ public class BlockwiseServerSideTest {
 		byte[] tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(300).payload(respPayload.substring(0, 128)).go();
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(2, false, 128).go();
@@ -183,7 +183,7 @@ public class BlockwiseServerSideTest {
 		byte[] tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(300).payload(respPayload.substring(0, 128)).go();
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
@@ -223,13 +223,13 @@ public class BlockwiseServerSideTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGETEarlyNegotion() throws Exception {
+	public void testGETEarlyNegotiation() throws Exception {
 		System.out.println("Blockwise GET with early negotiation");
 		respPayload = generateRandomPayload(350);
 		byte[] tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(0, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).size2(350).payload(respPayload.substring(0, 64)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).payload(respPayload.substring(64, 128)).go();
@@ -281,13 +281,13 @@ public class BlockwiseServerSideTest {
      * </pre>
 	 */
 	@Test
-	public void testGETLateNegotion() throws Exception {
+	public void testGETLateNegotiation() throws Exception {
 		System.out.println("Blockwise GET with late negotiation:");
 		respPayload = generateRandomPayload(350);
 		byte[] tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE)
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(350)
 			.payload(respPayload.substring(0, TEST_PREFERRED_BLOCK_SIZE)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(2, false, 64).go(); // late negotiation
@@ -329,13 +329,13 @@ public class BlockwiseServerSideTest {
      * </pre>
 	 */
 	@Test
-	public void testGETLateNegotionalLostACK() throws Exception {
+	public void testGETLateNegotiationLostACK() throws Exception {
 		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(220);
 		byte[] tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE)
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(220)
 			.payload(respPayload.substring(0, TEST_PREFERRED_BLOCK_SIZE)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(2, false, 64).go();
@@ -483,7 +483,7 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, POST, tok, ++mid).path(path).block1(2, false, 128).payload(reqtPayload.substring(256, 300)).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).payload(respPayload.substring(0, 128))
-				.block1(2, false, 128).block2(0, true, 128).go();
+				.block1(2, false, 128).block2(0, true, 128).size2(500).go();
 
 		client.sendRequest(CON, POST, tok, ++mid).path(path).block2(1, false, 128).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
@@ -513,7 +513,7 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, POST, tok, ++mid).path(path).block1(2, false, 128).payload(reqtPayload.substring(256, 300)).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).payload(respPayload.substring(0, 128))
-				.block1(2, false, 128).block2(0, true, 128).go();
+				.block1(2, false, 128).block2(0, true, 128).size2(300).go();
 
 		client.sendRequest(CON, POST, tok, ++mid).path(path).block2(2, false, 64).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).block2(2, true, 64).payload(respPayload.substring(128, 192)).go();
@@ -574,7 +574,7 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, POST, tok, ++mid).path(path).payload(reqtPayload.substring(256, 300))
 				.block1(2, false, 128).block2(0, false, 64).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).payload(respPayload.substring(0, 64))
-				.block1(2, false, 128).block2(0, true, 64).go();
+				.block1(2, false, 128).block2(0, true, 64).size2(250).go();
 		serverInterceptor.log("// early negotiation");
 
 		client.sendRequest(CON, POST, tok, ++mid).path(path).block2(1, false, 64).go();
@@ -636,7 +636,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to " + path);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).observe(0).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).observe(0).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
 		byte[] tok1 = generateNextToken();
 		client.sendRequest(CON, GET, tok1, ++mid).path(path).block2(1, false, 128).go();
@@ -650,7 +650,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(280);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -666,7 +666,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(290);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -690,7 +690,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to "+path);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).observe(0).block2(0, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).observe(0).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).observe(0).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(path).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
@@ -703,7 +703,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(140);
 		test2.changed(); // First notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(1).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -719,7 +719,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(145);
 		test2.changed(); // Second notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(2).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 

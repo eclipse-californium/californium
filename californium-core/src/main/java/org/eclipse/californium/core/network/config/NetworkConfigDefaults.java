@@ -25,6 +25,12 @@ import org.eclipse.californium.elements.UDPConnector;
 
 public class NetworkConfigDefaults {
 
+	/**
+	 * The default maximum resource body size that can be transparently transferred
+	 * in a blockwise tranfer.
+	 */
+	public static final int DEFAULT_MAX_RESOURCE_BODY_SIZE = 2048; // bytes
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -59,6 +65,7 @@ public class NetworkConfigDefaults {
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
+		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 10 * 60 * 1000); // ms
 
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms

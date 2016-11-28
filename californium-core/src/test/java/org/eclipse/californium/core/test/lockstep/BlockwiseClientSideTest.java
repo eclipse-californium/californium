@@ -142,31 +142,6 @@ public class BlockwiseClientSideTest {
 		printServerLog(clientInterceptor);
 	}
 
-	// TODO: what is the purpose of this test?
-	@Test
-	public void testGET2() throws Exception {
-		System.out.println("Simple blockwise GET:");
-		respPayload = generateRandomPayload(10);
-		String path = "test";
-
-		Request request = createRequest(GET, path, server);
-		client.sendRequest(request);
-
-		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").go();
-		server.sendEmpty(ACK).loadMID("A").go();
-		Thread.sleep(50);
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-		clientInterceptor.log(" // lost");
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-
-		Response response = request.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, respPayload);
-
-		printServerLog(clientInterceptor);
-	}
-
 	/**
 	 * In the second example, the client anticipates the blockwise transfer
 	 * (e.g., because of a size indication in the link- format description
@@ -315,7 +290,7 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
@@ -367,7 +342,8 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 32).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(4, true, 32).payload(reqtPayload.substring(128, 160)).go();
@@ -418,8 +394,8 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128))
-				.go();
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 256).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128)
@@ -479,14 +455,16 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, POST, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.expectRequest(CON, POST, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("C").block1(2, false, 128).payload(reqtPayload.substring(256, 300)).go();
-		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).size2(respPayload.length())
+				.payload(respPayload.substring(0, 128)).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("D").block2(1, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("D").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
@@ -524,7 +502,8 @@ public class BlockwiseClientSideTest {
 		System.out.println("Establish observe relation to " + path);
 
 		server.expectRequest(CON, GET, path).storeToken("At").storeMID("Am").observe(0).go();
-		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("B").noOption(OBSERVE).block2(1, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
@@ -540,7 +519,8 @@ public class BlockwiseClientSideTest {
 		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
 		respPayload = generateRandomPayload(280);
 
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
@@ -558,7 +538,8 @@ public class BlockwiseClientSideTest {
 		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
 		respPayload = generateRandomPayload(290);
 
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
@@ -567,7 +548,8 @@ public class BlockwiseClientSideTest {
 		server.goMultiExpectation();
 		
 		System.out.println("Server sends third notification during transfer ");
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
@@ -576,7 +558,8 @@ public class BlockwiseClientSideTest {
 		server.goMultiExpectation();
 		
 		System.out.println("Send old notification during transfer");
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("H").noOption(OBSERVE).block2(1, false, 128).go();
