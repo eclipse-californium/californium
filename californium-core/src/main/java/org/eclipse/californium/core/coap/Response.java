@@ -133,4 +133,14 @@ public class Response extends Message {
 	public boolean isNotification() {
 		return getOptions().hasObserve();
 	}
+
+	/**
+	 * Checks whether this response has either a <em>block1</em> or
+	 * <em>block2</em> option.
+	 * 
+	 * @return {@code true} if this response has a block option.
+	 */
+	public boolean hasBlockOption() {
+		return getOptions().hasBlock1() || getOptions().hasBlock2();
+	}
 }
