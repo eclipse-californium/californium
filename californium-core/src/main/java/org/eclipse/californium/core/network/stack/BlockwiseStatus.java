@@ -19,8 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.ByteBuffer;
 
 import org.eclipse.californium.core.coap.Message;
 
@@ -34,23 +33,25 @@ import org.eclipse.californium.core.coap.Message;
 public class BlockwiseStatus {
 
 	public static final int NO_OBSERVE = -1;
-	
+
 	/** The first token to manage blockwise Observe */
 	private Message first;
-	
+
 	/** The current num. */
 	private int currentNum;
-	
+
 	/** The current szx. */
 	private int currentSzx;
-	
+
 	private boolean randomAccess;
-	
+
 	private final int contentFormat;
-	
+
 	/** Indicates whether the blockwise transfer has completed. */
 	private boolean complete;
-	
+
+	private int blockCount;
+
 	/*
 	 * It would be nice if we could get rid of this. Currently, the Cf client
 	 * needs it to mark a blockwise transferred notification as such. The
@@ -61,27 +62,16 @@ public class BlockwiseStatus {
 	/** The observe sequence number of this blockwise transfer */
 	private int observe = NO_OBSERVE;
 
-	/*
-	 * Unfortunately, we cannot use a ByteBuffer and just insert one payload
-	 * after another. If a blockwise request is answered with a blockwise
-	 * response, the first and second payload blocks are sent concurrently
-	 * (blockwise-11). They might arrive out of order. If the first block goes
-	 * lost, the client resends the last request block. Until the first response
-	 * block arrives we might already have collected several response blocks.
-	 * This is also the reason, why synchronization is required. (=>TODO)
-	 * This might change in a future draft.
-	 * UPDATE: This is no longer true since block-14.
-	 */
-	// Container for the payload of all blocks
-	/** The blocks. */
-	private ArrayList<byte[]> blocks = new ArrayList<byte[]>();
+	private ByteBuffer buf;
 
 	/**
 	 * Instantiates a new blockwise status.
 	 * 
-	 * @param contentFormat the initial Content-Format
+	 * @param maxSize The maximum size of the body to be buffered.
+	 * @param contentFormat The Content-Format of the body.
 	 */
-	public BlockwiseStatus(int contentFormat) {
+	public BlockwiseStatus(final int maxSize, final int contentFormat) {
+		this.buf = ByteBuffer.allocate(maxSize);
 		this.contentFormat = contentFormat;
 	}
 
@@ -112,25 +102,25 @@ public class BlockwiseStatus {
 	 *
 	 * @param first the block to store
 	 */
-	public void setFirst(Message first) {
+	public void setFirst(final Message first) {
 		this.first = first;
 	}
 	
 	/**
-	 * Gets the current num.
+	 * Gets the current block number.
 	 *
-	 * @return the current num
+	 * @return The current number.
 	 */
 	public int getCurrentNum() {
 		return currentNum;
 	}
 
 	/**
-	 * Sets the current num.
+	 * Sets the current block number.
 	 *
-	 * @param currentNum the new current num
+	 * @param currentNum The new current number.
 	 */
-	public void setCurrentNum(int currentNum) {
+	public void setCurrentNum(final int currentNum) {
 		this.currentNum = currentNum;
 	}
 
@@ -148,17 +138,19 @@ public class BlockwiseStatus {
 	 *
 	 * @param currentSzx the new current szx
 	 */
-	public void setCurrentSzx(int currentSzx) {
+	public void setCurrentSzx(final int currentSzx) {
 		this.currentSzx = currentSzx;
 	}
 
 	/**
-	 * Returns the initial Content-Format, which must stay the same for the whole transfer.
+	 * Checks whether a given content format matches the content format of this
+	 * blockwise transfer.
 	 * 
-	 * @return the Content-Format of the body
+	 * @param format The format to check.
+	 * @return {@code true} if this transfer's content format matches the given format.
 	 */
-	public int getContentFormat() {
-		return contentFormat;
+	public boolean hasContentFormat(final int format) {
+		return this.contentFormat == format;
 	}
 
 	/**
@@ -175,48 +167,60 @@ public class BlockwiseStatus {
 	 *
 	 * @param complete the new complete
 	 */
-	public void setComplete(boolean complete) {
+	public void setComplete(final boolean complete) {
 		this.complete = complete;
 	}
-	
+
 	/**
-	 * Adds the specified block to the current list of blocks.
+	 * Adds a block to the buffer.
 	 *
-	 * @param block the block
+	 * @param block The block to add.
+	 * @return {@code true} if the block could be added to the buffer.
 	 */
-	public void addBlock(byte[] block) {
-		blocks.add(block);
+	public boolean addBlock(final byte[] block) {
+		boolean result = false;
+		if (block == null) {
+			result = true;
+		} else if (block != null && buf.remaining() >= block.length) {
+			result = true;
+			buf.put(block);
+		}
+		blockCount++;
+		return result;
 	}
-	
+
 	/**
-	 * Gets the number of blocks.
+	 * Gets the number of blocks that have been added to the buffer.
 	 *
-	 * @return the block count
+	 * @return The block count.
 	 */
 	public int getBlockCount() {
-		return blocks.size();
+		return blockCount;
 	}
-	
+
 	/**
-	 * Gets the list of blocks.
-	 *
-	 * @return the blocks
+	 * Gets the buffer's content.
+	 * <p>
+	 * The buffer will be cleared as part of this method, thus this method should
+	 * only be invoked once there are no more blocks to add.
+	 * 
+	 * @return The bytes contained in the buffer.
 	 */
-	public List<byte[]> getBlocks() {
-		return blocks;
+	public byte[] getBody() {
+		buf.flip();
+		byte[] body = new byte[buf.remaining()];
+		buf.get(body).clear();
+		return body;
 	}
-	
+
 	public int getObserve() {
 		return observe;
 	}
-	
-	public void setObserve(int observe) {
+
+	public void setObserve(final int observe) {
 		this.observe = observe;
 	}
-	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString() {
 		return String.format("[currentNum=%d, currentSzx=%d, complete=%b, random access=%b]",
@@ -227,7 +231,7 @@ public class BlockwiseStatus {
 		return randomAccess;
 	}
 
-	public void setRandomAccess(boolean randomAccess) {
+	public void setRandomAccess(final boolean randomAccess) {
 		this.randomAccess = randomAccess;
 	}
 }
