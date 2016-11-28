@@ -39,7 +39,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
 
 /**
  * Provides transparent handling of blockwise transfer of a large <em>resource body</em>.
@@ -94,44 +93,47 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 
 	private static final Logger LOGGER = Logger.getLogger(BlockwiseLayer.class.getName());
-	private int max_message_size;
-	private int preferred_block_size;
-	private int block_timeout;
+	private int maxMessageSize;
+	private int preferredBlockSize;
+	private int blockTimeout;
 	private int maxResourceBodySize;
-	private final NetworkConfigObserverAdapter observer;
-	final private NetworkConfig config;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
 	 * <p>
-	 * Changes to the configuration are observed and automatically applied.
+	 * The following configuration properties are used:
+	 * <ul>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE} -
+	 * This value is used as the threshold for determining
+	 * whether an inbound or outbound message's body needs to be transferred blockwise. The default value is
+	 * 1024 bytes.</li>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE} -
+	 * This value is used as the value proposed to a peer
+	 * when doing a transparent blockwise transfer. The value indicates the number of bytes, not the szx code.
+	 * The default is 512 bytes.</li>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE} -
+	 * This value (in bytes) is used as the upper limit
+	 * for the size of the buffer used for assembling the blocks of a transparent blockwise transfer. Resource
+	 * bodies larger than this value can only be transferred in a manually managed blockwise transfer. The
+	 * default value is 2048 bytes.</li>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME} -
+	 * The maximum amount of time (in milliseconds)
+	 * allowed between transfers of individual blocks before the blockwise transfer state is discarded.
+	 * The default is 10 minutes.</li>
+	 * </ul>
 
 	 * @param config The configuration values to use.
 	 */
 	public BlockwiseLayer(final NetworkConfig config) {
-		this.config = config;
-		max_message_size = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
-		preferred_block_size = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
-		block_timeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
+
+		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
+		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
+		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
 		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 2048);
 
 		LOGGER.log(Level.CONFIG,
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={0}, DEFAULT_BLOCK_SIZE={1}, BLOCKWISE_STATUS_LIFETIME={2} and MAX_RESOURCE_BODY_SIZE={3}",
-			new Object[]{max_message_size, preferred_block_size, block_timeout, maxResourceBodySize});
-
-		observer = new NetworkConfigObserverAdapter() {
-			@Override
-			public void changed(final String key, final int value) {
-				if (NetworkConfig.Keys.MAX_MESSAGE_SIZE.equals(key)) {
-					max_message_size = value;
-				} else if (NetworkConfig.Keys.PREFERRED_BLOCK_SIZE.equals(key)) {
-					preferred_block_size = value;
-				} else if (NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME.equals(key)) {
-					block_timeout = value;
-				}
-			}
-		};
-		this.config.addConfigObserver(observer);
+			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
 	}
 
 	@Override
@@ -681,7 +683,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (exchange.isOfLocalOrigin()) {
 				// we are sending a large body out in a POST/GET to a peer
 				// we only need to buffer one block each
-				status = new BlockwiseStatus(preferred_block_size, request.getOptions().getContentFormat());
+				status = new BlockwiseStatus(preferredBlockSize, request.getOptions().getContentFormat());
 			} else {
 				// we are receiving a large body in a POST/GET from a peer
 				// we need to be prepared to buffer up to MAX_RESOURCE_BODY_SIZE bytes
@@ -693,7 +695,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				status = new BlockwiseStatus(bufferSize, request.getOptions().getContentFormat());
 			}
 			status.setFirst(request);
-			status.setCurrentSzx(computeSZX(preferred_block_size));
+			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			exchange.setRequestBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
 		} else {
@@ -726,7 +728,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// we do not need to buffer and assemble anything
 				status = new BlockwiseStatus(0, response.getOptions().getContentFormat());
 			}
-			status.setCurrentSzx(computeSZX(preferred_block_size));
+			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			status.setFirst(response);
 			exchange.setResponseBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
@@ -826,20 +828,20 @@ public class BlockwiseLayer extends AbstractLayer {
 	private boolean requiresBlockwise(final Request request) {
 		boolean blockwiseRequired = false;
 		if (request.getCode() == Code.PUT || request.getCode() == Code.POST) {
-			blockwiseRequired = request.getPayloadSize() > max_message_size;
+			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
 			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise trasnfer",
-					new Object[]{request.getPayloadSize(), max_message_size});
+					new Object[]{request.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
 	}
 
 	private boolean requiresBlockwise(final Exchange exchange, final Response response) {
-		boolean blockwiseRequired = response.getPayloadSize() > max_message_size || exchange.getResponseBlockStatus() != null;
+		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize || exchange.getResponseBlockStatus() != null;
 		if (blockwiseRequired) {
 			LOGGER.log(Level.FINE, "response body [{0}/{1}] requires blockwise transfer",
-					new Object[]{response.getPayloadSize(), max_message_size});
+					new Object[]{response.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
 	}
@@ -902,7 +904,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		BlockCleanupTask task = new BlockCleanupTask(exchange);
 
-		ScheduledFuture<?> f = executor.schedule(task , block_timeout, TimeUnit.MILLISECONDS);
+		ScheduledFuture<?> f = executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
 		exchange.setBlockCleanupHandle(f);
 	}
 
@@ -923,11 +925,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 			exchange.setComplete();
 		}
-	}
-
-	@Override
-	public void destroy() {
-		config.removeConfigObserver(observer);
 	}
 
 	/*
