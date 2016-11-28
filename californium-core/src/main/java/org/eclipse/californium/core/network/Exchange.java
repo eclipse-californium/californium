@@ -392,30 +392,26 @@ public class Exchange {
 		this.currentTimeout = currentTimeout;
 	}
 
-	public ScheduledFuture<?> getRetransmissionHandle() {
+	public synchronized ScheduledFuture<?> getRetransmissionHandle() {
 		return retransmissionHandle;
 	}
 
-	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
+	public synchronized void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
 		// avoid race condition of multiple responses (e.g., notifications)
-		synchronized (this) {
-			if (this.retransmissionHandle!=null) {
-				this.retransmissionHandle.cancel(false);
-			}
+		if (this.retransmissionHandle!=null) {
+			this.retransmissionHandle.cancel(false);
 		}
 		this.retransmissionHandle = retransmissionHandle;
 	}
 
-	public ScheduledFuture<?> getBlockCleanupHandle() {
+	public synchronized ScheduledFuture<?> getBlockCleanupHandle() {
 		return blockCleanupHandle;
 	}
 
-	public void setBlockCleanupHandle(ScheduledFuture<?> blockCleanupHandle) {
+	public synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
 		// avoid race condition of multiple block requests
-		synchronized (this) {
-			if (this.blockCleanupHandle!=null) {
-				this.blockCleanupHandle.cancel(false);
-			}
+		if (this.blockCleanupHandle != null) {
+			this.blockCleanupHandle.cancel(false);
 		}
 		this.blockCleanupHandle = blockCleanupHandle;
 	}
