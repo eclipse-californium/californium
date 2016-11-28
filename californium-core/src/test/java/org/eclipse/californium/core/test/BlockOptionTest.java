@@ -25,8 +25,8 @@ import static org.junit.Assert.assertEquals;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -39,14 +39,14 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class BlockOptionTest {
 
-	@Before
-	public void setupServer() {
-		System.out.println("\nStart "+getClass().getSimpleName());
+	@BeforeClass
+	public static void start() {
+		System.out.println(System.lineSeparator() + "Start " + BlockOptionTest.class.getSimpleName());
 	}
-	
-	@After
-	public void shutdownServer() {
-		System.out.println("End "+getClass().getSimpleName());
+
+	@AfterClass
+	public static void end() {
+		System.out.println(System.lineSeparator() + "End " + BlockOptionTest.class.getSimpleName());
 	}
 	
 	/**
@@ -92,7 +92,7 @@ public class BlockOptionTest {
 	 * Converts a BlockOption with the specified parameters to a byte array and
 	 * back and checks that the result is the same as the original.
 	 */
-	private void testCombined(int szx, boolean m, int num) {
+	private static void testCombined(int szx, boolean m, int num) {
 		BlockOption block = new BlockOption(szx, m, num);
 		BlockOption copy = new BlockOption(block.getValue());
 		assertEquals(block.getSzx(), copy.getSzx());
@@ -106,7 +106,7 @@ public class BlockOptionTest {
 	 * Helper function that creates a BlockOption with the specified parameters
 	 * and serializes them to a byte array.
 	 */
-	private byte[] toBytes(int szx, boolean m, int num) {
+	private static byte[] toBytes(int szx, boolean m, int num) {
 		byte[] bytes = new BlockOption(szx, m, num).getValue();
 		 System.out.println("(szx="+szx+", m="+m+", num="+num+") => "
 				 + Utils.toHexString(bytes));
@@ -116,7 +116,7 @@ public class BlockOptionTest {
 	/**
 	 * Helper function that converts an int array to a byte array.
 	 */
-	private byte[] b(int... a) {
+	private static byte[] b(int... a) {
 		byte[] ret = new byte[a.length];
 		for (int i = 0; i < a.length; i++)
 			ret[i] = (byte) a[i];
