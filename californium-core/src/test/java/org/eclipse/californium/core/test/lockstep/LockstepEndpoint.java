@@ -20,6 +20,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import static org.hamcrest.CoreMatchers.*;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -307,7 +309,37 @@ public class LockstepEndpoint {
 			});
 			return this;
 		}
-		
+
+		public MessageExpectation size1(final int expectedSize) {
+			expectations.add(new Expectation<Message>() {
+				@Override
+				public void check(final Message message) {
+					Assert.assertThat("Wrong size1", message.getOptions().getSize1(), is(expectedSize)); 
+				}
+
+				@Override
+				public String toString() {
+					return "Expected Size1 option: " + expectedSize;
+				}
+			});
+			return this;
+		}
+
+		public MessageExpectation size2(final int expectedSize) {
+			expectations.add(new Expectation<Message>() {
+				@Override
+				public void check(final Message message) {
+					Assert.assertThat("Wrong size2", message.getOptions().getSize2(), is(expectedSize)); 
+				}
+
+				@Override
+				public String toString() {
+					return "Expected Size2 option: " + expectedSize;
+				}
+			});
+			return this;
+		}
+
 		public MessageExpectation observe(final int observe) {
 			expectations.add(new Expectation<Message>() {
 				public void check(Message message) {
@@ -823,6 +855,26 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
+		public MessageProperty size1(final int size) {
+			properties.add(new Property<Message>() {
+				@Override
+				public void set(final Message message) {
+					message.getOptions().setSize1(size);
+				}
+			});
+			return this;
+		}
+
+		public MessageProperty size2(final int size) {
+			properties.add(new Property<Message>() {
+				@Override
+				public void set(final Message message) {
+					message.getOptions().setSize2(size);
+				}
+			});
+			return this;
+		}
+
 		public MessageProperty observe(final int observe) {
 			properties.add(new Property<Message>() {
 				public void set(Message message) {
@@ -896,6 +948,16 @@ public class LockstepEndpoint {
 			super.block2(num, m, size); return this;
 		}
 		
+		@Override
+		public RequestProperty size1(int size) {
+			super.size1(size); return this;
+		}
+		
+		@Override
+		public RequestProperty size2(int size) {
+			super.size2(size); return this;
+		}
+		
 		@Override public RequestProperty observe(final int observe) {
 			super.observe(observe); return this;
 		}
@@ -967,6 +1029,16 @@ public class LockstepEndpoint {
 
 		@Override public ResponseProperty block2(final int num, final boolean m, final int size) {
 			super.block2(num, m, size); return this;
+		}
+		
+		@Override
+		public ResponseProperty size1(int size) {
+			super.size1(size); return this;
+		}
+		
+		@Override
+		public ResponseProperty size2(int size) {
+			super.size2(size); return this;
 		}
 		
 		@Override public ResponseProperty observe(final int observe) {
