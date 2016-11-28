@@ -20,6 +20,8 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -38,7 +40,8 @@ public class CoapExchange {
 	
 	/* The internal (advanced) exchange. */
 	private Exchange exchange;
-	
+	private Map<String, String> queryParameters;
+
 	/* The destination resource. */
 	private CoapResource resource;
 	
@@ -47,21 +50,43 @@ public class CoapExchange {
 	private String locationQuery = null;
 	private long maxAge = 60;
 	private byte[] eTag = null;
-	
+
 	/**
-	 * Constructs a new CoAP Exchange object representing the specified exchange
-	 * and Resource.
+	 * Creates a new CoAP Exchange object for an exchange and resource.
 	 * 
-	 * @param exchange the exchange
-	 * @param resource the resource
+	 * @param exchange The message exchange.
+	 * @param resource The resource.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 */
-	public CoapExchange(Exchange exchange, CoapResource resource) {
-		if (exchange == null) throw new NullPointerException();
-		if (resource == null) throw new NullPointerException();
+	public CoapExchange(final Exchange exchange, final CoapResource resource) {
+		if (exchange == null) {
+			throw new NullPointerException("exchange must not be null");
+		} else if (resource == null) {
+			throw new NullPointerException("resource must not be null");
+		}
 		this.exchange = exchange;
 		this.resource = resource;
+		parseUriQuery();
 	}
-	
+
+	private void parseUriQuery() {
+		if (getRequestOptions().getURIQueryCount() > 0) {
+			queryParameters = new HashMap<>();
+			for (String param : getRequestOptions().getUriQuery()) {
+				addParameter(param);
+			}
+		}
+	}
+
+	private void addParameter(final String param) {
+		int idx = param.indexOf("=");
+		if (idx > 0) {
+			queryParameters.put(param.substring(0, idx), param.substring(idx + 1));
+		} else {
+			queryParameters.put(param, Boolean.TRUE.toString());
+		}
+	}
+
 	/**
 	 * Gets the source address of the request.
 	 *
@@ -98,7 +123,22 @@ public class CoapExchange {
 	public OptionSet getRequestOptions() {
 		return exchange.getRequest().getOptions();
 	}
-	
+
+	/**
+	 * Gets the value of a URI query parameter.
+	 * 
+	 * @param name The name of the query parameter.
+	 * @return The value of the parameter or {@code null} if the request did not include
+	 *         a query parameter with the given name.
+	 */
+	public String getQueryParameter(final String name) {
+
+		if (queryParameters != null) {
+			return queryParameters.get(name);
+		} else {
+			return null;
+		}
+	}
 	/**
 	 * Gets the request payload as byte array.
 	 *
