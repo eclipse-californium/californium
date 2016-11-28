@@ -820,17 +820,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		message.setMID(status.getFirst().getMID());
 		message.setToken(status.getFirst().getToken());
 		message.setOptions(new OptionSet(status.getFirst().getOptions()));
-
-//		int length = 0;
-//		for (byte[] block:status.getBlocks()) {
-//			length += block.length;
-//		}
-//		byte[] payload = new byte[length];
-//		int offset = 0;
-//		for (byte[] block:status.getBlocks()) {
-//			System.arraycopy(block, 0, payload, offset, block.length);
-//			offset += block.length;
-//		}
 		message.setPayload(status.getBody());
 	}
 
