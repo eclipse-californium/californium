@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - adjust port when bound.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -22,6 +23,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
+
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -46,7 +48,6 @@ public class TcpServerConnector implements Connector {
 	private final String SUPPORTED_SCHEME = "coap+tcp";
 
 	private final int numberOfThreads;
-	private final InetSocketAddress localAddress;
 	private final int connectionIdleTimeoutSeconds;
 	private final ConcurrentMap<SocketAddress, Channel> activeChannels = new ConcurrentHashMap<>();
 
@@ -54,6 +55,7 @@ public class TcpServerConnector implements Connector {
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
 	private URI listenUri;
+	private InetSocketAddress localAddress;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
 		this.numberOfThreads = numberOfThreads;
@@ -62,7 +64,8 @@ public class TcpServerConnector implements Connector {
 		this.listenUri = getListenUri(localAddress);
 	}
 
-	@Override public synchronized void start() throws IOException {
+	@Override
+	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -82,17 +85,18 @@ public class TcpServerConnector implements Connector {
 				.option(ChannelOption.AUTO_READ, true).childHandler(new ChannelRegistry());
 
 		// Start the server.
-		bootstrap.bind(localAddress).syncUninterruptibly().addListener(new ChannelFutureListener() {
+		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();
 
-			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				InetSocketAddress listenAddress = (InetSocketAddress) future.channel().localAddress();
-				listenUri = getListenUri(listenAddress);
-			}
-		});
+		if (channelFuture.isSuccess() && 0 == localAddress.getPort()) {
+			// replace port with the assigned one
+			InetSocketAddress listenAddress = (InetSocketAddress) channelFuture.channel().localAddress();
+			localAddress = new InetSocketAddress(localAddress.getAddress(), listenAddress.getPort());
+			listenUri = getListenUri(localAddress);
+		}
 	}
 
-	@Override public synchronized void stop() {
+	@Override
+	public synchronized void stop() {
 		if (null != bossGroup) {
 			bossGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
 			bossGroup = null;
@@ -103,11 +107,13 @@ public class TcpServerConnector implements Connector {
 		}
 	}
 
-	@Override public void destroy() {
+	@Override
+	public void destroy() {
 		stop();
 	}
 
-	@Override public void send(RawData msg) {
+	@Override
+	public void send(RawData msg) {
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
@@ -119,7 +125,8 @@ public class TcpServerConnector implements Connector {
 		channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 	}
 
-	@Override public void setRawDataReceiver(RawDataChannel messageHandler) {
+	@Override
+	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		if (rawDataChannel != null) {
 			throw new IllegalStateException("RawDataChannel alrady set");
 		}
@@ -127,7 +134,8 @@ public class TcpServerConnector implements Connector {
 		this.rawDataChannel = messageHandler;
 	}
 
-	@Override public InetSocketAddress getAddress() {
+	@Override
+	public synchronized InetSocketAddress getAddress() {
 		return localAddress;
 	}
 
@@ -143,13 +151,14 @@ public class TcpServerConnector implements Connector {
 	}
 
 	@Override
-	public final URI getUri() {
-		return getListenUri(getAddress());
+	public final synchronized URI getUri() {
+		return listenUri;
 	}
 
 	private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
 
-		@Override protected void initChannel(SocketChannel ch) throws Exception {
+		@Override
+		protected void initChannel(SocketChannel ch) throws Exception {
 			onNewChannelCreated(ch);
 
 			// Handler order:
@@ -171,17 +180,19 @@ public class TcpServerConnector implements Connector {
 	/** Tracks active channels to send messages over them. TCPServer connector does not establish new connections. */
 	private class ChannelTracker extends ChannelInboundHandlerAdapter {
 
-		@Override public void channelActive(ChannelHandlerContext ctx) throws Exception {
+		@Override
+		public void channelActive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.put(ctx.channel().remoteAddress(), ctx.channel());
 		}
 
-		@Override public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		@Override
+		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.remove(ctx.channel().remoteAddress());
 		}
 	}
 
 	protected String getSupportedScheme() {
-		return "coap+tcp";
+		return SUPPORTED_SCHEME;
 	}
 
 	private URI getListenUri(final InetSocketAddress listenAddress) {
