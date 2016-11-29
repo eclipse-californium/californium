@@ -50,7 +50,7 @@ public abstract class BaseCoapStack implements CoapStack {
 	private final StackBottomAdapter bottom;
 	private MessageDeliverer deliverer;
 
-	protected BaseCoapStack(Outbox outbox) {
+	protected BaseCoapStack(final Outbox outbox) {
 		this.top = new StackTopAdapter();
 		this.bottom = new StackBottomAdapter();
 		this.outbox = outbox;
@@ -74,37 +74,37 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public void sendRequest(Request request) {
+	public void sendRequest(final Request request) {
 		// delegate to top
 		top.sendRequest(request);
 	}
 
 	@Override
-	public void sendResponse(Exchange exchange, Response response) {
+	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
 		top.sendResponse(exchange, response);
 	}
 
 	@Override
-	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
+	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// delegate to top
 		top.sendEmptyMessage(exchange, message);
 	}
 
 	@Override
-	public void receiveRequest(Exchange exchange, Request request) {
+	public void receiveRequest(final Exchange exchange, final Request request) {
 		// delegate to bottom
 		bottom.receiveRequest(exchange, request);
 	}
 
 	@Override
-	public void receiveResponse(Exchange exchange, Response response) {
+	public void receiveResponse(final Exchange exchange, final Response response) {
 		// delegate to bottom
 		bottom.receiveResponse(exchange, response);
 	}
 
 	@Override
-	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// delegate to bottom
 		bottom.receiveEmptyMessage(exchange, message);
 	}
@@ -135,25 +135,25 @@ public abstract class BaseCoapStack implements CoapStack {
 
 	private class StackTopAdapter extends AbstractLayer {
 
-		public void sendRequest(Request request) {
+		public void sendRequest(final Request request) {
 			Exchange exchange = new Exchange(request, Origin.LOCAL);
 			sendRequest(exchange, request); // layer method
 		}
 
 		@Override
-		public void sendRequest(Exchange exchange, Request request) {
+		public void sendRequest(final Exchange exchange, final Request request) {
 			exchange.setRequest(request);
-			super.sendRequest(exchange, request);
+			lower().sendRequest(exchange, request);
 		}
 
 		@Override
-		public void sendResponse(Exchange exchange, Response response) {
+		public void sendResponse(final Exchange exchange, final Response response) {
 			exchange.setResponse(response);
-			super.sendResponse(exchange, response);
+			lower().sendResponse(exchange, response);
 		}
 
 		@Override
-		public void receiveRequest(Exchange exchange, Request request) {
+		public void receiveRequest(final Exchange exchange, final Request request) {
 			// if there is no BlockwiseLayer we still have to set it
 			if (exchange.getRequest() == null) {
 				exchange.setRequest(request);
@@ -166,19 +166,18 @@ public abstract class BaseCoapStack implements CoapStack {
 		}
 
 		@Override
-		public void receiveResponse(Exchange exchange, Response response) {
+		public void receiveResponse(final Exchange exchange, final Response response) {
 			exchange.setComplete();
 			if (hasDeliverer()) {
-				deliverer.deliverResponse(exchange, response); // notify request
-																// that response
-																// has arrived
+				// notify request that response has arrived
+				deliverer.deliverResponse(exchange, response);
 			} else {
 				LOGGER.severe("Top of CoAP stack has no deliverer to deliver response");
 			}
 		}
 
 		@Override
-		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+		public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 			// When empty messages reach the top of the CoAP stack we can ignore
 			// them.
 		}

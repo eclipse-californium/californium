@@ -37,13 +37,14 @@ import org.eclipse.californium.core.network.Exchange;
  * A base class for implementing a layer.
  * <p>
  * The <em>receive*()</em> methods by default delegate to the corresponding
- * methods of the {@link #upperLayer} (if set) while the <em>send*()</em> methods
- * delegate to the corresponding methods of the {@link #lowerLayer} (if set).
- * </p>
+ * methods of the <em>upperLayer</em> while the <em>send*()</em> methods
+ * delegate to the corresponding methods of the <em>lowerLayer</em>.
+ * <p>
+ * By default the lower and upper layer is set to an instance of {@code LogOnlyLayer}
+ * which simply logs the message invocation.
  * <p>
  * Subclasses can selectively override methods in order to implement the
  * desired behavior.
- * </p>
  */
 public abstract class AbstractLayer implements Layer {
 
@@ -51,74 +52,46 @@ public abstract class AbstractLayer implements Layer {
 	private static final Logger LOGGER = Logger.getLogger(AbstractLayer.class.getCanonicalName());
 
 	/** The upper layer. */
-	private Layer upperLayer;
+	private Layer upperLayer = LogOnlyLayer.getInstance();
 
 	/** The lower layer. */
-	private Layer lowerLayer;
+	private Layer lowerLayer = LogOnlyLayer.getInstance();
 
 	/** The executor. */
 	protected ScheduledExecutorService executor;
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
-		if (lowerLayer != null) {
-			lowerLayer.sendRequest(exchange, request);
-		} else {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending request [{0}]", request);
-		}
+		lowerLayer.sendRequest(exchange, request);
 	}
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-		if (lowerLayer != null) {
-			lowerLayer.sendResponse(exchange, response);
-		} else {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending response [{0}]", response);
-		}
+		lowerLayer.sendResponse(exchange, response);
 	}
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
-		if (lowerLayer != null) {
-			lowerLayer.sendEmptyMessage(exchange, message);
-		} else {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending empty message [{0}] for exchange [{1}]",
-					new Object[]{message, exchange});
-		}
+		lowerLayer.sendEmptyMessage(exchange, message);
 	}
 
 	@Override
 	public void receiveRequest(final Exchange exchange, final Request request) {
-		if (upperLayer != null) {
-			upperLayer.receiveRequest(exchange, request);
-		} else {
-			LOGGER.log(Level.SEVERE, "No upper layer set for receiving request [{0}] for exchange [{1}]",
-					new Object[]{request, exchange});
-		}
+		upperLayer.receiveRequest(exchange, request);
 	}
 
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
-		if (upperLayer != null) {
-			upperLayer.receiveResponse(exchange, response);
-		} else {
-			LOGGER.log(Level.SEVERE, "No upper layer set for receiving response [{0}] for exchange [{1}]",
-					new Object[]{response, exchange});
-		}
+		upperLayer.receiveResponse(exchange, response);
 	}
 
 	@Override
 	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
-		if (upperLayer != null) {
-			upperLayer.receiveEmptyMessage(exchange, message);
-		} else {
-			LOGGER.log(Level.SEVERE, "No upper layer set for receiving empty message [{0}] for exchange [{1}]",
-					new Object[]{message, exchange});
-		}
+		upperLayer.receiveEmptyMessage(exchange, message);
 	}
 
 	@Override
-	public void setLowerLayer(final Layer layer) {
+	public final void setLowerLayer(final Layer layer) {
 		if (lowerLayer != layer) {
 			if (lowerLayer != null) {
 				lowerLayer.setUpperLayer(null);
@@ -128,8 +101,17 @@ public abstract class AbstractLayer implements Layer {
 		}
 	}
 
+	/**
+	 * Gets the lower layer configured for this layer.
+	 * 
+	 * @return The lower layer.
+	 */
+	final Layer lower() {
+		return lowerLayer;
+	}
+
 	@Override
-	public void setUpperLayer(final Layer layer) {
+	public final void setUpperLayer(final Layer layer) {
 		if (upperLayer != layer) {
 			if (upperLayer != null) {
 				upperLayer.setLowerLayer(null);
@@ -139,37 +121,114 @@ public abstract class AbstractLayer implements Layer {
 		}
 	}
 
+	/**
+	 * Gets the upper layer configured for this layer.
+	 * 
+	 * @return The upper layer.
+	 */
+	final Layer upper() {
+		return upperLayer;
+	}
+
 	@Override
-	public void setExecutor(final ScheduledExecutorService executor) {
+	public final void setExecutor(final ScheduledExecutorService executor) {
 		this.executor = executor;
 	}
 
 	/**
 	 * Rejects a given message.
 	 * <p>
-	 * Rejecting an ACK or RST is not allowed.
-	 * </p>
+	 * The message is rejected by sending an empty message of type RST echoing
+	 * the message's MID.
 	 * 
-	 * @param exchange the exchange the message is part of or {@code null} if
-	 *        the message has been received without the scope of an exchange.
-	 * @param message the message to reject
+	 * @param exchange The exchange the message is part of or {@code null} if
+	 *        the message has been received out of the scope of an exchange.
+	 * @param message The message to reject.
 	 * @throws IllegalArgumentException if the message is of type ACK or RST.
 	 */
-	public void reject(final Exchange exchange, final Message message) {
-		// From core-coap draft 14:
-		// More generally, Acknowledgement and Reset messages MUST NOT elicit
-		// any Acknowledgement or Reset message from their recipient. (draft-14)
+	public final void reject(final Exchange exchange, final Message message) {
 		if (message.getType() == Type.ACK || message.getType() == Type.RST) {
-			throw new IllegalArgumentException("Cannot reject a " + message.getType());
+			throw new IllegalArgumentException("Can only reject CON/NON messages");
 		} else {
-			sendEmptyMessage(exchange, EmptyMessage.newRST(message));
+			lower().sendEmptyMessage(exchange, EmptyMessage.newRST(message));
 		}
 	}
 
 	/**
 	 * This method is empty.
+	 * <p>
+	 * Subclasses may want to use this method to e.g. shut down the executor.
 	 */
 	@Override
 	public void destroy() {
+	}
+
+	/**
+	 * A simple layer that just logs every invocation of its methods.
+	 *
+	 */
+	public static final class LogOnlyLayer implements Layer {
+
+		private static final LogOnlyLayer INSTANCE = new LogOnlyLayer();
+
+		/**
+		 * Gets the singleton instance.
+		 * 
+		 * @return The log layer.
+		 */
+		public static LogOnlyLayer getInstance() {
+			return INSTANCE;
+		}
+
+		@Override
+		public void sendRequest(final Exchange exchange, final Request request) {
+			LOGGER.log(Level.SEVERE, "No lower layer set for sending request [{0}]", request);
+		}
+
+		@Override
+		public void sendResponse(final Exchange exchange, final Response response) {
+			LOGGER.log(Level.SEVERE, "No lower layer set for sending response [{0}]", response);
+		}
+
+		@Override
+		public void sendEmptyMessage(Exchange exchange, EmptyMessage emptyMessage) {
+			LOGGER.log(Level.SEVERE, "No lower layer set for sending empty message [{0}]", emptyMessage);
+		}
+
+		@Override
+		public void receiveRequest(final Exchange exchange, final Request request) {
+			LOGGER.log(Level.SEVERE, "No upper layer set for receiving request [{0}]", request);
+			
+		}
+
+		@Override
+		public void receiveResponse(final Exchange exchange, final Response response) {
+			LOGGER.log(Level.SEVERE, "No lower layer set for receiving response [{0}]", response);
+		}
+
+		@Override
+		public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage emptyMessage) {
+			LOGGER.log(Level.SEVERE, "No lower layer set for receiving empty message [{0}]", emptyMessage);
+		}
+
+		@Override
+		public void setLowerLayer(final Layer layer) {
+			// do nothing
+		}
+
+		@Override
+		public void setUpperLayer(final Layer layer) {
+			// do nothing
+		}
+
+		@Override
+		public void setExecutor(final ScheduledExecutorService executor) {
+			// do nothing
+		}
+
+		@Override
+		public void destroy() {
+			// do nothing
+		}
 	}
 }

@@ -152,7 +152,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			status.setCurrentNum(block2.getNum());
 			status.setRandomAccess(true);
 			exchange.setResponseBlockStatus(status);
-			super.sendRequest(exchange, request);
+			lower().sendRequest(exchange, request);
 
 		} else if (requiresBlockwise(request)) {
 			// This must be a large POST or PUT request
@@ -161,7 +161,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		} else {
 			// no blockwise transfer required
 			exchange.setCurrentRequest(request);
-			super.sendRequest(exchange, request);
+			lower().sendRequest(exchange, request);
 		}
 	}
 
@@ -202,7 +202,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		exchange.setRequestBlockStatus(status);
 		exchange.setCurrentRequest(block);
-		super.sendRequest(exchange, block);
+		lower().sendRequest(exchange, block);
 	}
 
 	@Override
@@ -221,7 +221,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else {
 
 				LOGGER.fine("transparent blockwise handling is disabled, delivering request to application layer");
-				super.receiveRequest(exchange, request);
+				upper().receiveRequest(exchange, request);
 
 			}
 
@@ -247,13 +247,13 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			exchange.setCurrentResponse(block);
-			super.sendResponse(exchange, block);
+			lower().sendResponse(exchange, block);
 
 		} else {
 			earlyBlock2Negotiation(exchange, request);
 
 			exchange.setRequest(request);
-			super.receiveRequest(exchange, request);
+			upper().receiveRequest(exchange, request);
 		}
 	}
 
@@ -264,7 +264,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			error.setPayload(String.format("body too large, can process %d bytes max", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
-			super.sendResponse(exchange, error);
+			lower().sendResponse(exchange, error);
 
 		} else {
 
@@ -293,7 +293,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						piggybacked.setLast(false);
 
 						exchange.setCurrentResponse(piggybacked);
-						super.sendResponse(exchange, piggybacked);
+						lower().sendResponse(exchange, piggybacked);
 
 						// do not assemble and deliver the request yet
 
@@ -312,7 +312,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						assembleMessage(status, assembled);
 
 						exchange.setRequest(assembled);
-						super.receiveRequest(exchange, assembled);
+						upper().receiveRequest(exchange, assembled);
 					}
 
 				} else {
@@ -321,7 +321,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					error.setPayload("unexpected Content-Format");
 
 					exchange.setCurrentResponse(error);
-					super.sendResponse(exchange, error);
+					lower().sendResponse(exchange, error);
 					return;
 				}
 
@@ -335,7 +335,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				error.setPayload("Wrong block number");
 				exchange.setCurrentResponse(error);
 
-				super.sendResponse(exchange, error);
+				lower().sendResponse(exchange, error);
 			}
 		}
 	}
@@ -370,7 +370,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			exchange.setCurrentResponse(block);
-			super.sendResponse(exchange, block);
+			lower().sendResponse(exchange, block);
 
 		} else {
 			if (block1 != null) {
@@ -379,7 +379,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			exchange.setCurrentResponse(response);
 			// Block1 transfer completed
 			exchange.setBlockCleanupHandle(null);
-			super.sendResponse(exchange, response);
+			lower().sendResponse(exchange, response);
 		}
 	}
 
@@ -411,7 +411,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			// This is a normal response, no special treatment necessary
 			exchange.setResponse(response);
-			super.receiveResponse(exchange, response);
+			upper().receiveResponse(exchange, response);
 
 		} else {
 
@@ -472,7 +472,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			// All request block have been acknowledged and we receive a piggy-backed
 			// response that needs no blockwise transfer. Thus, deliver it.
-			super.receiveResponse(exchange, response);
+			upper().receiveResponse(exchange, response);
 
 		} else {
 
@@ -507,7 +507,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		nextBlock.setToken(response.getToken());
 
 		exchange.setCurrentRequest(nextBlock);
-		super.sendRequest(exchange, nextBlock);
+		lower().sendRequest(exchange, nextBlock);
 		// do not deliver response
 	}
 
@@ -564,7 +564,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (responseStatus.isRandomAccess()) {
 				// The client has requested this specific block and we deliver it
 				exchange.setResponse(response);
-				super.receiveResponse(exchange, response);
+				upper().receiveResponse(exchange, response);
 			
 			} else if (block2.isM()) {
 
@@ -604,7 +604,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				responseStatus.setCurrentNum(num);
 
 				exchange.setCurrentRequest(block);
-				super.sendRequest(exchange, block);
+				lower().sendRequest(exchange, block);
 
 			} else {
 				LOGGER.log(Level.FINER, "We have received all {0} blocks of the response. Assemble and deliver", responseStatus.getBlockCount());
@@ -642,7 +642,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				exchange.setCurrentRequest(exchange.getRequest());
 				// Set the assembled response as current response
 				exchange.setResponse(assembled);
-				super.receiveResponse(exchange, assembled);
+				upper().receiveResponse(exchange, assembled);
 			}
 
 		} else {
@@ -654,7 +654,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					new Object[]{responseStatus.getCurrentNum(), block2.getNum(), response});
 			if (response.getType()==Type.CON) {
 				EmptyMessage rst = EmptyMessage.newRST(response);
-				super.sendEmptyMessage(exchange, rst);
+				lower().sendEmptyMessage(exchange, rst);
 			}
 		}
 	}

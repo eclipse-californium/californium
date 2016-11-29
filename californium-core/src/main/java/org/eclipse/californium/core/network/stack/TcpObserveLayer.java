@@ -35,20 +35,25 @@ public class TcpObserveLayer extends AbstractLayer {
 
 	private static final Integer CANCEL = 1;
 
-	public TcpObserveLayer(NetworkConfig config) {
+	/**
+	 * Creates a new observe layer for a configuration.
+	 * 
+	 * @param config The configuration values to use.
+	 */
+	public TcpObserveLayer(final NetworkConfig config) {
 		// so far no configuration values for this layer
 	}
 
 	@Override
-	public void sendRequest(Exchange exchange, Request request) {
+	public void sendRequest(final Exchange exchange, final Request request) {
 		if (CANCEL.equals(request.getOptions().getObserve())) {
 			/* TODO: don't send, if connection is not available */
 		}
-		super.sendRequest(exchange, request);
+		lower().sendRequest(exchange, request);
 	}
 
 	@Override
-	public void sendResponse(final Exchange exchange, Response response) {
+	public void sendResponse(final Exchange exchange, final Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
 			if (!response.getOptions().hasObserve()) {
@@ -59,17 +64,17 @@ public class TcpObserveLayer extends AbstractLayer {
 				response.setLast(false);
 			}
 		} // else no observe was requested or the resource does not allow it
-		super.sendResponse(exchange, response);
+		lower().sendResponse(exchange, response);
 	}
 
 	@Override
-	public void receiveResponse(Exchange exchange, Response response) {
+	public void receiveResponse(final Exchange exchange, final Response response) {
 		if (response.getOptions().hasObserve() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
 			LOGGER.finer("Ignore notification for canceled TCP Exchange");
 		} else {
 			// No observe option in response => always deliver
-			super.receiveResponse(exchange, response);
+			upper().receiveResponse(exchange, response);
 		}
 	}
 }
