@@ -27,15 +27,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigObserverAdapter;
 
 /**
  * The reliability layer. CON retransmission. ACK/RST processing.
@@ -44,8 +43,6 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	/** The logger. */
 	protected final static Logger LOGGER = Logger.getLogger(ReliabilityLayer.class.getCanonicalName());
-	private final NetworkConfig config;
-	private final NetworkConfigObserverAdapter observer;
 
 	/** The random numbers generator for the back-off timer */
 	private Random rand = new Random();
@@ -62,7 +59,6 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param config the configuration
 	 */
 	public ReliabilityLayer(final NetworkConfig config) {
-		this.config = config;
 		ack_timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
 		ack_timeout_scale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
@@ -70,28 +66,6 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		LOGGER.log(Level.CONFIG, "ReliabilityLayer uses ACK_TIMEOUT={0}, ACK_RANDOM_FACTOR={1}, and ACK_TIMEOUT_SCALE={2}",
 				new Object[]{ack_timeout, ack_random_factor, ack_timeout_scale});
-
-		observer = new NetworkConfigObserverAdapter() {
-
-			@Override
-			public void changed(final String key, final int value) {
-				if (NetworkConfig.Keys.ACK_TIMEOUT.equals(key)) {
-					ack_timeout = value;
-				} else if (NetworkConfig.Keys.MAX_RETRANSMIT.equals(key)) {
-					max_retransmit = value;
-				}
-			}
-
-			@Override
-			public void changed(final String key, final float value) {
-				if (NetworkConfig.Keys.ACK_RANDOM_FACTOR.equals(key)) {
-					ack_random_factor = value;
-				} else if (NetworkConfig.Keys.ACK_TIMEOUT_SCALE.equals(key)) {
-					ack_timeout_scale = value;
-				}
-			}
-		};
-		config.addConfigObserver(observer);
 	}
 
 	/**
@@ -113,7 +87,7 @@ public class ReliabilityLayer extends AbstractLayer {
 				}
 			});
 		}
-		super.sendRequest(exchange, request);
+		lower().sendRequest(exchange, request);
 	}
 
 	/**
@@ -164,7 +138,7 @@ public class ReliabilityLayer extends AbstractLayer {
 				}
 			});
 		}
-		super.sendResponse(exchange, response);
+		lower().sendResponse(exchange, response);
 	}
 
 	/**
@@ -214,7 +188,7 @@ public class ReliabilityLayer extends AbstractLayer {
 			if (exchange.getCurrentResponse() != null) {
 				LOGGER.fine("Respond with the current response to the duplicate request");
 				// Do not restart retransmission cycle
-				super.sendResponse(exchange, exchange.getCurrentResponse());
+				lower().sendResponse(exchange, exchange.getCurrentResponse());
 
 			} else if (exchange.getCurrentRequest().isAcknowledged()) {
 				LOGGER.fine("The duplicate request was acknowledged but no response computed yet. Retransmit ACK");
@@ -236,7 +210,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		} else {
 			// Request is not a duplicate
 			exchange.setCurrentRequest(request);
-			super.receiveRequest(exchange, request);
+			upper().receiveRequest(exchange, request);
 		}
 	}
 
@@ -262,7 +236,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (response.isDuplicate()) {
 			LOGGER.fine("Response is duplicate, ignore it");
 		} else {
-			super.receiveResponse(exchange, response);
+			upper().receiveResponse(exchange, response);
 		}
 	}
 
@@ -296,7 +270,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		LOGGER.finer("Cancel retransmission");
 		exchange.setRetransmissionHandle(null);
 
-		super.receiveEmptyMessage(exchange, message);
+		upper().receiveEmptyMessage(exchange, message);
 	}
 
 	/*
@@ -311,11 +285,6 @@ public class ReliabilityLayer extends AbstractLayer {
 			return min;
 		}
 		return min + rand.nextInt(max - min);
-	}
-
-	@Override
-	public void destroy() {
-		config.removeConfigObserver(observer);
 	}
 
 	/*

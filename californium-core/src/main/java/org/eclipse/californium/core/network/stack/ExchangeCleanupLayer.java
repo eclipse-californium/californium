@@ -9,16 +9,16 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public class ExchangeCleanupLayer extends AbstractLayer {
 
-	@Override public void sendRequest(Exchange exchange, Request request) {
+	@Override public void sendRequest(final Exchange exchange, final Request request) {
 		request.addMessageObserver(new CancelledMessageObserver(exchange));
-		super.sendRequest(exchange, request);
+		lower().sendRequest(exchange, request);
 	}
 
 	private static class CancelledMessageObserver extends MessageObserverAdapter {
 
 		private final Exchange exchange;
 
-		CancelledMessageObserver(Exchange exchange) {
+		CancelledMessageObserver(final Exchange exchange) {
 			this.exchange = exchange;
 		}
 

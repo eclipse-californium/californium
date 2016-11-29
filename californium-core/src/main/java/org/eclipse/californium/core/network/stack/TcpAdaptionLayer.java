@@ -30,14 +30,12 @@ public class TcpAdaptionLayer extends AbstractLayer {
 
 	private static final Logger LOGGER = Logger.getLogger(TcpAdaptionLayer.class.getName());
 
-	public TcpAdaptionLayer() {
-	}
-
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+
 		if (message.isConfirmable()) {
 			// CoAP over TCP uses empty messages as pings for keep alive.
-			super.sendEmptyMessage(exchange, message);
+			lower().sendEmptyMessage(exchange, message);
 		} else {
 			// Empty messages don't make sense when running over TCP connector.
 			LOGGER.log(Level.WARNING, "Attempting to send empty message (ACK/RST) in TCP mode {0}", message);
@@ -47,13 +45,13 @@ public class TcpAdaptionLayer extends AbstractLayer {
 	@Override
 	public void receiveRequest(final Exchange exchange, final Request request) {
 		request.setAcknowledged(true);
-		super.receiveRequest(exchange, request);
+		upper().receiveRequest(exchange, request);
 	}
 
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
 		response.setAcknowledged(true);
-		super.receiveResponse(exchange, response);
+		upper().receiveResponse(exchange, response);
 	}
 
 	@Override

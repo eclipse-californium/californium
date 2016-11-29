@@ -78,7 +78,13 @@ public class CoapUdpStack extends BaseCoapStack {
 	/** The LOGGER. */
 	private final static Logger LOGGER = Logger.getLogger(CoapUdpStack.class.getCanonicalName());
 
-	public CoapUdpStack(NetworkConfig config, Outbox outbox) {
+	/**
+	 * Creates a new stack for UDP as the transport.
+	 * 
+	 * @param config The configuration values to use.
+	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 */
+	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
 
 		ReliabilityLayer reliabilityLayer;
@@ -89,9 +95,11 @@ public class CoapUdpStack extends BaseCoapStack {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
 
-
-		Layer layers[] = new Layer[] { new ExchangeCleanupLayer(), new ObserveLayer(config),
-				new BlockwiseLayer(config), reliabilityLayer };
+		Layer layers[] = new Layer[] {
+				new ExchangeCleanupLayer(),
+				new ObserveLayer(config),
+				new BlockwiseLayer(config),
+				reliabilityLayer };
 
 		setLayers(layers);
 

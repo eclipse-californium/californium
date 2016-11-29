@@ -73,11 +73,20 @@ import org.eclipse.californium.elements.Connector;
  */
 public class CoapTcpStack extends BaseCoapStack {
 
-	public CoapTcpStack(NetworkConfig config, Outbox outbox) {
+	/**
+	 * Creates a new stack using TCP as the transport.
+	 * 
+	 * @param config The configuration values to use.
+	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 */
+	public CoapTcpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
 
-		Layer layers[] = new Layer[] { new ExchangeCleanupLayer(), new TcpObserveLayer(config),
-				new BlockwiseLayer(config), new TcpAdaptionLayer() };
+		Layer layers[] = new Layer[] {
+				new ExchangeCleanupLayer(),
+				new TcpObserveLayer(config),
+				new BlockwiseLayer(config),
+				new TcpAdaptionLayer() };
 
 		setLayers(layers);
 

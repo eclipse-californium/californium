@@ -44,13 +44,18 @@ public class ObserveLayer extends AbstractLayer {
 
 	private static final Logger LOGGER = Logger.getLogger(ObserveLayer.class.getName());
 
-	public ObserveLayer(NetworkConfig config) {
+	/**
+	 * Creates a new observe layer for a configuration.
+	 * 
+	 * @param config The configuration values to use.
+	 */
+	public ObserveLayer(final NetworkConfig config) {
 		// so far no configuration values for this layer
 	}
 
 	@Override
-	public void sendRequest(Exchange exchange, Request request) {
-		super.sendRequest(exchange, request);
+	public void sendRequest(final Exchange exchange, final Request request) {
+		lower().sendRequest(exchange, request);
 	}
 
 	@Override
@@ -122,7 +127,7 @@ public class ObserveLayer extends AbstractLayer {
 			}
 
 		} // else no observe was requested or the resource does not allow it
-		super.sendResponse(exchange, response);
+		lower().sendResponse(exchange, response);
 	}
 
 	/**
@@ -130,7 +135,7 @@ public class ObserveLayer extends AbstractLayer {
 	 * in transit if it has not yet been acknowledged, rejected or its current
 	 * transmission has not yet timed out.
 	 */
-	private boolean isInTransit(Response response) {
+	private static boolean isInTransit(final Response response) {
 		Type type = response.getType();
 		boolean acked = response.isAcknowledged();
 		boolean timeout = response.isTimedOut();
@@ -139,7 +144,7 @@ public class ObserveLayer extends AbstractLayer {
 	}
 
 	@Override
-	public void receiveResponse(Exchange exchange, Response response) {
+	public void receiveResponse(final Exchange exchange, final Response response) {
 		if (response.getOptions().hasObserve() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
 			LOGGER.finer("Rejecting notification for canceled Exchange");
@@ -148,12 +153,12 @@ public class ObserveLayer extends AbstractLayer {
 			// Matcher sets exchange as complete when RST is sent
 		} else {
 			// No observe option in response => always deliver
-			super.receiveResponse(exchange, response);
+			upper().receiveResponse(exchange, response);
 		}
 	}
 
 	@Override
-	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// NOTE: We could also move this into the MessageObserverAdapter from
 		// sendResponse into the method rejected().
 		if (message.getType() == Type.RST && exchange.getOrigin() == Origin.REMOTE) {
@@ -164,7 +169,7 @@ public class ObserveLayer extends AbstractLayer {
 			} // else there was no observe relation ship and this layer ignores
 				// the rst
 		}
-		super.receiveEmptyMessage(exchange, message);
+		upper().receiveEmptyMessage(exchange, message);
 	}
 
 	private void prepareSelfReplacement(Exchange exchange, Response response) {
