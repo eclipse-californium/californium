@@ -12,28 +12,37 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - adjust port when bound.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.timeout.IdleStateHandler;
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.RawDataChannel;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.RawDataChannel;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 
 /**
  * TCP server connection is used by CoapEndpoint when instantiated by the CoapServer. Per RFC the server can both
@@ -41,16 +50,18 @@ import java.util.logging.Logger;
  */
 public class TcpServerConnector implements Connector, TcpConnector {
 
-	private final static Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
+	private final String SUPPORTED_SCHEME = "coap+tcp";
 
 	private final int numberOfThreads;
-	private final InetSocketAddress localAddress;
 	private final int connectionIdleTimeoutSeconds;
 	private final ConcurrentMap<SocketAddress, Channel> activeChannels = new ConcurrentHashMap<>();
 
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
+	private URI listenUri;
+	private InetSocketAddress localAddress;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
 		this.numberOfThreads = numberOfThreads;
@@ -58,7 +69,8 @@ public class TcpServerConnector implements Connector, TcpConnector {
 		this.localAddress = localAddress;
 	}
 
-	@Override public synchronized void start() throws IOException {
+	@Override
+	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -78,10 +90,18 @@ public class TcpServerConnector implements Connector, TcpConnector {
 				.option(ChannelOption.AUTO_READ, true).childHandler(new ChannelRegistry());
 
 		// Start the server.
-		bootstrap.bind(localAddress).syncUninterruptibly();
+		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();
+
+		if (channelFuture.isSuccess() && 0 == localAddress.getPort()) {
+			// replace port with the assigned one
+			InetSocketAddress listenAddress = (InetSocketAddress) channelFuture.channel().localAddress();
+			localAddress = new InetSocketAddress(localAddress.getAddress(), listenAddress.getPort());
+			listenUri = getListenUri(localAddress);
+		}
 	}
 
-	@Override public synchronized void stop() {
+	@Override
+	public synchronized void stop() {
 		if (null != bossGroup) {
 			bossGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
 			bossGroup = null;
@@ -92,11 +112,13 @@ public class TcpServerConnector implements Connector, TcpConnector {
 		}
 	}
 
-	@Override public void destroy() {
+	@Override
+	public void destroy() {
 		stop();
 	}
 
-	@Override public void send(RawData msg) {
+	@Override
+	public void send(RawData msg) {
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
@@ -108,7 +130,8 @@ public class TcpServerConnector implements Connector, TcpConnector {
 		channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 	}
 
-	@Override public void setRawDataReceiver(RawDataChannel messageHandler) {
+	@Override
+	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		if (rawDataChannel != null) {
 			throw new IllegalStateException("RawDataChannel alrady set");
 		}
@@ -116,7 +139,8 @@ public class TcpServerConnector implements Connector, TcpConnector {
 		this.rawDataChannel = messageHandler;
 	}
 
-	@Override public InetSocketAddress getAddress() {
+	@Override
+	public synchronized InetSocketAddress getAddress() {
 		return localAddress;
 	}
 
@@ -126,9 +150,18 @@ public class TcpServerConnector implements Connector, TcpConnector {
 	protected void onNewChannelCreated(Channel ch) {
 	}
 
+	public final boolean isSchemeSupported(String scheme) {
+		return getSupportedScheme().equals(scheme);
+	}
+
+	public final synchronized URI getUri() {
+		return listenUri;
+	}
+
 	private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
 
-		@Override protected void initChannel(SocketChannel ch) throws Exception {
+		@Override
+		protected void initChannel(SocketChannel ch) throws Exception {
 			onNewChannelCreated(ch);
 
 			// Handler order:
@@ -150,12 +183,22 @@ public class TcpServerConnector implements Connector, TcpConnector {
 	/** Tracks active channels to send messages over them. TCPServer connector does not establish new connections. */
 	private class ChannelTracker extends ChannelInboundHandlerAdapter {
 
-		@Override public void channelActive(ChannelHandlerContext ctx) throws Exception {
+		@Override
+		public void channelActive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.put(ctx.channel().remoteAddress(), ctx.channel());
 		}
 
-		@Override public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		@Override
+		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.remove(ctx.channel().remoteAddress());
 		}
+	}
+
+	protected String getSupportedScheme() {
+		return SUPPORTED_SCHEME;
+	}
+
+	private URI getListenUri(final InetSocketAddress listenAddress) {
+		return URI.create(String.format("%s://%s:%d", getSupportedScheme(), listenAddress.getHostString(), listenAddress.getPort()));
 	}
 }
