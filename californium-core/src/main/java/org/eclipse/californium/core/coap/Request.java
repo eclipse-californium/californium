@@ -22,6 +22,7 @@
  *    												  from toString() to
  *                                                    Message.getPayloadTracingString(). 
  *                                                    (for message tracing)
+ *                                                    set scheme on setOptions(URI)
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -321,17 +322,12 @@ public class Request extends Message {
 			}
 		}
 
-		final String uriScheme = uri.getScheme().toLowerCase();
+		scheme = uri.getScheme().toLowerCase();
 		// The Uri-Port is only for special cases where it differs from the UDP port,
 		// usually when Proxy-Scheme is used.
 		int port = uri.getPort();
 		if (port <= 0) {
-			// port has not been specified in URI, use default port for scheme
-			if (uriScheme.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
-				port = CoAP.DEFAULT_COAP_SECURE_PORT;
-			} else {
-				port = CoAP.DEFAULT_COAP_PORT;
-			}
+			port = CoAP.getDefaultPort(scheme);
 		}
 
 		setDestinationPort(port);
