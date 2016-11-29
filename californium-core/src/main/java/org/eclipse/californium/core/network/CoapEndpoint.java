@@ -334,7 +334,7 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
-			LOGGER.log(Level.FINE, "Endpoint at {0} is already started", getAddress());
+			LOGGER.log(Level.FINE, "Endpoint at {0} is already started", getUri());
 			return;
 		}
 
@@ -343,12 +343,12 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		if (this.executor == null) {
-			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getAddress());
+			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getUri());
 
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
 			setExecutor(Executors.newSingleThreadScheduledExecutor(
-					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#'))); //$NON-NLS-1$
+					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getUri() + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
 				public void started(final Endpoint endpoint) {
@@ -372,7 +372,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		try {
-			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getAddress());
+			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getUri());
 
 			started = true;
 			matcher.start();
@@ -381,6 +381,7 @@ public class CoapEndpoint implements Endpoint {
 				obs.started(this);
 			}
 			startExecutor();
+			LOGGER.log(Level.INFO, "Started endpoint at {0}", getUri());
 		} catch (IOException e) {
 			// free partially acquired resources
 			stop();
@@ -408,9 +409,9 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void stop() {
 		if (!started) {
-			LOGGER.log(Level.INFO, "Endpoint at {0} is already stopped", getAddress());
+			LOGGER.log(Level.INFO, "Endpoint at {0} is already stopped", getUri());
 		} else {
-			LOGGER.log(Level.INFO, "Stopping endpoint at address {0}", getAddress());
+			LOGGER.log(Level.INFO, "Stopping endpoint at address {0}", getUri());
 			started = false;
 			connector.stop();
 			matcher.stop();
@@ -423,7 +424,7 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void destroy() {
-		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getAddress());
+		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getUri());
 		if (started) {
 			stop();
 		}
