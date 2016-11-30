@@ -155,7 +155,7 @@ public class Request extends Message {
 	 * @return the scheme
 	 */
 	public String getScheme() {
-		return scheme;
+		return scheme == null ? CoAP.COAP_URI_SCHEME : scheme;
 	}
 
 	/**
