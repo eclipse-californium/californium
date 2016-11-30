@@ -34,6 +34,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public final class ServerNameExtension extends HelloExtension {
 
+	private static final int LIST_LENGTH_BITS = 16;
+
 	private ServerNames serverNames;
 
 	private ServerNameExtension() {
@@ -105,7 +107,8 @@ public final class ServerNameExtension extends HelloExtension {
 		if (serverNames == null) {
 			writer.write(0, LENGTH_BITS);
 		} else {
-			writer.write(serverNames.getEncodedLength(), LENGTH_BITS);
+			writer.write(serverNames.getEncodedLength() + 2, LENGTH_BITS); //extension_length
+			writer.write(serverNames.getEncodedLength(), LIST_LENGTH_BITS); //server_names_list_length
 
 			for (ServerName serverName : serverNames) {
 				writer.writeByte(serverName.getType().getCode()); // name type
@@ -138,12 +141,15 @@ public final class ServerNameExtension extends HelloExtension {
 			final InetSocketAddress peerAddress) throws HandshakeException {
 
 		ServerNames serverNames = ServerNames.newInstance();
-		while (reader.bytesAvailable()) {
+		int listLengthBytes = reader.read(LIST_LENGTH_BITS);
+		while (listLengthBytes > 0) {
 			if (reader.bitsLeft() >= 8) {
 				NameType nameType = NameType.fromCode(reader.readNextByte());
 				switch (nameType) {
 				case HOST_NAME:
-					serverNames.add(ServerName.from(nameType, readHostName(reader, peerAddress)));
+					byte[] hostname = readHostName(reader, peerAddress);
+					serverNames.add(ServerName.from(nameType, hostname));
+					listLengthBytes -= (hostname.length + 3);
 					break;
 				default:
 					throw new HandshakeException(
@@ -189,6 +195,7 @@ public final class ServerNameExtension extends HelloExtension {
 		int length = 2; // 2 bytes indicating extension type
 		length += 2; // overall extension length
 		if (serverNames != null) {
+			length += 2; // server_name_list_length
 			length += serverNames.getEncodedLength();
 		}
 		return length;
