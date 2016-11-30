@@ -214,8 +214,8 @@ public class BlockwiseTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received "+payload
-				+ "\n" + interceptor.toString() + "\n");
+			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
+				+ interceptor.toString() + System.lineSeparator());
 		}
 	}
 
@@ -248,7 +248,8 @@ public class BlockwiseTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received " + payload + "\n" + interceptor.toString() + "\n");
+			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
+				+ interceptor.toString() + System.lineSeparator());
 		}
 	}
 

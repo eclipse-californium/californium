@@ -18,12 +18,15 @@ package org.eclipse.californium.core.network.stack;
 import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+
+import java.net.InetAddress;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -109,14 +112,48 @@ public class BlockwiseLayerTest {
 		req.addMessageObserver(requestObserver);
 
 		Response response = Response.createResponse(req, ResponseCode.CONTENT);
+		response.setSource(InetAddress.getLoopbackAddress());
+		response.setSourcePort(CoAP.DEFAULT_COAP_PORT);
 		response.getOptions().setSize2(256).setBlock2(BlockOption.size2Szx(64), true, 0);
 
 		Exchange exchange = new Exchange(null, Origin.LOCAL);
 		exchange.setRequest(req);
-
 		blockwiseLayer.receiveResponse(exchange, response);
 
 		verify(requestObserver).onCancel();
+	}
+
+	/**
+	 * Verifies that a notification for a canceled observe relation is rejected.
+	 */
+	@Test
+	public void testReceiveResponseForwardsNotificationForCanceledObservationToUpperLayer() {
+
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
+		Layer upperLayer = mock(Layer.class);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		blockwiseLayer.setUpperLayer(upperLayer);
+
+		// GIVEN an established observation of a resource with a body requiring blockwise transfer
+		Request req = Request.newGet();
+		req.setURI("coap://127.0.0.1/bigResource");
+		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		exchange.setRequest(req);
+
+		// WHEN the request used to establish the observe relation has been canceled
+		// and a notification arrives
+		req.cancel();
+		Response response = Response.createResponse(req, ResponseCode.CONTENT);
+		response.setSource(InetAddress.getLoopbackAddress());
+		response.setSourcePort(CoAP.DEFAULT_COAP_PORT);
+		response.getOptions().setSize2(100).setBlock2(BlockOption.size2Szx(64), true, 0).setObserve(12);
+		blockwiseLayer.receiveResponse(exchange, response);
+
+		// THEN the body is not retrieved using a blockwise transfer and the notification
+		// is forwarded to the upper layer(s)
+		verify(upperLayer).receiveResponse(exchange, response);
 	}
 
 	private static Request newBlockwiseRequest(final int bodySize, final int blockSize) {

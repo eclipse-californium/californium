@@ -21,17 +21,15 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -54,12 +52,8 @@ public class ObserveLayer extends AbstractLayer {
 	}
 
 	@Override
-	public void sendRequest(final Exchange exchange, final Request request) {
-		lower().sendRequest(exchange, request);
-	}
+	public void sendResponse(final Exchange exchange, final Response response) {
 
-	@Override
-	public void sendResponse(final Exchange exchange, Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
 
@@ -145,7 +139,8 @@ public class ObserveLayer extends AbstractLayer {
 
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
-		if (response.getOptions().hasObserve() && exchange.getRequest().isCanceled()) {
+
+		if (response.isNotification() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
 			LOGGER.finer("Rejecting notification for canceled Exchange");
 			EmptyMessage rst = EmptyMessage.newRST(response);

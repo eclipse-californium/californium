@@ -28,30 +28,41 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 /**
- * Provides transparent handling of blockwise transfer of a large <em>resource body</em>.
+ * Provides transparent handling of the blockwise transfer of a large <em>resource body</em>.
  * <p>
- * Outbound requests containing a large resource body that is too large to be sent in the payload
- * of a single message are transparently replaced by a sequence of message exchanges doing a
- * blockwise transfer of the body to the server.
- * <p>
- * If a response received from a server contains a payload that represents a single block of
- * a resource body then a blockwise transfer for retrieving the individual blocks of the resource
- * body is started. Once all blocks are retrieved, they are assembled into a single {@code Response}
- * object containing the full body which is then delivered to the application layer.
- * 
+ * There are four cases in which such <em>transparent</em> blockwise transfers occur:
+ * <ul>
+ * <li>An outbound request carrying a large body that is too large to be sent in the payload
+ * of a single message, is transparently replaced by a sequence of requests transferring individual
+ * blocks of the body to the server.</li>
+ * <li>An outbound response carrying a large body that is too large to be sent in the payload
+ * of a single message, is transparently replaced by a response containing only the first block
+ * of the body. The body will be <em>buffered</em> in-memory so that the peer can retrieve the
+ * whole body using multiple requests for individual blocks.</li>
+ * <li>When an inbound request containing a single block of a large body is received, the payload
+ * will be buffered and acknowledged so that the peer can send the rest of the body using a blockwise
+ * transfer. Once all blocks have been received, the overall body is re-assembled and forwarded
+ * to the {@code Resource} handling the request.</li>
+ * <li>When a response is received from a peer containing a single block of a large body is received,
+ * the payload will be buffered and a blockwise transfer is started for retrieving the rest of the body.
+ * Once all blocks have been received, the overall body is re-assembled and forwarded
+ * to the client that has issued the original request.</li>
+ * </ul>
  */
 public class BlockwiseLayer extends AbstractLayer {
 
@@ -93,8 +104,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 
 	private static final Logger LOGGER = Logger.getLogger(BlockwiseLayer.class.getName());
+	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
+	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private int maxMessageSize;
 	private int preferredBlockSize;
+	private int preferredBlockSzx;
 	private int blockTimeout;
 	private int maxResourceBodySize;
 
@@ -106,30 +120,36 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE} -
 	 * This value is used as the threshold for determining
 	 * whether an inbound or outbound message's body needs to be transferred blockwise. The default value is
-	 * 1024 bytes.</li>
+	 * 4096 bytes.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE} -
-	 * This value is used as the value proposed to a peer
-	 * when doing a transparent blockwise transfer. The value indicates the number of bytes, not the szx code.
-	 * The default is 512 bytes.</li>
+	 * This value is used as the value proposed to a peer when doing a transparent blockwise transfer.
+	 * The value indicates the number of bytes, not the szx code. The default is 1024 bytes.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE} -
-	 * This value (in bytes) is used as the upper limit
-	 * for the size of the buffer used for assembling the blocks of a transparent blockwise transfer. Resource
-	 * bodies larger than this value can only be transferred in a manually managed blockwise transfer. The
-	 * default value is 2048 bytes.</li>
+	 * This value (in bytes) is used as the upper limit for the size of the buffer used for assembling
+	 * blocks of a transparent blockwise transfer. Resource bodies larger than this value can only be
+	 * transferred in a manually managed blockwise transfer. Setting this value to 0 disables transparent
+	 * blockwise handling altogether, i.e. all messages will simply be forwarded directly up and down to
+	 * the next layer. The default value of this property is 8192 bytes.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME} -
-	 * The maximum amount of time (in milliseconds)
-	 * allowed between transfers of individual blocks before the blockwise transfer state is discarded.
-	 * The default is 10 minutes.</li>
+	 * The maximum amount of time (in milliseconds) allowed between transfers of individual blocks before
+	 * the blockwise transfer state is discarded. The default value is 30 seconds.</li>
 	 * </ul>
 
 	 * @param config The configuration values to use.
 	 */
 	public BlockwiseLayer(final NetworkConfig config) {
 
-		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
-		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
-		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
-		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 2048);
+		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 4096);
+		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
+		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
+		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 30 * 1000); // 30 secs
+		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 8192);
+		int maxActivePeers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS);
+		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
+		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
 
 		LOGGER.log(Level.CONFIG,
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={0}, DEFAULT_BLOCK_SIZE={1}, BLOCKWISE_STATUS_LIFETIME={2} and MAX_RESOURCE_BODY_SIZE={3}",
@@ -139,39 +159,38 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		BlockOption block2 = request.getOptions().getBlock2();
-		if (block2 != null && block2.getNum() > 0) {
-			// This is the case if the user has explicitly added a block option
-			// for random access.
-			// Note: We do not regard it as random access when the block num is
-			// 0. This is because the user might just want to do early block
-			// size negotiation but actually wants to receive all blocks.
-			LOGGER.fine("request contains block2 option, creating random-access blockwise status");
-			BlockwiseStatus status = new BlockwiseStatus(getSizeForSzx(block2.getSzx()), request.getOptions().getContentFormat());
-			status.setCurrentSzx(block2.getSzx());
-			status.setCurrentNum(block2.getNum());
-			status.setRandomAccess(true);
-			exchange.setResponseBlockStatus(status);
-			lower().sendRequest(exchange, request);
+		Request requestToSend = request;
 
-		} else if (requiresBlockwise(request)) {
-			// This must be a large POST or PUT request
-			startBlockwiseUpload(exchange, request);
+		if (isTransparentBlockwiseHandlingEnabled()) {
 
-		} else {
-			// no blockwise transfer required
-			exchange.setCurrentRequest(request);
-			lower().sendRequest(exchange, request);
+			BlockOption block2 = request.getOptions().getBlock2();
+			if (block2 != null && block2.getNum() > 0) {
+				// This is the case if the user has explicitly added a block option
+				// for random access.
+				// Note: We do not regard it as random access when the block number is 0.
+				// This is because the user might just want to do early block
+				// size negotiation but actually want to retrieve the whole body by means of
+				// a transparent blockwise transfer.
+				LOGGER.fine("outbound request contains block2 option, creating random-access blockwise status");
+				addRandomAccessBlock2Status(exchange, request);
+
+			} else if (requiresBlockwise(request)) {
+				// This must be a large POST or PUT request
+				requestToSend = startBlockwiseUpload(exchange, request);
+
+			}
 		}
+
+		exchange.setCurrentRequest(requestToSend);
+		lower().sendRequest(exchange, requestToSend);
 	}
 
-	private void startBlockwiseUpload(final Exchange exchange, final Request request) {
+	private Request startBlockwiseUpload(final Exchange exchange, final Request request) {
 
-		BlockwiseStatus status = findRequestBlockStatus(exchange, request);
+		final KeyUri key = getKey(exchange, request);
+		Block1BlockwiseStatus status = getOutboundBlock1Status(key, exchange, request);
 
-		final Request block = getNextRequestBlock(request, status);
-		// indicate overall body size to peer
-		block.getOptions().setSize1(request.getPayloadSize());
+		final Request block = status.getNextRequestBlock();
 
 		block.addMessageObserver(new MessageObserverAdapter() {
 
@@ -192,204 +211,295 @@ public class BlockwiseLayer extends AbstractLayer {
 			@Override
 			public void onReject() {
 				copyToken();
+				clearBlock1Status(key);
 			}
 
 			@Override
 			public void onTimeout() {
 				copyToken();
+				clearBlock1Status(key);
+			}
+
+			@Override
+			public void onCancel() {
+				clearBlock1Status(key);
 			}
 		});
 
-		exchange.setRequestBlockStatus(status);
-		exchange.setCurrentRequest(block);
-		lower().sendRequest(exchange, block);
+		return block;
 	}
 
 	@Override
 	public void receiveRequest(final Exchange exchange, final Request request) {
 
-		BlockOption block1 = request.getOptions().getBlock1();
-		if (block1 != null) {
-
-			// This is a large POST or PUT request
-			LOGGER.log(Level.FINE, "inbound request contains block1 option {0}", block1);
-
-			if (isTransparentBlockwiseHandlingEnabled()) {
-
-				handleInboundBlockwiseUpload(block1, exchange, request);
-
-			} else {
-
-				LOGGER.fine("transparent blockwise handling is disabled, delivering request to application layer");
-				upper().receiveRequest(exchange, request);
-
-			}
-
-		} else if (exchange.getResponse() != null && request.getOptions().hasBlock2()) {
-			// The response has already been generated and the client just wants its next block
+		if (isTransparentBlockwiseHandlingEnabled()) {
 
 			BlockOption block2 = request.getOptions().getBlock2();
-			Response response = exchange.getResponse();
-			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
-			status.setCurrentNum(block2.getNum());
-			status.setCurrentSzx(block2.getSzx());
 
-			Response block = getNextResponseBlock(response, status);
-			// indicate overall body size to peer
-			block.getOptions().setSize2(response.getPayloadSize());
-			if (status.isComplete()) {
-				// clean up blockwise status
-				LOGGER.log(Level.FINE, "peer has requested last block of blockwise transfer: {0}", status);
-				exchange.setResponseBlockStatus(null);
-				exchange.setBlockCleanupHandle(null);
+			if (request.getOptions().hasBlock1()) {
+
+				// This is a large POST or PUT request
+				handleInboundBlockwiseUpload(exchange, request);
+
+			} else if (block2 != null) {
+
+				KeyUri key = getKey(exchange, request);
+				Block2BlockwiseStatus status = getBlock2Status(key);
+				if (status == null) {
+
+					LOGGER.log(
+							Level.FINE,
+							"peer wants to retrieve individual block2 {0}, delivering request to application layer",
+							block2);
+					exchange.setRequest(request);
+					upper().receiveRequest(exchange, request);
+
+				} else {
+					// The peer wants to retrieve the next block of a blockwise transfer
+					handleInboundRequestForNextBlock(exchange, request, key, status);
+				}
+
 			} else {
-				LOGGER.log(Level.FINE, "peer has requested intermediary block of blockwise transfer: {0}", status);
+
+				exchange.setRequest(request);
+				upper().receiveRequest(exchange, request);
 			}
 
-			exchange.setCurrentResponse(block);
-			lower().sendResponse(exchange, block);
-
 		} else {
-			earlyBlock2Negotiation(exchange, request);
 
 			exchange.setRequest(request);
 			upper().receiveRequest(exchange, request);
 		}
 	}
 
-	private void handleInboundBlockwiseUpload(final BlockOption block1, final Exchange exchange, final Request request) {
+	private void handleInboundBlockwiseUpload(final Exchange exchange, final Request request) {
 
 		if (requestExceedsMaxBodySize(request)) {
 
 			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			error.setPayload(String.format("body too large, can process %d bytes max", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
+			exchange.setCurrentResponse(error);
 			lower().sendResponse(exchange, error);
 
 		} else {
 
-			BlockwiseStatus status = findRequestBlockStatus(exchange, request);
+			BlockOption block1 = request.getOptions().getBlock1();
+			LOGGER.log(Level.FINE, "inbound request contains block1 option {0}", block1);
+			KeyUri key = getKey(exchange, request);
+			Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request);
 
 			if (block1.getNum() == 0 && status.getCurrentNum() > 0) {
-				// reset the blockwise transfer
-				LOGGER.finer("Block1 num is 0, the client has restarted the blockwise transfer. Reset status.");
-				// reset current status
-				exchange.setRequestBlockStatus(null);
-				// and create new status for fresher notification
-				status = findRequestBlockStatus(exchange, request);
+				status = resetInboundBlock1Status(key, exchange, request);
 			}
 
-			if (block1.getNum() == status.getCurrentNum()) {
-
-				if (status.hasContentFormat(request.getOptions().getContentFormat())) {
-
-					status.addBlock(request.getPayload());
-					status.setCurrentNum(status.getCurrentNum() + 1);
-					if ( block1.isM() ) {
-						LOGGER.finest("There are more blocks to come. Acknowledge this block.");
-						
-						Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
-						piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
-						piggybacked.setLast(false);
-
-						exchange.setCurrentResponse(piggybacked);
-						lower().sendResponse(exchange, piggybacked);
-
-						// do not assemble and deliver the request yet
-
-					} else {
-						LOGGER.finer("This was the last block. Deliver request");
-
-						// Remember block to acknowledge. TODO: We might make this a boolean flag in status.
-						exchange.setBlock1ToAck(block1); 
-
-						// Block2 early negotiation
-						earlyBlock2Negotiation(exchange, request);
-
-						// Assemble and deliver
-						Request assembled = new Request(request.getCode());
-						assembled.setSenderIdentity(request.getSenderIdentity());
-						assembleMessage(status, assembled);
-
-						exchange.setRequest(assembled);
-						upper().receiveRequest(exchange, assembled);
-					}
-
-				} else {
-					Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
-					error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
-					error.setPayload("unexpected Content-Format");
-
-					exchange.setCurrentResponse(error);
-					lower().sendResponse(exchange, error);
-					return;
-				}
-
-			} else {
+			if (block1.getNum() != status.getCurrentNum()) {
 				// ERROR, wrong number, Incomplete
 				LOGGER.log(Level.WARNING,
-						"Wrong block number. Expected {0} but received {1}. Respond with 4.08 (Request Entity Incomplete)",
+						"peer sent wrong block, expected no. {0} but got {1}. Responding with 4.08 (Request Entity Incomplete)",
 						new Object[]{status.getCurrentNum(), block1.getNum()});
-				Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_INCOMPLETE);
-				error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
-				error.setPayload("Wrong block number");
-				exchange.setCurrentResponse(error);
 
-				lower().sendResponse(exchange, error);
+				sendBlock1ErrorResponse(key, exchange, request, ResponseCode.REQUEST_ENTITY_INCOMPLETE, "wrong block number");
+
+			} else if (!status.hasContentFormat(request.getOptions().getContentFormat())) {
+
+				sendBlock1ErrorResponse(key, exchange, request, ResponseCode.REQUEST_ENTITY_INCOMPLETE, "unexpected Content-Format");
+
+			} else if (!status.addBlock(request.getPayload())) {
+
+				sendBlock1ErrorResponse(key, exchange, request, ResponseCode.REQUEST_ENTITY_TOO_LARGE,
+						"body exceeded expected size " + status.getBufferSize());
+
+			} else {
+
+				status.setCurrentNum(status.getCurrentNum() + 1);
+				if ( block1.isM() ) {
+
+					// do not assemble and deliver the request yet
+
+					LOGGER.log(Level.FINE, "acknowledging incoming block1 [num={0}], expecting more blocks to come", block1.getNum());
+
+					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
+					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
+					piggybacked.setLast(false);
+
+					exchange.setCurrentResponse(piggybacked);
+					lower().sendResponse(exchange, piggybacked);
+
+				} else {
+
+					LOGGER.log(Level.FINE, "peer has sent last block1 [num={0}], delivering request to application layer", block1.getNum());
+
+					// Remember block to acknowledge. TODO: We might make this a boolean flag in status.
+					exchange.setBlock1ToAck(block1); 
+
+					// Assemble and deliver
+					Request assembled = new Request(request.getCode());
+					assembled.setSenderIdentity(request.getSenderIdentity());
+					status.assembleMessage(assembled);
+
+					// make sure we deliver the request using the MID and token of the latest request
+					// so that the response created by the application layer can reply to his token and
+					// MID
+					assembled.setMID(request.getMID());
+					assembled.setToken(request.getToken());
+
+					// make sure peer's early negotiation of block2 size gets included
+					assembled.getOptions().setBlock2(request.getOptions().getBlock2());
+
+					clearBlock1Status(key);
+
+					exchange.setRequest(assembled);
+					upper().receiveRequest(exchange, assembled);
+				}
 			}
 		}
 	}
 
-	@Override
-	public void sendResponse(final Exchange exchange, final Response response) {
+	private void sendBlock1ErrorResponse(final KeyUri key, final Exchange exchange, final Request request,
+			final ResponseCode errorCode, final String message) {
 
-		BlockOption block1 = exchange.getBlock1ToAck();
+		BlockOption block1 = request.getOptions().getBlock1();
+		Response error = Response.createResponse(request, errorCode);
+		error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
+		error.setPayload(message);
+		clearBlock1Status(key);
+		exchange.setCurrentResponse(error);
+		lower().sendResponse(exchange, error);
+	}
 
-		if (block1 != null) {
-			exchange.setBlock1ToAck(null);
-		}
+	private void handleInboundRequestForNextBlock(final Exchange exchange, final Request request,
+			final KeyUri key, final Block2BlockwiseStatus status) {
 
-		if (requiresBlockwise(exchange, response)) {
+		synchronized (status) {
 
-			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
-			int bodySize = response.getPayloadSize();
-			Response block = getNextResponseBlock(response, status);
-			// indicate overall body size to peer
-			block.getOptions().setSize2(bodySize);
-
-			if (block1 != null) { // in case we still have to ack the last block1
-				block.getOptions().setBlock1(block1);
-			}
+			BlockOption block2 = request.getOptions().getBlock2();
+			Response block = status.getNextResponseBlock(block2);
 			if (status.isComplete()) {
 				// clean up blockwise status
-				LOGGER.log(Level.FINE, "Ongoing finished on first block {0}", status);
-				exchange.setResponseBlockStatus(null);
-				exchange.setBlockCleanupHandle(null);
+				LOGGER.log(Level.FINE, "peer has requested last block of blockwise transfer: {0}", status);
+				clearBlock2Status(key);
 			} else {
-				LOGGER.log(Level.FINE, "Ongoing started {0}", status);
+				LOGGER.log(Level.FINE, "peer has requested intermediary block of blockwise transfer: {0}", status);
 			}
 
 			exchange.setCurrentResponse(block);
 			lower().sendResponse(exchange, block);
-
-		} else {
-			if (block1 != null) {
-				response.getOptions().setBlock1(block1);
-			}
-			exchange.setCurrentResponse(response);
-			// Block1 transfer completed
-			exchange.setBlockCleanupHandle(null);
-			lower().sendResponse(exchange, response);
 		}
+	}
+
+	/**
+	 * Invoked when a response is sent to a peer.
+	 * <p>
+	 * This method initiates a blockwise transfer if the response's payload
+	 * exceeds {@code MAX_MESSAGE_SIZE}.
+	 * 
+	 * @param exchange The exchange the response is part of.
+	 * @param response The response to send to the peer.
+	 */
+	@Override
+	public void sendResponse(final Exchange exchange, final Response response) {
+
+		Response responseToSend = response;
+
+		if (isTransparentBlockwiseHandlingEnabled()) {
+
+			BlockOption requestBlock2 = exchange.getRequest().getOptions().getBlock2();
+			BlockOption responseBlock2 = response.getOptions().getBlock2();
+
+			if (requestBlock2 != null && requestBlock2.getNum() > 0) {
+
+				// peer has issued a random block access request
+
+				if (responseBlock2 != null) {
+
+					// the resource implementation supports blockwise retrieval (indicated by the
+					// presence of the block2 option in the response)
+
+					if (requestBlock2.getNum() != responseBlock2.getNum()) {
+						LOGGER.log(
+							Level.WARNING,
+							"resource [{0}] implementation error, peer requested block {1} but resource returned block {2}",
+							new Object[]{exchange.getRequest().getURI(), requestBlock2.getNum(), responseBlock2.getNum()});
+						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
+						responseToSend.setType(response.getType());
+						responseToSend.setMID(response.getMID());
+					}
+
+				} else if (response.hasBlock(requestBlock2)) {
+
+					// the resource implementation does not support blockwise retrieval
+					// but instead has responded with the full response body
+					// crop the response down to the requested block
+					Block2BlockwiseStatus.crop(responseToSend, requestBlock2);
+
+				} else {
+
+					// peer has requested a non existing block
+					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.BAD_OPTION);
+					responseToSend.setType(response.getType());
+					responseToSend.setMID(response.getMID());
+					responseToSend.getOptions().setBlock2(requestBlock2);
+
+				}
+
+			} else if (requiresBlockwise(exchange, response, requestBlock2)) {
+
+				// the client either has not included a block2 option at all or has
+				// included a block2 option with num = 0 (early negotiation of block size)
+
+				KeyUri key = getKey(exchange, response);
+				// There are potentially multiple blockwise transfers of the same
+				// resource representation going on with the same client.
+				// We cannot distinguish these because the status is scoped to the
+				// client's endpoint address only (which is the same in this case)
+				// thus these transfers all "share" the same status object on the
+				// server (this) side.
+				// This shared status will be cleaned up as soon as the last block
+				// is transferred for the first time. Any subsequent block2 requests
+				// with num > 0 will then be processed as "random block access" requests.
+				Block2BlockwiseStatus status = getOutboundBlock2Status(key, exchange, response);
+
+				// Subsequent requests for the same resource from the same client for
+				// either block 0 or without a block2 option at all will result in
+				// the existing status being "re-used". We therefore need to make
+				// sure that we return the first block of the payload.
+				BlockOption block2 = requestBlock2 != null ? requestBlock2 : new BlockOption(preferredBlockSzx, false, 0);
+				responseToSend = status.getNextResponseBlock(block2);
+
+				if (status.isComplete()) {
+					// clean up blockwise status
+					LOGGER.log(Level.FINE, "block2 transfer of response finished after first block: {0}", status);
+					clearBlock2Status(key);
+				} else {
+					LOGGER.log(Level.FINE, "block2 transfer of response started: {0}", status);
+					addBlock2CleanUpObserver(responseToSend, key);
+				}
+
+			}
+
+			BlockOption block1 = exchange.getBlock1ToAck();
+			if (block1 != null) {
+				exchange.setBlock1ToAck(null);
+				responseToSend.getOptions().setBlock1(block1);
+			}
+		}
+
+		exchange.setCurrentResponse(responseToSend);
+		lower().sendResponse(exchange, responseToSend);
 	}
 
 	/**
 	 * Invoked when a response has been received from a peer.
 	 * <p>
-	 * Checks whether the response either contains a block of an already ongoing
-	 * blockwise transfer or contains the first block of a large body and
-	 * requires the start of a blockwise transfer to retrieve the remaining blocks
-	 * of the body.
+	 * Checks whether the response
+	 * <ul>
+	 * <li>contains a block of an already ongoing blockwise transfer or
+	 * contains the first block of a large body and requires the start of a
+	 * blockwise transfer to retrieve the remaining blocks of the body or</li>
+	 * <li>acknowledges a block sent to the peer as part of a block1 transfer
+	 * and either sends the next block or handles a potential error situation.</li>
+	 * </ul>
 	 * 
 	 * @param exchange The message exchange that the response is part of.
 	 * @param response The response received from the peer.
@@ -397,35 +507,54 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
-		if (exchange.getRequest().isCanceled()) {
-			// do not continue fetching blocks if canceled
-			// reject (in particular for Block+Observe)
-			if (response.getType()!=Type.ACK) {
-				LOGGER.finer("rejecting blockwise transfer for canceled Exchange");
-				EmptyMessage rst = EmptyMessage.newRST(response);
-				sendEmptyMessage(exchange, rst);
-				// Matcher sets exchange as complete when RST is sent
+		if (isTransparentBlockwiseHandlingEnabled()) {
+
+			if (response.isError()) {
+				// handle blockwise specific error codes
+				switch(response.getCode()) {
+				case REQUEST_ENTITY_INCOMPLETE: // 4.08
+					// we seem to have uploaded blocks not in expected order
+				case REQUEST_ENTITY_TOO_LARGE: // 4.13
+					// server is not able to process the payload we included
+					KeyUri key = getKey(exchange, exchange.getCurrentRequest());
+					clearBlock1Status(key);
+				default:
+					Response resp = new Response(response.getCode());
+					resp.setToken(exchange.getRequest().getToken());
+					if (exchange.getRequest().getType() == Type.CON) {
+						resp.setType(Type.ACK);
+						resp.setMID(exchange.getRequest().getMID());
+					} else {
+						resp.setType(Type.NON);
+					}
+					resp.setSource(response.getSource());
+					resp.setSourcePort(response.getSourcePort());
+					resp.setPayload(response.getPayload());
+					resp.setOptions(response.getOptions());
+					exchange.setResponse(resp);
+					upper().receiveResponse(exchange, resp);
+				}
+			} else if (!response.hasBlockOption()) {
+
+				// This is a normal response, no special treatment necessary
+				exchange.setResponse(response);
+				upper().receiveResponse(exchange, response);
+
+			} else {
+
+				if (response.getOptions().hasBlock1()) {
+					handleBlock1Response(exchange, response);
+				}
+
+				if (response.getOptions().hasBlock2()) {
+					handleBlock2Response(exchange, response);
+				}
 			}
-
-		} else if (!response.hasBlockOption()) {
-
-			// This is a normal response, no special treatment necessary
-			exchange.setResponse(response);
-			upper().receiveResponse(exchange, response);
 
 		} else {
-
-			BlockOption block = response.getOptions().getBlock1();
-			if (block != null) {
-				handleBlock1Response(exchange, response, block);
-			}
-
-			block = response.getOptions().getBlock2();
-			if (block != null) {
-				handleBlock2Response(exchange, response, block);
-			}
+			exchange.setResponse(response);
+			upper().receiveResponse(exchange, response);
 		}
-
 	}
 
 	/**
@@ -434,24 +563,38 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * @param exchange The message exchange that the response is part of.
 	 * @param response The response received from the peer.
-	 * @param block1 The block1 option from the response.
 	 */
-	private void handleBlock1Response(final Exchange exchange, final Response response, final BlockOption block1) {
+	private void handleBlock1Response(final Exchange exchange, final Response response) {
 
-		LOGGER.log(Level.FINER, "received response acknowledging block {0}", block1);
+		BlockOption block1 = response.getOptions().getBlock1();
+		LOGGER.log(Level.FINER, "received response acknowledging block1 {0}", block1);
 
-		BlockwiseStatus status = exchange.getRequestBlockStatus();
+		// Block1 transfer has been originally created for an outbound request
+		final KeyUri key = getKey(exchange, exchange.getRequest());
+		Block1BlockwiseStatus status = getBlock1Status(key);
 		if (status == null) {
 
 			// request has not been sent blockwise
-			LOGGER.log(Level.FINE, "discarding response containing unexpected block1 option: {0}", response);
+			LOGGER.log(Level.FINE, "discarding unexpected block1 response: {0}", response);
+
+		} else if (exchange.getRequest().isCanceled()) {
+			// stop block1 transfer
+			clearBlock1Status(key);
 
 		} else if (!status.isComplete()) {
 
+			// this means that our last request's M-bit was set
+
 			if (block1.isM()) {
-				// server wants us to send the remaining blocks before returning
-				// its response
-				sendNextBlock(exchange, response, block1, status);
+				if (response.getCode() == ResponseCode.CONTINUE) {
+					// server wants us to send the remaining blocks before returning
+					// its response
+					sendNextBlock(exchange, response, key, status);
+				} else {
+					// the server has responded in a way that is not compliant with RFC 7959
+					clearBlock1Status(key);
+					exchange.getRequest().setRejected(true);
+				}
 
 			} else {
 				// this means that the response already contains the server's final
@@ -465,50 +608,47 @@ public class BlockwiseLayer extends AbstractLayer {
 				// to keep track of this POST/PUT request
 				// we therefore go on sending all pending blocks and then return the
 				// response received for the last block
-				sendNextBlock(exchange, response, block1, status);
+				sendNextBlock(exchange, response, key, status);
 			}
-
-		} else if (!response.getOptions().hasBlock2()) {
-
-			// All request block have been acknowledged and we receive a piggy-backed
-			// response that needs no blockwise transfer. Thus, deliver it.
-			upper().receiveResponse(exchange, response);
 
 		} else {
 
-			LOGGER.finer("Block1 followed by Block2 transfer");
+			// all blocks of block1 transfer have been sent
+			clearBlock1Status(key);
 
+			if (response.getOptions().hasBlock2()) {
+				LOGGER.finer("Block1 followed by Block2 transfer");
+			} else {
+				// All request blocks have been acknowledged and we have received a
+				// response that does not need blockwise transfer. Thus, deliver it.
+				exchange.setResponse(response);
+				upper().receiveResponse(exchange, response);
+			}
 		}
 	}
 
-	private void sendNextBlock(final Exchange exchange, final Response response, final BlockOption block1, final BlockwiseStatus requestStatus) {
+	private void sendNextBlock(final Exchange exchange, final Response response, final KeyUri key, final Block1BlockwiseStatus status) {
 
-		// Send next block
-		int currentSize = 1 << (4 + requestStatus.getCurrentSzx());
-		// Define new size of the block depending of preferred size block
+		BlockOption block1 = response.getOptions().getBlock1();
+		int currentSize = status.getCurrentSize();
+		// adjust block size to peer's preference
 		int newSize, newSzx;
 		if (block1.getSize() < currentSize) {
 			newSize = block1.getSize();
 			newSzx = block1.getSzx();
 		} else {
 			newSize = currentSize;
-			newSzx = requestStatus.getCurrentSzx();
+			newSzx = status.getCurrentSzx();
 		}
-		int nextNum = requestStatus.getCurrentNum() + currentSize / newSize;
-		LOGGER.log(Level.FINER, "Sending next Block1 num={0}", nextNum);
-		requestStatus.setCurrentNum(nextNum);
-		requestStatus.setCurrentSzx(newSzx);
-		Request nextBlock = getNextRequestBlock(exchange.getRequest(), requestStatus);
-
-		// indicate overall body size to peer
-		nextBlock.getOptions().setSize1(exchange.getRequest().getPayloadSize());
-
+		int nextNum = status.getCurrentNum() + currentSize / newSize;
+		LOGGER.log(Level.FINE, "sending next Block1 num={0}", nextNum);
+		Request nextBlock = status.getNextRequestBlock(nextNum, newSzx);
 		// we use the same token to ease traceability
 		nextBlock.setToken(response.getToken());
+		addBlock1CleanUpObserver(nextBlock, key);
 
 		exchange.setCurrentRequest(nextBlock);
 		lower().sendRequest(exchange, nextBlock);
-		// do not deliver response
 	}
 
 	/**
@@ -517,312 +657,349 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * @param exchange The message exchange that the response is part of.
 	 * @param response The response received from the peer.
-	 * @param block2 The block2 option from the reponse.
 	 */
-	private void handleBlock2Response(final Exchange exchange, final Response response, final BlockOption block2) {
+	private void handleBlock2Response(final Exchange exchange, final Response response) {
 
-		if (responseExceedsMaxBodySize(response)) {
+		BlockOption block2 = response.getOptions().getBlock2();
+		KeyUri key = getKey(exchange, response);
+
+		if (exchange.getRequest().isCanceled()) {
+
+			// We have received a block of the resource body in response to a request that
+			// has been canceled by the application layer. There is no need to retrieve the
+			// remaining blocks.
+			clearBlock2Status(key);
+
+			if (response.isNotification()) {
+				// We have received a notification for an observed resource that the
+				// application layer is no longer interested in.
+				// Let upper layers decide what to do with the notification.
+				upper().receiveResponse(exchange, response);
+			}
+
+		} else if (responseExceedsMaxBodySize(response)) {
+
 			LOGGER.log(Level.FINE, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
 			exchange.getRequest().cancel();
-			return;
-		}
-
-		BlockwiseStatus responseStatus = findResponseBlockStatus(exchange, response);
-
-		// a new notification might arrive during a blockwise transfer
-		if (response.isNotification() && block2.getNum() == 0 && responseStatus.getCurrentNum() != 0) {
-
-			if (response.getOptions().getObserve() > responseStatus.getObserve()) {
-				// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
-				LOGGER.log(Level.WARNING, "ongoing blockwise transfer reset at num = {0} by new notification: {1}", new Object[]{responseStatus.getCurrentNum(), response});
-				// reset current status
-				exchange.setResponseBlockStatus(null);
-				// and create new status for fresher notification
-				responseStatus = findResponseBlockStatus(exchange, response);
-			} else {
-				LOGGER.log(Level.FINE, "discarding old notification received during ongoing blockwise transfer: {0}", response);
-				return;
-			}
-		}
-
-		// check token to avoid mixed blockwise transfers (possible with observe) 
-		if (block2.getNum() == responseStatus.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
-
-			// We got the block we expected :-)
-
-			if (!responseStatus.addBlock(response.getPayload())) {
-				LOGGER.log(Level.FINE, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
-				exchange.getRequest().cancel();
-				return;
-			}
-
-			// store the observe sequence number to set it in the assembled response
-			if (response.getOptions().hasObserve()) {
-				responseStatus.setObserve(response.getOptions().getObserve());
-			}
-
-			if (responseStatus.isRandomAccess()) {
-				// The client has requested this specific block and we deliver it
-				exchange.setResponse(response);
-				upper().receiveResponse(exchange, response);
-			
-			} else if (block2.isM()) {
-
-				Request request = exchange.getRequest();
-				int num = block2.getNum() + 1;
-				int szx = block2.getSzx();
-				boolean m = false;
-
-				LOGGER.log(Level.FINER, "Requesting next Block2 num={0}", num);
-
-				Request block = new Request(request.getCode());
-				// do not enforce CON, since NON could make sense over SMS or similar transports
-				block.setType(request.getType());
-				block.setDestination(request.getDestination());
-				block.setDestinationPort(request.getDestinationPort());
-
-				/*
-				 * WARNING:
-				 * 
-				 * For Observe, the Matcher then will store the same
-				 * exchange under a different KeyToken in exchangesByToken,
-				 * which is cleaned up in the else case below.
-				 */
-				if (!response.getOptions().hasObserve()) block.setToken(response.getToken());
-
-				// copy options
-				block.setOptions(new OptionSet(request.getOptions()));
-				// make sure NOT to use Observe for block retrieval
-				block.getOptions().removeObserve();
-
-				block.getOptions().setBlock2(szx, m, num);
-
-				// copy message observers from original request so that they will be notified
-				// if something goes wrong with this blockwise request, e.g. if it times out
-				block.addMessageObservers(request.getMessageObservers());
-
-				responseStatus.setCurrentNum(num);
-
-				exchange.setCurrentRequest(block);
-				lower().sendRequest(exchange, block);
-
-			} else {
-				LOGGER.log(Level.FINER, "We have received all {0} blocks of the response. Assemble and deliver", responseStatus.getBlockCount());
-				Response assembled = new Response(response.getCode());
-
-				assembleMessage(responseStatus, assembled);
-
-				// set overall transfer RTT
-				assembled.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
-
-				// Check if this response is a notification
-				int observe = responseStatus.getObserve();
-				if (observe != BlockwiseStatus.NO_OBSERVE) {
-
-					/*
-					 * When retrieving the rest of a blockwise notification
-					 * with a different token, the additional Matcher state
-					 * must be cleaned up through the call below.
-					 */
-					if (!response.getOptions().hasObserve()) {
-						// call the clean-up mechanism for the additional Matcher entry in exchangesByToken
-						exchange.completeCurrentRequest();
-					}
-
-					assembled.getOptions().setObserve(observe);
-					// This is necessary for notifications that are sent blockwise:
-					// Reset block number AND container with all blocks
-					exchange.setResponseBlockStatus(null);
-				}
-
-				LOGGER.log(Level.FINE, "Assembled response: {0}", assembled);
-				// Set the original request as current request so that
-				// the Matcher can clean up its state based on the latest
-				// ("current") request's MID and token
-				exchange.setCurrentRequest(exchange.getRequest());
-				// Set the assembled response as current response
-				exchange.setResponse(assembled);
-				upper().receiveResponse(exchange, assembled);
-			}
 
 		} else {
-			// ERROR, wrong block number (server error)
-			// TODO: This scenario is not specified in the draft.
-			// Canceling the request would interfere with Observe, so just ignore it
-			LOGGER.log(Level.WARNING,
-					"Wrong block number. Expected {0} but received {1}: {2}",
-					new Object[]{responseStatus.getCurrentNum(), block2.getNum(), response});
-			if (response.getType()==Type.CON) {
-				EmptyMessage rst = EmptyMessage.newRST(response);
-				lower().sendEmptyMessage(exchange, rst);
+
+			synchronized (exchange) {
+
+				Block2BlockwiseStatus status = getInboundBlock2Status(key, exchange, response);
+
+				if (status.isInterferingNotification(response)) {
+
+					// a new notification has arrived
+
+					if (response.getOptions().getObserve() > status.getObserve()) {
+						status = resetInboundBlock2Status(key, exchange, response);
+					} else {
+						LOGGER.log(
+								Level.FINER,
+								"discarding old notification [{0}] received during ongoing blockwise transfer: {1}",
+								new Object[]{ response.getOptions().getObserve(), response });
+						return;
+					}
+				}
+
+				// We now need to make sure that we are not processing a block from a blockwise transfer
+				// for a previous (outdated) notification.
+				// When a response to a block2 request is received from a peer, the Matcher will look up
+				// the corresponding Exchange and pass the response up the stack to the BlockwiseLayer.
+				// The problem we are facing is that the key used to look up the Block2BlockwiseStatus
+				// will always be the same if no ETag is contained in the notification (the key then only
+				// depends on the request's URI and source endpoint). So there is no way to distinguish a
+				// response to an outdated block2 request from a response that is part of the most recent
+				// block2 transfer.
+				// In order to be able to distinguish between a block of an old vs a new notification,
+				// the Exchange used to initially create the Block2BlockwiseStatus is
+				// marked with the notification's observe option (see Block2BlockwiseStatus.forInboundResponse()).
+				// We can then compare the observe option value from the Exchange that has been looked up
+				// for the incoming response with the value of the most recently received notification from the
+				// Block2BlockwiseStatus that has been looked up for the key.
+
+				if (exchange.getNotificationNumber() != null && exchange.getNotificationNumber() != status.getObserve()) {
+
+					// we are processing a "delayed" response to a block2 request issued for a previous notification
+					// this may happen if the peer sends a new notification before the blockwise transfer has finished
+					LOGGER.log(
+							Level.FINER,
+							"discarding outdated block2 transfer response for old notification {0}, current is {1}: {2}",
+							new Object[]{ exchange.getNotificationNumber(), status.getObserve(), response });
+
+				} else if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
+
+					// check token to avoid mixed blockwise transfers (possible with observe) 
+
+					// We got the block we expected :-)
+					LOGGER.log(Level.FINER, "processing incoming block2 response [num={0}]: {1}", new Object[]{ block2.getNum(), response });
+
+					if (status.isRandomAccess()) {
+
+						// The client has requested this specific block and we deliver it
+						exchange.setResponse(response);
+						clearBlock2Status(key);
+						upper().receiveResponse(exchange, response);
+
+					} else if (!status.addBlock(response)) {
+
+						LOGGER.log(Level.FINE, "cannot process payload of block2 response, aborting request");
+						exchange.getRequest().cancel();
+						return;
+
+					} else if (block2.isM()) {
+
+						int currentSize = status.getCurrentSize();
+						// do late block size negotiation
+						int newSize, newSzx;
+						if (block2.getSzx() > preferredBlockSzx) {
+							newSize = preferredBlockSize;
+							newSzx = preferredBlockSzx;
+						} else {
+							newSize = currentSize;
+							newSzx = status.getCurrentSzx();
+						}
+						int nextNum = status.getCurrentNum() + currentSize / newSize;
+
+						Request request = exchange.getRequest();
+
+						Request block = new Request(request.getCode());
+						// do not enforce CON, since NON could make sense over SMS or similar transports
+						block.setType(request.getType());
+						block.setDestination(request.getDestination());
+						block.setDestinationPort(request.getDestinationPort());
+
+						/*
+						 * WARNING:
+						 * 
+						 * For Observe, the Matcher then will store the same
+						 * exchange under a different KeyToken in exchangesByToken,
+						 * which is cleaned up in the else case below.
+						 */
+						if (!response.getOptions().hasObserve()) {
+							block.setToken(response.getToken());
+						}
+
+						// copy options
+						block.setOptions(new OptionSet(request.getOptions()));
+						block.getOptions().setBlock2(newSzx, false, nextNum);
+						if (response.getOptions().getETagCount() > 0) {
+							// use ETag provided by peer
+							block.getOptions().addETag(response.getOptions().getETags().get(0));
+						}
+
+						// make sure NOT to use Observe for block retrieval
+						block.getOptions().removeObserve();
+
+						// copy message observers from original request so that they will be notified
+						// if something goes wrong with this blockwise request, e.g. if it times out
+						block.addMessageObservers(request.getMessageObservers());
+						// add an observer that cleans up the block2 transfer tracker if the
+						// block request fails
+						addBlock2CleanUpObserver(block, key);
+
+						status.setCurrentNum(nextNum);
+
+						LOGGER.log(Level.FINER, "requesting next Block2 [num={0}]: {1}", new Object[]{ nextNum, block });
+						exchange.setCurrentRequest(block);
+						lower().sendRequest(exchange, block);
+
+					} else {
+
+						// we have received the last block of the block2 transfer
+
+						LOGGER.log(
+								Level.FINER,
+								"all {0} blocks have been retrieved, assembling response and delivering to application layer",
+								status.getBlockCount());
+						Response assembled = new Response(response.getCode());
+						status.assembleMessage(assembled);
+
+						// set overall transfer RTT
+						assembled.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+
+						if (status.isNotification()) {
+
+							/*
+							 * When retrieving the rest of a blockwise notification
+							 * with a different token, the additional Matcher state
+							 * must be cleaned up through the call below.
+							 */
+							if (!response.getOptions().hasObserve()) {
+								// call the clean-up mechanism for the additional Matcher entry in exchangesByToken
+								exchange.completeCurrentRequest();
+							}
+						}
+
+						clearBlock2Status(key);
+						LOGGER.log(Level.FINE, "assembled response: {0}", assembled);
+						// Set the original request as current request so that
+						// the Matcher can clean up its state based on the latest
+						// ("current") request's MID and token
+						exchange.setCurrentRequest(exchange.getRequest());
+						// Set the assembled response as current response
+						exchange.setResponse(assembled);
+						upper().receiveResponse(exchange, assembled);
+					}
+
+				} else {
+
+					// ERROR, wrong block number (server error)
+					// Canceling the request would interfere with Observe, so just ignore it
+					LOGGER.log(Level.WARNING,
+							"ignoring block2 response with wrong block number {1} (expected {0}): {2}",
+							new Object[]{status.getCurrentNum(), block2.getNum(), response});
+				}
 			}
 		}
 	}
 
 	/////////// HELPER METHODS //////////
 
-	private static void earlyBlock2Negotiation(final Exchange exchange, final Request request) {
-		// Call this method when a request has completely arrived (might have
-		// been sent in one piece without blockwise).
-		BlockOption block2 = request.getOptions().getBlock2();
-		if (block2 != null) {
-			BlockwiseStatus status2 = new BlockwiseStatus(request.getOptions().getContentFormat(), block2.getNum(), block2.getSzx());
-			LOGGER.log(Level.FINE, "Request with early block negotiation {0}. Create and set new Block2 status: {1}", new Object[]{block2, status2});
-			exchange.setResponseBlockStatus(status2);
+	private static KeyUri getKey(final Exchange exchange, final Request request) {
+
+		if (exchange.isOfLocalOrigin()) {
+			return KeyUri.fromOutboundRequest(request);
+		} else {
+			return KeyUri.fromInboundRequest(request);
 		}
 	}
 
-	/*
-	 * NOTICE:
-	 * This method is used by sendRequest and receiveRequest.
-	 * Be careful, making changes to the status in here.
-	 */
-	private BlockwiseStatus findRequestBlockStatus(final Exchange exchange, final Request request) {
-		BlockwiseStatus status = exchange.getRequestBlockStatus();
-		if (status == null) {
-			if (exchange.isOfLocalOrigin()) {
-				// we are sending a large body out in a POST/GET to a peer
-				// we only need to buffer one block each
-				status = new BlockwiseStatus(preferredBlockSize, request.getOptions().getContentFormat());
-			} else {
-				// we are receiving a large body in a POST/GET from a peer
-				// we need to be prepared to buffer up to MAX_RESOURCE_BODY_SIZE bytes
-				int bufferSize = maxResourceBodySize;
-				if (request.getOptions().hasBlock1() && request.getOptions().hasSize1()) {
-					// use size indication for allocating buffer
-					bufferSize = request.getOptions().getSize1();
-				}
-				status = new BlockwiseStatus(bufferSize, request.getOptions().getContentFormat());
+	private static KeyUri getKey(final Exchange exchange, final Response response) {
+
+		if (exchange.isOfLocalOrigin()) {
+			return KeyUri.fromInboundResponse(exchange.getRequest().getURI(), response);
+		} else {
+			return KeyUri.fromOutboundResponse(exchange.getRequest().getURI(), response);
+		}
+	}
+
+	private Block1BlockwiseStatus getOutboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+
+		synchronized (block1Transfers) {
+			Block1BlockwiseStatus status = block1Transfers.get(key);
+			if (status == null) {
+				status = Block1BlockwiseStatus.forOutboundRequest(exchange, request, preferredBlockSize);
+				block1Transfers.put(key, status);
+				LOGGER.log(Level.FINE, "created tracker for outbound block1 transfer {0}, transfers in progress: {1}",
+						new Object[]{ status, block1Transfers.size() });
 			}
-			status.setFirst(request);
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
-			exchange.setRequestBlockStatus(status);
-			LOGGER.log(Level.FINER, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
-		} else {
-			LOGGER.log(Level.FINER, "Current Block1 status: {0}", status);
+			return status;
 		}
-		// sets a timeout to complete exchange
-		prepareBlockCleanup(exchange);
-		return status;
 	}
 
-	/*
-	 * NOTICE:
-	 * This method is used by sendResponse and receiveResponse.
-	 * Be careful, making changes to the status in here.
-	 */
-	private BlockwiseStatus findResponseBlockStatus(final Exchange exchange, final Response response) {
-		BlockwiseStatus status = exchange.getResponseBlockStatus();
-		if (status == null) {
-			if (exchange.isOfLocalOrigin()) {
-				// we are receiving a large body in response to a request originating locally
-				// we need to be prepared to buffer up to MAX_RESOURCE_BODY_SIZE bytes
-				int bufferSize = maxResourceBodySize;
-				if (response.getOptions().hasBlock2() && response.getOptions().hasSize2()) {
-					// use size indication for allocating buffer
-					bufferSize = response.getOptions().getSize2();
-				}
-				status = new BlockwiseStatus(bufferSize, response.getOptions().getContentFormat());
-			} else {
-				// we are sending out a large body in response to a request from a peer
-				// we do not need to buffer and assemble anything
-				status = new BlockwiseStatus(0, response.getOptions().getContentFormat());
+	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+
+		synchronized (block1Transfers) {
+			Block1BlockwiseStatus status = block1Transfers.get(key);
+			if (status == null) {
+				status = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxResourceBodySize);
+				block1Transfers.put(key, status);
+				LOGGER.log(Level.FINE, "created tracker for inbound block1 transfer {0}, transfers in progress: {1}",
+						new Object[]{ status, block1Transfers.size() });
 			}
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
-			status.setFirst(response);
-			exchange.setResponseBlockStatus(status);
-			LOGGER.log(Level.FINER, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
-		} else {
-			LOGGER.log(Level.FINER, "Current Block2 status: {0}", status);
+			// register a task for cleaning up if the peer does not send all blocks
+			prepareBlock1Cleanup(status, key);
+			return status;
 		}
-		// sets a timeout to complete exchange
-		prepareBlockCleanup(exchange);
-		return status;
 	}
 
-	private static Request getNextRequestBlock(final Request request, final BlockwiseStatus status) {
-		int num = status.getCurrentNum();
-		int szx = status.getCurrentSzx();
-		Request block = new Request(request.getCode());
-		// do not enforce CON, since NON could make sense over SMS or similar transports
-		block.setType(request.getType());
-		block.setDestination(request.getDestination());
-		block.setDestinationPort(request.getDestinationPort());
-		// copy options
-		block.setOptions(new OptionSet(request.getOptions()));
-		// copy message observers so that a failing blockwise request also notifies observers registered with
-		// the original request
-		block.addMessageObservers(request.getMessageObservers());
+	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 
-		int currentSize = 1 << (4 + szx);
-		int from = num * currentSize;
-		int to = Math.min((num + 1) * currentSize, request.getPayloadSize());
-		int length = to - from;
-		byte[] blockPayload = new byte[length];
-		System.arraycopy(request.getPayload(), from, blockPayload, 0, length);
-		block.setPayload(blockPayload);
-
-		boolean m = (to < request.getPayloadSize());
-		block.getOptions().setBlock1(szx, m, num);
-
-		status.setComplete(!m);
-		return block;
+		synchronized (block1Transfers) {
+			Block1BlockwiseStatus removedStatus = block1Transfers.remove(key);
+			LOGGER.log(Level.WARNING, "inbound block1 transfer reset at {0} by peer: {1}", new Object[]{ removedStatus, request });
+			return getInboundBlock1Status(key, exchange, request);
+		}
 	}
 
-	private static Response getNextResponseBlock(final Response response, final BlockwiseStatus status) {
+	private Block2BlockwiseStatus getOutboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
 
-		Response block;
-		int szx = status.getCurrentSzx();
-		int num = status.getCurrentNum();
-
-		if (response.getOptions().hasObserve()) {
-			// a blockwise notification transmits the first block only
-			block = response;
-		} else {
-			block = new Response(response.getCode());
-			block.setDestination(response.getDestination());
-			block.setDestinationPort(response.getDestinationPort());
-			block.setOptions(new OptionSet(response.getOptions()));
-
-			block.addMessageObserver(new TimeoutForwarder(response));
+		synchronized (block2Transfers) {
+			Block2BlockwiseStatus status = block2Transfers.get(key);
+			if (status == null) {
+				status = Block2BlockwiseStatus.forOutboundResponse(exchange, response, preferredBlockSize);
+				block2Transfers.put(key, status);
+				LOGGER.log(Level.FINE, "created tracker for outbound block2 transfer {0}, transfers in progress: {1}",
+						new Object[]{ status, block2Transfers.size() });
+			}
+			// we register a clean up task in case the peer does not retrieve all blocks
+			prepareBlock2Cleanup(status, key);
+			return status;
 		}
-
-		int payloadsize = response.getPayloadSize();
-		int currentSize = 1 << (4 + szx);
-		int from = num * currentSize;
-
-		if (0 < payloadsize && from < payloadsize) {
-			int to = Math.min((num + 1) * currentSize, response.getPayloadSize());
-			int length = to - from;
-			byte[] blockPayload = new byte[length];
-			boolean m = (to < response.getPayloadSize());
-			block.getOptions().setBlock2(szx, m, num);
-
-			// crop payload -- do after calculation of m in case block==response
-			System.arraycopy(response.getPayload(), from, blockPayload, 0, length);
-			block.setPayload(blockPayload);
-
-			// do not complete notifications
-			block.setLast(!m && !response.getOptions().hasObserve());
-
-			status.setComplete(!m);
-		} else {
-			block.getOptions().setBlock2(szx, false, num);
-			block.setLast(true);
-			status.setComplete(true);
-		}
-		return block;
 	}
 
-	private static void assembleMessage(final BlockwiseStatus status, final Message message) {
-		// The assembled request will contain the options of the first block
-		message.setSource(status.getFirst().getSource());
-		message.setSourcePort(status.getFirst().getSourcePort());
-		message.setType(status.getFirst().getType());
-		message.setMID(status.getFirst().getMID());
-		message.setToken(status.getFirst().getToken());
-		message.setOptions(new OptionSet(status.getFirst().getOptions()));
-		message.setPayload(status.getBody());
+	private Block2BlockwiseStatus getInboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
+
+		synchronized (block2Transfers) {
+			Block2BlockwiseStatus status = block2Transfers.get(key);
+			if (status == null) {
+				status = Block2BlockwiseStatus.forInboundResponse(exchange, response, maxResourceBodySize);
+				block2Transfers.put(key, status);
+				LOGGER.log(Level.FINE, "created tracker for inbound block2 transfer {0}, transfers in progress: {1}",
+						new Object[]{ status, block2Transfers.size() });
+			}
+			return status;
+		}
+	}
+
+	private Block2BlockwiseStatus resetInboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
+
+		synchronized (block2Transfers) {
+
+			Block2BlockwiseStatus removedStatus = clearBlock2Status(key);
+
+			// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
+			LOGGER.log(Level.WARNING, "inbound block2 transfer reset at {0} by new notification: {1}", new Object[]{ removedStatus, response });
+
+			return getInboundBlock2Status(key, exchange, response);
+		}
+	}
+
+	private KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
+
+		KeyUri key = getKey(exchange, request);
+		synchronized (block2Transfers) {
+			Block2BlockwiseStatus status = Block2BlockwiseStatus.forRandomAccessRequest(exchange, request);
+			block2Transfers.put(key, status);
+			addBlock2CleanUpObserver(request, key);
+			LOGGER.log(Level.FINE, "created tracker for random access block2 retrieval {0}, transfers in progress: {1}",
+					new Object[]{ status, block2Transfers.size() });
+			return key;
+		}
+	}
+
+	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
+
+		synchronized (block1Transfers) {
+			return block1Transfers.get(key);
+		}
+	}
+
+	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
+
+		synchronized (block2Transfers) {
+			return block2Transfers.get(key);
+		}
+	}
+
+	private Block1BlockwiseStatus clearBlock1Status(final KeyUri key) {
+		synchronized (block1Transfers) {
+			Block1BlockwiseStatus removedTracker = block1Transfers.remove(key);
+			LOGGER.log(Level.FINE, "removing block1 tracker [{0}], block1 transfers still in progress: {1}",
+					new Object[]{ key, block1Transfers.size() });
+			return removedTracker;
+		}
+	}
+
+	private Block2BlockwiseStatus clearBlock2Status(final KeyUri key) {
+		synchronized (block2Transfers) {
+			Block2BlockwiseStatus removedTracker = block2Transfers.remove(key);
+			LOGGER.log(Level.FINE, "removing block2 tracker [{0}], block2 transfers still in progress: {1}",
+					new Object[]{ key, block2Transfers.size() });
+			return removedTracker;
+		}
 	}
 
 	private boolean requiresBlockwise(final Request request) {
@@ -837,8 +1014,13 @@ public class BlockwiseLayer extends AbstractLayer {
 		return blockwiseRequired;
 	}
 
-	private boolean requiresBlockwise(final Exchange exchange, final Response response) {
-		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize || exchange.getResponseBlockStatus() != null;
+	private boolean requiresBlockwise(final Exchange exchange, final Response response, final BlockOption requestBlock2) {
+
+		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize;
+		if (requestBlock2 != null) {
+			// client might have included early negotiation block2 option
+			blockwiseRequired = blockwiseRequired || response.getPayloadSize() > requestBlock2.getSize();
+		}
 		if (blockwiseRequired) {
 			LOGGER.log(Level.FINE, "response body [{0}/{1}] requires blockwise transfer",
 					new Object[]{response.getPayloadSize(), maxMessageSize});
@@ -858,89 +1040,105 @@ public class BlockwiseLayer extends AbstractLayer {
 		return request.getOptions().hasSize1() && request.getOptions().getSize1() > maxResourceBodySize;
 	}
 
-	/*
-	 * Encodes a block size into a 3-bit SZX value as specified by
-	 * draft-ietf-core-block-14, Section-2.2:
+	/**
+	 * Schedules a task for cleaning up state when a block1 transfer times out.
 	 * 
-	 * 16 bytes = 2^4 --> 0
-	 * ... 
-	 * 1024 bytes = 2^10 -> 6
+	 * @param status The tracker for the block1 transfer to clean up for.
+	 * @param key The key of the tracker.
 	 */
-	static int computeSZX(final int blockSize) {
-		if (blockSize > 1024) {
-			return 6;
-		} else if (blockSize <= 16) {
-			return 0;
-		} else {
-			int maxOneBit = Integer.highestOneBit(blockSize);
-			return Integer.numberOfTrailingZeros(maxOneBit) - 4;
-		}
+	protected void prepareBlock1Cleanup(final Block1BlockwiseStatus status, final KeyUri key) {
+
+		LOGGER.log(Level.FINE, "scheduling clean up task for block1 transfer {0}", key);
+		ScheduledFuture<?> taskHandle = scheduleBlockCleanupTask(new Runnable() {
+
+			@Override
+			public void run() {
+				if (!status.isComplete()) {
+					LOGGER.log(Level.FINE, "block1 transfer timed out: {0}", key);
+				}
+				clearBlock1Status(key);
+			}
+		});
+		status.setBlockCleanupHandle(taskHandle);
 	}
 
-	static int getSizeForSzx(final int szx) {
-		if (szx <= 0) {
-			return 16;
-		} else if (szx >= 6) {
-			return 1024;
-		} else {
-			return 1 << (szx + 4);
-		}
+	private MessageObserver addBlock1CleanUpObserver(final Message message, final KeyUri key) {
+
+		MessageObserver observer = new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				clearBlock1Status(key);
+			}
+
+			@Override
+			public void onReject() {
+				clearBlock1Status(key);
+			}
+
+			@Override
+			public void onTimeout() {
+				clearBlock1Status(key);
+			}
+		};
+		message.addMessageObserver(observer);
+		return observer;
+	}
+
+	private MessageObserver addBlock2CleanUpObserver(final Message message, final KeyUri key) {
+
+		MessageObserver observer = new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				clearBlock2Status(key);
+			}
+
+			@Override
+			public void onReject() {
+				clearBlock2Status(key);
+			}
+
+			@Override
+			public void onTimeout() {
+				clearBlock2Status(key);
+			}
+		};
+		message.addMessageObserver(observer);
+		return observer;
 	}
 
 	/**
-	 * Schedules a clean-up task. Use the BLOCKWISE_STATUS_LIFETIME config
-	 * property to set the timeout.
+	 * Schedules a task for cleaning up state when a block2 transfer times out.
 	 * 
-	 * @param exchange
-	 *            the exchange
+	 * @param status The tracker for the block2 transfer to clean up for.
+	 * @param key The key of the tracker.
 	 */
-	protected void prepareBlockCleanup(final Exchange exchange) {
+	protected void prepareBlock2Cleanup(final Block2BlockwiseStatus status, final KeyUri key) {
+
+		LOGGER.log(Level.FINE, "scheduling clean up task for block2 transfer {0}", key);
+		ScheduledFuture<?> taskHandle = scheduleBlockCleanupTask(new Runnable() {
+
+			@Override
+			public void run() {
+				if (!status.isComplete()) {
+					LOGGER.log(Level.FINE, "block2 transfer timed out: {0}", key);
+				}
+				clearBlock2Status(key);
+			}
+		});
+		status.setBlockCleanupHandle(taskHandle);
+	}
+
+	private ScheduledFuture<?> scheduleBlockCleanupTask(final Runnable task) {
 
 		// prevent RejectedExecutionException
 		if (executor.isShutdown()) {
 			LOGGER.info("Endpoint is being destroyed: skipping block clean-up");
-			return;
-		}
+			return null;
 
-		BlockCleanupTask task = new BlockCleanupTask(exchange);
-
-		ScheduledFuture<?> f = executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
-		exchange.setBlockCleanupHandle(f);
-	}
-
-	protected class BlockCleanupTask implements Runnable {
-
-		private final Exchange exchange;
-
-		public BlockCleanupTask(final Exchange exchange) {
-			this.exchange = exchange;
-		}
-
-		@Override
-		public void run() {
-			if (exchange.getRequest() == null) {
-				LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
-			} else {
-				LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
-			}
-			exchange.setComplete();
-		}
-	}
-
-	/*
-	 * When a timeout occurs for a block it has to be forwarded to the origin response.
-	 */
-	private static class TimeoutForwarder extends MessageObserverAdapter {
-
-		private final Message message;
-
-		public TimeoutForwarder(final Message message) {
-			this.message = message;
-		}
-
-		@Override
-		public void onTimeout() {
-			message.setTimedOut(true);
+		} else {
+			return executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
 		}
 	}
 }

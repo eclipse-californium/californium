@@ -80,29 +80,6 @@ public final class TcpMatcher extends BaseMatcher {
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 
-		// Blockwise transfers are identified by URI and remote endpoint
-		if (response.getOptions().hasBlock2()) {
-			Request request = exchange.getCurrentRequest();
-			Exchange.KeyUri idByUri = new Exchange.KeyUri(request.getURI(), response.getDestination().getAddress(),
-					response.getDestinationPort());
-			// Observe notifications only send the first block, hence do not
-			// store them as ongoing
-			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
-				// Remember ongoing blockwise GET requests
-				if (exchangeStore.registerBlockwiseExchange(idByUri, exchange) == null) {
-					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}", new Object[] { idByUri,
-							request });
-				} else {
-					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}", new Object[] { idByUri,
-							request });
-				}
-			} else {
-				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}", new Object[] { idByUri,
-						request });
-				exchangeStore.remove(idByUri);
-			}
-		}
-
 		// Only Observes keep the exchange active (CoAP server side)
 		if (response.isLast()) {
 			exchange.setComplete();
@@ -121,42 +98,10 @@ public final class TcpMatcher extends BaseMatcher {
 
 	@Override
 	public Exchange receiveRequest(Request request) {
-		/*
-		 * The differentiation between the case where there is a Block1 or
-		 * Block2 option and the case where there is none has the advantage that
-		 * all exchanges that do not need blockwise transfer have simpler and
-		 * faster code than exchanges with blockwise transfer.
-		 */
-		if (!request.getOptions().hasBlock1() && !request.getOptions().hasBlock2()) {
 
-			Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
-			exchange.setObserver(exchangeObserver);
-			return exchange;
-		} else {
-			Exchange.KeyUri idByUri = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
-					request.getSourcePort());
-			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
-
-			Exchange ongoing = exchangeStore.get(idByUri);
-			if (ongoing != null) {
-				return ongoing;
-			} else {
-				// We have no ongoing exchange for that request block.
-				/*
-				 * Note the difficulty of the following code: The first message
-				 * of a blockwise transfer might arrive twice due to a
-				 * retransmission. The new Exchange must be inserted in both the
-				 * hash map 'ongoing' and the deduplicator. They must agree on
-				 * which exchange they store!
-				 */
-
-				Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
-				LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}", new Object[] { idByUri, request });
-				exchange.setObserver(exchangeObserver);
-				exchangeStore.registerBlockwiseExchange(idByUri, exchange);
-				return exchange;
-			} // if ongoing
-		} // if blockwise
+		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
+		exchange.setObserver(exchangeObserver);
+		return exchange;
 	}
 
 	@Override
@@ -189,7 +134,7 @@ public final class TcpMatcher extends BaseMatcher {
 		}
 	}
 
-	private boolean isResponseRelatedToRequest(final Exchange exchange, final CorrelationContext responseContext) {
+	private static boolean isResponseRelatedToRequest(final Exchange exchange, final CorrelationContext responseContext) {
 		return exchange.getCorrelationContext() == null || exchange.getCorrelationContext().equals(responseContext);
 	}
 
@@ -211,16 +156,7 @@ public final class TcpMatcher extends BaseMatcher {
 					exchangeStore.releaseToken(idByToken);
 				}
 			} else { // Origin.REMOTE
-				// this endpoint created the Exchange to respond to a request
-				Response response = exchange.getCurrentResponse();
-
-				Request request = exchange.getCurrentRequest();
-				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
-					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
-							request.getSourcePort());
-					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
-					exchangeStore.remove(uriKey);
-				}
+				// nothing to do
 			}
 		}
 

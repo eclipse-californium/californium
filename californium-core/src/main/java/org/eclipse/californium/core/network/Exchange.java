@@ -32,7 +32,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.network.stack.BlockwiseStatus;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -60,14 +59,27 @@ import org.eclipse.californium.elements.CorrelationContext;
  */
 public class Exchange {
 
+	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
+
 	/**
-	 * The origin of an exchange. If Cf receives a new request and creates a new
+	 * The origin of an exchange.
+	 * <p>
+	 * If Cf receives a new request and creates a new
 	 * exchange the origin is REMOTE since the request has been initiated from a
 	 * remote endpoint. If Cf creates a new request and sends it, the origin is
 	 * LOCAL.
 	 */
 	public enum Origin {
-		LOCAL, REMOTE;
+
+		/**
+		 * Indicates that a message exchange has been initiated locally.
+		 */
+		LOCAL,
+
+		/**
+		 * Indicates that a message exchange has been initiated remotely.
+		 */
+		REMOTE;
 	}
 
 	/** The endpoint that processes this exchange */
@@ -96,9 +108,6 @@ public class Exchange {
 	 */
 	private Request currentRequest; // Matching needs to know for what we expect a response
 
-	/** The status of the blockwise transfer. null in case of a normal transfer */
-	private BlockwiseStatus requestBlockStatus;
-
 	/**
 	 * The actual response that is supposed to be sent to the client. Layers
 	 * below the {@link BlockwiseLayer} should only work with the
@@ -109,9 +118,6 @@ public class Exchange {
 
 	/** The current block of the response that is being transferred. */
 	private Response currentResponse; // Matching needs to know when receiving duplicate
-
-	/** The status of the blockwise transfer. null in case of a normal transfer */
-	private BlockwiseStatus responseBlockStatus;
 
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
@@ -129,12 +135,11 @@ public class Exchange {
 	// handle to cancel retransmission
 	private ScheduledFuture<?> retransmissionHandle = null;
 
-	// handle to extend blockwise status lifetime
-	private ScheduledFuture<?> blockCleanupHandle = null;
-
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
 	private BlockOption block1ToAck;
+
+	private Integer notificationNumber;
 
 	// The relation that the target resource has established with the source
 	private ObserveRelation relation;
@@ -262,25 +267,6 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the blockwise transfer status of the request or null if no one is
-	 * set.
-	 * 
-	 * @return the status of the blockwise transfer of the request
-	 */
-	public BlockwiseStatus getRequestBlockStatus() {
-		return requestBlockStatus;
-	}
-
-	/**
-	 * Sets the blockwise transfer status of the request.
-	 * 
-	 * @param requestBlockStatus the blockwise transfer status
-	 */
-	public void setRequestBlockStatus(BlockwiseStatus requestBlockStatus) {
-		this.requestBlockStatus = requestBlockStatus;
-	}
-
-	/**
 	 * Returns the response to the request or null if no response has arrived
 	 * yet. If there is an observe relation, the last received notification is
 	 * the response.
@@ -320,25 +306,6 @@ public class Exchange {
 	 */
 	public void setCurrentResponse(Response currentResponse) {
 		this.currentResponse = currentResponse;
-	}
-
-	/**
-	 * Returns the blockwise transfer status of the response or null if no one 
-	 * is set.
-	 * 
-	 * @return the status of the blockwise transfer of the response
-	 */
-	public BlockwiseStatus getResponseBlockStatus() {
-		return responseBlockStatus;
-	}
-
-	/**
-	 * Sets the blockwise transfer status of the response.
-	 * 
-	 * @param responseBlockStatus the blockwise transfer status
-	 */
-	public void setResponseBlockStatus(BlockwiseStatus responseBlockStatus) {
-		this.responseBlockStatus = responseBlockStatus;
 	}
 
 	/**
@@ -418,16 +385,33 @@ public class Exchange {
 		this.retransmissionHandle = retransmissionHandle;
 	}
 
-	public synchronized ScheduledFuture<?> getBlockCleanupHandle() {
-		return blockCleanupHandle;
+	/**
+	 * Sets the number of the notification this exchange is associated with.
+	 * <p>
+	 * This number can be used to match responses of a blockwise
+	 * transfer triggered by a notification.
+	 * 
+	 * @param notificationNo The observe number of the notification.
+	 * @throws IllegalArgumentException if the given number is &lt; 0 or &gt; 2^24 - 1.
+	 */
+	public synchronized void setNotificationNumber(final int notificationNo) {
+		if (notificationNo < 0 || notificationNo > MAX_OBSERVE_NO) {
+			throw new IllegalArgumentException("illegal observe number");
+		}
+		this.notificationNumber = notificationNo;
 	}
 
-	public synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
-		// avoid race condition of multiple block requests
-		if (this.blockCleanupHandle != null) {
-			this.blockCleanupHandle.cancel(false);
-		}
-		this.blockCleanupHandle = blockCleanupHandle;
+	/**
+	 * Gets the number of the notification this exchange is associated with.
+	 * <p>
+	 * This number can be used to match responses of a blockwise
+	 * transfer triggered by a notification.
+	 * 
+	 * @return The observe number of the notification or {@code null} if this
+	 *         exchange is not associated with a notification.
+	 */
+	public synchronized Integer getNotificationNumber() {
+		return notificationNumber;
 	}
 
 	public void setObserver(ExchangeObserver observer) {
@@ -741,80 +725,6 @@ public class Exchange {
 
 		public byte[] getToken() {
 			return Arrays.copyOf(token, token.length);
-		}
-	}
-
-	/**
-	 * A key based on a CoAP message's target URI that is scoped to an endpoint.
-	 * <p>
-	 * This class is used by the matcher to correlate requests by their target
-	 * URI (for observe relations).
-	 */
-	public static final class KeyUri {
-
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
-		private final String uri;
-		private final byte[] address;
-		private final int port;
-		private final int hash;
-
-		/**
-		 * Creates a new key for a URI scoped to an endpoint address.
-		 * 
-		 * @param uri the URI.
-		 * @param address the endpoint's address.
-		 * @param port the endpoint's port.
-		 * @throws NullPointerException if uri or address is {@code null}
-		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
-		 */
-		public KeyUri(String uri, byte[] address, int port) {
-			if (uri == null) {
-				throw new NullPointerException("URI must not be null");
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("port must be an unsigned 16 bit int");
-			} else {
-				this.uri = uri;
-				this.address = address;
-				this.port = port;
-				this.hash = (port * 31 + uri.hashCode()) * 31 + Arrays.hashCode(address);
-			}
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (! (o instanceof KeyUri))
-				return false;
-			KeyUri key = (KeyUri) o;
-			return uri.equals(key.uri) && port == key.port && Arrays.equals(address, key.address);
-		}
-
-		@Override
-		public String toString() {
-			return new StringBuilder("KeyUri[").append(uri)
-					.append(", ").append(Utils.toHexString(address)).append(":").append(port)
-					.append("]").toString();
-		}
-
-		/**
-		 * Creates a new key for a request scoped to the request's source endpoint address.
-		 * 
-		 * @param request the request.
-		 * @return the key.
-		 * @throws NullPointerException if the request is {@code null}.
-		 */
-		public static KeyUri fromInboundRequest(final Request request) {
-			if (request == null) {
-				throw new NullPointerException("request must not be null");
-			} else {
-				return new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-			}
 		}
 	}
 }

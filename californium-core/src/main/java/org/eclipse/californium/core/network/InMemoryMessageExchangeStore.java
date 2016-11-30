@@ -35,7 +35,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
-import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
@@ -51,7 +50,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private static final Logger LOGGER = Logger.getLogger(InMemoryMessageExchangeStore.class.getName());
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>(); // for all
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>(); // for outgoing
-	private final ConcurrentMap<KeyUri, Exchange> ongoingExchanges = new ConcurrentHashMap<>();
 
 	private final NetworkConfig config;
 	private boolean running = false;
@@ -112,7 +110,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
-		b.append(ongoingExchanges.size()).append(" ongoing blockwise exchanges");
 		return b.toString();
 	}
 
@@ -153,8 +150,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public boolean isEmpty() {
 		LOGGER.finer(dumpCurrentLoadLevels());
-		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && ongoingExchanges.isEmpty() &&
-				deduplicator.isEmpty();
+		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
 	}
 
 	@Override
@@ -204,14 +200,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		KeyToken idByToken;
 		synchronized (exchangesByToken) {
 			if (request.getToken() == null) {
-				idByToken = tokenProvider.getUnusedToken(request);								
+				idByToken = tokenProvider.getUnusedToken(request);
 				request.setToken(idByToken.getToken());
 			} else {
 				idByToken = KeyToken.fromOutboundMessage(request);
 				// ongoing requests may reuse token
 				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1() || request.getOptions()
 						.hasBlock2() || request.getOptions().hasObserve()) && tokenProvider.isTokenInUse(idByToken)) {
-					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);					
+					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 				}
 			}
 			exchangesByToken.put(idByToken, exchange);
@@ -309,15 +305,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 	}
 
-	@Override
-	public Exchange get(final KeyUri requestUri) {
-		if (requestUri == null) {
-			return null;
-		} else {
-			return ongoingExchanges.get(requestUri);
-		}
-	}
-
 	/**
 	 * Purges all registered exchanges from this store.
 	 */
@@ -326,21 +313,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			synchronized (exchangesByToken) {
 				exchangesByMID.clear();
 				exchangesByToken.clear();
-				ongoingExchanges.clear();
 			}
-		}
-	}
-
-	@Override
-	public Exchange registerBlockwiseExchange(final KeyUri requestUri, final Exchange exchange) {
-		return ongoingExchanges.put(requestUri, exchange);
-	}
-
-	@Override
-	public void remove(final KeyUri requestUri) {
-		synchronized(ongoingExchanges) {
-			ongoingExchanges.remove(requestUri);
-			LOGGER.log(Level.FINE, "removing transfer for URI {0}, remaining ongoing exchanges: {1}", new Object[]{requestUri, ongoingExchanges.size()});
 		}
 	}
 

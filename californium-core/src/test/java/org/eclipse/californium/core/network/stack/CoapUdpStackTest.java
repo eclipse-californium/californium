@@ -59,6 +59,7 @@ public class CoapUdpStackTest {
 	@Test public void sendResponseExpectSent() {
 		Request request = new Request(CoAP.Code.GET);
 		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
+		exchange.setRequest(request);
 
 		Response response = new Response(CoAP.ResponseCode.CONTENT);
 		stack.sendResponse(exchange, response);
