@@ -17,13 +17,14 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - improve readability
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getDefaultPort
+ *                                                    add CodeClass
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 import java.nio.charset.Charset;
-
 
 /**
  * CoAP defines several constants.
@@ -135,12 +136,39 @@ public final class CoAP {
 				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
 				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
+	
+	/**
+	 * Get default port for provided uri scheme.
+	 * 
+	 * @param uriScheme uri scheme for default port
+	 * @return default port
+	 * @throws IllegalArgumentException if provided uri scheme is not supported.
+	 * @see #DEFAULT_COAP_PORT
+	 * @see #DEFAULT_COAP_SECURE_PORT
+	 */
+	public static int getDefaultPort(final String uriScheme) {
+		if (CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			return DEFAULT_COAP_PORT;
+		} else if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			return DEFAULT_COAP_SECURE_PORT;
+		} else if (CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			return DEFAULT_COAP_PORT;
+		} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			/*
+			 * This may be changed to 443. But depending on the availability of
+			 * "Application-Layer Protocol Negotiation Extension" (ALPN)
+			 * [RFC7301], currently 5684 seems to be the better choice.
+			 */
+			return DEFAULT_COAP_SECURE_PORT;
+		}
+		throw new IllegalArgumentException("URI scheme '" + uriScheme + "' is not supported!");
+	}
 
 	/**
 	 * Checks if a given CoAP code is a request code.
 	 * 
 	 * @param code the code to check.
-	 * @return {@code true} if the code's class is 0 and 0 &lt;= detail &lt;= 31.
+	 * @return {@code true} if the code's class is 0 and 1 &lt;= detail &lt;= 31.
 	 */
 	public static boolean isRequest(final int code) {
 		return code >= REQUEST_CODE_LOWER_BOUND &&
@@ -219,6 +247,57 @@ public final class CoAP {
 	/**
 	 * The enumeration of request codes: GET, POST, PUT and DELETE.
 	 */
+	public enum CodeClass {
+
+		/** The request class code. */
+		REQUEST(0),
+
+		/** The successful response class code. */
+		SUCCESS_RESPONSE(2),
+
+		/** The error response class code. */
+		ERROR_RESPONSE(4),
+
+		/** The server error response class code. */
+		SERVER_ERROR_RESPONSE(5),
+		
+		/** The signaling  class code. */
+		SIGNAL(7);
+
+		/** The code value. */
+		public final int value;
+
+		/**
+		 * Instantiates a new code with the specified code value.
+		 *
+		 * @param value the integer value of the code
+		 */
+		private CodeClass(final int value) {
+			this.value = value;
+		}
+
+		/**
+		 * Converts the specified integer value to a request code.
+		 *
+		 * @param value the integer value
+		 * @return the request code
+		 * @throws MessageFormatException if the integer value does not represent a valid request code.
+		 */
+		public static CodeClass valueOf(final int value) {
+			switch (value) {
+				case 0: return REQUEST;
+				case 2: return SUCCESS_RESPONSE;
+				case 4: return ERROR_RESPONSE;
+				case 5: return SERVER_ERROR_RESPONSE;
+				case 7: return SIGNAL;
+				default: throw new MessageFormatException(String.format("Unknown CoAP class code: %d", value));
+			}
+		}
+	}
+
+	/**
+	 * The enumeration of request codes: GET, POST, PUT and DELETE.
+	 */
 	public enum Code {
 
 		/** The GET code. */
@@ -274,34 +353,34 @@ public final class CoAP {
 	public enum ResponseCode {
 		
 		// Success: 2.01 - 2.31
-		_UNKNOWN_SUCCESS_CODE(2, 0), // undefined -- only used to identify class
-		CREATED(2, 1),
-		DELETED(2, 2),
-		VALID(2, 3),
-		CHANGED(2, 4),
-		CONTENT(2, 5),
-		CONTINUE(2, 31),
+		_UNKNOWN_SUCCESS_CODE(CodeClass.SUCCESS_RESPONSE, 0), // undefined -- only used to identify class
+		CREATED(CodeClass.SUCCESS_RESPONSE, 1),
+		DELETED(CodeClass.SUCCESS_RESPONSE, 2),
+		VALID(CodeClass.SUCCESS_RESPONSE, 3),
+		CHANGED(CodeClass.SUCCESS_RESPONSE, 4),
+		CONTENT(CodeClass.SUCCESS_RESPONSE, 5),
+		CONTINUE(CodeClass.SUCCESS_RESPONSE, 31),
 
 		// Client error: 4.00 - 4.31
-		BAD_REQUEST(4, 0),
-		UNAUTHORIZED(4, 1),
-		BAD_OPTION(4, 2),
-		FORBIDDEN(4, 3),
-		NOT_FOUND(4, 4),
-		METHOD_NOT_ALLOWED(4, 5),
-		NOT_ACCEPTABLE(4, 6),
-		REQUEST_ENTITY_INCOMPLETE(4, 8),
-		PRECONDITION_FAILED(4, 12),
-		REQUEST_ENTITY_TOO_LARGE(4, 13),
-		UNSUPPORTED_CONTENT_FORMAT(4, 15),
+		BAD_REQUEST(CodeClass.ERROR_RESPONSE, 0),
+		UNAUTHORIZED(CodeClass.ERROR_RESPONSE, 1),
+		BAD_OPTION(CodeClass.ERROR_RESPONSE, 2),
+		FORBIDDEN(CodeClass.ERROR_RESPONSE, 3),
+		NOT_FOUND(CodeClass.ERROR_RESPONSE, 4),
+		METHOD_NOT_ALLOWED(CodeClass.ERROR_RESPONSE, 5),
+		NOT_ACCEPTABLE(CodeClass.ERROR_RESPONSE, 6),
+		REQUEST_ENTITY_INCOMPLETE(CodeClass.ERROR_RESPONSE, 8),
+		PRECONDITION_FAILED(CodeClass.ERROR_RESPONSE, 12),
+		REQUEST_ENTITY_TOO_LARGE(CodeClass.ERROR_RESPONSE, 13),
+		UNSUPPORTED_CONTENT_FORMAT(CodeClass.ERROR_RESPONSE, 15),
 
 		// Server error: 5.00 - 5.31
-		INTERNAL_SERVER_ERROR(5, 0),
-		NOT_IMPLEMENTED(5, 1),
-		BAD_GATEWAY(5, 2),
-		SERVICE_UNAVAILABLE(5, 3),
-		GATEWAY_TIMEOUT(5, 4),
-		PROXY_NOT_SUPPORTED(5, 5);
+		INTERNAL_SERVER_ERROR(CodeClass.SERVER_ERROR_RESPONSE, 0),
+		NOT_IMPLEMENTED(CodeClass.SERVER_ERROR_RESPONSE, 1),
+		BAD_GATEWAY(CodeClass.SERVER_ERROR_RESPONSE, 2),
+		SERVICE_UNAVAILABLE(CodeClass.SERVER_ERROR_RESPONSE, 3),
+		GATEWAY_TIMEOUT(CodeClass.SERVER_ERROR_RESPONSE, 4),
+		PROXY_NOT_SUPPORTED(CodeClass.SERVER_ERROR_RESPONSE, 5);
 
 		/** The code value. */
 		public final int value;
@@ -313,10 +392,10 @@ public final class CoAP {
 		 *
 		 * @param value the integer value
 		 */
-		private ResponseCode(final int codeClass, final int codeDetail) {
-			this.codeClass = codeClass;
+		private ResponseCode(final CodeClass codeClass, final int codeDetail) {
+			this.codeClass = codeClass.value;
 			this.codeDetail = codeDetail;
-			this.value = codeClass << 5 | codeDetail;
+			this.value = codeClass.value << 5 | codeDetail;
 		}
 
 		/**
@@ -391,15 +470,24 @@ public final class CoAP {
 		}
 
 		public static boolean isSuccess(final ResponseCode code) {
-			return code.codeClass == 2;
+			if (null == code) {
+				throw new NullPointerException("ResponseCode must not be null!");
+			}
+			return code.codeClass == CodeClass.SUCCESS_RESPONSE.value;
 		}
 
 		public static boolean isClientError(final ResponseCode code) {
-			return code.codeClass == 4;
+			if (null == code) {
+				throw new NullPointerException("ResponseCode must not be null!");
+			}
+			return code.codeClass == CodeClass.ERROR_RESPONSE.value;
 		}
 
 		public static boolean isServerError(final ResponseCode code) {
-			return code.codeClass == 5;
+			if (null == code) {
+				throw new NullPointerException("ResponseCode must not be null!");
+			}
+			return code.codeClass == CodeClass.SERVER_ERROR_RESPONSE.value;
 		}
 	}
 
