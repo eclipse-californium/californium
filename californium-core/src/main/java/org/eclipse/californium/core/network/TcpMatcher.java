@@ -215,7 +215,8 @@ public final class TcpMatcher extends BaseMatcher {
 				Response response = exchange.getCurrentResponse();
 
 				Request request = exchange.getCurrentRequest();
-				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
+				if ((request != null && request.getOptions().hasBlock1())
+						|| (response != null && response.getOptions().hasBlock2())) {
 					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
