@@ -18,7 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add more tests
  ******************************************************************************/
-package org.eclipse.californium.core.test;
+package org.eclipse.californium.core.coap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -176,7 +176,7 @@ public class CoapTest {
 		assertTrue(CoAP.isSupportedScheme(CoAP.COAP_SECURE_URI_SCHEME));
 		assertTrue(CoAP.isSupportedScheme(CoAP.COAP_TCP_URI_SCHEME));
 		assertTrue(CoAP.isSupportedScheme(CoAP.COAP_URI_SCHEME));
-		assertFalse(CoAP.isTcpScheme("https:"));
+		assertFalse(CoAP.isSupportedScheme("https:"));
 	}
 
 	@Test

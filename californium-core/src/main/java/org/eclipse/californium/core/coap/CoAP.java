@@ -469,6 +469,13 @@ public final class CoAP {
 			return formatCode(codeClass, codeDetail);
 		}
 
+		/**
+		 * Checks if a response code indicates success.
+		 * 
+		 * @param code The response code to check.
+		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
+		 * @throws NullPointerException if the code is {@code null}.
+		 */
 		public static boolean isSuccess(final ResponseCode code) {
 			if (null == code) {
 				throw new NullPointerException("ResponseCode must not be null!");
@@ -476,6 +483,13 @@ public final class CoAP {
 			return code.codeClass == CodeClass.SUCCESS_RESPONSE.value;
 		}
 
+		/**
+		 * Checks if a response code indicates a client error.
+		 * 
+		 * @param code The response code to check.
+		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
+		 * @throws NullPointerException if the code is {@code null}.
+		 */
 		public static boolean isClientError(final ResponseCode code) {
 			if (null == code) {
 				throw new NullPointerException("ResponseCode must not be null!");
@@ -483,6 +497,13 @@ public final class CoAP {
 			return code.codeClass == CodeClass.ERROR_RESPONSE.value;
 		}
 
+		/**
+		 * Checks if a response code indicates a server error.
+		 * 
+		 * @param code The response code to check.
+		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
+		 * @throws NullPointerException if the code is {@code null}.
+		 */
 		public static boolean isServerError(final ResponseCode code) {
 			if (null == code) {
 				throw new NullPointerException("ResponseCode must not be null!");
