@@ -21,7 +21,7 @@ package org.eclipse.californium.core.coap;
 
 
 /**
- * The observer interface for receiving events on a message.
+ * A callback that gets invoked on a message's lifecycle events.
  * <p>
  * The following methods are called
  * <ul>
@@ -49,37 +49,41 @@ package org.eclipse.californium.core.coap;
  */
 public interface MessageObserver {
 
-	public void onRetransmission();
-	
+	/**
+	 * Invoked when a message is about to be re-transmitted.
+	 */
+	void onRetransmission();
+
 	/**
 	 * Invoked when a response arrives.
 	 * 
 	 * @param response the response that arrives
 	 */
-	public void onResponse(Response response);
+	void onResponse(Response response);
 
 	/**
 	 * Invoked when the message has been acknowledged by the remote endpoint.
 	 */
-	public void onAcknowledgement();
+	void onAcknowledgement();
 
 	/**
 	 * Invoked when the message has been rejected by the remote endpoint.
 	 */
-	public void onReject();
+	void onReject();
 
 	/**
 	 * Invoked when the client stops retransmitting the message and still has
-	 * not received anything from the remote endpoint. By default this is the
-	 * case after 5 unsuccessful transmission attempts.
+	 * not received anything from the remote endpoint.
+	 * <p>
+	 * By default this is the case after 5 unsuccessful transmission attempts.
 	 */
-	public void onTimeout();
+	void onTimeout();
 
 	/**
-	 * Invoked when the message has been canceled. For instance, a user might
-	 * cancel a request or a CoAP resource that is being observer might cancel a
-	 * response to send another one instead.
+	 * Invoked when the message has been canceled.
+	 * <p>
+	 * For instance, a user might cancel a request or a CoAP resource that is being
+	 * observed might cancel a response to send another one instead.
 	 */
-	public void onCancel();
-
+	void onCancel();
 }
