@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import static org.eclipse.californium.TestTools.*;
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
@@ -29,7 +30,6 @@ import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 
 import java.net.InetAddress;

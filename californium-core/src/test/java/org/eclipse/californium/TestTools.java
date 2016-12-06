@@ -55,17 +55,19 @@ public final class TestTools {
 	}
 
 	/**
-	 * Creates a random string of numbers of a given length.
+	 * Creates a string of random single digit numbers of a given length.
 	 * 
 	 * @param length The length of the string to create.
 	 * @return The string.
 	 */
-	public static String generateRandomPayload(int length) {
+	public static String generateRandomPayload(final int length) {
 		StringBuffer buffer = new StringBuffer();
-		while(buffer.length() < length) {
-			buffer.append(RAND.nextInt());
+		int counter = 0;
+		while(counter < length) {
+			buffer.append(Integer.toString(RAND.nextInt(10)));
+			counter++;
 		}
-		return buffer.substring(0, length);
+		return buffer.toString();
 	}
 
 	/**
@@ -74,12 +76,13 @@ public final class TestTools {
 	 * @param length The length of the string to create.
 	 * @return The string.
 	 */
-	public static String generatePayload(int length) {
+	public static String generatePayload(final int length) {
 		StringBuffer buffer = new StringBuffer();
-		int n = 1;
+		int n = 0;
 		while(buffer.length() < length) {
-			buffer.append(n++);
+			buffer.append(Integer.toString(n % 10));
+			n++;
 		}
-		return buffer.substring(0, length);
+		return buffer.toString();
 	}
 }
