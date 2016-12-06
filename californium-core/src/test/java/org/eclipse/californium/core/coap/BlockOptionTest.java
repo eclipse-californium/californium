@@ -17,10 +17,12 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core.test;
+package org.eclipse.californium.core.coap;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
@@ -48,7 +50,52 @@ public class BlockOptionTest {
 	public static void end() {
 		System.out.println(System.lineSeparator() + "End " + BlockOptionTest.class.getSimpleName());
 	}
-	
+
+	/**
+	 * Verifies that conversion from block size to szx code works.
+	 */
+	@Test
+	public void testComputeSzxReturnsNextSmallerSize() {
+		assertThat(BlockOption.size2Szx(1600), is(6));
+		assertThat(BlockOption.size2Szx(1024), is(6));
+		assertThat(BlockOption.size2Szx(540), is(5));
+		assertThat(BlockOption.size2Szx(512), is(5));
+		assertThat(BlockOption.size2Szx(400), is(4));
+		assertThat(BlockOption.size2Szx(256), is(4));
+		assertThat(BlockOption.size2Szx(170), is(3));
+		assertThat(BlockOption.size2Szx(128), is(3));
+		assertThat(BlockOption.size2Szx(90), is(2));
+		assertThat(BlockOption.size2Szx(64), is(2));
+		assertThat(BlockOption.size2Szx(33), is(1));
+		assertThat(BlockOption.size2Szx(32), is(1));
+		assertThat(BlockOption.size2Szx(25), is(0));
+		assertThat(BlockOption.size2Szx(16), is(0));
+	}
+
+	/**
+	 * Verifies that block size < 16 is mapped to szx 0.
+	 */
+	@Test
+	public void testComputeSzxReturnsMinSize() {
+		assertThat(BlockOption.size2Szx(8), is(0));
+	}
+
+	/**
+	 * Verifies that conversion from szx codes to block size works.
+	 */
+	@Test
+	public void testGetSizeForSzx() {
+		assertThat(BlockOption.szx2Size(-1), is(16));
+		assertThat(BlockOption.szx2Size(0), is(16));
+		assertThat(BlockOption.szx2Size(1), is(32));
+		assertThat(BlockOption.szx2Size(2), is(64));
+		assertThat(BlockOption.szx2Size(3), is(128));
+		assertThat(BlockOption.szx2Size(4), is(256));
+		assertThat(BlockOption.szx2Size(5), is(512));
+		assertThat(BlockOption.szx2Size(6), is(1024));
+		assertThat(BlockOption.szx2Size(8), is(1024));
+	}
+
 	/**
 	 * Tests that the class BlockOption converts the specified parameters to the
 	 * correct byte array
