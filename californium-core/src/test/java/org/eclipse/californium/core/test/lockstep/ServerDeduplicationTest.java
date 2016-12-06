@@ -49,23 +49,31 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class ServerDeduplicationTest {
 
-	static final String resourceName = "test";
-	static final String payload = "hello there";
-	private LockstepEndpoint client;
+	private static final int DEDUPLICATOR_SWEEP_INTERVAL = 200; // ms
+	private static final String resourceName = "test";
+	private static final String payload = "hello there";
 
 	private static CoapServer server;
 	private static InetSocketAddress serverAddress;
+
+	private LockstepEndpoint client;
 
 	@BeforeClass
 	public static void setupServer() throws Exception {
 
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
+		config.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL);
 		Endpoint ep = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		ep.addInterceptor(new MessageTracer());
 		server = new CoapServer();
 		server.addEndpoint(ep);
-		server.add(new TestResource());
+		server.add(new CoapResource(resourceName) {
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(payload);
+			}
+		});
 		server.start();
 		serverAddress = ep.getAddress();
 	}
@@ -89,6 +97,12 @@ public class ServerDeduplicationTest {
 		}
 	}
 
+	/**
+	 * Verifies that the server recognizes a duplicate request (same MID) and sends
+	 * back the same response.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
 	@Test
 	public void testServerRespondsToDuplicateRequest() throws Exception {
 
@@ -97,21 +111,9 @@ public class ServerDeduplicationTest {
 
 		client.sendRequest(CON, GET, token, mid).path(resourceName).go();
 		// server will send response but response is lost
-		Thread.sleep(100);
+		Thread.sleep(DEDUPLICATOR_SWEEP_INTERVAL / 2);
 		// therefore, client re-transmits request
 		client.sendRequest(CON, GET, token, mid).path(resourceName).go();
 		client.expectResponse(ACK, CONTENT, token, mid).token(token).mid(mid).payload(payload).go();
-	}
-
-	private static class TestResource extends CoapResource {
-
-		public TestResource() {
-			super(resourceName);
-		}
-
-		@Override
-		public void handleGET(final CoapExchange exchange) {
-			exchange.respond(payload);
-		}
 	}
 }
