@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;

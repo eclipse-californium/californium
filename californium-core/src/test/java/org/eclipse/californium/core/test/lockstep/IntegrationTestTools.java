@@ -83,23 +83,6 @@ public final class IntegrationTestTools {
 		interceptor.clear();
 	}
 
-	public static String generateRandomPayload(int length) {
-		StringBuffer buffer = new StringBuffer();
-		while(buffer.length() < length) {
-			buffer.append(RAND.nextInt());
-		}
-		return buffer.substring(0, length);
-	}
-
-	public static String generatePayload(int length) {
-		StringBuffer buffer = new StringBuffer();
-		int n = 1;
-		while(buffer.length() < length) {
-			buffer.append(n++);
-		}
-		return buffer.substring(0, length);
-	}
-
 	public static byte[] generateNextToken() {
 		return b(++currentToken);
 	}

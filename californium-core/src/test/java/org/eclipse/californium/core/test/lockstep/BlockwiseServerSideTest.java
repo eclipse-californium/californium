@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import static org.eclipse.californium.TestTools.*;
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.Code.POST;
 import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
@@ -34,7 +35,6 @@ import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateRandomPayload;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
 

@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import static org.eclipse.californium.TestTools.*;
 import static org.eclipse.californium.core.coap.CoAP.Code.*;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
