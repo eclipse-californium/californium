@@ -114,7 +114,7 @@ public class LossyBlockwiseTransferTest {
 		System.out.println(String.format("uri: %s", uri));
 
 		CoapClient coapclient = new CoapClient(uri);
-		coapclient.setTimeout(5000);
+		coapclient.setTimeout(10000);
 		coapclient.setEndpoint(clientEndpoint);
 
 		middle.drop(5, 6, 8, 9, 15);
