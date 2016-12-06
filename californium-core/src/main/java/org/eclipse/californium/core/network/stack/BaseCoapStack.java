@@ -42,7 +42,6 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  */
 public abstract class BaseCoapStack implements CoapStack {
 
-	/** The LOGGER. */
 	private static final Logger LOGGER = Logger.getLogger(BaseCoapStack.class.getCanonicalName());
 
 	private List<Layer> layers;
@@ -58,11 +57,14 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	/**
-	 * Set layers to passes message through.
+	 * Sets the layers forming the stack.
+	 * <p>
+	 * CoAP messages sent to peers will be processed by the layers in the given order
+	 * while messages received from peers will be processed in reverse order.
 	 * 
-	 * @param specificLayers stack specific layers.
+	 * @param specificLayers The layers constituting the stack in top-to-bottom order.
 	 */
-	protected void setLayers(Layer specificLayers[]) {
+	protected final void setLayers(final Layer specificLayers[]) {
 		TopDownBuilder builder = new Layer.TopDownBuilder().add(top);
 		for (Layer layer : specificLayers) {
 			builder.add(layer);
@@ -108,15 +110,20 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public void setExecutor(ScheduledExecutorService executor) {
+	public final void setExecutor(final ScheduledExecutorService executor) {
 		for (Layer layer : layers) {
 			layer.setExecutor(executor);
 		}
 	}
 
 	@Override
-	public void setDeliverer(MessageDeliverer deliverer) {
+	public final void setDeliverer(final MessageDeliverer deliverer) {
 		this.deliverer = deliverer;
+	}
+
+	@Override
+	public final boolean hasDeliverer() {
+		return deliverer != null;
 	}
 
 	@Override
@@ -196,10 +203,5 @@ public abstract class BaseCoapStack implements CoapStack {
 			outbox.sendEmptyMessage(exchange, message);
 		}
 
-	}
-
-	@Override
-	public boolean hasDeliverer() {
-		return deliverer != null;
 	}
 }
