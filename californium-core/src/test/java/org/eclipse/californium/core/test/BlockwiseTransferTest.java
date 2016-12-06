@@ -33,17 +33,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -68,13 +65,14 @@ public class BlockwiseTransferTest {
 	private static final String RESOURCE_TEST = "test";
 	private static final String RESOURCE_BIG = "big";
 
-	private static final String SHORT_POST_REQUEST  = "<Short request>";
-	private static final String LONG_POST_REQUEST   = "<Long request 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
-	private static final String SHORT_POST_RESPONSE = "<Short response>";
-	private static final String LONG_POST_RESPONSE  = "<Long response 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
-	private static final String SHORT_GET_RESPONSE = SHORT_POST_RESPONSE.toLowerCase();
-	private static final String LONG_GET_RESPONSE  = LONG_POST_RESPONSE.toLowerCase();
+	private static final String SHORT_POST_REQUEST  = generateRandomPayload(15);
+	private static final String LONG_POST_REQUEST   = generateRandomPayload(150);
+	private static final String SHORT_POST_RESPONSE = generateRandomPayload(16);
+	private static final String LONG_POST_RESPONSE  = generateRandomPayload(151);
+	private static final String SHORT_GET_RESPONSE = generateRandomPayload(17);
+	private static final String LONG_GET_RESPONSE  = generateRandomPayload(152);
 	private static final String OVERSIZE_BODY = generateRandomPayload(510);
+
 	private static CoapServer server;
 	private static NetworkConfig config;
 	private static Endpoint serverEndpoint;
@@ -311,84 +309,6 @@ public class BlockwiseTransferTest {
 		return result;
 	}
 
-	public static class ServerBlockwiseInterceptor implements MessageInterceptor {
-
-		private StringBuilder buffer = new StringBuilder();
-		public ReceiveRequestHandler handler;
-		
-		@Override
-		public void sendRequest(Request request) {
-			buffer.append("\nERROR: Server sent "+request+"\n");
-		}
-
-		@Override
-		public void sendResponse(Response response) {
-			buffer.append(
-					String.format("\n<-----   %s [MID=%d], %s%s%s%s    ",
-					response.getType(), response.getMID(), response.getCode(),
-					blockOptionString(1, response.getOptions().getBlock1()),
-					blockOptionString(2, response.getOptions().getBlock2()),
-					observeOptionString(response.getOptions()) ));
-		}
-
-		@Override
-		public void sendEmptyMessage(EmptyMessage message) {
-			buffer.append(
-					String.format("\n<-----   %s [MID=%d], 0",
-					message.getType(), message.getMID()));
-		}
-
-		@Override
-		public void receiveRequest(Request request) {
-			buffer.append(
-					String.format("\n%s [MID=%d], %s, /%s%s%s%s    ----->",
-					request.getType(), request.getMID(), request.getCode(),
-					request.getOptions().getUriPathString(),
-					blockOptionString(1, request.getOptions().getBlock1()),
-					blockOptionString(2, request.getOptions().getBlock2()),
-					observeOptionString(request.getOptions()) ));
-			if (null != handler) handler.receiveRequest(request);
-		}
-
-		@Override
-		public void receiveResponse(Response response) {
-			buffer.append("ERROR: Server received "+response);
-		}
-
-		@Override
-		public void receiveEmptyMessage(EmptyMessage message) {
-			buffer.append(
-					String.format("\n%-19s                       ----->",
-					String.format("%s [MID=%d], 0",message.getType(), message.getMID())
-					));
-		}
-		
-		public void log(String str) {
-			buffer.append(str);
-		}
-		
-		private static String blockOptionString(int nbr, BlockOption option) {
-			if (option == null) return "";
-			return String.format(", %d:%d/%d/%d", nbr, option.getNum(),
-					option.isM()?1:0, option.getSize());
-		}
-		
-		private static String observeOptionString(OptionSet options) {
-			if (options == null) return "";
-			if (!options.hasObserve()) return "";
-			return ", observe("+options.getObserve()+")";
-		}
-		
-		public String toString() {
-			return buffer.append("\n").substring(1);
-		}
-		
-		public void clear() {
-			buffer = new StringBuilder();
-		}
-		
-	}
-	
 	public interface ReceiveRequestHandler {
 		void receiveRequest(Request received);
 	}

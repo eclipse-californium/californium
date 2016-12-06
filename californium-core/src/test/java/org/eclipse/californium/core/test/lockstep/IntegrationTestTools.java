@@ -25,7 +25,6 @@ import java.util.Random;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
@@ -78,7 +77,7 @@ public final class IntegrationTestTools {
 		interceptor.clear();
 	}
 
-	public static void printServerLog(ServerBlockwiseInterceptor interceptor) {
+	public static void printServerLog(BlockwiseInterceptor interceptor) {
 		System.out.println(interceptor.toString());
 		interceptor.clear();
 	}
