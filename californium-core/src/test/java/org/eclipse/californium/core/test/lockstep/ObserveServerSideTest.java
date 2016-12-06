@@ -88,7 +88,6 @@ public class ObserveServerSideTest {
 
 	@Before
 	public void setupServer() throws Exception {
-		LockstepEndpoint.DEFAULT_VERBOSE = false;
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);
 
