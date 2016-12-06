@@ -62,6 +62,14 @@ public final class IntegrationTestTools {
 		return request; 
 	}
 
+	public static void assertNumberOfReceivedNotifications(final SynchronousNotificationListener listener,
+			final int expectedNotifications, final boolean resetListener) {
+		assertThat(listener.getNotificationCount(), is(expectedNotifications));
+		if (resetListener) {
+			listener.resetNotificationCount();
+		}
+	}
+
 	public static void assertResponseContainsExpectedPayload(Response response, String expectedPayload) {
 		assertResponseContainsExpectedPayload(response, CONTENT, expectedPayload);
 	}

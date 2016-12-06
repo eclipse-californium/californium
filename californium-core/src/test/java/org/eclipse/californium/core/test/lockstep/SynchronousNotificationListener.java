@@ -16,6 +16,7 @@
 package org.eclipse.californium.core.test.lockstep;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -26,11 +27,12 @@ public class SynchronousNotificationListener implements NotificationListener {
 	private Request request; // request to listen
 	private Response response;
 	private Object lock = new Object();
+	private AtomicInteger notificationCount = new AtomicInteger();
 
 	public SynchronousNotificationListener() {
 	}
 
-	public SynchronousNotificationListener(Request req) {
+	public SynchronousNotificationListener(final Request req) {
 		request = req;
 	}
 
@@ -40,7 +42,7 @@ public class SynchronousNotificationListener implements NotificationListener {
 	 * @return the response or null if waiting time elapses or if request is
 	 *         cancelled/rejected.
 	 */
-	public Response waitForResponse(long timeoutInMs) throws InterruptedException {
+	public Response waitForResponse(final long timeoutInMs) throws InterruptedException {
 		Response r;
 		synchronized (lock) {
 			if (response != null)
@@ -55,12 +57,21 @@ public class SynchronousNotificationListener implements NotificationListener {
 	}
 
 	@Override
-	public void onNotification(Request req, Response resp) {
+	public void onNotification(final Request req, final Response resp) {
 		if (request == null || Arrays.equals(request.getToken(), req.getToken())) {
 			synchronized (lock) {
 				response = resp;
+				notificationCount.incrementAndGet();
 				lock.notifyAll();
 			}
 		}
+	}
+
+	public int getNotificationCount() {
+		return notificationCount.get();
+	}
+
+	public void resetNotificationCount() {
+		notificationCount.set(0);
 	}
 }
