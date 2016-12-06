@@ -23,6 +23,10 @@ package org.eclipse.californium.core.network.config;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.UDPConnector;
 
+/**
+ * Default values for the properties of {@code NetworkConfig}.
+ *
+ */
 public class NetworkConfigDefaults {
 
 	/**
@@ -30,6 +34,12 @@ public class NetworkConfigDefaults {
 	 * in a blockwise tranfer.
 	 */
 	public static final int DEFAULT_MAX_RESOURCE_BODY_SIZE = 2048; // bytes
+
+	/**
+	 * The default maximum amount of time (in milliseconds) between transfers of individual
+	 * blocks in a blockwise transfer before the blockwise transfer state is discarded.
+	 */
+	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 30 * 1000; // 30 secs
 
 	/*
 	 * Accept other message versions than 1
