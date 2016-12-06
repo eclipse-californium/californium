@@ -126,6 +126,12 @@ public final class NetworkConfig {
 		 * A value of {@code 0} turns off transparent handling of blockwise transfers altogether.
 		 */
 		public static final String MAX_RESOURCE_BODY_SIZE = "MAX_RESOURCE_BODY_SIZE";
+		/**
+		 * The maximum amount of time (in milliseconds) allowed between transfers of individual
+		 * blocks in a blockwise transfer before the blockwise transfer state is discarded.
+		 * <p>
+		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
+		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
 
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
