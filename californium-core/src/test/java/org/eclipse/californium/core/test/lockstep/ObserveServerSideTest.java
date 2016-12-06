@@ -44,7 +44,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.eclipse.californium.elements.UDPConnector;
 import org.junit.After;
 import org.junit.AfterClass;
