@@ -212,15 +212,21 @@ public class BlockOption {
 			};
 		}
 	}
-	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
+
+	/**
+	 * Gets the offset into a body this block option represents.
+	 * 
+	 * @return The offset calculated as num * size.
 	 */
+	public int getOffset() {
+		return num * szx2Size(szx);
+	}
+
 	@Override
 	public String toString() {
-		return "(szx="+szx+"/"+ szx2Size(szx)+ ", m="+m+", num="+num+")";
+		return String.format("(szx=%d/%d, m=%b, num=%d)", szx, szx2Size(szx), m, num);
 	}
-	
+
 	@Override
 	public boolean equals(Object o) {
 		if (! (o instanceof BlockOption))
@@ -228,14 +234,53 @@ public class BlockOption {
 		BlockOption block = (BlockOption) o;
 		return szx == block.szx && num == block.num && m == block.m;
 	}
-	
-	public static int size2Szx(int size) {
-		if (size<16) return 0;
-		if (size>1024) return 6;
-		return (int)(Math.log(size)/Math.log(2)) - 4;
+
+	/**
+	 * Gets the 3-bit SZX code for a block size as specified by
+	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:
+	 * 
+	 * <pre>
+	 * 16 bytes = 2^4 --> 0
+	 * ... 
+	 * 1024 bytes = 2^10 -> 6
+	 * </pre>
+	 * <p>
+	 * This method is tolerant towards <em>illegal</em> block sizes
+	 * that are &lt; 16 or &gt; 1024 bytes in that it will return the corresponding
+	 * codes for sizes 16 or 1024 respectively.
+	 * 
+	 * @param blockSize The block size in bytes.
+	 * @return The szx code for the largest number of bytes that is less than or equal to the block size.
+	 */
+	public static int size2Szx(int blockSize) {
+
+		if (blockSize >= 1024) {
+			return 6;
+		} else if (blockSize <= 16) {
+			return 0;
+		} else {
+			int maxOneBit = Integer.highestOneBit(blockSize);
+			return Integer.numberOfTrailingZeros(maxOneBit) - 4;
+		}
 	}
-	
-	public static int szx2Size(int szx) {
-		return 1 << (4 + szx);
+
+	/**
+	 * Gets the number of bytes corresponding to a szx code.
+	 * <p>
+	 * This method is tolerant towards <em>illegal</em> codes
+	 * that are &lt; 0 or &gt; 6 in that it will return the corresponding
+	 * values for codes 0 or 6 respectively.
+	 * 
+	 * @param szx The code.
+	 * @return The corresponding number of bytes.
+	 */
+	public static int szx2Size(final int szx) {
+		if (szx <= 0) {
+			return 16;
+		} else if (szx >= 6) {
+			return 1024;
+		} else {
+			return 1 << (szx + 4);
+		}
 	}
 }
