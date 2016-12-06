@@ -35,8 +35,9 @@ import org.eclipse.californium.core.Utils;
  * <p>
  * Notice that this class is not entirely thread-safe: hasObserve =&gt; (int) getObserve()
  */
-public class OptionSet {
-	
+public final class OptionSet {
+
+	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
 	/*
 	 * Options defined by the CoAP protocol
 	 */
@@ -1220,14 +1221,19 @@ public class OptionSet {
 	/**
 	 * Sets the Observe option value.
 	 * Returns the current OptionSet object for a fluent API.
+	 * 
 	 * @param seqnum the sequence number
 	 * @return this OptionSet
+	 * @throws IllegalArgumentException if the given number is &lt; 0 or &gt; 2^24 - 1
 	 */
-	public OptionSet setObserve(int seqnum) {
-		if (seqnum <0 || ((1 << 24) - 1) < seqnum)
-			throw new IllegalArgumentException("Observe option must be between 0 and "+((1<<24)-1)+" (3 bytes) inclusive but was "+seqnum);
-		this.observe = seqnum;
-		return this;
+	public OptionSet setObserve(final int seqnum) {
+
+		if (!isValidObserveOption(seqnum)) {
+			throw new IllegalArgumentException("Observe option must be between 0 and " + MAX_OBSERVE_NO + " (3 bytes) inclusive");
+		} else {
+			this.observe = seqnum;
+			return this;
+		}
 	}
 
 	/**
@@ -1238,6 +1244,16 @@ public class OptionSet {
 	public OptionSet removeObserve() {
 		observe = null;
 		return this;
+	}
+
+	/**
+	 * Checks if a given number is a valid value for the <em>Observe</em> option.
+	 * 
+	 * @param value The value to check.
+	 * @return {@code true} if the value is &gt; 0 and &lt; 2^24 - 1.
+	 */
+	public static boolean isValidObserveOption(final int value) {
+		return value >= 0 && value <= MAX_OBSERVE_NO;
 	}
 
 	/**
