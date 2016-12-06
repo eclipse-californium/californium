@@ -82,7 +82,6 @@ public class BlockwiseServerSideTest {
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseServerSideTest.class.getSimpleName());
-		LockstepEndpoint.DEFAULT_VERBOSE = false;		
 		CONFIG = new NetworkConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
