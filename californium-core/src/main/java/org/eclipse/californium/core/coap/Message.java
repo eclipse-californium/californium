@@ -597,6 +597,17 @@ public abstract class Message {
 	}
 
 	/**
+	 * Checks whether a given block offset falls into this message's payload.
+	 * 
+	 * @param block2 The offset of the block.
+	 * @return {@code true} if this message has a payload and its size is &gt; the offset.
+	 */
+	public boolean hasBlock(final BlockOption block2) {
+
+		return 0 < getPayloadSize() && block2.getOffset() < getPayloadSize();
+	}
+
+	/**
 	 * Gets the timestamp.
 	 *
 	 * @return the timestamp
