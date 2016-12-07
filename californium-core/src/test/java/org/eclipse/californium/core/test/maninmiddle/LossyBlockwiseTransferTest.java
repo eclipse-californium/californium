@@ -64,11 +64,12 @@ public class LossyBlockwiseTransferTest {
 	private Random rand = new Random();
 
 	@Before
-	public void setupServer() throws Exception {
-		System.out.printf("%sStart %s", System.lineSeparator(), getClass().getSimpleName());
+	public void setupEndpoints() throws Exception {
+
+		System.out.println(System.lineSeparator() + "Start" + getClass().getSimpleName());
 
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 300)
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
@@ -95,7 +96,12 @@ public class LossyBlockwiseTransferTest {
 		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort);
 		middlePort = middle.getPort();
 
-		System.out.println(String.format("Client at %d, middle at %s:%d, server at %d", clientPort, middleAddress.getHostAddress(), middlePort, serverPort));
+		System.out.println(
+				String.format(
+						"client at %s:%d, middle at %s:%d, server at %s:%d",
+						clientEndpoint.getAddress().getHostString(), clientPort,
+						middleAddress.getHostAddress(), middlePort,
+						serverEndpoint.getAddress().getHostString(), serverPort));
 	}
 
 	@After
@@ -108,10 +114,9 @@ public class LossyBlockwiseTransferTest {
 
 	@Test
 	public void testBlockwiseTransferToleratesLostMessages() throws Exception {
+
 		String uri = getUri(new InetSocketAddress(middleAddress, middlePort), "test");
 		respPayload = generateRandomPayload(250);
-
-		System.out.println(String.format("uri: %s", uri));
 
 		CoapClient coapclient = new CoapClient(uri);
 		coapclient.setTimeout(10000);
@@ -135,10 +140,13 @@ public class LossyBlockwiseTransferTest {
 
 	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) {
 
+		System.out.println(String.format("doing a blockwise GET on: %s", client.getURI()));
+
+		long start = System.currentTimeMillis();
 		CoapResponse response = client.get();
-		assertThat(response, is(notNullValue()));
-		String resp = client.get().getResponseText();
-		System.out.println(String.format("Received %d bytes", resp.length()));
-		assertThat(response.getResponseText(), is(expectedPayload));
+		long end = System.currentTimeMillis();
+		assertThat("Blockwise GET timed out after " + (end - start) + "ms", response, is(notNullValue()));
+		System.out.println(String.format("Received %d bytes after %dms", response.getPayload().length, end - start));
+		assertThat("Did not receive expected resource body", response.getResponseText(), is(expectedPayload));
 	}
 }
