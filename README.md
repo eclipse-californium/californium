@@ -69,6 +69,12 @@ Make sure to have the following before importing the Californium (Cf) projects:
 
 Then choose *[Import... &raquo; Maven &raquo; Existing Maven Projects]* to import `californium` into Eclipse.
 
+# IntelliJ
+
+The project can also be imported to IntelliJ as follows:
+
+In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the cloned repository in your filesystem. IntelliJ will then automatically import all projects and resolve required Maven dependencies.
+
 # Interop Server
 
 A test server is running at [coap://iot.eclipse.org:5683/](coap://iot.eclipse.org:5683/).
