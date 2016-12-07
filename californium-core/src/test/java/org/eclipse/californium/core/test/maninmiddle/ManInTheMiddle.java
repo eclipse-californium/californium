@@ -83,23 +83,30 @@ public class ManInTheMiddle implements Runnable {
 			System.out.println("Starting man in the middle...");
 			while (running) {
 				socket.receive(packet);
-				
+
+				boolean isClientPacket = packet.getPort() == clientPort;
+
 				if (burst < MAX && contains(drops, current)) {
 					if (last + 1 == current || last + 2 == current) {
 						burst++;
 					}
-					System.out.println(String.format("Dropping packet %d (burst %d)", current, burst));
+					System.out.println(
+							String.format(
+									"Dropping packet %d (burst %d) from %s",
+									current, burst, isClientPacket ? "client" : "server"));
 					last = current;
 
 				} else {
-					if (packet.getPort()==clientPort)
+
+					if (isClientPacket) {
 						packet.setPort(serverPort);
-					else
+					} else {
 						packet.setPort(clientPort);
+					}
 
 					socket.send(packet);
 
-					if (last + 1 != current && last +2 != current) {
+					if (last + 1 != current && last + 2 != current) {
 						burst = 1;
 					}
 					//System.out.println("Forwarding " + packet.getLength() + " "+current+" ("+last+" burst "+burst+")");
@@ -110,7 +117,7 @@ public class ManInTheMiddle implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void stop() {
 		running = false;
 		socket.close();
@@ -119,12 +126,9 @@ public class ManInTheMiddle implements Runnable {
 	public int getPort() {
 		return socket.getLocalPort();
 	}
-	
+
 	private static boolean contains(final int[] array, final int value) {
-		for (int a:array)
-			if (a == value)
-				return true;
-		return false;
+
+		return Arrays.binarySearch(array, value) >= 0;
 	}
-	
 }
