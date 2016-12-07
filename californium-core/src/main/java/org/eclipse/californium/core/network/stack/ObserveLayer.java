@@ -247,8 +247,10 @@ public class ObserveLayer extends AbstractLayer {
 		@Override
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
-			LOGGER.log(Level.INFO, "Notification {0} timed out. Cancel all relations with source {1}", new Object[] {
-					relation.getExchange().getRequest().getTokenString(), relation.getSource() });
+			LOGGER.log(
+					Level.INFO,
+					"Notification for token [{0}] timed out. Canceling all relations with source [{1}]",
+					new Object[]{ relation.getExchange().getRequest().getTokenString(), relation.getSource() });
 			relation.cancelAll();
 		}
 
