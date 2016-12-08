@@ -475,18 +475,35 @@ public class Request extends Message {
 	 * send more responses in the future whenever the resource's state changes.
 	 * 
 	 * @return this Request
+	 * @throws IllegalStateException if this is not a GET request.
 	 */
-	public Request setObserve() {
+	public final Request setObserve() {
+		if (code != CoAP.Code.GET) {
+			throw new IllegalStateException("observe option can only be set on a GET request");
+		}
 		getOptions().setObserve(0);
 		return this;
+	}
+
+	/**
+	 * Checks if this request is used to establish an observe relation.
+	 * 
+	 * @return {@code true} if this request's <em>observe</em> option is set to 0.
+	 */
+	public final boolean isObserve() {
+		return getOptions().hasObserve() && getOptions().getObserve() == 0;
 	}
 
 	/**
 	 * Sets CoAP's observe option to the value of 1 to proactively cancel.
 	 * 
 	 * @return this Request
+	 * @throws IllegalStateException if this is not a GET request.
 	 */
-	public Request setObserveCancel() {
+	public final Request setObserveCancel() {
+		if (code != CoAP.Code.GET) {
+			throw new IllegalStateException("observe option can only be set on a GET request");
+		}
 		getOptions().setObserve(1);
 		return this;
 	}

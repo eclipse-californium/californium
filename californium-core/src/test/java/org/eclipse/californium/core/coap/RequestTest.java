@@ -27,6 +27,7 @@ import java.net.UnknownHostException;
 import java.util.List;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -164,6 +165,44 @@ public class RequestTest {
 		req.setOptions(URI.create("coap://iot.eclipse.org"));
 		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
 		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
+	}
+
+	/**
+	 * Verifies that only GET requests can be marked for establishing an observe relation.
+	 */
+	@Test
+	public void setObserveFailsForNonGetRequest() {
+
+		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+
+		for (Code code : illegalCodes) {
+			try {
+				Request req = new Request(code);
+				req.setObserve();
+				fail("should not be able to set observe option on " + code + " request");
+			} catch (IllegalStateException e) {
+				// as expected
+			}
+		}
+	}
+
+	/**
+	 * Verifies that only GET requests can be marked for canceling an observe relation.
+	 */
+	@Test
+	public void setObserveCancelFailsForNonGetRequest() {
+
+		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+
+		for (Code code : illegalCodes) {
+			try {
+				Request req = new Request(code);
+				req.setObserveCancel();
+				fail("should not be able to set observe option on " + code + " request");
+			} catch (IllegalStateException e) {
+				// as expected
+			}
+		}
 	}
 
 	private static boolean dnsIsWorking() {
