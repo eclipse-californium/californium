@@ -37,7 +37,7 @@ public final class Observation {
 
 		if (request == null) {
 			throw new NullPointerException("request must not be null");
-		} else if (request.getOptions().getObserve() != 0) {
+		} else if (!request.isObserve()) {
 			throw new IllegalArgumentException("request has no observe=0 option");
 		}
 		this.request = request;

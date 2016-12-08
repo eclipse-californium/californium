@@ -69,7 +69,7 @@ public final class TcpMatcher extends BaseMatcher {
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
 		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { request.getTokenString() });
 
-		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0) {
+		if (request.isObserve()) {
 			registerObserve(request);
 		}
 	}

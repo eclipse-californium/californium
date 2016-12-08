@@ -80,7 +80,7 @@ public final class UdpMatcher extends BaseMatcher {
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequest(exchange);
 		// for observe request.
-		if (request.getOptions().hasObserve() && request.getOptions().getObserve() == 0) {
+		if (request.isObserve()) {
 			registerObserve(request);
 		}
 
