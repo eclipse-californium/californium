@@ -163,7 +163,7 @@ public class ObserveRelation {
 	 *
 	 * @return the source address
 	 */
-	public InetSocketAddress getSource() {
+	public final InetSocketAddress getSource() {
 		return endpoint.getAddress();
 	}
 

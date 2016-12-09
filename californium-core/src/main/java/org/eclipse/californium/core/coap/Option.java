@@ -199,7 +199,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param value the new value
 	 */
-	public void setValue(byte[] value) {
+	public final void setValue(byte[] value) {
 		if (value == null)
 			throw new NullPointerException();
 		this.value = value;
@@ -210,7 +210,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param str the new option value as string
 	 */
-	public void setStringValue(String str) {
+	public final void setStringValue(String str) {
 		if (str == null)
 			throw new NullPointerException();
 		value = str.getBytes(CoAP.UTF8_CHARSET);
@@ -221,7 +221,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param val the new option value as integer
 	 */
-	public void setIntegerValue(int val) {
+	public final void setIntegerValue(int val) {
 		int length = 0;
 		for (int i=0;i<4;i++)
 			if (val >= 1<<(i*8) || val < 0) length++;
@@ -236,7 +236,7 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param val the new option value as long
 	 */
-	public void setLongValue(long val) {
+	public final void setLongValue(long val) {
 		int length = 0;
 		for (int i=0;i<8;i++)
 			if (val >= 1L<<(i*8) || val < 0) length++;

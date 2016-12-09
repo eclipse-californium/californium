@@ -69,14 +69,14 @@ public class DeduplicatorFactory {
 	public Deduplicator createDeduplicator(final NetworkConfig config) {
 
 		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR);
-		switch(type) {
-		case NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP:
+		if (type.equals(NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)) {
 			return new SweepDeduplicator(config);
-		case NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION:
+		} else if (type.equals(NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION)) {
 			return new CropRotation(config);
-		case NetworkConfig.Keys.NO_DEDUPLICATOR:
+
+		} else if (type.equals(NetworkConfig.Keys.NO_DEDUPLICATOR)) {
 			return new NoDeduplicator();
-		default:
+		} else {
 			LOGGER.warning("configuration contains unsupported deduplicator type, duplicate detection will be turned off");
 			return new NoDeduplicator();
 		}

@@ -147,7 +147,7 @@ public class CoapServer implements ServerInterface {
 		}
 		
 		// resources
-		this.root = createRoot();
+		this.root = new RootResource();
 		this.deliverer = new ServerMessageDeliverer(root);
 		
 		CoapResource wellKnown = new CoapResource(".well-known");
@@ -157,13 +157,17 @@ public class CoapServer implements ServerInterface {
 		
 		// endpoints
 		this.endpoints = new ArrayList<>();
-		// sets the central thread pool for the protocol stage over all endpoints
-		this.executor = Executors.newScheduledThreadPool(//
-				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-				new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
-		// create endpoint for each port
-		for (int port : ports) {
-			addEndpoint(new CoapEndpoint(port, this.config));
+		if(null != config) {
+			// sets the central thread pool for the protocol stage over all endpoints
+			this.executor = Executors.newScheduledThreadPool(//
+					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+					new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
+		}
+		if(null != this.config) {
+			// create endpoint for each port
+			for (int port : ports) {
+				addEndpoint(new CoapEndpoint(port, this.config));
+			}
 		}
 	}
 
@@ -305,7 +309,7 @@ public class CoapServer implements ServerInterface {
 	 * @param endpoint the endpoint to add
 	 */
 	@Override
-	public void addEndpoint(final Endpoint endpoint) {
+	public final void addEndpoint(final Endpoint endpoint) {
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.setExecutor(executor);
 		endpoints.add(endpoint);

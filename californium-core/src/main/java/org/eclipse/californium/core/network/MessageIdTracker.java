@@ -15,12 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.core.network.config.NetworkConfig;
+
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
  * A helper for keeping track of message IDs.
@@ -57,7 +57,7 @@ public class MessageIdTracker {
 		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		boolean useRandomFirstMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
 		if (useRandomFirstMID) {
-			counter = new AtomicInteger(new Random().nextInt(1 << 10));
+			counter = new AtomicInteger(new SecureRandom().nextInt(1 << 10));
 		} else {
 			counter = new AtomicInteger(0);
 		}
