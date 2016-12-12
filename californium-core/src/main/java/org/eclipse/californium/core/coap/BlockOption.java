@@ -104,7 +104,7 @@ public class BlockOption {
 	 *
 	 * @return the szx
 	 */
-	public final int getSzx() {
+	public int getSzx() {
 		return szx;
 	}
 
@@ -113,7 +113,7 @@ public class BlockOption {
 	 *
 	 * @param szx the new szx
 	 */
-	private void setSzx(int szx) {
+	public void setSzx(int szx) {
 		if (szx < 0 || 7 < szx)
 			throw new IllegalArgumentException("Block option's szx must be between 0 and 7 inclusive");
 		this.szx = szx;
@@ -134,7 +134,7 @@ public class BlockOption {
 	 * 
 	 * @return true, if is m
 	 */
-	public final boolean isM() {
+	public boolean isM() {
 		return m;
 	}
 
@@ -144,7 +144,7 @@ public class BlockOption {
 	 *
 	 * @param m the new m
 	 */
-	private void setM(boolean m) {
+	public void setM(boolean m) {
 		this.m = m;
 	}
 
@@ -153,7 +153,7 @@ public class BlockOption {
 	 *
 	 * @return the num
 	 */
-	public final int getNum() {
+	public int getNum() {
 		return num;
 	}
 
@@ -163,7 +163,7 @@ public class BlockOption {
 	 * @param num the new num
 	 * @throws IllegalArgumentException if num is not a 20-bit value
 	 */
-	private void setNum(int num) {
+	public void setNum(int num) {
 		if (num < 0 || (1<<20)-1 < num)
 			throw new IllegalArgumentException("Block option's num must be between 0 and "+(1<<20-1)+" inclusive");
 		this.num = num;
@@ -233,14 +233,6 @@ public class BlockOption {
 			return false;
 		BlockOption block = (BlockOption) o;
 		return szx == block.szx && num == block.num && m == block.m;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = szx;
-		result = 31 * result + (m ? 1 : 0);
-		result = 31 * result + num;
-		return result;
 	}
 
 	/**

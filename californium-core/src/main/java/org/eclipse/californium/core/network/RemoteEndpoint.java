@@ -148,7 +148,7 @@ public class RemoteEndpoint {
 		return RTOupdateTimestamp[rtoType];
 	}
 	
-	public final void setRTOtimestamp(long timestamp, int rtoType){
+	public void setRTOtimestamp(long timestamp, int rtoType){
 		RTOupdateTimestamp[rtoType] = timestamp;
 	}
 	
@@ -184,7 +184,7 @@ public class RemoteEndpoint {
 		  isBlindStrong = state;
 	}
 	
-	public final void setEstimatorValues(long rto, long rtt, long rttvar, int estimatorType){
+	public void setEstimatorValues(long rto, long rtt, long rttvar, int estimatorType){
 		xRTO[estimatorType] = rto;
 		xRTT[estimatorType] = rtt;
 		xRTTVAR[estimatorType] = rttvar;

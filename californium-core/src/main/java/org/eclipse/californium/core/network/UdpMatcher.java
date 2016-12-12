@@ -426,7 +426,7 @@ public final class UdpMatcher extends BaseMatcher {
 					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
 				}
 
-				if (request != null && (request.getOptions().hasBlock1() || ( null != response && response.getOptions().hasBlock2()))) {
+				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Blockwise exchange with remote peer {0} completed, cleaning up ", uriKey);

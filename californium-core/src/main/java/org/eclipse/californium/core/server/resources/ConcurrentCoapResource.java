@@ -125,7 +125,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * 
 	 * @param executor the executor service
 	 */
-	public final void setExecutor(ExecutorService executor) {
+	public void setExecutor(ExecutorService executor) {
 		this.executor = executor;
 	}
 	
@@ -144,7 +144,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * @return the maximum number of processors available to the virtual
      *          machine; never smaller than one
 	 */
-	protected final int getAvailableProcessors() {
+	protected int getAvailableProcessors() {
 		return Runtime.getRuntime().availableProcessors();
 	}
 	
