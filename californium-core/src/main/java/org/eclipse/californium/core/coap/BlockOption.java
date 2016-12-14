@@ -235,6 +235,14 @@ public class BlockOption {
 		return szx == block.szx && num == block.num && m == block.m;
 	}
 
+	@Override
+	public int hashCode() {
+		int result = szx;
+		result = 31 * result + (m ? 1 : 0);
+		result = 31 * result + num;
+		return result;
+	}
+
 	/**
 	 * Gets the 3-bit SZX code for a block size as specified by
 	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:

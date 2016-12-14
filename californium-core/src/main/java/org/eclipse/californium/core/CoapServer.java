@@ -159,7 +159,7 @@ public class CoapServer implements ServerInterface {
 		this.endpoints = new ArrayList<>();
 		// sets the central thread pool for the protocol stage over all endpoints
 		this.executor = Executors.newScheduledThreadPool(//
-				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+				this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 				new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
 		for (int port : ports) {
