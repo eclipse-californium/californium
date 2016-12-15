@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
@@ -656,7 +657,8 @@ public class CoapEndpoint implements Endpoint {
 					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 				}
 
-			} catch (MessageFormatException e) {
+			} catch (CoAPMessageFormatException e) {
+
 				if (e.isConfirmable() && e.hasMid()) {
 					// reject erroneous reliably transmitted message as mandated by CoAP spec
 					// https://tools.ietf.org/html/rfc7252#section-4.2
@@ -669,11 +671,16 @@ public class CoapEndpoint implements Endpoint {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 				}
+			} catch (MessageFormatException e) {
+
+				// ignore erroneous messages that are not transmitted reliably
+				LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 			}
 		}
 
-		private void reject(final RawData raw, final MessageFormatException cause) {
-			// Generate RST, and send it if not cancelled by one of the interceptors
+		private void reject(final RawData raw, final CoAPMessageFormatException cause) {
+
+			// Generate RST
 			EmptyMessage rst = new EmptyMessage(Type.RST);
 			rst.setMID(cause.getMid());
 			rst.setDestination(raw.getAddress());
