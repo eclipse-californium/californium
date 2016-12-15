@@ -33,7 +33,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
@@ -221,20 +220,19 @@ public class ReliabilityLayer extends AbstractLayer {
 	 */
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
-		exchange.setFailedTransmissionCount(0);
 
+		exchange.setFailedTransmissionCount(0);
 		exchange.getCurrentRequest().setAcknowledged(true);
-		LOGGER.finest("Cancel any retransmission");
 		exchange.setRetransmissionHandle(null);
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
-			LOGGER.finer("Response is confirmable, send ACK");
+			LOGGER.finer("acknowledging CON response");
 			EmptyMessage ack = EmptyMessage.newACK(response);
 			sendEmptyMessage(exchange, ack);
 		}
 
 		if (response.isDuplicate()) {
-			LOGGER.fine("Response is duplicate, ignore it");
+			LOGGER.fine("ignoring duplicate response");
 		} else {
 			upper().receiveResponse(exchange, response);
 		}
@@ -246,28 +244,28 @@ public class ReliabilityLayer extends AbstractLayer {
 	 */
 	@Override
 	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+
 		exchange.setFailedTransmissionCount(0);
 		// TODO: If this is an observe relation, the current response might not
 		// be the one that is being acknowledged. The current response might
 		// already be the next NON notification.
 
 		if (message.getType() == Type.ACK) {
-			if (exchange.getOrigin() == Origin.LOCAL) {
+			if (exchange.isOfLocalOrigin()) {
 				exchange.getCurrentRequest().setAcknowledged(true);
 			} else {
 				exchange.getCurrentResponse().setAcknowledged(true);
 			}
 		} else if (message.getType() == Type.RST) {
-			if (exchange.getOrigin() == Origin.LOCAL) {
+			if (exchange.isOfLocalOrigin()) {
 				exchange.getCurrentRequest().setRejected(true);
 			} else {
 				exchange.getCurrentResponse().setRejected(true);
 			}
 		} else {
-			LOGGER.log(Level.WARNING, "Empty message was not ACK nor RST: {0}", message);
+			LOGGER.log(Level.WARNING, "received empty message that is neither ACK nor RST: {0}", message);
 		}
 
-		LOGGER.finer("Cancel retransmission");
 		exchange.setRetransmissionHandle(null);
 
 		upper().receiveEmptyMessage(exchange, message);
