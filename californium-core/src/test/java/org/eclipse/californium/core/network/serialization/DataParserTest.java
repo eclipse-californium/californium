@@ -17,6 +17,8 @@
  * Daniel Pauli - parsers and initial implementation
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - add test cases
+ * Achim Kraus (Bosch Software Innovations GmbH) - add test for CoAP specific 
+ *                                                 exception information
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -32,6 +34,7 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
@@ -98,7 +101,29 @@ import org.junit.runners.Parameterized;
 		try {
 			parser.parseMessage(rawData);
 			fail("Parser should have detected that message is not a request");
-		} catch (MessageFormatException e) {
+		} catch (CoAPMessageFormatException e) {
+			assertEquals(0b00100001, e.getCode());
+			assertEquals(true, e.isConfirmable());
+			// THEN an exception is thrown by the parser
+		}
+	}
+
+	@Test public void testParseMessageDetectsIllegalCode() {
+		// GIVEN a message with a class code of 0.07, i.e. not a request
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+				0b00000111, // code: 0.07 -> class 1 is reserved
+				0x00, 0x10 // message ID
+		};
+
+		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
+
+		// WHEN parsing the request
+		try {
+			parser.parseMessage(rawData);
+			fail("Parser should have detected that message is not a request");
+		} catch (CoAPMessageFormatException e) {
+			assertEquals(0b00000111, e.getCode());
+			assertEquals(true, e.isConfirmable());
 			// THEN an exception is thrown by the parser
 		}
 	}
@@ -118,8 +143,10 @@ import org.junit.runners.Parameterized;
 		try {
 			parser.parseMessage(rawData);
 			fail("Parser should have detected malformed options");
-		} catch (MessageFormatException e) {
+		} catch (CoAPMessageFormatException e) {
 			// THEN an exception is thrown by the parser
+			assertEquals(0b00000001, e.getCode());
+			assertEquals(true, e.isConfirmable());
 		}
 	}
 
@@ -136,8 +163,10 @@ import org.junit.runners.Parameterized;
 		try {
 			parser.parseMessage(rawData);
 			fail("Parser should have detected missing payload");
-		} catch (MessageFormatException e) {
+		} catch (CoAPMessageFormatException e) {
 			// THEN an exception is thrown by the parser
+			assertEquals(0b00000001, e.getCode());
+			assertEquals(true, e.isConfirmable());
 		}
 	}
 

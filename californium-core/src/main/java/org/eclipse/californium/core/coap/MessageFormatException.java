@@ -12,22 +12,21 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move CoAP specific information 
+ *                                                    to CoAPMessageFormatException
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 /**
- * Indicates a problem while parsing the binary representation of a CoAP message.
+ * Indicates a problem while parsing the binary representation of a message.
  * <p>
- * The <em>message</em> property contains a description of the problem encountered.
+ * The <em>message</em> property contains a description of the problem
+ * encountered.
  * </p>
  */
 public class MessageFormatException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
-	private static final int NO_MID = -1;
-	private int mid = NO_MID;
-	private int code;
-	private boolean confirmable;
 
 	/**
 	 * Creates an exception for a description.
@@ -38,52 +37,4 @@ public class MessageFormatException extends RuntimeException {
 		super(description);
 	}
 
-	/**
-	 * Creates an exception for a description and message properties.
-	 * 
-	 * @param description a description of the error cause.
-	 * @param mid the message ID.
-	 * @param code the message code.
-	 * @param confirmable whether the message has been transferred reliably.
-	 */
-	public MessageFormatException(String description, int mid, int code, boolean confirmable) {
-		super(description);
-		this.mid = mid;
-		this.code = code;
-		this.confirmable = confirmable;
-	}
-
-	/**
-	 * Checks if the message's ID could be parsed successfully.
-	 * 
-	 * @return {@code true} if the value returned by <em>getMid</em> is the
-	 *         real message ID.
-	 */
-	public boolean hasMid() {
-		return mid > NO_MID;
-	}
-
-	/**
-	 * @return the mid
-	 */
-	public final int getMid() {
-		return mid;
-	}
-
-	
-	/**
-	 * @return the code
-	 */
-	public final int getCode() {
-		return code;
-	}
-
-	/**
-	 * Checks if the message has been transferred reliably.
-	 * 
-	 * @return {@code true} if the message type is CON.
-	 */
-	public boolean isConfirmable() {
-		return confirmable;
-	}
 }
