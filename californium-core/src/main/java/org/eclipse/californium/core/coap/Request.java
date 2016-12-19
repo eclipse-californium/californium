@@ -247,8 +247,7 @@ public class Request extends Message {
 		 */
 		int port = uri.getPort();
 		if (port >= 0) {
-			if (port != CoAP.DEFAULT_COAP_PORT)
-				getOptions().setUriPort(port);
+			// do not set the Uri-Port option unless it is used for proxying (setting Uri-Scheme option) 
 			setDestinationPort(port);
 		} else if (getDestinationPort() == 0) {
 			if (scheme == null || scheme.equals(CoAP.COAP_URI_SCHEME))
