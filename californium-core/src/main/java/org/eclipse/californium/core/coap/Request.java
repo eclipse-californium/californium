@@ -321,7 +321,7 @@ public class Request extends Message {
 					LOGGER.warning("could not parse IP address of URI despite successful IP address pattern matching");
 				}
 			} else {
-				// host contains a host name, simply put it into Uri-Host option
+				// host contains a host name, put it into Uri-Host option to enable virtual hosts (multiple names, same IP address) 
 				getOptions().setUriHost(host);
 			}
 		}
@@ -335,9 +335,7 @@ public class Request extends Message {
 		}
 
 		setDestinationPort(port);
-		if (port != CoAP.DEFAULT_COAP_PORT) {
-			getOptions().setUriPort(port);
-		}
+		// do not set the Uri-Port option unless it is used for proxying (setting Uri-Scheme option)
 
 		// set Uri-Path options
 		String path = uri.getPath();
