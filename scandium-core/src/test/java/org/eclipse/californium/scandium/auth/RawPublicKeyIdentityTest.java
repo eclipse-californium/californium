@@ -15,7 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.auth;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.security.PublicKey;
 
@@ -27,16 +29,13 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class RawPublicKeyIdentityTest {
 
+	private static final String URI_PREFIX = "ni:///sha-256;";
+
 	@Test
 	public void testGetNameReturnsNamedInterfaceUri() throws Exception {
-		String uriPrefix = "ni:///sha-256;";
 		PublicKey key = DtlsTestTools.getPublicKey();
 		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
-		assertTrue(id.getName().startsWith(uriPrefix));
-		String hash = id.getName().substring(uriPrefix.length());
-		assertFalse(hash.endsWith("="));
-		assertFalse(hash.contains("+"));
-		assertFalse(hash.contains("/"));
+		assertThatNameIsValidNamedInterfaceUri(id.getName());
 	}
 
 	@Test
@@ -44,5 +43,15 @@ public class RawPublicKeyIdentityTest {
 		PublicKey key = DtlsTestTools.getPublicKey();
 		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
 		assertArrayEquals(id.getKey().getEncoded(), id.getSubjectInfo());
+	}
+
+	private static void assertThatNameIsValidNamedInterfaceUri(String name) {
+		assertTrue(name.startsWith(URI_PREFIX));
+		String hash = name.substring(URI_PREFIX.length());
+		assertFalse(hash.endsWith("="));
+		assertFalse(hash.contains("+"));
+		assertFalse(hash.contains("/"));
+		assertFalse(hash.endsWith("\n"));
+		assertFalse(hash.endsWith("\r"));
 	}
 }
