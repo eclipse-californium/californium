@@ -967,7 +967,7 @@ public class Base64
 		// Else, don't compress. Better not to use streams at all then.
 		else {
 			boolean breakLines = (options & DO_BREAK_LINES) != 0;
-
+			boolean doPadding = (options & NO_PADDING) == 0;
 			//int    len43   = len * 4 / 3;
 			//byte[] outBuff = new byte[   ( len43 )                      // Main 4:3
 			//                           + ( (len % 3) > 0 ? 4 : 0 )      // Account for padding
@@ -975,7 +975,15 @@ public class Base64
 			// Try to determine more precisely how big the array needs to be.
 			// If we get it right, we don't have to do an array copy, and
 			// we save a bunch of memory.
-			int encLen = ( len / 3 ) * 4 + ( len % 3 > 0 ? 4 : 0 ); // Bytes needed for actual encoding
+			int encLen = ( len / 3 ) * 4; // number of full three byte sets encoded to corresponding 4 char set
+			int remainingBytes = len % 3;
+			if (doPadding) {
+				// encoding of remaining bytes will be padded to a full 4 byte char set
+				encLen += remainingBytes > 0 ? 4 : 0;
+			} else {
+				// remaining bytes will be encoded without padding
+				encLen += remainingBytes > 0 ? remainingBytes + 1 : 0;
+			}
 			if( breakLines ){
 				encLen += encLen / MAX_LINE_LENGTH; // Plus extra newline characters
 			}

@@ -125,7 +125,7 @@ public class RawPublicKeyIdentity implements Principal {
 	 */
 	@Override
 	public String toString() {
-		return new StringBuffer("RawPublicKey Identity [").append(niUri).append("]").toString();
+		return new StringBuilder("RawPublicKey Identity [").append(niUri).append("]").toString();
 	}
 
 	/**

@@ -15,8 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.auth;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -59,11 +62,13 @@ public class RawPublicKeyIdentityTest {
 		assertThat(principal.getKey(), is(key));
 	}
 
-	private void assertThatNameIsValidNamedInterfaceUri(String name) {
+	private static void assertThatNameIsValidNamedInterfaceUri(String name) {
 		assertTrue(name.startsWith(URI_PREFIX));
 		String hash = name.substring(URI_PREFIX.length());
 		assertFalse(hash.endsWith("="));
 		assertFalse(hash.contains("+"));
 		assertFalse(hash.contains("/"));
+		assertFalse(hash.endsWith("\n"));
+		assertFalse(hash.endsWith("\r"));
 	}
 }
