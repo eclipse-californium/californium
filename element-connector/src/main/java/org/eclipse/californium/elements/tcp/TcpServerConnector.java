@@ -13,6 +13,7 @@
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust port when bound.
+ * Achim Kraus (Bosch Software Innovations GmbH) - use CloseOnErrorHandler.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -176,7 +177,7 @@ public class TcpServerConnector implements Connector, TcpConnector {
 			ch.pipeline().addLast(new CloseOnIdleHandler());
 			ch.pipeline().addLast(new DatagramFramer());
 			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
-			ch.pipeline().addLast(new CloseOnIdleHandler());
+			ch.pipeline().addLast(new CloseOnErrorHandler());
 		}
 	}
 
