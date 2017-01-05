@@ -584,8 +584,9 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled())
+			if (!message.isCanceled()) {
 				connector.send(serializer.serializeEmptyMessage(message));
+			}
 		}
 
 		private void assertMessageHasDestinationAddress(final Message message) {
@@ -656,11 +657,14 @@ public class CoapEndpoint implements Endpoint {
 				}
 
 			} catch (MessageFormatException e) {
-
 				if (e.isConfirmable() && e.hasMid()) {
 					// reject erroneous reliably transmitted message as mandated by CoAP spec
 					// https://tools.ietf.org/html/rfc7252#section-4.2
 					reject(raw, e);
+					LOGGER.log(
+							Level.FINE,
+							"rejected malformed message from [{0}], reason: {1}",
+							new Object[]{raw.getInetSocketAddress(), e.getMessage()});
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
@@ -669,36 +673,18 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		private void reject(final RawData raw, final MessageFormatException cause) {
-
 			// Generate RST, and send it if not cancelled by one of the interceptors
 			EmptyMessage rst = new EmptyMessage(Type.RST);
 			rst.setMID(cause.getMid());
-			rst.setToken(new byte[0]);
 			rst.setDestination(raw.getAddress());
 			rst.setDestinationPort(raw.getPort());
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.sendEmptyMessage(rst);
-			}
-			connector.send(serializer.serializeEmptyMessage(rst));
-			LOGGER.log(
-				Level.FINE,
-				"rejected malformed message from [{0}], reason: {1}",
-				new Object[]{raw.getInetSocketAddress(), cause.getMessage()});
+
+			coapstack.sendEmptyMessage(null, rst);
 		}
 
 		private void reject(final Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
-			// sending directly through connector, not stack, thus set token
-			rst.setToken(new byte[0]);
-
-			for (MessageInterceptor messageInterceptor : interceptors) {
-				messageInterceptor.sendEmptyMessage(rst);
-			}
-
-			// MessageInterceptor might have canceled
-			if (!rst.isCanceled()) {
-				connector.send(serializer.serializeEmptyMessage(rst));
-			}
+			coapstack.sendEmptyMessage(null, rst);
 		}
 
 		private void receiveRequest(final Request request, final RawData raw) {
