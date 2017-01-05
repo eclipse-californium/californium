@@ -26,6 +26,11 @@
 			<artifactId>netty-all</artifactId>
 			<version>4.1.1.Final</version>
 		</dependency>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
