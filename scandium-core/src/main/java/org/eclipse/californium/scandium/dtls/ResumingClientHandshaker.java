@@ -81,6 +81,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
+		expectChangeCipherSpecMessage();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -281,4 +282,10 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		return flight;
 	}
 
+//	@Override
+//	protected boolean isChangeCipherSpecMessageDue() {
+//
+//		// in an abbreviated handshake we immediately expect the server's ChangeCipherSpec message
+//		return true;
+//	}
 }

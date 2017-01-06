@@ -144,6 +144,8 @@ public abstract class Handshaker {
 
 	private Set<SessionListener> sessionListeners = new HashSet<>();
 
+	private boolean changeCipherSuiteMessageExpected = false;
+
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
@@ -222,21 +224,24 @@ public abstract class Handshaker {
 	 * A queue for buffering inbound handshake messages.
 	 */
 	class InboundMessageBuffer {
+
+		private ChangeCipherSpecMessage changeCipherSpec = null;
+
 		private SortedSet<Record> queue = new TreeSet<>(new Comparator<Record>() {
+
 			@Override
 			public int compare(Record r1, Record r2) {
+
 				if (r1.getEpoch() < r2.getEpoch()) {
 					return -1;
 				} else if (r1.getEpoch() > r2.getEpoch()) {
 					return 1;
+				} else if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
+					return -1;
+				} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
+					return 1;
 				} else {
-					if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
-						return -1;
-					} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
-						return 1;
-					} else {
-						return 0;
-					}
+					return 0;
 				}
 			}
 		});
@@ -256,26 +261,37 @@ public abstract class Handshaker {
 		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be decrypted 
 		 */
 		DTLSMessage getNextMessage() throws GeneralSecurityException, HandshakeException {
-			for (Record record : queue) {
-				if (record.getEpoch() == session.getReadEpoch()) {
-					HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
-					if (msg.getMessageSeq() == nextReceiveSeq) {
-						queue.remove(record);
-						return msg;
+
+			DTLSMessage result = null;
+
+			if (isChangeCipherSpecMessageExpected() && changeCipherSpec != null) {
+				result = changeCipherSpec;
+				changeCipherSpec = null;
+			} else {
+
+				for (Record record : queue) {
+					if (record.getEpoch() == session.getReadEpoch()) {
+						HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
+						if (msg.getMessageSeq() == nextReceiveSeq) {
+							result = msg;
+							queue.remove(record);
+							break;
+						}
 					}
 				}
 			}
-			return null;
+
+			return result;
 		}
 
 		/**
 		 * Checks if a given record contains a message that can be processed immediately as part
 		 * of the ongoing handshake.
-		 * 
+		 * <p>
 		 * This is the case if the record is from the <em>current read epoch</em> and the contained
 		 * message is either a <em>CHANGE_CIPHER_SPEC</em> message or a <em>HANDSHAKE</em> message
 		 * with the next expected sequence number.
-		 * 
+		 * <p>
 		 * If the record contains a message from a future epoch or having a sequence number that is
 		 * not the next expected one, the record is put into a buffer for later processing when all
 		 * fragments are available and/or the message's sequence number becomes the next expected one.
@@ -299,8 +315,26 @@ public abstract class Handshaker {
 				DTLSMessage fragment = candidate.getFragment();
 				switch(fragment.getContentType()) {
 				case ALERT:
-				case CHANGE_CIPHER_SPEC:
 					return fragment;
+				case CHANGE_CIPHER_SPEC:
+					// the following cases are possible:
+					// 1. the CCS message is the one we currently expect
+					//    -> process it immediately
+					// 2. the CCS message is NOT YET expected, i.e. we are still missing one of the
+					//    messages that logically need to be processed BEFORE the CCS message
+					//    -> stash the CCS message and process it immediately once the missing messages
+					//       have been processed
+					// 3. the FINISHED message is received BEFORE the CCS message
+					//    -> stash the FINISHED message (note that the FINISHED message's epoch is
+					//       current read epoch + 1 and thus will have been queued by the
+					//       "else" branch below
+					if (isChangeCipherSpecMessageExpected()) {
+						return fragment;
+					} else {
+						// store message for later processing
+						changeCipherSpec = (ChangeCipherSpecMessage) fragment;
+						return null;
+					}
 				case HANDSHAKE:
 					HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
 					int messageSeq = handshakeMessage.getMessageSeq();
@@ -957,5 +991,22 @@ public abstract class Handshaker {
 
 	protected boolean isFirstMessageReceived(final HandshakeMessage handshakeMessage) {
 		return false;
+	}
+
+	/**
+	 * Checks whether the peer's <em>CHANGE_CIPHER_SPEC</em> message is the next message
+	 * expected in the ongoing handshake.
+	 * 
+	 * @return {@code true} if the message is expected next.
+	 */
+	final boolean isChangeCipherSpecMessageExpected() {
+		return changeCipherSuiteMessageExpected;
+	}
+
+	/**
+	 * Marks this handshaker to expect the peer's <em>CHANGE_CIPHER_SPEC</em> message next.
+	 */
+	protected final void expectChangeCipherSpecMessage() {
+		this.changeCipherSuiteMessageExpected = true;
 	}
 }

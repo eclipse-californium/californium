@@ -325,7 +325,6 @@ public class ServerHandshakerTest {
 		assertThat(handshaker.getNegotiatedSupportedGroup(), notNullValue());
 	}
 
-
 	@Test
 	public void testDoProcessMessageProcessesQueuedMessages() throws Exception {
 		Record nextRecord = givenAHandshakerWithAQueuedMessage();
@@ -333,10 +332,6 @@ public class ServerHandshakerTest {
 		assertThatAllMessagesHaveBeenProcessedInOrder();
 	}
 
-//	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
-//		return new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
-//	}
-//
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {
 
 		InetSocketAddress senderAddress = new InetSocketAddress(5000);
@@ -361,6 +356,7 @@ public class ServerHandshakerTest {
 		assertThat(handshaker.clientKeyExchange, nullValue());
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
 				handshaker.inboundMessageBuffer.isEmpty());
+
 		return certificateMsgRecord;
 	}
 
@@ -393,7 +389,7 @@ public class ServerHandshakerTest {
 		return handshaker.processMessage(record);
 	}
 
-	private byte[] newHandshakeMessage(HandshakeType type, int messageSeq, byte[] fragment) {
+	private static byte[] newHandshakeMessage(HandshakeType type, int messageSeq, byte[] fragment) {
 		int length = 8 + 24 + 16 + 24 + 24 + fragment.length;
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(type.getCode(), 8);
@@ -452,7 +448,7 @@ public class ServerHandshakerTest {
 		return writer.toByteArray();
 	}
 
-	private Record getRecordForMessage(int epoch, int seqNo, HandshakeMessage msg, InetSocketAddress peer) {
+	private static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
 				seqNo, msg.toByteArray());
 		List<Record> list = Record.fromByteArray(dtlsRecord, peer);
@@ -466,7 +462,7 @@ public class ServerHandshakerTest {
 	 * 
 	 * @return the group
 	 */
-	private SupportedGroup getArbitrarySupportedGroup() {
+	private static SupportedGroup getArbitrarySupportedGroup() {
 		List<SupportedGroup> supportedGroups = SupportedGroup.getPreferredGroups();
 		if (!supportedGroups.isEmpty()) {
 			return supportedGroups.get(0);

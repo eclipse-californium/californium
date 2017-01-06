@@ -29,12 +29,17 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.scandium.category.Medium;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/**
+ * Test cases verifying the {@code Handshaker}'s message buffering and reassembling behavior.
+ *
+ */
 @Category(Medium.class)
 public class HandshakerTest {
 
@@ -45,13 +50,13 @@ public class HandshakerTest {
 	Certificate[] certificateChain;
 	CertificateMessage certificateMessage;
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
-	
+
 	@Before
 	public void setUp() throws Exception {
 		for (int i = 0; i < receivedMessages.length; i++) {
 			receivedMessages[i++] = 0;
 		}
-		
+
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
 		certificateChain = 
@@ -62,11 +67,12 @@ public class HandshakerTest {
 		certificateMessage = createCertificateMessage(1);
 
 		handshaker = new Handshaker(false, session, null, null, 1500) {
+
 			@Override
 			public DTLSFlight getStartHandshakeMessage() {
 				return new DTLSFlight(session);
 			}
-			
+
 			@Override
 			protected DTLSFlight doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
 				if (message instanceof HandshakeMessage) {
@@ -76,6 +82,54 @@ public class HandshakerTest {
 				return null;
 			}
 		};
+	}
+
+	@Test
+	public void testProcessMessageBuffersUnexpectedChangeCipherSpecMessage() throws Exception {
+
+		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session);
+
+		// WHEN the peer sends its ChangeCipherSpec message
+		InetSocketAddress senderAddress = new InetSocketAddress(5000);
+
+		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
+		Record ccsRecord = getRecordForMessage(0, 5, ccs, senderAddress);
+		handshaker.processMessage(ccsRecord);
+
+		// THEN the ChangeCipherSpec message is not processed until the missing message arrives
+		assertFalse(handshaker.changeCipherSpecProcessed.get());
+		handshaker.expectChangeCipherSpecMessage();
+		PSKClientKeyExchange msg = new PSKClientKeyExchange("id", endpoint);
+		msg.setMessageSeq(0);
+		Record keyExchangeRecord = getRecordForMessage(0, 6, msg, senderAddress);
+		handshaker.processMessage(keyExchangeRecord);
+		assertTrue(handshaker.changeCipherSpecProcessed.get());
+	}
+
+	@Test
+	public void testProcessMessageBuffersFinishedMessageUntilChangeCipherSpecIsReceived() throws Exception {
+
+		final InetSocketAddress senderAddress = new InetSocketAddress(5000);
+
+		// GIVEN a handshaker expecting the peer's ChangeCipherSpec message
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session);
+		handshaker.expectChangeCipherSpecMessage();
+
+		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
+		Finished finished = new Finished(new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
+		finished.setMessageSeq(0);
+		Record finishedRecord = getRecordForMessage(1, 0, finished, senderAddress);
+		handshaker.processMessage(finishedRecord);
+
+		// THEN the FINISHED message is not processed until the missing CHANGE_CIPHER_SPEC message has been
+		// received and processed
+		assertFalse(handshaker.finishedProcessed.get());
+		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
+		Record ccsRecord = getRecordForMessage(0, 5, ccs, senderAddress);
+		handshaker.processMessage(ccsRecord);
+		assertTrue(handshaker.changeCipherSpecProcessed.get());
+		assertTrue(handshaker.finishedProcessed.get());
 	}
 
 	@Test
@@ -240,5 +294,48 @@ public class HandshakerTest {
 		CertificateMessage result = new CertificateMessage(certificateChain, session.getPeer());
 		result.setMessageSeq(seqNo);
 		return result;
+	}
+
+	private static Record getRecordForMessage(final int epoch, final int seqNo, final DTLSMessage msg, final InetSocketAddress peer) {
+		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
+				seqNo, msg.toByteArray());
+		List<Record> list = Record.fromByteArray(dtlsRecord, peer);
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		return list.get(0);
+	}
+
+	private class ChangeCipherSpecTestHandshaker extends Handshaker {
+
+		private AtomicBoolean changeCipherSpecProcessed = new AtomicBoolean(false);
+		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
+
+		ChangeCipherSpecTestHandshaker(final DTLSSession session) {
+			super(false, session, null, null, 1500);
+		}
+
+		@Override
+		public DTLSFlight getStartHandshakeMessage() throws HandshakeException {
+			return null;
+		}
+
+		@Override
+		protected DTLSFlight doProcessMessage(final DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+
+			switch(message.getContentType()) {
+
+			case CHANGE_CIPHER_SPEC:
+				changeCipherSpecProcessed.set(true);
+				setCurrentReadState();
+				return null;
+			case HANDSHAKE:
+				final HandshakeMessage handshakeMessage = (HandshakeMessage) message;
+				if (handshakeMessage.getMessageType() == HandshakeType.FINISHED) {
+					finishedProcessed.set(true);
+				}
+				return null;
+			default:
+				return null;
+			}
+		}
 	}
 }

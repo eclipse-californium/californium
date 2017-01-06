@@ -248,6 +248,7 @@ public class ClientHandshaker extends Handshaker {
 
 			case SERVER_HELLO_DONE:
 				flight = receivedServerHelloDone((ServerHelloDone) handshakeMsg);
+				expectChangeCipherSpecMessage();
 				break;
 
 			case FINISHED:
