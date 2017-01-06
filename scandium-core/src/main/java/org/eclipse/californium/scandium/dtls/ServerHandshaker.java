@@ -55,6 +55,7 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorit
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -283,10 +284,15 @@ public class ServerHandshaker extends Handshaker {
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
 				}
 				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.getRawMessage());
+
+				if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+					expectChangeCipherSpecMessage();
+				}
 				break;
 
 			case CERTIFICATE_VERIFY:
 				receivedCertificateVerify((CertificateVerify) handshakeMsg);
+				expectChangeCipherSpecMessage();
 				break;
 
 			case FINISHED:
@@ -900,4 +906,14 @@ public class ServerHandshaker extends Handshaker {
 			return false;
 		}
 	}
+
+//	@Override
+//	protected boolean isChangeCipherSpecMessageDue() {
+//
+//		boolean result = clientKeyExchange != null;
+//		if (clientAuthenticationRequired && getKeyExchangeAlgorithm() == KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+//			result = result && certificateVerify != null;
+//		}
+//		return result;
+//	}
 }
