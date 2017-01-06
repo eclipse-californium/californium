@@ -93,6 +93,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
 				receivedClientHello((ClientHello) handshakeMsg);
+				expectChangeCipherSpecMessage();
 				break;
 
 			case FINISHED:
@@ -198,4 +199,11 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		sessionEstablished();
 		handshakeCompleted();
 	}
+
+//	@Override
+//	protected boolean isChangeCipherSpecMessageDue() {
+//
+//		// in an abbreviated handshake we immediately expect the client's ChangeCipherSpec message
+//		return true;
+//	}
 }
