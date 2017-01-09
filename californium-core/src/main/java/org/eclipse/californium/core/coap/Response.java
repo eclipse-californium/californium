@@ -143,4 +143,31 @@ public class Response extends Message {
 	public boolean hasBlockOption() {
 		return getOptions().hasBlock1() || getOptions().hasBlock2();
 	}
+
+	/**
+	 * Checks whether this response's code indicates an error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates an error.
+	 */
+	public final boolean isError() {
+		return isClientError() || isServerError();
+	}
+
+	/**
+	 * Checks whether this response's code indicates a client error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates a client error.
+	 */
+	public final boolean isClientError() {
+		return ResponseCode.isClientError(code);
+	}
+
+	/**
+	 * Checks whether this response's code indicates a server error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates a server error.
+	 */
+	public final boolean isServerError() {
+		return ResponseCode.isServerError(code);
+	}
 }
