@@ -203,18 +203,25 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.goMultiExpectation();
+
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 
 		clientInterceptor.log("\n\n//////// Overriding notification ////////");
 		String respPayload3 = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
 
+		/* try to send next notify */
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload3.substring(0, 16)).go();
+
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
-		// old block
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		// new block
 		server.expectRequest(CON, GET, path).storeBoth("D").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// old blockwise transfer, should be ignored by the client
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		
+		// new blockwise transfer
 		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 16).payload(respPayload3.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("E").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32, 40)).go();
