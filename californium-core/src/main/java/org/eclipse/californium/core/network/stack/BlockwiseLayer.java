@@ -28,7 +28,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -188,45 +187,56 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Request startBlockwiseUpload(final Exchange exchange, final Request request) {
 
 		final KeyUri key = getKey(exchange, request);
-		Block1BlockwiseStatus status = getOutboundBlock1Status(key, exchange, request);
 
-		final Request block = status.getNextRequestBlock();
+		synchronized (block1Transfers) {
 
-		block.addMessageObserver(new MessageObserverAdapter() {
-
-			private void copyToken() {
-				// when the request for transferring the first block
-				// has been sent out, we copy the token to the
-				// original request so that at the end of the
-				// blockwise transfer the Matcher can correctly
-				// close the overall exchange
-				request.setToken(block.getToken());
-			}
-
-			@Override
-			public void onAcknowledgement() {
-				copyToken();
-			}
-
-			@Override
-			public void onReject() {
-				copyToken();
+			Block1BlockwiseStatus status = getBlock1Status(key);
+			if (status != null) {
+				// there already is a block1 transfer going on to the resource
+				// cancel the original request and start over with a new tracker
+				status.cancelRequest();
 				clearBlock1Status(key);
 			}
+			status = getOutboundBlock1Status(key, exchange, request);
 
-			@Override
-			public void onTimeout() {
-				copyToken();
-				clearBlock1Status(key);
-			}
+			final Request block = status.getNextRequestBlock();
 
-			@Override
-			public void onCancel() {
-				clearBlock1Status(key);
-			}
-		});
+			block.addMessageObserver(new MessageObserverAdapter() {
 
-		return block;
+				private void copyToken() {
+					// when the request for transferring the first block
+					// has been sent out, we copy the token to the
+					// original request so that at the end of the
+					// blockwise transfer the Matcher can correctly
+					// close the overall exchange
+					request.setToken(block.getToken());
+				}
+
+				@Override
+				public void onAcknowledgement() {
+					copyToken();
+				}
+
+				@Override
+				public void onReject() {
+					copyToken();
+					clearBlock1Status(key);
+				}
+
+				@Override
+				public void onTimeout() {
+					copyToken();
+					clearBlock1Status(key);
+				}
+
+				@Override
+				public void onCancel() {
+					clearBlock1Status(key);
+				}
+			});
+
+			return block;
+		}
 	}
 
 	@Override
@@ -571,58 +581,70 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		// Block1 transfer has been originally created for an outbound request
 		final KeyUri key = getKey(exchange, exchange.getRequest());
-		Block1BlockwiseStatus status = getBlock1Status(key);
-		if (status == null) {
 
-			// request has not been sent blockwise
-			LOGGER.log(Level.FINE, "discarding unexpected block1 response: {0}", response);
+		synchronized (block1Transfers) {
 
-		} else if (exchange.getRequest().isCanceled()) {
-			// stop block1 transfer
-			clearBlock1Status(key);
+			Block1BlockwiseStatus status = getBlock1Status(key);
 
-		} else if (!status.isComplete()) {
+			if (status == null) {
 
-			// this means that our last request's M-bit was set
+				// request has not been sent blockwise
+				LOGGER.log(Level.FINE, "discarding unexpected block1 response: {0}", response);
 
-			if (block1.isM()) {
-				if (response.getCode() == ResponseCode.CONTINUE) {
-					// server wants us to send the remaining blocks before returning
-					// its response
-					sendNextBlock(exchange, response, key, status);
+			} else if (!status.hasMatchingToken(response)) {
+
+				// a concurrent block1 transfer has been started in the meantime
+				// which has "overwritten" the status object with the new (concurrent) request
+				// so we simply discard the response
+				LOGGER.log(Level.FINE, "discarding obsolete block1 response: {0}", response);
+
+			} else if (exchange.getRequest().isCanceled()) {
+
+				clearBlock1Status(key);
+
+			} else if (!status.isComplete()) {
+
+				// this means that our last request's M-bit was set
+
+				if (block1.isM()) {
+					if (response.getCode() == ResponseCode.CONTINUE) {
+						// server wants us to send the remaining blocks before returning
+						// its response
+						sendNextBlock(exchange, response, key, status);
+					} else {
+						// the server has responded in a way that is not compliant with RFC 7959
+						clearBlock1Status(key);
+						exchange.getRequest().setRejected(true);
+					}
+
 				} else {
-					// the server has responded in a way that is not compliant with RFC 7959
-					clearBlock1Status(key);
-					exchange.getRequest().setRejected(true);
+					// this means that the response already contains the server's final
+					// response to the request. However, the server is still expecting us
+					// to continue to send the remaining blocks as specified in
+					// https://tools.ietf.org/html/rfc7959#section-2.3
+
+					// the current implementation does not allow us to forward the response
+					// to the application layer, though, because it would "complete"
+					// the exchange and thus remove the blockwise status necessary
+					// to keep track of this POST/PUT request
+					// we therefore go on sending all pending blocks and then return the
+					// response received for the last block
+					sendNextBlock(exchange, response, key, status);
 				}
 
 			} else {
-				// this means that the response already contains the server's final
-				// response to the request. However, the server is still expecting us
-				// to continue to send the remaining blocks as specified in
-				// https://tools.ietf.org/html/rfc7959#section-2.3
 
-				// the current implementation does not allow us to forward the response
-				// to the application layer, though, because it would "complete"
-				// the exchange and thus remove the blockwise status necessary
-				// to keep track of this POST/PUT request
-				// we therefore go on sending all pending blocks and then return the
-				// response received for the last block
-				sendNextBlock(exchange, response, key, status);
-			}
+				// all blocks of block1 transfer have been sent
+				clearBlock1Status(key);
 
-		} else {
-
-			// all blocks of block1 transfer have been sent
-			clearBlock1Status(key);
-
-			if (response.getOptions().hasBlock2()) {
-				LOGGER.finer("Block1 followed by Block2 transfer");
-			} else {
-				// All request blocks have been acknowledged and we have received a
-				// response that does not need blockwise transfer. Thus, deliver it.
-				exchange.setResponse(response);
-				upper().receiveResponse(exchange, response);
+				if (response.getOptions().hasBlock2()) {
+					LOGGER.finer("Block1 followed by Block2 transfer");
+				} else {
+					// All request blocks have been acknowledged and we have received a
+					// response that does not need blockwise transfer. Thus, deliver it.
+					exchange.setResponse(response);
+					upper().receiveResponse(exchange, response);
+				}
 			}
 		}
 	}
@@ -1008,7 +1030,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
-			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise trasnfer",
+			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise transfer",
 					new Object[]{request.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;

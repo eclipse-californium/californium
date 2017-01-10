@@ -15,9 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.Arrays;
+
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 
 
@@ -137,5 +140,27 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 
 		setComplete(!m);
 		return block;
+	}
+
+	/**
+	 * Cancels the request that started the block1 transfer that this is the tracker for.
+	 * <p>
+	 * This method simply invokes {@link Request#cancel()}.
+	 */
+	void cancelRequest() {
+		if (request != null) {
+			request.cancel();
+		}
+	}
+
+	/**
+	 * Checks whether a response has the same token as the request that initiated
+	 * the block1 transfer that this is the tracker for.
+	 * 
+	 * @param response The response to check.
+	 * @return {@code true} if the tokens match.
+	 */
+	boolean hasMatchingToken(final Response response) {
+		return request != null && Arrays.equals(request.getToken(), response.getToken());
 	}
 }

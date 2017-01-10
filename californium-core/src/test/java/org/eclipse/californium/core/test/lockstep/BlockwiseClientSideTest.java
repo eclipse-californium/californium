@@ -330,6 +330,49 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * Verifies that a second concurrent block1 transfer to the same resource cancels the original
+	 * request and transfer and starts a new block1 transfer.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testConcurrentBlock1TransferCancelsOriginalRequest() throws Exception {
+
+		System.out.println("Concurrent blockwise PUT cancels original request/transfer");
+		reqtPayload = generateRandomPayload(300);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+
+		// now a second concurrent request is issued
+		Request concurrentRequest = createRequest(PUT, path, server);
+		concurrentRequest.setPayload(reqtPayload);
+		client.sendRequest(concurrentRequest);
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+
+		// acknowledgement of first block of original request is discarded
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 128).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(2, false, 128).payload(reqtPayload, 256, 300).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("B").go();
+
+		Response response = concurrentRequest.waitForResponse(50);
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(concurrentRequest.getToken()));
+		assertTrue(request.isCanceled());
+	}
+
+	/**
 	 * The following examples demonstrate a PUT exchange; a POST exchange looks
 	 * the same, with different requirements on atomicity/idempotency. Note
 	 * that, similar to GET, the responses to the requests that have a more bit
