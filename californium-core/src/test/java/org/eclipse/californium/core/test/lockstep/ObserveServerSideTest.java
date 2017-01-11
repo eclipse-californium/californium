@@ -36,6 +36,7 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -249,15 +250,16 @@ public class ObserveServerSideTest {
 		// Establish relation
 		respType = null; // first type is normal ACK
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").block2(0, true, 32).payload(respPayload, 0, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").storeETag("tag")
+			.block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
 		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
 
 		// Get remaining blocks
 		byte[] tok2 = generateNextToken();
-		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
+		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
-		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(2, false, 32).go();
+		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(2, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 32).payload(respPayload, 64, 80).go(); 
 
 		// First notification
@@ -265,14 +267,15 @@ public class ObserveServerSideTest {
 		respType = CON;
 		testObsResource.change(generateRandomPayload(80));
 		serverInterceptor.log(System.lineSeparator() + "   === changed ===");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").storeETag("tag")
+			.block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
 
 		// Get remaining blocks
 		byte[] tok3 = generateNextToken();
-		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
+		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
-		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(2, false, 32).go();
+		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(2, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 32).payload(respPayload, 64, 80).go();
 
 		// Second notification
@@ -333,8 +336,9 @@ public class ObserveServerSideTest {
 
 		respType = null;
 		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 16).go();
-		client.expectResponse().type(NON).code(CONTENT).token(tok).storeObserve("A").payload(respPayload, 0, 16).go();
-		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 16).go();
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeObserve("A").storeETag("tag")
+			.size2(respPayload.length()).payload(respPayload, 0, 16).go();
+		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 16).go();
 		client.expectResponse().type(NON).code(CONTENT).token(tok).payload(respPayload, 16, 30).go();
 
 		assertThat("Resource has not added relation", testObsResource.getObserverCount(), is(1));
@@ -342,20 +346,23 @@ public class ObserveServerSideTest {
 
 		// First notification
 		testObsResource.change("First notification " + generateRandomPayload(10));
-		client.expectResponse().type(NON).code(CONTENT).token(tok).checkObs("A", "B").size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
-		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 16).go();
+		client.expectResponse().type(NON).code(CONTENT).token(tok).checkObs("A", "B").storeETag("tag")
+			.size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
+		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 16).go();
 		client.expectResponse().type(NON).code(CONTENT).token(tok).payload(respPayload, 16, respPayload.length()).go();
 
 		respType = CON;
 		testObsResource.change("Second notification " + generateRandomPayload(10));
-		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("B", "C").size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("B", "C").storeETag("tag")
+			.size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
-		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 16).go();
+		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 16).go();
 		client.expectResponse().type(NON).code(CONTENT).token(tok).payload(respPayload, 16, respPayload.length()).go();
 
 		respType = NON;
 		testObsResource.change("Third notification " + generateRandomPayload(10));
-		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("C", "D").size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("C", "D")
+			.size2(respPayload.length()).block2(0, true, 16).payload(respPayload, 0, 16).go();
 
 		System.out.println("Reject notification");
 		client.sendEmpty(RST).loadMID("MID").go();
@@ -414,6 +421,8 @@ public class ObserveServerSideTest {
 	// All tests are made with this resource
 	private static class TestObserveResource extends CoapResource {
 
+		private short etagSequence = 1;
+
 		public TestObserveResource(String name) { 
 			super(name);
 			setObservable(true);
@@ -423,6 +432,7 @@ public class ObserveServerSideTest {
 			Response response = new Response(CONTENT);
 			response.setType(respType); // respType is altered throughout the test cases
 			response.setPayload(respPayload); // payload is altered throughout the test cases
+			addEtag(response);
 			exchange.respond(response);
 		}
 
@@ -430,6 +440,14 @@ public class ObserveServerSideTest {
 			System.out.println("Resource body changed to: [" + newPayload + "]");
 			respPayload = newPayload;
 			changed();
+		}
+
+		private void addEtag(final Response response) {
+			short etag = etagSequence++;
+			ByteBuffer b = ByteBuffer.wrap(new byte[2]);
+			b.putShort(etag);
+			b.flip();
+			response.getOptions().addETag(b.array());
 		}
 	}
 }

@@ -18,7 +18,6 @@ import java.util.List;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
-import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.elements.CorrelationContext;
 
 /**
@@ -99,16 +98,6 @@ public interface MessageExchangeStore {
 	void registerOutboundResponse(Exchange exchange);
 
 	/**
-	 * Registers an exchange used for doing a blockwise transfer with a given URI.
-	 * 
-	 * @param requestUri the URI to register the exchange for.
-	 * @param exchange the exchange to register.
-	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @return the exchange previously registered with the given URI or {@code null}.
-	 */
-	Exchange registerBlockwiseExchange(KeyUri requestUri, Exchange exchange);
-
-	/**
 	 * Removes the exchange registered under a given token.
 	 * 
 	 * @param token the token of the exchange to remove.
@@ -125,13 +114,6 @@ public interface MessageExchangeStore {
 	Exchange remove(KeyMID messageId);
 
 	/**
-	 * Removes the exchange used for a blockwise transfer of a resource.
-	 * 
-	 * @param requestUri the URI under which the exchange has been registered.
-	 */
-	void remove(KeyUri requestUri);
-
-	/**
 	 * Gets the exchange registered under a given token.
 	 * 
 	 * @param token the token under which the exchange has been registered.
@@ -146,14 +128,6 @@ public interface MessageExchangeStore {
 	 * @return the exchange or {@code null} if no exchange exists for the given message ID.
 	 */
 	Exchange get(KeyMID messageId);
-
-	/**
-	 * Gets the blockwise transfer exchange registered under a given URI.
-	 * 
-	 * @param requestUri the URI under which the exchange has been registered.
-	 * @return the exchange or {@code null} if no exchange is registered for the given URI.
-	 */
-	Exchange get(KeyUri requestUri);
 
 	/**
 	 * Sets the correlation context on the exchange initiated by a request

@@ -20,38 +20,27 @@
 package org.eclipse.californium.core.network.stack;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.ScheduledFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.OptionSet;
 
 /**
- * This class represents the status of a blockwise transfer of a request or a
- * response.
- * 
- * This class is package private. Instances of this class are stored inside an
- * exchange and only accessed/modified by the class BlockwiseLayer.
+ * A tracker for the status of a blockwise transfer of a request or response body.
+ * <p>
+ * Instances of this class are accessed/modified by the {@code BlockwiseLayer} only.
  */
-public class BlockwiseStatus {
+abstract class BlockwiseStatus {
 
-	public static final int NO_OBSERVE = -1;
-
-	/** The first token to manage blockwise Observe */
-	private Message first;
-
-	/** The current num. */
-	private int currentNum;
-
-	/** The current szx. */
-	private int currentSzx;
-
-	private boolean randomAccess;
+	private static final Logger LOGGER = Logger.getLogger(BlockwiseStatus.class.getName());
+	private static final int NO_OBSERVE = -1;
 
 	private final int contentFormat;
 
-	/** Indicates whether the blockwise transfer has completed. */
-	private boolean complete;
-
-	private int blockCount;
-
+	protected boolean randomAccess;
 	/*
 	 * It would be nice if we could get rid of this. Currently, the Cf client
 	 * needs it to mark a blockwise transferred notification as such. The
@@ -59,50 +48,52 @@ public class BlockwiseStatus {
 	 * block of the notification and we still need to remember it, when the
 	 * last block arrives (block-14).
 	 */
-	/** The observe sequence number of this blockwise transfer */
-	private int observe = NO_OBSERVE;
+	protected int observe = NO_OBSERVE;
+	protected final ByteBuffer buf;
 
-	private ByteBuffer buf;
+	private ScheduledFuture<?> cleanUpTask;
+	private Message first;
+	private int currentNum;
+	private int currentSzx;
+	private boolean complete;
+	private int blockCount;
 
 	/**
-	 * Instantiates a new blockwise status.
+	 * Creates a new blockwise status.
 	 * 
 	 * @param maxSize The maximum size of the body to be buffered.
 	 * @param contentFormat The Content-Format of the body.
 	 */
-	public BlockwiseStatus(final int maxSize, final int contentFormat) {
+	protected BlockwiseStatus(final int maxSize, final int contentFormat) {
 		this.buf = ByteBuffer.allocate(maxSize);
 		this.contentFormat = contentFormat;
 	}
 
 	/**
-	 * Instantiates a new blockwise status.
-	 *
-	 * @param contentFormat the initial Content-Format
-	 * @param num the num
-	 * @param szx the szx
+	 * Creates a new blockwise status.
+	 * <p>
+	 * This constructor also sets the maximum size of the body to be buffered to 0.
+	 * 
+	 * @param contentFormat The Content-Format of the body.
+	 * @param num The initial block number.
+	 * @param szx The initial block size code.
 	 */
-	public BlockwiseStatus(int contentFormat, int num, int szx) {
-		this.contentFormat = contentFormat;
+	protected BlockwiseStatus(final int contentFormat, final int num, final int szx) {
+		this(0, contentFormat);
 		this.currentNum = num;
 		this.currentSzx = szx;
 	}
-	
-	/**
-	 * Gets the first block.
-	 *
-	 * @return the first block
-	 */
-	public Message getFirst() {
-		return first;
-	}
 
 	/**
-	 * Sets the first block for transparent blockwise notifications.
-	 *
-	 * @param first the block to store
+	 * Sets the message containing the first block of a blockwise transfer.
+	 * <p>
+	 * The options of this message are later used when creating the message
+	 * containing the re-assembled body.
+	 * 
+	 * @param first The message.
+	 * @see #assembleMessage(Message)
 	 */
-	public void setFirst(final Message first) {
+	final synchronized void setFirst(final Message first) {
 		this.first = first;
 	}
 	
@@ -111,7 +102,7 @@ public class BlockwiseStatus {
 	 *
 	 * @return The current number.
 	 */
-	public int getCurrentNum() {
+	final synchronized int getCurrentNum() {
 		return currentNum;
 	}
 
@@ -120,7 +111,7 @@ public class BlockwiseStatus {
 	 *
 	 * @param currentNum The new current number.
 	 */
-	public void setCurrentNum(final int currentNum) {
+	final synchronized void setCurrentNum(final int currentNum) {
 		this.currentNum = currentNum;
 	}
 
@@ -129,8 +120,17 @@ public class BlockwiseStatus {
 	 *
 	 * @return the current szx
 	 */
-	public int getCurrentSzx() {
+	final synchronized int getCurrentSzx() {
 		return currentSzx;
+	}
+
+	/**
+	 * Gets the current size in bytes.
+	 * 
+	 * @return The number of bytes corresponding to the current szx code.
+	 */
+	final synchronized int getCurrentSize() {
+		return BlockOption.szx2Size(currentSzx);
 	}
 
 	/**
@@ -138,7 +138,7 @@ public class BlockwiseStatus {
 	 *
 	 * @param currentSzx the new current szx
 	 */
-	public void setCurrentSzx(final int currentSzx) {
+	final synchronized void setCurrentSzx(final int currentSzx) {
 		this.currentSzx = currentSzx;
 	}
 
@@ -149,26 +149,32 @@ public class BlockwiseStatus {
 	 * @param format The format to check.
 	 * @return {@code true} if this transfer's content format matches the given format.
 	 */
-	public boolean hasContentFormat(final int format) {
+	final boolean hasContentFormat(final int format) {
 		return this.contentFormat == format;
 	}
 
 	/**
-	 * Checks if is complete.
-	 *
-	 * @return true, if is complete
+	 * Checks if the transfer has completed.
+	 * 
+	 * @return {@code true} if all blocks have been transferred.
 	 */
-	public boolean isComplete() {
+	final synchronized boolean isComplete() {
 		return complete;
 	}
 
 	/**
-	 * Sets the complete.
-	 *
-	 * @param complete the new complete
+	 * Marks the transfer as complete.
+	 * <p>
+	 * Also cancels the <em>cleanUpTask</em> if the transfer is complete.
+	 * 
+	 * @param complete {@code true} if all blocks have been transferred.
 	 */
-	public void setComplete(final boolean complete) {
+	protected final synchronized void setComplete(final boolean complete) {
 		this.complete = complete;
+		if (complete && cleanUpTask != null) {
+			cleanUpTask.cancel(false);
+			cleanUpTask = null;
+		}
 	}
 
 	/**
@@ -177,16 +183,31 @@ public class BlockwiseStatus {
 	 * @param block The block to add.
 	 * @return {@code true} if the block could be added to the buffer.
 	 */
-	public boolean addBlock(final byte[] block) {
+	final synchronized boolean addBlock(final byte[] block) {
+
 		boolean result = false;
 		if (block == null) {
 			result = true;
 		} else if (block != null && buf.remaining() >= block.length) {
 			result = true;
 			buf.put(block);
+		} else {
+			LOGGER.log(
+				Level.FINE,
+				"resource body exceeds buffer size [{0}]",
+				getBufferSize());
 		}
 		blockCount++;
 		return result;
+	}
+
+	/**
+	 * Gets the capacity of the buffer.
+	 * 
+	 * @return The capacity in bytes.
+	 */
+	final synchronized int getBufferSize() {
+		return buf.capacity();
 	}
 
 	/**
@@ -194,7 +215,7 @@ public class BlockwiseStatus {
 	 *
 	 * @return The block count.
 	 */
-	public int getBlockCount() {
+	final synchronized int getBlockCount() {
 		return blockCount;
 	}
 
@@ -206,32 +227,86 @@ public class BlockwiseStatus {
 	 * 
 	 * @return The bytes contained in the buffer.
 	 */
-	public byte[] getBody() {
+	final synchronized byte[] getBody() {
 		buf.flip();
 		byte[] body = new byte[buf.remaining()];
 		buf.get(body).clear();
 		return body;
 	}
 
-	public int getObserve() {
+	/**
+	 * Checks if this tracker tracks a notification.
+	 * 
+	 * @return {@code true} if this tracker has been created for a transferring
+	 *                      the body of a notification.
+	 */
+	final synchronized boolean isNotification() {
+		return observe != NO_OBSERVE;
+	}
+
+	/**
+	 * Gets the observe option value.
+	 * 
+	 * @return The value.
+	 */
+	final synchronized int getObserve() {
 		return observe;
 	}
 
-	public void setObserve(final int observe) {
-		this.observe = observe;
-	}
-
 	@Override
-	public String toString() {
-		return String.format("[currentNum=%d, currentSzx=%d, complete=%b, random access=%b]",
-				currentNum, currentSzx, complete, randomAccess);
+	public synchronized String toString() {
+		return String.format("[currentNum=%d, currentSzx=%d, observe=%d, bufferSize=%d, complete=%b, random access=%b]",
+				currentNum, currentSzx, observe, getBufferSize(), complete, randomAccess);
 	}
 
-	public boolean isRandomAccess() {
+	/**
+	 * Checks whether this status object is used for tracking random block access only.
+	 * 
+	 * @return {@code true} if this tracker is used for random block access only.
+	 */
+	final synchronized boolean isRandomAccess() {
 		return randomAccess;
 	}
 
-	public void setRandomAccess(final boolean randomAccess) {
-		this.randomAccess = randomAccess;
+	/**
+	 * Copies the properties of the original message this tracker has been
+	 * created for to a given message.
+	 * 
+	 * @param message The message.
+	 * @throws NullPointerException if the message is {@code null}.
+	 */
+	final synchronized void assembleMessage(final Message message) {
+
+		if (message == null) {
+			throw new NullPointerException("message must not be null");
+		} else if (first == null) {
+			throw new IllegalStateException("first message is not set");
+		}
+		// The assembled request will contain the options of the first block
+		message.setSource(first.getSource());
+		message.setSourcePort(first.getSourcePort());
+		message.setType(first.getType());
+		message.setMID(first.getMID());
+		message.setToken(first.getToken());
+		message.setOptions(new OptionSet(first.getOptions()));
+		message.getOptions().removeBlock1();
+		message.getOptions().removeBlock2();
+		message.setPayload(getBody());
+	}
+
+	/**
+	 * Sets or replaces the handle for this tracker's corresponding clean-up task.
+	 * <p>
+	 * An already existing handle is used to cancel the existing task before the new handle is
+	 * set.
+	 * 
+	 * @param blockCleanupHandle The handle (may be {@code null}).
+	 */
+	final synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
+
+		if (this.cleanUpTask != null) {
+			this.cleanUpTask.cancel(false);
+		}
+		this.cleanUpTask = blockCleanupHandle;
 	}
 }

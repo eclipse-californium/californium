@@ -169,5 +169,4 @@ public class BlockOptionTest {
 			ret[i] = (byte) a[i];
 		return ret;
 	}
-
 }

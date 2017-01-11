@@ -38,8 +38,11 @@ public class NetworkConfigDefaults {
 	/**
 	 * The default maximum amount of time (in milliseconds) between transfers of individual
 	 * blocks in a blockwise transfer before the blockwise transfer state is discarded.
+	 * <p>
+	 * The default value of 5 minutes is chosen to be a little more than the default
+	 * EXCHANGE_LIFETIME of 247s.
 	 */
-	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 30 * 1000; // 30 secs
+	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins
 
 	/*
 	 * Accept other message versions than 1
@@ -76,7 +79,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
 		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 10 * 60 * 1000); // ms
+		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // ms
 
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
 		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);

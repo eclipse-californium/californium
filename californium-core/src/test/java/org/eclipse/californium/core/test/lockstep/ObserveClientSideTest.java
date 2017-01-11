@@ -27,10 +27,10 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -44,7 +44,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -130,7 +129,6 @@ public class ObserveClientSideTest {
 
 		assertResponseContainsExpectedPayload(response, respPayload);
 		System.out.println("Relation established");
-		Thread.sleep(1000);
 
 		respPayload = generateRandomPayload(10); // changed
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
@@ -143,18 +141,17 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification1, respPayload);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 	}
 
 	/**
 	 * Verifies behavior of observing a resource that is transferred in multiple chunks using blockwise transfer.
 	 * 
-	 * THIS TEST CASE FAILS SPORADICALLY BECAUSE OF ITS (INVALID) ASSUMPTION THAT MESSAGES ALWAYS ARRIVE AT
-	 * THE SERVER IN THE ORDER THEY HAVE BEEN SENT IN BY THE CLIENT WHEN USING UDP AS THE TRANSPORT PROTOCOL.
-	 * 
-	 * @throws Exception
+	 * @throws Exception if the test fails.
 	 */
 	@Test
 	public void testBlockwiseObserve() throws Exception {
+
 		System.out.println("Blockwise Observe:");
 		respPayload = generateRandomPayload(40);
 		String path = "test";
@@ -166,11 +163,11 @@ public class ObserveClientSideTest {
 		client.sendRequest(request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").go();
-		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
 
 		Response response = request.waitForResponse(1000);
 		printServerLog(clientInterceptor);
@@ -178,8 +175,9 @@ public class ObserveClientSideTest {
 		assertResponseContainsExpectedPayload(response, respPayload);
 		System.out.println("observe relation has been established, server now sends a notification");
 
+		respPayload = generateRandomPayload(45);
 		// normal notification
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(1).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		// TODO: allow for messages to be received in arbitrary order
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
@@ -187,18 +185,22 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
 
 		Response notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+
 		System.out.println("client has successfully retrieved content for notification using blockwise transfer");
 		System.out.println("server now sends notifications interfering with ongoing blockwise transfer");
 
-		// override transfer with new notification
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
-		// TODO: allow for messages to be received in arbitrary order
+		respPayload = generateRandomPayload(42);
+		//
+		// notification 2
+		//
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(2).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
@@ -206,96 +208,103 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 
-		clientInterceptor.log("\n\n//////// Overriding notification ////////");
+		clientInterceptor.log(System.lineSeparator() + "//////// Overriding notification ////////");
 		String respPayload3 = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
 
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).payload(respPayload3.substring(0, 16)).go();
+		//
+		// (interfering) notification 3
+		// 
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(3).block2(0, true, 16).size2(respPayload3.length()).payload(respPayload3.substring(0, 16)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
-		// old block
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		// new block
 		server.expectRequest(CON, GET, path).storeBoth("D").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		// old block
+		// this block should be discarded by client
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 16).payload(respPayload3.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("E").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32, 40)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 16).payload(respPayload3.substring(32)).go();
 
 		Thread.sleep(50);
 		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload3);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+
 		System.out.println("client has detected newly arriving notification while doing blockwise transfer of previous notification");
 		System.out.println("server now sends notifications interfering with ongoing blockwise transfer using conflicting block numbers");
 
+		respPayload = generateRandomPayload(38);
 		// override transfer with new notification and conflicting block number
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
-		// TODO: allow for messages to be received in arbitrary order
+		//
+		// notification 4
+		//
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(4).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
 		server.goMultiExpectation();
 
-		clientInterceptor.log("\n\n//////// Overriding notification 2 ////////");
+		clientInterceptor.log(System.lineSeparator() + "//////// Overriding notification (4) ////////");
 		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
 
 		// start new block
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).payload(respPayload4.substring(0, 16)).go();
+		//
+		// notification 5
+		//
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(5).block2(0, true, 16).size2(respPayload4.length()).payload(respPayload4.substring(0, 16)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("G").block2(1, false, 16).go();
 		server.goMultiExpectation();
 
-		// old block
-		clientInterceptor.log("\n\n//////// Conflicting notification block ////////");
+		// old block from notification 4 transfer
+		clientInterceptor.log(System.lineSeparator() + "//////// Conflicting notification block ////////");
+		// this block should be discarded by client
 		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
-		server.expectRequest(CON, GET, path).storeBoth("H").block2(2, false, 16).go();
-		// this is the original response the server was expected to send
-		// however, I do not see why the server should respond to a new request 
-		// with a new MID with the response for the previous request for block 1 (which
-		// used a different MID)
-//		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(2, true, 16).payload(respPayload.substring(32, 40)).go();
-		// I think that the server should instead respond with block 2 echoing
-		// the MID of the latest request for block 2
-		server.sendResponse(ACK, CONTENT).loadBoth("H").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 
 		// new block
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 16).payload(respPayload4.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("I").block2(2, false, 16).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 16).payload(respPayload4.substring(32, 40)).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 16).payload(respPayload4.substring(32)).go();
 
 		Thread.sleep(50);
 		notification = notificationListener.waitForResponse(1000);
 		printServerLog(clientInterceptor);
 
 		assertResponseContainsExpectedPayload(notification, respPayload4);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
 		// cancel
-		clientInterceptor.log("\n\n//////// Notification after cancellation ////////");
-		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(6).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
-		// TODO: allow for messages to be received in arbitrary order
+		clientInterceptor.log(System.lineSeparator() + "//////// Notification after cancellation ////////");
+		respPayload = generateRandomPayload(34);
+		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(6).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.goMultiExpectation();
-		
+
 		// canceling in the middle of blockwise transfer
 		client.cancelObservation(request.getToken());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
 		// notification must not be delivered
-		notification = notificationListener.waitForResponse(1000);
+		notification = notificationListener.waitForResponse(400);
 		printServerLog(clientInterceptor);
 
-		Assert.assertNull("Client received notification although canceled", notification);
+		assertThat("Client received notification although canceled", notification, is(nullValue()));
 
 		// next notification must be rejected
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(7).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectEmpty(RST, mid).go();
 
 		// notification must not be delivered
-		notification = notificationListener.waitForResponse(1000);
+		notification = notificationListener.waitForResponse(400);
 		printServerLog(clientInterceptor);
 
-		Assert.assertNull("Client received notification although canceled", notification);
+		assertThat("Client received notification although canceled", notification, is(nullValue()));
 	}
 }

@@ -33,7 +33,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
-import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -106,27 +105,6 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 		}
 
-		// Blockwise transfers are identified by URI and remote endpoint
-		if (response.getOptions().hasBlock2()) {
-			Request request = exchange.getCurrentRequest();
-			KeyUri idByUri = KeyUri.fromInboundRequest(request);
-			// Observe notifications only send the first block, hence do not store them as ongoing
-			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
-				// Remember ongoing blockwise GET requests
-				if (exchangeStore.registerBlockwiseExchange(idByUri, exchange) == null) {
-					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}",
-							new Object[]{idByUri, request});
-				} else {
-					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}",
-							new Object[]{idByUri, request});
-				}
-			} else {
-				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
-						new Object[] { idByUri, request });
-				exchangeStore.remove(idByUri);
-			}
-		}
-
 		// Insert CON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON) {
@@ -141,7 +119,7 @@ public final class UdpMatcher extends BaseMatcher {
 				exchangeStore.registerOutboundResponse(exchange);
 			} else {
 				// we only need to assign an unused MID but we do not need to register
-				//the exchange under the MID since we do not expect/want a reply
+				// the exchange under the MID since we do not expect/want a reply
 				// that we would need to match it against
 				exchangeStore.assignMessageId(response);
 			}
@@ -181,76 +159,17 @@ public final class UdpMatcher extends BaseMatcher {
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(request);
 
-		/*
-		 * The differentiation between the case where there is a Block1 or
-		 * Block2 option and the case where there is none has the advantage that
-		 * all exchanges that do not need blockwise transfer have simpler and
-		 * faster code than exchanges with blockwise transfer.
-		 */
-		if (!request.getOptions().hasBlock1() && !request.getOptions().hasBlock2()) {
-
-			Exchange exchange = new Exchange(request, Origin.REMOTE);
-			Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
-			if (previous == null) {
-				exchange.setObserver(exchangeObserver);
-				return exchange;
-
-			} else {
-				LOGGER.log(Level.FINER, "Duplicate request: {0}", request);
-				request.setDuplicate(true);
-				return previous;
-			}
+		Exchange exchange = new Exchange(request, Origin.REMOTE);
+		Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
+		if (previous == null) {
+			exchange.setObserver(exchangeObserver);
+			return exchange;
 
 		} else {
-
-			KeyUri idByUri = KeyUri.fromInboundRequest(request);
-			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
-
-			Exchange ongoing = exchangeStore.get(idByUri);
-			if (ongoing != null) {
-
-				Exchange prev = exchangeStore.findPrevious(idByMID, ongoing);
-				if (prev != null) {
-					LOGGER.log(Level.FINER, "Duplicate ongoing request: {0}", request);
-					request.setDuplicate(true);
-				} else {
-					// this request is part of an ongoing blockwise transfer
-					// we can (i.e. must) clean up the previous response
-					// check for null, in case no response was created (e.g., because the resource handler crashed...)
-					if (ongoing.getCurrentResponse() != null && ongoing.getCurrentResponse().getType() != Type.ACK
-							&& !ongoing.getCurrentResponse().getOptions().hasObserve()) {
-						// TODO is this still necessary in 2.0.x where we complete every exchange
-						idByMID = KeyMID.fromOutboundMessage(ongoing.getCurrentResponse());
-						LOGGER.log(Level.FINE, "Ongoing exchange got new request, cleaning up {0}", idByMID);
-						exchangeStore.remove(idByMID);
-					}
-				}
-				return ongoing;
-
-			} else {
-				// We have no ongoing exchange for that request block.
-				/*
-				 * Note the difficulty of the following code: The first message
-				 * of a blockwise transfer might arrive twice due to a
-				 * retransmission. The new Exchange must be inserted in both the
-				 * hash map 'ongoing' and the deduplicator. They must agree on
-				 * which exchange they store!
-				 */
-				
-				Exchange exchange = new Exchange(request, Origin.REMOTE);
-				Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
-				if (previous == null) {
-					LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}", new Object[]{idByUri, request});
-					exchange.setObserver(exchangeObserver);
-					exchangeStore.registerBlockwiseExchange(idByUri, exchange);
-					return exchange;
-				} else {
-					LOGGER.log(Level.FINER, "Duplicate initial request: {0}", request);
-					request.setDuplicate(true);
-					return previous;
-				}
-			} // if ongoing
-		} // if blockwise
+			LOGGER.log(Level.FINER, "Duplicate request: {0}", request);
+			request.setDuplicate(true);
+			return previous;
+		}
 	}
 
 	@Override
@@ -397,6 +316,7 @@ public final class UdpMatcher extends BaseMatcher {
 				relation.getSource());
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
 			Response previous = iterator.next();
+			LOGGER.log(Level.FINER, "removing NON notification: {0}", previous);
 			// notifications are local MID namespace
 			KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
 			exchangeStore.remove(idByMID);
@@ -432,15 +352,15 @@ public final class UdpMatcher extends BaseMatcher {
 					// need to try to remove its corresponding exchange from the store.
 				} else {
 					// in case an empty ACK was lost
-					KeyMID idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
+					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
 					exchangeStore.remove(idByMID);
 				}
 				KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
 				exchangeStore.remove(idByToken);
-				if(!exchange.getCurrentRequest().getOptions().hasObserve()) {
+				if(!originRequest.getOptions().hasObserve()) {
 					exchangeStore.releaseToken(idByToken);
 				}
-				LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+				LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
@@ -458,13 +378,6 @@ public final class UdpMatcher extends BaseMatcher {
 					exchangeStore.remove(midKey);
 
 					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
-				}
-
-				if (request != null && (request.getOptions().hasBlock1() || ( null != response && response.getOptions().hasBlock2()))) {
-					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
-							request.getSourcePort());
-					LOGGER.log(Level.FINE, "Blockwise exchange with remote peer {0} completed, cleaning up ", uriKey);
-					exchangeStore.remove(uriKey);
 				}
 
 				// Remove all remaining NON-notifications if this exchange is an observe relation
