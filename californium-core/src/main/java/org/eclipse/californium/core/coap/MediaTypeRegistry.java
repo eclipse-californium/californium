@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add OMA LWM2M content types
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -56,7 +57,9 @@ public class MediaTypeRegistry {
 	public static final int APPLICATION_JSON = 50; // 04
 	public static final int APPLICATION_X_OBIX_BINARY = 51; // 04
 	public static final int APPLICATION_CBOR = 60;
-
+	public static final int APPLICATION_VND_OMA_LWM2M_TLV = 11542;
+	public static final int APPLICATION_VND_OMA_LWM2M_JSON = 11543;
+	
 	// implementation specific
 	public static final int UNDEFINED = -1;
 
@@ -88,6 +91,8 @@ public class MediaTypeRegistry {
 		add(APPLICATION_JSON, "application/json", "json");
 		add(APPLICATION_X_OBIX_BINARY, "application/x-obix-binary", "obix");
 		add(APPLICATION_CBOR, "application/cbor", "cbor"); // RFC 7049
+		add(APPLICATION_VND_OMA_LWM2M_TLV, "application/vnd.oma.lwm2m+tlv", "tlv");
+		add(APPLICATION_VND_OMA_LWM2M_JSON, "application/vnd.oma.lwm2m+json", "json");
 	}
 
 	// Static Functions ////////////////////////////////////////////////////////
@@ -109,6 +114,7 @@ public class MediaTypeRegistry {
 		case APPLICATION_ATOM_XML:
 		case APPLICATION_XMPP_XML:
 		case APPLICATION_JSON:
+		case APPLICATION_VND_OMA_LWM2M_JSON:
 
 		case UNDEFINED:
 			return true;
@@ -125,6 +131,7 @@ public class MediaTypeRegistry {
 		case APPLICATION_SOAP_FASTINFOSET:
 		case APPLICATION_X_OBIX_BINARY:
 		case APPLICATION_CBOR:
+		case APPLICATION_VND_OMA_LWM2M_TLV:
 		default:
 			return false;
 		}
