@@ -20,11 +20,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.DataSerializer;
-import org.eclipse.californium.core.network.serialization.UdpDataParser;
-import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.elements.CorrelationContext;
 
 /**
@@ -34,8 +29,6 @@ import org.eclipse.californium.elements.CorrelationContext;
 public final class InMemoryObservationStore implements ObservationStore {
 
 	private static final Logger LOG = Logger.getLogger(InMemoryObservationStore.class.getName());
-	private static final DataSerializer serializer = new UdpDataSerializer();
-	private static final DataParser parser = new UdpDataParser();
 	private Map<Key, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
@@ -58,16 +51,9 @@ public final class InMemoryObservationStore implements ObservationStore {
 			Key key = Key.fromToken(token);
 			LOG.log(Level.FINER, "looking up observation for token {0}", key);
 			Observation obs = map.get(key);
-			if (obs != null) {
-				// clone request in order to prevent accumulation of message observers
-				// on original request
-				byte[] serialize = serializer.getByteArray(obs.getRequest());
-				Request clonedRequest = (Request) parser.parseMessage(serialize);
-				clonedRequest.setUserContext(obs.getRequest().getUserContext());
-				return new Observation(clonedRequest, obs.getContext());
-			} else {
-				return null;
-			}
+			// clone request in order to prevent accumulation of message observers
+			// on original request
+			return ObservationUtil.shallowClone(obs);
 		}
 	}
 
@@ -85,7 +71,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 	 * 
 	 * @return {@code true} if this store does not contain any observations.
 	 */
-	public boolean isEmpty(){
+	public boolean isEmpty() {
 		return map.isEmpty();
 	}
 

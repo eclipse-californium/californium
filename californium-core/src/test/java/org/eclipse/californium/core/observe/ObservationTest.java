@@ -12,14 +12,26 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add shallow clone test
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import static org.hamcrest.core.Is.*;
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
+import static org.hamcrest.core.IsSame.theInstance;
+import static org.hamcrest.core.IsSame.sameInstance;
+import static org.junit.Assert.assertThat;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * Verifies behavior of {@code Observation}.
@@ -29,7 +41,8 @@ import org.junit.experimental.categories.Category;
 public class ObservationTest {
 
 	/**
-	 * Verifies that a request with its observe option set to a value != 0 is rejected.
+	 * Verifies that a request with its observe option set to a value != 0 is
+	 * rejected.
 	 */
 	@Test(expected = IllegalArgumentException.class)
 	public void testConstructorRejectsRequestWithNonZeroObserveOption() {
@@ -45,5 +58,59 @@ public class ObservationTest {
 	public void testConstructorRejectsRequestWithoutObserveOption() {
 		Request req = Request.newGet();
 		new Observation(req, null);
+	}
+
+	@Test
+	public void testShallowClone() {
+		Map<String,String> userContext = new HashMap<String,String>();
+		userContext.put("test", "only");
+		Request request = Request.newGet();
+		request.setURI("coap://localhost/this");
+		request.setObserve();
+		request.setToken(new byte[] { 1, 2, 3 });
+		request.setUserContext(userContext);
+		request.addMessageObserver(new MessageObserver() {
+			
+			@Override
+			public void onTimeout() {
+			}
+			
+			@Override
+			public void onRetransmission() {
+			}
+			
+			@Override
+			public void onResponse(Response response) {
+			}
+			
+			@Override
+			public void onReject() {
+			}
+			
+			@Override
+			public void onCancel() {
+			}
+			
+			@Override
+			public void onAcknowledgement() {
+			}
+		});
+		Observation observation = new Observation(request, null);
+		request.cancel();
+		
+		Observation cloned = ObservationUtil.shallowClone(observation);
+		Request clonedRequest = cloned.getRequest();
+		assertThat(clonedRequest, is(not(theInstance(request))));
+		assertThat(clonedRequest.getURI(), is(equalTo(request.getURI())));
+		assertThat(clonedRequest.getOptions().hasObserve(), is(true));
+		assertThat(clonedRequest.getOptions().getObserve(), is(0));
+		assertThat(clonedRequest.getToken(), is(sameInstance(request.getToken())));
+		assertThat(clonedRequest.getUserContext(), is(equalTo(request.getUserContext())));
+		assertThat(clonedRequest.isCanceled(), is(false));
+		assertThat(clonedRequest.getMessageObservers().isEmpty(), is(true));
+
+		assertThat(request.isCanceled(), is(true));
+		assertThat(request.getMessageObservers().isEmpty(), is(false));
+
 	}
 }
