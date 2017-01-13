@@ -12,12 +12,16 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+
+import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.RawData;
 
 import java.math.BigInteger;
@@ -67,8 +71,10 @@ public class DatagramFramer extends ByteToMessageDecoder {
 			byte[] data = new byte[coapHeaderSize + bodyLength];
 			in.readBytes(data);
 			// This is TCP connector, so we know remote address is InetSocketAddress.
-			InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-			RawData rawData = new RawData(data, socketAddress);
+			Channel channel = ctx.channel();
+			InetSocketAddress socketAddress = (InetSocketAddress) channel.remoteAddress();
+			CorrelationContext correlationContext = NettyContextUtils.buildCorrelationContext(channel);
+			RawData rawData = RawData.inbound(data, socketAddress, null, correlationContext, false);
 			out.add(rawData);
 		}
 	}
