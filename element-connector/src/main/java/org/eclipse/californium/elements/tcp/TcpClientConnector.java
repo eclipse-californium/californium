@@ -12,6 +12,9 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
+ *                                                 use "any/0.0.0.0" instead
+ *                                                 of "localhost/127.0.0.1".
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -28,6 +31,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -51,6 +55,7 @@ public class TcpClientConnector implements Connector {
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
+	private final InetSocketAddress localSocketAddress = new InetSocketAddress(0);
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -59,7 +64,8 @@ public class TcpClientConnector implements Connector {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.connectTimeoutMillis = connectTimeoutMillis;
-		this.listenUri = URI.create(String.format("%s://127.0.0.1:0", getSupportedScheme()));
+		this.listenUri = URI.create(String.format("%s://%s:%d", getSupportedScheme(),
+				localSocketAddress.getHostString(), localSocketAddress.getPort()));
 	}
 
 	@Override public synchronized void start() throws IOException {
@@ -105,8 +111,11 @@ public class TcpClientConnector implements Connector {
 			@Override public void operationComplete(Future<Channel> future) throws Exception {
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
+
+					CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
 					try {
 						channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
+						msg.onContextEstablished(context);
 					} finally {
 						channelPool.release(channel);
 					}
@@ -127,7 +136,7 @@ public class TcpClientConnector implements Connector {
 
 	@Override public InetSocketAddress getAddress() {
 		// Client TCP connector doesn't really have an address it binds to.
-		return new InetSocketAddress(0);
+		return localSocketAddress;
 	}
 
 	/**
