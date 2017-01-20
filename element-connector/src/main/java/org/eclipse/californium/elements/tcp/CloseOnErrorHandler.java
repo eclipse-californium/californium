@@ -12,14 +12,19 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - use comprehensive message
+ *                                                 for security errors.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.DecoderException;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.net.ssl.SSLException;
 
 /**
  * Channel handler that closes connection if an exception was raised.
@@ -28,12 +33,28 @@ class CloseOnErrorHandler extends ChannelHandlerAdapter {
 
 	private final static Logger LOGGER = Logger.getLogger(CloseOnErrorHandler.class.getName());
 
-	@Override public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		// Since we use length based framing, any exception reading in TCP stream has the high likelihood of us
-		// getting out of sync on the stream, and not being able to recover. So close the connection and hope for the
+	@Override
+	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		// Since we use length based framing, any exception reading in TCP
+		// stream has the high likelihood of us
+		// getting out of sync on the stream, and not being able to recover. So
+		// close the connection and hope for the
 		// better luck next time.
-		LOGGER.log(Level.SEVERE, "Exception in channel handler chain for endpoint " + ctx.channel().remoteAddress() +
-				". Closing connection.", cause);
-		ctx.close();
+		try {
+			Throwable rootCause = cause;
+			if (cause instanceof DecoderException) {
+				rootCause = cause.getCause();
+			}
+			if (rootCause instanceof SSLException) {
+				/* comprehensive message for security exceptions */
+				LOGGER.log(Level.SEVERE, "{0} in channel handler chain for endpoint {1}. Closing connection.",
+						new Object[] { rootCause, ctx.channel().remoteAddress() });
+			} else {
+				LOGGER.log(Level.SEVERE, "Exception in channel handler chain for endpoint "
+						+ ctx.channel().remoteAddress() + ". Closing connection.", cause);
+			}
+		} finally {
+			ctx.close();
+		}
 	}
 }

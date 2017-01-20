@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - use getAddress() of server
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -19,9 +20,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,8 +80,7 @@ public class TcpConnectorTest {
 
 	@Test
 	public void serverClientPingPong() throws Exception {
-		int port = findEphemeralPort();
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 
@@ -96,7 +94,7 @@ public class TcpConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(new InetSocketAddress(port));
+		RawData msg = createMessage(server.getAddress());
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -112,9 +110,8 @@ public class TcpConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int port = findEphemeralPort();
 		int clients = 100;
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coap+tcp"));
 		cleanup.add(server);
@@ -131,7 +128,7 @@ public class TcpConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(new InetSocketAddress(port));
+			RawData msg = createMessage(server.getAddress());
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -149,14 +146,6 @@ public class TcpConnectorTest {
 				}
 			}
 			assertTrue("Received unexpected message: " + received, matched);
-		}
-	}
-
-	private static int findEphemeralPort() {
-		try (ServerSocket socket = new ServerSocket(0)) {
-			return socket.getLocalPort();
-		} catch (IOException e) {
-			throw new IllegalStateException("Unable to bind to ephemeral port");
 		}
 	}
 

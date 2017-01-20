@@ -19,7 +19,15 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.hamcrest/hamcrest-library -->
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>demo-certs</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>

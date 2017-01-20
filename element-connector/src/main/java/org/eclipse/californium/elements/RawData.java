@@ -17,6 +17,7 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onContextEstablished.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -293,8 +294,7 @@ public final class RawData {
 	/**
 	 * Gets the identity of the sender of the message.
 	 * 
-	 * This property is only meaningful for messages
-	 * received from a client.
+	 * This property is only meaningful for messages received from a client.
 	 * 
 	 * @return the identity or <code>null</code> if the
 	 *      sender has not been authenticated
@@ -304,7 +304,7 @@ public final class RawData {
 	}
 
 	/**
-	 * Gets additional information regarding the context this message has been 
+	 * Gets additional information regarding the context this message has been
 	 * received in.
 	 * 
 	 * @return the messageContext the correlation information or <code>null</code> if
@@ -327,7 +327,19 @@ public final class RawData {
 	 * @return <code>true</code> if context is secure, <code>false</code> otherwise
 	 */
 	public boolean isSecure() {
-		return (correlationContext != null &&
-				correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
+		return (correlationContext != null && correlationContext.get(CorrelationContext.KEY_SESSION_ID) != null);
+	}
+
+	/**
+	 * Callback, when context gets available. Used on sending an message. Set
+	 * field {@link #correlationContext} also.
+	 * 
+	 * @param context established context to be forwarded to the callback.
+	 */
+	public void onContextEstablished(CorrelationContext context) {
+		this.correlationContext = context;
+		if (null != callback) {
+			callback.onContextEstablished(context);
+		}
 	}
 }
