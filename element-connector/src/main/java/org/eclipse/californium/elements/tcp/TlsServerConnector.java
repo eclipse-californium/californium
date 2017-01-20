@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - create "remote aware" SSLEngine
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -22,13 +23,18 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A TCP client connector that establishes outbound TLS connections.
  */
 public class TlsServerConnector extends TcpServerConnector {
+
+	private static final Logger LOGGER = Logger.getLogger(TlsServerConnector.class.getName());
 
 	private final SSLContext sslContext;
 
@@ -57,8 +63,27 @@ public class TlsServerConnector extends TcpServerConnector {
 	}
 
 	@Override protected void onNewChannelCreated(Channel ch) {
-		SSLEngine sslEngine = sslContext.createSSLEngine();
+		SSLEngine sslEngine = createSllEngineForChannel(ch);
 		sslEngine.setUseClientMode(false);
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
+
+	/**
+	 * Create SSL engine for channel.
+	 * 
+	 * @param ch channel to determine remote host
+	 * @return created SSL engine
+	 */
+	private SSLEngine createSllEngineForChannel(Channel ch) {
+		SocketAddress remoteAddress = ch.remoteAddress();
+		if (remoteAddress instanceof InetSocketAddress) {
+			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
+			LOGGER.log(Level.INFO, "Connection from inet {0}", remote);
+			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+		} else {
+			LOGGER.log(Level.INFO, "Connection from {0}", remoteAddress);
+			return sslContext.createSSLEngine();
+		}
+	}
+
 }

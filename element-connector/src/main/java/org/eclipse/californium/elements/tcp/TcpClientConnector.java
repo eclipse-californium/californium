@@ -12,6 +12,15 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+<<<<<<< master
+=======
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
+ *                                                 use "any/0.0.0.0" instead
+ *                                                 of "localhost/127.0.0.1".
+ * Achim Kraus (Bosch Software Innovations GmbH) - add remote to onNewChannelCreated
+ *                                                 for "remote aware" SSLEngine
+ *                                                 correct "localhost" to "any".
+>>>>>>> 7c53b61 Add remote peer to SSLEngine.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -129,8 +138,12 @@ public class TcpClientConnector implements Connector, TcpConnector {
 
 	/**
 	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
+	 * At this stage the channel is not connected, and therefore the {@link Channel#remoteAddress()} is null. To create
+	 * a "remote peer" aware SSLEngine, provide the remote address as additional parameter.
+	 * @param remote remote address the channel will be connected to.
+	 * @param ch new created channel
 	 */
-	protected void onNewChannelCreated(Channel ch) {
+	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
@@ -141,8 +154,9 @@ public class TcpClientConnector implements Connector, TcpConnector {
 			this.key = key;
 		}
 
-		@Override public void channelCreated(Channel ch) throws Exception {
-			onNewChannelCreated(ch);
+		@Override
+		public void channelCreated(Channel ch) throws Exception {
+			onNewChannelCreated(key, ch);
 
 			// Handler order:
 			// 1. Generate Idle events
