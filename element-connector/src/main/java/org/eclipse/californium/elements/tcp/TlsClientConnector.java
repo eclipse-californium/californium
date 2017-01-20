@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - create "remote aware" SSLEngine
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -21,14 +22,19 @@ import io.netty.handler.ssl.SslHandler;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
-import java.net.URI;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A TCP client connector that establishes outbound TLS connections.
  */
 public class TlsClientConnector extends TcpClientConnector {
+
+	private static final Logger LOGGER = Logger.getLogger(TlsClientConnector.class.getName());
 
 	private final SSLContext sslContext;
 
@@ -55,8 +61,9 @@ public class TlsClientConnector extends TcpClientConnector {
 		}
 	}
 
-	@Override protected void onNewChannelCreated(Channel ch) {
-		SSLEngine sslEngine = sslContext.createSSLEngine();
+	@Override
+	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
+		SSLEngine sslEngine = createSllEngine(remote);
 		sslEngine.setUseClientMode(true);
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}
@@ -64,5 +71,22 @@ public class TlsClientConnector extends TcpClientConnector {
 	@Override
 	protected String getSupportedScheme() {
 		return "coaps+tcp";
+	}
+
+	/**
+	 * Create SSL engine for remote socket address.
+	 * 
+	 * @param remoteAddress for SSL engine
+	 * @return created SSL engine
+	 */
+	private SSLEngine createSllEngine(SocketAddress remoteAddress) {
+		if (remoteAddress instanceof InetSocketAddress) {
+			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
+			LOGGER.log(Level.INFO, "Connection to inet {0}", remote);
+			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+		} else {
+			LOGGER.log(Level.INFO, "Connection to {0}", remoteAddress);
+			return sslContext.createSSLEngine();
+		}
 	}
 }
