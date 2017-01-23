@@ -20,6 +20,9 @@
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace isResponseRelatedToRequest
+ *                                                    with CorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -39,7 +42,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
@@ -50,27 +53,25 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private final boolean useStrictResponseMatching;
+	private final CorrelationContextMatcher correlationContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over UDP.
 	 * 
 	 * @param config the configuration to use.
-	 * @param notificationListener the callback to invoke for notifications received from peers.
-	 * @param observationStore the object to use for keeping track of observations created by the endpoint
-	 *        this matcher is part of.
+	 * @param notificationListener the callback to invoke for notifications
+	 *            received from peers.
+	 * @param observationStore the object to use for keeping track of
+	 *            observations created by the endpoint this matcher is part of.
+	 * @param correlationContextMatcher correlation context matcher to relate
+	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore) {
+			final ObservationStore observationStore, final CorrelationContextMatcher matchingStrategy) {
 		super(config, notificationListener, observationStore);
-		useStrictResponseMatching = config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING);
-
-		LOGGER.log(Level.CONFIG, "{0} uses {1}={2}",
-				new Object[]{getClass().getSimpleName(),
-						NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING,
-						useStrictResponseMatching});
+		this.correlationContextMatcher = matchingStrategy;
 	}
 
 	@Override
@@ -216,7 +217,7 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 			// ignore response
 			return null;
-		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
+		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
 
 			// we have received a Response matching the token of an ongoing Exchange's Request
 			// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
@@ -245,50 +246,6 @@ public final class UdpMatcher extends BaseMatcher {
 		} else {
 			LOGGER.log(Level.INFO, "Ignoring potentially forged response for token {0} with non-matching correlation context", idByToken);
 			return null;
-		}
-	}
-
-	private boolean isResponseRelatedToRequest(final Exchange exchange, final CorrelationContext responseContext) {
-		if (exchange.getCorrelationContext() == null) {
-			// no correlation information available for request, thus any
-			// additional correlation information available in the response is ignored
-			return true;
-		} else if (exchange.getCorrelationContext().get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
-			// original request has been sent via a DTLS protected transport
-			// check if the response has been received in the same DTLS session
-			if (useStrictResponseMatching) {
-				return isResponseStrictlyRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
-			} else {
-				return isResponseRelatedToDtlsRequest(exchange.getCorrelationContext(), responseContext);
-			}
-		} else {
-			// compare message context used for sending original request to context
-			// the response has been received in
-			return exchange.getCorrelationContext().equals(responseContext);
-		}
-	}
-
-	private boolean isResponseRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
-		if (responseContext == null) {
-			return false;
-		} else {
-			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
-					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
-		}
-	}
-
-	private boolean isResponseStrictlyRelatedToDtlsRequest(final CorrelationContext requestContext, final CorrelationContext responseContext) {
-		if (responseContext == null) {
-			return false;
-		} else {
-			return requestContext.get(DtlsCorrelationContext.KEY_SESSION_ID)
-					.equals(responseContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestContext.get(DtlsCorrelationContext.KEY_EPOCH)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_EPOCH))
-					&& requestContext.get(DtlsCorrelationContext.KEY_CIPHER)
-							.equals(responseContext.get(DtlsCorrelationContext.KEY_CIPHER));
 		}
 	}
 
@@ -366,7 +323,6 @@ public final class UdpMatcher extends BaseMatcher {
 				// this endpoint created the Exchange to respond to a request
 
 				Response response = exchange.getCurrentResponse();
-				Request request = exchange.getCurrentRequest();
 
 				if (response != null && response.getType() != Type.ACK) {
 					// this means that we have sent the response in a separate CON/NON message

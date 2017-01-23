@@ -26,6 +26,8 @@
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Bosch Software Innovations GmbH - adjust request scheme for TCP
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce CorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -69,6 +71,7 @@ import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -235,7 +238,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config The configuration values to use.
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(createUDPConnector(address, config), config, null, null);
+		this(createUDPConnector(address, config), config, null, null, null);
 	}
 
 	/**
@@ -246,7 +249,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
-		this(createUDPConnector(address, config), config, null, exchangeStore);
+		this(createUDPConnector(address, config), config, null, exchangeStore, null);
 	}
 
 	/**
@@ -259,7 +262,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config The configuration values to use.
 	 */
 	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, config, null, null);
+		this(connector, config, null, null, null);
 	}
 
 	/**
@@ -271,7 +274,7 @@ public class CoapEndpoint implements Endpoint {
 	 *              endpoint.
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(createUDPConnector(address, config), config, store, null);
+		this(createUDPConnector(address, config), config, store, null, null);
 	}
 
 	/**
@@ -287,22 +290,50 @@ public class CoapEndpoint implements Endpoint {
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store, MessageExchangeStore exchangeStore) {
+		this(connector, config, store, exchangeStore, null);
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration, message exchange and observation store.
+	 * <p>
+	 * The endpoint will support the connector's implemented scheme and will bind to
+	 * the IP address and port the connector is configured for.
+	 *
+	 * @param connector The connector to use.
+	 * @param config The configuration values to use.
+	 * @param store The store to use for keeping track of observations initiated by this
+	 *              endpoint.
+	 * @param exchangeStore The store to use for keeping track of message exchanges.
+	 * @param correlationContextMatcher correlation context matcher for relating
+	 *            responses to requests. If <code>null</code>, the result of
+	 *            {@link CorrelationContextMatcherFactory#create(NetworkConfig)}
+	 *            is used as matcher.
+	 */
+	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
+			MessageExchangeStore exchangeStore, CorrelationContextMatcher correlationContextMatcher) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		ObservationStore observationStore = store != null ? store : new InMemoryObservationStore();
 		this.exchangeStore = exchangeStore;
+		if (null == correlationContextMatcher) {
+			correlationContextMatcher = CorrelationContextMatcherFactory.create(config);
+		}
+		LOGGER.log(Level.CONFIG, "{0} uses {1}",
+				new Object[] { getClass().getSimpleName(), correlationContextMatcher.getName() });
 
-		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME) ||
-				connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
-			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore);
+		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)
+				|| connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore,
+					correlationContextMatcher);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 			this.scheme = CoAP.COAP_TCP_URI_SCHEME;
 			this.secureScheme = CoAP.COAP_SECURE_TCP_URI_SCHEME;
 		} else {
-			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore);
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore,
+					correlationContextMatcher);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
