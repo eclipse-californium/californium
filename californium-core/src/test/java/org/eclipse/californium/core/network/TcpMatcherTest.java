@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -56,8 +58,7 @@ public class TcpMatcherTest {
 			}
 			
 		};
-		
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore());
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore(), CorrelationContextMatcherFactory.create(config));
 		matcher.start();
 		return matcher;
 	}

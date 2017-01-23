@@ -22,6 +22,9 @@
  * of Response(s) to Request (fix GitHub issue #1)
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - processing of notifies according UdpMatcher.
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace isResponseRelatedToRequest
+ *                                                 with CorrelationContextMatcher
+ *                                                 (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -36,6 +39,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 
 /**
  * Matcher that runs over reliable TCP/TLS protocol. Based on
@@ -45,6 +49,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = Logger.getLogger(TcpMatcher.class.getName());
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
+	private final CorrelationContextMatcher correlationContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over TCP.
@@ -54,12 +59,15 @@ public final class TcpMatcher extends BaseMatcher {
 	 *            received from peers.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
+	 * @param correlationContextMatcher correlation context matcher to relate
+	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore) {
+			final ObservationStore observationStore, final CorrelationContextMatcher correlationContextMatcher) {
 		super(config, notificationListener, observationStore);
+		this.correlationContextMatcher = correlationContextMatcher;
 	}
 
 	@Override
@@ -124,7 +132,7 @@ public final class TcpMatcher extends BaseMatcher {
 		if (exchange == null) {
 			// There is no exchange with the given token - ignore response
 			return null;
-		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
+		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
 			return exchange;
 		} else {
 			LOGGER.log(Level.INFO,
@@ -132,10 +140,6 @@ public final class TcpMatcher extends BaseMatcher {
 					idByToken);
 			return null;
 		}
-	}
-
-	private static boolean isResponseRelatedToRequest(final Exchange exchange, final CorrelationContext responseContext) {
-		return exchange.getCorrelationContext() == null || exchange.getCorrelationContext().equals(responseContext);
 	}
 
 	@Override
