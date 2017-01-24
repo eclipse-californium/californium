@@ -14,6 +14,9 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move KEY_SESSION_ID from 
+ *                                                    DtlsCorrelationContext into
+ *                                                    this interface.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -25,6 +28,16 @@ import java.util.Set;
  * which a message has been sent or received.
  */
 public interface CorrelationContext {
+
+	/**
+	 * Key for session ID.
+	 * 
+	 * Used to test for security. If session ID is available, the related
+	 * context is considered to be secured.
+	 * 
+	 * @see #get(String)
+	 */
+	final String KEY_SESSION_ID = "SECURE_SESSION_ID";
 
 	/**
 	 * Gets a value from this context.
