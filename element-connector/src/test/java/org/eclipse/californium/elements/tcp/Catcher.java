@@ -12,6 +12,10 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add "blockUntilSize" with
+ *                                                 timeout and "hasMessage". 
+ *                                                 Used for testing none 
+ *                                                 successful TLS connections.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -20,6 +24,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 class Catcher implements RawDataChannel {
 
@@ -42,9 +47,27 @@ class Catcher implements RawDataChannel {
 		}
 	}
 
+	void blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
+		synchronized (lock) {
+			timeout += TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+			while (messages.size() < expectedSize) {
+				long time = timeout -= TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+				if (0 >= time)
+					break;
+				lock.wait(time);
+			}
+		}
+	}
+
 	RawData getMessage(int index) {
 		synchronized (lock) {
 			return messages.get(index);
+		}
+	}
+
+	boolean hasMessage(int index) {
+		synchronized (lock) {
+			return index < messages.size();
 		}
 	}
 }

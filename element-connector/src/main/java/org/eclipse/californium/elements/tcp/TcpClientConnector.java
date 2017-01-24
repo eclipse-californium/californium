@@ -15,6 +15,10 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
  *                                                 use "any/0.0.0.0" instead
  *                                                 of "localhost/127.0.0.1".
+ * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context 
+ *                                                 with future, when not
+ *                                                 already available 
+ *                                                 (during TLS handshake).
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -116,6 +120,11 @@ public class TcpClientConnector implements Connector {
 					try {
 						channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 						msg.onContextEstablished(context);
+						if (null == context) {
+							NettyContextUtils.futureCorrelationContext(channel, msg);
+						} else {
+							msg.onContextEstablished(context);
+						}
 					} finally {
 						channelPool.release(channel);
 					}

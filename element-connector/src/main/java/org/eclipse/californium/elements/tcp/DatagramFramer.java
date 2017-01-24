@@ -13,6 +13,7 @@
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
+ * Achim Kraus (Bosch Software Innovations GmbH) - add principal
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -26,10 +27,12 @@ import org.eclipse.californium.elements.RawData;
 
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 import java.util.List;
 
 /**
  * Converts stream of bytes over TCP connection into distinct datagrams based on CoAP over TCP spec.
+ * Add CorrelationContext and Principal to datagrams, if available.
  */
 public class DatagramFramer extends ByteToMessageDecoder {
 
@@ -49,7 +52,8 @@ public class DatagramFramer extends ByteToMessageDecoder {
 		}
 	}
 
-	@Override protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+	@Override
+	protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 		while (in.readableBytes() > 0) {
 			byte firstByte = in.getByte(in.readerIndex());
 			int lengthNibble = (firstByte & 0xF0) >>> 4;
@@ -70,11 +74,12 @@ public class DatagramFramer extends ByteToMessageDecoder {
 
 			byte[] data = new byte[coapHeaderSize + bodyLength];
 			in.readBytes(data);
-			// This is TCP connector, so we know remote address is InetSocketAddress.
+			// This is TCP connector, so we know remote address is InetSocketAddress.^
 			Channel channel = ctx.channel();
 			InetSocketAddress socketAddress = (InetSocketAddress) channel.remoteAddress();
 			CorrelationContext correlationContext = NettyContextUtils.buildCorrelationContext(channel);
-			RawData rawData = RawData.inbound(data, socketAddress, null, correlationContext, false);
+			Principal principal = NettyContextUtils.getPrincipal(channel);
+			RawData rawData = RawData.inbound(data, socketAddress, principal, correlationContext, false);
 			out.add(rawData);
 		}
 	}
