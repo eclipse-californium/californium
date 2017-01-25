@@ -10,7 +10,7 @@
 	<packaging>bundle</packaging>
 	<name>Scandium (Sc) Core</name>
 	<description>A library for exchanging data using DTLS over UDP</description>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -23,8 +23,6 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
