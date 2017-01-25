@@ -15,6 +15,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust port when bound.
  * Achim Kraus (Bosch Software Innovations GmbH) - use CloseOnErrorHandler.
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context.
+ * Achim Kraus (Bosch Software Innovations GmbH) - dummy CorrelationContextMatcher
+ *                                                 (implemented afterwards)
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -28,6 +30,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -137,6 +140,10 @@ public class TcpServerConnector implements Connector {
 		}
 
 		this.rawDataChannel = messageHandler;
+	}
+
+	@Override
+	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
 	}
 
 	@Override

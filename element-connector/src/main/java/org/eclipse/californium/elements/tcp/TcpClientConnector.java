@@ -15,6 +15,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
  *                                                 use "any/0.0.0.0" instead
  *                                                 of "localhost/127.0.0.1".
+ * Achim Kraus (Bosch Software Innovations GmbH) - dummy CorrelationContextMatcher
+ *                                                 (implemented afterwards)
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -30,8 +32,10 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -132,6 +136,10 @@ public class TcpClientConnector implements Connector {
 		}
 
 		this.rawDataChannel = messageHandler;
+	}
+
+	@Override
+	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
 	}
 
 	@Override public InetSocketAddress getAddress() {

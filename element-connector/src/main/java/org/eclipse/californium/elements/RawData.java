@@ -18,6 +18,8 @@
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onContextEstablished.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext to outbound
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -225,13 +227,15 @@ public final class RawData {
 	 * 
 	 * @param data the data to send.
 	 * @param address the IP address and port the data is to be sent to.
+	 * @param correlationContext correlation context for sending data (may be <code>null</code>).
 	 * @param callback the handler to call when this message has been sent (may be <code>null</code>).
 	 * @param useMulticast indicates whether the data should be sent using a multicast message.
 	 * @return the raw data object containing the outbound message.
 	 * @throws NullPointerException if data or address is <code>null</code>.
 	 */
-	public static RawData outbound(byte[] data, InetSocketAddress address, MessageCallback callback, boolean useMulticast) {
+	public static RawData outbound(byte[] data, InetSocketAddress address, CorrelationContext correlationContext, MessageCallback callback, boolean useMulticast) {
 		RawData result = new RawData(data, address);
+		result.correlationContext = correlationContext;
 		result.callback = callback;
 		result.multicast = useMulticast;
 		return result;
@@ -305,7 +309,7 @@ public final class RawData {
 
 	/**
 	 * Gets additional information regarding the context this message has been
-	 * received in.
+	 * received in or should be sent out.
 	 * 
 	 * @return the messageContext the correlation information or <code>null</code> if
 	 *           no additional correlation information is available

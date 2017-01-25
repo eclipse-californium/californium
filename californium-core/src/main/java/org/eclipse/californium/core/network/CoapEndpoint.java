@@ -28,6 +28,9 @@
  *    Bosch Software Innovations GmbH - adjust request scheme for TCP
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce CorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContext when
+ *                                                     sending a message
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -319,6 +322,7 @@ public class CoapEndpoint implements Endpoint {
 		if (null == correlationContextMatcher) {
 			correlationContextMatcher = CorrelationContextMatcherFactory.create(config);
 		}
+		this.connector.setCorrelationContextMatcher(correlationContextMatcher);
 		LOGGER.log(Level.CONFIG, "{0} uses {1}",
 				new Object[] { getClass().getSimpleName(), correlationContextMatcher.getName() });
 
@@ -649,7 +653,11 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				connector.send(serializer.serializeResponse(response));
+				CorrelationContext correlationContext = null;
+				if (null != exchange) {
+					correlationContext = exchange.getCorrelationContext();
+				}
+				connector.send(serializer.serializeResponse(response, correlationContext));
 			}
 		}
 
@@ -670,7 +678,11 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled()) {
-				connector.send(serializer.serializeEmptyMessage(message));
+				CorrelationContext correlationContext = null;
+				if (null != exchange) {
+					correlationContext = exchange.getCorrelationContext();
+				}
+				connector.send(serializer.serializeEmptyMessage(message, correlationContext));
 			}
 		}
 

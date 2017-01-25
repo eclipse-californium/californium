@@ -13,6 +13,9 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContextMatcher
+ *                                                    for outgoing messages
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -61,11 +64,20 @@ public class UDPConnector implements Connector {
 
 	private final InetSocketAddress localAddr;
 
+
 	private List<Thread> receiverThreads;
 	private List<Thread> senderThreads;
 
 	/** The outbound message queue. */
 	private final BlockingQueue<RawData> outgoing;
+
+	/**
+	 * Correlation context matcher for outgoing messages.
+	 * 
+	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
+	 * @see #getCorrelationContextMatcher()
+	 */
+	private CorrelationContextMatcher correlationContextMatcher;
 
 	/** The receiver of incoming messages. */
 	private RawDataChannel receiver;
@@ -205,6 +217,15 @@ public class UDPConnector implements Connector {
 		this.receiver = receiver;
 	}
 
+	@Override
+	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
+		this.correlationContextMatcher = matcher;
+	}
+
+	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
+		return correlationContextMatcher;
+	}
+
 	public InetSocketAddress getAddress() {
 		if (socket == null) return localAddr;
 		else return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
@@ -281,13 +302,23 @@ public class UDPConnector implements Connector {
 
 		protected void work() throws InterruptedException, IOException {
 			RawData raw = outgoing.take(); // Blocking
+			/* check, if message should be sent with the "none correlation context" of UDP connector */
+			CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+			if (null != correlationMatcher && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
+				if (LOGGER.isLoggable(Level.WARNING)) {
+					LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
+							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(), datagram.getAddress(),
+									datagram.getPort() });
+				}
+				return;
+			}
 			datagram.setData(raw.getBytes());
 			datagram.setAddress(raw.getAddress());
 			datagram.setPort(raw.getPort());
 			if (LOGGER.isLoggable(Level.FINER)) {
 				LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-						new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
-							datagram.getAddress(), datagram.getPort()});
+						new Object[] { getUri(), datagram.getLength(), datagram.getAddress(),
+								datagram.getPort() });
 			}
 			socket.send(datagram);
 		}

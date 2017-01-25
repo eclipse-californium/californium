@@ -13,18 +13,18 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - add flexible correlation context matching
  *                                      (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
+ *                                                    outgoing messages
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Relaxed correlation context matcher. Matches DTLS without epoch.
  */
 public class RelaxedCorrelationContextMatcher implements CorrelationContextMatcher {
 
-	private static final Logger LOGGER = Logger.getLogger(RelaxedCorrelationContextMatcher.class.getName());
+	private static final String KEYS[] = { DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER };
 
 	@Override
 	public String getName() {
@@ -36,6 +36,11 @@ public class RelaxedCorrelationContextMatcher implements CorrelationContextMatch
 		return internalMatch(requestContext, responseContext);
 	}
 
+	@Override
+	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+		return internalMatch(messageContext, connectorContext);
+	}
+
 	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
 		if (null == requestedContext) {
 			return true;
@@ -43,22 +48,7 @@ public class RelaxedCorrelationContextMatcher implements CorrelationContextMatch
 			return false;
 		}
 		if (requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
-			boolean match = requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID).equals(
-					availableContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestedContext.get(DtlsCorrelationContext.KEY_CIPHER).equals(
-							availableContext.get(DtlsCorrelationContext.KEY_CIPHER));
-
-			LOGGER.log(
-					match ? Level.FINEST : Level.WARNING,
-					"(D)TLS session {0}, {1}",
-					new Object[] { requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID),
-							availableContext.get(DtlsCorrelationContext.KEY_SESSION_ID) });
-			LOGGER.log(
-					match ? Level.FINEST : Level.WARNING,
-					"(D)TLS cipher {0}, {1}",
-					new Object[] { requestedContext.get(DtlsCorrelationContext.KEY_CIPHER),
-							availableContext.get(DtlsCorrelationContext.KEY_CIPHER) });
-			return match;
+			return CorrelationContextUtil.match(getName(), KEYS, requestedContext, availableContext);
 		}
 		return requestedContext.equals(availableContext);
 	}

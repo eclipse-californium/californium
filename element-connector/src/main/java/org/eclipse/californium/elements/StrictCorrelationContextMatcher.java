@@ -16,8 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Strict correlation context matcher. Uses strictly matching for DTLS including
@@ -25,7 +23,8 @@ import java.util.logging.Logger;
  */
 public class StrictCorrelationContextMatcher implements CorrelationContextMatcher {
 
-	private static final Logger LOGGER = Logger.getLogger(RelaxedCorrelationContextMatcher.class.getName());
+	private static final String KEYS[] = { DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_EPOCH,
+			DtlsCorrelationContext.KEY_CIPHER };
 
 	@Override
 	public String getName() {
@@ -37,6 +36,11 @@ public class StrictCorrelationContextMatcher implements CorrelationContextMatche
 		return internalMatch(requestContext, responseContext);
 	}
 
+	@Override
+	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+		return internalMatch(messageContext, connectorContext);
+	}
+
 	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
 		if (null == requestedContext) {
 			return true;
@@ -44,29 +48,7 @@ public class StrictCorrelationContextMatcher implements CorrelationContextMatche
 			return false;
 		}
 		if (requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
-			boolean match = requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID).equals(
-					availableContext.get(DtlsCorrelationContext.KEY_SESSION_ID))
-					&& requestedContext.get(DtlsCorrelationContext.KEY_EPOCH).equals(
-							availableContext.get(DtlsCorrelationContext.KEY_EPOCH))
-					&& requestedContext.get(DtlsCorrelationContext.KEY_CIPHER).equals(
-							availableContext.get(DtlsCorrelationContext.KEY_CIPHER));
-
-			LOGGER.log(
-					match ? Level.FINEST : Level.WARNING,
-					"(D)TLS session {0}, {1}",
-					new Object[] { requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID),
-							availableContext.get(DtlsCorrelationContext.KEY_SESSION_ID) });
-			LOGGER.log(
-					match ? Level.FINEST : Level.WARNING,
-					"(D)TLS epoch {0}, {1}",
-					new Object[] { requestedContext.get(DtlsCorrelationContext.KEY_EPOCH),
-							availableContext.get(DtlsCorrelationContext.KEY_EPOCH) });
-			LOGGER.log(
-					match ? Level.FINEST : Level.WARNING,
-					"(D)TLS cipher {0}, {1}",
-					new Object[] { requestedContext.get(DtlsCorrelationContext.KEY_CIPHER),
-							availableContext.get(DtlsCorrelationContext.KEY_CIPHER) });
-			return match;
+			return CorrelationContextUtil.match(getName(), KEYS, requestedContext, availableContext);
 		}
 		return requestedContext.equals(availableContext);
 	}

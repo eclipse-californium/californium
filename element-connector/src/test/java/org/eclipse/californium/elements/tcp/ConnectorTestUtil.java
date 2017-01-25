@@ -13,6 +13,8 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation
  *                                                    stuff copied from TcpConnectorTest
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust creation of oubound message
+ *                                                    with null correlation context.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -65,7 +67,7 @@ public class ConnectorTestUtil {
 			stream.write(1); // GET
 			stream.write(data);
 			stream.flush();
-			return RawData.outbound(stream.toByteArray(), address, callback, false);
+			return RawData.outbound(stream.toByteArray(), address, null, callback, false);
 		}
 	}
 }

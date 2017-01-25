@@ -13,6 +13,9 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - add flexible correlation context matching
  *                                      (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
+ *                                                    outgoing messages
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -38,5 +41,16 @@ public interface CorrelationContextMatcher {
 	 *         should not be considered for this request.
 	 */
 	boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext);
+
+	/**
+	 * Check, if message should be sent out using the current correlation
+	 * context of the connector.
+	 * 
+	 * @param messageContext correlation context of message
+	 * @param connectorContext correlation context of connector
+	 * @return true, if message should be sent, false, if message should not be
+	 *         sent.
+	 */
+	boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext);
 
 }
