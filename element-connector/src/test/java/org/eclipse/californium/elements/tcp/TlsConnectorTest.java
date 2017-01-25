@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
@@ -29,6 +30,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,20 +65,27 @@ public class TlsConnectorTest {
 	@BeforeClass
 	public static void initializeSsl() throws Exception {
 		String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
+		InputStream stream = TlsConnectorTest.class.getResourceAsStream("/certs/keyStore.jks");
+		if (null == stream) {
+			throw new IllegalStateException("missing demo-certs keystore!");
+		}
 
 		KeyStore ks = KeyStore.getInstance("JKS");
-		ks.load(TlsConnectorTest.class.getResourceAsStream("/cert.jks"), "secret".toCharArray());
-
+		ks.load(stream, "endPass".toCharArray());
+		Enumeration<String> aliases = ks.aliases();
+		while (aliases.hasMoreElements()) {
+			System.out.println(aliases.nextElement());
+		}
 		// Set up key manager factory to use our key store
 		KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-		kmf.init(ks, "secret".toCharArray());
+		kmf.init(ks, "endPass".toCharArray());
 
 		// Initialize the SSLContext to work with our key managers.
 		serverContext = SSLContext.getInstance("TLS");
 		serverContext.init(kmf.getKeyManagers(), null, null);
 
 		clientContext = SSLContext.getInstance("TLS");
-		clientContext.init(null, new TrustManager[] { new TrustEveryoneTrustManager() }, null);
+		clientContext.init(kmf.getKeyManagers(), new TrustManager[] { new TrustEveryoneTrustManager() }, null);
 	}
 
 	@After
@@ -241,11 +250,19 @@ public class TlsConnectorTest {
 
 		@Override
 		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+			X509Certificate untrusted = null;
 			for (X509Certificate cert : x509Certificates) {
 				cert.checkValidity();
-				if (!cert.getSubjectDN().getName().equals("CN=californium")) {
-					throw new CertificateException("Unexpected domain name: " + cert.getSubjectDN());
+				if (cert.getSubjectDN().getName().equals("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server")) {
+					untrusted = null;
+					break;
 				}
+				else {
+					untrusted = cert;
+				}
+			}
+			if (null != untrusted) {
+				throw new CertificateException("Unexpected domain name: " + untrusted.getSubjectDN());
 			}
 		}
 
