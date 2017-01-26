@@ -12,6 +12,11 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add "blockUntilSize" with
+ *                                                 timeout and "hasMessage".
+ *                                                 simplified synchronization. 
+ *                                                 Used for testing none 
+ *                                                 successful TLS connections.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -20,31 +25,80 @@ import org.eclipse.californium.elements.RawDataChannel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-class Catcher implements RawDataChannel {
+/**
+ * Test utility class for accessing received messages.
+ */
+public class Catcher implements RawDataChannel {
 
+	/**
+	 * Received messages.
+	 * 
+	 * @see #receiveData(RawData)
+	 */
 	private final List<RawData> messages = new ArrayList<>();
-	private final Object lock = new Object();
 
 	@Override
-	public void receiveData(RawData raw) {
-		synchronized (lock) {
-			messages.add(raw);
-			lock.notifyAll();
+	public synchronized void receiveData(RawData raw) {
+		messages.add(raw);
+		notifyAll();
+	}
+
+	/**
+	 * Block until expected number of messages are received.
+	 * 
+	 * @param expectedSize expected number of messages
+	 * @throws InterruptedException if thread is interrupted
+	 * @see #blockUntilSize(int, long)
+	 */
+	public synchronized void blockUntilSize(int expectedSize) throws InterruptedException {
+		while (messages.size() < expectedSize) {
+			wait();
 		}
 	}
 
-	void blockUntilSize(int expectedSize) throws InterruptedException {
-		synchronized (lock) {
-			while (messages.size() < expectedSize) {
-				lock.wait();
+	/**
+	 * Block until expected number of messages are received or timeout is
+	 * reached.
+	 * 
+	 * @param expectedSize expected number of messages
+	 * @param timeoutInMillis timeout in milliseconds
+	 * @returns true, if expected messages are received within timeout, false,
+	 *          otherwise.
+	 * @throws InterruptedException if thread is interrupted
+	 */
+	public synchronized boolean blockUntilSize(int expectedSize, long timeoutInMillis) throws InterruptedException {
+		timeoutInMillis += TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+		while (messages.size() < expectedSize) {
+			long time = timeoutInMillis - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+			if (0 >= time) {
+				return false;
 			}
+			wait(time);
 		}
+		return true;
 	}
 
-	RawData getMessage(int index) {
-		synchronized (lock) {
-			return messages.get(index);
-		}
+	/**
+	 * Get message by receive order.
+	 * 
+	 * @param index index of received messages. 0 for first.
+	 * @return received message
+	 * @throws IndexOutOfBoundsException if index is beyond received messages
+	 */
+	public synchronized RawData getMessage(int index) {
+		return messages.get(index);
+	}
+
+	/**
+	 * Check, if number of messages are received.
+	 * 
+	 * @param count number of received messages.
+	 * @return true, if expected number of messages are received, false,
+	 *         otherwise.
+	 */
+	public synchronized boolean hasMessages(int count) {
+		return count < messages.size();
 	}
 }
