@@ -13,6 +13,8 @@
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add more logging.
+ * Achim Kraus (Bosch Software Innovations GmbH) - implement checkServerTrusted
+ *                                                 to check the DN more relaxed.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -263,8 +265,9 @@ public class TlsConnectorTest {
 		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
 			for (X509Certificate cert : x509Certificates) {
 				cert.checkValidity();
+				/* only check, if the subject DN starts with the expected name */
 				if (cert.getSubjectDN().getName()
-						.equals("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server")) {
+						.startsWith("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-")) {
 					return;
 				}
 			}
