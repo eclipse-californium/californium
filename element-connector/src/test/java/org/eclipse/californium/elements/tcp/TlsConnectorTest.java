@@ -12,6 +12,7 @@
  * <p>
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add more logging.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -37,7 +38,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -53,8 +57,12 @@ import org.junit.rules.Timeout;
 
 public class TlsConnectorTest {
 
+	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
+
 	private static final int NUMBER_OF_THREADS = 1;
 	private static final int IDLE_TIMEOUT = 100;
+	private static KeyManager[] keyManagers;
+	private static TrustManager[] trustManager;
 	private static SSLContext serverContext;
 	private static SSLContext clientContext;
 	private final Random random = new Random(0);
@@ -71,22 +79,25 @@ public class TlsConnectorTest {
 			throw new IllegalStateException("missing demo-certs keystore!");
 		}
 
-		KeyStore ks = KeyStore.getInstance("JKS");
-		ks.load(stream, "endPass".toCharArray());
-		Enumeration<String> aliases = ks.aliases();
+		KeyStore keyStore = KeyStore.getInstance("JKS");
+		keyStore.load(stream, "endPass".toCharArray());
+		int counter = 0;
+		Enumeration<String> aliases = keyStore.aliases();
 		while (aliases.hasMoreElements()) {
-			System.out.println(aliases.nextElement());
+			++counter;
+			LOGGER.log(Level.INFO, "{0}. KeyStore Alias: {1}", new Object[] { counter, aliases.nextElement() });
 		}
 		// Set up key manager factory to use our key store
 		KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-		kmf.init(ks, "endPass".toCharArray());
-
+		kmf.init(keyStore, "endPass".toCharArray());
+		keyManagers = kmf.getKeyManagers();
+		trustManager = new TrustManager[] { new TrustEveryoneTrustManager() };
 		// Initialize the SSLContext to work with our key managers.
 		serverContext = SSLContext.getInstance("TLS");
-		serverContext.init(kmf.getKeyManagers(), null, null);
+		serverContext.init(keyManagers, null, null);
 
 		clientContext = SSLContext.getInstance("TLS");
-		clientContext.init(kmf.getKeyManagers(), new TrustManager[] { new TrustEveryoneTrustManager() }, null);
+		clientContext.init(null, trustManager, null);
 	}
 
 	@After
@@ -250,19 +261,21 @@ public class TlsConnectorTest {
 
 		@Override
 		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-			X509Certificate untrusted = null;
 			for (X509Certificate cert : x509Certificates) {
 				cert.checkValidity();
-				if (cert.getSubjectDN().getName().equals("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server")) {
-					untrusted = null;
-					break;
-				}
-				else {
-					untrusted = cert;
+				if (cert.getSubjectDN().getName()
+						.equals("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server")) {
+					return;
 				}
 			}
-			if (null != untrusted) {
-				throw new CertificateException("Unexpected domain name: " + untrusted.getSubjectDN());
+			for (X509Certificate cert : x509Certificates) {
+				LOGGER.log(Level.WARNING, "Untrusted certificate from {0}", cert.getSubjectDN().getName());
+			}
+			if (0 < x509Certificates.length) {
+				throw new CertificateException("Unexpected domain name: "
+						+ x509Certificates[0].getSubjectDN().getName());
+			} else {
+				throw new CertificateException("Certificates missing!");
 			}
 		}
 
