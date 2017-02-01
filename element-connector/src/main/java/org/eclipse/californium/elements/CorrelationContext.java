@@ -14,6 +14,7 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getMatchingKeys
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -27,6 +28,13 @@ import java.util.Set;
 public interface CorrelationContext {
 
 	/**
+	 * Gets the set of keys used to match a correlation contexts.
+	 * 
+	 * @return set of keys
+	 */
+	Set<String> getMatchingKeys();
+
+	/**
 	 * Gets a value from this context.
 	 * 
 	 * @param key the key to retrieve the value for.
@@ -36,7 +44,8 @@ public interface CorrelationContext {
 	String get(String key);
 
 	/**
-	 * Gets a Set of a Map.Entry which contains the key-value pair of the CorrelationContext.
+	 * Gets a Set of a Map.Entry which contains the key-value pair of the
+	 * CorrelationContext.
 	 *
 	 * @return A set of a map entry containing the key value pair.
 	 */

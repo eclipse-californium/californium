@@ -18,10 +18,13 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext for response
+ *                                                 (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
+import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -74,6 +77,7 @@ public abstract class DataSerializer {
 						request.getBytes(),
 						new InetSocketAddress(request.getDestination(),
 						request.getDestinationPort()),
+						null,
 						outboundCallback,
 						false);
 	}
@@ -104,9 +108,10 @@ public abstract class DataSerializer {
 	 * Serializes response and caches bytes on the request object to skip future serializations.
 	 * 
 	 * @param response The response to serialize.
+	 * @param context correlation context for response
 	 * @return The object containing the serialized response.
 	 */
-	public final RawData serializeResponse(final Response response) {
+	public final RawData serializeResponse(final Response response, final CorrelationContext context) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -119,16 +124,23 @@ public abstract class DataSerializer {
 			byte[] bytes = writer.toByteArray();
 			response.setBytes(bytes);
 		}
-		return new RawData(response.getBytes(), response.getDestination(), response.getDestinationPort());
+		return RawData.outbound(
+				response.getBytes(),
+				new InetSocketAddress(response.getDestination(),
+						response.getDestinationPort()),
+				context,
+				null,
+				false);
 	}
 
 	/**
 	 * Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations.
 	 * 
 	 * @param emptyMessage The message to serialize.
+	 * @param context correlation context for response
 	 * @return The object containing the serialized message.
 	 */
-	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage) {
+	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final CorrelationContext context) {
 		if (emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);
@@ -141,7 +153,13 @@ public abstract class DataSerializer {
 			byte[] bytes = writer.toByteArray();
 			emptyMessage.setBytes(bytes);
 		}
-		return new RawData(emptyMessage.getBytes(), emptyMessage.getDestination(), emptyMessage.getDestinationPort());
+		return RawData.outbound(
+				emptyMessage.getBytes(),
+				new InetSocketAddress(emptyMessage.getDestination(),
+						emptyMessage.getDestinationPort()),
+				context,
+				null,
+				false);
 	}
 
 	/**

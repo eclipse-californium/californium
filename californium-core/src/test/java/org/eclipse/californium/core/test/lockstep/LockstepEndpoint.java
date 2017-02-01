@@ -17,6 +17,8 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use static reference to Serializer
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -1002,7 +1004,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(message);
 
-			RawData raw = serializer.serializeEmptyMessage(message);
+			RawData raw = serializer.serializeEmptyMessage(message, null);
 			send(raw);
 		}
 	}
@@ -1204,7 +1206,7 @@ public class LockstepEndpoint {
 			}
 			setProperties(response);
 
-			RawData raw = serializer.serializeResponse(response);
+			RawData raw = serializer.serializeResponse(response, null);
 			send(raw);
 		}
 	}

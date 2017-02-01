@@ -14,8 +14,11 @@
  *    Bosch Software Innovations GmbH - initial support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages using TCP.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getMatchingKeys
  ******************************************************************************/
 package org.eclipse.californium.elements;
+
+import java.util.Set;
 
 /**
  * A correlation context that explicitly supports TCP specific properties.
@@ -27,6 +30,8 @@ public class TcpCorrelationContext extends MapBasedCorrelationContext {
 	 * 
 	 */
 	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
+
+	public static final Set<String> MATCHING_KEYS = create(KEY_CONNECTION_ID);
 
 	/**
 	 * Creates a new correlation context from TCP connection ID.
@@ -40,6 +45,14 @@ public class TcpCorrelationContext extends MapBasedCorrelationContext {
 		} else {
 			put(KEY_CONNECTION_ID, connectionId);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<String> getMatchingKeys() {
+		return MATCHING_KEYS;
 	}
 
 	public String getConnectionId() {

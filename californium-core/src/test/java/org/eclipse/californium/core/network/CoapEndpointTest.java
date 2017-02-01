@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation (465073)
  *    Bosch Software Innovations GmbH - add test case for GitHub issue #1
+ *    Achim Kraus (Bosch Software Innovations GmbH) - dummy for setCorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -38,6 +40,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MapBasedCorrelationContext;
 import org.eclipse.californium.elements.RawData;
@@ -215,6 +218,10 @@ public class CoapEndpointTest {
 		@Override
 		public void setRawDataReceiver(RawDataChannel messageHandler) {
 			receiver = messageHandler;
+		}
+
+		@Override
+		public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher strategy) {
 		}
 
 		@Override

@@ -17,6 +17,8 @@
  * Daniel Pauli - parsers and initial implementation
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - add test cases
+ * Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext
+ *                                                 (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -151,7 +153,7 @@ import org.junit.runners.Parameterized;
 				.addOption(new Option(57453, "Arbitrary".hashCode())).addOption(new Option(19205, "Arbitrary1"))
 				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
 
-		RawData rawData = serializer.serializeResponse(response);
+		RawData rawData = serializer.serializeResponse(response, null);
 
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals(response.getMID(), result.getMID());
@@ -168,7 +170,7 @@ import org.junit.runners.Parameterized;
 				.addLocationPath("пустынных").addLocationQuery("ვეპხის=யாமறிந்த").addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
 		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");
 
-		RawData rawData = serializer.serializeResponse(response);
+		RawData rawData = serializer.serializeResponse(response, null);
 
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
