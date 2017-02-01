@@ -18,6 +18,8 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.util.Set;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,7 +39,7 @@ public class CorrelationContextMatcherTest {
 		relaxedMessageContext = new DtlsCorrelationContext("session", "2", "CIPHER");
 		strictMessageContext = new DtlsCorrelationContext("session", "1", "CIPHER");
 		differentMessageContext = new DtlsCorrelationContext("new session", "1", "CIPHER");
-		MapBasedCorrelationContext mapBasedContext =new MapBasedCorrelationContext();
+		MapBasedCorrelationContext mapBasedContext = new MapBasedCorrelationContext();
 		mapBasedContext.put("ID", "session");
 		unsecureMessageContext = mapBasedContext;
 		relaxedMatcher = new RelaxedCorrelationContextMatcher();
@@ -78,10 +80,13 @@ public class CorrelationContextMatcherTest {
 
 	@Test
 	public void testCorrelationContextUtil() {
-		assertThat(CorrelationContextUtil.match("test-1", new String[] {DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN"}, strictMessageContext, connectorContext), is(true));
-		assertThat(CorrelationContextUtil.match("test-2", new String[] {DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN"}, relaxedMessageContext, connectorContext), is(true));
-		assertThat(CorrelationContextUtil.match("test-3", new String[] {DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN"}, differentMessageContext, connectorContext), is(false));
-		assertThat(CorrelationContextUtil.match("test-4", new String[] {DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN"}, differentMessageContext, unsecureMessageContext), is(false));
+		Set<String> keys = MapBasedCorrelationContext.create(DtlsCorrelationContext.KEY_SESSION_ID,
+				DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN");
+		assertThat(CorrelationContextUtil.match("test-1", keys, strictMessageContext, connectorContext), is(true));
+		assertThat(CorrelationContextUtil.match("test-2", keys, relaxedMessageContext, connectorContext), is(true));
+		assertThat(CorrelationContextUtil.match("test-3", keys, differentMessageContext, connectorContext), is(false));
+		assertThat(CorrelationContextUtil.match("test-4", keys, differentMessageContext, unsecureMessageContext),
+				is(false));
 	}
 
 }

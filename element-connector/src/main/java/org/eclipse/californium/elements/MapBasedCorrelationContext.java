@@ -14,17 +14,23 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getMatchingKeys
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * A map based correlation context.
  */
 public class MapBasedCorrelationContext implements CorrelationContext {
+
+	public static final Set<String> EMPTY = Collections.emptySet();
 
 	private Map<String, String> entries = new HashMap<>();
 
@@ -33,8 +39,8 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	 * 
 	 * @param key the key to put the value under.
 	 * @param value the value to put to the context.
-	 * @return the previous value for the given key or <code>null</code> if the context did
-	 *         not contain any value for the key yet.
+	 * @return the previous value for the given key or <code>null</code> if the
+	 *         context did not contain any value for the key yet.
 	 */
 	public final Object put(String key, String value) {
 		return entries.put(key, value);
@@ -44,10 +50,18 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	 * {@inheritDoc}
 	 */
 	@Override
+	public Set<String> getMatchingKeys() {
+		return EMPTY;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public String get(String key) {
 		return entries.get(key);
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -59,8 +73,8 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	/**
 	 * Creates a hash code based on the entries stored in this context.
 	 * <p>
-	 * The hash code for two instances will be the same if they contain the
-	 * same keys and values.
+	 * The hash code for two instances will be the same if they contain the same
+	 * keys and values.
 	 * </p>
 	 * 
 	 * @return the hash code.
@@ -74,11 +88,13 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	}
 
 	/**
-	 * Checks if this correlation context has the same entries as another instance.
+	 * Checks if this correlation context has the same entries as another
+	 * instance.
 	 * 
 	 * @param obj the object to compare this context to.
-	 * @return <code>true</code> if the other object also is a <code>MapBasedCorrelationContext</code>
-	 *         and has the same entries as this context.
+	 * @return <code>true</code> if the other object also is a
+	 *         <code>MapBasedCorrelationContext</code> and has the same entries
+	 *         as this context.
 	 */
 	@Override
 	public boolean equals(Object obj) {
@@ -100,6 +116,16 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Create set from parameter list.
+	 * 
+	 * @param values to be added to set
+	 * @return set containing the parameters
+	 */
+	public static Set<String> create(String... values) {
+		return new CopyOnWriteArraySet<String>(Arrays.asList(values));
 	}
 
 }

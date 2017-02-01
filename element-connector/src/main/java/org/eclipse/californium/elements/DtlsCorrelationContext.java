@@ -14,8 +14,11 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getMatchingKeys
  ******************************************************************************/
 package org.eclipse.californium.elements;
+
+import java.util.Set;
 
 /**
  * A correlation context that explicitly supports DTLS specific properties.
@@ -25,6 +28,8 @@ public class DtlsCorrelationContext extends MapBasedCorrelationContext {
 	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
 	public static final String KEY_EPOCH = "DTLS_EPOCH";
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
+
+	public static final Set<String> MATCHING_KEYS = create(KEY_SESSION_ID, KEY_EPOCH, KEY_CIPHER);
 
 	/**
 	 * Creates a new correlation context from DTLS session parameters.
@@ -46,6 +51,14 @@ public class DtlsCorrelationContext extends MapBasedCorrelationContext {
 			put(KEY_EPOCH, epoch);
 			put(KEY_CIPHER, cipher);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<String> getMatchingKeys() {
+		return MATCHING_KEYS;
 	}
 
 	public String getSessionId() {

@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,7 +37,7 @@ public class CorrelationContextUtil {
 	 * @return true, if all values in the CorrelationContexts of the provided
 	 *         keys are equal, false, if not.
 	 */
-	public static boolean match(String name, String keys[], CorrelationContext context1, CorrelationContext context2) {
+	public static boolean match(String name, Set<String> keys, CorrelationContext context1, CorrelationContext context2) {
 		boolean warn = LOGGER.isLoggable(Level.WARNING);
 		boolean info = LOGGER.isLoggable(Level.FINEST);
 		boolean matchAll = true;

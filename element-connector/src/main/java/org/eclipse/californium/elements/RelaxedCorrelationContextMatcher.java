@@ -14,17 +14,19 @@
  *    Bosch Software Innovations GmbH - add flexible correlation context matching
  *                                      (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
- *                                                    outgoing messages
+ *                                                    outgoing messages.
+ *                                                    Use getMatchingKeys
  *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
+
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Relaxed correlation context matcher. Matches DTLS without epoch.
  */
 public class RelaxedCorrelationContextMatcher implements CorrelationContextMatcher {
-
-	private static final String KEYS[] = { DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER };
 
 	@Override
 	public String getName() {
@@ -47,10 +49,10 @@ public class RelaxedCorrelationContextMatcher implements CorrelationContextMatch
 		} else if (null == availableContext) {
 			return false;
 		}
-		if (requestedContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null) {
-			return CorrelationContextUtil.match(getName(), KEYS, requestedContext, availableContext);
-		}
-		return requestedContext.equals(availableContext);
+		Set<String> keys = new CopyOnWriteArraySet<String>(requestedContext.getMatchingKeys());
+		keys.addAll(availableContext.getMatchingKeys());
+		keys.remove(DtlsCorrelationContext.KEY_EPOCH);
+		return CorrelationContextUtil.match(getName(), keys, requestedContext, availableContext);
 	}
 
 }
