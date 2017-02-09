@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial creation (465073)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - dummy setCorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -29,6 +31,7 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.junit.Before;
@@ -154,6 +157,10 @@ public class EndpointManagerTest {
 
 		@Override
 		public void setRawDataReceiver(RawDataChannel messageHandler) {
+		}
+
+		@Override
+		public void setCorrelationContextMatcher(CorrelationContextMatcher strategy) {
 		}
 
 		@Override

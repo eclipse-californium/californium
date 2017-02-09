@@ -58,7 +58,7 @@ public class TcpMatcherTest {
 			}
 			
 		};
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore(), CorrelationContextMatcherFactory.create(config));
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore(), CorrelationContextMatcherFactory.create(null, config));
 		matcher.start();
 		return matcher;
 	}

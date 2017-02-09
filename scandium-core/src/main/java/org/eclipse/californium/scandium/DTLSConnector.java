@@ -33,6 +33,9 @@
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - set correlation context on sent/received messages
  *                                      (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContextMatcher
+ *                                                    for outgoing messages
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -66,6 +69,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -161,6 +165,16 @@ public class DTLSConnector implements Connector {
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
+
+	/**
+	 * Correlation context matcher for outgoing messages.
+	 * 
+	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
+	 * @see #getCorrelationContextMatcher()
+	 * @see #sendMessage(RawData)
+	 * @see #sendMessage(RawData, DTLSSession)
+	 */
+	private CorrelationContextMatcher correlationContextMatcher;
 
 	private RawDataChannel messageHandler;
 
@@ -1176,6 +1190,9 @@ public class DTLSConnector implements Connector {
 
 		DTLSSession session = connection.getEstablishedSession();
 		if (session == null) {
+			if (!checkOutboundCorrelationContext(message, null)) {
+				return;
+			}
 			// no session with peer established yet, create new empty session &
 			// start handshake
 			Handshaker handshaker = new ClientHandshaker(new DTLSSession(peerAddress, true),
@@ -1206,6 +1223,14 @@ public class DTLSConnector implements Connector {
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
+			final CorrelationContext ctx = new DtlsCorrelationContext(
+					session.getSessionIdentifier().toString(),
+					String.valueOf(session.getWriteEpoch()),
+					session.getWriteStateCipher());
+			if (!checkOutboundCorrelationContext(message, ctx)) {
+				return;
+			}
+			
 			Record record = new Record(
 					ContentType.APPLICATION_DATA,
 					session.getWriteEpoch(),
@@ -1213,10 +1238,6 @@ public class DTLSConnector implements Connector {
 					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
 					session);
 			if (message.getMessageCallback() != null) {
-				CorrelationContext ctx = new DtlsCorrelationContext(
-						session.getSessionIdentifier().toString(),
-						String.valueOf(session.getWriteEpoch()),
-						session.getWriteStateCipher());
 				message.getMessageCallback().onContextEstablished(ctx);
 			}
 			sendRecord(record);
@@ -1225,6 +1246,30 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
+	/**
+	 * Check, if the correlation context match for outgoing messages using
+	 * {@link #correlationContextMatcher}.
+	 * 
+	 * @param message message to be checked
+	 * @param connectionContext correlation context of the connection. May be
+	 *            null, if not established.
+	 * @return true, if outgoing message matches, false, if not and should NOT
+	 *         be send.
+	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 */
+	private boolean checkOutboundCorrelationContext(final RawData message, final CorrelationContext connectionContext) {
+		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+		if (null != correlationMatcher && !correlationMatcher.isToBeSent(message.getCorrelationContext(), connectionContext)) {
+			if (LOGGER.isLoggable(Level.WARNING)) {
+				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}:{3}",
+						new Object[] {getUri(), message.getSize(), message.getAddress(),
+						message.getPort() });
+			}
+			return false;
+		}
+		return true;
+	}
+	
 	private void addSessionCacheSynchronization(final Handshaker handshaker) {
 		if (sessionCacheSynchronization != null) {
 			handshaker.addSessionListener(sessionCacheSynchronization);
@@ -1553,6 +1598,15 @@ public class DTLSConnector implements Connector {
 			throw new IllegalStateException("message handler cannot be set on running connector");
 		}
 		this.messageHandler = messageHandler;
+	}
+
+	@Override
+	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher correlationContextMatcher) {
+		this.correlationContextMatcher = correlationContextMatcher;
+	}
+
+	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
+		return correlationContextMatcher;
 	}
 
 	/**

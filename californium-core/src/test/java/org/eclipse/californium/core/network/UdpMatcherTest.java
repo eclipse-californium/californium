@@ -256,8 +256,7 @@ public class UdpMatcherTest {
 			}
 			
 		};
-		
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, CorrelationContextMatcherFactory.create(config));
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, CorrelationContextMatcherFactory.create(null, config));
 
 		matcher.setMessageExchangeStore(messageExchangeStore);
 		matcher.start();

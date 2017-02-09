@@ -20,37 +20,33 @@
 package org.eclipse.californium.elements;
 
 /**
- * Interface for correlation context processing. Enable implementor to flexible
- * decide on context correlation information.
+ * Correlation context matcher for UDP.
  */
-public interface CorrelationContextMatcher {
+public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
 
 	/**
-	 * Return matcher name. Used for logging.
-	 * 
-	 * @return name of strategy.
+	 * Create new instance of udp correlation context matcher.
 	 */
-	String getName();
+	public UdpCorrelationContextMatcher() {
+	}
 
-	/**
-	 * Check, if responses is related to the request.
-	 * 
-	 * @param requestContext correlation context of request
-	 * @param responseContext correlation context of response
-	 * @return true, if response is related to the request, false, if response
-	 *         should not be considered for this request.
-	 */
-	boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext);
+	@Override
+	public String getName() {
+		return "udp correlation";
+	}
 
-	/**
-	 * Check, if message should be sent out using the current correlation
-	 * context of the connector.
-	 * 
-	 * @param messageContext correlation context of message
-	 * @param connectorContext correlation context of connector
-	 * @return true, if message should be sent, false, if message should not be
-	 *         sent.
-	 */
-	boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext);
+	@Override
+	public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
+		return internalMatch(requestContext, responseContext);
+	}
+
+	@Override
+	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+		return internalMatch(messageContext, connectorContext);
+	}
+
+	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
+		return (null == requestedContext) || (null != availableContext);
+	}
 
 }
