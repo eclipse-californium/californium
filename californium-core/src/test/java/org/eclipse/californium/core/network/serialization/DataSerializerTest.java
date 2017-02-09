@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for CorrelationContext
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -21,7 +23,13 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -91,5 +99,41 @@ public class DataSerializerTest {
 		// THEN the serialized byte array is stored in the request's bytes property
 		assertNotNull(req.getBytes());
 		assertThat(raw.getBytes(), is(req.getBytes()));
+	}
+
+	/**
+	 * Verifies that the serializeResponse() method sets the Message's
+	 * <em>correlationContext</em>.
+	 */
+	@Test
+	public void testSerializeResponseWithCorrelationContext() {
+		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+		Request request = Request.newGet();
+		request.setToken(new byte[] { 0x00 });
+		request.setMID(1);
+		Response response = Response.createResponse(request, ResponseCode.CONTENT);
+		response.setType(Type.ACK);
+		response.setMID(request.getMID());
+		response.setToken(request.getToken());
+		RawData data = serializer.serializeResponse(response, context);
+
+		assertThat(data.getCorrelationContext(), is(equalTo(context)));
+	}
+
+	/**
+	 * Verifies that the serializeEmptyMessage() method sets the Message's
+	 * <em>correlationContext</em>.
+	 */
+	@Test
+	public void testSerializeEmptyMessageWithCorrelationContext() {
+		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+		Request request = Request.newGet();
+		request.setMID(1);
+
+		EmptyMessage ack = EmptyMessage.newACK(request);
+		ack.setToken(new byte[0]);
+		RawData data = serializer.serializeEmptyMessage(ack, context);
+
+		assertThat(data.getCorrelationContext(), is(equalTo(context)));
 	}
 }
