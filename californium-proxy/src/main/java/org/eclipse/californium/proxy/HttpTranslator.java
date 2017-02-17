@@ -18,6 +18,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
@@ -78,8 +80,6 @@ import org.eclipse.californium.core.coap.Response;
  */
 public final class HttpTranslator {
 
-	private static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
-	private static final Charset UTF_8 = Charset.forName("UTF-8");
 	private static final String KEY_COAP_CODE = "coap.response.code.";
 	private static final String KEY_COAP_OPTION = "coap.message.option.";
 	private static final String KEY_COAP_MEDIA = "coap.message.media.";
