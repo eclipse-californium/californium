@@ -20,7 +20,7 @@
 package org.eclipse.californium.core.coap;
 
 import java.nio.charset.Charset;
-
+import java.nio.charset.StandardCharsets;
 
 /**
  * CoAP defines several constants.
@@ -52,8 +52,8 @@ public class CoAP {
 	public static final int DEFAULT_COAP_SECURE_PORT = 5684;
 	
 	/** The CoAP charset is always UTF-8 */
-	public static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
-	
+	public static final Charset UTF8_CHARSET = StandardCharsets.UTF_8;
+
 	private CoAP() {
 		// prevent initialization
 	}
