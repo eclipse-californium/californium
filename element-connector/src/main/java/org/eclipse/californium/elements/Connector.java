@@ -13,6 +13,8 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContextMatcher
+ *                                                    (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -91,6 +93,14 @@ public interface Connector {
 	 */
 	void setRawDataReceiver(RawDataChannel messageHandler);
 
+	/**
+	 * Set correlation context matcher to be used for sending messages.
+	 * 
+	 * @param matcher correlation context matcher
+	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 */
+	void setCorrelationContextMatcher(CorrelationContextMatcher matcher);
+	
 	/**
 	 * Gets the address of the socket this connector is bound to.
 	 * <p>
