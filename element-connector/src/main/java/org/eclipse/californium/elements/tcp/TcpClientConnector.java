@@ -19,6 +19,8 @@
  *                                                 for "remote aware" SSLEngine
  * Achim Kraus (Bosch Software Innovations GmbH) - dummy CorrelationContextMatcher
  *                                                 (implemented afterwards)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add TcpCorrelationContextMatcher
+ *                                                 implementation
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -62,6 +64,13 @@ public class TcpClientConnector implements Connector {
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
 	private final InetSocketAddress localSocketAddress = new InetSocketAddress(0);
+	/**
+	 * Correlation context matcher for outgoing messages.
+	 * 
+	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
+	 * @see #getCorrelationContextMatcher()
+	 */
+	private CorrelationContextMatcher correlationContextMatcher;
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -109,17 +118,38 @@ public class TcpClientConnector implements Connector {
 		stop();
 	}
 
-	@Override public void send(final RawData msg) {
-		final ChannelPool channelPool = poolMap.get(new InetSocketAddress(msg.getAddress(), msg.getPort()));
+	@Override
+	public void send(final RawData msg) {
+		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
+		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+		/* check, if a new connection should be established */
+		if (null != correlationMatcher && !poolMap.contains(addressKey)
+				&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), null)) {
+			if (LOGGER.isLoggable(Level.WARNING)) {
+				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
+						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			}
+			return;
+		}
+		final ChannelPool channelPool = poolMap.get(addressKey);
 		Future<Channel> acquire = channelPool.acquire();
 		acquire.addListener(new GenericFutureListener<Future<Channel>>() {
 
-			@Override public void operationComplete(Future<Channel> future) throws Exception {
+			@Override
+			public void operationComplete(Future<Channel> future) throws Exception {
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
-
 					CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
 					try {
+						/* check, if the message should be sent with the established connection */
+						if (null != correlationMatcher
+								&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), context)) {
+							if (LOGGER.isLoggable(Level.WARNING)) {
+								LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
+										new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+							}
+							return;
+						}
 						channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 						msg.onContextEstablished(context);
 					} finally {
@@ -142,6 +172,11 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
+		correlationContextMatcher = matcher;
+	}
+
+	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
+		return correlationContextMatcher;
 	}
 
 	@Override public InetSocketAddress getAddress() {

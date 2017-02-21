@@ -15,6 +15,7 @@
  *                                                    stuff copied from TcpConnectorTest
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust creation of oubound message
  *                                                    with null correlation context.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add sending correlation context.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -23,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 
@@ -39,8 +41,8 @@ public class ConnectorTestUtil {
 
 	private static final Random random = new Random(0);
 
-	public static RawData createMessage(InetSocketAddress address, int messageSize, MessageCallback callback)
-			throws Exception {
+	public static RawData createMessage(InetSocketAddress address, int messageSize, CorrelationContext contextToSent,
+			MessageCallback callback) throws Exception {
 		byte[] data = new byte[messageSize];
 		random.nextBytes(data);
 
@@ -67,7 +69,7 @@ public class ConnectorTestUtil {
 			stream.write(1); // GET
 			stream.write(data);
 			stream.flush();
-			return RawData.outbound(stream.toByteArray(), address, null, callback, false);
+			return RawData.outbound(stream.toByteArray(), address, contextToSent, callback, false);
 		}
 	}
 }
