@@ -18,12 +18,10 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-import java.util.Set;
-
 import org.junit.Before;
 import org.junit.Test;
 
-public class CorrelationContextMatcherTest {
+public class DtlsCorrelationContextMatcherTest {
 
 	private CorrelationContext connectorContext;
 	private CorrelationContext relaxedMessageContext;
@@ -76,17 +74,6 @@ public class CorrelationContextMatcherTest {
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, null), is(false));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, null), is(false));
 		assertThat(strictMatcher.isToBeSent(unsecureMessageContext, null), is(false));
-	}
-
-	@Test
-	public void testCorrelationContextUtil() {
-		Set<String> keys = KeySetCorrelationContextMatcher.createKeySet(DtlsCorrelationContext.KEY_SESSION_ID,
-				DtlsCorrelationContext.KEY_CIPHER, "UNKNOWN");
-		assertThat(CorrelationContextUtil.match("test-1", keys, strictMessageContext, connectorContext), is(true));
-		assertThat(CorrelationContextUtil.match("test-2", keys, relaxedMessageContext, connectorContext), is(true));
-		assertThat(CorrelationContextUtil.match("test-3", keys, differentMessageContext, connectorContext), is(false));
-		assertThat(CorrelationContextUtil.match("test-4", keys, differentMessageContext, unsecureMessageContext),
-				is(false));
 	}
 
 }

@@ -17,6 +17,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context.
  * Achim Kraus (Bosch Software Innovations GmbH) - dummy CorrelationContextMatcher
  *                                                 (implemented afterwards)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add TcpCorrelationContextMatcher
+ *                                                 implementation
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -56,6 +58,14 @@ public class TcpServerConnector implements Connector {
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
 	private final ConcurrentMap<SocketAddress, Channel> activeChannels = new ConcurrentHashMap<>();
+
+	/**
+	 * Correlation context matcher for outgoing messages.
+	 * 
+	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
+	 * @see #getCorrelationContextMatcher()
+	 */
+	private CorrelationContextMatcher correlationContextMatcher;
 
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
@@ -128,6 +138,16 @@ public class TcpServerConnector implements Connector {
 			return;
 		}
 		CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
+		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+		/* check, if the message should be sent with the established connection */
+		if (null != correlationMatcher
+				&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), context)) {
+			if (LOGGER.isLoggable(Level.WARNING)) {
+				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
+						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			}
+			return;
+		}
 
 		channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 		msg.onContextEstablished(context);
@@ -144,6 +164,11 @@ public class TcpServerConnector implements Connector {
 
 	@Override
 	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
+		correlationContextMatcher = matcher;
+	}
+
+	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
+		return correlationContextMatcher;
 	}
 
 	@Override
