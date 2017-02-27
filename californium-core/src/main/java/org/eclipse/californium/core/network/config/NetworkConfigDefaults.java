@@ -29,6 +29,17 @@ import org.eclipse.californium.elements.UDPConnector;
  */
 public class NetworkConfigDefaults {
 
+
+	/**
+	 * The default number of active peers to support.
+	 */
+	public static final int DEFAULT_MAX_ACTIVE_PEERS = 150000;
+
+	/**
+	 * The default timeout after which a peer is considered inactive (in seconds).
+	 */
+	public static final long DEFAULT_MAX_PEER_INACTIVITY_PERIOD = 10 * 60; // 10 minutes
+
 	/**
 	 * The default maximum resource body size that can be transparently transferred
 	 * in a blockwise transfer.
@@ -56,8 +67,8 @@ public class NetworkConfigDefaults {
 		final String OS = System.getProperty("os.name");
 		final boolean WINDOWS = OS.startsWith("Windows");
 
-		config.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 500000);
-		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 36 * 60 * 60); // 36h
+		config.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
+		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD);
 
 		config.setInt(NetworkConfig.Keys.COAP_PORT, CoAP.DEFAULT_COAP_PORT);
 		config.setInt(NetworkConfig.Keys.COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);

@@ -61,25 +61,40 @@ import java.util.Map;
  */
 public class LeastRecentlyUsedCache<K, V> {
 
-	private static final long DEFAULT_THRESHOLD_SECS = 36L * 60 * 60; // 36 hours
-	private static final int DEFAULT_CAPACITY = 500000;
+	/**
+	 * The cache's default initial capacity.
+	 */
+	public static final int DEFAULT_INITIAL_CAPACITY = 1000;
+	/**
+	 * The default number of seconds after which an entry is considered
+	 * <em>stale</em> if it hasn't been accessed for that amount of time.
+	 */
+	public static final long DEFAULT_THRESHOLD_SECS = 30 * 60; // 30 minutes
+	/**
+	 * The cache's default maximum capacity.
+	 */
+	public static final int DEFAULT_CAPACITY = 150000;
 
 	private Map<K, CacheEntry<K, V>> cache;
 	private volatile int capacity;
 	private CacheEntry<K, V> header;
 	private volatile long expirationThreshold;
 	private List<EvictionListener<V>> evictionListeners = new LinkedList<>();
-	
+
 	/**
-	 * Creates a cache with a capacity of {@link #DEFAULT_CAPACITY} entries and
-	 * an expiration threshold of {@link #DEFAULT_THRESHOLD_SECS} seconds.
+	 * Creates a cache with an initial capacity of {@link #DEFAULT_INITIAL_CAPACITY}, a maximum
+	 * capacity of {@link #DEFAULT_CAPACITY} entries and an expiration threshold of
+	 * {@link #DEFAULT_THRESHOLD_SECS} seconds.
 	 */
 	public LeastRecentlyUsedCache() {
-		this(DEFAULT_CAPACITY, DEFAULT_THRESHOLD_SECS);
+		this(DEFAULT_INITIAL_CAPACITY, DEFAULT_CAPACITY, DEFAULT_THRESHOLD_SECS);
 	}
-	
+
 	/**
 	 * Creates a cache based on given configuration parameters.
+	 * <p>
+	 * The cache's initial capacity is set to the lesser of {@link #DEFAULT_INITIAL_CAPACITY}
+	 * and <em>capacity</em>.
 	 * 
 	 * @param capacity the maximum number of entries the cache can manage
 	 * @param threshold the period of time of inactivity (in seconds) after which an
@@ -88,10 +103,30 @@ public class LeastRecentlyUsedCache<K, V> {
 	 */
 	public LeastRecentlyUsedCache(int capacity, final long threshold) {
 
-		this.capacity = capacity;
-		this.expirationThreshold = threshold;
-		this.cache = new HashMap<>(capacity + 1, 1.0f); // add one to prevent re-sizing
-		initLinkedList();
+		this(Math.min(capacity, DEFAULT_INITIAL_CAPACITY), capacity, threshold);
+	}
+
+	/**
+	 * Creates a cache based on given configuration parameters.
+	 * 
+	 * @param initialCapacity The initial number of entries the cache will be initialized to support.
+	 *            The cache's capacity will be doubled dynamically every time 0.75 percent of its
+	 *            current capacity is used but it will never exceed <em>maxCapacity</em>.
+	 * @param maxCapacity The maximum number of entries the cache can manage
+	 * @param threshold The period of time of inactivity (in seconds) after which an
+	 *            entry is considered stale and can be evicted from the cache if
+	 *            a new entry is to be added to the cache
+	 */
+	public LeastRecentlyUsedCache(int initialCapacity, int maxCapacity, final long threshold) {
+
+		if (initialCapacity > maxCapacity) {
+			throw new IllegalArgumentException("initial capacity must be <= max capacity");
+		} else {
+			this.capacity = maxCapacity;
+			this.expirationThreshold = threshold;
+			this.cache = new HashMap<>(initialCapacity);
+			initLinkedList();
+		}
 	}
 
 	private void initLinkedList() {
@@ -100,7 +135,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	/**
-	 * Registers a listener to be notified about entries being evicted from the store.
+	 * Registers a listener to be notified about (stale) entries being evicted from the cache.
 	 * 
 	 * @param listener the listener
 	 */
@@ -111,8 +146,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	/**
-	 * Gets the period of time after which an entry is to be considered
-	 * stale if it hasn't be accessed.
+	 * Gets the period of time after which an entry is considered <em>stale</em> if it hasn't be accessed.
 	 *  
 	 * @return the threshold in seconds
 	 */

@@ -60,7 +60,7 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, SessionListener {
 
 	private static final Logger LOG = Logger.getLogger(InMemoryConnectionStore.class.getName());
-	private static final int DEFAULT_CACHE_SIZE = 500000;
+	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
 	private SessionCache sessionCache;

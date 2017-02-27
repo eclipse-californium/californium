@@ -53,6 +53,14 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  */
 public final class DtlsConnectorConfig {
 
+	/**
+	 * The default value for the <em>maxConncetions</em> property.
+	 */
+	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
+	/**
+	 * The default value for the <em>staleConnectionThreshold</em> property.
+	 */
+	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	private static final String EC_ALGORITHM_NAME = "EC";
 	private InetSocketAddress address;
 	private Certificate[] trustStore = new Certificate[0];
@@ -94,8 +102,8 @@ public final class DtlsConnectorConfig {
 
 	private int outboundMessageBufferSize = 100000;
 
-	private int maxConnections = 500000;
-	private long staleConnectionThreshold = 24 * 60 * 60; // 24h default
+	private int maxConnections = DEFAULT_MAX_CONNECTIONS;
+	private long staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 
 	private ServerNameResolver serverNameResolver;
 
@@ -638,14 +646,15 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets the maximum number of active connections the connector should support.
 		 * <p>
-		 * <p>
 		 * An <em>active</em> connection is a connection that has been used within the
 		 * last <em>staleConnectionThreshold</em> seconds. After that it is considered
 		 * to be <em>stale</em>.
 		 * <p>
 		 * Once the maximum number of active connections is reached, new connections will
-		 * only be accepted by the connector if <em>stale</em> connections exist (which will
-		 * be evicted).
+		 * only be accepted by the connector, if <em>stale</em> connections exist (which will
+		 * be evicted one-by-one on an oldest-first basis).
+		 * <p>
+		 * The default value of this property is {@link DtlsConnectorConfig#DEFAULT_MAX_CONNECTIONS}.
 		 * 
 		 * @param maxConnections The maximum number of active connections to support.
 		 * @return this builder for command chaining.
@@ -662,10 +671,13 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the maximum age of number of seconds within which some records need to be exchanged
-		 * over a connection before it is considered <em>stale</em>.
+		 * Sets the maximum number of seconds without any data being exchanged before a connection
+		 * is considered <em>stale</em>.
 		 * <p>
-		 * Once a connection becomes stale, it cannot be used to transfer DTLS records anymore.
+		 * Once a connection becomes stale, it is eligible for eviction when a peer wants to establish a
+		 * new connection and the connector already has <em>maxConnections</em> connections with peers
+		 * established. Note that a connection is no longer considered stale, once data is being exchanged
+		 * over it before it got evicted.
 		 * 
 		 * @param threshold The number of seconds.
 		 * @return this builder for command chaining.
