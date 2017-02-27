@@ -52,31 +52,31 @@ public class CoapClient {
 
 	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(CoapClient.class.getCanonicalName());
-	
+
 	/** The timeout. */
-	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.ACK_TIMEOUT);
-	
+	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+
 	/** The destination URI */
 	private String uri;
-	
+
 	/** The type used for requests (CON is default) */
 	private Type type = Type.CON;
-	
+
 	private int blockwise = 0;
-	
+
 	/** The client-specific executor service. */
 	private ExecutorService executor;
-	
+
 	/** The endpoint. */
 	private Endpoint endpoint;
-	
+
 	/**
 	 * Constructs a new CoapClient that has no destination URI yet.
 	 */
 	public CoapClient() {
 		this("");
 	}
-	
+
 	/**
 	 * Constructs a new CoapClient that sends requests to the specified URI.
 	 *
@@ -116,7 +116,7 @@ public class CoapClient {
 	 * Gets the maximum amount of time that synchronous method calls will block and wait.
 	 * <p>
 	 * The default value of this property is read from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#ACK_TIMEOUT}.
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
 	 * 
 	 * @return The timeout in milliseconds.
 	 */
@@ -129,8 +129,17 @@ public class CoapClient {
 	 * Setting this property to 0 will result in methods waiting infinitely.
 	 * <p>
 	 * The default value of this property is read from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#ACK_TIMEOUT}.
-	 *
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
+	 * <p>
+	 * Under normal circumstances this property should be set to at least the <em>EXCHANGE_LIFETIME</em>
+	 * (the default) in order to account for potential retransmissions of request and response messages.
+	 * <p>
+	 * When running over DTLS and the client is behind a NAT firewall, requests may frequently fail (run
+	 * into timeout) due to the fact that the client has been assigned a new IP address or port by the
+	 * firewall and the peer can no longer associate this client's address with the original DTLS session.
+	 * In such cases it might be worthwhile to set the value of this property to a smaller number so
+	 * that the timeout is detected sooner and a new session can be negotiated.
+	 * 
 	 * @param timeout The timeout in milliseconds.
 	 * @return This CoAP client for command chaining.
 	 */
