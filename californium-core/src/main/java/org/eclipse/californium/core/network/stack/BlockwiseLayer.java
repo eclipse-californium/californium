@@ -105,21 +105,26 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * <ul>
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE} -
 	 * This value is used as the threshold for determining
-	 * whether an inbound or outbound message's body needs to be transferred blockwise. The default value is
-	 * 1024 bytes.</li>
+	 * whether an inbound or outbound message's body needs to be transferred blockwise.
+	 * If not set, a default value of 1024 bytes is used.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE} -
-	 * This value is used as the value proposed to a peer
-	 * when doing a transparent blockwise transfer. The value indicates the number of bytes, not the szx code.
-	 * The default is 512 bytes.</li>
+	 * This value is used as the value proposed to a peer when doing a transparent blockwise transfer.
+	 * The value indicates the number of bytes, not the szx code.
+	 * If not set, a default value of 512 bytes is used.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE} -
-	 * This value (in bytes) is used as the upper limit
-	 * for the size of the buffer used for assembling the blocks of a transparent blockwise transfer. Resource
-	 * bodies larger than this value can only be transferred in a manually managed blockwise transfer. The
-	 * default value is 2048 bytes.</li>
+	 * This value (in bytes) is used as the upper limit for the size of the buffer used for assembling
+	 * blocks of a transparent blockwise transfer. Resource bodies larger than this value can only be
+	 * transferred in a manually managed blockwise transfer. Setting this value to 0 disables transparent
+	 * blockwise handling altogether, i.e. all messages will simply be forwarded directly up and down to
+	 * the next layer.
+	 * If not set, a default value of 2048 bytes is used.</li>
+	 * 
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME} -
-	 * The maximum amount of time (in milliseconds)
-	 * allowed between transfers of individual blocks before the blockwise transfer state is discarded.
-	 * The default is 10 minutes.</li>
+	 * The maximum amount of time (in milliseconds) allowed between transfers of individual blocks before
+	 * the blockwise transfer state is discarded.
+	 * If not set, a default value of 30 seconds is used.</li>
 	 * </ul>
 
 	 * @param config The configuration values to use.
@@ -132,7 +137,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 2048);
 
 		LOGGER.log(Level.CONFIG,
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={0}, DEFAULT_BLOCK_SIZE={1}, BLOCKWISE_STATUS_LIFETIME={2} and MAX_RESOURCE_BODY_SIZE={3}",
+			"BlockwiseLayer uses MAX_MESSAGE_SIZE={0}, PREFERRED_BLOCK_SIZE={1}, BLOCKWISE_STATUS_LIFETIME={2} and MAX_RESOURCE_BODY_SIZE={3}",
 			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
 	}
 

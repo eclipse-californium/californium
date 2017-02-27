@@ -46,8 +46,8 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		}
 		this.config = config;
 		trackers = new LeastRecentlyUsedCache<>(
-				config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 500000),
-				config.getLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 36 * 60 * 60)); // 36h
+				config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 150000),
+				config.getLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 10 * 60)); // 10 minutes
 	}
 
 	@Override

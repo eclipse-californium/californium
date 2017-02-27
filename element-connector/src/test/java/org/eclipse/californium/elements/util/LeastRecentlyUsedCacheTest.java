@@ -25,16 +25,15 @@ import static org.junit.Assert.assertTrue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
-import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * Verifies behavior of {@code LeastRecentlyUsedCache}.
+ *
+ */
 public class LeastRecentlyUsedCacheTest {
 
 	LeastRecentlyUsedCache<Integer, String> cache;
-
-	@Before
-	public void setUp() {
-	}
 
 	@Test
 	public void testStoreAddsNewValueIfCapacityNotReached() {
@@ -96,7 +95,7 @@ public class LeastRecentlyUsedCacheTest {
 			}
 		});
 
-		int noOfSessions = 50000;
+		int noOfSessions = 1000;
 		for (int i = 0; i < noOfSessions; i++) {
 			Integer key = i +1000;
 			String value = String.valueOf(key);

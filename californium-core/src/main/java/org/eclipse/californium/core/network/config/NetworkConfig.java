@@ -69,6 +69,11 @@ public final class NetworkConfig {
 		 * to keep track of MIDs and tokens in use with the peer. It
 		 * therefore is reasonable to limit the number of peers so that
 		 * memory consumption can be better predicted.
+		 * <p>
+ 		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_MAX_ACTIVE_PEERS}.
+ 		 * <p>
+ 		 * For clients this value can safely be set to a small one or two digit number as
+ 		 * most clients will only communicate with a small set of peers (servers).
 		 */
 		public static final String MAX_ACTIVE_PEERS = "MAX_ACTIVE_PEERS";
 		/**
