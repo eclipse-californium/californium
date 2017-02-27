@@ -64,7 +64,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * The cache's default initial capacity.
 	 */
-	public static final int DEFAULT_INITIAL_CAPACITY = 1000;
+	public static final int DEFAULT_INITIAL_CAPACITY = 16;
 	/**
 	 * The default number of seconds after which an entry is considered
 	 * <em>stale</em> if it hasn't been accessed for that amount of time.
@@ -101,7 +101,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *            entry is considered stale and can be evicted from the cache if
 	 *            a new entry is to be added to the cache
 	 */
-	public LeastRecentlyUsedCache(int capacity, final long threshold) {
+	public LeastRecentlyUsedCache(final int capacity, final long threshold) {
 
 		this(Math.min(capacity, DEFAULT_INITIAL_CAPACITY), capacity, threshold);
 	}
@@ -117,7 +117,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *            entry is considered stale and can be evicted from the cache if
 	 *            a new entry is to be added to the cache
 	 */
-	public LeastRecentlyUsedCache(int initialCapacity, int maxCapacity, final long threshold) {
+	public LeastRecentlyUsedCache(final int initialCapacity, final int maxCapacity, final long threshold) {
 
 		if (initialCapacity > maxCapacity) {
 			throw new IllegalArgumentException("initial capacity must be <= max capacity");
