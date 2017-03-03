@@ -1539,6 +1539,22 @@ public class DTLSConnector implements Connector {
 			public void sendFlight(DTLSFlight flight) {
 				sendHandshakeFlight(flight, connection);
 			}
+
+			@Override
+			public void pauseRetransmission() {
+				DTLSFlight pendingFlight = connection.getPendingFlight();
+				if (pendingFlight != null) {
+					pendingFlight.cancelRetransmission();
+				}
+			}
+
+			@Override
+			public void resumeRetransmission() {
+				DTLSFlight pendingFlight = connection.getPendingFlight();
+				ScheduledFuture<?> f = timer.schedule(new RetransmitTask(pendingFlight), pendingFlight.getTimeout(),
+						TimeUnit.MILLISECONDS);
+				pendingFlight.setRetransmitTask(f);
+			}
 		};
 	}
 

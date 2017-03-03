@@ -126,6 +126,7 @@ public class DTLSConnectorTest {
 	DTLSSession establishedServerSession;
 	DTLSSession establishedClientSession;
 	InMemoryConnectionStore clientConnectionStore;
+	static int pskStoreLatency = 0; // in ms
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
@@ -136,7 +137,20 @@ public class DTLSConnectorTest {
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
-		InMemoryPskStore pskStore = new InMemoryPskStore();
+		InMemoryPskStore pskStore = new InMemoryPskStore() {
+
+			@Override
+			public byte[] getKey(String identity) {
+				if (pskStoreLatency != 0) {
+					try {
+						Thread.sleep(pskStoreLatency);
+					} catch (InterruptedException e) {
+						throw new RuntimeException(e);
+					}
+				}
+				return super.getKey(identity);
+			}
+		};
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
@@ -165,7 +179,7 @@ public class DTLSConnectorTest {
 
 	@Before
 	public void setUp() throws Exception {
-
+		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
@@ -640,6 +654,156 @@ public class DTLSConnectorTest {
 			// Ensure handshake is successfully done
 			assertTrue("handshake failed",
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Verify we send retransmission.
+	 */
+	@Test
+	public void testRetransmission() throws Exception {
+		// Configure UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+
+		try {
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+
+			// Send CLIENT_HELLO
+			ClientHello clientHello = createClientHello();
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle HELLO_VERIFY_REQUEST
+			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			Record record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", msg.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNull(con);
+			byte[] cookie = ((HelloVerifyRequest) msg).getCookie();
+			assertNotNull(cookie);
+
+			// Send CLIENT_HELLO with cookie
+			clientHello.setCookie(cookie);
+			clientHello.setFragmentLength(clientHello.getMessageLength());
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle SERVER HELLO
+			// assert that we have an ongoingHandshake for this connection
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
+			// Do not reply
+
+			// Handle retransmission of SERVER HELLO
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Verify we delay retransmission when there is pskStore latency
+	 */
+	@Test
+	public void testNoRetransmissionIfPSKStoreAccessIsTooLong() throws Exception {
+		// Configure UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+
+		// Add latency to PSK store
+		pskStoreLatency = 1000;
+
+		try {
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+
+			// Send CLIENT_HELLO
+			ClientHello clientHello = createClientHello();
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle HELLO_VERIFY_REQUEST
+			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			Record record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", msg.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNull(con);
+			byte[] cookie = ((HelloVerifyRequest) msg).getCookie();
+			assertNotNull(cookie);
+
+			// Send CLIENT_HELLO with cookie
+			clientHello.setCookie(cookie);
+			clientHello.setFragmentLength(clientHello.getMessageLength());
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle SERVER HELLO
+			// assert that we have an ongoingHandshake for this connection
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
+			// Send CLIENT_KEY_EXCHANGE
+			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY, serverEndpoint);
+			keyExchange.setMessageSeq(clientHello.getMessageSeq() + 1);
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 1, keyExchange.toByteArray()));
+
+			// Ensure there is no retransmission
+			assertNull(collector.waitForRecords((long) (serverConfig.getRetransmissionTimeout() * 1.1),
+					TimeUnit.MILLISECONDS));
+
+			// We should have retransmission if wait enough (taking account the
+			// pskStore latency).
+			rs = collector.waitForRecords(pskStoreLatency, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
 		} finally {
 			rawClient.stop();
 		}
@@ -1307,6 +1471,14 @@ public class DTLSConnectorTest {
 					throw new RuntimeException(e);
 				}
 			}
+		}
+
+		@Override
+		public void pauseRetransmission() {
+		}
+
+		@Override
+		public void resumeRetransmission() {
 		}
 	};
 

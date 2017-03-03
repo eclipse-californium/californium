@@ -39,4 +39,16 @@ public interface RecordLayer {
 	 *                  timespan to wait between re-transmissions. 
 	 */
 	void sendFlight(DTLSFlight flight);
+
+	/**
+	 * Pause any retransmission of the current pending flight.
+	 */
+	void pauseRetransmission();
+
+	/**
+	 * Resume previously paused retransmission. This means the retransmission
+	 * will be schedule again.
+	 */
+	void resumeRetransmission();
+
 }

@@ -205,6 +205,10 @@ public final class Connection implements SessionListener {
 		}
 	}
 
+	public DTLSFlight getPendingFlight() {
+		return pendingFlight;
+	}
+
 	/**
 	 * Gets the session containing the connection's <em>current</em> state.
 	 * 
