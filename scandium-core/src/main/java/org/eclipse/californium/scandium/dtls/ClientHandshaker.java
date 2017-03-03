@@ -471,6 +471,7 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
+			recordLayer.pauseRetransmission();
 			String identity = pskStore.getIdentity(getPeerAddress());
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
@@ -483,6 +484,8 @@ public class ClientHandshaker extends Handshaker {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
+			recordLayer.resumeRetransmission();
+
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
 			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);

@@ -1377,6 +1377,14 @@ public class DTLSConnectorTest {
 				}
 			}
 		}
+
+		@Override
+		public void pauseRetransmission() {
+		}
+
+		@Override
+		public void resumeRetransmission() {
+		}
 	};
 
 	private static class SimpleRawDataChannel implements RawDataChannel {

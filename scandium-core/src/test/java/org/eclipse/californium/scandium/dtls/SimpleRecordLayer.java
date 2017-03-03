@@ -36,4 +36,12 @@ public class SimpleRecordLayer implements RecordLayer {
 	public Record getSentRecord() {
 		return sentRecord;
 	}
+
+	@Override
+	public void pauseRetransmission() {
+	}
+
+	@Override
+	public void resumeRetransmission() {
+	}
 }

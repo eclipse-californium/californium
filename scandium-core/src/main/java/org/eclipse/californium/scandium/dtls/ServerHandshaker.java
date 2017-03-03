@@ -655,11 +655,13 @@ public class ServerHandshaker extends Handshaker {
 		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
 				new Object[]{getPeerAddress(), identity});
 
+		recordLayer.pauseRetransmission();
 		if (getIndicatedServerNames() == null) {
 			psk = pskStore.getKey(identity);
 		} else {
 			psk = pskStore.getKey(getIndicatedServerNames(), identity);
 		}
+		recordLayer.resumeRetransmission();
 
 		if (psk == null) {
 			throw new HandshakeException(
