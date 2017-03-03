@@ -760,9 +760,17 @@ public class DTLSConnector implements Connector {
 	 * @throws HandshakeException if the handshake message cannot be processed
 	 */
 	private void processHandshakeRecordWithConnection(final Record record, final Connection connection) throws HandshakeException {
-		if (connection.hasOngoingHandshake() && connection.getOngoingHandshake().getSession().getReadEpoch() == record.getEpoch()) {
-			// evaluate message in context of ongoing handshake
-			record.setSession(connection.getOngoingHandshake().getSession());
+		if (connection.hasOngoingHandshake()) {
+			if (connection.getOngoingHandshake().getSession().getReadEpoch() == record.getEpoch()) {
+				// evaluate message in context of ongoing handshake
+				record.setSession(connection.getOngoingHandshake().getSession());
+			} else if (record.getEpoch() > 0) {
+				// epoch > 0 or is not the same than the current session so we
+				// can not decrypt the message now let handshaker handle it (it
+				// can queue it to deal with itlater)
+				connection.getOngoingHandshake().processMessage(record);
+				return;
+			}
 		} else if (connection.hasEstablishedSession() && connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
 			// client wants to re-negotiate established connection's crypto params
 			// evaluate message in context of established session
