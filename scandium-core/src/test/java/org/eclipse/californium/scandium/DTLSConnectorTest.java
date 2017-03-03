@@ -44,7 +44,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,13 +66,16 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.ClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
+import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -80,6 +85,8 @@ import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.RecordLayer;
+import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
@@ -581,6 +588,58 @@ public class DTLSConnectorTest {
 			assertThat("Expected ALERT message from server",
 					record.getType(), is(ContentType.ALERT));
 
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	@Test
+	public void testReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		try {
+
+			// Start connector
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Create handshaker with ReverseRecordLayer to send message in bad
+			// order.
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverEndpoint, true),
+					new ReverseRecordLayer(rawClient), sessionListener, clientConfig, 1280);
+
+			// Start handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			// Handle and answer (CLIENT HELLO with cookie)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			// Handle and answer (FINISHED, CHANGE CIPHER SPEC, ...,CERTIFICATE)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Wait to receive response (should be CHANGE CIPHER SPEC, FINISHED)
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			// Handle it
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		} finally {
 			rawClient.stop();
 		}
@@ -1111,6 +1170,38 @@ public class DTLSConnectorTest {
 		}
 	};
 
+	private class RecordCollectorDataHandler implements DataHandler {
+
+		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
+
+		@Override
+		public void handleData(byte[] data) {
+			try {
+				records.put(Record.fromByteArray(data, serverEndpoint));
+			} catch (InterruptedException e) {
+			}
+		}
+
+		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
+			return records.poll(timeout, unit);
+		}
+	};
+
+	private class LatchSessionListener extends SessionAdapter {
+
+		private CountDownLatch latch = new CountDownLatch(1);
+
+		@Override
+		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+				throws HandshakeException {
+			latch.countDown();
+		}
+
+		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
+			return latch.await(timeout, unit);
+		}
+	};
+
 	private void givenAnIncompleteHandshake() throws Exception {
 		// configure UDP connector
 		CountDownLatch latch = new CountDownLatch(1);
@@ -1193,6 +1284,31 @@ public class DTLSConnectorTest {
 			}
 		}
 	}
+
+	public class ReverseRecordLayer implements RecordLayer {
+
+		private UdpConnector connector;
+
+		public ReverseRecordLayer(UdpConnector connector) {
+			this.connector = connector;
+		}
+
+		@Override
+		public void sendRecord(Record record) {
+		}
+
+		@Override
+		public void sendFlight(DTLSFlight flight) {
+			List<Record> messages = flight.getMessages();
+			for (int i = messages.size() - 1; i >= 0; i--) {
+				try {
+					connector.sendRecord(flight.getPeerAddress(), messages.get(i).toByteArray());
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+	};
 
 	private static class SimpleRawDataChannel implements RawDataChannel {
 
