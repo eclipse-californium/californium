@@ -430,6 +430,75 @@ public class DTLSConnectorTest {
 	}
 
 	/**
+	 * Verify we send retransmission.
+	 */
+	@Test
+	public void testRetransmission() throws Exception {
+		// Configure UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+
+		try {
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+
+			// Send CLIENT_HELLO
+			ClientHello clientHello = createClientHello();
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle HELLO_VERIFY_REQUEST
+			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			Record record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", msg.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNull(con);
+			byte[] cookie = ((HelloVerifyRequest) msg).getCookie();
+			assertNotNull(cookie);
+
+			// Send CLIENT_HELLO with cookie
+			clientHello.setCookie(cookie);
+			clientHello.setFragmentLength(clientHello.getMessageLength());
+			rawClient.sendRecord(serverEndpoint,
+					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
+
+			// Handle SERVER HELLO
+			// assert that we have an ongoingHandshake for this connection
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
+			// Do not reply
+
+			// Handle retransmission of SERVER HELLO
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
+			record = rs.get(0);
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			msg = (HandshakeMessage) record.getFragment();
+			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
+
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
 	 * Verifies behavior described in <a href="http://tools.ietf.org/html/rfc6347#section-4.2.8">
 	 * section 4.2.8 of RFC 6347 (DTLS 1.2)</a>.
 	 *  
