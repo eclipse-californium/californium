@@ -18,6 +18,8 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,6 +41,7 @@ public final class Connection implements SessionListener {
 	private SessionTicket ticket;
 	private Handshaker ongoingHandshake;
 	private DTLSFlight pendingFlight;
+	private Queue<Record> incoming = new ArrayBlockingQueue<>(20, false);
 
 	// Used to know when an abbreviated handshake should be initiated
 	private boolean resumptionRequired = false; 
@@ -258,5 +261,29 @@ public final class Connection implements SessionListener {
 	 */
 	public void setResumptionRequired(boolean resumptionRequired) {
 		this.resumptionRequired = resumptionRequired;
+	}
+
+	/**
+	 * Adds a given record to this connection's inbound buffer.
+	 * <p>
+	 * Records are processed in FIFO order.
+	 * 
+	 * @param record The record to add.
+	 * @return {@code true} if the record has been added to the buffer, {@code false} if
+	 *         the buffer is (currently) full.
+	 */
+	public boolean addInbound(Record record) {
+		return this.incoming.offer(record);
+	}
+
+	/**
+	 * Gets and removes the next record from this connection's inbound buffer.
+	 * <p>
+	 * The records are retrieved in FIFO order.
+	 * 
+	 * @return the next record or {@code null} if the buffer is empty.
+	 */
+	public Record getNextInboundRecord() {
+		return incoming.poll();
 	}
 }
