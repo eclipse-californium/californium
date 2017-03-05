@@ -52,8 +52,6 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
-import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -92,6 +90,13 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
+
+/**
+ * Verifies behavior of {@link DTLSConnector}.
+ * <p>
+ * Mainly contains integration test cases verifying the correct interaction between a client and a server.
+ */
 @Category(Medium.class)
 public class DTLSConnectorTest {
 
@@ -99,10 +104,10 @@ public class DTLSConnectorTest {
 	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
 	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
 	private static final int IPV6_MIN_MTU = 1280;
-	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final String CLIENT_IDENTITY = "Client_identity";
+	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
-	
+
 	private static DtlsConnectorConfig serverConfig;
 	private static DTLSConnector server;
 	private static InetSocketAddress serverEndpoint;
@@ -110,6 +115,7 @@ public class DTLSConnectorTest {
 	private static InMemorySessionCache serverSessionCache;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
+	private static StripedExecutorService stripedExecutor;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -122,6 +128,7 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
+		stripedExecutor = new StripedExecutorService(Runtime.getRuntime().availableProcessors());
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -146,6 +153,7 @@ public class DTLSConnectorTest {
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		server.setRawDataReceiver(serverRawDataChannel);
+		server.setExecutor(stripedExecutor);
 		server.start();
 		serverEndpoint = server.getAddress();
 		assertTrue(server.isRunning());
@@ -153,6 +161,7 @@ public class DTLSConnectorTest {
 
 	@AfterClass
 	public static void tearDown() {
+		stripedExecutor.shutdownNow();
 		server.destroy();
 	}
 
@@ -164,6 +173,7 @@ public class DTLSConnectorTest {
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(stripedExecutor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -188,6 +198,9 @@ public class DTLSConnectorTest {
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
 
+	/**
+	 * Verifies that the connector's endpoint URI corresponds to the configuration.
+	 */
 	@Test
 	public void testSendInvokesMessageCallback() throws Exception {
 
@@ -595,7 +608,7 @@ public class DTLSConnectorTest {
 
 		// Restart it
 		client.restart();
-		assertEquals(firstAddress,client.getAddress());
+		assertEquals(firstAddress, client.getAddress());
 
 		// Prepare message sending
 		final String msg = "Hello Again";

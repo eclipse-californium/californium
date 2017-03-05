@@ -231,9 +231,9 @@ public final class Connection implements SessionListener {
 	}
 
 	@Override
-	public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession) throws HandshakeException {
-		this.establishedSession = establishedSession;
-		LOGGER.log(Level.FINE, "Session with [{0}] has been established", establishedSession.getPeer());
+	public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
+		this.establishedSession = session;
+		LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
 	}
 
 	@Override
