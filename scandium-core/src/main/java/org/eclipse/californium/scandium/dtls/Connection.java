@@ -20,8 +20,13 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
 /**
  * Information about the DTLS connection to a peer.
@@ -42,6 +47,7 @@ public final class Connection implements SessionListener {
 	private Handshaker ongoingHandshake;
 	private DTLSFlight pendingFlight;
 	private Queue<Record> incoming = new ArrayBlockingQueue<>(20, false);
+	private AtomicBoolean processingMonitor = new AtomicBoolean(false);
 
 	// Used to know when an abbreviated handshake should be initiated
 	private boolean resumptionRequired = false; 
@@ -264,16 +270,19 @@ public final class Connection implements SessionListener {
 	}
 
 	/**
-	 * Adds a given record to this connection's inbound buffer.
+	 * Adds a record to this connection's buffer for processing.
 	 * <p>
 	 * Records are processed in FIFO order.
 	 * 
 	 * @param record The record to add.
 	 * @return {@code true} if the record has been added to the buffer, {@code false} if
-	 *         the buffer is (currently) full.
+	 *         the buffer's capacity is (currently) exhausted.
 	 */
 	public boolean addInbound(Record record) {
-		return this.incoming.offer(record);
+
+		synchronized(incoming) {
+			return this.incoming.offer(record);
+		}
 	}
 
 	/**
@@ -283,7 +292,62 @@ public final class Connection implements SessionListener {
 	 * 
 	 * @return the next record or {@code null} if the buffer is empty.
 	 */
-	public Record getNextInboundRecord() {
-		return incoming.poll();
+	private Record getNextInboundRecord() {
+
+		synchronized(incoming) {
+			return incoming.poll();
+		}
+	}
+
+	/**
+	 * Triggers processing of the next record from this connector's buffer.
+	 * <p>
+	 * This method schedules a new task on the executor which
+	 * <ol>
+	 * <li>takes the next record from this connection's buffer (if available)</li>
+	 * <li>invokes the processor's {@linkplain RecordProcessor#process(Record, Connection) process} method</li>
+	 * <li>invokes this method</li>
+	 * </ol>
+	 * <p>
+	 * This method uses an atomic boolean to make sure that only one record from this connection's buffer
+	 * is processed at a time, thus making sure that all records are processed in order of reception.
+	 * 
+	 * @param processor The object that should be used for processing the records.
+	 * @param executor The service to use for scheduling the processing tasks.
+	 */
+	public void processNextMessage(final RecordProcessor processor, final ExecutorService executor) {
+
+		synchronized (incoming) {
+			if (incoming.isEmpty()) {
+				LOGGER.log(Level.FINER, "inbound buffer [peer: {0}] is empty, yielding ...", peerAddress);
+			} else if (processingMonitor.compareAndSet(false, true)) {
+				scheduleProcessing(getNextInboundRecord(), processor, executor);
+			} else {
+				LOGGER.log(Level.FINER, "next record [peer: {0}] already being processed, yielding ...",
+						peerAddress);
+			}
+		}
+	}
+
+	private void scheduleProcessing(final Record record, final RecordProcessor processor, final ExecutorService executor) {
+
+		LOGGER.log(Level.FINER, "scheduling processing of record [type: {0}, peer: {1}]",
+				new Object[]{record.getType(), record.getPeerAddress()});
+
+		executor.submit(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					processor.process(record, Connection.this);
+				} finally {
+					if (processingMonitor.compareAndSet(true, false)) {
+						processNextMessage(processor, executor);
+					} else {
+						LOGGER.log(Level.WARNING, "message processing monitor [peer: {0}] is out of sync", peerAddress);
+					}
+				}
+			}
+		});
 	}
 }

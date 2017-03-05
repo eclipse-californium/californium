@@ -43,6 +43,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +54,7 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -108,6 +111,7 @@ public class DTLSConnectorTest {
 	private static InMemorySessionCache serverSessionCache;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
+	private static ExecutorService handshakeTaskExecutor;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -119,6 +123,10 @@ public class DTLSConnectorTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+
+		handshakeTaskExecutor = Executors.newFixedThreadPool(
+				Runtime.getRuntime().availableProcessors(),
+				new DaemonThreadFactory("DTLS Handshaker Task", DTLSConnector.SCANDIUM_THREAD_GROUP));
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -143,6 +151,7 @@ public class DTLSConnectorTest {
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		server.setRawDataReceiver(serverRawDataChannel);
+		server.setHandshakeTaskExecutor(handshakeTaskExecutor);
 		server.start();
 		serverEndpoint = server.getAddress();
 		assertTrue(server.isRunning());
@@ -150,6 +159,7 @@ public class DTLSConnectorTest {
 
 	@AfterClass
 	public static void tearDown() {
+		handshakeTaskExecutor.shutdownNow();
 		server.destroy();
 	}
 
@@ -161,6 +171,7 @@ public class DTLSConnectorTest {
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setHandshakeTaskExecutor(handshakeTaskExecutor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
