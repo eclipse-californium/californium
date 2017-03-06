@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove nested synchronize.
+ *                                                    reduce blocking on 
+ *                                                    tracker.getNextMessageId()
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -19,7 +22,6 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
-
 
 /**
  * A provider for message IDs thats keeps track of all message IDs in memory.
@@ -51,17 +53,24 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 	}
 
 	@Override
-	public synchronized int getNextMessageId(final InetSocketAddress destination) {
-		MessageIdTracker tracker = trackers.get(destination);
+	public int getNextMessageId(final InetSocketAddress destination) {
+		MessageIdTracker tracker = getTracker(destination);
 		if (tracker == null) {
+			// we have reached the maximum number of active peers
+			// TODO: throw an exception?
+			return -1;
+		} else {
+			return tracker.getNextMessageId();
+		}
+	}
+
+	private synchronized MessageIdTracker getTracker(final InetSocketAddress destination) {
+		MessageIdTracker tracker = trackers.get(destination);
+		if (tracker == null && 0 < trackers.remainingCapacity()) {
 			// create new tracker for destination lazily
 			tracker = new MessageIdTracker(config);
-			if (!trackers.put(destination, tracker)) {
-				// we have reached the maximum number of active peers
-				// TODO: throw an exception?
-				return -1;
-			}
+			trackers.put(destination, tracker);
 		}
-		return tracker.getNextMessageId();
+		return tracker;
 	}
 }
