@@ -25,6 +25,9 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - replace isResponseRelatedToRequest
  *                                                 with CorrelationContextMatcher
  *                                                 (fix GitHub issue #104)
+ * Achim Kraus (Bosch Software Innovations GmbH) - remove obsolete ExchangeObserver
+ *                                                 from matchNotifyResponse.
+ *                                                 Add Exchange for save remove.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -126,7 +129,7 @@ public final class TcpMatcher extends BaseMatcher {
 			// because we do not check that the notification's sender is
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
-			exchange = matchNotifyResponse(exchangeObserver, response, responseContext);
+			exchange = matchNotifyResponse(response, responseContext);
 		}
 
 		if (exchange == null) {
@@ -155,7 +158,7 @@ public final class TcpMatcher extends BaseMatcher {
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-				exchangeStore.remove(idByToken);
+				exchangeStore.remove(idByToken, exchange);
 				if (!exchange.getCurrentRequest().getOptions().hasObserve()) {
 					exchangeStore.releaseToken(idByToken);
 				}

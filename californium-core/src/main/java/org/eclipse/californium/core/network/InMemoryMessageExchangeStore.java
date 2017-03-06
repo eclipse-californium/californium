@@ -12,6 +12,13 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove only provided Exchange
+ *                                                    Observes and blockwise 
+ *                                                    exchanges may be used 
+ *                                                    longer, so that MID (observe)
+ *                                                    or token (blockwise) may
+ *                                                    be reused for an other
+ *                                                    exchange. 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -253,26 +260,38 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void remove(final KeyToken token) {
+	public void remove(final KeyToken token, final Exchange exchange) {
+		boolean removed;
+		int size;
 		synchronized (exchangesByToken) {
-			exchangesByToken.remove(token);
-			LOGGER.log(
-					Level.FINE,
-					"removing exchange for token {0}, remaining exchanges by tokens: {1}",
-					new Object[]{token, exchangesByToken.size()});
+			removed = exchangesByToken.remove(token, exchange);
+			size = exchangesByToken.size();
+		}
+		if (removed) {
+			LOGGER.log(Level.FINE, "removing exchange for token {0}, remaining exchanges by tokens: {1}",
+					new Object[] { token, size });
 		}
 	}
 
 	@Override
-	public Exchange remove(final KeyMID messageId) {
+	public Exchange remove(final KeyMID messageId, final Exchange exchange) {
+		Exchange removedExchange;
+		int size;
 		synchronized (messageIdProvider) {
-			Exchange removedExchange = exchangesByMID.remove(messageId);
-			LOGGER.log(
-					Level.FINE,
-					"removing exchange for MID {0}, remaining exchanges by MIDs: {1}",
-					new Object[]{messageId, exchangesByMID.size()});
-			return removedExchange;
+			if (null == exchange) {
+				removedExchange = exchangesByMID.remove(messageId);
+			} else if (exchangesByMID.remove(messageId, exchange)) {
+				removedExchange = exchange;
+			} else {
+				removedExchange = null;
+			}
+			size = exchangesByMID.size();
 		}
+		if (null != removedExchange) {
+			LOGGER.log(Level.FINE, "removing exchange for MID {0}, remaining exchanges by MIDs: {1}", new Object[] {
+					messageId, size });
+		}
+		return removedExchange;
 	}
 
 	@Override
