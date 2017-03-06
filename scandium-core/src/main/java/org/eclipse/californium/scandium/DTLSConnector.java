@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -73,6 +74,7 @@ import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -97,6 +99,7 @@ import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
+import org.eclipse.californium.scandium.dtls.RecordProcessor;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
@@ -114,7 +117,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
  */
-public class DTLSConnector implements Connector {
+public class DTLSConnector implements Connector, RecordProcessor {
 
 	/**
 	 * The {@code CorrelationContext} key used to store the host name indicated by a
@@ -132,7 +135,7 @@ public class DTLSConnector implements Connector {
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
 
-	private static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
+	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
@@ -180,6 +183,8 @@ public class DTLSConnector implements Connector {
 
 	private ErrorHandler errorHandler;
 	private SessionListener sessionCacheSynchronization;
+	private ExecutorService handshakerTaskExecutor;
+	private boolean hasInternalHandshakeTaskExecutor;
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
@@ -223,6 +228,22 @@ public class DTLSConnector implements Connector {
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
+	}
+
+	/**
+	 * Sets the executor to use for processing inbound records.
+	 * <p>
+	 * If this property is not set before invoking the {@linkplain #start() start method},
+	 * a {@code ThreadPoolExecutor} is used with a maximum of #CPU cores threads.
+	 * <p>
+	 * If this method is used to set an executor, the executor will <em>not</em> be stopped
+	 * by the {@linkplain #stop() stop method}.
+	 * 
+	 * @param executor The executor.
+	 */
+	public void setHandshakeTaskExecutor(ExecutorService executor) {
+
+		this.handshakerTaskExecutor = executor;
 	}
 
 	/**
@@ -286,6 +307,12 @@ public class DTLSConnector implements Connector {
 				return ret;
 			}
 		});
+		if (handshakerTaskExecutor == null) {
+			handshakerTaskExecutor = Executors.newFixedThreadPool(
+					Runtime.getRuntime().availableProcessors(),
+					new DaemonThreadFactory("DTLS Handshaker Task", SCANDIUM_THREAD_GROUP));
+			this.hasInternalHandshakeTaskExecutor = true;
+		}
 		socket = new DatagramSocket(null);
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
@@ -392,6 +419,10 @@ public class DTLSConnector implements Connector {
 		if (running.get()) {
 			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
 			timer.shutdownNow();
+			if (hasInternalHandshakeTaskExecutor) {
+				handshakerTaskExecutor.shutdownNow();
+				hasInternalHandshakeTaskExecutor = false;
+			}
 			releaseSocket();
 		}
 	}
@@ -413,6 +444,7 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void receiveNextDatagramFromNetwork() throws IOException {
+
 		byte[] buffer = new byte[inboundDatagramBufferSize];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		synchronized (socket) {
@@ -432,35 +464,90 @@ public class DTLSConnector implements Connector {
 
 		for (Record record : records) {
 			try {
-				LOGGER.log(Level.FINEST, "Received DTLS record of type [{0}]", record.getType());
+				LOGGER.log(Level.FINER, "Received DTLS record [type: {0}, peer: {1}]",
+						new Object[]{record.getType(), record.getPeerAddress()});
 
 				switch(record.getType()) {
-				case APPLICATION_DATA:
-					processApplicationDataRecord(record);
-					break;
-				case ALERT:
-					processAlertRecord(record);
-					break;
-				case CHANGE_CIPHER_SPEC:
-					processChangeCipherSpecRecord(record);
-					break;
 				case HANDSHAKE:
 					processHandshakeRecord(record);
+					break;
+				case APPLICATION_DATA:
+				case ALERT:
+				case CHANGE_CIPHER_SPEC:
+					addRecordToBuffer(record);
 					break;
 				default:
 					LOGGER.log(
 						Level.FINE,
-						"Discarding record of unsupported type [{0}] from peer [{1}]",
+						"Discarding unsupported record [type: {0}, peer: {1}]",
 						new Object[]{record.getType(), record.getPeerAddress()});
 				}
 			} catch (RuntimeException e) {
 				LOGGER.log(
 					Level.INFO,
-					String.format("Unexpected error occurred while processing record from peer [%s]", peerAddress),
+					String.format("Unexpected error occurred while processing record [type: %s, peer: %s]",
+							record.getType(), peerAddress),
 					e);
 				terminateConnection(peerAddress, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				break;
 			}
+		}
+	}
+
+	private void addRecordToBuffer(Record record) {
+
+		Connection connection = connectionStore.get(record.getPeerAddress());
+		if (connection == null) {
+			LOGGER.log(Level.FINE, "discarding unexpected record [type: {0}, peer: {1}]",
+					new Object[]{record.getType(), record.getPeerAddress()});
+		} else {
+			addRecordToBuffer(record, connection);
+		}
+	}
+
+	private void addRecordToBuffer(Record record, Connection connection) {
+
+		if (connection.addInbound(record)) {
+			LOGGER.log(Level.FINER, "added record [type: {0}, peer: {1}] to inbound buffer",
+					new Object[]{record.getType(), record.getPeerAddress()});
+			connection.processNextMessage(this, handshakerTaskExecutor);
+		} else {
+			LOGGER.log(Level.FINE, "inbound record buffer full, discarding record [type: {0}, peer: {1}]",
+					new Object[]{record.getType(), record.getPeerAddress()});
+		}
+	}
+
+	@Override
+	public void process(Record record, Connection connection) {
+
+		try {
+			switch(record.getType()) {
+			case APPLICATION_DATA:
+				processApplicationDataRecord(record, connection);
+				break;
+			case ALERT:
+				processAlertRecord(record, connection);
+				break;
+			case CHANGE_CIPHER_SPEC:
+				processChangeCipherSpecRecord(record, connection);
+				break;
+			case HANDSHAKE:
+				processHandshakeRecordWithConnection(record, connection);
+				break;
+			default:
+				LOGGER.log(
+					Level.FINE,
+					"Discarding record of unsupported type [{0}] from peer [{1}]",
+					new Object[]{record.getType(), record.getPeerAddress()});
+			}
+		} catch (HandshakeException e) {
+			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), record);
+		} catch (RuntimeException e) {
+			LOGGER.log(
+				Level.INFO,
+				String.format("Unexpected error occurred while processing record from peer [%s]", record.getPeerAddress()),
+				e);
+			terminateConnection(record.getPeerAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		}
 	}
 
@@ -569,10 +656,9 @@ public class DTLSConnector implements Connector {
 		connectionClosed(connection.getPeerAddress());
 	}
 
-	private void processApplicationDataRecord(final Record record) {
+	private void processApplicationDataRecord(final Record record, final Connection connection) {
 
-		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasEstablishedSession()) {
+		if (connection.hasEstablishedSession()) {
 			DTLSSession session = connection.getEstablishedSession();
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
@@ -613,31 +699,6 @@ public class DTLSConnector implements Connector {
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
 			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
-		}
-	}
-
-	/**
-	 * Processes an <em>ALERT</em> message received from the peer.
-	 * <p>
-	 * Terminates the connection with the peer if either
-	 * <ul>
-	 * <li>the ALERT's level is FATAL or</li>
-	 * <li>the ALERT is a <em>closure alert</em></li>
-	 * </ul>
-	 * 
-	 * Also notifies a registered {@link #errorHandler} about the alert message.
-	 * </p>
-	 * @param record the record containing the ALERT message
-	 * @see ErrorHandler
-	 * @see #terminateConnection(Connection, AlertMessage, DTLSSession)
-	 */
-	private void processAlertRecord(Record record) {
-
-		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection == null) {
-			LOGGER.log(Level.FINER, "Discarding ALERT record from [{0}] received without existing connection", record.getPeerAddress());
-		} else {
-			processAlertRecord(record, connection);
 		}
 	}
 
@@ -691,9 +752,9 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void processChangeCipherSpecRecord(Record record) {
-		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasOngoingHandshake()) {
+	private void processChangeCipherSpecRecord(Record record, Connection connection) {
+
+		if (connection.hasOngoingHandshake()) {
 			// processing a CCS message does not result in any additional flight to be sent
 			try {
 				connection.getOngoingHandshake().processMessage(record);
@@ -709,17 +770,11 @@ public class DTLSConnector implements Connector {
 
 	private void processHandshakeRecord(final Record record) {
 
-		LOGGER.log(Level.FINE, "Received {0} record from peer [{1}]",
-				new Object[]{record.getType(), record.getPeerAddress()});
 		final Connection con = connectionStore.get(record.getPeerAddress());
-		try {
-			if (con == null) {
-				processHandshakeRecordWithoutConnection(record);
-			} else {
-				processHandshakeRecordWithConnection(record, con);
-			}
-		} catch (HandshakeException e) {
-			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), record);
+		if (con == null) {
+			processHandshakeRecordWithoutConnection(record);
+		} else {
+			addRecordToBuffer(record, con);
 		}
 	}
 
@@ -728,7 +783,7 @@ public class DTLSConnector implements Connector {
 	 * @param record
 	 * @throws HandshakeException if the handshake record cannot be parsed or processed successfully
 	 */
-	private void processHandshakeRecordWithoutConnection(final Record record) throws HandshakeException {
+	private void processHandshakeRecordWithoutConnection(final Record record) {
 		if (record.getEpoch() > 0) {
 			LOGGER.log(
 				Level.FINE,
@@ -747,6 +802,8 @@ public class DTLSConnector implements Connector {
 							"Discarding unexpected {0} message from peer [{1}]",
 							new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer()});
 				}
+			} catch (HandshakeException e) {
+				handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), record);
 			} catch (GeneralSecurityException e) {
 				discardRecord(record, e);
 			}
