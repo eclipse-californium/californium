@@ -23,9 +23,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace isResponseRelatedToRequest
  *                                                    with CorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove obsolete ExchangeObserver
+ *                                                    from matchNotifyResponse. Don't
+ *                                                    remove exchange by MID on notify. 
+ *                                                    Add Exchange for save remove.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -79,8 +84,8 @@ public final class UdpMatcher extends BaseMatcher {
 
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequest(exchange);
-		// for observe request.
-		if (request.isObserve()) {
+		// for first observe request. Ignored for retries
+		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
 			registerObserve(request);
 		}
 
@@ -102,7 +107,7 @@ public final class UdpMatcher extends BaseMatcher {
 		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
 			ObserveRelation relation = exchange.getRelation();
 			if (relation != null) {
-				removeNotificationsOf(relation);
+				removeNotificationsOf(relation, exchange);
 			}
 		}
 
@@ -187,6 +192,7 @@ public final class UdpMatcher extends BaseMatcher {
 		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
 		LOGGER.log(Level.FINER, "received response {0}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
+		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
 
 		if (exchange == null) {
 			// we didn't find a message exchange for the token from the response
@@ -196,7 +202,8 @@ public final class UdpMatcher extends BaseMatcher {
 			// because we do not check that the notification's sender is
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
-			exchange = matchNotifyResponse(exchangeObserver, response, responseContext);
+			isNotify = true;
+			exchange = matchNotifyResponse(response, responseContext);
 		}
 
 		if (exchange == null) {
@@ -227,10 +234,10 @@ public final class UdpMatcher extends BaseMatcher {
 					exchangeStore.findPrevious(idByMID, exchange) != null) {
 				LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
 				response.setDuplicate(true);
-			} else {
+			} else if (!isNotify) {
 				// we have received the expected response for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
-				if (exchangeStore.remove(idByMID) != null) {
+				if (exchangeStore.remove(idByMID, exchange) != null) {
 					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
 				}
 			}
@@ -256,7 +263,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
 		KeyMID idByMID = KeyMID.fromInboundMessage(message);
-		Exchange exchange = exchangeStore.remove(idByMID);
+		Exchange exchange = exchangeStore.remove(idByMID, null);
 
 		if (exchange != null) {
 			LOGGER.log(Level.FINE, "Received expected reply for message exchange {0}", idByMID);
@@ -268,7 +275,7 @@ public final class UdpMatcher extends BaseMatcher {
 		return exchange;
 	}
 
-	private void removeNotificationsOf(final ObserveRelation relation) {
+	private void removeNotificationsOf(final ObserveRelation relation, final Exchange exchange) {
 		LOGGER.log(Level.FINE, "Removing all remaining NON-notifications of observe relation with {0}",
 				relation.getSource());
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
@@ -276,7 +283,7 @@ public final class UdpMatcher extends BaseMatcher {
 			LOGGER.log(Level.FINER, "removing NON notification: {0}", previous);
 			// notifications are local MID namespace
 			KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
-			exchangeStore.remove(idByMID);
+			exchangeStore.remove(idByMID, exchange);
 			iterator.remove();
 		}
 	}
@@ -310,11 +317,23 @@ public final class UdpMatcher extends BaseMatcher {
 				} else {
 					// in case an empty ACK was lost
 					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
-					exchangeStore.remove(idByMID);
+					exchangeStore.remove(idByMID, exchange);
 				}
 				KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
-				exchangeStore.remove(idByToken);
-				if(!originRequest.getOptions().hasObserve()) {
+				exchangeStore.remove(idByToken, exchange);
+				/* filter calls by completeCurrentRequest */
+				if (exchange.isComplete()) {
+					/* keep track of the starting request. Currently only used with blockwise transfer */
+					Request request = exchange.getRequest();
+					if (request != originRequest && null != request &&  null != request.getToken()
+							&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
+						// remove starting request also
+						originRequest = request;
+						idByToken = KeyToken.fromOutboundMessage(originRequest);
+						exchangeStore.remove(idByToken, exchange);
+					}
+				}
+				if (!originRequest.getOptions().hasObserve()) {
 					exchangeStore.releaseToken(idByToken);
 				}
 				LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
@@ -331,7 +350,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 					// first remove the entry for the (separate) response's MID
 					KeyMID midKey = KeyMID.fromOutboundMessage(response);
-					exchangeStore.remove(midKey);
+					exchangeStore.remove(midKey, exchange);
 
 					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
 				}
@@ -339,7 +358,7 @@ public final class UdpMatcher extends BaseMatcher {
 				// Remove all remaining NON-notifications if this exchange is an observe relation
 				ObserveRelation relation = exchange.getRelation();
 				if (relation != null) {
-					removeNotificationsOf(relation);
+					removeNotificationsOf(relation, exchange);
 				}
 			}
 		}

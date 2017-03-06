@@ -12,6 +12,11 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove ExchangeObserver.
+ *                                                    Notify exchanges are not 
+ *                                                    stored within the matcher
+ *                                                    and therefore don't require
+ *                                                    a cleanup.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -161,14 +166,12 @@ public abstract class BaseMatcher implements Matcher {
 	 * Special matching for notify reponses. Check, is a observe is stored in
 	 * {@link #observationStore} and if found, recreate a exchange.
 	 * 
-	 * @param exchangeObserver exchange observer for the new exchange
 	 * @param response notify response
 	 * @param responseContext correlation context of response
 	 * @return exchange, if a new one is create of the stored observe
 	 *         informations, null, otherwise.
 	 */
-	protected final Exchange matchNotifyResponse(final ExchangeObserver exchangeObserver, final Response response,
-			final CorrelationContext responseContext) {
+	protected final Exchange matchNotifyResponse(final Response response, final CorrelationContext responseContext) {
 
 		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = null;
@@ -184,7 +187,6 @@ public abstract class BaseMatcher implements Matcher {
 			request.setDestinationPort(response.getSourcePort());
 			exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
 			exchange.setRequest(request);
-			exchange.setObserver(exchangeObserver);
 			LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
 			request.addMessageObserver(new MessageObserverAdapter() {
 
@@ -224,7 +226,6 @@ public abstract class BaseMatcher implements Matcher {
 				public void onCancel() {
 					observationStore.remove(request.getToken());
 					exchangeStore.releaseToken(idByToken);
-
 				}
 			});
 		}
