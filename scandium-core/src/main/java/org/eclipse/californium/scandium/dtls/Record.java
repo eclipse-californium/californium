@@ -36,7 +36,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CipherType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -736,9 +735,8 @@ public class Record {
 			throw new IllegalArgumentException("Sequence number must have max 48 bits");
 		}
 		this.sequenceNumber = sequenceNumber;
-		if (session != null && session.getWriteState() != null && 
-				CipherType.BLOCK.equals(session.getWriteState().getCipherSuite().getCipherType())) {
-			fragmentBytes = encryptBlockCipher(fragment.toByteArray());
+		if (session != null && session.getWriteState() != null && epoch > 0) {
+			fragmentBytes = encryptFragment(fragment.toByteArray());
 		}
 	}
 
