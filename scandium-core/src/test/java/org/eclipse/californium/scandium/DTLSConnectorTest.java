@@ -86,6 +86,7 @@ import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
+import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -642,6 +643,56 @@ public class DTLSConnectorTest {
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		} finally {
 			rawClient.stop();
+		}
+	}
+
+	@Test
+	public void testFinishedMessageRetransmission() throws Exception {
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector, serverConfig);
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+			InetSocketAddress rawServerEndpoint = new InetSocketAddress("localhost", rawServer.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Start the client
+			CountDownLatch latch = new CountDownLatch(1);
+			clientRawDataChannel.setLatch(latch);
+			client.setRawDataReceiver(clientRawDataChannel);
+			client.start();
+			clientEndpoint = client.getAddress();
+			client.send(new RawData("Hello World".getBytes(), rawServerEndpoint));
+
+			// Create server handshaker
+			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(clientEndpoint, false, 1),
+					new SimpleRecordLayer(rawServer), sessionListener, serverConfig, 1280);
+
+			// Wait to receive response (should be CLIENT HELLO)
+			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Ignore next flight (This way we will ignore the FINISHED message)
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+
+			// Wait to receive response (CERTIFICATE, ... , FINISHED)
+			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawServer.stop();
 		}
 	}
 
@@ -1284,6 +1335,30 @@ public class DTLSConnectorTest {
 			}
 		}
 	}
+
+	public class SimpleRecordLayer implements RecordLayer {
+
+		private UdpConnector connector;
+
+		public SimpleRecordLayer(UdpConnector connector) {
+			this.connector = connector;
+		}
+
+		@Override
+		public void sendRecord(Record record) {
+		}
+
+		@Override
+		public void sendFlight(DTLSFlight flight) {
+			for (Record r : flight.getMessages()) {
+				try {
+					connector.sendRecord(flight.getPeerAddress(), r.toByteArray());
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+	};
 
 	public class ReverseRecordLayer implements RecordLayer {
 
