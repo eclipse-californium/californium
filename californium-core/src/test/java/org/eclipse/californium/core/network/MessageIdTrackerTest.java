@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - relax lifetime tests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -67,9 +68,11 @@ public class MessageIdTrackerTest {
 		}
 
 		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has expired
+		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
 		long timeElapsed = System.currentTimeMillis() - start;
 		if (timeElapsed < exchangeLifetime) {
 			Thread.sleep(exchangeLifetime - timeElapsed);
+			timeElapsed = System.currentTimeMillis() - start;
 		}
 		int mid = tracker.getNextMessageId();
 		assertThat(mid, is(firstMid));
