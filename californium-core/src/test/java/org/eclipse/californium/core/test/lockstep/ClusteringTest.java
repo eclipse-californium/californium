@@ -9,7 +9,11 @@
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *    
+ * Contributors:
+ *    Sierra Wireless - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use localhost for windows compatibility
+ *                                                    sending to "any" doesn't work on windows
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -77,7 +81,7 @@ public class ClusteringTest {
 		store = new InMemoryObservationStore();
 		notificationListener1 = new SynchronousNotificationListener();
 
-		client1 = new CoapEndpoint(new InetSocketAddress(0), config, store);
+		client1 = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, store);
 		client1.addNotificationListener(notificationListener1);
 		client1.addInterceptor(clientInterceptor);
 		client1.addInterceptor(new MessageTracer());
@@ -86,7 +90,7 @@ public class ClusteringTest {
 		System.out.println("Client 1 binds to port " + clientPort1);
 
 		notificationListener2 = new SynchronousNotificationListener();
-		client2 = new CoapEndpoint(new InetSocketAddress(0), config, store);
+		client2 = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, store);
 		client2.addNotificationListener(notificationListener2);
 		client2.addInterceptor(clientInterceptor);
 		client2.addInterceptor(new MessageTracer());
@@ -338,7 +342,7 @@ public class ClusteringTest {
 	private LockstepEndpoint createLockstepEndpoint() {
 		try {
 			LockstepEndpoint endpoint = new LockstepEndpoint();
-			endpoint.setDestination(new InetSocketAddress(InetAddress.getByName("localhost"), clientPort1));
+			endpoint.setDestination(new InetSocketAddress(InetAddress.getLoopbackAddress(), clientPort1));
 			return endpoint;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
