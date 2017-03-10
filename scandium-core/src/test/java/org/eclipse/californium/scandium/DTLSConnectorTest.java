@@ -57,6 +57,8 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -130,6 +132,7 @@ public class DTLSConnectorTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();

@@ -31,6 +31,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 
 /**
@@ -79,7 +80,7 @@ public class CropRotation implements Deduplicator {
 	public synchronized void start() {
 		if (!running) {
 			if (executor == null || executor.isShutdown()) {
-				executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("Deduplicator"));
+				executor = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("Deduplicator"));
 			}
 			rotation.schedule();
 			running = true;

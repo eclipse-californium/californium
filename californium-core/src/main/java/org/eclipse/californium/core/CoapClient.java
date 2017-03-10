@@ -32,7 +32,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -44,6 +43,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * The Class CoapClient.
@@ -177,7 +177,7 @@ public class CoapClient {
 	 * @return the CoAP client
 	 */
 	public CoapClient useExecutor() {
-		this.executor = Executors.newSingleThreadExecutor(new Utils.NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		this.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
 		
 		// activates the executor so that this user thread starts deterministically
 		executor.execute(new Runnable() {

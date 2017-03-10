@@ -8,7 +8,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class NamedThreadFactory implements ThreadFactory {
 
-	static final ThreadGroup COAP_THREAD_GROUP = new ThreadGroup("Californium"); //$NON-NLS-1$
+	/**
+	 * The default thread group for Californium threads.
+	 */
+	public static final ThreadGroup COAP_THREAD_GROUP = new ThreadGroup("Californium"); //$NON-NLS-1$
+	/**
+	 * The default thread group for Scandium threads.
+	 */
+	public static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Scandium"); //$NON-NLS-1$
 
 	private final ThreadGroup group;
 	private final AtomicInteger index = new AtomicInteger(1);

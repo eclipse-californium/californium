@@ -35,6 +35,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 /**
  * This deduplicator uses an in-memory map to store incoming messages.
@@ -76,7 +77,7 @@ public final class SweepDeduplicator implements Deduplicator {
 	public synchronized void start() {
 		if (!running) {
 			if (scheduler == null || scheduler.isShutdown()) {
-				scheduler = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("Deduplicator"));
+				scheduler = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("Deduplicator"));
 			}
 			algorithm.schedule();
 			running = true;

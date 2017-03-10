@@ -80,6 +80,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 
 /**
@@ -384,7 +385,7 @@ public class CoapEndpoint implements Endpoint {
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
 			setExecutor(Executors.newSingleThreadScheduledExecutor(
-					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getUri() + '#'))); //$NON-NLS-1$
+					new DaemonThreadFactory("CoapEndpoint-" + connector.getUri() + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
 				public void started(final Endpoint endpoint) {

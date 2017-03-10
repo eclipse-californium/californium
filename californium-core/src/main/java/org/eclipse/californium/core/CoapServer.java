@@ -41,6 +41,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -160,7 +161,7 @@ public class CoapServer implements ServerInterface {
 		// sets the central thread pool for the protocol stage over all endpoints
 		this.executor = Executors.newScheduledThreadPool(//
 				this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-				new Utils.NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
+				new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
 		for (int port : ports) {
 			addEndpoint(new CoapEndpoint(port, this.config));
