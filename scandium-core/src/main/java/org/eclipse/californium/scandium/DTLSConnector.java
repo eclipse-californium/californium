@@ -52,10 +52,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,6 +66,8 @@ import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -125,8 +125,6 @@ public class DTLSConnector implements Connector {
 			+ 12 // DTLS message headers
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
-
-	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
 
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
@@ -258,19 +256,9 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 
-		timer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+		timer = Executors.newSingleThreadScheduledExecutor(
+				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
-			private final AtomicInteger index = new AtomicInteger(1);
-
-			@Override
-			public Thread newThread(Runnable r) {
-				final Thread ret = new Thread(SCANDIUM_THREAD_GROUP, r,
-						"DTLS RetransmitTask " + index.getAndIncrement(), 0);
-				ret.setDaemon(true);
-				ret.setPriority(Thread.NORM_PRIORITY);
-				return ret;
-			}
-		});
 		socket = new DatagramSocket(null);
 		// make it easier to stop/start a server consecutively without delays
 		socket.setReuseAddress(true);
@@ -1513,7 +1501,7 @@ public class DTLSConnector implements Connector {
 		 * @param name the name, e.g., of the transport protocol
 		 */
 		protected Worker(String name) {
-			super(SCANDIUM_THREAD_GROUP, name);
+			super(NamedThreadFactory.SCANDIUM_THREAD_GROUP, name);
 		}
 
 		@Override

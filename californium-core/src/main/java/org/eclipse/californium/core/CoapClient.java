@@ -41,6 +41,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * The Class CoapClient.
@@ -174,7 +175,7 @@ public class CoapClient {
 	 * @return the CoAP client
 	 */
 	public CoapClient useExecutor() {
-		this.executor = Executors.newSingleThreadExecutor(new Utils.NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		this.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
 		
 		// activates the executor so that this user thread starts deterministically
 		executor.execute(new Runnable() {

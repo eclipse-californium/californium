@@ -43,6 +43,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 
 /**
@@ -101,7 +102,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 		// this is a useful health metric that could later be exported to some kind of monitoring interface
 		if (LOGGER.isLoggable(healthStatusLevel)) {
-			this.scheduler = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("MessageExchangeStore"));
+			this.scheduler = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
 			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {

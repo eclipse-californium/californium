@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * A ConcurrentCoapResource is an extension to a typical CoapResource and
@@ -103,7 +104,7 @@ public class ConcurrentCoapResource extends CoapResource {
 		super(name);
 		this.threads = getAvailableProcessors();
 		setExecutor(Executors.newFixedThreadPool(threads,
-				new Utils.NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
+				new NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
 	}
 	
 	/**
@@ -117,7 +118,7 @@ public class ConcurrentCoapResource extends CoapResource {
 		super(name);
 		this.threads = threads;
 		setExecutor(Executors.newFixedThreadPool(threads,
-				new Utils.NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
+				new NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
 	}
 	
 	/**

@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 /**
  * A CoapObserveRelation is a client-side control handle. It represents a CoAP
@@ -44,7 +45,7 @@ public class CoapObserveRelation {
 
 	/** A executor service to schedule re-registrations */
 	private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
-			new Utils.DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
+			new DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
 
 	/** The request. */
 	private Request request;
