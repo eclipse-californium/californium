@@ -20,10 +20,10 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 
 /**
  * The change cipher spec protocol exists to signal transitions in ciphering

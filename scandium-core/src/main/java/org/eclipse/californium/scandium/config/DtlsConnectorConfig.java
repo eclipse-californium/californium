@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
@@ -50,8 +51,16 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  * ...
  * </pre>
  */
-public class DtlsConnectorConfig {
+public final class DtlsConnectorConfig {
 
+	/**
+	 * The default value for the <em>maxConncetions</em> property.
+	 */
+	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
+	/**
+	 * The default value for the <em>staleConnectionThreshold</em> property.
+	 */
+	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	private static final String EC_ALGORITHM_NAME = "EC";
 	private InetSocketAddress address;
 	private Certificate[] trustStore = new Certificate[0];
@@ -92,7 +101,12 @@ public class DtlsConnectorConfig {
 	private CipherSuite[] supportedCipherSuites;
 
 	private int outboundMessageBufferSize = 100000;
-	
+
+	private int maxConnections = DEFAULT_MAX_CONNECTIONS;
+	private long staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
+
+	private ServerNameResolver serverNameResolver;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -164,7 +178,7 @@ public class DtlsConnectorConfig {
 	 * @return the certificates or <code>null</code> if the connector is
 	 * not supposed to support certificate based authentication
 	 */
-	public final Certificate[] getCertificateChain() {
+	public Certificate[] getCertificateChain() {
 		if (certChain == null) {
 			return null;
 		} else {
@@ -178,7 +192,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
 	 */
-	public final CipherSuite[] getSupportedCipherSuites() {
+	public CipherSuite[] getSupportedCipherSuites() {
 		if (supportedCipherSuites == null) {
 			return new CipherSuite[0];
 		} else {
@@ -192,7 +206,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the key
 	 */
-	public final PrivateKey getPrivateKey() {
+	public PrivateKey getPrivateKey() {
 		return privateKey;
 	}
 
@@ -202,8 +216,24 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the registry
 	 */
-	public final PskStore getPskStore() {
+	public PskStore getPskStore() {
 		return pskStore;
+	}
+
+	/**
+	 * Gets the resolver to use for determining the server names to include
+	 * in a <em>Server Name Indication</em> extension when initiating a handshake
+	 * with a peer.
+	 * <p>
+	 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
+	 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
+	 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
+	 * returned server names.
+	 * 
+	 * @return The resolver or {@code null} if no server names should be indicated to peers.
+	 */
+	public ServerNameResolver getServerNameResolver() {
+		return serverNameResolver;
 	}
 
 	/**
@@ -212,7 +242,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the key
 	 */
-	public final PublicKey getPublicKey() {
+	public PublicKey getPublicKey() {
 		return publicKey;
 	}
 
@@ -222,7 +252,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the root certificates
 	 */
-	public final Certificate[] getTrustStore() {
+	public Certificate[] getTrustStore() {
 		return trustStore;
 	}
 
@@ -232,7 +262,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return <code>true</code> if clients need to authenticate
 	 */
-	public final boolean isClientAuthenticationRequired() {
+	public boolean isClientAuthenticationRequired() {
 		return clientAuthenticationRequired;
 	}
 
@@ -246,8 +276,35 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return <code>true</code> if <em>RawPublicKey</em> is used by the connector
 	 */
-	public final boolean isSendRawKey() {
+	public boolean isSendRawKey() {
 		return sendRawKey;
+	}
+
+	/**
+	 * Gets the maximum number of (active) connections the connector will support.
+	 * <p>
+	 * Once this limit is reached, new connections will only be accepted if <em>stale</em>
+	 * connections exist. A stale connection is one that hasn't been used for at least
+	 * <em>staleConnectionThreshold</em> seconds.
+	 * 
+	 * @return The maximum number of active connections supported.
+	 * @see #getStaleConnectionThreshold()
+	 */
+	public int getMaxConnections() {
+		return maxConnections;
+	}
+
+	/**
+	 * Gets the maximum number of seconds within which some records need to be exchanged
+	 * over a connection before it is considered <em>stale</em>.
+	 * <p>
+	 * Once a connection becomes stale, it cannot be used to transfer DTLS records anymore.
+	 * 
+	 * @return The number of seconds.
+	 * @see #getMaxConnections()
+	 */
+	public long getStaleConnectionThreshold() {
+		return staleConnectionThreshold;
 	}
 
 	/**
@@ -490,6 +547,24 @@ public class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the resolver to use for determining the server names to include
+		 * in a <em>Server Name Indication</em> extension when initiating a handshake
+		 * with a peer.
+		 * <p>
+		 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
+		 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
+		 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
+		 * returned server names.
+		 * 
+		 * @param resolver The resolver.
+		 * @return This builder for command chaining.
+		 */
+		public Builder setServerNameResolver(final ServerNameResolver resolver) {
+			config.serverNameResolver = resolver;
+			return this;
+		}
+
+		/**
 		 * Sets the connector's identifying properties by means of a private
 		 * and public key pair.
 		 * <p>
@@ -564,6 +639,56 @@ public class DtlsConnectorConfig {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
 				config.trustStore = Arrays.copyOf(trustedCerts, trustedCerts.length);
+				return this;
+			}
+		}
+
+		/**
+		 * Sets the maximum number of active connections the connector should support.
+		 * <p>
+		 * An <em>active</em> connection is a connection that has been used within the
+		 * last <em>staleConnectionThreshold</em> seconds. After that it is considered
+		 * to be <em>stale</em>.
+		 * <p>
+		 * Once the maximum number of active connections is reached, new connections will
+		 * only be accepted by the connector, if <em>stale</em> connections exist (which will
+		 * be evicted one-by-one on an oldest-first basis).
+		 * <p>
+		 * The default value of this property is {@link DtlsConnectorConfig#DEFAULT_MAX_CONNECTIONS}.
+		 * 
+		 * @param maxConnections The maximum number of active connections to support.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given limit is &lt; 1.
+		 * @see #setStaleConnectionThreshold(long)
+		 */
+		public Builder setMaxConnections(final int maxConnections) {
+			if (maxConnections < 1) {
+				throw new IllegalArgumentException("Max connections must be at least 1");
+			} else {
+				config.maxConnections = maxConnections;
+				return this;
+			}
+		}
+
+		/**
+		 * Sets the maximum number of seconds without any data being exchanged before a connection
+		 * is considered <em>stale</em>.
+		 * <p>
+		 * Once a connection becomes stale, it is eligible for eviction when a peer wants to establish a
+		 * new connection and the connector already has <em>maxConnections</em> connections with peers
+		 * established. Note that a connection is no longer considered stale, once data is being exchanged
+		 * over it before it got evicted.
+		 * 
+		 * @param threshold The number of seconds.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given threshold is &lt; 1.
+		 * @see #setMaxConnections(int)
+		 */
+		public Builder setStaleConnectionThreshold(final long threshold) {
+			if (threshold < 1) {
+				throw new IllegalArgumentException("Threshold must be at least 1 second");
+			} else {
+				config.staleConnectionThreshold = threshold;
 				return this;
 			}
 		}

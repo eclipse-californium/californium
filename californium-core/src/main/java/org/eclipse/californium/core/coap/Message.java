@@ -44,99 +44,102 @@ import org.eclipse.californium.core.observe.ObserveManager;
  * a collection of options ({@link OptionSet}) and a payload.
  * <p>
  * Furthermore, a message can be acknowledged, rejected, canceled, or time out;
- * the meaning of which is defined more specifically in the subclasses. A
- * message can be observed by {@link MessageObserver} which will be notified
- * when an event triggers one of the properties from above become true.
+ * the meaning of which is defined more specifically in the subclasses. Clients
+ * can register {@link MessageObserver}s with a message which will be notified
+ * when any of the events listed above occur.
  * <p>
- * Note: The variables {@link #handlers} and {@link #options} are
- * lazy-initialized. This saves a few bytes in case it the variables are not in
- * use. For instance an empty message should not have options and most messages
- * will not have a {@link MessageObserver} registered.
+ * Note: The {@link #messageObservers} and {@link #options} properties are
+ * initialized lazily. This saves a few bytes in case the properties are not in
+ * use. For instance an empty message should not have any options and most messages
+ * will not have any observers registered.
+ * 
  * @see Request
  * @see Response
  * @see EmptyMessage
  */
 public abstract class Message {
-	
+
 	protected final static Logger LOGGER = Logger.getLogger(Message.class.getCanonicalName());
-	
+
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
-	
+
 	/** The type. One of {CON, NON, ACK or RST}. */
 	private CoAP.Type type;
 
 	/** The 16-bit Message Identification. */
 	private int mid = NONE; // Message ID
-	
+
 	/** The token, a 0-8 byte array. */
 	private byte[] token;
-	
+
 	/** The set of options of this message. */
 	private OptionSet options;
-	
+
 	/** The payload of this message. */
 	private byte[] payload;
-	
+
 	/** The destination address of this message. */
 	private InetAddress destination;
-	
+
 	/** The source address of this message. */
 	private InetAddress source;
-	
+
 	/** The destination port of this message. */
 	private int destinationPort;
-	
+
 	/** The source port of this message. */
 	private int sourcePort;
-	
+
 	/** Indicates if the message has been acknowledged. */
 	private boolean acknowledged;
-	
+
 	/** Indicates if the message has been rejected. */
 	private boolean rejected;
-	
+
 	/** Indicates if the message has been canceled. */
 	private boolean canceled;
-	
+
 	/** Indicates if the message has timed out */
 	private boolean timedOut; // Important for CONs
-	
+
 	/** Indicates if the message is a duplicate. */
 	private boolean duplicate;
-	
+
 	/** The serialized message as byte array. */
 	private byte[] bytes;
-	
+
 	/**
 	 * A list of all {@link ObserveManager} that should be notified when an
 	 * event for this message occurs. By default, this field is null
 	 * (lazy-initialization). If a handler is added, the list will be created
 	 * and from then on must never again become null.
 	 */
-	private List<MessageObserver> handlers = null;
-	
+	private List<MessageObserver> messageObservers;
+
 	/**
 	 * The timestamp when this message has been received or sent or 0 if neither
 	 * has happened yet. The {@link Matcher} sets the timestamp.
 	 */
 	private long timestamp;
-	
+
 	/**
-	 * Instantiates a new message with no specified message type.
+	 * Creates a new message with no specified message type.
 	 */
-	public Message() { }
-	
+	protected Message() {
+	}
+
 	/**
-	 * Instantiates a new message with the given type. The type must be one of
-	 * CON, NON, ACK or RST.
+	 * Creates a new message of a given type.
+	 * <p>
+	 * The type must be one of CON, NON, ACK or RST.
 	 * 
 	 * @param type the type
 	 */
 	public Message(Type type) {
 		this.type = type;
 	}
-	
+
 	/**
 	 * Gets the message type ({@link Type#CON}, {@link Type#NON},
 	 * {@link Type#ACK} or {@link Type#RST}). If no type has been defined, the
@@ -147,7 +150,7 @@ public abstract class Message {
 	public Type getType() {
 		return type;
 	}
-	
+
 	/**
 	 * Sets the CoAP message type.
 	 * Provides a fluent API to chain setters.
@@ -159,7 +162,7 @@ public abstract class Message {
 		this.type = type;
 		return this;
 	}
-	
+
 	/**
 	 * Checks if this message is confirmable.
 	 *
@@ -168,7 +171,7 @@ public abstract class Message {
 	public boolean isConfirmable() {
 		return getType()==Type.CON;
 	}
-	
+
 	/**
 	 * Chooses between confirmable and non-confirmable message.
 	 * Pass true for CON, false for NON.
@@ -178,9 +181,16 @@ public abstract class Message {
 	 * @return this Message
 	 */
 	public Message setConfirmable(boolean con) {
-		setType(con?Type.CON:Type.NON);
+		setType(con ? Type.CON : Type.NON);
 		return this;
 	}
+
+	/**
+	 * Gets the raw integer value of this message's <em>code</em>.
+	 * 
+	 * @return the code value.
+	 */
+	public abstract int getRawCode();
 
 	/**
 	 * Gets the 16-bit message identification.
@@ -204,17 +214,25 @@ public abstract class Message {
 		this.mid = mid;
 		return this;
 	}
-	
+
+	/**
+	 * Clears this message's MID.
+	 */
 	public void removeMID() {
 		setMID(NONE);
 	}
-	
+
+	/**
+	 * Checks whether this message has a non-zero length token.
+	 * 
+	 * @return {@code true} if this message has a token of a non-zero length
+	 */
 	public boolean hasEmptyToken() {
 		return token == null || token.length == 0;
 	}
 
 	/**
-	 * Gets the 0--8 byte token.
+	 * Gets this message's 0- -8 byte token.
 	 *
 	 * @return the token
 	 */
@@ -228,9 +246,7 @@ public abstract class Message {
 	 * @return the token as string
 	 */
 	public String getTokenString() {
-		StringBuffer tok = new StringBuffer(getToken()==null?"null":"");
-		if (getToken()!=null) for(byte b:getToken()) tok.append(String.format("%02x", b&0xff));
-		return tok.toString();
+		return Utils.toHexString(getToken());
 	}
 
 	/**
@@ -241,12 +257,13 @@ public abstract class Message {
 	 * @return this Message
 	 */
 	public Message setToken(byte[] token) {
-		if (token != null && token.length > 8)
+		if (token != null && token.length > 8) {
 			throw new IllegalArgumentException("Token length must be between 0 and 8 inclusive");
+		}
 		this.token = token;
 		return this;
 	}
-	
+
 	/**
 	 * Gets the set of options. If no set has been defined yet, it creates a new
 	 * one. EmptyMessages should not have any options.
@@ -254,11 +271,12 @@ public abstract class Message {
 	 * @return the options
 	 */
 	public OptionSet getOptions() {
-		if (options == null)
+		if (options == null) {
 			options = new OptionSet();
+		}
 		return options;
 	}
-	
+
 	/**
 	 * Sets the set of options. This function makes a defensive copy of the
 	 * specified set of options.
@@ -271,7 +289,7 @@ public abstract class Message {
 		this.options = new OptionSet(options);
 		return this;
 	}
-	
+
 	/**
 	 * Gets the size (amount of bytes) of the payload. Be aware that this might
 	 * differ from the payload string length due to the UTF-8 encoding.
@@ -281,7 +299,7 @@ public abstract class Message {
 	public int getPayloadSize() {
 		return payload == null ? 0 : payload.length;
 	}
-	
+
 	/**
 	 * Gets the raw payload.
 	 *
@@ -290,7 +308,7 @@ public abstract class Message {
 	public byte[] getPayload() {
 		return payload;
 	}
-	
+
 	/**
 	 * Gets the payload in the form of a string. Returns an empty string if no
 	 * payload is defined.
@@ -302,12 +320,14 @@ public abstract class Message {
 			return "";
 		return new String(payload, CoAP.UTF8_CHARSET);
 	}
-	
-	public String getPayloadTracingString() {
-		if (null == payload || 0 == payload.length)
+
+	protected String getPayloadTracingString() {
+
+		if (null == payload || 0 == payload.length) {
 			return "no payload";
+		}
 		boolean text = true;
-		for (byte b:payload) {
+		for (byte b : payload) {
 			if (' ' > b) {
 				switch(b) {
 				case '\t':
@@ -336,7 +356,7 @@ public abstract class Message {
 		}
 		return Utils.toHexText(payload, 256);
 	}
-	
+
 	/**
 	 * Sets the UTF-8 bytes from the specified string as payload.
 	 * Provides a fluent API to chain setters.
@@ -352,7 +372,7 @@ public abstract class Message {
 		}
 		return this;
 	}
-	
+
 	/**
 	 * Sets the payload.
 	 * Provides a fluent API to chain setters.
@@ -444,7 +464,7 @@ public abstract class Message {
 	public void setSourcePort(int sourcePort) {
 		this.sourcePort = sourcePort;
 	}
-	
+
 	/**
 	 * Checks if is this message has been acknowledged.
 	 *
@@ -489,7 +509,6 @@ public abstract class Message {
 				handler.onReject();
 	}
 
-	
 	/**
 	 * Checks if this message has timed out. Confirmable messages in particular
 	 * might timeout.
@@ -499,22 +518,22 @@ public abstract class Message {
 	public boolean isTimedOut() {
 		return timedOut;
 	}
-	
+
 	/**
 	 * Marks this message as timed out. Confirmable messages in particular might
-	 * timeout.
+	 * time out.
 	 * 
-	 * @param timedOut true if timed out
+	 * @param timedOut {@code true} if timed out
 	 */
-	public void setTimedOut(boolean timedOut) {
+	public void setTimedOut(final boolean timedOut) {
 		this.timedOut = timedOut;
 		if (timedOut) {
-			for (MessageObserver handler:getMessageObservers()) {
-				handler.onTimeout();
+			for (MessageObserver observer : getMessageObservers()) {
+				observer.onTimeout();
 			}
 		}
 	}
-	
+
 	/**
 	 * Checks if this message has been canceled.
 	 * 
@@ -532,11 +551,13 @@ public abstract class Message {
 	 */
 	public void setCanceled(boolean canceled) {
 		this.canceled = canceled;
-		if (canceled)
-			for (MessageObserver handler:getMessageObservers())
+		if (canceled) {
+			for (MessageObserver handler:getMessageObservers()) {
 				handler.onCancel();
+			}
+		}
 	}
-	
+
 	/**
 	 * Checks if this message is a duplicate.
 	 *
@@ -576,6 +597,17 @@ public abstract class Message {
 	}
 
 	/**
+	 * Checks whether a given block offset falls into this message's payload.
+	 * 
+	 * @param block2 The offset of the block.
+	 * @return {@code true} if this message has a payload and its size is &gt; the offset.
+	 */
+	public boolean hasBlock(final BlockOption block2) {
+
+		return 0 < getPayloadSize() && block2.getOffset() < getPayloadSize();
+	}
+
+	/**
 	 * Gets the timestamp.
 	 *
 	 * @return the timestamp
@@ -602,73 +634,88 @@ public abstract class Message {
 	public void cancel() {
 		setCanceled(true);
 	}
-	
+
+	/**
+	 * Notifies all registered {@code MessageObserver}s that this message
+	 * is about to be re-transmitted.
+	 */
 	public void retransmitting() {
-			for (MessageObserver handler:getMessageObservers()) {
-				try {
-					// guard against faulty MessageObservers
-					handler.onRetransmission();
-				} catch (Exception e) {
-					LOGGER.log(Level.SEVERE, "Faulty MessageObserver for retransmitting events.", e);
-				}
+		for (MessageObserver observer : getMessageObservers()) {
+			try {
+				// guard against faulty MessageObservers
+				observer.onRetransmission();
+			} catch (Exception e) {
+				LOGGER.log(Level.SEVERE, "Faulty MessageObserver for retransmitting events.", e);
 			}
+		}
 	}
-	
-    /**
-	 * Returns an {@link Iterable} over the elements in this list in proper
-	 * sequence.
-	 * <p>
-	 * The returned iterable provides an iterator over all
-	 * {@link MessageObserver} registered with this message. No synchronization
-	 * is needed while traversing the iterator. The method never returns null.
-	 * The iterator does <em>NOT</em> support the <tt>remove</tt> method.
+
+	/**
+	 * Returns the observers registered for this message.
 	 * 
-	 * @return an iterable of all {@link MessageObserver} of this message
+	 * @return an immutable list of the registered observers.
 	 */
 	public List<MessageObserver> getMessageObservers() {
-		List<MessageObserver> handlers = this.handlers;
-		if (handlers == null)
+		if (messageObservers == null) {
 			return Collections.emptyList();
-		else
-			return handlers;
+		} else {
+			return Collections.unmodifiableList(messageObservers);
+		}
 	}
 
 	/**
 	 * Adds the specified message observer.
 	 *
 	 * @param observer the observer
+	 * @throws NullPointerException if the observer is {@code null}.
 	 */
-	public void addMessageObserver(MessageObserver observer) {
-		if (observer == null)
+	public void addMessageObserver(final MessageObserver observer) {
+		if (observer == null) {
 			throw new NullPointerException();
-		if (handlers == null)
-			createMessageObserver();
-		handlers.add(observer);
+		} else if (messageObservers == null) {
+			initMessageObserverList();
+		}
+		messageObservers.add(observer);
 	}
-	
+
+	/**
+	 * Appends a list of observers to this message's existing observers.
+	 *
+	 * @param observers the observers to add
+	 * @throws NullPointerException if the list is {@code null}.
+	 */
+	public void addMessageObservers(final List<MessageObserver> observers) {
+		if (observers == null) {
+			throw new NullPointerException();
+		} else if (messageObservers == null) {
+			initMessageObserverList();
+		}
+		messageObservers.addAll(observers);
+	}
+
 	/**
 	 * Removes the specified message observer.
 	 *
 	 * @param observer the observer
+	 * @throws NullPointerException if the observer is {@code null}.
 	 */
-	public void removeMessageObserver(MessageObserver observer) {
-		if (observer == null)
+	public void removeMessageObserver(final MessageObserver observer) {
+		if (observer == null) {
 			throw new NullPointerException();
-		if (handlers == null) return;
-		handlers.remove(observer);
-	}
-	
-	/**
-	 * Create a new list of {@link MessageObserver} if not already defined. This
-	 * method is thread-safe and creates exactly one list.
-	 */
-	private void createMessageObserver() {
-		if (handlers == null) {
-			synchronized (this) {
-				if (handlers == null) 
-					handlers = new CopyOnWriteArrayList<MessageObserver>();
-			}
+		} else if (messageObservers != null) {
+			messageObservers.remove(observer);
 		}
 	}
 
+	/**
+	 * Creates a new list of {@link MessageObserver} if not already defined. This
+	 * method is thread-safe and creates exactly one list.
+	 */
+	private void initMessageObserverList() {
+		synchronized (this) {
+			if (messageObservers == null) {
+				messageObservers = new CopyOnWriteArrayList<MessageObserver>();
+			}
+		}
+	}
 }

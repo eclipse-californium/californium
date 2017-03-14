@@ -28,20 +28,24 @@ import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 
 /**
- * Response represents a CoAP response to a CoAP request. A response is either a
- * piggy-backed response with type ACK or a separate response with type CON or
- * NON. A response has a response code ({@link CoAP.ResponseCode}).
+ * Response represents a CoAP response to a CoAP request.
+ * <p>
+ * A response is either a <em>piggy-backed</em> response of type {@code ACK} or
+ * a <em>separate</em> response of type {@code CON} or {@code NON}.
+ * Each response carries a ({@link CoAP.ResponseCode}) indicating the outcome
+ * of the request it is the response for.
+ * 
  * @see Request
  */
 public class Response extends Message {
 
 	/** The response code. */
 	private final CoAP.ResponseCode code;
-	
+
 	private long rtt;
 
 	private boolean last = true;
-	
+
 	/**
 	 * Creates a response to the specified request with the specified response
 	 * code. The destination address of the response is the source address of
@@ -61,7 +65,7 @@ public class Response extends Message {
 		response.setDestinationPort(request.getSourcePort());
 		return response;
 	}
-	
+
 	/**
 	 * Instantiates a new response with the specified response code.
 	 *
@@ -79,23 +83,31 @@ public class Response extends Message {
 	public CoAP.ResponseCode getCode() {
 		return code;
 	}
-	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
+	@Override
+	public int getRawCode() {
+		return code.value;
+	}
+
 	@Override
 	public String toString() {
 		String payload = getPayloadTracingString();
 		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
 	}
-	
+
+	/**
+	 * Checks whether this is the last response expected for the exchange it is part of.
+	 * 
+	 * @return {@code true} if this is the last expected response.
+	 */
 	public boolean isLast() {
 		return last;
 	}
 
 	/**
-	 * Defines whether this response is the last response of an exchange. If
-	 * this is only a block or a notification, the response might not be the
+	 * Defines whether this response is the last response of an exchange.
+	 * <p>
+	 * If this is only a block or a notification, the response might not be the
 	 * last one.
 	 * 
 	 * @param last if this is the last response of an exchange
@@ -112,7 +124,50 @@ public class Response extends Message {
 		this.rtt = rtt;
 	}
 
+	/**
+	 * Checks whether this response is a notification for
+	 * an observed resource.
+	 * 
+	 * @return {@code true} if this response has the observe option set.
+	 */
 	public boolean isNotification() {
 		return getOptions().hasObserve();
+	}
+
+	/**
+	 * Checks whether this response has either a <em>block1</em> or
+	 * <em>block2</em> option.
+	 * 
+	 * @return {@code true} if this response has a block option.
+	 */
+	public boolean hasBlockOption() {
+		return getOptions().hasBlock1() || getOptions().hasBlock2();
+	}
+
+	/**
+	 * Checks whether this response's code indicates an error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates an error.
+	 */
+	public final boolean isError() {
+		return isClientError() || isServerError();
+	}
+
+	/**
+	 * Checks whether this response's code indicates a client error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates a client error.
+	 */
+	public final boolean isClientError() {
+		return ResponseCode.isClientError(code);
+	}
+
+	/**
+	 * Checks whether this response's code indicates a server error.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates a server error.
+	 */
+	public final boolean isServerError() {
+		return ResponseCode.isServerError(code);
 	}
 }

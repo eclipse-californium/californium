@@ -17,24 +17,51 @@ package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.scandium.util.ServerNames;
+
 /**
  * A storage for pre-shared-key identity.
  */
 public interface PskStore {
-    
-    /**
-     * Get the key for a given identity.
-     * @param identity the identity to authenticate
-     * @return the key or <code>null</code> if not found
-     */
-    byte[] getKey(String identity);
-    
-    /**
-     * Get Identity for a peer address, this is used 
-     * when we need to initiate the connection. 
-     * In this case we need to know the identity to use for the given peer
-     * @param inetAddress address of the peer we want to connect to
-     * @return The identity of peer or <code>null</code> if not found
-     */
-    String getIdentity(InetSocketAddress inetAddress);
+
+	/**
+	 * Gets the shared key for a given identity.
+	 * <p>
+	 * The key is used for mutual authentication during a DTLS handshake.
+	 * 
+	 * @param identity The identity to look up the key for.
+	 * @return The key or <code>null</code> if the given identity is unknown.
+	 * @throws NullPointerException if identity is {@code null}.
+	 */
+	byte[] getKey(String identity);
+
+	/**
+	 * Gets the shared key for a given identity.
+	 * <p>
+	 * The key is used for mutual authentication during a DTLS handshake.
+	 * 
+	 * @param serverNames The names of servers the client provided as part of
+	 *            the <em>Server Name Indication</em> hello extension during the
+	 *            DTLS handshake. The key returned for the given identity is
+	 *            being looked up in the context of these server names.
+	 * @param identity The identity to look up the key for.
+	 * @return The key or <code>null</code> if the given identity is unknown.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 */
+	byte[] getKey(ServerNames serverNames, String identity);
+
+	/**
+	 * Gets the Identity to use for a PSK based handshake with a given peer.
+	 * <p>
+	 * A DTLS client uses this method to determine the identity to include in
+	 * its <em>CLIENT_KEY_EXCHANGE</em> message during a PSK based DTLS
+	 * handshake with the peer.
+	 * 
+	 * @param inetAddress The IP address of the peer to perform the handshake
+	 *            with.
+	 * @return The identity to use or <code>null</code> if no peer with the
+	 *         given address is registered.
+	 * @throws NullPointerException if address is {@code null}.
+	 */
+	String getIdentity(InetSocketAddress inetAddress);
 }

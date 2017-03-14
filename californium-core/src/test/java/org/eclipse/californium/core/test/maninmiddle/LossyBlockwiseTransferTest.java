@@ -19,14 +19,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
+import static org.eclipse.californium.TestTools.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertThat;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import org.junit.Assert;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -46,137 +51,102 @@ import org.junit.experimental.categories.Category;
 @Category(Large.class)
 public class LossyBlockwiseTransferTest {
 
-	private static boolean RANDOM_PAYLOAD_GENERATION = true;
-	
 	private CoapServer server;
-	private Endpoint client;
+	private Endpoint clientEndpoint;
 	private ManInTheMiddle middle;
-	
+
 	private int clientPort;
 	private int serverPort;
+	private InetAddress middleAddress;
 	private int middlePort;
-	
-	private TestResource testResource;
+
 	private String respPayload;
-	private String reqtPayload;
-	
+	private Random rand = new Random();
+
 	@Before
-	public void setupServer() throws Exception {
-		System.out.println("\nStart "+getClass().getSimpleName());
-		
-		NetworkConfig config = new NetworkConfig()
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+	public void setupEndpoints() throws Exception {
+
+		System.out.println(System.lineSeparator() + "Start" + getClass().getSimpleName());
+
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 300)
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
-		
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
-		client.start();
-		
-		server = new CoapServer(config, 0);
-		testResource = new TestResource("test");
-		server.add(testResource);
+
+		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		clientEndpoint.start();
+
+		Endpoint serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		server = new CoapServer();
+		server.addEndpoint(serverEndpoint);
+		server.add(new CoapResource("test") {
+
+			@Override
+			public void handleGET(final CoapExchange exchange) {
+				exchange.respond(ResponseCode.CONTENT, respPayload);
+			}
+		});
 		server.start();
 
-		clientPort = client.getAddress().getPort();
-		serverPort = server.getEndpoints().get(0).getAddress().getPort();
-		middle = new ManInTheMiddle(clientPort, serverPort);
+		clientPort = clientEndpoint.getAddress().getPort();
+		serverPort = serverEndpoint.getAddress().getPort();
+		middleAddress = InetAddress.getLoopbackAddress();
+		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort);
 		middlePort = middle.getPort();
-		
-		System.out.println("Client at "+clientPort+", middle at "+middlePort+", server at "+serverPort);
+
+		System.out.println(
+				String.format(
+						"client at %s:%d, middle at %s:%d, server at %s:%d",
+						clientEndpoint.getAddress().getHostString(), clientPort,
+						middleAddress.getHostAddress(), middlePort,
+						serverEndpoint.getAddress().getHostString(), serverPort));
 	}
-	
+
 	@After
 	public void shutdownServer() {
 		System.out.println();
 		server.destroy();
-		client.destroy();
-		System.out.println("End "+getClass().getSimpleName());
+		clientEndpoint.destroy();
+		System.out.printf("End %s", getClass().getSimpleName());
 	}
-	
+
 	@Test
-	public void test() throws Throwable {
-		try {
-			
-			String uri = "coap://localhost:" + middlePort + "/test";
-			reqtPayload = "";
-			respPayload = generatePayload(250);
-			
-			System.out.println("uri: "+uri);
+	public void testBlockwiseTransferToleratesLostMessages() throws Exception {
 
-			CoapClient coapclient = new CoapClient(uri);
-			coapclient.setTimeout(5000);
-			coapclient.setEndpoint(client);
-			
-			middle.drop(5,6,8,9,15);
-			
-			String resp = coapclient.get().getResponseText();
-			Assert.assertEquals(respPayload, resp);
-			System.out.println("Received " + resp.length() + " bytes");
+		String uri = getUri(new InetSocketAddress(middleAddress, middlePort), "test");
+		respPayload = generateRandomPayload(250);
 
-			Random rand = new Random();
-			
-			for (int i=0;i<5;i++) {
-				int[] numbers = new int[10];
-				for (int j=0;j<numbers.length;j++)
-					numbers[j] = rand.nextInt(16);
-				
-				middle.reset();
-				middle.drop(numbers);
-				
-				resp = coapclient.get().getResponseText();
-				Assert.assertEquals(respPayload, resp);
-				System.out.println("Received " + resp.length() + " bytes");
-				
+		CoapClient coapclient = new CoapClient(uri);
+		coapclient.setTimeout(10000);
+		coapclient.setEndpoint(clientEndpoint);
+
+		middle.drop(5, 6, 8, 9, 15);
+
+		getResourceAndAssertPayload(coapclient, respPayload);
+
+		for (int i = 0; i < 5; i++) {
+			int[] numbers = new int[10];
+			for (int j = 0; j < numbers.length; j++) {
+				numbers[j] = rand.nextInt(16);
 			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw e;
-		} catch (Throwable t) {
-			System.err.println(t);
-			throw t;
+			middle.reset();
+			middle.drop(numbers);
+
+			getResourceAndAssertPayload(coapclient, respPayload);
 		}
 	}
-	
-	private static String generatePayload(int length) {
-		StringBuffer buffer = new StringBuffer();
-		if (RANDOM_PAYLOAD_GENERATION) {
-			Random rand = new Random();
-			while(buffer.length() < length) {
-				buffer.append(rand.nextInt());
-			}
-		} else { // Deterministic payload
-			int n = 1;
-			while(buffer.length() < length) {
-				buffer.append(n++);
-			}
-		}
-		return buffer.substring(0, length);
-	}
-	
-	// All tests are made with this resource
-	private class TestResource extends CoapResource {
-		
-		public TestResource(String name) { 
-			super(name);
-		}
-		
-		public void handleGET(CoapExchange exchange) {
-			exchange.respond(ResponseCode.CONTENT, respPayload);
-		}
-		
-		public void handlePUT(CoapExchange exchange) {
-			System.out.println("Server has received request payload: "+exchange.getRequestText());
-			Assert.assertEquals(reqtPayload, exchange.getRequestText());
-			exchange.respond(ResponseCode.CHANGED, respPayload);
-		}
-		
-		public void handlePOST(CoapExchange exchange) {
-			System.out.println("Server has received request payload: "+exchange.getRequestText());
-			Assert.assertEquals(reqtPayload, exchange.getRequestText());
-			exchange.respond(ResponseCode.CHANGED, respPayload);
-		}
+
+	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) {
+
+		System.out.println(String.format("doing a blockwise GET on: %s", client.getURI()));
+
+		long start = System.currentTimeMillis();
+		CoapResponse response = client.get();
+		long end = System.currentTimeMillis();
+		assertThat("Blockwise GET timed out after " + (end - start) + "ms", response, is(notNullValue()));
+		System.out.println(String.format("Received %d bytes after %dms", response.getPayload().length, end - start));
+		assertThat("Did not receive expected resource body", response.getResponseText(), is(expectedPayload));
 	}
 }

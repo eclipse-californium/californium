@@ -26,8 +26,8 @@ import java.util.List;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**

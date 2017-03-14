@@ -1,6 +1,6 @@
 package org.eclipse.californium.core.test;
 
-import org.junit.Assert;
+import static org.eclipse.californium.TestTools.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -14,6 +14,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -22,7 +23,7 @@ import org.junit.experimental.categories.Category;
 public class RandomAccessBlockTest {
 
 	public static String TARGET = "test";
-	public static String RESPONSE_PAYLOAD = "123456789_123456789_123456789_1234567890";
+	public static String RESPONSE_PAYLOAD = generateRandomPayload(40);
 
 	private InetSocketAddress serverAddress;
 	private CoapServer server;
@@ -33,7 +34,12 @@ public class RandomAccessBlockTest {
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
-		server.add(new TestResource(TARGET));
+		server.add(new CoapResource(TARGET) {
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(RESPONSE_PAYLOAD);
+			}
+		});
 		server.start();
 		serverAddress = endpoint.getAddress();
 	}
@@ -50,7 +56,7 @@ public class RandomAccessBlockTest {
 		// know if the user attempts to just retrieve block 0 or if he wants to
 		// do early block negotiation with a specific size but actually wants to
 		// retrieve all blocks.
-		
+
 		int[] blockOrder = {2,1,3};
 		String[] expectations = {
 				RESPONSE_PAYLOAD.substring(32 /* until the end */),
@@ -58,7 +64,7 @@ public class RandomAccessBlockTest {
 				"" // block is out of bounds
 		};
 
-		String uri = String.format("coap://%s:%d/%s", serverAddress.getAddress().getHostAddress(), serverAddress.getPort(), TARGET);
+		String uri = getUri(serverAddress, TARGET);
 		for (int i = 0; i < blockOrder.length; i++) {
 			int num = blockOrder[i];
 			System.out.println("Request block number " + num);
@@ -74,18 +80,6 @@ public class RandomAccessBlockTest {
 			Assert.assertTrue(response.getOptions().hasBlock2());
 			Assert.assertEquals(num, response.getOptions().getBlock2().getNum());
 			Assert.assertEquals(szx, response.getOptions().getBlock2().getSzx());
-		}
-	}
-
-	private class TestResource extends CoapResource {
-
-		public TestResource(String name) {
-			super(name);
-		}
-
-		@Override
-		public void handleGET(CoapExchange exchange) {
-			exchange.respond(RESPONSE_PAYLOAD);
 		}
 	}
 }

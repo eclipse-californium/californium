@@ -1,30 +1,28 @@
-Californium (Cf) CoAP framework
-===============================
+![Californium logo](californium-180.png)
 
-Implements [RFC7252](http://tools.ietf.org/html/rfc7252)
-
-Californium is a Java CoAP implementation for IoT Cloud services.
-Thus, the focus is on scalability and usability instead of resource-efficiency
+Eclipse Californium is a Java implementation of [RFC7252 - Constrained Application Protocol](http://tools.ietf.org/html/rfc7252) for IoT Cloud services. Thus, the focus is on scalability and usability instead of resource-efficiency
 like for embedded devices. Yet Californium is also suitable for embedded JVMs.
 
 More information can be found at
 [http://www.eclipse.org/californium/](http://www.eclipse.org/californium/)
 and [http://coap.technology/](http://coap.technology/).
 
-Contact
--------
+# Build using Maven
 
-A bug, an idea, an issue? Join the [Mailing list](https://dev.eclipse.org/mailman/listinfo/cf-dev)
-Maven
------
+You need to have a working maven installation to build Californium.
+Then simply run the following from the project's root directory:
 
-Use `mvn clean install` in the Cf root directory to build everything.
-Executable JARs of the examples with all dependencies are copied to ./run/.
+```sh
+$ mvn clean install
+```
 
-### Californium in Maven Project
+Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-To use Californium as library in your projects, add the following dependencies
-and Maven repository to your pom.xml (without the dots):
+# Using Californium in Maven Projects
+
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Ccalifornium).
+To use the latest released version as a library in your projects, add the following dependency
+to your `pom.xml` (without the dots):
 
 ```xml
   <dependencies>
@@ -32,11 +30,22 @@ and Maven repository to your pom.xml (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.4</version>
     </dependency>
     ...
   </dependencies>
   ...
+```
+
+If you want to give the most recent milestone a try, use version `2.0.0-M2` instead.
+
+##### Current Master Builds
+
+You can also be bold and try out the most recent build from `master`.
+However, we are not publishing those to Maven Central but to Californium's project repository at Eclipse only.
+You will therefore need to add the Eclipse Repository to your `pom.xml` first:
+
+```
   <repositories>
     ...
     <repository>
@@ -47,33 +56,39 @@ and Maven repository to your pom.xml (without the dots):
     ...
   </repositories>
 ```
+You can then simply depend on `1.1.0-SNAPHOT`.
+ 
+# Eclipse
 
-Eclipse
--------
+The project can be easily imported into a recent version of the Eclipse IDE.
+Make sure to have the following before importing the Californium (Cf) projects:
 
-The project also includes the project files for Eclipse. Make sure to have the
-following before importing the Californium (Cf) projects:
-
-* [Eclipse EGit](http://www.eclipse.org/egit/)
-* [m2e - Maven Integration for Eclipse](http://www.eclipse.org/m2e/)
+* [Eclipse EGit](http://www.eclipse.org/egit/) (should be the case with every recent Eclipse version)
+* [m2e - Maven Integration for Eclipse](http://www.eclipse.org/m2e/) (should be the case with every recent Eclipse version)
 * UTF-8 workspace text file encoding (Preferences &raquo; General &raquo; Workspace)
 
-Then choose *[Import... &raquo; Git &raquo; Projects from Git &raquo; Local]*
-to import `californium` into Eclipse.
+Then choose *[Import... &raquo; Maven &raquo; Existing Maven Projects]* to import `californium` into Eclipse.
 
-### Without Any Maven Support
+# IntelliJ
 
-In case you are using plain Eclipse projects without Maven, you also need to
-clone and import the [element-connector](https://github.com/eclipse/californium.element-connector).
-Add this project to Properties &raquo; Java Build Path &raquo; Projects.
+The project can also be imported to IntelliJ as follows:
 
-Interop Server
---------------
+In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the cloned repository in your filesystem. IntelliJ will then automatically import all projects and resolve required Maven dependencies.
+
+# Interop Server
 
 A test server is running at [coap://iot.eclipse.org:5683/](coap://iot.eclipse.org:5683/).
 The root resource responds with its current version.
 
 Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).
-More information
-can be found at [http://coap.me/](http://coap.me/).
+More information can be found at [http://coap.me/](http://coap.me/).
+
+# Contact
+
+A bug, an idea, an issue? Join the [Mailing list](https://dev.eclipse.org/mailman/listinfo/cf-dev)
+or create an issue here on GitHub.
+
+# Contributing
+
+Please check out our [contribution guidelines](CONTRIBUTING.md)

@@ -49,31 +49,31 @@ public class CoapClient {
 
 	/** The logger. */
 	private static final Logger LOGGER = Logger.getLogger(CoapClient.class.getCanonicalName());
-	
+
 	/** The timeout. */
-	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.ACK_TIMEOUT);
-	
+	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+
 	/** The destination URI */
 	private String uri;
-	
+
 	/** The type used for requests (CON is default) */
 	private Type type = Type.CON;
-	
+
 	private int blockwise = 0;
-	
+
 	/** The client-specific executor service. */
 	private ExecutorService executor;
-	
+
 	/** The endpoint. */
 	private Endpoint endpoint;
-	
+
 	/**
 	 * Constructs a new CoapClient that has no destination URI yet.
 	 */
 	public CoapClient() {
 		this("");
 	}
-	
+
 	/**
 	 * Constructs a new CoapClient that sends requests to the specified URI.
 	 *
@@ -110,20 +110,35 @@ public class CoapClient {
 	}
 	
 	/**
-	 * Gets the timeout.
-	 *
-	 * @return the timeout
+	 * Gets the maximum amount of time that synchronous method calls will block and wait.
+	 * <p>
+	 * The default value of this property is read from configuration property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
+	 * 
+	 * @return The timeout in milliseconds.
 	 */
 	public long getTimeout() {
 		return timeout;
 	}
 	
 	/**
-	 * Sets the timeout how long synchronous method calls will wait until they
-	 * give up and return anyways. The value 0 is equal to infinity.
-	 *
-	 * @param timeout the timeout
-	 * @return the CoAP client
+	 * Sets the maximum amount of time that synchronous method calls will block and wait.
+	 * Setting this property to 0 will result in methods waiting infinitely.
+	 * <p>
+	 * The default value of this property is read from configuration property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
+	 * <p>
+	 * Under normal circumstances this property should be set to at least the <em>EXCHANGE_LIFETIME</em>
+	 * (the default) in order to account for potential retransmissions of request and response messages.
+	 * <p>
+	 * When running over DTLS and the client is behind a NAT firewall, requests may frequently fail (run
+	 * into timeout) due to the fact that the client has been assigned a new IP address or port by the
+	 * firewall and the peer can no longer associate this client's address with the original DTLS session.
+	 * In such cases it might be worthwhile to set the value of this property to a smaller number so
+	 * that the timeout is detected sooner and a new session can be negotiated.
+	 * 
+	 * @param timeout The timeout in milliseconds.
+	 * @return This CoAP client for command chaining.
 	 */
 	public CoapClient setTimeout(long timeout) {
 		this.timeout = timeout;
@@ -292,7 +307,7 @@ public class CoapClient {
 	}
 	
 	public Set<WebLink> discover(String query) {
-		Request discover = Request.newGet();
+		Request discover = newGet();
 		discover.setURI(uri); // for scheme and authority, but then remove path and query
 		discover.getOptions().clearUriPath().clearUriQuery().setUriPath("/.well-known/core");
 		if (query!=null) {
@@ -321,7 +336,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse get() {
-		return synchronous(Request.newGet().setURI(uri));
+		return synchronous(newGet().setURI(uri));
 	}
 	
 	/**
@@ -332,7 +347,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse get(int accept) {
-		return synchronous(accept(Request.newGet().setURI(uri), accept));
+		return synchronous(accept(newGet().setURI(uri), accept));
 	}
 	
 	// Asynchronous GET
@@ -344,7 +359,7 @@ public class CoapClient {
 	 * @param handler the Response handler
 	 */
 	public void get(CoapHandler handler) {
-		asynchronous(Request.newGet().setURI(uri), handler);
+		asynchronous(newGet().setURI(uri), handler);
 	}
 	
 	/**
@@ -355,7 +370,7 @@ public class CoapClient {
 	 * @param accept the Accept option
 	 */
 	public void get(CoapHandler handler, int accept) {
-		asynchronous(accept(Request.newGet().setURI(uri), accept), handler);
+		asynchronous(accept(newGet().setURI(uri), accept), handler);
 	}
 	
 	// Synchronous POST
@@ -371,7 +386,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse post(String payload, int format) {
-		return synchronous(format(Request.newPost().setURI(uri).setPayload(payload), format));
+		return synchronous(format(newPost().setURI(uri).setPayload(payload), format));
 	}
 	
 	/**
@@ -385,7 +400,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse post(byte[] payload, int format) {
-		return synchronous(format(Request.newPost().setURI(uri).setPayload(payload), format));
+		return synchronous(format(newPost().setURI(uri).setPayload(payload), format));
 	}
 	
 	/**
@@ -402,7 +417,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse post(String payload, int format, int accept) {
-		return synchronous(accept(format(Request.newPost().setURI(uri).setPayload(payload), format), accept));
+		return synchronous(accept(format(newPost().setURI(uri).setPayload(payload), format), accept));
 	}
 	
 	/**
@@ -419,7 +434,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse post(byte[] payload, int format, int accept) {
-		return synchronous(accept(format(Request.newPost().setURI(uri).setPayload(payload), format), accept));
+		return synchronous(accept(format(newPost().setURI(uri).setPayload(payload), format), accept));
 	}
 	
 	// Asynchronous POST
@@ -433,7 +448,7 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 */
 	public void post(CoapHandler handler, String payload, int format) {
-		asynchronous(format(Request.newPost().setURI(uri).setPayload(payload), format), handler);
+		asynchronous(format(newPost().setURI(uri).setPayload(payload), format), handler);
 	}
 	
 	/**
@@ -445,7 +460,7 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 */
 	public void post(CoapHandler handler, byte[] payload, int format) {
-		asynchronous(format(Request.newPost().setURI(uri).setPayload(payload), format), handler);
+		asynchronous(format(newPost().setURI(uri).setPayload(payload), format), handler);
 	}
 	
 	/**
@@ -459,7 +474,7 @@ public class CoapClient {
 	 * @param accept the Accept option
 	 */
 	public void post(CoapHandler handler, String payload, int format, int accept) {
-		asynchronous(accept(format(Request.newPost().setURI(uri).setPayload(payload), format), accept), handler);
+		asynchronous(accept(format(newPost().setURI(uri).setPayload(payload), format), accept), handler);
 	}
 	
 	/**
@@ -473,7 +488,7 @@ public class CoapClient {
 	 * @param accept the Accept option
 	 */
 	public void post(CoapHandler handler, byte[] payload, int format, int accept) {
-		asynchronous(accept(format(Request.newPost().setURI(uri).setPayload(payload), format), accept), handler);
+		asynchronous(accept(format(newPost().setURI(uri).setPayload(payload), format), accept), handler);
 	}
 	
 	// Synchronous PUT
@@ -487,7 +502,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse put(String payload, int format) {
-		return synchronous(format(Request.newPut().setURI(uri).setPayload(payload), format));
+		return synchronous(format(newPut().setURI(uri).setPayload(payload), format));
 	}
 	
 	/**
@@ -499,7 +514,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse put(byte[] payload, int format) {
-		return synchronous(format(Request.newPut().setURI(uri).setPayload(payload), format));
+		return synchronous(format(newPut().setURI(uri).setPayload(payload), format));
 	}
 	
 	/**
@@ -512,7 +527,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse putIfMatch(String payload, int format, byte[] ... etags) {
-		return synchronous(ifMatch(format(Request.newPut().setURI(uri).setPayload(payload), format), etags));
+		return synchronous(ifMatch(format(newPut().setURI(uri).setPayload(payload), format), etags));
 	}
 	
 	/**
@@ -525,7 +540,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse putIfMatch(byte[] payload, int format, byte[] ... etags) {
-		return synchronous(ifMatch(format(Request.newPut().setURI(uri).setPayload(payload), format), etags));
+		return synchronous(ifMatch(format(newPut().setURI(uri).setPayload(payload), format), etags));
 	}
 	
 	/**
@@ -537,7 +552,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse putIfNoneMatch(String payload, int format) {
-		return synchronous(ifNoneMatch(format(Request.newPut().setURI(uri).setPayload(payload), format)));
+		return synchronous(ifNoneMatch(format(newPut().setURI(uri).setPayload(payload), format)));
 	}
 	
 	/**
@@ -549,7 +564,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse putIfNoneMatch(byte[] payload, int format) {
-		return synchronous(ifNoneMatch(format(Request.newPut().setURI(uri).setPayload(payload), format)));
+		return synchronous(ifNoneMatch(format(newPut().setURI(uri).setPayload(payload), format)));
 	}
 	
 	// Asynchronous PUT
@@ -563,7 +578,7 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 */
 	public void put(CoapHandler handler, String payload, int format) {
-		asynchronous(format(Request.newPut().setURI(uri).setPayload(payload), format), handler);
+		asynchronous(format(newPut().setURI(uri).setPayload(payload), format), handler);
 	}
 	
 	/**
@@ -575,7 +590,7 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 */
 	public void put(CoapHandler handler, byte[] payload, int format) {
-		asynchronous(format(Request.newPut().setURI(uri).setPayload(payload), format), handler);
+		asynchronous(format(newPut().setURI(uri).setPayload(payload), format), handler);
 	}
 
 	/**
@@ -586,7 +601,7 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 */
 	public void putIfMatch(CoapHandler handler, String payload, int format, byte[] ... etags) {
-		asynchronous(ifMatch(format(Request.newPut().setURI(uri).setPayload(payload), format), etags), handler);
+		asynchronous(ifMatch(format(newPut().setURI(uri).setPayload(payload), format), etags), handler);
 	}
 	
 	/**
@@ -597,7 +612,7 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 */
 	public void putIfMatch(CoapHandler handler, byte[] payload, int format, byte[] ... etags) {
-		asynchronous(ifMatch(format(Request.newPut().setURI(uri).setPayload(payload), format), etags), handler);
+		asynchronous(ifMatch(format(newPut().setURI(uri).setPayload(payload), format), etags), handler);
 	}
 
 	/**
@@ -607,7 +622,7 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 */
 	public void putIfNoneMatch(CoapHandler handler, byte[] payload, int format) {
-		asynchronous(ifNoneMatch(format(Request.newPut().setURI(uri).setPayload(payload), format)), handler);
+		asynchronous(ifNoneMatch(format(newPut().setURI(uri).setPayload(payload), format)), handler);
 	}
 	
 	// Synchronous DELETE
@@ -618,7 +633,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse delete() {
-		return synchronous(Request.newDelete().setURI(uri));
+		return synchronous(newDelete().setURI(uri));
 	}
 	
 	/**
@@ -628,17 +643,17 @@ public class CoapClient {
 	 * @param handler the response handler
 	 */
 	public void delete(CoapHandler handler) {
-		asynchronous(Request.newDelete().setURI(uri), handler);
+		asynchronous(newDelete().setURI(uri), handler);
 	}
 	
 	// ETag validation
 
 	public CoapResponse validate(byte[] ... etags) {
-		return synchronous(etags(Request.newGet().setURI(uri), etags));
+		return synchronous(etags(newGet().setURI(uri), etags));
 	}
 
 	public void validate(CoapHandler handler, byte[] ... etags) {
-		asynchronous(etags(Request.newGet().setURI(uri), etags), handler);
+		asynchronous(etags(newGet().setURI(uri), etags), handler);
 	}
 	
 	// Advanced requests
@@ -650,7 +665,7 @@ public class CoapClient {
 	 * @return the CoAP response
 	 */
 	public CoapResponse advanced(Request request) {
-		request.setURI(uri);
+		assignClientUriIfEmpty(request);
 		return synchronous(request);
 	}
 	
@@ -661,7 +676,7 @@ public class CoapClient {
 	 * @param request the custom request
 	 */
 	public void advanced(CoapHandler handler, Request request) {
-		request.setURI(uri);
+		assignClientUriIfEmpty(request);
 		asynchronous(request, handler);
 	}
 	
@@ -675,7 +690,7 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	public CoapObserveRelation observeAndWait(CoapHandler handler) {
-		Request request = Request.newGet().setURI(uri).setObserve();
+		Request request = newGet().setURI(uri).setObserve();
 		return observeAndWait(request, handler);
 	}
 	
@@ -689,7 +704,7 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	public CoapObserveRelation observeAndWait(CoapHandler handler, int accept) {
-		Request request = Request.newGet().setURI(uri).setObserve();
+		Request request = newGet().setURI(uri).setObserve();
 		request.getOptions().setAccept(accept);
 		return observeAndWait(request, handler);
 	}
@@ -704,7 +719,7 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	public CoapObserveRelation observe(CoapHandler handler) {
-		Request request = Request.newGet().setURI(uri).setObserve();
+		Request request = newGet().setURI(uri).setObserve();
 		return observe(request, handler);
 	}
 	
@@ -717,7 +732,7 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	public CoapObserveRelation observe(CoapHandler handler, int accept) {
-		Request request = Request.newGet().setURI(uri).setObserve();
+		Request request = newGet().setURI(uri).setObserve();
 		return observe(accept(request, accept), handler);
 	}
 	
@@ -764,8 +779,13 @@ public class CoapClient {
 	private CoapResponse synchronous(Request request, Endpoint outEndpoint) {
 		try {
 			Response response = send(request, outEndpoint).waitForResponse(getTimeout());
-			if (response == null) return null;
-			else return new CoapResponse(response);
+			if (response == null) {
+				// Cancel request so appropriate clean up can happen.
+				request.cancel();
+				return null;
+			} else {
+				return new CoapResponse(response);
+			}
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
@@ -778,7 +798,7 @@ public class CoapClient {
 	 * @param contentFormat the Content-Format
 	 * @return the request
 	 */
-	private Request format(Request request, int contentFormat) {
+	private static Request format(final Request request, final int contentFormat) {
 		request.getOptions().setContentFormat(contentFormat);
 		return request;
 	}
@@ -790,7 +810,7 @@ public class CoapClient {
 	 * @param accept the Accept option
 	 * @return the request
 	 */
-	private Request accept(Request request, int accept) {
+	private static Request accept(final Request request, final int accept) {
 		request.getOptions().setAccept(accept);
 		return request;
 	}
@@ -802,7 +822,7 @@ public class CoapClient {
 	 * @param etags the list of ETags
 	 * @return the request
 	 */
-	private Request etags(Request request, byte[] ... etags) {
+	private static Request etags(final Request request, final byte[] ... etags) {
 		for (byte[] etag : etags) {
 			request.getOptions().addETag(etag);
 		}
@@ -816,7 +836,7 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 * @return the request
 	 */
-	private Request ifMatch(Request request, byte[] ... etags) {
+	private static Request ifMatch(final Request request, final byte[] ... etags) {
 		for (byte[] etag : etags) {
 			request.getOptions().addIfMatch(etag);
 		}
@@ -830,44 +850,60 @@ public class CoapClient {
 	 * @param etags the ETags for the If-Match option
 	 * @return the request
 	 */
-	private Request ifNoneMatch(Request request) {
+	private static Request ifNoneMatch(final Request request) {
 		request.getOptions().setIfNoneMatch(true);
 		return request;
 	}
 	
-	/*
+	/**
 	 * Sends the specified observe request and waits for the response whereupon
 	 * the specified handler is invoked when a notification arrives.
 	 *
 	 * @param request the request
+	 * 
 	 * @param handler the Response handler
+	 * 
 	 * @return the CoAP observe relation
+	 * @throws IllegalArgumentException if the observe option is not set in the
+	 *             request
 	 */
-	private CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		CoapResponse response = synchronous(request, outEndpoint);
-		if (response == null || !response.advanced().getOptions().hasObserve())
-			relation.setCanceled(true);
-		relation.setCurrent(response);
-		return relation;
+	public CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			CoapResponse response = synchronous(request, outEndpoint);
+			if (response == null || !response.advanced().getOptions().hasObserve())
+				relation.setCanceled(true);
+			relation.setCurrent(response);
+			return relation;
+		} else {
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
+		}
 	}
 	
-	/*
+	/**
 	 * Sends the specified observe request and invokes the specified handler
 	 * each time a notification arrives.
 	 *
 	 * @param request the request
+	 * 
 	 * @param handler the Response handler
+	 * 
 	 * @return the CoAP observe relation
+	 * @throws IllegalArgumentException if the observe option is not set in the
+	 *             request
 	 */
-	private CoapObserveRelation observe(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		send(request, outEndpoint);
-		return relation;
+	public CoapObserveRelation observe(Request request, CoapHandler handler) {
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			send(request, outEndpoint);
+			return relation;
+		} else {
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
+		}
 	}
 	
 	/**
@@ -889,9 +925,6 @@ public class CoapClient {
 	 * @return the request
 	 */
 	protected Request send(Request request, Endpoint outEndpoint) {
-		// use the specified message type
-		request.setType(this.type);
-
 		if (blockwise!=0) {
 			request.getOptions().setBlock2(new BlockOption(BlockOption.size2Szx(this.blockwise), false, 0));
 		}
@@ -919,12 +952,78 @@ public class CoapClient {
 		if (CoAP.COAP_SECURE_URI_SCHEME.equals(request.getScheme())) {
 			// this is the case when secure coap is supposed to be used
 			return EndpointManager.getEndpointManager().getDefaultSecureEndpoint();
+		} else if (CoAP.COAP_TCP_URI_SCHEME.equals(request.getScheme())) {
+			// Running over TCP.
+			return EndpointManager.getEndpointManager().getDefaultTcpEndpoint();
+		} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equals(request.getScheme())) {
+			// Running over TLS.
+			return EndpointManager.getEndpointManager().getDefaultSecureTcpEndpoint();
 		} else {
 			// this is the normal case
 			return EndpointManager.getEndpointManager().getDefaultEndpoint();
 		}
 	}
+
+	/*
+	 * Create a GET request with a type specified in the client
+	 *
+	 * @return the request
+	 */
+	private Request newGet() {
+		return applyRequestType(Request.newGet());
+	}
+
+	/*
+	 * Create a POST request with a type specified in the client
+	 *
+	 * @return the request
+	 */
+	private Request newPost() {
+		return applyRequestType(Request.newPost());
+	}
+
+	/*
+	 * Create a PUT request with a type specified in the client
+	 *
+	 * @return the request
+	 */
+	private Request newPut() {
+		return applyRequestType(Request.newPut());
+	}
+
+	/*
+	 * Create a DELETE request with a type specified in the client
+	 *
+	 * @return the request
+	 */
+	private Request newDelete() {
+		return applyRequestType(Request.newDelete());
+	}
+
+	/*
+	 * Applies the CoapClient#type (managed by useNONs, useCONs) to the specified request.
+	 *
+	 *
+	 * @param request the request
+	 * @return the same request with changed type
+	 */
+	private Request applyRequestType(Request request) {
+		request.setType(this.type);
+		return request;
+	}
 	
+	/*
+	 * Assigns a CoapClient#uri if request has no uri.
+	 *
+	 * @param request the request
+	 */
+	private void assignClientUriIfEmpty(Request request) {
+		// request.getUri() is a computed getter and never returns null so checking destination
+		if (request.getDestination() == null) {
+			request.setURI(uri);
+		}
+	}
+
 	/**
 	 * The MessageObserverImpl is called when a response arrives. It wraps the
 	 * response into a CoapResponse and lets the executor invoke the handler's

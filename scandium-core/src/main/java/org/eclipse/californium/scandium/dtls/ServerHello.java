@@ -21,14 +21,14 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 
 
 /**
@@ -238,26 +238,56 @@ public final class ServerHello extends HandshakeMessage {
 		return 38 + sessionId.length() + extensionsLength;
 	}
 
+	/**
+	 * Gets the DTLS version the server is willing to use.
+	 * 
+	 * @return The DTLS version.
+	 */
 	public ProtocolVersion getServerVersion() {
 		return serverVersion;
 	}
 
+	/**
+	 * Gets the server's random value to use for generating the key material.
+	 * 
+	 * @return The random value.
+	 */
 	public Random getRandom() {
 		return random;
 	}
 
+	/**
+	 * Gets the identifier the server has created for the session being negotiated.
+	 * 
+	 * @return The session identifier.
+	 */
 	public SessionId getSessionId() {
 		return sessionId;
 	}
 
+	/**
+	 * Gets the cipher suite the server has chosen for the session being negotiated.
+	 * 
+	 * @return The cipher suite.
+	 */
 	public CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
+	/**
+	 * Gets the compression method the server has chosen for the session being negotiated.
+	 * 
+	 * @return The compression method.
+	 */
 	public CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
+	/**
+	 * Gets the server hello extensions the server has included in this message.
+	 * 
+	 * @return The extensions or {@code null} if no extensions are used.
+	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
 	}
@@ -312,6 +342,18 @@ public final class ServerHello extends HandshakeMessage {
 		} else {
 			return null;
 		}
+	}
+
+	/**
+	 * Checks whether <em>server_name</em> extension is present in this message.
+	 * <p>
+	 * During a handshake it is sufficient to check for the mere presence of the
+	 * extension because when included in a <em>SERVER_HELLO</em> the extension data will be empty.
+	 * 
+	 * @return {@code true} if the extension is present.
+	 */
+	boolean hasServerNameExtension() {
+		return extensions != null && extensions.getExtension(ExtensionType.SERVER_NAME) != null;
 	}
 
 	@Override

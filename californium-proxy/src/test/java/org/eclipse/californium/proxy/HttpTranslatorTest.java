@@ -19,6 +19,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -36,7 +37,7 @@ public class HttpTranslatorTest {
 		req.setPayload("payload");
 		req.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 
-		validateCharset(req, "ISO_8859_1");
+		validateCharset(req, StandardCharsets.ISO_8859_1);
 	}
 
 	@Test
@@ -47,13 +48,13 @@ public class HttpTranslatorTest {
 
 		// Charset should be modified to be ISO_8859_1 unless the contentFormat
 		// is APPLICATION_JSON, in which case it should stay UTF-8
-		validateCharset(req, "UTF-8");
+		validateCharset(req, StandardCharsets.UTF_8);
 	}
 
-	private void validateCharset(Message request, String charset) throws TranslationException {
+	private void validateCharset(Message request, Charset charset) throws TranslationException {
 		HttpEntity httpEntity = HttpTranslator.getHttpEntity(request);
 		Charset httpEntityCharset = ContentType.parse(httpEntity.getContentType().getValue()).getCharset();
 
-		assertThat(httpEntityCharset, equalTo(Charset.forName(charset)));
+		assertThat(httpEntityCharset, equalTo(charset));
 	}
 }

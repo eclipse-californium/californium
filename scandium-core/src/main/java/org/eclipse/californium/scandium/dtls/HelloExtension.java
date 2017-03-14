@@ -21,7 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 
 /**
@@ -60,7 +60,7 @@ public abstract class HelloExtension {
 
 	// Constructors ///////////////////////////////////////////////////
 
-	public HelloExtension(ExtensionType type) {
+	protected HelloExtension(final ExtensionType type) {
 		this.type = type;
 	}
 
@@ -77,6 +77,16 @@ public abstract class HelloExtension {
 
 	// Serialization //////////////////////////////////////////////////
 
+	/**
+	 * Serializes this extension to its byte representation as specified by its
+	 * respective RFC.
+	 * <p>
+	 * This method writes this extension's 2-byte code to the result array
+	 * and then hands the array over to the {@link #addExtensionData(DatagramWriter)}
+	 * method in order to add the encoded extension data.
+	 * 
+	 * @return The byte representation.
+	 */
 	public final byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 
@@ -91,12 +101,13 @@ public abstract class HelloExtension {
 	 * This implementation does not do anything. Sub-classes should
 	 * override this method and use the passed-in writer to add their
 	 * <em>extension_data</em> bytes to the <em>Extension</em> data structure.
+	 * <p>
+	 * <em>NB</em>: Subclasses MUST NOT write the extension's type code to the writer
+	 * as this will already have been done by the {@link #toByteArray()} method.
 	 * 
 	 * @param writer the writer to use for serialization
 	 */
-	protected void addExtensionData(DatagramWriter writer) {
-		// default is empty
-	}
+	protected abstract void addExtensionData(DatagramWriter writer);
 
 	/**
 	 * De-serializes a Client or Server Hello handshake message extension from its binary
@@ -137,6 +148,8 @@ public abstract class HelloExtension {
 				return ServerCertificateTypeExtension.fromExtensionData(extensionData);
 			case MAX_FRAGMENT_LENGTH:
 				return MaxFragmentLengthExtension.fromExtensionData(extensionData, peerAddress);
+			case SERVER_NAME:
+				return ServerNameExtension.fromExtensionData(extensionData, peerAddress);
 			default:
 				return null;
 			}
@@ -165,7 +178,7 @@ public abstract class HelloExtension {
 	 * >IANA</a> for a summary.
 	 */
 	public enum ExtensionType {
-		// See http://www.ietf.org/rfc/rfc3546
+		// See https://tools.ietf.org/html/rfc6066
 		SERVER_NAME(0, "server_name"),
 		MAX_FRAGMENT_LENGTH(1, "max_fragment_length"),
 		CLIENT_CERTIFICATE_URL(2, "client_certificate_url"),

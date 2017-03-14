@@ -25,7 +25,6 @@ import java.util.Random;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
@@ -42,7 +41,14 @@ public final class IntegrationTestTools {
 		// empty
 	}
 
-	public static LockstepEndpoint createLockstepEndpoint(InetSocketAddress destination) throws Exception {
+	/**
+	 * Creates an endpoint that can be used to <em>record</em> and <em>play back</em> expected behavior
+	 * when receiving certain messages.
+	 * 
+	 * @param destination The address to send messages to.
+	 * @return The created endpoint.
+	 */
+	public static LockstepEndpoint createLockstepEndpoint(final InetSocketAddress destination) {
 		LockstepEndpoint endpoint = new LockstepEndpoint();
 		endpoint.setDestination(destination);
 		return endpoint;
@@ -71,26 +77,9 @@ public final class IntegrationTestTools {
 		interceptor.clear();
 	}
 
-	public static void printServerLog(ServerBlockwiseInterceptor interceptor) {
+	public static void printServerLog(BlockwiseInterceptor interceptor) {
 		System.out.println(interceptor.toString());
 		interceptor.clear();
-	}
-
-	public static String generateRandomPayload(int length) {
-		StringBuffer buffer = new StringBuffer();
-		while(buffer.length() < length) {
-			buffer.append(RAND.nextInt());
-		}
-		return buffer.substring(0, length);
-	}
-
-	public static String generatePayload(int length) {
-		StringBuffer buffer = new StringBuffer();
-		int n = 1;
-		while(buffer.length() < length) {
-			buffer.append(n++);
-		}
-		return buffer.substring(0, length);
 	}
 
 	public static byte[] generateNextToken() {
@@ -99,8 +88,20 @@ public final class IntegrationTestTools {
 
 	private static byte[] b(int... is) {
 		byte[] bytes = new byte[is.length];
-		for (int i=0;i<bytes.length;i++)
+		for (int i=0; i < bytes.length; i++) {
 			bytes[i] = (byte) is[i];
+		}
 		return bytes;
 	}
+
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval) {
+		try {
+			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
+			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
+			Thread.sleep(timeToWait);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
 }

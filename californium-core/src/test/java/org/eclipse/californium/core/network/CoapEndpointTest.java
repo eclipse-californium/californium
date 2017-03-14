@@ -31,12 +31,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -60,6 +57,7 @@ public class CoapEndpointTest {
 	SimpleConnector connector;
 	List<Request> receivedRequests;
 	CountDownLatch latch;
+	CountDownLatch sentLatch;
 	CorrelationContext context;
 
 	@Before
@@ -68,6 +66,7 @@ public class CoapEndpointTest {
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
+		sentLatch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override
@@ -145,10 +144,31 @@ public class CoapEndpointTest {
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
 	}
 
+	@Test
+	public void testInboxImplRejectsMalformedRequest() throws Exception {
+
+		// GIVEN a request with missing payload
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				(byte) 0xFF // payload marker
+		};
+		RawData inboundMessage = RawData.inbound(malformedGetRequest, SOURCE_ADDRESS, null, null, false);
+
+		// WHEN the incoming message is processed by the Inbox
+		connector.receiveMessage(inboundMessage);
+
+		// THEN an RST message is sent back to the sender and the incoming message is not being delivered
+		assertTrue(sentLatch.await(2, TimeUnit.SECONDS));
+		assertTrue(receivedRequests.isEmpty());
+	}
+
 	private byte[] getSerializedRequest() {
-		Request request = new Request(Code.GET, Type.CON);
-		request.setToken(TOKEN);
-		return DataSerializer.serializeRequest(request);
+		return new byte[] { 0b01000011, // ver 1, CON, token length: 3
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				0x01, 0x02, 0x03 // three byte token
+		};
 	}
 
 	private class SimpleConnector implements Connector {
@@ -182,6 +202,7 @@ public class CoapEndpointTest {
 				msg.getMessageCallback().onContextEstablished(context);
 				latch.countDown();
 			}
+			sentLatch.countDown();
 		}
 
 		@Override

@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.network.Matcher;
@@ -44,8 +43,11 @@ public class DeduplicatorFactory {
 	 * Returns the installed deduplicator factory.
 	 * @return the deduplicator factory
 	 */
-	public static DeduplicatorFactory getDeduplicatorFactory() {
-		if (factory == null) factory = new DeduplicatorFactory();
+	public static synchronized DeduplicatorFactory getDeduplicatorFactory() {
+
+		if (factory == null) {
+			factory = new DeduplicatorFactory();
+		}
 		return factory;
 	}
 
@@ -53,24 +55,30 @@ public class DeduplicatorFactory {
 	 * Installs the specified deduplicator factory.
 	 * @param factory the factory
 	 */
-	public static void setDeduplicatorFactory(DeduplicatorFactory factory) {
+	public static synchronized void setDeduplicatorFactory(DeduplicatorFactory factory) {
 		DeduplicatorFactory.factory = factory;
 	}
 
 	/**
-	 * Creates a new deduplicator according to the specified configuration.
-	 * @param config the configuration
-	 * @return the deduplicator
+	 * Creates a new deduplicator based on the value of the
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#DEDUPLICATOR} configuration property.
+	 * 
+	 * @param config The configuration properties.
+	 * @return The deduplicator to use.
 	 */
-	public Deduplicator createDeduplicator(NetworkConfig config) {
-		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR);
-		if (NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP.equals(type)) return new SweepDeduplicator(config);
-		else if (NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION.equals(type)) return new CropRotation(config);
-		else if (NetworkConfig.Keys.NO_DEDUPLICATOR.equals(type)) return new NoDeduplicator();
-		else {
-			LOGGER.log(Level.WARNING, "Unknown deduplicator type: {0}", type);
+	public Deduplicator createDeduplicator(final NetworkConfig config) {
+
+		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR);
+		switch(type) {
+		case NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP:
+			return new SweepDeduplicator(config);
+		case NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION:
+			return new CropRotation(config);
+		case NetworkConfig.Keys.NO_DEDUPLICATOR:
+			return new NoDeduplicator();
+		default:
+			LOGGER.warning("configuration contains unsupported deduplicator type, duplicate detection will be turned off");
 			return new NoDeduplicator();
 		}
 	}
-
 }

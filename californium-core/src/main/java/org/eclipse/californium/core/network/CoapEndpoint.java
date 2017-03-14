@@ -24,14 +24,15 @@
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
@@ -49,9 +50,15 @@ import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliver
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
-import org.eclipse.californium.core.network.serialization.Serializer;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.TcpDataParser;
+import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.core.network.stack.CoapTcpStack;
+import org.eclipse.californium.core.network.stack.CoapUdpStack;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -61,7 +68,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
-
+import org.eclipse.californium.elements.tcp.TcpConnector;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -104,7 +111,7 @@ import org.eclipse.californium.elements.UDPConnector;
  * | +--------+-+--------+ |
  * |          v A          |
  * |          v A          |
- * |        {@link Matcher}        |
+ * |        {@link UdpMatcher}        |
  * |          v A          |
  * |   {@link MessageInterceptor}  |  
  * |          v A          |
@@ -137,6 +144,12 @@ public class CoapEndpoint implements Endpoint {
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private final Matcher matcher;
 
+	/** Serializer to convert messages to datagrams. */
+	private final DataSerializer serializer;
+
+	/** Parser to convert datagrams to messages. */
+	private final DataParser parser;
+
 	/** The executor to run tasks for this endpoint and its layers */
 	private ScheduledExecutorService executor;
 	
@@ -144,81 +157,126 @@ public class CoapEndpoint implements Endpoint {
 	private boolean started;
 	
 	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
-	private List<EndpointObserver> observers = new ArrayList<>(0);
+	private List<EndpointObserver> observers = new CopyOnWriteArrayList<>();
 	
 	/** The list of interceptors */
-	private List<MessageInterceptor> interceptors = new ArrayList<>(0);
+	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
+
+	private final MessageExchangeStore exchangeStore;
 
 	/**
-	 * Instantiates a new endpoint with an ephemeral port.
+	 * Creates a new <em>coap</em> endpoint using default configuration.
+	 * <p>
+	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
 	 */
 	public CoapEndpoint() {
 		this(0);
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified port
+	 * Creates a new <em>coap</em> endpoint using default configuration.
+	 * <p>
+	 * The endpoint will bind to all network interfaces.
 	 *
-	 * @param port the port
+	 * @param port The port to listen on.
 	 */
 	public CoapEndpoint(final int port) {
 		this(new InetSocketAddress(port));
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified address.
+	 * Creates a new <em>coap</em> endpoint using default configuration.
 	 *
-	 * @param address the address
+	 * @param address The IP address and port to bind to.
 	 */
 	public CoapEndpoint(final InetSocketAddress address) {
 		this(address, NetworkConfig.getStandard());
 	}
 
 	/**
-	 * Creates a new endpoint based on given network configuration parameters.
+	 * Creates a new <em>coap</em> endpoint for a configuration.
 	 * <p>
 	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 * </p>
 	 * 
-	 * @param config the configuration to use.
+	 * @param config The configuration values to use.
 	 */
 	public CoapEndpoint(final NetworkConfig config) {
 		this(new InetSocketAddress(0), config);
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified port and configuration.
+	 * Creates a new <em>coap</em> endpoint for a port and configuration.
+	 * <p>
+	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
 	 *
-	 * @param port the UDP port
-	 * @param config the network configuration
+	 * @param port The port to listen on.
+	 * @param config The configuration values to use.
 	 */
 	public CoapEndpoint(final int port, final NetworkConfig config) {
 		this(new InetSocketAddress(port), config);
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified address and configuration.
+	 * Creates a new <em>coap</em> endpoint for a configuration.
 	 *
-	 * @param address the address
-	 * @param config the network configuration
+	 * @param address The IP address and port to bind to.
+	 * @param config The configuration values to use.
 	 */
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(createUDPConnector(address, config), config);
+		this(address, config, null);
 	}
 
 	/**
-	 * Instantiates a new endpoint with the specified connector and
-	 * configuration.
+	 * Creates a new <em>coap</em> endpoint for a configuration and message exchange store.
+	 *
+	 * @param address The IP address and port to bind to.
+	 * @param config The configuration values to use.
+	 * @param exchangeStore The store to use for keeping track of message exchanges.
+	 */
+	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		this(createUDPConnector(address, config), config, exchangeStore);
+	}
+
+	/**
+	 * Creates a new endpoint for a connector and configuration.
+	 * <p>
+	 * The endpoint will support the connector's implemented scheme and will bind to
+	 * the IP address and port the connector is configured for.
+	 * 
+	 * @param connector The connector to use.
+	 * @param config The configuration values to use.
+	 */
+	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
+		this(connector, config, null);
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration and message exchange store.
 	 *
 	 * @param connector the connector
 	 * @param config the config
+	 * @param exchangeStore the store to use for keeping track of message exchanges.
 	 */
-	public CoapEndpoint(Connector connector, NetworkConfig config) {
+	public CoapEndpoint(final Connector connector, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
 		this.config = config;
 		this.connector = connector;
-		this.matcher = new Matcher(config);		
-		this.coapstack = new CoapStack(config, new OutboxImpl());
 		this.connector.setRawDataReceiver(new InboxImpl());
+		this.exchangeStore = exchangeStore;
+
+		// To make TCP support backwards compatible using less clean "instanceof" shortcut in 1.1 branch.
+		// In 2.0 branch, the connector API has been expected to export a new isSchemeSupported(String scheme)
+		// method, which is used instead.
+		if (connector instanceof TcpConnector) {
+			this.matcher = new TcpMatcher(config);
+			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
+			this.serializer = new TcpDataSerializer();
+			this.parser = new TcpDataParser();
+		} else {
+			this.matcher = new UdpMatcher(config);
+			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
+			this.serializer = new UdpDataSerializer();
+			this.parser = new UdpDataParser();
+		}
 	}
 
 	/**
@@ -241,9 +299,6 @@ public class CoapEndpoint implements Endpoint {
 		return c;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#start()
-	 */
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
@@ -258,6 +313,8 @@ public class CoapEndpoint implements Endpoint {
 		if (this.executor == null) {
 			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getAddress());
 
+			// in production environments the executor should be set to a multi threaded version
+			// in order to utilize all cores of the processor
 			setExecutor(Executors.newSingleThreadScheduledExecutor(
 					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
@@ -274,6 +331,12 @@ public class CoapEndpoint implements Endpoint {
 					executor.shutdown();
 				}
 			});
+		}
+
+		if (exchangeStore == null) {
+			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
+		} else {
+			matcher.setMessageExchangeStore(exchangeStore);
 		}
 
 		try {
@@ -310,9 +373,6 @@ public class CoapEndpoint implements Endpoint {
 		});
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#stop()
-	 */
 	@Override
 	public synchronized void stop() {
 		if (!started) {
@@ -322,16 +382,13 @@ public class CoapEndpoint implements Endpoint {
 			started = false;
 			connector.stop();
 			matcher.stop();
-			for (EndpointObserver obs:observers) {
+			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
 			matcher.clear();
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#destroy()
-	 */
 	@Override
 	public synchronized void destroy() {
 		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getAddress());
@@ -345,76 +402,48 @@ public class CoapEndpoint implements Endpoint {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#clear()
-	 */
 	@Override
 	public void clear() {
 		matcher.clear();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#isStarted()
-	 */
 	@Override
-	public boolean isStarted() {
+	public synchronized boolean isStarted() {
 		return started;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#setExecutor(java.util.concurrent.ScheduledExecutorService)
-	 */
 	@Override
 	public synchronized void setExecutor(final ScheduledExecutorService executor) {
 		// TODO: don't we need to stop and shut down the previous executor?
 		this.executor = executor;
 		this.coapstack.setExecutor(executor);
-		this.matcher.setExecutor(executor);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#addObserver(org.eclipse.californium.core.network.EndpointObserver)
-	 */
 	@Override
 	public void addObserver(final EndpointObserver observer) {
 		observers.add(observer);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#removeObserver(org.eclipse.californium.core.network.EndpointObserver)
-	 */
 	@Override
 	public void removeObserver(final EndpointObserver observer) {
 		observers.remove(observer);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#addInterceptor(org.eclipse.californium.core.network.MessageIntercepter)
-	 */
 	@Override
 	public void addInterceptor(final MessageInterceptor interceptor) {
 		interceptors.add(interceptor);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#removeInterceptor(org.eclipse.californium.core.network.MessageIntercepter)
-	 */
 	@Override
 	public void removeInterceptor(final MessageInterceptor interceptor) {
 		interceptors.remove(interceptor);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#getInterceptors()
-	 */
 	@Override
 	public List<MessageInterceptor> getInterceptors() {
 		return Collections.unmodifiableList(interceptors);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#sendRequest(org.eclipse.californium.core.coap.Request)
-	 */
 	@Override
 	public void sendRequest(final Request request) {
 		// always use endpoint executor
@@ -426,9 +455,6 @@ public class CoapEndpoint implements Endpoint {
 		});
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#sendResponse(org.eclipse.californium.core.network.Exchange, org.eclipse.californium.core.coap.Response)
-	 */
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		if (exchange.hasCustomExecutor()) {
@@ -445,9 +471,6 @@ public class CoapEndpoint implements Endpoint {
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.network.Endpoint#sendEmptyMessage(org.eclipse.californium.core.network.Exchange, org.eclipse.californium.core.coap.EmptyMessage)
-	 */
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// send empty messages right away in the same thread to ensure execution order
@@ -519,7 +542,7 @@ public class CoapEndpoint implements Endpoint {
 						exchange.setCorrelationContext(context);
 					}
 				};
-				RawData message = Serializer.serialize(request, callback);
+				RawData message = serializer.serializeRequest(request, callback);
 				connector.send(message);
 			}
 		}
@@ -541,7 +564,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				connector.send(Serializer.serialize(response));
+				connector.send(serializer.serializeResponse(response));
 			}
 		}
 
@@ -561,8 +584,9 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled())
-				connector.send(Serializer.serialize(message));
+			if (!message.isCanceled()) {
+				connector.send(serializer.serializeEmptyMessage(message));
+			}
 		}
 
 		private void assertMessageHasDestinationAddress(final Message message) {
@@ -586,12 +610,12 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void receiveData(final RawData raw) {
 			if (raw.getAddress() == null) {
-				throw new IllegalArgumentException("received message does not have a source address");
+				throw new IllegalArgumentException("received message that does not have a source address");
 			} else if (raw.getPort() == 0) {
-				throw new IllegalArgumentException("received message does not have a source port");
+				throw new IllegalArgumentException("received message that does not have a source port");
 			} else {
 
-			// Create a new task to process this message
+				// Create a new task to process this message
 				runInProtocolStage(new Runnable() {
 					@Override
 					public void run() {
@@ -604,136 +628,139 @@ public class CoapEndpoint implements Endpoint {
 		/*
 		 * The endpoint's executor executes this method to convert the raw bytes
 		 * into a message, look for an associated exchange and forward it to
-		 * the stack of layers.
+		 * the stack of layers. If the message is a CON and cannot be parsed,
+		 * e.g. because the message is malformed, an RST is sent back to the sender.
 		 */
 		private void receiveMessage(final RawData raw) {
-			DataParser parser = new DataParser(raw.getBytes());
 
-			if (parser.isRequest()) {
-				// This is a request
-				Request request;
-				try {
-					request = parser.parseRequest();
-				} catch (MessageFormatException e) {
-					StringBuilder log = new StringBuilder("received malformed request [source: ")
-						.append(raw.getInetSocketAddress()).append("]");
-					if (!parser.isReply()) {
-						// manually build RST from raw information
-						EmptyMessage rst = new EmptyMessage(Type.RST);
-						rst.setMID(parser.getMID());
-						rst.setToken(new byte[0]);
-						rst.setDestination(raw.getAddress());
-						rst.setDestinationPort(raw.getPort());
-						for (MessageInterceptor interceptor:interceptors)
-							interceptor.sendEmptyMessage(rst);
-						connector.send(Serializer.serialize(rst));
-						log.append(" and reset");
-					}
-					if (LOGGER.isLoggable(Level.INFO)) {
-						LOGGER.log(Level.INFO, log.toString(), e);
-					}
-					return;
+			Message msg = null;
+
+			try {
+				msg = parser.parseMessage(raw);
+				msg.setSource(raw.getAddress());
+				msg.setSourcePort(raw.getPort());
+
+				if (CoAP.isRequest(msg.getRawCode())) {
+
+					receiveRequest((Request) msg, raw);
+
+				} else if (CoAP.isResponse(msg.getRawCode())) {
+
+					receiveResponse((Response) msg, raw);
+
+				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
+
+					receiveEmptyMessage((EmptyMessage) msg, raw);
+
+				} else {
+					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 				}
 
-				// set request attributes from raw data
-				request.setScheme(raw.isSecure()?
-						CoAP.COAP_SECURE_URI_SCHEME:CoAP.COAP_URI_SCHEME);
-				request.setSource(raw.getAddress());
-				request.setSourcePort(raw.getPort());
-				request.setSenderIdentity(raw.getSenderIdentity());
-
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveRequest(request);
+			} catch (MessageFormatException e) {
+				if (e.isConfirmable() && e.hasMid()) {
+					// reject erroneous reliably transmitted message as mandated by CoAP spec
+					// https://tools.ietf.org/html/rfc7252#section-4.2
+					reject(raw, e);
+					LOGGER.log(
+							Level.FINE,
+							"rejected malformed message from [{0}], reason: {1}",
+							new Object[]{raw.getInetSocketAddress(), e.getMessage()});
+				} else {
+					// ignore erroneous messages that are not transmitted reliably
+					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 				}
-
-				// MessageInterceptor might have canceled
-				if (!request.isCanceled()) {
-					Exchange exchange = matcher.receiveRequest(request);
-					if (exchange != null) {
-						exchange.setEndpoint(CoapEndpoint.this);
-						coapstack.receiveRequest(exchange, request);
-					}
-				}
-
-			} else if (parser.isResponse()) {
-				// This is a response
-				Response response = parser.parseResponse();
-				response.setSource(raw.getAddress());
-				response.setSourcePort(raw.getPort());
-
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveResponse(response);
-				}
-
-				// MessageInterceptor might have canceled
-				if (!response.isCanceled()) {
-					Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
-					if (exchange != null) {
-						exchange.setEndpoint(CoapEndpoint.this);
-						response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
-						coapstack.receiveResponse(exchange, response);
-					} else if (response.getType() != Type.ACK) {
-						LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
-						reject(response);
-					}
-				}
-
-			} else if (parser.isEmpty()) {
-				// This is an empty message
-				EmptyMessage message = parser.parseEmptyMessage();
-				message.setSource(raw.getAddress());
-				message.setSourcePort(raw.getPort());
-
-				/* 
-				 * Logging here causes significant performance loss.
-				 * If necessary, add an interceptor that logs the messages,
-				 * e.g., the MessageTracer.
-				 */
-				for (MessageInterceptor interceptor:interceptors) {
-					interceptor.receiveEmptyMessage(message);
-				}
-
-				// MessageInterceptor might have canceled
-				if (!message.isCanceled()) {
-					// CoAP Ping
-					if (message.getType() == Type.CON || message.getType() == Type.NON) {
-						LOGGER.log(Level.FINER, "Responding to ping by {0}", raw.getInetSocketAddress());
-						reject(message);
-					} else {
-						Exchange exchange = matcher.receiveEmptyMessage(message);
-						if (exchange != null) {
-							exchange.setEndpoint(CoapEndpoint.this);
-							coapstack.receiveEmptyMessage(exchange, message);
-						}
-					}
-				}
-			} else {
-				LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 			}
+		}
+
+		private void reject(final RawData raw, final MessageFormatException cause) {
+			// Generate RST, and send it if not cancelled by one of the interceptors
+			EmptyMessage rst = new EmptyMessage(Type.RST);
+			rst.setMID(cause.getMid());
+			rst.setDestination(raw.getAddress());
+			rst.setDestinationPort(raw.getPort());
+
+			coapstack.sendEmptyMessage(null, rst);
 		}
 
 		private void reject(final Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
-			// sending directly through connector, not stack, thus set token
-			rst.setToken(new byte[0]);
+			coapstack.sendEmptyMessage(null, rst);
+		}
 
-			for (MessageInterceptor messageInterceptor : interceptors) {
-				messageInterceptor.sendEmptyMessage(rst);
+		private void receiveRequest(final Request request, final RawData raw) {
+
+			// set request attributes from raw data
+			request.setScheme(raw.isSecure() ? CoAP.COAP_SECURE_URI_SCHEME : CoAP.COAP_URI_SCHEME);
+			request.setSenderIdentity(raw.getSenderIdentity());
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveRequest(request);
 			}
 
 			// MessageInterceptor might have canceled
-			if (!rst.isCanceled()) {
-				connector.send(Serializer.serialize(rst));
+			if (!request.isCanceled()) {
+				Exchange exchange = matcher.receiveRequest(request);
+				if (exchange != null) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					coapstack.receiveRequest(exchange, request);
+				}
+			}
+		}
+
+		private void receiveResponse(final Response response, final RawData raw) {
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveResponse(response);
+			}
+
+			// MessageInterceptor might have canceled
+			if (!response.isCanceled()) {
+				Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
+				if (exchange != null) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+					coapstack.receiveResponse(exchange, response);
+				} else if (response.getType() != Type.ACK) {
+					LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
+					reject(response);
+				}
+			}
+		}
+
+		private void receiveEmptyMessage(final EmptyMessage message, final RawData raw) {
+
+			/* 
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			for (MessageInterceptor interceptor:interceptors) {
+				interceptor.receiveEmptyMessage(message);
+			}
+
+			// MessageInterceptor might have canceled
+			if (!message.isCanceled()) {
+				// CoAP Ping
+				if (message.getType() == Type.CON || message.getType() == Type.NON) {
+					LOGGER.log(Level.FINER, "responding to ping from {0}", raw.getInetSocketAddress());
+					reject(message);
+				} else {
+					Exchange exchange = matcher.receiveEmptyMessage(message);
+					if (exchange != null) {
+						exchange.setEndpoint(CoapEndpoint.this);
+						coapstack.receiveEmptyMessage(exchange, message);
+					}
+				}
 			}
 		}
 	}

@@ -10,7 +10,7 @@
 	<packaging>bundle</packaging>
 	<name>Scandium (Sc) Core</name>
 	<description>A library for exchanging data using DTLS over UDP</description>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -23,8 +23,10 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -44,6 +46,10 @@
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>
+					<!--
+						Running the tests in parallel may cause problems with rebinding to a an address within a test,
+						e.g. if another test running in parallel binds to that address in between.
+					-->
 					<parallel>classes</parallel>
 					<threadCount>8</threadCount>
 					<groups>org.eclipse.californium.scandium.category.Small</groups>
@@ -57,6 +63,12 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
+							<!--
+								Running the tests in parallel may cause problems with rebinding to a an address within a test,
+								e.g. if another test running in parallel binds to that address in between.
+							-->
+							<parallel>classes</parallel>
+							<threadCount>1</threadCount>
 							<groups>org.eclipse.californium.scandium.category.Medium</groups>
 							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Large</excludedGroups>
 						</configuration>
@@ -68,6 +80,12 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
+							<!--
+								Running the tests in parallel may cause problems with rebinding to a an address within a test,
+								e.g. if another test running in parallel binds to that address in between.
+							-->
+							<parallel>classes</parallel>
+							<threadCount>1</threadCount>
 							<groups>org.eclipse.californium.scandium.category.Large</groups>
 							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
 						</configuration>

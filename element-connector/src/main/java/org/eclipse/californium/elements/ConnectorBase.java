@@ -27,35 +27,39 @@ import java.util.logging.Logger;
  * ConnectorBase is a partial implementation of a {@link Connector}. It connects
  * a server to a network interface and a port. ConnectorBase contains two
  * separate threads for sending and receiving. The receiver thread constantly
- * calls #receiveNext() which is supposed to listen on a socket until a
- * datagram arrives and forward it to the {@link RawDataChannel}. The sender
- * thread constantly calls #sendNext() which is supposed to wait on the
- * outgoing queue for a {@link RawData} message to send. Both
- * #sendNext() and #receiveNext() are expected to be blocking.
+ * calls #receiveNext() which is supposed to listen on a socket until a datagram
+ * arrives and forward it to the {@link RawDataChannel}. The sender thread
+ * constantly calls #sendNext() which is supposed to wait on the outgoing queue
+ * for a {@link RawData} message to send. Both #sendNext() and #receiveNext()
+ * are expected to be blocking.
+ * 
+ * @deprecated Use {@code UDPConnector} as a template for implementing a custom
+ *             {@code Connector}.
  */
+@Deprecated
 public abstract class ConnectorBase implements Connector {
-	
+
 	/** The Logger. */
 	private final static Logger LOGGER = Logger.getLogger(ConnectorBase.class.toString());
 
 	/** The local address. */
 	private final InetSocketAddress localAddr;
-	
+
 	/** The thread that receives messages */
 	private Thread receiverThread;
-	
+
 	/** The thread that sends messages */
 	private Thread senderThread;
 
 	/** The queue of outgoing block (for sending). */
 	private final BlockingQueue<RawData> outgoing; // Messages to send
-	
+
 	/** The receiver of incoming messages */
 	private RawDataChannel receiver; // Receiver of messages
-	
+
 	/** Indicates whether the connector has started and not stopped yet */
 	private boolean running;
-	
+
 	/**
 	 * Instantiates a new connector base.
 	 *
@@ -69,18 +73,19 @@ public abstract class ConnectorBase implements Connector {
 		// Optionally define maximal capacity
 		this.outgoing = new LinkedBlockingQueue<RawData>();
 	}
-	
+
 	public InetSocketAddress getAddress() {
 		return localAddr;
 	}
-	
+
 	/**
-	 * Gets the name of the connector, e.g. the transport protocol used such as UDP or DTlS.
+	 * Gets the name of the connector, e.g. the transport protocol used such as
+	 * UDP or DTlS.
 	 *
 	 * @return the name
 	 */
 	public abstract String getName();
-	
+
 	/**
 	 * Receives data from the socket queue.
 	 * 
@@ -88,7 +93,7 @@ public abstract class ConnectorBase implements Connector {
 	 * @return the received raw data with metadata
 	 */
 	protected abstract RawData receiveNext() throws Exception;
-	
+
 	/**
 	 * Sends data over the socket.
 	 * 
@@ -96,8 +101,7 @@ public abstract class ConnectorBase implements Connector {
 	 * @throws Exception any exception that should be properly logged
 	 */
 	protected abstract void sendNext(RawData raw) throws Exception;
-	
-	
+
 	/**
 	 * Gets the receiver thread count.
 	 *
@@ -106,7 +110,7 @@ public abstract class ConnectorBase implements Connector {
 	protected int getReceiverThreadCount() {
 		return 1;
 	}
-	
+
 	/**
 	 * Gets the sender thread count.
 	 *
@@ -115,7 +119,7 @@ public abstract class ConnectorBase implements Connector {
 	protected int getSenderThreadCount() {
 		return 1;
 	}
-	
+
 	/**
 	 * Receive next message from network and forward them to the receiver.
 	 *
@@ -126,7 +130,7 @@ public abstract class ConnectorBase implements Connector {
 		if (raw != null)
 			receiver.receiveData(raw);
 	}
-	
+
 	/**
 	 * Get the next message from the outgoing queue and send it over the
 	 * network.
@@ -139,34 +143,40 @@ public abstract class ConnectorBase implements Connector {
 			throw new NullPointerException();
 		sendNext(raw);
 	}
-	
-	/* (non-Javadoc)
-	 * @see ch.inf.vs.californium.network.connector.Connector#start()
-	 */
+
 	@Override
 	public synchronized void start() throws IOException {
-		if (running) return;
+		if (running)
+			return;
 		running = true;
 
 		int senderCount = getSenderThreadCount();
 		int receiverCount = getReceiverThreadCount();
-		LOGGER.config(getName()+"-connector starts "+senderCount+" sender threads and "+receiverCount+" receiver threads");
-		
-		senderThread = new Worker(getName()+"-Sender-"+localAddr) {
-				public void work() throws Exception { sendNextMessageOverNetwork(); }
-			};
+		LOGGER.config(getName() + "-connector starts " + senderCount + " sender threads and " + receiverCount
+				+ " receiver threads");
 
-		receiverThread = new Worker(getName()+"-Receiver-"+localAddr) {
-				public void work() throws Exception { receiveNextMessageFromNetwork(); }
-			};
-		
+		senderThread = new Worker(getName() + "-Sender-" + localAddr) {
+
+			public void work() throws Exception {
+				sendNextMessageOverNetwork();
+			}
+		};
+
+		receiverThread = new Worker(getName() + "-Receiver-" + localAddr) {
+
+			public void work() throws Exception {
+				receiveNextMessageFromNetwork();
+			}
+		};
+
 		receiverThread.start();
 		senderThread.start();
 	}
 
 	@Override
 	public synchronized void stop() {
-		if (!running) return;
+		if (!running)
+			return;
 		running = false;
 		senderThread.interrupt();
 		receiverThread.interrupt();
@@ -179,7 +189,8 @@ public abstract class ConnectorBase implements Connector {
 	 * call stop() but the subclass has to do that if required.
 	 */
 	@Override
-	public synchronized void destroy() { }
+	public synchronized void destroy() {
+	}
 
 	@Override
 	public void send(RawData msg) {
@@ -192,7 +203,7 @@ public abstract class ConnectorBase implements Connector {
 	public void setRawDataReceiver(RawDataChannel receiver) {
 		this.receiver = receiver;
 	}
-	
+
 	/**
 	 * Abstract worker thread that wraps calls to
 	 * {@link ConnectorBase#getNextOutgoing()} and
@@ -213,19 +224,19 @@ public abstract class ConnectorBase implements Connector {
 
 		public void run() {
 			try {
-				LOGGER.fine("Starting thread "+getName());
+				LOGGER.fine("Starting thread " + getName());
 				while (running) {
 					try {
 						work();
 					} catch (Throwable t) {
 						if (running)
-							LOGGER.log(Level.WARNING, "Exception \""+t+"\" in thread "+getName(), t);
+							LOGGER.log(Level.WARNING, "Exception \"" + t + "\" in thread " + getName(), t);
 						else
-							LOGGER.fine("Exception \""+t+"\" stopped thread "+getName() );
+							LOGGER.fine("Exception \"" + t + "\" stopped thread " + getName());
 					}
 				}
 			} finally {
-				LOGGER.fine("Thread "+getName()+" has terminated");
+				LOGGER.fine("Thread " + getName() + " has terminated");
 			}
 		}
 
@@ -246,7 +257,7 @@ public abstract class ConnectorBase implements Connector {
 	public InetSocketAddress getLocalAddr() {
 		return localAddr;
 	}
-	
+
 	/**
 	 * Gets the receiver.
 	 *

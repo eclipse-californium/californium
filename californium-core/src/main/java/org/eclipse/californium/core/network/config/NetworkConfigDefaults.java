@@ -23,24 +23,53 @@ package org.eclipse.californium.core.network.config;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.UDPConnector;
 
+/**
+ * Default values for the properties of {@code NetworkConfig}.
+ *
+ */
 public class NetworkConfigDefaults {
+
+
+	/**
+	 * The default number of active peers to support.
+	 */
+	public static final int DEFAULT_MAX_ACTIVE_PEERS = 150000;
+
+	/**
+	 * The default timeout after which a peer is considered inactive (in seconds).
+	 */
+	public static final long DEFAULT_MAX_PEER_INACTIVITY_PERIOD = 10 * 60; // 10 minutes
+
+	/**
+	 * The default maximum resource body size that can be transparently transferred
+	 * in a blockwise transfer.
+	 */
+	public static final int DEFAULT_MAX_RESOURCE_BODY_SIZE = 2048; // bytes
+
+	/**
+	 * The default maximum amount of time (in milliseconds) between transfers of individual
+	 * blocks in a blockwise transfer before the blockwise transfer state is discarded.
+	 */
+	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 30 * 1000; // 30 secs
 
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
 	 * Disable dedupl for GET/..
 	 */
-	
-	
-	public static void setDefaults(NetworkConfig config) {
+
+	public static void setDefaults(final NetworkConfig config) {
 
 		final int CORES = Runtime.getRuntime().availableProcessors();
 		final String OS = System.getProperty("os.name");
 		final boolean WINDOWS = OS.startsWith("Windows");
-		
+
+		config.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
+		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD);
+
 		config.setInt(NetworkConfig.Keys.COAP_PORT, CoAP.DEFAULT_COAP_PORT);
 		config.setInt(NetworkConfig.Keys.COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
-		
+
 		config.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 2000);
 		config.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1.5f);
 		config.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 2f);
@@ -57,26 +86,27 @@ public class NetworkConfigDefaults {
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
+		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 10 * 60 * 1000); // ms
 
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
 		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // ms
-		
+
 		config.setBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL, false);
 		config.setString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa"); // see org.eclipse.californium.core.network.stack.congestioncontrol
-		
+
 		config.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, CORES);
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, WINDOWS ? CORES : 1);
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, WINDOWS ? CORES : 1);
-		
+
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 2048);
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000);
+		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
 		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, false);
 
@@ -85,11 +115,15 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_SIZE, 32);
-		
+
 		config.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "FINEST");
 		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
+
+		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s
+		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
+		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
 	}
-	
+
 	// prevent instantiation
 	private NetworkConfigDefaults() { }
 }

@@ -28,15 +28,15 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -50,99 +50,100 @@ public class MessageTypeTest {
 	private static final String SERVER_RESPONSE = "server responds hi";
 	private static final String ACC_RESOURCE = "acc-res";
 	private static final String NO_ACC_RESOURCE = "no-acc-res";
-	
-	private CoapServer server;
-	private int serverPort;
-	
-	@Before
-	public void setupServer() {
-		try {
-			System.out.println("\nStart "+getClass().getSimpleName());
-			EndpointManager.clear();
-			
-			CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-			
-			server = new CoapServer();
-			server.addEndpoint(endpoint);
-			server.add(new CoapResource(ACC_RESOURCE) {
-				public void handlePOST(CoapExchange exchange) {
-					exchange.accept();
-					System.out.println("gotit");
-					exchange.respond(SERVER_RESPONSE);
-				}
-			});
-			server.add(new CoapResource(NO_ACC_RESOURCE) {
-				public void handlePOST(CoapExchange exchange) {
-					exchange.respond(SERVER_RESPONSE);
-				}
-			});
-			server.start();
-			serverPort = endpoint.getAddress().getPort();
-			
-		} catch (Throwable t) {
-			t.printStackTrace();
+
+	private static CoapServer server;
+	private static int serverPort;
+
+	@BeforeClass
+	public static void setupServer() {
+		System.out.println(System.lineSeparator() + "Start " + MessageTypeTest.class.getSimpleName());
+		EndpointManager.clear();
+
+		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+
+		server = new CoapServer();
+		server.addEndpoint(endpoint);
+		server.add(new CoapResource(ACC_RESOURCE) {
+			public void handlePOST(CoapExchange exchange) {
+				exchange.accept();
+				System.out.println("gotit");
+				exchange.respond(SERVER_RESPONSE);
+			}
+		});
+		server.add(new CoapResource(NO_ACC_RESOURCE) {
+			public void handlePOST(CoapExchange exchange) {
+				exchange.respond(SERVER_RESPONSE);
+			}
+		});
+		server.start();
+		serverPort = endpoint.getAddress().getPort();
+	}
+
+	@AfterClass
+	public static void destroyServer() {
+
+		if (server != null) {
+			server.destroy();
 		}
+		System.out.println(System.lineSeparator() + "End " + MessageTypeTest.class.getSimpleName());
 	}
-	
-	@After
-	public void after() {
-		server.destroy();
-		System.out.println("End "+getClass().getSimpleName());
-	}
-	
+
 	@Test
 	public void testNonConfirmable() throws Exception {
 		// send request
 		Request req2acc = new Request(Code.POST);
 		req2acc.setConfirmable(false);
-		req2acc.setURI("localhost:"+serverPort+"/"+ACC_RESOURCE);
+		req2acc.setURI(getUri(ACC_RESOURCE));
 		req2acc.setPayload("client says hi");
 		req2acc.send();
-		
+
 		// receive response and check
 		Response response = req2acc.waitForResponse(1000);
-		assertNotNull("Client received no response", response);
-		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
-		assertEquals(response.getType(), Type.NON);
-		
+		assertPayloadIsOfCorrectType(response, SERVER_RESPONSE, Type.NON);
+
 		Request req2noacc = new Request(Code.POST);
 		req2noacc.setConfirmable(false);
-		req2noacc.setURI("coap://localhost:"+serverPort+"/"+NO_ACC_RESOURCE);
+		req2noacc.setURI(getUri(NO_ACC_RESOURCE));
 		req2noacc.setPayload("client says hi");
 		req2noacc.send();
-		
+
 		// receive response and check
 		response = req2noacc.waitForResponse(1000);
-		assertNotNull("Client received no response", response);
-		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
-		assertEquals(response.getType(), Type.NON);
+		assertPayloadIsOfCorrectType(response, SERVER_RESPONSE, Type.NON);
 	}
-	
+
 	@Test
 	public void testConfirmable() throws Exception {
 		// send request
 		Request req2acc = new Request(Code.POST);
 		req2acc.setConfirmable(true);
-		req2acc.setURI("localhost:"+serverPort+"/"+ACC_RESOURCE);
+		req2acc.setURI(getUri(ACC_RESOURCE));
 		req2acc.setPayload("client says hi");
 		req2acc.send();
-		
+
 		// receive response and check
 		Response response = req2acc.waitForResponse(1000);
-		assertNotNull("Client received no response", response);
-		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
-		assertEquals(response.getType(), Type.CON);
-		
+		assertPayloadIsOfCorrectType(response, SERVER_RESPONSE, Type.CON);
+
 		Request req2noacc = new Request(Code.POST);
 		req2noacc.setConfirmable(true);
-		req2noacc.setURI("coap://localhost:"+serverPort+"/"+NO_ACC_RESOURCE);
+		req2noacc.setURI(getUri(NO_ACC_RESOURCE));
 		req2noacc.setPayload("client says hi");
 		req2noacc.send();
-		
+
 		// receive response and check
 		response = req2noacc.waitForResponse(1000);
+		assertPayloadIsOfCorrectType(response, SERVER_RESPONSE, Type.ACK);
+	}
+
+	private static void assertPayloadIsOfCorrectType(final Response response, final String expectedPayload,
+			final Type expectedType) {
 		assertNotNull("Client received no response", response);
-		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
-		assertEquals(response.getType(), Type.ACK);
+		assertEquals(response.getPayloadString(), expectedPayload);
+		assertEquals(response.getType(), expectedType);
+	}
+
+	private static String getUri(final String resourceName) {
+		return String.format("coap://%s:%d/%s", InetAddress.getLoopbackAddress().getHostAddress(), serverPort, resourceName);
 	}
 }

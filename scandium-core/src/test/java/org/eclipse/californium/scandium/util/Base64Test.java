@@ -15,30 +15,60 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+/**
+ * Some test verifying correctness of Rob Harder's {@code Base64} encoder/decoder.
+ *
+ */
 @Category(Small.class)
+@RunWith(Parameterized.class)
 public class Base64Test {
 
-	@Before
-	public void setUp() throws Exception {
+	@Parameter
+	public byte[] input;
+
+	@Parameters
+	public static List<byte[]> params() {
+		return Arrays.asList(
+				new byte[]{0x01, 0x02, 0x03},
+				new byte[]{0x01, 0x02, 0x03, 0x04},
+				new byte[]{0x01, 0x02, 0x03, 0x04, 0x05});
 	}
 
+	/**
+	 * Verifies that a String representing an encoded byte array does not contain trailing
+	 * 0x00 bytes when using the {@code NO_PADDING} option.
+	 * 
+	 * @throws IOException if the test fails.
+	 */
 	@Test
 	public void testEncodeBytesRecognizesNoPaddingOption() throws IOException {
-		byte[] input = new byte[]{0x00, 0x00, 0x00, 0x00};
+
 		String result = Base64.encodeBytes(input, Base64.ENCODE | Base64.URL_SAFE);
-		assertTrue(result.endsWith("="));
+		int excessBytes = input.length % 3;
+		int expectedLength = (1 + (excessBytes > 0 ? 1 : 0)) * 4;
+		assertThat(result.length(), is(expectedLength));
+		if (input.length % 3 > 0) {
+			assertTrue(result.endsWith("="));
+		}
 		result = Base64.encodeBytes(input, Base64.ENCODE | Base64.URL_SAFE | Base64.NO_PADDING);
 		assertFalse(result.endsWith("="));
+		expectedLength = 4 + (excessBytes > 0 ? excessBytes + 1 : 0);
+		assertThat(result.length(), is(expectedLength));
 	}
-
 
 }

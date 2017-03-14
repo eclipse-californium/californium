@@ -60,16 +60,6 @@ public final class RawData {
 	 * Instantiates a new raw data.
 	 *
 	 * @param data the data that is to be sent or has been received
-	 * @deprecated Use one of the other constructors instead.
-	 */
-	public RawData(byte[] data) {
-		this(data, null, 0, null, false);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
 	 * @param address the IP address and port the data is to be sent to or has been received from
 	 * @throws NullPointerException if any of the given parameters is <code>null</code>
 	 */
@@ -274,32 +264,12 @@ public final class RawData {
 	}
 
 	/**
-	 * Sets the address.
-	 *
-	 * @param newAddress the new address
-	 * @deprecated Use constructor instead.
-	 */
-	public void setAddress(InetAddress newAddress) {
-		this.address = new InetSocketAddress(newAddress, address.getPort());
-	}
-
-	/**
 	 * Gets the port.
 	 *
 	 * @return the port
 	 */
 	public int getPort() {
 		return address.getPort();
-	}
-
-	/**
-	 * Sets the port.
-	 *
-	 * @param port the new port
-	 * @deprecated Use constructor instead.
-	 */
-	public void setPort(int port) {
-		this.address = new InetSocketAddress(address.getAddress(), port);
 	}
 
 	/**
@@ -311,16 +281,6 @@ public final class RawData {
 		return multicast;
 	}
 
-	/**
-	 * Marks this message as a multicast message.
-	 *
-	 * @param multicast whether this message is a multicast message
-	 * @deprecated Use constructor instead.
-	 */
-	public void setMulticast(boolean multicast) {
-		this.multicast = multicast;
-	}
-	
 	/**
 	 * Gets the source/destination IP address and port.
 	 *

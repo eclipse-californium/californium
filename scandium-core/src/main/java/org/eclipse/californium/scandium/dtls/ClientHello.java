@@ -26,14 +26,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -428,6 +428,20 @@ public final class ClientHello extends HandshakeMessage {
 	public MaxFragmentLengthExtension getMaxFragmentLengthExtension() {
 		if (extensions != null) {
 			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>Server Name Indication</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>Server Name Indication</em> extension.
+	 */
+	public ServerNameExtension getServerNameExtension() {
+		if (extensions != null) {
+			return (ServerNameExtension) extensions.getExtension(ExtensionType.SERVER_NAME);
 		} else {
 			return null;
 		}

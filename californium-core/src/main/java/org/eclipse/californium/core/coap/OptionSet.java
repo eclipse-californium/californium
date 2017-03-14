@@ -35,8 +35,9 @@ import org.eclipse.californium.core.Utils;
  * <p>
  * Notice that this class is not entirely thread-safe: hasObserve =&gt; (int) getObserve()
  */
-public class OptionSet {
-	
+public final class OptionSet {
+
+	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
 	/*
 	 * Options defined by the CoAP protocol
 	 */
@@ -170,11 +171,10 @@ public class OptionSet {
 	 * @return the list of If-Match ETags
 	 */
 	public List<byte[]> getIfMatch() {
-		if (if_match_list == null)
-			synchronized (this) {
-				if (if_match_list == null)
-					if_match_list = new LinkedList<byte[]>();
-			}
+		synchronized (this) {
+			if (if_match_list == null)
+				if_match_list = new LinkedList<byte[]>();
+		}
 		return if_match_list;
 	}
 
@@ -295,11 +295,10 @@ public class OptionSet {
 	 * @return the list of ETags
 	 */
 	public List<byte[]> getETags() {
-		if (etag_list == null)
-			synchronized (this) {
-				if (etag_list == null)
-					etag_list = new LinkedList<byte[]>();
-			}
+		synchronized (this) {
+			if (etag_list == null)
+				etag_list = new LinkedList<byte[]>();
+		}
 		return etag_list;
 	}
 
@@ -427,11 +426,10 @@ public class OptionSet {
 	 * @return the list of Location-Path segments
 	 */
 	public List<String> getLocationPath() {
-		if (location_path_list == null)
-			synchronized (this) {
-				if (location_path_list == null)
-					location_path_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (location_path_list == null)
+				location_path_list = new LinkedList<String>();
+		}
 		return location_path_list;
 	}
 
@@ -525,11 +523,10 @@ public class OptionSet {
 	 * @return the list of Uri-Path segments
 	 */
 	public List<String> getUriPath() {
-		if (uri_path_list == null)
-			synchronized (this) {
-				if (uri_path_list == null)
-					uri_path_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (uri_path_list == null)
+				uri_path_list = new LinkedList<String>();
+		}
 		return uri_path_list;
 	}
 
@@ -702,11 +699,10 @@ public class OptionSet {
 	 * @return the list of query arguments
 	 */
 	public List<String> getUriQuery() {
-		if (uri_query_list == null)
-			synchronized (this) {
-				if (uri_query_list == null)
-					uri_query_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (uri_query_list == null)
+				uri_query_list = new LinkedList<String>();
+		}
 		return uri_query_list;
 	}
 
@@ -844,11 +840,10 @@ public class OptionSet {
 	 * @return the list of query arguments
 	 */
 	public List<String> getLocationQuery() {
-		if (location_query_list == null)
-			synchronized (this) {
-				if (location_query_list == null)
-					location_query_list = new LinkedList<String>();
-			}
+		synchronized (this) {
+			if (location_query_list == null)
+				location_query_list = new LinkedList<String>();
+		}
 		return location_query_list;
 	}
 
@@ -1226,14 +1221,19 @@ public class OptionSet {
 	/**
 	 * Sets the Observe option value.
 	 * Returns the current OptionSet object for a fluent API.
+	 * 
 	 * @param seqnum the sequence number
 	 * @return this OptionSet
+	 * @throws IllegalArgumentException if the given number is &lt; 0 or &gt; 2^24 - 1
 	 */
-	public OptionSet setObserve(int seqnum) {
-		if (seqnum <0 || ((1 << 24) - 1) < seqnum)
-			throw new IllegalArgumentException("Observe option must be between 0 and "+((1<<24)-1)+" (3 bytes) inclusive but was "+seqnum);
-		this.observe = seqnum;
-		return this;
+	public OptionSet setObserve(final int seqnum) {
+
+		if (!isValidObserveOption(seqnum)) {
+			throw new IllegalArgumentException("Observe option must be between 0 and " + MAX_OBSERVE_NO + " (3 bytes) inclusive");
+		} else {
+			this.observe = seqnum;
+			return this;
+		}
 	}
 
 	/**
@@ -1247,6 +1247,16 @@ public class OptionSet {
 	}
 
 	/**
+	 * Checks if a given number is a valid value for the <em>Observe</em> option.
+	 * 
+	 * @param value The value to check.
+	 * @return {@code true} if the value is &gt; 0 and &lt; 2^24 - 1.
+	 */
+	public static boolean isValidObserveOption(final int value) {
+		return value >= 0 && value <= MAX_OBSERVE_NO;
+	}
+
+	/**
 	 * Checks if an arbitrary option is present.
 	 * @param number the option number
 	 * @return true if present
@@ -1256,11 +1266,10 @@ public class OptionSet {
 	}
 	
 	private List<Option> getOthers() {
-		if (others == null)
-			synchronized (this) {
-				if (others == null)
-					others = new LinkedList<Option>();
-			}
+		synchronized (this) {
+			if (others == null)
+				others = new LinkedList<Option>();
+		}
 		return others;
 	}
 	

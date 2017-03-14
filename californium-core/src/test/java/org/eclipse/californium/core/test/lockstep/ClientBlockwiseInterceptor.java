@@ -19,85 +19,50 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 
-public class ClientBlockwiseInterceptor implements MessageInterceptor {
+/**
+ * A message interceptor for tracing messages from the viewpoint of a CoAP client.
+ *
+ */
+public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor implements MessageInterceptor {
 
-	private StringBuilder buffer = new StringBuilder();
-		
 	@Override
-	public void sendRequest(Request request) {
-		buffer.append(
-				String.format("\n%s [MID=%d, T=%s], %s, /%s%s%s%s    ----->",
-				request.getType(), request.getMID(), request.getTokenString(), request.getCode(),
-				request.getOptions().getUriPathString(),
-				blockOptionString(1, request.getOptions().getBlock1()),
-				blockOptionString(2, request.getOptions().getBlock2()),
-				observeString(request.getOptions())));
+	public synchronized void sendRequest(final Request request) {
+		buffer.append(System.lineSeparator());
+		appendRequestDetails(request);
+		buffer.append("    ----->");
 	}
 
 	@Override
-	public void sendResponse(Response response) {
-		buffer.append("ERROR: Server received "+response+"\n");
+	public synchronized void sendResponse(final Response response) {
+		buffer.append("ERROR: Server received ").append(response).append(System.lineSeparator());
 	}
 
 	@Override
-	public void sendEmptyMessage(EmptyMessage message) {
-		buffer.append(
-				String.format("\n%-19s                       ----->",
-				String.format("%s [MID=%d], 0",message.getType(), message.getMID())
-				));
+	public synchronized void sendEmptyMessage(final EmptyMessage message) {
+		buffer.append(System.lineSeparator());
+		appendEmptyMessageDetails(message);
+		buffer.append("   ----->");
 	}
 
 	@Override
-	public void receiveRequest(Request request) {
-		buffer.append("\nERROR: Server sent "+request+"\n");
+	public synchronized void receiveRequest(final Request request) {
+		buffer.append(System.lineSeparator()).append("ERROR: Server sent ").append(request).append(System.lineSeparator());
 	}
 
 	@Override
-	public void receiveResponse(Response response) {
-		buffer.append(
-				String.format("\n<-----   %s [MID=%d, T=%s], %s%s%s%s    ",
-				response.getType(), response.getMID(), response.getTokenString(), response.getCode(),
-				blockOptionString(1, response.getOptions().getBlock1()),
-				blockOptionString(2, response.getOptions().getBlock2()),
-				observeString(response.getOptions())));
+	public synchronized void receiveResponse(Response response) {
+		buffer.append(System.lineSeparator()).append("<-----   ");
+		appendResponseDetails(response);
 	}
 
 	@Override
-	public void receiveEmptyMessage(EmptyMessage message) {
-		buffer.append(
-				String.format("\n<-----   %s [MID=%d], 0",
-				message.getType(), message.getMID()));
+	public synchronized void receiveEmptyMessage(final EmptyMessage message) {
+		buffer.append(System.lineSeparator()).append("<-----   ");
+		appendEmptyMessageDetails(message);
 	}
-	
-	public void log(String str) {
-		buffer.append(str);
-	}
-	
-	private String blockOptionString(int nbr, BlockOption option) {
-		if (option == null) return "";
-		return String.format(", %d:%d/%d/%d", nbr, option.getNum(),
-				option.isM()?1:0, option.getSize());
-	}
-	
-	private String observeString(OptionSet options) {
-		if (options == null) return "";
-		else if (!options.hasObserve()) return "";
-		else return ", (observe="+options.getObserve()+")";
-	}
-	
-	public String toString() {
-		return buffer.append("\n").substring(1);
-	}
-	
-	public void clear() {
-		buffer = new StringBuilder();
-	}
-
 }

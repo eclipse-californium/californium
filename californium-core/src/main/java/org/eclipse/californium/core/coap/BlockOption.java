@@ -23,40 +23,36 @@
 package org.eclipse.californium.core.coap;
 
 
-
 /**
  * BlockOption represents a Block1 or Block2 option in a CoAP message.
  */
-public class BlockOption {
+public final class BlockOption {
 
-	/** The szx. */
-	private int szx;
-	
-	/** The m. */
-	private boolean m;
-	
-	/** The num. */
-	private int num;
-	
+	private final int szx;
+	private final boolean m;
+	private final int num;
+
 	/**
-	 * Instantiates a new block option.
-	 */
-	public BlockOption() { }
-	
-	/**
-	 * Instantiates a new block option.
+	 * Creates a new block option for given values.
 	 *
 	 * @param szx the szx
 	 * @param m the m
 	 * @param num the num
+	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or
+	 *                                  if num is not a 20-bit uint.
 	 */
-	public BlockOption(int szx, boolean m, int num) {
-		this.setSzx(szx);
-		this.setM(m);
-		this.setNum(num);
+	public BlockOption(final int szx, final boolean m, final int num) {
+		if (szx < 0 || 7 < szx) {
+			throw new IllegalArgumentException("Block option's szx must be between 0 and 7 inclusive");
+		} else if (num < 0 || (1 << 20) - 1 < num) {
+			throw new IllegalArgumentException("Block option's num must be between 0 and " + (1 << 20 - 1) + " inclusive");
+		} else {
+			this.szx = szx;
+			this.m = m;
+			this.num = num;
+		}
 	}
-	
-	// Copy constructor
+
 	/**
 	 * Instantiates a new block option with the same values as the specified
 	 * block option.
@@ -64,13 +60,16 @@ public class BlockOption {
 	 * @param origin the origin
 	 * @throws NullPointerException if the specified block option is null
 	 */
-	public BlockOption(BlockOption origin) {
-		if (origin == null) throw new NullPointerException();
-		this.setSzx(origin.getSzx());
-		this.setM(origin.isM());
-		this.setNum(origin.getNum());
+	public BlockOption(final BlockOption origin) {
+		if (origin == null) {
+			throw new NullPointerException();
+		} else {
+			this.szx = origin.getSzx();
+			this.m = origin.isM();
+			this.num = origin.getNum();
+		}
 	}
-	
+
 	/**
 	 * Instantiates a new block option from the specified bytes (1-3 bytes).
 	 *
@@ -78,24 +77,26 @@ public class BlockOption {
 	 * @throws NullPointerException if the specified bytes are null
 	 * @throws IllegalArgumentException if the specified value's length larger than 3
 	 */
-	public BlockOption(byte[] value) {
-		if (value == null)
+	public BlockOption(final byte[] value) {
+
+		if (value == null) {
 			throw new NullPointerException();
-		if (value.length > 3)
+		} else if (value.length > 3) {
 			throw new IllegalArgumentException("Block option's length must at most 3 bytes inclusive");
-		
-		if (value.length == 0) {
+		} else if (value.length == 0) {
 			this.szx = 0;
 			this.m = false;
 			this.num = 0;
-			
+
 		} else {
 			byte end = value[value.length - 1];
 			this.szx = end & 0x7;
 			this.m = (end >> 3 & 0x1) == 1;
-			this.num = (end & 0xFF) >> 4 ;
-			for (int i=1;i<value.length;i++)
-				num += ((value[value.length - i -1] & 0xff) << (i*8 - 4));
+			int tempNum = (end & 0xFF) >> 4;
+			for (int i = 1; i < value.length; i++) {
+				tempNum += ((value[value.length - i - 1] & 0xff) << (i * 8 - 4));
+			}
+			this.num = tempNum;
 		}
 	}
 	
@@ -108,17 +109,6 @@ public class BlockOption {
 		return szx;
 	}
 
-	/**
-	 * Sets the szx.
-	 *
-	 * @param szx the new szx
-	 */
-	public void setSzx(int szx) {
-		if (szx < 0 || 7 < szx)
-			throw new IllegalArgumentException("Block option's szx must be between 0 and 7 inclusive");
-		this.szx = szx;
-	}
-	
 	/**
 	 * Gets the size where {@code size == 1 << (4 + szx)}.
 	 *
@@ -139,16 +129,6 @@ public class BlockOption {
 	}
 
 	/**
-	 * Sets the m. The value m is true if there are more block that follow
-	 * the message with this block option.
-	 *
-	 * @param m the new m
-	 */
-	public void setM(boolean m) {
-		this.m = m;
-	}
-
-	/**
 	 * Gets the num. This is the number of the block message.
 	 *
 	 * @return the num
@@ -157,18 +137,6 @@ public class BlockOption {
 		return num;
 	}
 
-	/**
-	 * Sets the number of the block message.
-	 *
-	 * @param num the new num
-	 * @throws IllegalArgumentException if num is not a 20-bit value
-	 */
-	public void setNum(int num) {
-		if (num < 0 || (1<<20)-1 < num)
-			throw new IllegalArgumentException("Block option's num must be between 0 and "+(1<<20-1)+" inclusive");
-		this.num = num;
-	}
-	
 	/**
 	 * Gets the encoded block option as 0-3 byte array.
 	 * 
@@ -212,30 +180,84 @@ public class BlockOption {
 			};
 		}
 	}
-	
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
+
+	/**
+	 * Gets the offset into a body this block option represents.
+	 * 
+	 * @return The offset calculated as num * size.
 	 */
+	public int getOffset() {
+		return num * szx2Size(szx);
+	}
+
 	@Override
 	public String toString() {
-		return "(szx="+szx+"/"+ szx2Size(szx)+ ", m="+m+", num="+num+")";
+		return String.format("(szx=%d/%d, m=%b, num=%d)", szx, szx2Size(szx), m, num);
 	}
-	
+
 	@Override
-	public boolean equals(Object o) {
-		if (! (o instanceof BlockOption))
+	public boolean equals(final Object o) {
+		if (! (o instanceof BlockOption)) {
 			return false;
+		}
 		BlockOption block = (BlockOption) o;
 		return szx == block.szx && num == block.num && m == block.m;
 	}
-	
-	public static int size2Szx(int size) {
-		if (size<16) return 0;
-		if (size>1024) return 6;
-		return (int)(Math.log(size)/Math.log(2)) - 4;
+
+	@Override
+	public int hashCode() {
+		int result = szx;
+		result = 31 * result + (m ? 1 : 0);
+		result = 31 * result + num;
+		return result;
 	}
-	
-	public static int szx2Size(int szx) {
-		return 1 << (4 + szx);
+
+	/**
+	 * Gets the 3-bit SZX code for a block size as specified by
+	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:
+	 * 
+	 * <pre>
+	 * 16 bytes = 2^4 --> 0
+	 * ... 
+	 * 1024 bytes = 2^10 -> 6
+	 * </pre>
+	 * <p>
+	 * This method is tolerant towards <em>illegal</em> block sizes
+	 * that are &lt; 16 or &gt; 1024 bytes in that it will return the corresponding
+	 * codes for sizes 16 or 1024 respectively.
+	 * 
+	 * @param blockSize The block size in bytes.
+	 * @return The szx code for the largest number of bytes that is less than or equal to the block size.
+	 */
+	public static int size2Szx(int blockSize) {
+
+		if (blockSize >= 1024) {
+			return 6;
+		} else if (blockSize <= 16) {
+			return 0;
+		} else {
+			int maxOneBit = Integer.highestOneBit(blockSize);
+			return Integer.numberOfTrailingZeros(maxOneBit) - 4;
+		}
+	}
+
+	/**
+	 * Gets the number of bytes corresponding to a szx code.
+	 * <p>
+	 * This method is tolerant towards <em>illegal</em> codes
+	 * that are &lt; 0 or &gt; 6 in that it will return the corresponding
+	 * values for codes 0 or 6 respectively.
+	 * 
+	 * @param szx The code.
+	 * @return The corresponding number of bytes.
+	 */
+	public static int szx2Size(final int szx) {
+		if (szx <= 0) {
+			return 16;
+		} else if (szx >= 6) {
+			return 1024;
+		} else {
+			return 1 << (szx + 4);
+		}
 	}
 }

@@ -24,18 +24,20 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -52,7 +54,7 @@ public class CertificateMessageTest {
 
 	@Before
 	public void setUp() throws Exception {
-		peerAddress = new InetSocketAddress("localhost", 5684);
+		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
@@ -64,9 +66,9 @@ public class CertificateMessageTest {
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
 
-	private void assertThatCertificateChainDoesNotContainRootCert(Certificate[] chain) {
+	private void assertThatCertificateChainDoesNotContainRootCert(CertPath chain) {
 		X500Principal issuer = null;
-		for (Certificate c : chain) {
+		for (Certificate c : chain.getCertificates()) {
 			assertThat(c, instanceOf(X509Certificate.class));
 			X509Certificate cert = (X509Certificate) c;
 			assertThat(cert.getSubjectX500Principal(), is(not(cert.getIssuerX500Principal())));
@@ -169,7 +171,7 @@ public class CertificateMessageTest {
 		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
 		assertThatCertificateValidationFailsForEmptyTrustAnchor();
 	}
-	
+
 	private void assertThatCertificateVerificationSucceeds() {
 		try {
 			message.verifyCertificate(trustAnchor);
@@ -178,7 +180,7 @@ public class CertificateMessageTest {
 			fail("Verification of certificate should have succeeded");
 		}
 	}
-	
+
 	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
 		try {
 			message.verifyCertificate(null);

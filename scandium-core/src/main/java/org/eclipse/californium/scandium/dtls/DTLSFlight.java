@@ -26,7 +26,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.TimerTask;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * A container for a set of DTLS records that are to be (re-)transmitted
@@ -35,8 +35,8 @@ import java.util.TimerTask;
  * DTLS messages are grouped into a series of message flights. One flight
  * consists of at least one message and needs to be re-transmitted until the
  * peer's next flight has arrived in its total. A flight needs not only consist of
- * {@link HandshakeMessage}s but may also contain {@link AlertMessage}s
- * and {@link ChangeCipherSpecMessage}s. See <a
+ * {@code HandshakeMessage}s but may also contain {@code AlertMessage}s
+ * and {@code ChangeCipherSpecMessage}s. See <a
  * href="http://tools.ietf.org/html/rfc6347#section-4.2.4">RFC 6347</a> for
  * details.
  */
@@ -70,7 +70,7 @@ public class DTLSFlight {
 	private boolean retransmissionNeeded = false;
 
 	/** The retransmission task. Needed when to cancel the retransmission. */
-	private TimerTask retransmitTask;
+	private ScheduledFuture<?> retransmitTask;
 
 	/**
 	 * Initializes an empty, fresh flight. The timeout is set to 0, it will be
@@ -96,7 +96,7 @@ public class DTLSFlight {
 	 * @param peerAddress the IP address and port to send the records to
 	 * @throws NullPointerException if peerAddress is <code>null</code>
 	 */
-	public DTLSFlight(InetSocketAddress peerAddress) {
+	public DTLSFlight(final InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		}
@@ -114,20 +114,35 @@ public class DTLSFlight {
 	 *                 when sending out the flight
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public DTLSFlight(DTLSSession session) {
+	public DTLSFlight(final DTLSSession session) {
 		this(session.getPeer());
 		this.session = session;
 		retransmissionNeeded = true;
 	}
 
-	public void addMessage(List<Record> message) {
-		messages.addAll(message);
+	/**
+	 * Adds multiple messages to this flight.
+	 * 
+	 * @param messagesToAdd the messages to add.
+	 */
+	public void addMessage(final List<Record> messagesToAdd) {
+		this.messages.addAll(messagesToAdd);
 	}
 
-	public void addMessage(Record message) {
-		messages.add(message);
+	/**
+	 * Adds a single message to this flight.
+	 * 
+	 * @param messageToAdd the message to add.
+	 */
+	public void addMessage(final Record messageToAdd) {
+		this.messages.add(messageToAdd);
 	}
 
+	/**
+	 * Gets the messages to be sent as part of this flight.
+	 * 
+	 * @return an unmodifiable list of the messages.
+	 */
 	public List<Record> getMessages() {
 		return Collections.unmodifiableList(messages);
 	}
@@ -196,11 +211,21 @@ public class DTLSFlight {
 		this.retransmissionNeeded = needsRetransmission;
 	}
 
-	public TimerTask getRetransmitTask() {
+	/**
+	 * Cancels retransmission of this flight.
+	 */
+	public void cancelRetransmission() {
+		if (retransmitTask != null) {
+			retransmitTask.cancel(true);
+			this.retransmitTask = null;
+		}
+	}
+
+	public ScheduledFuture<?> getRetransmitTask() {
 		return retransmitTask;
 	}
 
-	public void setRetransmitTask(TimerTask retransmitTask) {
+	public void setRetransmitTask(final ScheduledFuture<?> retransmitTask) {
 		this.retransmitTask = retransmitTask;
 	}
 

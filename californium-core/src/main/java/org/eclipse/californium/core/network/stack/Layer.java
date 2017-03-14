@@ -114,14 +114,16 @@ public interface Layer {
 	/**
 	 * Sets the lower layer.
 	 *
-	 * @param layer the new lower layer
+	 * @param layer The new lower layer.
+	 * @throws NullPointerException if the layer is {@code null}.
 	 */
 	void setLowerLayer(Layer layer);
 
 	/**
 	 * Sets the upper layer.
 	 *
-	 * @param layer the new upper layer
+	 * @param layer The new upper layer.
+	 * @throws NullPointerException if the layer is {@code null}.
 	 */
 	void setUpperLayer(Layer layer);
 

@@ -33,7 +33,7 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
+import java.security.cert.CertPath;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +42,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -50,6 +51,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
@@ -59,7 +61,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public class ClientHandshaker extends Handshaker {
 
 	private static final Logger LOGGER = Logger.getLogger(ClientHandshaker.class.getName());
-	
+
 	// Members ////////////////////////////////////////////////////////
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
@@ -67,8 +69,8 @@ public class ClientHandshaker extends Handshaker {
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
 	
-	/** The server's X.509 certificate */
-	private X509Certificate peerCertificate;
+	// The server's X.509 certificate chain.
+	private CertPath peerCertPath;
 
 	/** The server's ephemeral public key, used for key agreement */
 	private ECPublicKey ephemeralServerPublicKey;
@@ -110,6 +112,8 @@ public class ClientHandshaker extends Handshaker {
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
+	protected final ServerNameResolver serverNameResolver;
+	protected ServerNames indicatedServerNames;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -138,6 +142,7 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
+		this.serverNameResolver = config.getServerNameResolver();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -239,6 +244,7 @@ public class ClientHandshaker extends Handshaker {
 
 			case SERVER_HELLO_DONE:
 				receivedServerHelloDone((ServerHelloDone) handshakeMsg);
+				expectChangeCipherSpecMessage();
 				break;
 
 			case FINISHED:
@@ -374,9 +380,7 @@ public class ClientHandshaker extends Handshaker {
 		serverCertificate = message;
 		serverCertificate.verifyCertificate(rootCertificates);
 		serverPublicKey = serverCertificate.getPublicKey();
-		if (message.getCertificateChain() != null) {
-			peerCertificate = (X509Certificate) message.getCertificateChain()[0];
-		}
+		peerCertPath = message.getCertificateChain();
 	}
 
 	/**
@@ -399,13 +403,11 @@ public class ClientHandshaker extends Handshaker {
 		serverKeyExchange = message;
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
-		if (peerCertificate != null) {
-			session.setPeerIdentity(peerCertificate.getSubjectX500Principal());
+		if (peerCertPath != null) {
+			session.setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
 		}
-		// for backwards compatibility only
-		session.setPeerRawPublicKey(serverPublicKey);
 		ephemeralServerPublicKey = message.getPublicKey();
 		try {
 			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
@@ -424,7 +426,6 @@ public class ClientHandshaker extends Handshaker {
 	 * necessary messages (depending on server's previous flight) and returns
 	 * the next flight.
 	 * 
-	 * @return the client's next flight to be sent.
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
@@ -476,8 +477,6 @@ public class ClientHandshaker extends Handshaker {
 				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
-			// for backward compatibility only
-			session.setPskIdentity(identity);
 
 			byte[] psk = pskStore.getKey(identity);
 			if (psk == null) {
@@ -606,6 +605,9 @@ public class ClientHandshaker extends Handshaker {
 					"Indicating max. fragment length [{0}] to server [{1}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
+
+		addServerNameIndication(startMessage);
+
 		// set current state
 		state = startMessage.getMessageType().getCode();
 
@@ -615,5 +617,15 @@ public class ClientHandshaker extends Handshaker {
 		flight.addMessage(wrapMessage(startMessage));
 
 		recordLayer.sendFlight(flight);
+	}
+
+	private void addServerNameIndication(final ClientHello helloMessage) {
+
+		if (serverNameResolver != null) {
+			indicatedServerNames = serverNameResolver.getServerNames(session.getPeer());
+			if (indicatedServerNames != null) {
+				helloMessage.addExtension(ServerNameExtension.forServerNames(indicatedServerNames));
+			}
+		}
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for terminating a handshake
+ *    Bosch Software Innovations GmbH - add constructor based on current connection state
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -33,8 +34,9 @@ import java.util.logging.Logger;
 public final class Connection implements SessionListener {
 
 	private static final Logger LOGGER = Logger.getLogger(Connection.class.getName());
-	private final InetSocketAddress peerAddress;
+	private InetSocketAddress peerAddress;
 	private DTLSSession establishedSession;
+	private SessionTicket ticket;
 	private Handshaker ongoingHandshake;
 	private DTLSFlight pendingFlight;
 
@@ -42,13 +44,26 @@ public final class Connection implements SessionListener {
 	private boolean resumptionRequired = false; 
 
 	/**
-	 * Creates a new new connection to a given peer.
+	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
-	public Connection(InetSocketAddress peerAddress) {
-		this(peerAddress, null);
+	public Connection(final InetSocketAddress peerAddress) {
+		this(peerAddress, (Handshaker) null);
+	}
+
+	/**
+	 * Creates a new connection from a session ticket containing <em>current</em> state from another
+	 * connection that should be resumed.
+	 * 
+	 * @param sessionTicket The other connection's current state.
+	 */
+	public Connection(final SessionTicket sessionTicket) {
+		if (sessionTicket == null) {
+			throw new NullPointerException("session ticket must not be null");
+		}
+		this.ticket = sessionTicket;
 	}
 
 	/**
@@ -59,13 +74,45 @@ public final class Connection implements SessionListener {
 	 *                   handshake with the peer 
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
-	public Connection(InetSocketAddress peerAddress, Handshaker ongoingHandshake) {
+	public Connection(final InetSocketAddress peerAddress, final Handshaker ongoingHandshake) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else {
 			this.peerAddress = peerAddress;
 			this.ongoingHandshake = ongoingHandshake;
 		}
+	}
+
+	/**
+	 * Checks whether this connection is either in use on this node or can be resumed by peers interacting with
+	 * this node.
+	 * <p>
+	 * A connection that is not active is currently being negotiated by means of the <em>ongoingHandshake</em>.
+	 * 
+	 * @return {@code true} if this connection either already has an established session or
+	 *         contains a session ticket that it can be resumed from.
+	 */
+	public boolean isActive() {
+		return establishedSession != null || ticket != null;
+	}
+
+	/**
+	 * Gets the session ticket this connection can be resumed from.
+	 * 
+	 * @return The ticket or {@code null} if this connection has not been created from a session ticket.
+	 */
+	public SessionTicket getSessionTicket() {
+		return ticket;
+	}
+
+	/**
+	 * Checks if this connection has been created from a session ticket instead of having been established
+	 * locally.
+	 * 
+	 * @return {@code true} if this connection has been created from a ticket.
+	 */
+	public boolean hasSessionTicket() {
+		return ticket != null;
 	}
 
 	/**
@@ -153,8 +200,7 @@ public final class Connection implements SessionListener {
 	 */
 	public void cancelPendingFlight() {
 		if (pendingFlight != null) {
-			pendingFlight.getRetransmitTask().cancel();
-			pendingFlight.setRetransmitTask(null);
+			pendingFlight.cancelRetransmission();
 			pendingFlight = null;
 		}
 	}

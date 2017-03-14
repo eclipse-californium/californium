@@ -41,36 +41,38 @@ import java.util.logging.LogRecord;
  */
 public class CaliforniumFormatter extends Formatter {
 
-	private LogPolicy logPolicy;
-	
+	private final LogPolicy logPolicy;
+
 	/**
 	 * Initializes the log policy with default values.
 	 */
 	public CaliforniumFormatter() {
 		logPolicy = new LogPolicy();
 	}
-	
+
 	@Override
-	public String format(LogRecord record) {
+	public String format(final LogRecord record) {
 
 		String stackTrace = "";
-    	Throwable throwable = record.getThrown();
-    	if (throwable != null) {
-    		StringWriter sw = new StringWriter();
-    		throwable.printStackTrace(new PrintWriter(sw));
-    		stackTrace = sw.toString();
-    	}
-    	
-    	int lineNo;
-    	StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-    	if (throwable != null && stack.length > 7)
-    		lineNo = stack[7].getLineNumber();
-    	else if (stack.length > 8)
-    		lineNo = stack[8].getLineNumber();
-    	else lineNo = -1;
-    	
-    	StringBuffer b = new StringBuffer();
-    	if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD_ID)) {
+		Throwable throwable = record.getThrown();
+		if (throwable != null) {
+			StringWriter sw = new StringWriter();
+			throwable.printStackTrace(new PrintWriter(sw));
+			stackTrace = sw.toString();
+		}
+
+		int lineNo;
+		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+		if (throwable != null && stack.length > 7) {
+			lineNo = stack[7].getLineNumber();
+		} else if (stack.length > 8) {
+			lineNo = stack[8].getLineNumber();
+		} else {
+			lineNo = -1;
+		}
+
+		StringBuffer b = new StringBuffer();
+		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD_ID)) {
 			b.append(String.format("%2d", record.getThreadID())).append(" ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_LEVEL)) {
@@ -84,7 +86,7 @@ public class CaliforniumFormatter extends Formatter {
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
 			b.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
-    	}
+		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_METHOD)) {
 			b.append(record.getSourceMethodName()).append("()");
 		}
@@ -93,9 +95,9 @@ public class CaliforniumFormatter extends Formatter {
 		}
 		if (logPolicy.dateFormat != null) {
 			b.append(" at (").append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(")");
-        }
-		b.append("\n").append(stackTrace);
-        return b.toString();
+		}
+		b.append(System.lineSeparator()).append(stackTrace);
+		return b.toString();
 	}
 
 	/**
@@ -104,17 +106,17 @@ public class CaliforniumFormatter extends Formatter {
 	 * @param absolute the absolute class name
 	 * @return the simple class name
 	 */
-	private static String getSimpleClassName(String absolute) {
+	private static String getSimpleClassName(final String absolute) {
 		String[] parts = absolute.split("\\.");
 		return parts[parts.length -1];
 	}
-	
+
 	/**
 	 * A set of boolean properties controlling the content of the log statement
 	 * returned by {@link CaliforniumFormatter#format(LogRecord)}.
 	 */
 	private static class LogPolicy {
-		
+
 		private static final String LOG_POLICY_SHOW_CLASS = "californium.LogPolicy.showClass";
 		private static final String LOG_POLICY_SHOW_LEVEL = "californium.LogPolicy.showLevel";
 		private static final String LOG_POLICY_SHOW_METHOD = "californium.LogPolicy.showMethod";
@@ -126,12 +128,12 @@ public class CaliforniumFormatter extends Formatter {
 
 		private Map<String, Boolean> policy = new HashMap<String, Boolean>();		
 		private Format dateFormat = null;
-		
+
 		/**
 		 * Instantiates a new log policy.
 		 */
 		private LogPolicy() {
-			
+
 			addPolicy(LOG_POLICY_SHOW_CLASS, Boolean.TRUE);
 			addPolicy(LOG_POLICY_SHOW_LEVEL, Boolean.TRUE);
 			addPolicy(LOG_POLICY_SHOW_CLASS, Boolean.TRUE);
@@ -144,7 +146,7 @@ public class CaliforniumFormatter extends Formatter {
 			// initialize date format from property specified in JDK logging
 			// configuration
 			String df = LogManager.getLogManager().getProperty(LOG_POLICY_DATE_FORMAT);
-			if (df!=null) {
+			if (df != null) {
 				if (!df.equals("")) {
 					dateFormat = new SimpleDateFormat(df);
 				}
@@ -164,7 +166,7 @@ public class CaliforniumFormatter extends Formatter {
 		 *            not contain a value for the configuration property
 		 * @return the updated policy
 		 */
-		private LogPolicy addPolicy(String propertyName, boolean defaultValue) {
+		private LogPolicy addPolicy(final String propertyName, final boolean defaultValue) {
 			String flag = LogManager.getLogManager().getProperty(propertyName);
 			if (flag != null) {
 				policy.put(propertyName, Boolean.parseBoolean(flag));
@@ -173,11 +175,10 @@ public class CaliforniumFormatter extends Formatter {
 			}
 			return this;
 		}
-		
-		private boolean isEnabled(String propertyName) {
+
+		private boolean isEnabled(final String propertyName) {
 			Boolean result = policy.get(propertyName);
 			return result != null ? result : false;
 		}
 	}
-	
 }

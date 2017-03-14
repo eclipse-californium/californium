@@ -100,6 +100,15 @@ class DTLSConnectionState {
 	}
 
 	/**
+	 * Checks whether the cipher suite is not the <em>NULL_CIPHER</em>.
+	 * 
+	 * @return {@code true} if the suite is not {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}.
+	 */
+	public boolean hasValidCipherSuite() {
+		return !CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(cipherSuite);
+	}
+
+	/**
 	 * Gets the algorithm used for reducing the size of <em>plaintext</em> data to
 	 * be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em> messages.
 	 * 
@@ -190,13 +199,13 @@ class DTLSConnectionState {
 	}
 
 	@Override
-	public String toString() {
+	public final String toString() {
 		StringBuffer b = new StringBuffer("DTLSConnectionState:");
-		b.append("\n\tCipher suite: ").append(cipherSuite);
-		b.append("\n\tCompression method: ").append(compressionMethod);
-		b.append("\n\tIV: ").append(iv == null ? "null" : "not null");
-		b.append("\n\tMAC key: ").append(macKey == null ? "null" : "not null");
-		b.append("\n\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
+		b.append(System.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
+		b.append(System.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
+		b.append(System.lineSeparator()).append("\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
 		return b.toString();
 	}
 }

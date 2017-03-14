@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.scandium.util.DatagramReader;
-import org.eclipse.californium.scandium.util.DatagramWriter;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * An identifier for the compression algorithms defined by the IANA to be used
@@ -41,14 +41,14 @@ public enum CompressionMethod {
 	NULL(0x00),
 	DEFLATE(0x01);
 
+	// DTLS-specific constants ////////////////////////////////////////
+
+	public static final int COMPRESSION_METHOD_BITS = 8;
+
 	// Logging ////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = Logger.getLogger(CompressionMethod.class.getCanonicalName());
 
-	// DTLS-specific constants ////////////////////////////////////////
-
-	private static final int COMPRESSION_METHOD_BITS = 8;
-	
 	// Members ////////////////////////////////////////////////////////
 
 	private int code;

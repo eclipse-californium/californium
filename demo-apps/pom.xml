@@ -34,7 +34,8 @@
 	</properties>
 	
 	<modules>
-		<module>sc-dtls-example</module>
+		<module>sc-dtls-example-server</module>
+		<module>sc-dtls-example-client</module>
 		<module>cf-plugtest-client</module>
 		<module>cf-plugtest-checker</module>
 		<module>cf-plugtest-server</module>

@@ -33,7 +33,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +48,18 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
  */
 public final class DTLSSession {
 
-	// 53 bytes overall header length
+	/**
+	 * The overall length of all headers around a DTLS handshake message payload.
+	 * <p>
+	 * <ol>
+	 * <li>12 bytes DTLS message header</li>
+	 * <li>13 bytes DTLS record header</li>
+	 * <li>8 bytes UDP header</li>
+	 * <li>20 bytes IP header</li>
+	 * </ol>
+	 * <p>
+	 * 53 bytes in total.
+	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
 								+ 13 // bytes DTLS record headers
 								+ 8 // bytes UDP headers
@@ -94,16 +104,6 @@ public final class DTLSSession {
 	private byte[] masterSecret = null;
 
 	/**
-	 * The identity used for PSK authentication
-	 */
-	private String pskIdentity;
-
-	/**
-	 * The peer public key for RPK authentication
-	 */
-	private PublicKey peerRawPublicKey;	
-
-	/**
 	 * Indicates whether this object represents the <em>client</em> or the <em>server</em>
 	 * side of the connection. The <em>client</em> side is the one initiating the handshake.
 	 */
@@ -113,6 +113,7 @@ public final class DTLSSession {
 	 * The <em>current read state</em> used for processing all inbound records.
 	 */
 	private DTLSConnectionState readState = new DTLSConnectionState();
+
 	/**
 	 * The <em>current write state</em> used for processing all outbound records.
 	 */
@@ -147,6 +148,7 @@ public final class DTLSSession {
 	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
+	private long creationTime;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -163,18 +165,20 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Creates an instance based on the <em>current connection state</em> of
-	 * a session that is to be resumed.
+	 * Creates a new session based on a given set of crypto params of another session
+	 * that is to be resumed.
 	 * <p>
 	 * The newly created session will have its <em>pending state</em> initialized with
-	 * the given session's <em>current write state</em> so that it can be used during
-	 * the abbreviated handshake used to resume the session.
+	 * the given crypto params so that it can be used during the abbreviated handshake
+	 * used to resume the session.
 	 *
+	 * @param id The identifier of the session to be resumed.
 	 * @param peerAddress
-	 *            the remote address
-	 * @param sessionToResume
-	 *            the session to be resumed
-	 * @param initialSequenceNo the initial record sequence number to start from
+	 *            The IP address and port of the client that wants to resume the session.
+	 * @param ticket
+	 *            The crypto params to use for the abbreviated handshake
+	 * @param initialSequenceNo
+	 *            The initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
 	 *            sequence number to use in the SERVER_HELLO record MUST be the same as
@@ -182,15 +186,13 @@ public final class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, DTLSSession sessionToResume, long initialSequenceNo){
-		this(peerAddress, sessionToResume.isClient, initialSequenceNo);
-		sessionIdentifier = sessionToResume.sessionIdentifier;
-		cipherSuite = sessionToResume.getWriteState().getCipherSuite();
-		compressionMethod = sessionToResume.getWriteState().getCompressionMethod();
-		sendRawPublicKey = sessionToResume.sendRawPublicKey;
-		receiveRawPublicKey = sessionToResume.receiveRawPublicKey;
-		masterSecret = sessionToResume.masterSecret;
-		peerIdentity = sessionToResume.peerIdentity;
+	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo){
+		this(peerAddress, false, initialSequenceNo);
+		sessionIdentifier = id;
+		masterSecret = ticket.getMasterSecret();
+		peerIdentity = ticket.getClientIdentity();
+		cipherSuite = ticket.getCipherSuite();
+		compressionMethod = ticket.getCompressionMethod();
 	}
 
 	/**
@@ -214,6 +216,7 @@ public final class DTLSSession {
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
+			this.creationTime = System.currentTimeMillis();
 			this.peer = peerAddress;
 			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
@@ -222,35 +225,17 @@ public final class DTLSSession {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	/**
+	 * Gets this session's identifier.
+	 * 
+	 * @return the identifier or {@code null} if this session does not have an identifier (yet).
+	 */
 	public SessionId getSessionIdentifier() {
 		return sessionIdentifier;
 	}
 
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		this.sessionIdentifier = sessionIdentifier;
-	}
-
-	/**
-	 * Gets the public key presented by a peer during an ECDH based
-	 * handshake.
-	 * 
-	 * @return the public key or <code>null</code> if the peer has not
-	 * been authenticated or the handshake was PSK based
-	 * @deprecated Use {@link #getPeerIdentity()} instead
-	 */
-	@Deprecated
-	public PublicKey getPeerRawPublicKey() {
-		return peerRawPublicKey;
-	}
-
-	/**
-	 * 
-	 * @param key
-	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
-	 */
-	@Deprecated
-	void setPeerRawPublicKey(PublicKey key) {
-		peerRawPublicKey = key;
 	}
 
 	/**
@@ -323,6 +308,11 @@ public final class DTLSSession {
 		return this.isClient;
 	}
 
+	/**
+	 * Gets this session's current write epoch.
+	 * 
+	 * @return The epoch.
+	 */
 	public int getWriteEpoch() {
 		return writeEpoch;
 	}
@@ -335,6 +325,11 @@ public final class DTLSSession {
 		}
 	}
 
+	/**
+	 * Gets this session's current read epoch.
+	 * 
+	 * @return The epoch.
+	 */
 	public int getReadEpoch() {
 		return readEpoch;
 	}
@@ -397,15 +392,18 @@ public final class DTLSSession {
 
 	/**
 	 * Gets the current read state of the connection.
-	 * 
+	 * <p>
 	 * The information in the current read state is used to de-crypt
 	 * messages received from a peer.
 	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
 	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * <p>
+	 * The cipher suite of the returned object will be {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+	 * if the connection's crypto params have not yet been negotiated.
 	 * 
-	 * @return the current read state
+	 * @return The current read state.
 	 */
-	DTLSConnectionState getReadState() {
+	synchronized DTLSConnectionState getReadState() {
 		return readState;
 	}
 
@@ -440,21 +438,24 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	public String getReadStateCipher() {
+	public synchronized String getReadStateCipher() {
 		return readState.getCipherSuite().name();
 	}
 
 	/**
 	 * Gets the current write state of the connection.
-	 * 
+	 * <p>
 	 * The information in the current write state is used to en-crypt
 	 * messages sent to a peer.
 	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
 	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * <p>
+	 * The cipher suite of the returned object will be {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+	 * if the connection's crypto params have not yet been negotiated.
 	 * 
-	 * @return the current read state
+	 * @return The current write state.
 	 */
-	DTLSConnectionState getWriteState() {
+	synchronized DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
@@ -492,7 +493,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	public String getWriteStateCipher() {
+	synchronized public String getWriteStateCipher() {
 		return writeState.getCipherSuite().name();
 	}
 
@@ -641,6 +642,11 @@ public final class DTLSSession {
 		this.receiveRawPublicKey = receiveRawPublicKey;
 	}
 
+	/**
+	 * Gets the IP address and socket of this session's peer.
+	 * 
+	 * @return The peer's address.
+	 */
 	public InetSocketAddress getPeer() {
 		return peer;
 	}
@@ -666,29 +672,6 @@ public final class DTLSSession {
 			throw new NullPointerException("Peer identity must not be null");
 		}
 		this.peerIdentity = peerIdentity;
-	}
-
-	/**
-	 * Gets the identity presented by a peer during a <em>pre-shared key</em>
-	 * based handshake.
-	 * 
-	 * @return the (authenticated) identity or <code>null</code> if the peer
-	 * has not been authenticated at all or the handshake was ECDH based
-	 * @deprecated Use {@link #getPeerIdentity()} instead
-	 */
-	@Deprecated
-	public String getPskIdentity() {
-		return pskIdentity;
-	}
-
-	/**
-	 * 
-	 * @param pskIdentity
-	 * @deprecated Use {@link #setPeerIdentity(Principal)} instead
-	 */
-	@Deprecated
-	void setPskIdentity(String pskIdentity) {
-		this.pskIdentity = pskIdentity;
 	}
 
 	/**
@@ -798,5 +781,25 @@ public final class DTLSSession {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 		receiveWindowLowerBoundary = 0;
+	}
+
+	/**
+	 * Gets a session ticket representing this session's <em>current</em> connection state.
+	 * 
+	 * @return The ticket.
+	 * @throws IllegalStateException if this session does not have its current connection state set yet.
+	 */
+	public SessionTicket getSessionTicket() {
+		if (getWriteState().hasValidCipherSuite()) {
+			return new SessionTicket(
+					new ProtocolVersion(),
+					getWriteState().getCipherSuite(),
+					getWriteState().getCompressionMethod(),
+					getMasterSecret(),
+					getPeerIdentity(),
+					System.currentTimeMillis());
+		} else {
+			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
+		}
 	}
 }

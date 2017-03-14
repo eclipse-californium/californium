@@ -21,11 +21,11 @@ This process helps us in creating great open source software within a safe legal
 
 For you as a contributor, the following preliminary steps are required in order for us to be able to accept your contribution:
 
-* Sign the [Eclipse Foundation Contributor License Agreement](http://www.eclipse.org/legal/CLA.php).
+* Sign the [Eclipse Contributor Agreement](http://www.eclipse.org/legal/ECA.php).
     In order to do so:
   * Obtain an Eclipse Foundation user ID. Anyone who currently uses Eclipse Bugzilla or Gerrit systems already has one of those.
 If you don't already have an account simply [register on the Eclipse web site](https://dev.eclipse.org/site_login/createaccount.php).
-  * Once you have your account, log in to the [projects portal](https://projects.eclipse.org/), select *My Account* and then the *Contributor License Agreement* tab.
+  * Once you have your account, log in to the [projects portal](https://projects.eclipse.org/), select *My Account* and then the *Eclipse ECA* tab.
 
 * Add your GiHub username to your Eclipse Foundation account. Log in to Eclipse and go to [Edit my account](https://dev.eclipse.org/site_login/myaccount.php).
 

@@ -21,15 +21,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.core.coap.CoAP.Code.GET;
-import static org.eclipse.californium.core.coap.CoAP.Code.POST;
-import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
+import static org.eclipse.californium.TestTools.*;
+import static org.eclipse.californium.core.coap.CoAP.Code.*;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.junit.Assert.*;
 
@@ -62,7 +58,7 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class BlockwiseClientSideTest {
 
-	private static NetworkConfig CONFIG;
+	private static NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private Endpoint client;
@@ -74,7 +70,8 @@ public class BlockwiseClientSideTest {
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseClientSideTest.class.getSimpleName());
-		CONFIG = new NetworkConfig()
+
+		config = NetworkConfig.createStandardWithoutFile()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
@@ -85,7 +82,7 @@ public class BlockwiseClientSideTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
@@ -146,31 +143,6 @@ public class BlockwiseClientSideTest {
 		printServerLog(clientInterceptor);
 	}
 
-	// TODO: what is the purpose of this test?
-	@Test
-	public void testGET2() throws Exception {
-		System.out.println("Simple blockwise GET:");
-		respPayload = generateRandomPayload(10);
-		String path = "test";
-
-		Request request = createRequest(GET, path, server);
-		client.sendRequest(request);
-
-		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").go();
-		server.sendEmpty(ACK).loadMID("A").go();
-		Thread.sleep(50);
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-		clientInterceptor.log(" // lost");
-		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(mid).go();
-		server.expectEmpty(ACK, mid).mid(mid).go(); // lost
-
-		Response response = request.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, respPayload);
-
-		printServerLog(clientInterceptor);
-	}
-
 	/**
 	 * In the second example, the client anticipates the blockwise transfer
 	 * (e.g., because of a size indication in the link- format description
@@ -200,7 +172,7 @@ public class BlockwiseClientSideTest {
 	 * </pre>
 	 */
 	@Test
-	public void testGETEarlyNegotion() throws Exception {
+	public void testGETEarlyNegotiation() throws Exception {
 		System.out.println("Blockwise GET with early negotiation: (low priority for Cf client)");
 		respPayload = generateRandomPayload(350);
 		String path = "test";
@@ -254,7 +226,7 @@ public class BlockwiseClientSideTest {
      * </pre>
 	 */
 	@Test
-	public void testGETLateNegotionAndLostACK() throws Exception {
+	public void testGETLateNegotiationAndLostACK() throws Exception {
 		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
@@ -319,7 +291,7 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
@@ -327,6 +299,113 @@ public class BlockwiseClientSideTest {
 
 		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).payload(respPayload).go();	
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * a server receiving a block-wise PUT indicate a smaller block size
+	 * preference. In this case, the client SHOULD continue with a smaller block
+	 * size; if it does, it MUST adjust the block number to properly count in
+	 * that smaller size.
+	 * 
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                          |
+	 * | CON [MID=1234], PUT, /options, 1:0/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1234], 2.31 Continue, 1:0/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1235], PUT, /options, 1:4/1/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:4/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1236], PUT, /options, 1:5/1/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:5/1/32        |
+	 * |                                                          |
+	 * | CON [MID=1237], PUT, /options, 1:6/0/32     ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1236], 2.04 Changed, 1:6/0/32         |
+	 * </pre>
+	 */
+	@Test
+	public void testSimpleAtomicBlockwisePUTWithSmallerNegotiation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with smaller size negotiation");
+		reqtPayload = generateRandomPayload(200);
+		respPayload = generateRandomPayload(50);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(4, true, 32).payload(reqtPayload.substring(128, 160)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(4, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(5, true, 32).payload(reqtPayload.substring(160, 192)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(5, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(6, false, 32)
+				.payload(reqtPayload.substring(192, 200)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(6, false, 32).payload(respPayload).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * a server receiving a block-wise PUT and indicate a bigger block size
+	 * preference. In this case, the client SHOULD continue with the same block
+	 * size as requesting a bigger size is not allowed.
+	 * 
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                          |
+	 * | CON [MID=1234], PUT, /options, 1:0/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1234], 2.31 Continue, 1:0/1/256       |
+	 * |                                                          |
+	 * | CON [MID=1235], PUT, /options, 1:1/1/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1235], 2.31 Continue, 1:1/1/256       |
+	 * |                                                          |
+	 * | CON [MID=1236], PUT, /options, 1:2/0/128    ------>      |
+	 * |                                                          |
+	 * | <------   ACK [MID=1236], 2.04 Changed, 1:2/0/256        |
+	 * </pre>
+	 */
+	@Test
+	public void testSimpleAtomicBlockwisePUTWithBiggerNegotiation() throws Exception {
+		System.out.println("Simple atomic blockwise PUT with bigger size negotiation");
+		reqtPayload = generateRandomPayload(300);
+		respPayload = generateRandomPayload(50);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 256).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128)
+				.payload(reqtPayload.substring(128, 256)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 256).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, false, 128)
+				.payload(reqtPayload.substring(256, 300)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 256).payload(respPayload).go();
 
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
@@ -377,14 +456,16 @@ public class BlockwiseClientSideTest {
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, POST, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload.substring(0, 128)).go();
+		server.expectRequest(CON, POST, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
 		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("C").block1(2, false, 128).payload(reqtPayload.substring(256, 300)).go();
-		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).size2(respPayload.length())
+				.payload(respPayload.substring(0, 128)).go();
 
 		server.expectRequest(CON, POST, path).storeBoth("D").block2(1, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("D").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
@@ -420,7 +501,8 @@ public class BlockwiseClientSideTest {
 		System.out.println("Establish observe relation to " + path);
 
 		server.expectRequest(CON, GET, path).storeToken("At").storeMID("Am").observe(0).go();
-		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("B").noOption(OBSERVE).block2(1, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
@@ -436,10 +518,13 @@ public class BlockwiseClientSideTest {
 		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
 		respPayload = generateRandomPayload(280);
 
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("D").noOption(OBSERVE).block2(1, false, 128).go();
+		server.goMultiExpectation();
 		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 
 		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE).block2(2, false, 128).go();
@@ -452,21 +537,28 @@ public class BlockwiseClientSideTest {
 		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
 		respPayload = generateRandomPayload(290);
 
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		// expect blockwise transfer for second notification
 		server.expectRequest(CON, GET, path).storeBoth("F").noOption(OBSERVE).block2(1, false, 128).go();
-
+		server.goMultiExpectation();
+		
 		System.out.println("Server sends third notification during transfer ");
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
+		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 
 		// expect blockwise transfer for third notification
 		server.expectRequest(CON, GET, path).storeBoth("G").noOption(OBSERVE).block2(1, false, 128).go();
-
+		server.goMultiExpectation();
+		
 		System.out.println("Send old notification during transfer");
-		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).size2(respPayload.length())
+			.payload(respPayload.substring(0, 128)).go();
 		server.expectEmpty(ACK, mid).go();
 
 		server.sendResponse(ACK, CONTENT).loadBoth("G").block2(1, true, 128).payload(respPayload.substring(128, 256)).go();

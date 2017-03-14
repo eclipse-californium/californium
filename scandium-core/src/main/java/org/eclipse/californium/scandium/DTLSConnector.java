@@ -44,17 +44,17 @@ import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -69,7 +69,6 @@ import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -78,7 +77,6 @@ import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
-import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -99,7 +97,9 @@ import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
+import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SessionListener;
+import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -110,6 +110,12 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * exchanged between networked clients and a server application.
  */
 public class DTLSConnector implements Connector {
+
+	/**
+	 * The {@code CorrelationContext} key used to store the host name indicated by a
+	 * client in an SNI hello extension.
+	 */
+	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
 	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
@@ -122,6 +128,14 @@ public class DTLSConnector implements Connector {
 
 	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
 
+	/** all the configuration options for the DTLS connector */ 
+	private final DtlsConnectorConfig config;
+
+	private final ResumptionSupportingConnectionStore connectionStore;
+
+	/** A queue for buffering outgoing messages */
+	private final BlockingQueue<RawData> outboundMessages;
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -131,9 +145,6 @@ public class DTLSConnector implements Connector {
 	// last time when the master key was generated
 	private long lastGenerationDate = System.currentTimeMillis();
 	private SecretKey cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
-
-	/** all the configuration options for the DTLS connector */ 
-	private final DtlsConnectorConfig config;
 
 	private DatagramSocket socket;
 
@@ -147,17 +158,13 @@ public class DTLSConnector implements Connector {
 	/** The thread that sends messages */
 	private Worker sender;
 
-	private final ConnectionStore connectionStore;
-
-	/** A queue for buffering outgoing messages */
-	private final BlockingQueue<RawData> outboundMessages;
-
 	/** Indicates whether the connector has started and not stopped yet */
-	private boolean running;
+	private AtomicBoolean running = new AtomicBoolean(false);
 
 	private RawDataChannel messageHandler;
 
 	private ErrorHandler errorHandler;
+	private SessionListener sessionCacheSynchronization;
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
@@ -167,90 +174,39 @@ public class DTLSConnector implements Connector {
 	 * @throws NullPointerException if the configuration is <code>null</code>
 	 */
 	public DTLSConnector(DtlsConnectorConfig configuration) {
-		this(configuration, null);
+		this(configuration, (SessionCache) null);
 	}
 
 	/**
-	 * Creates a DTLS connector from a given configuration object.
+	 * Creates a DTLS connector for a given set of configuration options.
 	 * 
 	 * @param configuration the configuration options
-	 * @param connectionStore the store to use for keeping track of connection information,
-	 *       if <code>null</code> connection information is kept in-memory
+	 * @param sessionCache an (optional) cache for <code>DTLSSession</code> objects that can be used for
+	 *       persisting and/or sharing of session state among multiple instances of <code>DTLSConnector</code>.
+	 *       Whenever a handshake with a client is finished the negotiated session is put to this cache.
+	 *       Similarly, whenever a client wants to perform an abbreviated handshake based on an existing session
+	 *       the connection store will try to retrieve the session from this cache if it is
+	 *       not available from the connection store's in-memory (first-level) cache.
 	 * @throws NullPointerException if the configuration is <code>null</code>
 	 */
-	public DTLSConnector(DtlsConnectorConfig configuration, ConnectionStore connectionStore) {
+	public DTLSConnector(final DtlsConnectorConfig configuration, final SessionCache sessionCache) {
+		this(configuration,
+				new InMemoryConnectionStore(
+						configuration.getMaxConnections(),
+						configuration.getStaleConnectionThreshold(),
+						sessionCache));
+	}
+
+	DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
+		} else if (connectionStore == null) {
+			throw new NullPointerException("Connection store must not be null");
 		} else {
 			this.config = configuration;
-		}
-		this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
-		if (connectionStore != null) {
+			this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
-		} else {
-			this.connectionStore = new InMemoryConnectionStore();
-		}
-	}
-
-	/**
-	 * Creates a DTLS connector for PSK based authentication only.
-	 * 
-	 * @param address the IP address and port to bind to
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address) {
-		this(address, null);
-	}
-
-	/**
-	 * Creates a DTLS connector that can also do certificate based authentication.
-	 * 
-	 * @param address the address to bind
-	 * @param rootCertificates list of trusted root certificates, e.g. from well known
-	 * Certificate Authorities or self-signed certificates.
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates) {
-		this(address, rootCertificates, null, null);
-	}
-
-	/**
-	 * Creates a DTLS connector that can also do certificate based authentication.
-	 * 
-	 * @param address the address to bind
-	 * @param rootCertificates list of trusted root certificates, e.g. from well known
-	 * Certificate Authorities or self-signed certificates (may be <code>null</code>)
-	 * @param connectionStore the store to use for keeping track of connection information,
-	 *       if <code>null</code> connection information is kept in-memory
-	 * @param config the configuration options to use
-	 * @deprecated Use {@link #DTLSConnector(DtlsConnectorConfig, ConnectionStore)} instead
-	 */
-	@Deprecated
-	public DTLSConnector(InetSocketAddress address, Certificate[] rootCertificates,
-			ConnectionStore connectionStore, DTLSConnectorConfig config) {
-		Builder builder = new Builder(address);
-		if (config != null) {
-			builder.setMaxRetransmissions(config.getMaxRetransmit());
-			builder.setRetransmissionTimeout(config.getRetransmissionTimeout());
-			if (rootCertificates != null) {
-				builder.setTrustStore(rootCertificates);
-			}
-			if (config.pskStore != null) {
-				builder.setPskStore(config.pskStore);
-			} else if (config.certChain != null) {
-				builder.setIdentity(config.privateKey, config.certChain, config.sendRawKey);
-			} else {
-				builder.setIdentity(config.privateKey, config.publicKey);
-			}
-		}
-		this.config = builder.build();
-		this.outboundMessages = new LinkedBlockingQueue<>(this.config.getOutboundMessageBufferSize());
-		if (connectionStore != null) {
-			this.connectionStore = connectionStore;
-		} else {
-			this.connectionStore = new InMemoryConnectionStore();
+			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
 	}
 
@@ -296,10 +252,12 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void start(InetSocketAddress bindAddress) throws IOException {
-		if (running) {
+	private void start(final InetSocketAddress bindAddress) throws IOException {
+
+		if (running.get()) {
 			return;
 		}
+
 		timer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
 
 			private final AtomicInteger index = new AtomicInteger(1);
@@ -342,7 +300,7 @@ public class DTLSConnector implements Connector {
 		}
 
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
-		running = true;
+		running.set(true);
 
 		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
 				@Override
@@ -372,10 +330,31 @@ public class DTLSConnector implements Connector {
 	 * The abbreviated handshake will be done next time data will be sent with {@link #send(RawData)}.
 	 * @param peer the peer for which we will force to do an abbreviated handshake
 	 */
-	public final synchronized void forceResumeSessionFor(InetSocketAddress peer){
+	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
 		if (peerConnection != null && peerConnection.getEstablishedSession() != null)
 			peerConnection.setResumptionRequired(true);
+	}
+
+	/**
+	 * Marks all established sessions currently maintained by this connector to be resumed by means
+	 * of an <a href="https://tools.ietf.org/html/rfc5246#section-7.3">abbreviated handshake</a> the
+	 * next time a message is being sent to the corresponding peer using {@link #send(RawData)}.
+	 * <p>
+	 * This method's execution time is proportional to the number of connections this connector maintains.
+	 */
+	public final synchronized void forceResumeAllSesions() {
+		connectionStore.markAllAsResumptionRequired();
+	}
+
+	/**
+	 * Clears all connection state this connector maintains for peers.
+	 * <p>
+	 * After invoking this method a new connection needs to be established with a peer using a 
+	 * full handshake in order to exchange messages with it again.
+	 */
+	public final synchronized void clearConnectionState() {
+		connectionStore.clear();
 	}
 
 	/**
@@ -383,7 +362,7 @@ public class DTLSConnector implements Connector {
 	 * used for sending and receiving datagrams.
 	 */
 	final synchronized void releaseSocket() {
-		running = false;
+		running.set(false);
 		sender.interrupt();
 		outboundMessages.clear();
 		if (socket != null) {
@@ -395,12 +374,11 @@ public class DTLSConnector implements Connector {
 
 	@Override
 	public final synchronized void stop() {
-		if (!running) {
-			return;
+		if (running.get()) {
+			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
+			timer.shutdownNow();
+			releaseSocket();
 		}
-		LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
-		timer.shutdownNow();
-		releaseSocket();
 	}
 
 	/**
@@ -576,7 +554,7 @@ public class DTLSConnector implements Connector {
 		connectionClosed(connection.getPeerAddress());
 	}
 
-	private void processApplicationDataRecord(Record record) {
+	private void processApplicationDataRecord(final Record record) {
 
 		Connection connection = connectionStore.get(record.getPeerAddress());
 		if (connection != null && connection.hasEstablishedSession()) {
@@ -687,9 +665,11 @@ public class DTLSConnector implements Connector {
 			} else {
 				// non-fatal alerts do not require any special handling
 			}
-	
-			if (errorHandler != null) {
-				errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
+
+			synchronized (cookieMacKeyLock) {
+				if (errorHandler != null) {
+					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
+				}
 			}
 		} catch (HandshakeException | GeneralSecurityException e) {
 			discardRecord(record, e);
@@ -844,6 +824,7 @@ public class DTLSConnector implements Connector {
 			}
 			Handshaker handshaker = new ClientHandshaker(session, getRecordLayerForPeer(connection), connection,
 					config, maximumTransmissionUnit);
+			addSessionCacheSynchronization(handshaker);
 			handshaker.startHandshake();
 		}
 	}
@@ -969,6 +950,7 @@ public class DTLSConnector implements Connector {
 		// for the case that multiple cookie exchanges have taken place)
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
 				getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+		addSessionCacheSynchronization(handshaker);
 		handshaker.processMessage(record);
 	}
 
@@ -983,34 +965,52 @@ public class DTLSConnector implements Connector {
 		LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
 				new Object[]{clientHello.getPeer(), clientHello.getSessionId()});
 		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
-		if (previousConnection != null && previousConnection.hasEstablishedSession()) {
+		if (previousConnection != null && previousConnection.isActive()) {
+
 			// session has been found in cache, resume it
-			DTLSSession resumableSession = new DTLSSession(record.getPeerAddress(),
-					previousConnection.getEstablishedSession(), record.getSequenceNumber());
 			Connection peerConnection = new Connection(record.getPeerAddress());
-
-			Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), resumableSession,
-					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
-
-			if (!previousConnection.getPeerAddress().equals(peerConnection.getPeerAddress())) {
-				// client has a new IP address, terminate previous connection once new session has been established
-				handshaker.addSessionListener(new SessionAdapter() {
-					@Override
-					public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-							throws HandshakeException {
-						LOGGER.log(Level.FINER,
-								"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
-								new Object[]{
-										previousConnection.getPeerAddress(),
-										establishedSession.getSessionIdentifier(),
-										establishedSession.getPeer()});
-						terminateConnection(previousConnection);
-					}
-				});
+			SessionTicket ticket = null;
+			if (previousConnection.hasEstablishedSession()) {
+				ticket = previousConnection.getEstablishedSession().getSessionTicket();
+			} else if (previousConnection.hasSessionTicket()) {
+				ticket = previousConnection.getSessionTicket();
 			} else {
-				// immediately remove previous connection
-				terminateConnection(previousConnection);
+				// TODO: fall back to full handshake
 			}
+			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
+					ticket, record.getSequenceNumber());
+
+			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
+					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+			addSessionCacheSynchronization(handshaker);
+
+			if (previousConnection.hasEstablishedSession()) {
+				// client wants to resume a session that has been negotiated by this node
+				// make sure that the same client only has a single active connection to this server
+				if (!previousConnection.getPeerAddress().equals(peerConnection.getPeerAddress())) {
+					// client has a new IP address, terminate previous connection once new session has been established
+					handshaker.addSessionListener(new SessionAdapter() {
+						@Override
+						public void sessionEstablished(final Handshaker currentHandshaker, final DTLSSession establishedSession)
+								throws HandshakeException {
+							LOGGER.log(Level.FINER,
+									"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
+									new Object[]{
+											previousConnection.getPeerAddress(),
+											establishedSession.getSessionIdentifier(),
+											establishedSession.getPeer()});
+							terminateConnection(previousConnection);
+						}
+					});
+				} else {
+					// immediately remove previous connection
+					terminateConnection(previousConnection);
+				}
+			} else {
+				// client wants to resume a session that has been established with another node
+				// simply start the abbreviated handshake
+			}
+
 			// add the new one to the store
 			connectionStore.put(peerConnection);
 
@@ -1121,6 +1121,8 @@ public class DTLSConnector implements Connector {
 	public final void send(RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
+		} else if (!running.get()) {
+			throw new IllegalStateException("connector must be started before sending messages is possible");
 		} else if (msg.getBytes().length > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
@@ -1177,13 +1179,14 @@ public class DTLSConnector implements Connector {
 			// start handshake
 			Handshaker handshaker = new ClientHandshaker(new DTLSSession(peerAddress, true),
 					getRecordLayerForPeer(connection), connection, config, maximumTransmissionUnit);
+			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();
 		}
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
 			// create the session to resume from the previous one.
-			DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
+			DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress, session.getSessionTicket(), 0);
 
 			// terminate the previous connection and add the new one to the store
 			Connection newConnection = new Connection(peerAddress);
@@ -1191,6 +1194,7 @@ public class DTLSConnector implements Connector {
 			connectionStore.put(newConnection);
 			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
 					getRecordLayerForPeer(newConnection), newConnection, config, maximumTransmissionUnit);
+			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();
 		} else {
@@ -1220,21 +1224,19 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
+	private void addSessionCacheSynchronization(final Handshaker handshaker) {
+		if (sessionCacheSynchronization != null) {
+			handshaker.addSessionListener(sessionCacheSynchronization);
+		}
+	}
+
 	private SessionListener newDeferredMessageSender(final RawData message) {
-		return new SessionListener() {
+		return new SessionAdapter() {
 
 			@Override
 			public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession) throws HandshakeException {
 				LOGGER.log(Level.FINE, "Session with [{0}] established, now sending deferred message", establishedSession.getPeer());
 				sendMessage(message, establishedSession);
-			}
-
-			@Override
-			public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
-			}
-
-			@Override
-			public void handshakeCompleted(InetSocketAddress peer) {
 			}
 		};
 	}
@@ -1375,14 +1377,10 @@ public class DTLSConnector implements Connector {
 
 	private void scheduleRetransmission(DTLSFlight flight) {
 
-		// cancel existing schedule (if any)
-		if (flight.getRetransmitTask() != null) {
-			flight.getRetransmitTask().cancel();
-		}
+		// cancel existing retransmission task (if any)
+		flight.cancelRetransmission();
 
 		if (flight.isRetransmissionNeeded()) {
-			// create new retransmission task
-			flight.setRetransmitTask(new RetransmitTask(flight));
 
 			// calculate timeout using exponential back-off
 			if (flight.getTimeout() == 0) {
@@ -1394,7 +1392,8 @@ public class DTLSConnector implements Connector {
 			}
 
 			// schedule retransmission task
-			timer.schedule(flight.getRetransmitTask(), flight.getTimeout(), TimeUnit.MILLISECONDS);
+			ScheduledFuture<?> f = timer.schedule(new RetransmitTask(flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
+			flight.setRetransmitTask(f);
 		}
 	}
 
@@ -1465,8 +1464,13 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
+	/**
+	 * Checks if this connector is running.
+	 * 
+	 * @return {@code true} if running.
+	 */
 	public final boolean isRunning() {
-		return running;
+		return running.get();
 	}
 
 	private RecordLayer getRecordLayerForPeer(final Connection connection) {
@@ -1484,11 +1488,11 @@ public class DTLSConnector implements Connector {
 		};
 	}
 
-	private class RetransmitTask extends TimerTask {
+	private class RetransmitTask implements Runnable {
 
 		private DTLSFlight flight;
 
-		RetransmitTask(DTLSFlight flight) {
+		RetransmitTask(final DTLSFlight flight) {
 			this.flight = flight;
 		}
 
@@ -1516,13 +1520,13 @@ public class DTLSConnector implements Connector {
 		public void run() {
 			try {
 				LOGGER.log(Level.CONFIG, "Starting worker thread [{0}]", getName());
-				while (running) {
+				while (running.get()) {
 					try {
 						doWork();
 					} catch (ClosedByInterruptException e) {
 						LOGGER.log(Level.CONFIG, "Worker thread [{0}] has been interrupted", getName());
 					} catch (Exception e) {
-						if (running) {
+						if (running.get()) {
 							LOGGER.log(Level.FINE, "Exception thrown by worker thread [" + getName() + "]", e);
 						}
 					}
@@ -1543,7 +1547,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public void setRawDataReceiver(RawDataChannel messageHandler) {
+	public void setRawDataReceiver(final RawDataChannel messageHandler) {
+		if (isRunning()) {
+			throw new IllegalStateException("message handler cannot be set on running connector");
+		}
 		this.messageHandler = messageHandler;
 	}
 
@@ -1552,8 +1559,10 @@ public class DTLSConnector implements Connector {
 	 * 
 	 * @param errorHandler the handler to invoke
 	 */
-	public final void setErrorHandler(ErrorHandler errorHandler) {
-		this.errorHandler = errorHandler;
+	public final void setErrorHandler(final ErrorHandler errorHandler) {
+		synchronized (cookieMacKeyLock) {
+			this.errorHandler = errorHandler;
+		}
 	}
 
 	private void connectionClosed(InetSocketAddress peerAddress) {

@@ -20,33 +20,31 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.eclipse.californium.TestTools.*;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -57,143 +55,162 @@ import org.junit.experimental.categories.Category;
  * sends messages blockwise. All four combinations with short and long requests
  * and responses are tested.
  */
-// Category Large because shutdown of the CoapServer runs into timeout (after 5 secs)
-@Category(Large.class)
+// Category Medium because shutdown of the CoapServer runs into timeout (after 1 sec)
+// because of pending BlockCleanupTask
+@Category(Medium.class)
 public class BlockwiseTransferTest {
 
-	private static final String SHORT_POST_REQUEST  = "<Short request>";
-	private static final String LONG_POST_REQUEST   = "<Long request 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
-	private static final String SHORT_POST_RESPONSE = "<Short response>";
-	private static final String LONG_POST_RESPONSE  = "<Long response 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
-	private static final String SHORT_GET_RESPONSE = SHORT_POST_RESPONSE.toLowerCase();
-	private static final String LONG_GET_RESPONSE  = LONG_POST_RESPONSE.toLowerCase();
-	
-	private boolean request_short = true;
-	private boolean respond_short = true;
-	private boolean cancel_request = false;
-	
-	private CoapServer server;
-	private ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
-	private int serverPort;
-	
+	private static final String PARAM_SHORT_RESP = "srr";
+	private static final String PARAM_SHORT_REQ = "sr";
+	private static final String RESOURCE_TEST = "test";
+	private static final String RESOURCE_BIG = "big";
+
+	private static final String SHORT_POST_REQUEST  = generateRandomPayload(15);
+	private static final String LONG_POST_REQUEST   = generateRandomPayload(150);
+	private static final String SHORT_POST_RESPONSE = generateRandomPayload(16);
+	private static final String LONG_POST_RESPONSE  = generateRandomPayload(151);
+	private static final String SHORT_GET_RESPONSE = generateRandomPayload(17);
+	private static final String LONG_GET_RESPONSE  = generateRandomPayload(152);
+	private static final String OVERSIZE_BODY = generateRandomPayload(510);
+
+	private static CoapServer server;
+	private static NetworkConfig config;
+	private static Endpoint serverEndpoint;
+	private static ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
+
 	private Endpoint clientEndpoint;
-	
-	@Before
-	public void setupServer() throws IOException {
-		System.out.println("\nStart "+getClass().getSimpleName());
-		
-		EndpointManager.clear();
-		server = createSimpleServer();
-		NetworkConfig config = new NetworkConfig()
+
+	@BeforeClass
+	public static void prepare() {
+		System.out.println(System.lineSeparator() + "Start " + BlockwiseTransferTest.class.getSimpleName());
+		config = NetworkConfig.createStandardWithoutFile()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
+			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
+			.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500);
+		server = createSimpleServer();
+	}
+
+	@Before
+	public void createClient() throws IOException {
+
 		clientEndpoint = new CoapEndpoint(config);
 		clientEndpoint.start();
 	}
-	
+
 	@After
-	public void shutdownServer() {
-		try {
-			server.destroy();
-			System.out.println("End "+getClass().getSimpleName());
-		} catch (Throwable t) {
-			t.printStackTrace();
-		}
-	}
-	
-	@Test
-	public void test_all() throws Exception {
-		test_POST_short_short();
-		test_POST_long_short();
-		test_POST_short_long();
-		test_POST_long_long();
-		// repeat test to check ongoing clean-up
-		test_POST_long_long();
-		test_GET_short();
-		test_GET_long();
-		// repeat test to check ongoing clean-up
-		test_GET_long();
-		test_GET_long_cancel();
-	}
-	
-	public void test_POST_short_short() throws Exception {
-		System.out.println("-- POST short short --");
-		request_short = true;
-		respond_short = true;
-		executePOSTRequest();
-	}
-	
-	public void test_POST_long_short() throws Exception {
-		System.out.println("-- POST long short --");
-		request_short = false;
-		respond_short = true;
-		executePOSTRequest();
-	}
-	
-	public void test_POST_short_long() throws Exception {
-		System.out.println("-- POST short long --");
-		request_short = true;
-		respond_short = false;
-		executePOSTRequest();
-	}
-	
-	public void test_POST_long_long() throws Exception {
-		System.out.println("-- POST long long --");
-		request_short = false;
-		respond_short = false;
-		executePOSTRequest();
-	}
-	
-	public void test_GET_short() throws Exception {
-		System.out.println("-- GET short --");
-		respond_short = true;
-		executeGETRequest();
-	}
-	
-	public void test_GET_long() throws Exception {
-		System.out.println("-- GET long --");
-		respond_short = false;
-		executeGETRequest();
+	public void destroyClient() throws Exception {
+		clientEndpoint.destroy();
 	}
 
+	@AfterClass
+	public static void shutdownServer() throws Exception {
+		server.destroy();
+		System.out.println("End " + BlockwiseTransferTest.class.getSimpleName());
+	}
+
+	@Test
+	public void test_POST_short_short() throws Exception {
+		System.out.println("-- POST short short --");
+		executePOSTRequest(true, true);
+	}
+
+	@Test
+	public void test_POST_long_short() throws Exception {
+		System.out.println("-- POST long short --");
+		executePOSTRequest(false, true);
+	}
+
+	@Test
+	public void test_POST_short_long() throws Exception {
+		System.out.println("-- POST short long --");
+		executePOSTRequest(true, false);
+	}
+
+	@Test
+	public void test_POST_long_long() throws Exception {
+		System.out.println("-- POST long long --");
+		executePOSTRequest(false, false);
+		// repeat test to check ongoing clean-up
+		executePOSTRequest(false, false);
+	}
+
+	@Test
+	public void test_GET_short() throws Exception {
+		System.out.println("-- GET short --");
+		executeGETRequest(true);
+	}
+
+	@Test
+	public void test_GET_long() throws Exception {
+		System.out.println("-- GET long --");
+		executeGETRequest(false);
+		// repeat test to check ongoing clean-up
+		executeGETRequest(false);
+	}
+
+	@Test
 	public void test_GET_long_cancel() throws Exception {
 		System.out.println("-- GET long, cancel --");
-		respond_short = false;
-		cancel_request = true;
-		executeGETRequest();
+		executeGETRequest(false, true);
 	}
-	
-	private void executeGETRequest() throws Exception {
+
+	@Test
+	public void testRequestForOversizedBodyGetsCanceled() throws InterruptedException {
+
+		final CountDownLatch latch = new CountDownLatch(1);
+
+		Request req = Request.newGet().setURI(getUri(serverEndpoint, RESOURCE_BIG));
+		req.addMessageObserver(new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				latch.countDown();
+			}
+		});
+		clientEndpoint.sendRequest(req);
+		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+	}
+
+	private void executeGETRequest(final boolean respondShort) throws Exception {
+		executeGETRequest(respondShort, false);
+	}
+
+	private void executeGETRequest(final boolean respondShort, final boolean cancelRequest) throws Exception {
 		String payload = "nothing";
 		try {
 			interceptor.clear();
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
-			request.setDestination(InetAddress.getByName("localhost")); // InetAddress.getLocalHost() returns different address on Linux
-			request.setDestinationPort(serverPort);
+			request.setURI(getUri(serverEndpoint, RESOURCE_TEST));
+			if (respondShort) {
+				request.getOptions().addUriQuery(PARAM_SHORT_RESP);
+			}
 			interceptor.handler = new ReceiveRequestHandler() {
 				@Override
 				public void receiveRequest(Request received) {
 					counter.getAndIncrement();
-					if (cancel_request) {
+					if (cancelRequest) {
 						request.cancel();
 					}
 				}
 			};
-			
+
 			clientEndpoint.sendRequest(request);
-			
+
 			// receive response and check
 			Response response = request.waitForResponse(2000);
 
-			if (cancel_request) {
+			if (cancelRequest) {
 				Thread.sleep(1000); // Quickly wait for more blocks (should not happen)
 				assertEquals(1, counter.get());
 			} else {
 				assertNotNull("Client received no response", response);
 				payload = response.getPayloadString();
-				if (respond_short) assertEquals(SHORT_GET_RESPONSE, payload);
-				else assertEquals(LONG_GET_RESPONSE, payload);
+				if (respondShort) {
+					assertEquals(SHORT_GET_RESPONSE, payload);
+				} else {
+					assertEquals(LONG_GET_RESPONSE, payload);
+				}
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
@@ -201,159 +218,97 @@ public class BlockwiseTransferTest {
 				+ "\n" + interceptor.toString() + "\n");
 		}
 	}
-	
-	private void executePOSTRequest() throws Exception {
+
+	private void executePOSTRequest(final boolean shortRequest, final boolean respondShort) throws Exception {
 		String payload = "--no payload--";
 		try {
 			interceptor.clear();
-			Request request = new Request(CoAP.Code.POST);
-			request.setURI("coap://localhost:" + serverPort + "/" + request_short + respond_short);
-			if (request_short) request.setPayload(SHORT_POST_REQUEST);
-			else request.setPayload(LONG_POST_REQUEST);
+			Request request = Request.newPost().setURI(getUri(serverEndpoint, RESOURCE_TEST));
+			if (shortRequest) {
+				request.setPayload(SHORT_POST_REQUEST);
+				request.getOptions().addUriQuery(PARAM_SHORT_REQ);
+			} else {
+				request.setPayload(LONG_POST_REQUEST);
+			}
+			if (respondShort) {
+				request.getOptions().addUriQuery(PARAM_SHORT_RESP);
+			}
 			clientEndpoint.sendRequest(request);
-			
+
 			// receive response and check
 			Response response = request.waitForResponse(2000);
-			
+
 			assertNotNull("Client received no response", response);
 			payload = response.getPayloadString();
-			
-			if (respond_short)assertEquals(SHORT_POST_RESPONSE, payload);
-			else assertEquals(LONG_POST_RESPONSE, payload);
+
+			if (respondShort) {
+				assertEquals(SHORT_POST_RESPONSE, payload);
+			} else {
+				assertEquals(LONG_POST_RESPONSE, payload);
+			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received "+payload
-				+ "\n" + interceptor.toString() + "\n");
+			System.out.println("Client received " + payload + "\n" + interceptor.toString() + "\n");
 		}
 	}
-	
-	private CoapServer createSimpleServer() {
-		CoapServer server = new CoapServer();
-		NetworkConfig config = new NetworkConfig();
-		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
-		
-		CoapEndpoint endpoind = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
-		endpoind.addInterceptor(interceptor);
-		server.addEndpoint(endpoind);
-		server.setMessageDeliverer(new MessageDeliverer() {
+
+	private static CoapServer createSimpleServer() {
+
+		CoapServer result = new CoapServer();
+
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		serverEndpoint.addInterceptor(interceptor);
+		result.addEndpoint(serverEndpoint);
+		result.add(new CoapResource(RESOURCE_TEST) {
+
+			private boolean isShortRequest(final CoapExchange exchange) {
+				return exchange.getQueryParameter(PARAM_SHORT_REQ) != null;
+			}
+
+			private boolean isShortResponseRequested(final CoapExchange exchange) {
+				return exchange.getQueryParameter(PARAM_SHORT_RESP) != null;
+			}
+
 			@Override
-			public void deliverRequest(Exchange exchange) {
-				if (exchange.getRequest().getCode() == Code.GET)
-					processGET(exchange);
-				else
-					processPOST(exchange);
-			}
-			
-			private void processPOST(Exchange exchange) {
-				String payload = exchange.getRequest().getPayloadString();
-				if (request_short)assertEquals(payload, SHORT_POST_REQUEST);
-				else assertEquals(payload, LONG_POST_REQUEST);
-				System.out.println("Server received "+payload);
-					
-				Response response = new Response(ResponseCode.CHANGED);
-				if (respond_short)
-					response.setPayload(SHORT_POST_RESPONSE);
-				else response.setPayload(LONG_POST_RESPONSE);
-				exchange.sendResponse(response);
-			}
-			
-			private void processGET(Exchange exchange) {
+			public void handleGET(final CoapExchange exchange) {
 				System.out.println("Server received GET request");
-				Response response = new Response(ResponseCode.CONTENT);
-				if (respond_short)
-					response.setPayload(SHORT_GET_RESPONSE);
-				else response.setPayload(LONG_GET_RESPONSE);
-				exchange.sendResponse(response);
+				if (isShortResponseRequested(exchange)) {
+					exchange.respond(SHORT_GET_RESPONSE);
+				} else {
+					exchange.respond(LONG_GET_RESPONSE);
+				}
 			}
-			
+
 			@Override
-			public void deliverResponse(Exchange exchange, Response response) { }
+			public void handlePOST(final CoapExchange exchange) {
+				String payload = exchange.getRequestText();
+				System.out.println("Server received " + payload);
+				if (isShortRequest(exchange)) {
+					assertEquals(payload, SHORT_POST_REQUEST);
+				} else {
+					assertEquals(payload, LONG_POST_REQUEST);
+				}
+
+				if (isShortResponseRequested(exchange)) {
+					exchange.respond(SHORT_POST_RESPONSE);
+				} else {
+					exchange.respond(LONG_POST_RESPONSE);
+				}
+			}
 		});
-		server.start();
-		serverPort = endpoind.getAddress().getPort();
-		System.out.println("serverPort: "+serverPort);
-		return server;
+		result.add(new CoapResource(RESOURCE_BIG) {
+
+			@Override
+			public void handleGET(final CoapExchange exchange) {
+				exchange.respond(OVERSIZE_BODY);
+			}
+		});
+
+		result.start();
+		System.out.println("serverPort: " + serverEndpoint.getAddress().getPort());
+		return result;
 	}
-	
-	public static class ServerBlockwiseInterceptor implements MessageInterceptor {
 
-		private StringBuilder buffer = new StringBuilder();
-		public ReceiveRequestHandler handler;
-		
-		@Override
-		public void sendRequest(Request request) {
-			buffer.append("\nERROR: Server sent "+request+"\n");
-		}
-
-		@Override
-		public void sendResponse(Response response) {
-			buffer.append(
-					String.format("\n<-----   %s [MID=%d], %s%s%s%s    ",
-					response.getType(), response.getMID(), response.getCode(),
-					blockOptionString(1, response.getOptions().getBlock1()),
-					blockOptionString(2, response.getOptions().getBlock2()),
-					observeOptionString(response.getOptions()) ));
-		}
-
-		@Override
-		public void sendEmptyMessage(EmptyMessage message) {
-			buffer.append(
-					String.format("\n<-----   %s [MID=%d], 0",
-					message.getType(), message.getMID()));
-		}
-
-		@Override
-		public void receiveRequest(Request request) {
-			buffer.append(
-					String.format("\n%s [MID=%d], %s, /%s%s%s%s    ----->",
-					request.getType(), request.getMID(), request.getCode(),
-					request.getOptions().getUriPathString(),
-					blockOptionString(1, request.getOptions().getBlock1()),
-					blockOptionString(2, request.getOptions().getBlock2()),
-					observeOptionString(request.getOptions()) ));
-			if (null != handler) handler.receiveRequest(request);
-		}
-
-		@Override
-		public void receiveResponse(Response response) {
-			buffer.append("ERROR: Server received "+response);
-		}
-
-		@Override
-		public void receiveEmptyMessage(EmptyMessage message) {
-			buffer.append(
-					String.format("\n%-19s                       ----->",
-					String.format("%s [MID=%d], 0",message.getType(), message.getMID())
-					));
-		}
-		
-		public void log(String str) {
-			buffer.append(str);
-		}
-		
-		private String blockOptionString(int nbr, BlockOption option) {
-			if (option == null) return "";
-			return String.format(", %d:%d/%d/%d", nbr, option.getNum(),
-					option.isM()?1:0, option.getSize());
-		}
-		
-		private String observeOptionString(OptionSet options) {
-			if (options == null) return "";
-			if (!options.hasObserve()) return "";
-			return ", observe("+options.getObserve()+")";
-		}
-		
-		public String toString() {
-			return buffer.append("\n").substring(1);
-		}
-		
-		public void clear() {
-			buffer = new StringBuilder();
-		}
-		
-	}
-	
 	public interface ReceiveRequestHandler {
 		void receiveRequest(Request received);
 	}
