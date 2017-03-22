@@ -208,7 +208,12 @@ public abstract class Message {
 	public void removeMID() {
 		setMID(NONE);
 	}
-	
+
+	/**
+	 * Checks whether this message has a non-zero length token.
+	 * 
+	 * @return {@code true} if this message's token is either {@code null} or of length 0.
+	 */
 	public boolean hasEmptyToken() {
 		return token == null || token.length == 0;
 	}
