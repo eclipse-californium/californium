@@ -11,10 +11,16 @@
 		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>californium-proxy</artifactId>
-	<packaging>jar</packaging>
+	<packaging>bundle</packaging>
 
 	<name>Californium (Cf) Proxy</name>
 	<description>Cross-proxy module</description>
+
+	<properties>
+		<httpcomponents.version>4.2.5</httpcomponents.version>
+		<httpcomponents.version.lowerbound>4.2</httpcomponents.version.lowerbound>
+		<httpcomponents.version.upperbound>5</httpcomponents.version.upperbound>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -31,13 +37,13 @@
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpcore-nio</artifactId>
-			<version>4.2.5</version>
+			<version>${httpcomponents.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
-			<version>4.2.5</version>
+			<version>${httpcomponents.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -46,4 +52,27 @@
 			<version>15.0</version>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.proxy,
+							org.eclipse.californium.proxy.resources
+						</Export-Package>
+						<Import-Package>
+							org.apache.http*; version="[${httpcomponents.version.lowerbound},${httpcomponents.version.upperbound})",
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.groupId}.proxy</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
