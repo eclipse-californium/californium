@@ -615,7 +615,7 @@ public class DTLSConnectorTest {
 			clientHandshaker.startHandshake();
 
 			// Wait to receive response (should be HELLO VERIFY REQUEST)
-			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			List<Record> rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
 			// Handle and answer (CLIENT HELLO with cookie)
 			for (Record r : rs) {
@@ -623,7 +623,7 @@ public class DTLSConnectorTest {
 			}
 
 			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
-			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs);
 			// Handle and answer (FINISHED, CHANGE CIPHER SPEC, ...,CERTIFICATE)
 			for (Record r : rs) {
@@ -631,7 +631,7 @@ public class DTLSConnectorTest {
 			}
 
 			// Wait to receive response (should be CHANGE CIPHER SPEC, FINISHED)
-			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs);
 			// Handle it
 			for (Record r : rs) {
@@ -1235,6 +1235,18 @@ public class DTLSConnectorTest {
 
 		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
 			return records.poll(timeout, unit);
+		}
+
+		public List<Record> waitForFlight(long timeout, TimeUnit unit) throws InterruptedException {
+			List<Record> received = waitForRecords(timeout, unit);
+			if (null != received) {
+				received = new ArrayList<Record>(received);
+				List<Record> next;
+				if (null != (next = waitForRecords(200, TimeUnit.MILLISECONDS))) {
+					received.addAll(next);
+				}
+			}
+			return received;
 		}
 	};
 
