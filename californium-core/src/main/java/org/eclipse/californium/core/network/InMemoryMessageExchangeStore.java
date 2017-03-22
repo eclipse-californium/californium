@@ -154,23 +154,30 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void assignMessageId(final Message message) {
-		if (message.getMID() == Message.NONE) {
-			InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
-			int mid = messageIdProvider.getNextMessageId(dest);
-			if (mid < 0) {
-				LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
-			} else {
-				message.setMID(mid);
+	public int assignMessageId(final Message message) {
+
+		synchronized (messageIdProvider) {
+			int mid = message.getMID();
+			if (message.getMID() == Message.NONE) {
+				InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
+				mid = messageIdProvider.getNextMessageId(dest);
+				if (mid < 0) {
+					LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
+				} else {
+					message.setMID(mid);
+				}
 			}
+			return mid;
 		}
 	}
 
-	private void registerWithMessageId(final Exchange exchange, final Message message) {
+	private int registerWithMessageId(final Exchange exchange, final Message message) {
+
 		synchronized (messageIdProvider) {
+			int mid = message.getMID();
 			if (message.getMID() == Message.NONE) {
 				InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
-				int mid = messageIdProvider.getNextMessageId(dest);
+				mid = messageIdProvider.getNextMessageId(dest);
 				if (mid < 0) {
 					LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
 				} else {
@@ -192,6 +199,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 					}
 				}
 			}
+			return mid;
 		}
 	}
 
@@ -215,26 +223,32 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void registerOutboundRequest(final Exchange exchange) {
+	public boolean registerOutboundRequest(final Exchange exchange) {
 
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			registerWithMessageId(exchange, exchange.getCurrentRequest());
-			registerWithToken(exchange);
+			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
+			if (mid > Message.NONE) {
+				registerWithToken(exchange);
+				return true;
+			} else {
+				return false;
+			}
 		}
 	}
 
 	@Override
-	public void registerOutboundRequestWithTokenOnly(final Exchange exchange) {
+	public boolean registerOutboundRequestWithTokenOnly(final Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
 			registerWithToken(exchange);
+			return true;
 		}
 	}
 
@@ -295,13 +309,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void registerOutboundResponse(final Exchange exchange) {
+	public boolean registerOutboundResponse(final Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentResponse() == null) {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
-			registerWithMessageId(exchange, exchange.getCurrentResponse());
+			return registerWithMessageId(exchange, exchange.getCurrentResponse()) > Message.NONE;
 		}
 	}
 
