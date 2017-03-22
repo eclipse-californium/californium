@@ -416,15 +416,42 @@ public class Exchange {
 		this.blockCleanupHandle = blockCleanupHandle;
 	}
 
+	/**
+	 * Sets an observer to be invoked when this exchange completes.
+	 * 
+	 * @param observer The observer.
+	 */
 	public void setObserver(ExchangeObserver observer) {
 		this.observer = observer;
 	}
 
+	/**
+	 * Checks whether this exchange has an observer registered.
+	 * 
+	 * @return {@code true} if an observer is registered.
+	 * @see #setObserver(ExchangeObserver)
+	 */
+	public boolean hasObserver() {
+		return observer != null;
+	}
+
+	/**
+	 * Checks if this exchange has been marked as <em>completed</em>.
+	 * 
+	 * @return {@code true} if this exchange has been completed.
+	 */
 	public boolean isComplete() {
 		return complete;
 	}
 
 	/**
+	 * Marks this exchange as being <em>completed</em>.
+	 * <p>
+	 * This means that both request and response have been sent/received.
+	 * <p>
+	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange) completed}
+	 * method on the observer registered on this exchange (if any).
+	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
 	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
