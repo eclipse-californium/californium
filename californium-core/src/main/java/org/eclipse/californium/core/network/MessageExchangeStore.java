@@ -43,10 +43,11 @@ public interface MessageExchangeStore {
 	/**
 	 * Assigns an unused message ID to a message.
 	 * 
-	 * @param message the message. The message will have its <em>mid</em> property set
-	 *        to {@code -1} if all message IDs are currently in use for the message's destination endpoint.
+	 * @param message the message. The message to assign the ID to.
+	 * @return The assigned message ID. This will be {@link Message#NONE} if all message IDs are currently in use for
+	 *         the message's destination endpoint.
 	 */
-	void assignMessageId(Message message);
+	int assignMessageId(Message message);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -60,10 +61,12 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the request has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
+	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
+	 *                                  or if the request already has a message ID that is still in use.
 	 */
-	void registerOutboundRequest(Exchange exchange);
+	boolean registerOutboundRequest(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -76,10 +79,11 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the request has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
 	 */
-	void registerOutboundRequestWithTokenOnly(Exchange exchange);
+	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.
@@ -91,10 +95,12 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the response has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) response.
+	 * @throws IllegalArgumentException if the exchange does not contain a (current) response
+	 *                                  or if the response already has a message ID that is still in use.
 	 */
-	void registerOutboundResponse(Exchange exchange);
+	boolean registerOutboundResponse(Exchange exchange);
 
 	/**
 	 * Registers an exchange used for doing a blockwise transfer with a given URI.
