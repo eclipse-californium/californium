@@ -195,10 +195,10 @@ public abstract class BaseMatcher implements Matcher {
 				}
 
 				@Override
-				public void onResponse(Response response) {
+				public void onResponse(Response resp) {
 					// check whether the client has established the observe
 					// requested
-					if (!response.getOptions().hasObserve()) {
+					if (!resp.getOptions().hasObserve()) {
 						// Observe response received with no observe option
 						// set. It could be that the Client was not able to
 						// establish the observe. So remove the observe
@@ -210,7 +210,7 @@ public abstract class BaseMatcher implements Matcher {
 						observationStore.remove(request.getToken());
 						exchangeStore.releaseToken(idByToken);
 					} else {
-						notificationListener.onNotification(request, response);
+						notificationListener.onNotification(request, resp);
 					}
 				}
 
