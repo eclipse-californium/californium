@@ -68,7 +68,7 @@ public final class UdpMatcher extends BaseMatcher {
 	 *            received from peers.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
-	 * @param correlationContextMatcher correlation context matcher to relate
+	 * @param matchingStrategy correlation context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
@@ -82,18 +82,24 @@ public final class UdpMatcher extends BaseMatcher {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		exchange.setObserver(exchangeObserver);
-		exchangeStore.registerOutboundRequest(exchange);
-		// for first observe request. Ignored for retries
-		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
-			registerObserve(request);
-		}
+		if (exchangeStore.registerOutboundRequest(exchange)) {
 
-		if (LOGGER.isLoggable(Level.FINER)) {
-			LOGGER.log(
-					Level.FINER,
-					"Tracking open request [MID: {0}, Token: {1}]",
-					new Object[] { request.getMID(), request.getTokenString() });
+			exchange.setObserver(exchangeObserver);
+
+			// for observe request.
+			if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
+				registerObserve(request);
+			}
+
+			if (LOGGER.isLoggable(Level.FINER)) {
+				LOGGER.log(
+						Level.FINER,
+						"Tracking open request [MID: {0}, Token: {1}]",
+						new Object[] { request.getMID(), request.getTokenString() });
+			}
+		} else {
+			LOGGER.log(Level.WARNING, "Could not register outbound request for tracking");
+			// TODO signal failure to register exchange to stack
 		}
 	}
 
@@ -293,11 +299,6 @@ public final class UdpMatcher extends BaseMatcher {
 		@Override
 		public void completed(final Exchange exchange) {
 
-			/*
-			 * Logging in this method leads to significant performance loss.
-			 * Uncomment logging code only for debugging purposes.
-			 */
-
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 
@@ -319,24 +320,35 @@ public final class UdpMatcher extends BaseMatcher {
 					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
 					exchangeStore.remove(idByMID, exchange);
 				}
-				KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
-				exchangeStore.remove(idByToken, exchange);
-				/* filter calls by completeCurrentRequest */
-				if (exchange.isComplete()) {
-					/* keep track of the starting request. Currently only used with blockwise transfer */
-					Request request = exchange.getRequest();
-					if (request != originRequest && null != request &&  null != request.getToken()
-							&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
-						// remove starting request also
-						originRequest = request;
-						idByToken = KeyToken.fromOutboundMessage(originRequest);
-						exchangeStore.remove(idByToken, exchange);
+
+				if (originRequest.getToken() == null) {
+					// this should not happen because we only register the observer
+					// if we have successfully registered the exchange
+					LOGGER.log(
+							Level.WARNING,
+							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+									exchange.getOrigin()});
+				} else {
+					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					exchangeStore.remove(idByToken, exchange);
+					/* filter calls by completeCurrentRequest */
+					if (exchange.isComplete()) {
+						/* keep track of the starting request. Currently only used with blockwise transfer */
+						Request request = exchange.getRequest();
+						if (request != originRequest && null != request &&  null != request.getToken()
+								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
+							// remove starting request also
+							originRequest = request;
+							idByToken = KeyToken.fromOutboundMessage(originRequest);
+							exchangeStore.remove(idByToken, exchange);
+						}
 					}
+					if (!originRequest.getOptions().hasObserve()) {
+						exchangeStore.releaseToken(idByToken);
+					}
+					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
-				if (!originRequest.getOptions().hasObserve()) {
-					exchangeStore.releaseToken(idByToken);
-				}
-				LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request

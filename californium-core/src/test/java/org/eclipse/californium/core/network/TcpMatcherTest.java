@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,23 +17,22 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.observe.InMemoryObservationStore;
-import org.eclipse.californium.core.observe.NotificationListener;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import static org.eclipse.californium.core.network.MatcherTestUtils.newTcpMatcher;
+import static org.eclipse.californium.core.network.MatcherTestUtils.responseFor;
+import static org.eclipse.californium.core.network.MatcherTestUtils.sendRequest;
+import static org.junit.Assert.assertSame;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import static org.junit.Assert.assertSame;
+import org.eclipse.californium.category.Small;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+/**
+ * Verifies behavior of {@link TcpMatcher}.
+ *
+ */
 @Category(Small.class)
 public class TcpMatcherTest {
 
@@ -41,48 +40,11 @@ public class TcpMatcherTest {
 
 	@Test
 	public void testRequestMatchesResponse() {
-		TcpMatcher matcher = newMatcher(false);
-		Exchange exchange = sendRequest(matcher, null);
+		TcpMatcher matcher = newTcpMatcher(false);
+		Exchange exchange = sendRequest(dest, matcher, null);
 
 		Exchange matched = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
 		assertSame(exchange, matched);
 	}
 
-	private TcpMatcher newMatcher(boolean useStrictMatching) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		NotificationListener notificationListener = new NotificationListener() {
-
-			@Override
-			public void onNotification(Request request, Response response) {
-			}
-			
-		};
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore(), CorrelationContextMatcherFactory.create(null, config));
-		matcher.start();
-		return matcher;
-	}
-
-	private Exchange sendRequest(final TcpMatcher matcher, final CorrelationContext ctx) {
-		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange, request);
-		exchange.setCorrelationContext(ctx);
-		return exchange;
-	}
-
-	private Response responseFor(final Request request) {
-		Response response = new Response(ResponseCode.CONTENT);
-		response.setMID(request.getMID());
-		response.setToken(request.getToken());
-		response.setBytes(new byte[]{});
-		response.setSource(request.getDestination());
-		response.setSourcePort(request.getDestinationPort());
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
-		return response;
-	}
 }
