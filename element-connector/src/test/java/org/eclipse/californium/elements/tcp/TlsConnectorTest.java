@@ -15,18 +15,16 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add more logging.
  * Achim Kraus (Bosch Software Innovations GmbH) - implement checkServerTrusted
  *                                                 to check the DN more relaxed.
+ * Achim Kraus (Bosch Software Innovations GmbH) - use ConnectorTestUtil
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.nio.ByteBuffer;
 import java.security.KeyStore;
 import java.security.Security;
 import java.security.cert.CertificateException;
@@ -37,7 +35,6 @@ import java.util.Enumeration;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -66,7 +63,6 @@ public class TlsConnectorTest {
 	private static TrustManager[] trustManager;
 	private static SSLContext serverContext;
 	private static SSLContext clientContext;
-	private final Random random = new Random(0);
 
 	@Rule
 	public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
@@ -110,8 +106,7 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		int port = findEphemeralPort();
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
 
@@ -124,7 +119,7 @@ public class TlsConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(new InetSocketAddress(port), 100);
+		RawData msg = createMessage(server.getAddress(), 100, null, null);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -132,7 +127,7 @@ public class TlsConnectorTest {
 
 		// Response message must go over the same connection client already
 		// opened
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000);
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null, null);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
@@ -140,9 +135,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int port = findEphemeralPort();
 		int clients = 100;
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coaps+tcp"));
 		cleanup.add(server);
@@ -159,7 +153,7 @@ public class TlsConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(new InetSocketAddress(port), 100);
+			RawData msg = createMessage(server.getAddress(), 100, null, null);
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -185,15 +179,14 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			int port = findEphemeralPort();
-			TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(port),
+			TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
 					NUMBER_OF_THREADS, IDLE_TIMEOUT);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
 			server.setRawDataReceiver(serverCatcher);
 			server.start();
 
-			servers.put(server.getAddress(), serverCatcher);
+			servers.put(getDestination(server.getAddress()), serverCatcher);
 		}
 
 		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
@@ -204,7 +197,7 @@ public class TlsConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (InetSocketAddress address : servers.keySet()) {
-			RawData message = createMessage(address, 100);
+			RawData message = createMessage(address, 100, null, null);
 			messages.add(message);
 			client.send(message);
 		}
@@ -213,45 +206,6 @@ public class TlsConnectorTest {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
 			catcher.blockUntilSize(1);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
-		}
-	}
-
-	private int findEphemeralPort() {
-		try (ServerSocket socket = new ServerSocket(0)) {
-			return socket.getLocalPort();
-		} catch (IOException e) {
-			throw new IllegalStateException("Unable to bind to ephemeral port");
-		}
-	}
-
-	private RawData createMessage(InetSocketAddress address, int messageSize) throws Exception {
-		byte[] data = new byte[messageSize];
-		random.nextBytes(data);
-
-		try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
-			if (messageSize < 13) {
-				stream.write(messageSize << 4);
-			} else if (messageSize < (1 << 8) + 13) {
-				stream.write(13 << 4);
-				stream.write(messageSize - 13);
-			} else if (messageSize < (1 << 16) + 269) {
-				stream.write(14 << 4);
-
-				ByteBuffer buffer = ByteBuffer.allocate(2);
-				buffer.putShort((short) (messageSize - 269));
-				stream.write(buffer.array());
-			} else {
-				stream.write(15 << 4);
-
-				ByteBuffer buffer = ByteBuffer.allocate(4);
-				buffer.putInt(messageSize - 65805);
-				stream.write(buffer.array());
-			}
-
-			stream.write(1); // GET
-			stream.write(data);
-			stream.flush();
-			return new RawData(stream.toByteArray(), address);
 		}
 	}
 
