@@ -61,7 +61,7 @@
 						<Import-Package>
 							*
 						</Import-Package>
-						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+						<Bundle-SymbolicName>${project.groupId}.core</Bundle-SymbolicName>
 					</instructions>
 				</configuration>
 			</plugin>

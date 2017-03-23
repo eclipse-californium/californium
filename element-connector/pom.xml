@@ -14,6 +14,12 @@
 
 	<name>element-connector</name>
 	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
+	
+	<properties>
+		<netty.version>4.1.1.Final</netty.version>
+		<netty.version.lowerbound>4.1</netty.version.lowerbound>
+		<netty.version.upperbound>5</netty.version.upperbound>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -27,7 +33,7 @@
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.1.1.Final</version>
+			<version>${netty.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hamcrest</groupId>
@@ -50,9 +56,10 @@
 							org.eclipse.californium.elements.util
 						</Export-Package>
 						<Import-Package>
+							io.netty*; version="[${netty.version.lowerbound},${netty.version.upperbound})",
 							*
 						</Import-Package>
-						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+						<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
 					</instructions>
 				</configuration>
 			</plugin>
