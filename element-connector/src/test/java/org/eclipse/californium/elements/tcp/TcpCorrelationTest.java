@@ -11,17 +11,18 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - initial implementation. 
+ *    Bosch Software Innovations GmbH - initial implementation.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add test for sending correlation context.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use import static ConnectorTestUtil.*
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.text.IsEmptyString.isEmptyOrNullString;
 import static org.junit.Assert.assertArrayEquals;
+import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -85,7 +86,7 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -101,7 +102,7 @@ public class TcpCorrelationTest {
 		// Response message must go over the same connection client already
 		// opened
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null,
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null,
 				serverCallback);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
@@ -121,7 +122,7 @@ public class TcpCorrelationTest {
 
 		// send next message
 		clientCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 
@@ -162,7 +163,7 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -174,7 +175,7 @@ public class TcpCorrelationTest {
 		Thread.sleep(TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
@@ -228,7 +229,7 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -241,7 +242,7 @@ public class TcpCorrelationTest {
 		server.start();
 
 		clientCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
@@ -301,14 +302,14 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, context, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, context, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1, 2000);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(0));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, null, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 
@@ -317,12 +318,12 @@ public class TcpCorrelationTest {
 				is(instanceOf(TcpCorrelationContext.class)));
 		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, clientContext, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientContext, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
 		clientCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, context, clientCallback);
+		msg = createMessage(server.getAddress(), 100, context, clientCallback);
 		client.send(msg);
 
 		serverCatcher.blockUntilSize(3, 2000);
@@ -365,7 +366,7 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = ConnectorTestUtil.createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -377,19 +378,19 @@ public class TcpCorrelationTest {
 		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(receivedMsg.getInetSocketAddress(), 100, serverContext, serverCallback);
+		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverContext, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(1);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(receivedMsg.getInetSocketAddress(), 100, null, serverCallback);
+		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, null, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(2);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = ConnectorTestUtil.createMessage(receivedMsg.getInetSocketAddress(), 100, context, serverCallback);
+		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, context, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(3, 2000);
@@ -421,7 +422,7 @@ public class TcpCorrelationTest {
 			server.setRawDataReceiver(serverCatcher);
 			server.start();
 
-			servers.put(server.getAddress(), serverCatcher);
+			servers.put(ConnectorTestUtil.getDestination(server.getAddress()), serverCatcher);
 		}
 		Set<InetSocketAddress> serverAddresses = servers.keySet();
 
@@ -437,7 +438,7 @@ public class TcpCorrelationTest {
 		List<SimpleMessageCallback> callbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = ConnectorTestUtil.createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, null, callback);
 			callbacks.add(callback);
 			messages.add(message);
 			client.send(message);
@@ -455,7 +456,7 @@ public class TcpCorrelationTest {
 		List<SimpleMessageCallback> followupCallbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = ConnectorTestUtil.createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, null, callback);
 			followupCallbacks.add(callback);
 			followupMessages.add(message);
 			client.send(message);

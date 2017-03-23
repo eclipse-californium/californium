@@ -11,22 +11,19 @@
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
  * Contributors:
- * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ConnectorTestUtil
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
@@ -48,7 +45,6 @@ public class TcpConnectorTest {
 	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
 
 	private final int messageSize;
-	private final Random random = new Random();
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@Parameterized.Parameters
@@ -81,8 +77,7 @@ public class TcpConnectorTest {
 
 	@Test
 	public void serverClientPingPong() throws Exception {
-		int port = findEphemeralPort();
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 
@@ -96,7 +91,7 @@ public class TcpConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(new InetSocketAddress(port));
+		RawData msg = createMessage(server.getAddress(), messageSize, null, null);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -104,7 +99,7 @@ public class TcpConnectorTest {
 
 		// Response message must go over the same connection client already
 		// opened
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress());
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), messageSize, null, null);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
@@ -112,9 +107,8 @@ public class TcpConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int port = findEphemeralPort();
 		int clients = 100;
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(port), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coap+tcp"));
 		cleanup.add(server);
@@ -131,7 +125,7 @@ public class TcpConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(new InetSocketAddress(port));
+			RawData msg = createMessage(server.getAddress(), messageSize, null, null);
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -149,45 +143,6 @@ public class TcpConnectorTest {
 				}
 			}
 			assertTrue("Received unexpected message: " + received, matched);
-		}
-	}
-
-	private static int findEphemeralPort() {
-		try (ServerSocket socket = new ServerSocket(0)) {
-			return socket.getLocalPort();
-		} catch (IOException e) {
-			throw new IllegalStateException("Unable to bind to ephemeral port");
-		}
-	}
-
-	private RawData createMessage(InetSocketAddress address) throws Exception {
-		byte[] data = new byte[messageSize];
-		random.nextBytes(data);
-
-		try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
-			if (messageSize < 13) {
-				stream.write(messageSize << 4);
-			} else if (messageSize < (1 << 8) + 13) {
-				stream.write(13 << 4);
-				stream.write(messageSize - 13);
-			} else if (messageSize < (1 << 16) + 269) {
-				stream.write(14 << 4);
-
-				ByteBuffer buffer = ByteBuffer.allocate(2);
-				buffer.putShort((short) (messageSize - 269));
-				stream.write(buffer.array());
-			} else {
-				stream.write(15 << 4);
-
-				ByteBuffer buffer = ByteBuffer.allocate(4);
-				buffer.putInt(messageSize - 65805);
-				stream.write(buffer.array());
-			}
-
-			stream.write(1); // GET
-			stream.write(data);
-			stream.flush();
-			return new RawData(stream.toByteArray(), address);
 		}
 	}
 }

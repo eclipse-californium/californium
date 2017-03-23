@@ -16,10 +16,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust creation of oubound message
  *                                                    with null correlation context.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add sending correlation context.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace "any/0.0.0.0" with 
+ *                                                    "localhost/127.0.0.1" in destination.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Random;
@@ -40,6 +43,14 @@ public class ConnectorTestUtil {
 	public static final int CONTEXT_TIMEOUT_IN_MS = 1000;
 
 	private static final Random random = new Random(0);
+
+	public static InetSocketAddress getDestination(InetSocketAddress server) {
+		if (server.getAddress().isAnyLocalAddress()) {
+			// for destination replace any by localhost
+			server = new InetSocketAddress(InetAddress.getLoopbackAddress(), server.getPort());
+		}
+		return server;
+	}
 
 	public static RawData createMessage(InetSocketAddress address, int messageSize, CorrelationContext contextToSent,
 			MessageCallback callback) throws Exception {
@@ -69,7 +80,8 @@ public class ConnectorTestUtil {
 			stream.write(1); // GET
 			stream.write(data);
 			stream.flush();
-			return RawData.outbound(stream.toByteArray(), address, contextToSent, callback, false);
+
+			return RawData.outbound(stream.toByteArray(), getDestination(address), contextToSent, callback, false);
 		}
 	}
 }
