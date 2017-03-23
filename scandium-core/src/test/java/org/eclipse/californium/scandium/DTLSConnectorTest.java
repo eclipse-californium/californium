@@ -21,6 +21,7 @@
  *                                                    to a peer in a single place
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 472196
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - add test case for bug 478538
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use LoopbackAddress instead of LocalHost
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -132,7 +133,7 @@ public class DTLSConnectorTest {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
 				new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -161,7 +162,7 @@ public class DTLSConnectorTest {
 	public void setUp() throws Exception {
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 0);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -475,7 +476,7 @@ public class DTLSConnectorTest {
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
 
 		// create a new client with different inetAddress but with the same session store.
-		clientEndpoint = new InetSocketAddress(InetAddress.getLocalHost(), 10001);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
 		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
