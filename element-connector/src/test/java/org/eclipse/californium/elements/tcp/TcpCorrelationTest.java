@@ -13,7 +13,9 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add test for sending correlation context.
- *    Achim Kraus (Bosch Software Innovations GmbH) - use import static ConnectorTestUtil.*
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use import static ConnectorTestUtil.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use create server address
+ *                                                    (LoopbackAddress)
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -70,7 +72,7 @@ public class TcpCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContext() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
@@ -147,7 +149,7 @@ public class TcpCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContextWhenReconnectAfterTimeout() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
@@ -213,7 +215,7 @@ public class TcpCorrelationTest {
 	 */
 	@Test
 	public void testCorrelationContextWhenReconnectAfterStopStart() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
@@ -285,7 +287,7 @@ public class TcpCorrelationTest {
 	public void testClientSendingCorrelationContext() throws Exception {
 		TcpCorrelationContextMatcher matcher = new TcpCorrelationContextMatcher();
 		TcpCorrelationContext context = new TcpCorrelationContext("n.a.");
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
@@ -349,7 +351,7 @@ public class TcpCorrelationTest {
 	public void testServerSendingCorrelationContext() throws Exception {
 		TcpCorrelationContextMatcher matcher = new TcpCorrelationContextMatcher();
 		TcpCorrelationContext context = new TcpCorrelationContext("n.a.");
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
@@ -415,7 +417,7 @@ public class TcpCorrelationTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0),
+			TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 					ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
