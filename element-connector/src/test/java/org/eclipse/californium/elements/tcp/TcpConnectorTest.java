@@ -13,6 +13,8 @@
  * Contributors:
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ConnectorTestUtil
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use create server address
+ *                                                    (LoopbackAddress)
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -20,7 +22,6 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +78,7 @@ public class TcpConnectorTest {
 
 	@Test
 	public void serverClientPingPong() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 
@@ -108,7 +109,7 @@ public class TcpConnectorTest {
 	@Test
 	public void singleServerManyClients() throws Exception {
 		int clients = 100;
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coap+tcp"));
 		cleanup.add(server);
