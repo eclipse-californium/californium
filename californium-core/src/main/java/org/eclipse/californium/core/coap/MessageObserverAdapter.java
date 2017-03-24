@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * An abstract adapter class for reacting to a message's lifecylce events.
@@ -60,6 +61,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onTimeout() {
+		// empty default implementation
+	}
+
+	@Override
+	public void onContextEstablished(CorrelationContext context) {
 		// empty default implementation
 	}
 }

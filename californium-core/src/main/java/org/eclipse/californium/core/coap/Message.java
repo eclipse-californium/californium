@@ -36,6 +36,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.observe.ObserveManager;
+import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -135,6 +136,9 @@ public abstract class Message {
 	 * has happened yet. The {@link Matcher} sets the timestamp.
 	 */
 	private long timestamp;
+
+	private CorrelationContext sourceEndpoint;
+	private CorrelationContext destinationEndpoint;
 
 	/**
 	 * Creates a new message with no specified message type.
@@ -647,6 +651,42 @@ a	 */
 	 */
 	public void setTimestamp(long timestamp) {
 		this.timestamp = timestamp;
+	}
+
+	/**
+	 * Gets the identifier of the endpoint this message originates from.
+	 * 
+	 * @return The source endpoint.
+	 */
+	public final CorrelationContext getSourceEndpoint() {
+		return sourceEndpoint;
+	}
+
+	/**
+	 * Sets the identifier of the endpoint this message originates from.
+	 * 
+	 * @param source The source endpoint.
+	 */
+	public final void setSourceEndpoint(CorrelationContext source) {
+		this.sourceEndpoint = source;
+	}
+
+	/**
+	 * Gets the identifier of the endpoint this message is destined to.
+	 * 
+	 * @return The destination endpoint.
+	 */
+	public final CorrelationContext getDestinationEndpoint() {
+		return destinationEndpoint;
+	}
+
+	/**
+	 * Sets the identifier of the endpoint this message is destined to.
+	 * 
+	 * @param destination The destination endpoint.
+	 */
+	public final void setDestinationEndpoint(CorrelationContext destination) {
+		this.destinationEndpoint = destination;
 	}
 
 	/**

@@ -139,10 +139,11 @@ public interface Matcher {
 	void clear();
 
 	/**
-	 * Cancels all pending blockwise requests that have been induced by a notification
-	 * we have received indicating a blockwise transfer of the resource.
+	 * Cancels all pending blockwise requests that have been triggered by notifications
+	 * received from an endpoint.
 	 * 
-	 * @param token the token of the observation.
+	 * @param endpoint The endpoint the notifications originate from.
+	 * @param token The token of the observation the notifications have been received for.
 	 */
-	void cancelObserve(byte[] token);
+	void cancelObserve(CorrelationContext endpoint, byte[] token);
 }

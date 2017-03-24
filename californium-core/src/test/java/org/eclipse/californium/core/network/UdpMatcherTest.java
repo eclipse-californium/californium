@@ -235,12 +235,14 @@ public class UdpMatcherTest {
 	
 	@Test
 	public void testCancelObserveReleasesToken() {
+
 		// GIVEN a request without token sent
+		CorrelationContext endpoint = new MapBasedCorrelationContext();
 		UdpMatcher matcher = newMatcher(false);
-		Exchange exchange = sendRequest(matcher, null);
-		
+		Exchange exchange = sendObserveRequest(matcher, endpoint);
+
 		// WHEN observe gets canceled
-		matcher.cancelObserve(exchange.getRequest().getToken());
+		matcher.cancelObserve(endpoint, exchange.getRequest().getToken());
 
 		// THEN assert that token got released
 		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
@@ -275,11 +277,17 @@ public class UdpMatcherTest {
 	}
 
 	private static Exchange sendObserveRequest(final UdpMatcher matcher) {
+		return sendObserveRequest(matcher, null);
+	}
+
+	private static Exchange sendObserveRequest(final UdpMatcher matcher, final CorrelationContext context) {
 		Request request = Request.newGet();
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
 		request.setObserve();
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		exchange.setRequest(request);
+		exchange.setCorrelationContext(context);
 		matcher.sendRequest(exchange, request);
 		return exchange;
 	}

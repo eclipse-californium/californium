@@ -68,7 +68,7 @@ public final class UdpMatcher extends BaseMatcher {
 	 *            received from peers.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
-	 * @param correlationContextMatcher correlation context matcher to relate
+	 * @param matchingStrategy correlation context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
@@ -288,7 +288,7 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class ExchangeObserverImpl extends BaseExchangeObserver  {
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -361,16 +361,6 @@ public final class UdpMatcher extends BaseMatcher {
 					removeNotificationsOf(relation, exchange);
 				}
 			}
-		}
-
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-
-			if (exchange.getRequest() != null) {
-				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
-			}
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 }

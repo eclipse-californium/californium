@@ -52,6 +52,8 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.MessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
@@ -610,6 +612,7 @@ public class CoapEndpoint implements Endpoint {
 		public void sendRequest(final Exchange exchange, final Request request) {
 
 			assertMessageHasDestinationAddress(request);
+
 			matcher.sendRequest(exchange, request);
 
 			/* 
@@ -870,8 +873,8 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public void cancelObservation(byte[] token) {
-		matcher.cancelObserve(token);
+	public void cancelObservation(CorrelationContext targetEndpoint, byte[] token) {
+		matcher.cancelObserve(targetEndpoint, token);
 	}
 
 	/**

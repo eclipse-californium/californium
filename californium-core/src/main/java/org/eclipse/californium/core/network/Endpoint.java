@@ -32,6 +32,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -194,11 +195,10 @@ public interface Endpoint {
 	NetworkConfig getConfig();
 
 	/**
-	 * Cancel observation for this request.
+	 * Cancels an observation created by this endpoint.
 	 * 
-	 * @param token
-	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 * @param remoteEndpoint The remote endpoint the observation has been established for.
+	 * @param token The token of the original request which established the observe relation.
 	 */
-	void cancelObservation(byte[] token);
+	void cancelObservation(CorrelationContext remoteEndpoint, byte[] token);
 }

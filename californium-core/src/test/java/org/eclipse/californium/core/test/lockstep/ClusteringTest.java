@@ -296,7 +296,7 @@ public class ClusteringTest {
 		// cancel observation
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Cancel Observation.");
-		store.remove(request.getToken());
+		store.remove(request.getDestinationEndpoint(), request.getToken());
 
 		// server send new response to client 1
 		System.out.println();

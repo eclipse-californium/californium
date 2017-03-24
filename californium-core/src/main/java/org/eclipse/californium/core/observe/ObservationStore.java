@@ -35,33 +35,36 @@ public interface ObservationStore {
 	void add(Observation obs);
 
 	/**
-	 * Removes the observation initiated by the request with the given token.
+	 * Removes an observation.
 	 * 
-	 * @param token The token of the observation to remove.
+	 * @param endpoint The endpoint identifier of the peer that the observe relation exists with.
+	 * @param token The token of the request that initiated the observe relation.
 	 */
-	void remove(byte[] token);
+	void remove(CorrelationContext endpoint, byte[] token);
 
 	/**
-	 * Gets the observation initiated by the request with the given token.
+	 * Gets an observation.
 	 * 
-	 * @param token The token of the initiating request.
-	 * @return The corresponding observation or {@code null} if no observation is registered for the given token.
+	 * @param endpoint The endpoint identifier of the peer that the observe relation exists with.
+	 * @param token The token of the request that initiated the observe relation.
+	 * @return The corresponding observation or {@code null} if no observation is registered for the given
+	 *         endpoint and token.
 	 */
-	Observation get(byte[] token);
+	Observation get(CorrelationContext endpoint, byte[] token);
 
-	/**
-	 * Sets the correlation context on the observation initiated by the request
-	 * with the given token.
-	 * <p>
-	 * This method is necessary because the correlation context may not be known
-	 * when the observation is originally registered. This is due to the fact
-	 * that the information contained in the correlation context is gathered by
-	 * the transport layer when the request establishing the observation is sent
-	 * to the peer.
-	 * </p>
-	 * 
-	 * @param token The token of the observation to set the context on.
-	 * @param correlationContext The context to set.
-	 */
-	void setContext(byte[] token, CorrelationContext correlationContext);
+//	/**
+//	 * Sets the correlation context on the observation initiated by the request
+//	 * with the given token.
+//	 * <p>
+//	 * This method is necessary because the correlation context may not be known
+//	 * when the observation is originally registered. This is due to the fact
+//	 * that the information contained in the correlation context is gathered by
+//	 * the transport layer when the request establishing the observation is sent
+//	 * to the peer.
+//	 * </p>
+//	 * 
+//	 * @param token The token of the observation to set the context on.
+//	 * @param correlationContext The context to set.
+//	 */
+//	void setContext(byte[] token, CorrelationContext correlationContext);
 }

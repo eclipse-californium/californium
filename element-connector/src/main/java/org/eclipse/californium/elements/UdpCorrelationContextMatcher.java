@@ -19,10 +19,15 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Correlation context matcher for UDP.
  */
-public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
+public final class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
+
+	private static final Logger LOG = Logger.getLogger(UdpCorrelationContextMatcher.class.getName());
 
 	/**
 	 * Create new instance of udp correlation context matcher.
@@ -37,16 +42,28 @@ public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
 
 	@Override
 	public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
+		LOG.log(Level.FINER, "matching inbound response context [{0}] against request context [{1}]",
+				new Object[]{ responseContext, requestContext });
 		return internalMatch(requestContext, responseContext);
 	}
 
 	@Override
 	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+		LOG.log(Level.FINER, "matching outbound message context [{0}] against connector context [{1}]",
+				new Object[]{ messageContext, connectorContext });
 		return internalMatch(messageContext, connectorContext);
 	}
 
-	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
-		return (null == requestedContext) || (null != availableContext);
-	}
+	private static boolean internalMatch(CorrelationContext expected, CorrelationContext provided) {
 
+		if (expected == null) {
+			return true;
+		} else if (provided == null) {
+			return false;
+		} else {
+			Object expectedAddress = expected.get(UdpCorrelationContext.KEY_SOCKET_ADDRESS);
+			Object providedAddress = provided.get(UdpCorrelationContext.KEY_SOCKET_ADDRESS);
+			return expectedAddress == null || expectedAddress.equals(providedAddress);
+		}
+	}
 }

@@ -284,7 +284,9 @@ public class UDPConnector implements Connector {
 							datagram.getAddress(), datagram.getPort()});
 			}
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
+			InetSocketAddress sourceAddress = new InetSocketAddress(datagram.getAddress(), datagram.getPort());
+			UdpCorrelationContext context = new UdpCorrelationContext(sourceAddress);
+			RawData msg = RawData.inbound(bytes, sourceAddress, null, context, false);
 
 			receiver.receiveData(msg);
 		}
@@ -301,26 +303,25 @@ public class UDPConnector implements Connector {
 		}
 
 		protected void work() throws InterruptedException, IOException {
+
 			RawData raw = outgoing.take(); // Blocking
+			CorrelationContext connectorContext = new UdpCorrelationContext(raw.getInetSocketAddress());
 			/* check, if message should be sent with the "none correlation context" of UDP connector */
 			CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
-			if (null != correlationMatcher && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
-				if (LOGGER.isLoggable(Level.WARNING)) {
-					LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
-							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(), datagram.getAddress(),
-									datagram.getPort() });
-				}
+			if (null != correlationMatcher && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), connectorContext)) {
+				LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
+						new Object[] { socket.getLocalSocketAddress(), datagram.getLength(), datagram.getAddress(),
+								datagram.getPort() });
 				return;
 			}
 			datagram.setData(raw.getBytes());
 			datagram.setAddress(raw.getAddress());
 			datagram.setPort(raw.getPort());
-			if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-						new Object[] { getUri(), datagram.getLength(), datagram.getAddress(),
-								datagram.getPort() });
-			}
+			LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
+					new Object[] { getUri(), datagram.getLength(), datagram.getAddress(),
+							datagram.getPort() });
 			socket.send(datagram);
+			raw.onContextEstablished(connectorContext);
 		}
 	}
 

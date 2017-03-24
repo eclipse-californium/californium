@@ -21,15 +21,16 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsSame.theInstance;
 import static org.hamcrest.core.IsSame.sameInstance;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.MessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.MapBasedCorrelationContext;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,6 +41,8 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class ObservationTest {
 
+	private static CorrelationContext endpoint = new MapBasedCorrelationContext();
+
 	/**
 	 * Verifies that a request with its observe option set to a value != 0 is
 	 * rejected.
@@ -48,7 +51,7 @@ public class ObservationTest {
 	public void testConstructorRejectsRequestWithNonZeroObserveOption() {
 		Request req = Request.newGet();
 		req.getOptions().setObserve(4);
-		new Observation(req, null);
+		new Observation(req, endpoint);
 	}
 
 	/**
@@ -57,11 +60,12 @@ public class ObservationTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testConstructorRejectsRequestWithoutObserveOption() {
 		Request req = Request.newGet();
-		new Observation(req, null);
+		new Observation(req, endpoint);
 	}
 
 	@Test
 	public void testShallowClone() {
+
 		Map<String,String> userContext = new HashMap<String,String>();
 		userContext.put("test", "only");
 		Request request = Request.newGet();
@@ -69,35 +73,11 @@ public class ObservationTest {
 		request.setObserve();
 		request.setToken(new byte[] { 1, 2, 3 });
 		request.setUserContext(userContext);
-		request.addMessageObserver(new MessageObserver() {
-			
-			@Override
-			public void onTimeout() {
-			}
-			
-			@Override
-			public void onRetransmission() {
-			}
-			
-			@Override
-			public void onResponse(Response response) {
-			}
-			
-			@Override
-			public void onReject() {
-			}
-			
-			@Override
-			public void onCancel() {
-			}
-			
-			@Override
-			public void onAcknowledgement() {
-			}
+		request.addMessageObserver(new MessageObserverAdapter() {
 		});
-		Observation observation = new Observation(request, null);
+		Observation observation = new Observation(request, endpoint);
 		request.cancel();
-		
+
 		Observation cloned = ObservationUtil.shallowClone(observation);
 		Request clonedRequest = cloned.getRequest();
 		assertThat(clonedRequest, is(not(theInstance(request))));
@@ -106,11 +86,11 @@ public class ObservationTest {
 		assertThat(clonedRequest.getOptions().getObserve(), is(0));
 		assertThat(clonedRequest.getToken(), is(sameInstance(request.getToken())));
 		assertThat(clonedRequest.getUserContext(), is(equalTo(request.getUserContext())));
-		assertThat(clonedRequest.isCanceled(), is(false));
-		assertThat(clonedRequest.getMessageObservers().isEmpty(), is(true));
+		assertFalse(clonedRequest.isCanceled());
+		assertTrue(clonedRequest.getMessageObservers().isEmpty());
 
-		assertThat(request.isCanceled(), is(true));
-		assertThat(request.getMessageObservers().isEmpty(), is(false));
+		assertTrue(request.isCanceled());
+		assertFalse(request.getMessageObservers().isEmpty());
 
 	}
 }

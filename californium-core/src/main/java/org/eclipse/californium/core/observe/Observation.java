@@ -30,13 +30,13 @@ public final class Observation {
 	 * 
 	 * @param request The request that initiated the observation.
 	 * @param context The correlation context of the request.
-	 * @throws NullPointerException if the request is {@code null}.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @throws IllegalArgumentException if the request doesn't have its observe option set to 0.
 	 */
 	public Observation(final Request request, final CorrelationContext context) {
 
-		if (request == null) {
-			throw new NullPointerException("request must not be null");
+		if (request == null || context == null) {
+			throw new NullPointerException("request and context must not be null");
 		} else if (!request.isObserve()) {
 			throw new IllegalArgumentException("request has no observe=0 option");
 		}

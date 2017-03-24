@@ -23,15 +23,19 @@ package org.eclipse.californium.core.network;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.CorrelationContext;
 
 /**
@@ -136,27 +140,33 @@ public abstract class BaseMatcher implements Matcher {
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
 			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
-			LOG.log(Level.FINER, "registering observe request {0}", request);
-			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected or timedout
 			request.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
 				public void onCancel() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(request.getDestinationEndpoint(), request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 
 				@Override
 				public void onReject() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(request.getDestinationEndpoint(), request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 
 				@Override
 				public void onTimeout() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(request.getDestinationEndpoint(), request.getToken());
 					exchangeStore.releaseToken(idByToken);
+				}
+
+				@Override
+				public void onContextEstablished(CorrelationContext context) {
+					// register observation using the destination endpoint including
+					// correlation context information frmo transport layer
+					LOG.log(Level.FINER, "registering observe request {0}", request);
+					observationStore.add(new Observation(request, context));
 				}
 			});
 		}
@@ -176,7 +186,7 @@ public abstract class BaseMatcher implements Matcher {
 		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = null;
 
-		final Observation obs = observationStore.get(response.getToken());
+		final Observation obs = observationStore.get(responseContext, response.getToken());
 		if (obs != null) {
 			// there is an observation for the token from the response
 			// re-create a corresponding Exchange object for it so
@@ -192,7 +202,7 @@ public abstract class BaseMatcher implements Matcher {
 
 				@Override
 				public void onTimeout() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(responseContext, request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 
@@ -209,7 +219,7 @@ public abstract class BaseMatcher implements Matcher {
 						LOG.log(Level.FINE,
 								"Response to observe request with token {0} does not contain observe option, removing request from observation store",
 								idByToken);
-						observationStore.remove(request.getToken());
+						observationStore.remove(responseContext, request.getToken());
 						exchangeStore.releaseToken(idByToken);
 					} else {
 						notificationListener.onNotification(request, resp);
@@ -218,13 +228,13 @@ public abstract class BaseMatcher implements Matcher {
 
 				@Override
 				public void onReject() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(responseContext, request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 
 				@Override
 				public void onCancel() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(responseContext, request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 			});
@@ -233,15 +243,8 @@ public abstract class BaseMatcher implements Matcher {
 		return exchange;
 	}
 
-	/**
-	 * Cancels all pending blockwise requests that have been induced by a
-	 * notification we have received indicating a blockwise transfer of the
-	 * resource.
-	 * 
-	 * @param token the token of the observation.
-	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
+	public void cancelObserve(CorrelationContext endpoint, final byte[] token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
@@ -249,7 +252,24 @@ public abstract class BaseMatcher implements Matcher {
 			KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 			exchangeStore.releaseToken(idByToken);
 		}
-		observationStore.remove(token);
+		observationStore.remove(endpoint, token);
+	}
+
+	abstract class BaseExchangeObserver implements ExchangeObserver {
+
+		@Override
+		public final void contextEstablished(final Exchange exchange) {
+
+			Request request = exchange.getCurrentRequest();
+			CorrelationContext context = exchange.getCorrelationContext();
+
+			request.setDestinationEndpoint(context);
+			for (MessageObserver requestObserver : request.getMessageObservers()) {
+				requestObserver.onContextEstablished(context);
+			}
+			KeyToken token = KeyToken.fromOutboundMessage(request);
+			exchangeStore.setContext(token, context);
+		}
 	}
 
 }

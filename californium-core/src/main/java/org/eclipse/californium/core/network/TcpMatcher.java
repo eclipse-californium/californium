@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -151,7 +150,7 @@ public final class TcpMatcher extends BaseMatcher {
 		return null;
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class ExchangeObserverImpl extends BaseExchangeObserver {
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -165,15 +164,6 @@ public final class TcpMatcher extends BaseMatcher {
 			} else { // Origin.REMOTE
 				// nothing to do
 			}
-		}
-
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-			if (exchange.getRequest() != null) {
-				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
-			}
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 }

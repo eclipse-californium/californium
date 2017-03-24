@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.elements.MessageCallback;
 
 /**
  * A callback that gets invoked on a message's lifecycle events.
@@ -47,7 +48,7 @@ package org.eclipse.californium.core.coap;
  * relationship to a resource which sends notifications, the method
  * {@link #onResponse(Response)} can be used to react to each such notification.
  */
-public interface MessageObserver {
+public interface MessageObserver extends MessageCallback {
 
 	/**
 	 * Invoked when a message is about to be re-transmitted.

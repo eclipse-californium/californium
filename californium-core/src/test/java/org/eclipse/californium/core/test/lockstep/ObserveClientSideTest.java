@@ -288,7 +288,7 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 
 		// canceling in the middle of blockwise transfer
-		client.cancelObservation(request.getToken());
+		client.cancelObservation(request.getDestinationEndpoint(), request.getToken());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
 		// notification must not be delivered
