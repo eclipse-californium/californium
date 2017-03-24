@@ -93,11 +93,11 @@ public class TcpCorrelationTest {
 		CorrelationContext receivingServerContext = serverCatcher.getMessage(0).getCorrelationContext();
 		assertThat("Serverside received no TCP Correlation Context", receivingServerContext,
 				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(receivingServerContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(receivingServerContext.get(TcpCorrelationContext.KEY_CONNECTION_ID, String.class), is(not(isEmptyOrNullString())));
 
 		CorrelationContext clientContext = clientCallback.getCorrelationContext();
 		assertThat("no TCP Correlation Context", clientContext, is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID, String.class), is(not(isEmptyOrNullString())));
 
 		// Response message must go over the same connection client already
 		// opened
@@ -316,7 +316,7 @@ public class TcpCorrelationTest {
 		CorrelationContext clientContext = clientCallback.getCorrelationContext();
 		assertThat("client side missing TCP Correlation Context", clientContext,
 				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID, String.class), is(not(isEmptyOrNullString())));
 
 		msg = createMessage(server.getAddress(), 100, clientContext, clientCallback);
 		client.send(msg);
@@ -375,7 +375,7 @@ public class TcpCorrelationTest {
 		CorrelationContext serverContext = receivedMsg.getCorrelationContext();
 		assertThat("server side missing TCP Correlation Context", serverContext,
 				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID, String.class), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
 		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverContext, serverCallback);

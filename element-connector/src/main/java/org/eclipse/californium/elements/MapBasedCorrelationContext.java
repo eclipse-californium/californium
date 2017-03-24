@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,7 +26,7 @@ import java.util.Set;
  */
 public class MapBasedCorrelationContext implements CorrelationContext {
 
-	private Map<String, String> entries = new HashMap<>();
+	private Map<String, Object> entries = new HashMap<>();
 
 	/**
 	 * Puts a value to the context.
@@ -36,7 +36,7 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	 * @return the previous value for the given key or <code>null</code> if the context did
 	 *         not contain any value for the key yet.
 	 */
-	public final Object put(String key, String value) {
+	public final Object put(String key, Object value) {
 		return entries.put(key, value);
 	}
 
@@ -44,15 +44,26 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String get(String key) {
+	public Object get(String key) {
 		return entries.get(key);
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> T get(String key, Class<T> type) {
+		T result = null;
+		Object value = entries.get(key);
+		if (value != null && type.isInstance(value)) {
+			result = (T) value;
+		}
+		return result;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Set<Map.Entry<String, String>> entrySet() {
+	public Set<Map.Entry<String, Object>> entrySet() {
 		return entries.entrySet();
 	}
 

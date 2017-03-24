@@ -23,9 +23,12 @@ import java.util.logging.Logger;
 /**
  * CorrelationContext utility.
  */
-public class CorrelationContextUtil {
+public final class CorrelationContextUtil {
 
 	private static final Logger LOGGER = Logger.getLogger(CorrelationContextUtil.class.getName());
+
+	private CorrelationContextUtil() {
+	}
 
 	/**
 	 * Match correlation contexts based on a set of keys.
@@ -42,8 +45,8 @@ public class CorrelationContextUtil {
 		boolean info = LOGGER.isLoggable(Level.FINEST);
 		boolean matchAll = true;
 		for (String key : keys) {
-			String value1 = context1.get(key);
-			String value2 = context2.get(key);
+			Object value1 = context1.get(key);
+			Object value2 = context2.get(key);
 			boolean match = (value1 == value2) || (null != value1 && value1.equals(value2));
 			if (!match && !warn) {
 				/* no warnings => fast return */

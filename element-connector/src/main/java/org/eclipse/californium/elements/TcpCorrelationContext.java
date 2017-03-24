@@ -42,8 +42,13 @@ public class TcpCorrelationContext extends MapBasedCorrelationContext {
 		}
 	}
 
+	/**
+	 * Gets the connection ID.
+	 * 
+	 * @return The ID.
+	 */
 	public String getConnectionId() {
-		return get(KEY_CONNECTION_ID);
+		return get(KEY_CONNECTION_ID, String.class);
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,12 +33,22 @@ public interface CorrelationContext {
 	 * @return the value or <code>null</code> if this context does not contain a
 	 *         value for the given key.
 	 */
-	String get(String key);
+	Object get(String key);
+
+	/**
+	 * Gets a value from this context.
+	 * 
+	 * @param key The key to retrieve the value for.
+	 * @param type The expected value type.
+	 * @return The value or <code>null</code> if this context does not contain a
+	 *         value for the given key or the value does not match the expected type.
+	 */
+	<T> T get(String key, Class<T> type);
 
 	/**
 	 * Gets a Set of a Map.Entry which contains the key-value pair of the CorrelationContext.
 	 *
 	 * @return A set of a map entry containing the key value pair.
 	 */
-	Set<Map.Entry<String, String>> entrySet();
+	Set<Map.Entry<String, Object>> entrySet();
 }

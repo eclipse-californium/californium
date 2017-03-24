@@ -49,14 +49,14 @@ public class DtlsCorrelationContext extends MapBasedCorrelationContext {
 	}
 
 	public String getSessionId() {
-		return get(KEY_SESSION_ID);
+		return get(KEY_SESSION_ID, String.class);
 	}
 
 	public String getEpoch() {
-		return get(KEY_EPOCH);
+		return get(KEY_EPOCH, String.class);
 	}
 
 	public String getCipher() {
-		return get(KEY_CIPHER);
+		return get(KEY_CIPHER, String.class);
 	}
 }
