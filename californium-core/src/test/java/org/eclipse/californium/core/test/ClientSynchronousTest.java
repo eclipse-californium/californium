@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -38,65 +39,73 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Medium.class)
 public class ClientSynchronousTest {
 
-	public static final String TARGET = "storage";
-	public static final String CONTENT_1 = "one";
-	public static final String CONTENT_2 = "two";
-	public static final String CONTENT_3 = "three";
-	public static final String CONTENT_4 = "four";
-	public static final String QUERY_UPPER_CASE = "uppercase";
-	
-	private CoapServer server;
-	private int serverPort;
-	
-	private CoapResource resource;
-	
+	private static final String TARGET = "storage";
+	private static final String CONTENT_1 = "one";
+	private static final String CONTENT_2 = "two";
+	private static final String CONTENT_3 = "three";
+	private static final String CONTENT_4 = "four";
+	private static final String QUERY_UPPER_CASE = "uppercase";
+
+	private static CoapServer server;
+	private static Endpoint serverEndpoint;
+	private static int serverPort;
+	private static StorageResource resource;
+
 	private String expected;
-	
 	private AtomicInteger notifications = new AtomicInteger();
 	private boolean failed = false;
-	
-	@Before
-	public void startupServer() {
+
+	@BeforeClass
+	public static void startupServer() {
 		NetworkConfig.getStandard().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		createServer();
-		System.out.println("\nStart "+getClass().getSimpleName() + " on port " + serverPort);
+		System.out.println(System.lineSeparator() + "Start " + ClientSynchronousTest.class.getSimpleName() +
+				" on " + serverEndpoint.getUri());
 	}
-	
-	@After
-	public void shutdownServer() {
+
+	@Before
+	public void resetResource() {
+		resource.reset();
+	}
+
+	@AfterClass
+	public static void shutdownServer() {
 		server.destroy();
-		System.out.println("End "+getClass().getSimpleName());
+		System.out.println("End " + ClientSynchronousTest.class.getSimpleName());
 	}
-	
+
 	@Test
 	public void testSynchronousCall() throws Exception {
-		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
-		
+
 		// Check that we get the right content when calling get()
 		String resp1 = client.get().getResponseText();
 		Assert.assertEquals(CONTENT_1, resp1);
-		
+
 		String resp2 = client.get().getResponseText();
 		Assert.assertEquals(CONTENT_1, resp2);
-		
+
 		// Change the content to "two" and check
 		String resp3 = client.post(CONTENT_2, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_1, resp3);
-		
+
 		String resp4 = client.get().getResponseText();
 		Assert.assertEquals(CONTENT_2, resp4);
-		
+
 		// Observe the resource
 		expected = CONTENT_2;
 		CoapObserveRelation obs1 = client.observeAndWait(
@@ -113,40 +122,40 @@ public class ClientSynchronousTest {
 				}
 			});
 		Assert.assertFalse(obs1.isCanceled());
-		
+
 		Thread.sleep(100);
 		resource.changed();
 		Thread.sleep(100);
 		resource.changed();
 		Thread.sleep(100);
 		resource.changed();
-		
+
 		Thread.sleep(100);
 		expected = CONTENT_3;
 		String resp5 = client.post(CONTENT_3, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_2, resp5);
-		
+
 		// Try a put and receive a METHOD_NOT_ALLOWED
 		ResponseCode code6 = client.put(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getCode();
 		Assert.assertEquals(ResponseCode.METHOD_NOT_ALLOWED, code6);
-		
+
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
 		Thread.sleep(100);
 		expected = null; // The next notification would now cause a failure
 		obs1.reactiveCancel();
 		Thread.sleep(100);
 		resource.changed();
-		
+
 		// Make another post
 		Thread.sleep(100);
 		String resp7 = client.post(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_3, resp7);
-		
+
 		// Try to use the builder and add a query
 		String resp8 = new CoapClient.Builder("localhost", serverPort)
 			.path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
 		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
-		
+
 		// Check that we indeed received 5 notifications
 		// 1 from origin GET request, 3 x from changed(), 1 from post()
 		Thread.sleep(100);
@@ -156,7 +165,8 @@ public class ClientSynchronousTest {
 
 	@Test
 	public void testAdvancedUsesTypeFromRequest() throws Exception {
-		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
 
 		// Set NONs but expecting CONs as specified in request
@@ -172,11 +182,12 @@ public class ClientSynchronousTest {
 
 	@Test
 	public void testAdvancedUsesUriFromRequest() throws Exception {
-		String unexistingUri = "coap://localhost:"+serverPort+"/"+ "unexisting";
-		CoapClient client = new CoapClient(unexistingUri).useExecutor();
+
+		String nonExistingUri = TestTools.getUri(serverEndpoint, "non-existing");
+		CoapClient client = new CoapClient(nonExistingUri).useExecutor();
 
 		Request request = new Request(Code.GET, Type.CON);
-		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		request.setURI(uri);
 
 		CoapResponse resp = client.advanced(request);
@@ -184,46 +195,54 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(Type.ACK, resp.advanced().getType());
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
 	}
-	
-	private void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		
+
+	private static void createServer() {
+
+		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();
 		server.add(resource);
 
-		server.addEndpoint(endpoint);
+		server.addEndpoint(serverEndpoint);
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
+		serverPort = serverEndpoint.getAddress().getPort();
 	}
-	
-	private class StorageResource extends CoapResource {
-		
+
+	private static class StorageResource extends CoapResource {
+
+		private final String originalContent;
 		private String content;
-		
+
 		public StorageResource(String name, String content) {
 			super(name);
+			this.originalContent = content;
 			this.content = content;
 			setObservable(true);
 		}
-		
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			List<String> queries = exchange.getRequestOptions().getUriQuery();
 			String c = content;
-			for (String q:queries)
-				if (QUERY_UPPER_CASE.equals(q))
+			for (String q:queries) {
+				if (QUERY_UPPER_CASE.equals(q)) {
 					c = content.toUpperCase();
-			
+				}
+			}
 			exchange.respond(ResponseCode.CONTENT, c);
 		}
-		
+
 		@Override
 		public void handlePOST(CoapExchange exchange) {
 			String old = this.content;
 			this.content = exchange.getRequestText();
 			exchange.respond(ResponseCode.CHANGED, old);
 			changed();
+		}
+
+		public void reset() {
+			content = originalContent;
 		}
 	}
 }
