@@ -22,6 +22,7 @@
  * of Response(s) to Request (fix GitHub issue #1)
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - processing of notifies according UdpMatcher.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -88,7 +89,7 @@ public final class TcpMatcher extends BaseMatcher {
 			} else {
 				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}", new Object[] { idByUri,
 						request });
-				exchangeStore.remove(idByUri);
+				exchangeStore.remove(idByUri, exchange);
 			}
 		}
 
@@ -184,7 +185,7 @@ public final class TcpMatcher extends BaseMatcher {
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-				exchangeStore.remove(idByToken);
+				exchangeStore.remove(idByToken, exchange);
 				if (!exchange.getCurrentRequest().getOptions().hasObserve()) {
 					exchangeStore.releaseToken(idByToken);
 				}
@@ -197,7 +198,7 @@ public final class TcpMatcher extends BaseMatcher {
 					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
-					exchangeStore.remove(uriKey);
+					exchangeStore.remove(uriKey, exchange);
 				}
 			}
 		}

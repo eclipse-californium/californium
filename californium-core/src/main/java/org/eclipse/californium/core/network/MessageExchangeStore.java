@@ -9,7 +9,10 @@
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
+ * Contributors:
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to remove for
+ *                                                    save cleanup.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -116,24 +119,29 @@ public interface MessageExchangeStore {
 	 * Removes the exchange registered under a given token.
 	 * 
 	 * @param token the token of the exchange to remove.
+	 * @param exchange Exchange to be removed, if registered with provided token.
 	 */
-	void remove(KeyToken token);
+	void remove(KeyToken token, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
 	 * 
 	 * @param messageId the message ID to remove the exchange for.
-	 * @return the exchange that was registered under the given message ID or {@code null}
-	 * if no exchange was registered under the ID.
+	 * @param exchange Exchange to be removed. If {@code null}, the current
+	 *                 exchange with the MID is removed. If not {@code null},
+	 *                 only this exchange is removed, if it's registered with
+	 *                 the MID.
+	 * @return the removed exchange, or {@code null}, if no exchange was removed.
 	 */
-	Exchange remove(KeyMID messageId);
+	Exchange remove(KeyMID messageId, Exchange exchange);
 
 	/**
 	 * Removes the exchange used for a blockwise transfer of a resource.
 	 * 
 	 * @param requestUri the URI under which the exchange has been registered.
+	 * @param exchange Exchange to be removed, if registered with provided URI.
 	 */
-	void remove(KeyUri requestUri);
+	void remove(KeyUri requestUri, Exchange exchange);
 
 	/**
 	 * Gets the exchange registered under a given token.

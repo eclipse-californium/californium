@@ -20,6 +20,7 @@
  * explicit String concatenation
  * Bosch Software Innovations GmbH - use correlation context to improve matching
  * of Response(s) to Request (fix GitHub issue #1)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -113,7 +114,7 @@ public final class UdpMatcher extends BaseMatcher {
 			} else {
 				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
 						new Object[] { idByUri, request });
-				exchangeStore.remove(idByUri);
+				exchangeStore.remove(idByUri, exchange);
 			}
 		}
 
@@ -210,7 +211,7 @@ public final class UdpMatcher extends BaseMatcher {
 							&& !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = KeyMID.fromOutboundMessage(ongoing.getCurrentResponse());
 						LOGGER.log(Level.FINE, "Ongoing exchange got new request, cleaning up {0}", idByMID);
-						exchangeStore.remove(idByMID);
+						exchangeStore.remove(idByMID, ongoing);
 					}
 				}
 				return ongoing;
@@ -286,7 +287,7 @@ public final class UdpMatcher extends BaseMatcher {
 			} else {
 				// we have received the expected response for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
-				if (exchangeStore.remove(idByMID) != null) {
+				if (exchangeStore.remove(idByMID, exchange) != null) {
 					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
 				}
 			}
@@ -359,7 +360,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
 		KeyMID idByMID = KeyMID.fromInboundMessage(message);
-		Exchange exchange = exchangeStore.remove(idByMID);
+		Exchange exchange = exchangeStore.remove(idByMID, null);
 
 		if (exchange != null) {
 			LOGGER.log(Level.FINE, "Received expected reply for message exchange {0}", idByMID);
@@ -377,7 +378,7 @@ public final class UdpMatcher extends BaseMatcher {
 			Response previous = iterator.next();
 			// notifications are local MID namespace
 			KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
-			exchangeStore.remove(idByMID);
+			exchangeStore.remove(idByMID, relation.getExchange());
 			iterator.remove();
 		}
 	}
@@ -398,10 +399,10 @@ public final class UdpMatcher extends BaseMatcher {
 				KeyMID idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
 				KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
 
-				exchangeStore.remove(idByToken);
+				exchangeStore.remove(idByToken, exchange);
 
 				// in case an empty ACK was lost
-				exchangeStore.remove(idByMID);
+				exchangeStore.remove(idByMID, exchange);
 
 				if(!exchange.getCurrentRequest().getOptions().hasObserve()) {
 					exchangeStore.releaseToken(idByToken);
@@ -421,7 +422,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 					// first remove the entry for the (separate) response's MID
 					KeyMID midKey = KeyMID.fromOutboundMessage(response);
-					exchangeStore.remove(midKey);
+					exchangeStore.remove(midKey, exchange);
 
 					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
 				}
@@ -430,7 +431,7 @@ public final class UdpMatcher extends BaseMatcher {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Blockwise exchange with remote peer {0} completed, cleaning up ", uriKey);
-					exchangeStore.remove(uriKey);
+					exchangeStore.remove(uriKey, exchange);
 				}
 
 				// Remove all remaining NON-notifications if this exchange is an observe relation
