@@ -18,6 +18,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add sending correlation context.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace "any/0.0.0.0" with 
  *                                                    "localhost/127.0.0.1" in destination.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add create server address
+ *                                                    using LoopbackAddress.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -43,6 +45,10 @@ public class ConnectorTestUtil {
 	public static final int CONTEXT_TIMEOUT_IN_MS = 1000;
 
 	private static final Random random = new Random(0);
+
+	public static InetSocketAddress createServerAddress(int port) {
+		return new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
+	}
 
 	public static InetSocketAddress getDestination(InetSocketAddress server) {
 		if (server.getAddress().isAnyLocalAddress()) {

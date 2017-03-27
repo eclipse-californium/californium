@@ -105,7 +105,7 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
+		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
 
@@ -135,7 +135,7 @@ public class TlsConnectorTest {
 	@Test
 	public void singleServerManyClients() throws Exception {
 		int clients = 100;
-		TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
+		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		cleanup.add(server);
 
@@ -177,7 +177,7 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			TlsServerConnector server = new TlsServerConnector(serverContext, new InetSocketAddress(0),
+			TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 					NUMBER_OF_THREADS, IDLE_TIMEOUT);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();

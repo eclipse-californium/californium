@@ -27,7 +27,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -78,7 +77,7 @@ public class TcpConnectorTest {
 
 	@Test
 	public void serverClientPingPong() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 
@@ -109,7 +108,7 @@ public class TcpConnectorTest {
 	@Test
 	public void singleServerManyClients() throws Exception {
 		int clients = 100;
-		TcpServerConnector server = new TcpServerConnector(new InetSocketAddress(0), NUMBER_OF_THREADS,
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
 		cleanup.add(server);
 
