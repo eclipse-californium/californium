@@ -4,7 +4,7 @@
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
@@ -26,6 +26,12 @@
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<classifier>tests</classifier>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -75,6 +81,7 @@
 						   by means of the Californium-logging.properties file
 						-->
 						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
 					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>

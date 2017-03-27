@@ -1,3 +1,21 @@
+/*******************************************************************************
+ * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Martin Lanter - creator
+ *    (a lot of changes from different authors, please refer to gitlog).
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
+ ******************************************************************************/
 package org.eclipse.californium.core.test;
 
 import static org.eclipse.californium.TestTools.generateRandomPayload;
@@ -28,8 +46,10 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -40,6 +60,8 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(Medium.class)
 @RunWith(Parameterized.class)
 public class RandomAccessBlockTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final String TARGET = "test";
 	private static final String RESP_PAYLOAD = generateRandomPayload(87);
@@ -57,8 +79,8 @@ public class RandomAccessBlockTest {
 	@Before
 	public void startupServer() throws Exception {
 		System.out.println(System.lineSeparator() + "Start " + RandomAccessBlockTest.class.getName());
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
+		NetworkConfig config = network.getStandardTestConfig()
+			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		server = new CoapServer();
 		server.addEndpoint(endpoint);

@@ -17,6 +17,8 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - test stop transfer on cancel
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -41,10 +43,12 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -59,6 +63,8 @@ import org.junit.experimental.categories.Category;
 // because of pending BlockCleanupTask
 @Category(Medium.class)
 public class BlockwiseTransferTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final String PARAM_SHORT_RESP = "srr";
 	private static final String PARAM_SHORT_REQ = "sr";
@@ -83,7 +89,7 @@ public class BlockwiseTransferTest {
 	@BeforeClass
 	public static void prepare() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseTransferTest.class.getSimpleName());
-		config = NetworkConfig.createStandardWithoutFile()
+		config = network.getStandardTestConfig()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500);
