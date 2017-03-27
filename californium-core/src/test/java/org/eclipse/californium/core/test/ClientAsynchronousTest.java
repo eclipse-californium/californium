@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - refactor into separate test cases, remove
  *                                      wait cycles
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -47,15 +49,19 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Medium.class)
 public class ClientAsynchronousTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	public static final String TARGET = "storage";
 	public static final String CONTENT_1 = "one";
@@ -74,7 +80,7 @@ public class ClientAsynchronousTest {
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + ClientAsynchronousTest.class.getSimpleName());
-		NetworkConfig.getStandard()
+		network.getStandardTestConfig()
 			.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		createServer();
 		uri = String.format("coap://%s:%d/%s", serverAddress.getHostString(), serverAddress.getPort(), TARGET);

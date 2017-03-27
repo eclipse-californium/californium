@@ -1,3 +1,21 @@
+/*******************************************************************************
+ * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Martin Lanter - creator
+ *    (a lot of changes from different authors, please refer to gitlog).
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
+ ******************************************************************************/
 package org.eclipse.californium.core.test;
 
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
@@ -35,10 +53,12 @@ import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -49,6 +69,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class MemoryLeakingHashMapTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	// Configuration for this test
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
@@ -316,7 +338,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static void createServerAndClientEndpoints() throws Exception {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+		NetworkConfig config = network.getStandardTestConfig()
 			// We make sure that the sweep deduplicator is used
 			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)
 			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)

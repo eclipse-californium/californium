@@ -14,6 +14,8 @@
  *    Sierra Wireless - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use localhost for windows compatibility
  *                                                    sending to "any" doesn't work on windows
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -40,8 +42,10 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -51,6 +55,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ClusteringTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private LockstepEndpoint server;
 
@@ -70,7 +76,7 @@ public class ClusteringTest {
 
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 
-		NetworkConfig config = new NetworkConfig()
+		NetworkConfig config = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200ms

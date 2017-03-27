@@ -14,6 +14,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial creation (465073)
  *    Achim Kraus (Bosch Software Innovations GmbH) - dummy setCorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -29,17 +31,20 @@ import java.net.URI;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class EndpointManagerTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	@Before
 	public void setUp() throws Exception {
@@ -78,7 +83,7 @@ public class EndpointManagerTest {
 	@Test
 	public void testSetDefaultEndpointSchemeFailure() throws Exception {
 		// GIVEN an new endpoint with http:
-		Endpoint endpoint = new CoapEndpoint(new DummyHttpConnector(), NetworkConfig.getStandard());
+		Endpoint endpoint = new CoapEndpoint(new DummyHttpConnector(), network.getStandardTestConfig());
 
 		// THEN set with null or unsupported scheme fails
 		try {
