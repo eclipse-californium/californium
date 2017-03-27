@@ -471,7 +471,7 @@ public class LeastRecentlyUsedCache<K, V> {
 
 		@Override
 		public String toString() {
-			return new StringBuffer("CacheEntry [key: ").append(key)
+			return new StringBuilder("CacheEntry [key: ").append(key)
 					.append(", last access: ").append(lastUpdate).append("]")
 					.toString();
 		}

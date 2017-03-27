@@ -372,7 +372,7 @@ public class LockstepEndpoint {
 				}
 
 				public String toString() {
-					StringBuffer result = new StringBuffer("Expected no options: [");
+					StringBuilder result = new StringBuilder("Expected no options: [");
 					if (0 < numbers.length) {
 						final int end = numbers.length -1;
 						int index = 0;
@@ -436,7 +436,7 @@ public class LockstepEndpoint {
 		}
 		
 		public String toString() {
-			StringBuffer result = new StringBuffer("{");
+			StringBuilder result = new StringBuilder("{");
 			for (Expectation<Message> expectation:expectations) {
 				String info = expectation.toString();
 				if (!info.isEmpty()) {
