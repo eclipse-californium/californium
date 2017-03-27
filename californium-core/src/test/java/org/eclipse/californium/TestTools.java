@@ -64,7 +64,7 @@ public final class TestTools {
 	 * @return The string.
 	 */
 	public static String generateRandomPayload(final int length) {
-		StringBuffer buffer = new StringBuffer();
+		StringBuilder buffer = new StringBuilder();
 		int counter = 0;
 		while (counter < length) {
 			buffer.append(Integer.toString(RAND.nextInt(10)));
@@ -80,7 +80,7 @@ public final class TestTools {
 	 * @return The string.
 	 */
 	public static String generatePayload(final int length) {
-		StringBuffer buffer = new StringBuffer();
+		StringBuilder buffer = new StringBuilder();
 		int n = 0;
 		while (buffer.length() < length) {
 			buffer.append(Integer.toString(n % 10));

@@ -200,7 +200,7 @@ class DTLSConnectionState {
 
 	@Override
 	public final String toString() {
-		StringBuffer b = new StringBuffer("DTLSConnectionState:");
+		StringBuilder b = new StringBuilder("DTLSConnectionState:");
 		b.append(System.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
 		b.append(System.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
 		b.append(System.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");

@@ -49,7 +49,7 @@ public class DefaultTest extends CoapResource {
 
 		if (request.getToken().length > 0) {
 			payload.append("\nToken: ");
-			StringBuffer tok = new StringBuffer(request.getToken()==null?"null":"");
+			StringBuilder tok = new StringBuilder(request.getToken()==null?"null":"");
 			if (request.getToken()!=null) for(byte b:request.getToken()) tok.append(String.format("%02x", b&0xff));
 			payload.append(tok);
 		}

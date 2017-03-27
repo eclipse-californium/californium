@@ -169,7 +169,7 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 		
-		String startupMsg = new StringBuffer("UDPConnector listening on ")
+		String startupMsg = new StringBuilder("UDPConnector listening on ")
 			.append(socket.getLocalSocketAddress()).append(", recv buf = ")
 			.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
 			.append(", recv packet size = ").append(receiverPacketSize).toString();

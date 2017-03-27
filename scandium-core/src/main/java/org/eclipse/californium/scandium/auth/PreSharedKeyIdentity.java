@@ -59,7 +59,7 @@ public class PreSharedKeyIdentity implements Principal {
 	 */
 	@Override
 	public String toString() {
-		return new StringBuffer("PreSharedKey Identity [").append(identity).append("]").toString();
+		return new StringBuilder("PreSharedKey Identity [").append(identity).append("]").toString();
 	}
 
 	@Override

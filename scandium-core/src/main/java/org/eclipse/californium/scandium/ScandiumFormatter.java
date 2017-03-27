@@ -66,7 +66,7 @@ public class ScandiumFormatter extends Formatter {
     		lineNo = stack[8].getLineNumber();
     	else lineNo = -1;
     	
-    	StringBuffer b = new StringBuffer();
+    	StringBuilder b = new StringBuilder();
     	if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD_ID)) {
 			b.append(String.format("%2d", record.getThreadID())).append(" ");
 		}
