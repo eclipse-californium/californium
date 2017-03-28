@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -357,42 +357,49 @@ public class Request extends Message {
 		return result;
 	}
 
-	// TODO: test this method.
 	/**
-	 * Gets the absolute Request-URI as string.
+	 * Gets a URI derived from this request's options and properties as defined by
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.5">RFC 7252, Section 6.5</a>.
 	 * <p>
-	 * To support virtual servers, it either uses the Uri-Host option
-	 * or "localhost" if the option is not present.
-	 * </p>
+	 * This method falls back to using <em>localhost</em> as the host part in the returned URI
+	 * if both the <em>destination</em> as well as the <em>Uri-Host</em> option are {@code null}.
 	 * 
-	 * @return the absolute URI string
+	 * @return The URI string.
+	 * @throws IllegalStateException if this request contains options and/or properties which
+	 *                               cannot be parsed into a URI.
 	 */
 	public String getURI() {
 
-		StringBuilder builder = new StringBuilder();
-		if (getScheme() != null) {
-			builder.append(getScheme()).append("://");
-		} else {
-			builder.append("coap://");
-		}
 		String host = getOptions().getUriHost();
-		if (host != null) {
-			builder.append(host);
-		} else {
-			builder.append("localhost");
+		if (host == null) {
+			if (getDestination() != null) {
+				host = getDestination().getHostAddress();
+			} else {
+				host = "localhost";
+			}
 		}
+
 		Integer port = getOptions().getUriPort();
-		if (port != null) {
-			builder.append(":").append(port);
+		if (port == null) {
+			port = getDestinationPort();
 		}
-		String path = getOptions().getUriPathString();
-		builder.append("/").append(path);
+		if (port > 0) {
+			if (CoAP.isSupportedScheme(getScheme())) {
+				if (CoAP.getDefaultPort(getScheme()) == port) {
+					port = -1;
+				}
+			}
+		} else {
+			port = -1;
+		}
+		String path = new StringBuilder("/").append(getOptions().getUriPathString()).toString();
 		String query = getOptions().getUriQueryString();
-		if (query.length() > 0) {
-			builder.append("?").append(query);
+		try {
+			URI uri = new URI(getScheme(), null, host, port, path, query, null);
+			return uri.toASCIIString();
+		} catch (URISyntaxException e) {
+			throw new IllegalStateException("cannot create URI from request", e);
 		}
-		// TODO: Query as well?
-		return builder.toString();
 	}
 
 	/**
