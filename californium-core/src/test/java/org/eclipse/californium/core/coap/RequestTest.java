@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -65,6 +65,34 @@ public class RequestTest {
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
 		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
 		assertThat(req.getDestinationPort(), is(dest.getPort()));
+	}
+
+	/**
+	 * Verifies that a URI composed from options contains the literal destination IP address if
+	 * no Uri-Host option value is set.
+	 */
+	@Test
+	public void testGetURIContainsLiteralIpAddressDestination() {
+		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
+		URI uri = URI.create(req.getURI());
+		assertThat(uri.getHost(), is("192.168.0.1"));
+	}
+
+	/**
+	 * Verifies that the getURI method escapes non-ASCII characters contained in path and query.
+	 * @throws UnknownHostException 
+	 */
+	@Test
+	public void testGetURIEscapesNonAsciiCharacters() throws UnknownHostException {
+
+		Request req = Request.newGet().setURI("coap://192.168.0.1");
+		req.getOptions().addUriPath("non-ascii-path-äöü").addUriQuery("non-ascii-query=äöü");
+
+		String derivedUri = req.getURI();
+		System.out.println(derivedUri);
+		URI uri = URI.create(derivedUri);
+		assertThat(uri.getRawPath(), is("/non-ascii-path-%C3%A4%C3%B6%C3%BC"));
+		assertThat(uri.getRawQuery(), is("non-ascii-query=%C3%A4%C3%B6%C3%BC"));
 	}
 
 	@Test

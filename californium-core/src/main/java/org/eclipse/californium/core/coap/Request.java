@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -283,7 +283,7 @@ public class Request extends Message {
 
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null");
-		} else if (!isSupportedScheme(uri.getScheme())) {
+		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
@@ -345,37 +345,48 @@ public class Request extends Message {
 		return this;
 	}
 
-	private static boolean isSupportedScheme(final String uriScheme) {
-		boolean result = false;
-		if (uriScheme != null) {
-			String scheme = uriScheme.toLowerCase();
-			result = CoAP.COAP_URI_SCHEME.equalsIgnoreCase(scheme) || CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(scheme);
-		}
-		return result;
-	}
-
 	/**
-	 * Returns the absolute Request-URI as string.
-	 * To support virtual servers, it either uses the Uri-Host option
-	 * or "localhost" if the option is not present.
-	 * @return the absolute URI string
+	 * Gets a URI derived from this request's options and properties as defined by
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.5">RFC 7252, Section 6.5</a>.
+	 * <p>
+	 * This method falls back to using <em>localhost</em> as the host part in the returned URI
+	 * if both the <em>destination</em> as well as the <em>Uri-Host</em> option are {@code null}.
+	 * 
+	 * @return The URI string.
+	 * @throws IllegalStateException if this request contains options and/or properties which
+	 *                               cannot be parsed into a URI.
 	 */
 	public String getURI() {
-		StringBuilder builder = new StringBuilder();
-		String scheme = getScheme();
-		if (scheme != null) builder.append(scheme).append("://");
-		else builder.append("coap://");
 		String host = getOptions().getUriHost();
-		if (host != null) builder.append(host);
-		else builder.append("localhost");
+		if (host == null) {
+			if (getDestination() != null) {
+				host = getDestination().getHostAddress();
+			} else {
+				host = "localhost";
+			}
+		}
+
 		Integer port = getOptions().getUriPort();
-		if (port != null) builder.append(":").append(port);
-		String path = getOptions().getUriPathString();
-		builder.append("/").append(path);
+		if (port == null) {
+			port = getDestinationPort();
+		}
+		if (port > 0) {
+			if (CoAP.isSupportedScheme(getScheme())) {
+				if (CoAP.getDefaultPort(getScheme()) == port) {
+					port = -1;
+				}
+			}
+		} else {
+			port = -1;
+		}
+		String path = new StringBuilder("/").append(getOptions().getUriPathString()).toString();
 		String query = getOptions().getUriQueryString();
-		if (query.length()>0) builder.append("?").append(query);
-		// TODO: Query as well?
-		return builder.toString();
+		try {
+			URI uri = new URI(getScheme(), null, host, port, path, query, null);
+			return uri.toASCIIString();
+		} catch (URISyntaxException e) {
+			throw new IllegalStateException("cannot create URI from request", e);
+		}
 	}
 	
 	/**

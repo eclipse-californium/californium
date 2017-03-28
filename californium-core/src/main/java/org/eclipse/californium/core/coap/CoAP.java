@@ -57,7 +57,36 @@ public class CoAP {
 	private CoAP() {
 		// prevent initialization
 	}
-	
+
+	/**
+	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME}, {@link #COAP_SECURE_URI_SCHEME}.
+	 * 
+	 * @param uriScheme scheme to be checked
+	 * @return {@code true} if the provided scheme match one of the list above, false, otherwise.
+	 */
+	public static boolean isSupportedScheme(final String uriScheme) {
+		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
+				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme);
+	}
+
+	/**
+	 * Get default port for provided uri scheme.
+	 * 
+	 * @param uriScheme uri scheme for default port
+	 * @return default port
+	 * @throws IllegalArgumentException if provided uri scheme is not supported.
+	 * @see #DEFAULT_COAP_PORT
+	 * @see #DEFAULT_COAP_SECURE_PORT
+	 */
+	public static int getDefaultPort(final String uriScheme) {
+		if (CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			return DEFAULT_COAP_PORT;
+		} else if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+			return DEFAULT_COAP_SECURE_PORT;
+		}
+		throw new IllegalArgumentException("URI scheme '" + uriScheme + "' is not supported!");
+	}
+
 	/**
 	 * CoAP defines four types of messages:
 	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
