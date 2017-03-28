@@ -22,6 +22,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add reset() for junit tests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -296,7 +297,7 @@ public class EndpointManager {
 	 */
 	public synchronized void setDefaultSecureEndpoint(Endpoint endpoint) {
 
-		if (this.default_secure_endpoint!=null) {
+		if (this.default_secure_endpoint != null) {
 			this.default_secure_endpoint.destroy();
 		}
 
@@ -319,7 +320,7 @@ public class EndpointManager {
 			while (nets.hasMoreElements()) {
 				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
 				while (inetAddresses.hasMoreElements()) {
-	        		interfaces.add(inetAddresses.nextElement());
+					interfaces.add(inetAddresses.nextElement());
 				}
 			}
 		} catch (SocketException e) {
@@ -340,6 +341,34 @@ public class EndpointManager {
 			it.default_secure_endpoint.clear();
 		if (it.default_tcp_endpoint != null)
 			it.default_tcp_endpoint.clear();
+		if (it.default_secure_tpc_endpoint != null)
+			it.default_secure_tpc_endpoint.clear();
+	}
+
+	// Needed for JUnit Tests to ensure, that the defaults endpoints are reseted
+	// to their initial values.
+	/**
+	 * Reset default endpoints. Destroy all default endpoints and clear their
+	 * set.
+	 */
+	public static void reset() {
+		EndpointManager it = getEndpointManager();
+		if (it.default_endpoint != null) {
+			it.default_endpoint.destroy();
+			it.default_endpoint = null;
+		}
+		if (it.default_secure_endpoint != null) {
+			it.default_secure_endpoint.destroy();
+			it.default_secure_endpoint = null;
+		}
+		if (it.default_tcp_endpoint != null) {
+			it.default_tcp_endpoint.destroy();
+			it.default_tcp_endpoint = null;
+		}
+		if (it.default_secure_tpc_endpoint != null) {
+			it.default_secure_tpc_endpoint.destroy();
+			it.default_secure_tpc_endpoint = null;
+		}
 	}
 
 	/**
