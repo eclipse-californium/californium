@@ -19,6 +19,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - log default_secure_endpoint
  *                                                    instead of default_endpoint 
  *                                                    in setDefaultSecureEndpoint
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add reset() for junit tests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -219,6 +220,23 @@ public class EndpointManager {
 			it.default_endpoint.clear();
 		if (it.default_secure_endpoint != null)
 			it.default_secure_endpoint.clear();
+	}
+
+	// Needed for JUnit Tests to ensure, that the defaults endpoints are reseted
+	// to their initial values.
+	/**
+	 * Reset default endpoints. Destroy all default endpoints.
+	 */
+	public static void reset() {
+		EndpointManager it = getEndpointManager();
+		if (it.default_endpoint != null) {
+			it.default_endpoint.destroy();
+			it.default_endpoint = null;
+		}
+		if (it.default_secure_endpoint != null) {
+			it.default_secure_endpoint.destroy();
+			it.default_secure_endpoint = null;
+		}
 	}
 	
 	/**

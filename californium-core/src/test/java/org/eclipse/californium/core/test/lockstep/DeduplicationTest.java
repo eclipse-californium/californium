@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -39,8 +41,10 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -50,6 +54,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class DeduplicationTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 	
 	private LockstepEndpoint server;
 	
@@ -60,7 +66,7 @@ public class DeduplicationTest {
 	public void setupServer() throws IOException {
 		System.out.println("\nStart "+getClass().getSimpleName());
 		
-		NetworkConfig config = new NetworkConfig()
+		NetworkConfig config = network.createTestConfig()
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms

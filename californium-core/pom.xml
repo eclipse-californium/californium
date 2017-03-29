@@ -25,6 +25,12 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
+			<classifier>tests</classifier>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
 			<type>jar</type>
 		</dependency>
 	</dependencies>
@@ -41,6 +47,7 @@
 						   by means of the Californium-logging.properties file
 						-->
 						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
 					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>

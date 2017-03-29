@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - reduce code duplication, split up into
  *                                      separate test cases, remove wait cycles
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -47,10 +49,12 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.EndpointSurveillant;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ServerBlockwiseInterceptor;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -60,6 +64,9 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class BlockwiseServerSideTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
 	public static final int TEST_EXCHANGE_LIFETIME = 247; // 0.247 seconds
 	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // 1 second
 	private static NetworkConfig CONFIG;
@@ -78,7 +85,7 @@ public class BlockwiseServerSideTest {
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseServerSideTest.class.getSimpleName());
 		LockstepEndpoint.DEFAULT_VERBOSE = false;		
-		CONFIG = new NetworkConfig()
+		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 100)

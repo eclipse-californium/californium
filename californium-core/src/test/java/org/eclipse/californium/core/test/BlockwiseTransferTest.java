@@ -17,6 +17,8 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - test stop transfer on cancel
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -45,8 +47,10 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -60,6 +64,8 @@ import org.junit.experimental.categories.Category;
 // Category Large because shutdown of the CoapServer runs into timeout (after 5 secs)
 @Category(Large.class)
 public class BlockwiseTransferTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final String SHORT_POST_REQUEST  = "<Short request>";
 	private static final String LONG_POST_REQUEST   = "<Long request 1x2x3x4x5x>".replace("x", "ABCDEFGHIJKLMNOPQRSTUVWXYZ ");
@@ -80,11 +86,11 @@ public class BlockwiseTransferTest {
 	
 	@Before
 	public void setupServer() throws IOException {
-		System.out.println("\nStart "+getClass().getSimpleName());
+		System.out.println(System.lineSeparator() + "Start "+getClass().getSimpleName());
 		
 		EndpointManager.clear();
 		server = createSimpleServer();
-		NetworkConfig config = new NetworkConfig()
+		NetworkConfig config = network.createTestConfig()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		clientEndpoint = new CoapEndpoint(config);
@@ -198,7 +204,7 @@ public class BlockwiseTransferTest {
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
 			System.out.println("Client received "+payload
-				+ "\n" + interceptor.toString() + "\n");
+				+ System.lineSeparator() + interceptor.toString() + System.lineSeparator());
 		}
 	}
 	
@@ -223,13 +229,13 @@ public class BlockwiseTransferTest {
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
 			System.out.println("Client received "+payload
-				+ "\n" + interceptor.toString() + "\n");
+				+ System.lineSeparator() + interceptor.toString() + System.lineSeparator());
 		}
 	}
 	
 	private CoapServer createSimpleServer() {
 		CoapServer server = new CoapServer();
-		NetworkConfig config = new NetworkConfig();
+		NetworkConfig config = network.createTestConfig();
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
 		
@@ -283,13 +289,13 @@ public class BlockwiseTransferTest {
 		
 		@Override
 		public void sendRequest(Request request) {
-			buffer.append("\nERROR: Server sent "+request+"\n");
+			buffer.append(System.lineSeparator() + "ERROR: Server sent " + request + System.lineSeparator());
 		}
 
 		@Override
 		public void sendResponse(Response response) {
 			buffer.append(
-					String.format("\n<-----   %s [MID=%d], %s%s%s%s    ",
+					String.format(System.lineSeparator() + "<-----   %s [MID=%d], %s%s%s%s    ",
 					response.getType(), response.getMID(), response.getCode(),
 					blockOptionString(1, response.getOptions().getBlock1()),
 					blockOptionString(2, response.getOptions().getBlock2()),
@@ -299,14 +305,14 @@ public class BlockwiseTransferTest {
 		@Override
 		public void sendEmptyMessage(EmptyMessage message) {
 			buffer.append(
-					String.format("\n<-----   %s [MID=%d], 0",
+					String.format(System.lineSeparator() + "<-----   %s [MID=%d], 0",
 					message.getType(), message.getMID()));
 		}
 
 		@Override
 		public void receiveRequest(Request request) {
 			buffer.append(
-					String.format("\n%s [MID=%d], %s, /%s%s%s%s    ----->",
+					String.format(System.lineSeparator() + "%s [MID=%d], %s, /%s%s%s%s    ----->",
 					request.getType(), request.getMID(), request.getCode(),
 					request.getOptions().getUriPathString(),
 					blockOptionString(1, request.getOptions().getBlock1()),
@@ -323,7 +329,7 @@ public class BlockwiseTransferTest {
 		@Override
 		public void receiveEmptyMessage(EmptyMessage message) {
 			buffer.append(
-					String.format("\n%-19s                       ----->",
+					String.format(System.lineSeparator() + "%-19s                       ----->",
 					String.format("%s [MID=%d], 0",message.getType(), message.getMID())
 					));
 		}
@@ -345,7 +351,7 @@ public class BlockwiseTransferTest {
 		}
 		
 		public String toString() {
-			return buffer.append("\n").substring(1);
+			return buffer.append(System.lineSeparator()).substring(1);
 		}
 		
 		public void clear() {

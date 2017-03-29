@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -37,13 +39,17 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Medium.class)
 public class ClientSynchronousTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	public static final String TARGET = "storage";
 	public static final String CONTENT_1 = "one";
@@ -64,9 +70,9 @@ public class ClientSynchronousTest {
 	
 	@Before
 	public void startupServer() {
-		NetworkConfig.getStandard().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
+		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		createServer();
-		System.out.println("\nStart "+getClass().getSimpleName() + " on port " + serverPort);
+		System.out.println(System.lineSeparator() + "Start "+getClass().getSimpleName() + " on port " + serverPort);
 	}
 	
 	@After

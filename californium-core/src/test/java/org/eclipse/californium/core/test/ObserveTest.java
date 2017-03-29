@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -43,8 +45,10 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -84,6 +88,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ObserveTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 	
 	public static final String TARGET_X = "resX";
 	public static final String TARGET_Y = "resY";
@@ -207,7 +213,7 @@ public class ObserveTest {
 	
 	private void createServer() {
 		// retransmit constantly all 2 seconds
-		NetworkConfig config = new NetworkConfig()
+		NetworkConfig config = network.createTestConfig()
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
