@@ -21,10 +21,10 @@ import java.net.DatagramSocket;
 import java.net.DatagramSocketImpl;
 import java.net.DatagramSocketImplFactory;
 import java.net.InetAddress;
+import java.net.PortUnreachableException;
 import java.net.SocketException;
 import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
-import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -48,8 +48,6 @@ import java.util.logging.Logger;
  */
 public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
-	public static final Logger LOGGER = Logger.getLogger(DirectDatagramSocketImpl.class.getName());
-
 	/**
 	 * Starting port number for automatic port binding.
 	 */
@@ -62,6 +60,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Number of ports for automatic port binding.
 	 */
 	public static final int AUTO_PORT_RANGE_SIZE = AUTO_PORT_RANGE_MAX - AUTO_PORT_RANGE_MIN + 1;
+
+	private static final Logger LOGGER = Logger.getLogger(DirectDatagramSocketImpl.class.getName());
 
 	private static final DatagramSocketImplFactory DEFAULT = new DirectDatagramSocketImplFactory();
 
@@ -116,7 +116,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void bind(int lport, InetAddress laddr) throws SocketException {
-		LOGGER.log(Level.INFO, "port {0}, address {1}", new Object[] { lport, laddr });
+		LOGGER.log(Level.FINE, "binding to port {0}, address {1}", new Object[] { lport, laddr });
 		int port = bind(lport);
 		synchronized (this) {
 			this.localPort = port;
@@ -127,25 +127,25 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void close() {
-		boolean closed;
+		boolean isClosed;
 		int port;
 		InetAddress addr;
 		synchronized (this) {
-			closed = this.closed;
+			isClosed = this.closed;
 			port = this.localPort;
 			addr = this.localAddress;
 			this.closed = true;
 		}
-		LOGGER.log(Level.INFO, "port {0}, address {1}", new Object[] { port, addr });
-		if (!closed) {
+		LOGGER.log(Level.FINE, "closing port {0}, address {1}", new Object[] { port, addr });
+		if (!isClosed) {
 			if (!map.remove(port, this)) {
-				LOGGER.log(Level.WARNING, "close unknown port {0}, address {1}", new Object[] { port, addr });
+				LOGGER.log(Level.INFO, "cannot close unknown port {0}, address {1}", new Object[] { port, addr });
 			}
 		}
 	}
 
 	@Override
-	protected void receive(DatagramPacket packet) throws IOException {
+	protected void receive(DatagramPacket destPacket) throws IOException {
 		int port;
 		InetAddress addr;
 		synchronized (this) {
@@ -159,7 +159,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (0 < timeout) {
 				exchange = incomingQueue.poll(timeout, TimeUnit.MILLISECONDS);
 				if (null == exchange) {
-					throw new SocketTimeoutException();
+					throw new SocketTimeoutException("no data available");
 				}
 			} else {
 				exchange = incomingQueue.take();
@@ -168,39 +168,37 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 				// intended for special test conditions
 				Thread.sleep(currentSetup.delayInMs);
 			}
-			boolean closed;
+			boolean isClosed;
 			synchronized (this) {
-				closed = this.closed;
+				isClosed = this.closed;
 				port = this.localPort;
 				addr = this.localAddress;
 			}
-			if (closed) {
-				LOGGER.log(Level.INFO, "already closed {0}", exchange.format(currentSetup));
+			if (isClosed) {
+				LOGGER.log(Level.FINE, "socket already closed {0}", exchange.format(currentSetup));
 				throw new SocketException("Socket " + addr + ":" + port + " closed!");
-			} else {
-				if (LOGGER.isLoggable(Level.FINE)) {
-					LOGGER.log(Level.INFO, "incoming {0}", exchange.format(currentSetup));
-				} else {
-					LOGGER.log(Level.INFO, exchange.format(currentSetup));
-				}
+			} else if (LOGGER.isLoggable(Level.FINE)) {
+				LOGGER.log(Level.FINE, "incoming {0}", exchange.format(currentSetup));
 			}
 			int receivedLength = exchange.data.length;
-			int packetLength = packet.getLength();
-			byte[] packetData = packet.getData();
-			if (packetLength < receivedLength) {
-				if (packetData.length > packetLength) {
-					LOGGER.log(Level.WARNING, "DatagramPacket.length {0} < buffer.length {1}!",
-							new Object[] { packetLength, packetData.length });
-					packetLength = packetData.length;
+			int destPacketLength = destPacket.getLength();
+			byte[] destPacketData = destPacket.getData();
+			if (destPacketLength < receivedLength) {
+				if (destPacketData.length > destPacketLength) {
+					LOGGER.log(Level.FINE, "increasing receive buffer from {0} to full buffer capacity [{1}]",
+							new Object[] { destPacketLength, destPacketData.length });
+					destPacketLength = destPacketData.length;
 				}
-				if (packetLength < receivedLength) {
-					receivedLength = packetLength;
+				if (destPacketLength < receivedLength) {
+					LOGGER.log(Level.FINE, "truncating data [length: {0}] to fit into receive buffer [size: {1}]",
+							new Object[]{ receivedLength, destPacketLength });
+					receivedLength = destPacketLength;
 				}
 			}
-			packet.setLength(receivedLength);
-			System.arraycopy(exchange.data, 0, packetData, 0, receivedLength);
-			packet.setPort(exchange.sourcePort);
-			packet.setAddress(exchange.sourceAddress);
+			destPacket.setLength(receivedLength);
+			System.arraycopy(exchange.data, 0, destPacketData, 0, receivedLength);
+			destPacket.setPort(exchange.sourcePort);
+			destPacket.setAddress(exchange.sourceAddress);
 		} catch (InterruptedException exception) {
 			if (!incomingQueue.isEmpty()) {
 				LOGGER.log(Level.WARNING, "interrupted while receiving!");
@@ -211,11 +209,11 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void send(DatagramPacket packet) throws IOException {
-		boolean closed;
+		boolean isClosed;
 		int port;
 		InetAddress local;
 		synchronized (this) {
-			closed = this.closed;
+			isClosed = this.closed;
 			port = this.localPort;
 			local = this.localAddress;
 		}
@@ -229,10 +227,13 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		if (null == destination) {
 			LOGGER.log(Level.SEVERE, "destination (port {0}) not available! {1}",
 					new Object[] { exchange.destinationPort, exchange.format(currentSetup) });
-		} else if (closed) {
+			throw new PortUnreachableException("destination not available");
+		} else if (isClosed) {
 			LOGGER.log(Level.WARNING, "closed/packet dropped! {0}", exchange.format(currentSetup));
+			throw new SocketException("socket is closed");
 		} else if (!destination.incomingQueue.offer(exchange)) {
 			LOGGER.log(Level.SEVERE, "packet dropped! {0}", exchange.format(currentSetup));
+			throw new PortUnreachableException("buffer exhausted");
 		} else {
 			LOGGER.log(Level.FINE, "outgoing {0}", exchange.format(currentSetup));
 		}
@@ -289,23 +290,25 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			this.sourcePort = port;
 			this.destinationPort = packet.getPort();
 			this.id = ID.incrementAndGet();
-			this.data = Arrays.copyOf(packet.getData(), packet.getLength());
+			this.data = new byte[packet.getLength()];
+			System.arraycopy(packet.getData(), packet.getOffset(), data, 0, packet.getLength());
 		}
 
 		/**
 		 * 
-		 * @param direction
+		 * @param currentSetup
+		 * @return The formatted setup
 		 */
-		public String format(final Setup setup) {
+		public String format(final Setup currentSetup) {
 			long tid = Thread.currentThread().getId();
 			String delay = "";
 			String content = "";
-			if (null != setup) {
-				if (null != setup.formatter) {
-					content = setup.formatter.format(data);
+			if (null != currentSetup) {
+				if (null != currentSetup.formatter) {
+					content = currentSetup.formatter.format(data);
 				}
-				if (0 < setup.delayInMs) {
-					delay = Integer.toString(setup.delayInMs);
+				if (0 < currentSetup.delayInMs) {
+					delay = String.format("%dms", currentSetup.delayInMs);
 				}
 			}
 			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", new Object[] { id, tid,
@@ -334,7 +337,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 					throw new SocketException("No left free port!");
 				}
 			}
-			LOGGER.log(Level.INFO, "assigned port {0}", port);
+			LOGGER.log(Level.FINE, "assigned port {0}", port);
 			return port;
 		} else {
 			if (null != map.putIfAbsent(lport, this)) {
@@ -415,7 +418,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Check, if IP stack is initialized to use this DatagramSocketImpl.
 	 * 
 	 * @return true, stack uses this implementation, false otherwise.
-	 * @see #initialize(int, DatagramFormatter)
+	 * @see #initialize(DatagramSocketImplFactory)
 	 */
 	public static boolean isEnabled() {
 		return null != init.get();
