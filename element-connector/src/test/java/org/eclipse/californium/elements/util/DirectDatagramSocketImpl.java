@@ -25,7 +25,6 @@ import java.net.PortUnreachableException;
 import java.net.SocketException;
 import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
-import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -292,7 +291,6 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			this.destinationPort = packet.getPort();
 			this.id = ID.incrementAndGet();
 			this.data = new byte[packet.getLength()];
-//			this.data = Arrays.copyOf(packet.getData(), packet.getLength());
 			System.arraycopy(packet.getData(), packet.getOffset(), data, 0, packet.getLength());
 		}
 
