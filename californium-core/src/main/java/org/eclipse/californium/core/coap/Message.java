@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getPayloadTracingString 
  *                                                    (for message tracing)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -50,8 +51,8 @@ import org.eclipse.californium.core.observe.ObserveManager;
  * <p>
  * Note: The {@link #messageObservers} and {@link #options} properties are
  * initialized lazily. This saves a few bytes in case the properties are not in
- * use. For instance an empty message should not have any options and most messages
- * will not have any observers registered.
+ * use. For instance an empty message should not have any options and most
+ * messages will not have any observers registered.
  * 
  * @see Request
  * @see Response
@@ -80,8 +81,8 @@ public abstract class Message {
 	 * The token, a 0-8 byte array.
 	 * <p>
 	 * This field is initialized to {@code null} so that client code can
-	 * determine whether the message already has a token assigned or not.
-	 * An empty array would not work here because it is already a valid token
+	 * determine whether the message already has a token assigned or not. An
+	 * empty array would not work here because it is already a valid token
 	 * according to the CoAP spec.
 	 */
 	private byte[] token = null;
@@ -131,7 +132,7 @@ public abstract class Message {
 	private List<MessageObserver> messageObservers;
 
 	/**
-	 * The timestamp when this message has been received or sent or 0 if neither
+	 * The timestamp when this message has been received, sent, or 0, if neither
 	 * has happened yet. The {@link Matcher} sets the timestamp.
 	 */
 	private long timestamp;
@@ -166,6 +167,7 @@ public abstract class Message {
 
 	/**
 	 * Sets the CoAP message type.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param type the new type
@@ -182,13 +184,13 @@ public abstract class Message {
 	 * @return true, if is confirmable
 	 */
 	public boolean isConfirmable() {
-		return getType()==Type.CON;
+		return getType() == Type.CON;
 	}
 
 	/**
 	 * Chooses between confirmable and non-confirmable message.
-	 * Pass true for CON, false for NON.
-	 * Provides a fluent API to chain setters.
+	 * 
+	 * Pass true for CON, false for NON. Provides a fluent API to chain setters.
 	 *
 	 * @param con true for CON, false for NON
 	 * @return this Message
@@ -218,20 +220,22 @@ public abstract class Message {
 	 * Checks whether this message has a valid ID.
 	 * 
 	 * @return {@code true} if this message's ID is a 16 bit unsigned integer.
-a	 */
+	 */
 	public boolean hasMID() {
 		return mid != NONE;
 	}
 
 	/**
 	 * Sets the 16-bit message identification.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param mid the new mid
 	 * @return this Message
 	 */
 	public Message setMID(int mid) {
-		if (mid > MAX_MID || mid < NONE) { // NONE is allowed as a temporary placeholder
+		// NONE is allowed as a temporary placeholder
+		if (mid > MAX_MID || mid < NONE) {
 			throw new IllegalArgumentException("The MID must be an unsigned 16-bit number but was " + mid);
 		}
 		this.mid = mid;
@@ -248,7 +252,8 @@ a	 */
 	/**
 	 * Checks whether this message has a non-zero length token.
 	 * 
-	 * @return {@code true} if this message's token is either {@code null} or of length 0.
+	 * @return {@code true} if this message's token is either {@code null} or of
+	 *         length 0.
 	 */
 	public boolean hasEmptyToken() {
 		return token == null || token.length == 0;
@@ -274,6 +279,7 @@ a	 */
 
 	/**
 	 * Sets the token, which can be 0--8 bytes.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param token the new token
@@ -301,8 +307,9 @@ a	 */
 	}
 
 	/**
-	 * Sets the set of options. This function makes a defensive copy of the
-	 * specified set of options.
+	 * Sets the set of options.
+	 * 
+	 * This function makes a defensive copy of the specified set of options.
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param options the new options
@@ -339,8 +346,9 @@ a	 */
 	 * @return the payload as string
 	 */
 	public String getPayloadString() {
-		if (payload==null)
+		if (payload == null) {
 			return "";
+		}
 		return new String(payload, CoAP.UTF8_CHARSET);
 	}
 
@@ -352,7 +360,7 @@ a	 */
 		boolean text = true;
 		for (byte b : payload) {
 			if (' ' > b) {
-				switch(b) {
+				switch (b) {
 				case '\t':
 				case '\n':
 				case '\r':
@@ -372,9 +380,9 @@ a	 */
 			decoder.flush(out);
 			out.flip();
 			if (CoderResult.OVERFLOW == result) {
-				return "\"" + out +  "\".. " + payload.length + " bytes";
-			} else if (!result.isError()){
-				return "\"" + out + "\"" ;
+				return "\"" + out + "\".. " + payload.length + " bytes";
+			} else if (!result.isError()) {
+				return "\"" + out + "\"";
 			}
 		}
 		return Utils.toHexText(payload, 256);
@@ -382,6 +390,7 @@ a	 */
 
 	/**
 	 * Sets the UTF-8 bytes from the specified string as payload.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param payload the payload as sting
@@ -398,6 +407,7 @@ a	 */
 
 	/**
 	 * Sets the payload.
+	 *
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param payload the new payload
@@ -419,6 +429,7 @@ a	 */
 
 	/**
 	 * Sets the destination address.
+	 *
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param destination the new destination
@@ -440,6 +451,7 @@ a	 */
 
 	/**
 	 * Sets the destination port.
+	 *
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param destinationPort the new destination port
@@ -461,6 +473,7 @@ a	 */
 
 	/**
 	 * Sets the source address.
+	 *
 	 * Not part of the fluent API.
 	 *
 	 * @param source the new source
@@ -480,6 +493,7 @@ a	 */
 
 	/**
 	 * Sets the source port.
+	 *
 	 * Not part of the fluent API.
 	 *
 	 * @param sourcePort the new source port
@@ -499,15 +513,18 @@ a	 */
 
 	/**
 	 * Marks this message as acknowledged.
+	 *
 	 * Not part of the fluent API.
 	 *
 	 * @param acknowledged if acknowledged
 	 */
 	public void setAcknowledged(boolean acknowledged) {
 		this.acknowledged = acknowledged;
-		if (acknowledged)
-			for (MessageObserver handler:getMessageObservers())
+		if (acknowledged) {
+			for (MessageObserver handler : getMessageObservers()) {
 				handler.onAcknowledgement();
+			}
+		}
 	}
 
 	/**
@@ -521,15 +538,18 @@ a	 */
 
 	/**
 	 * Marks this message as rejected.
+	 *
 	 * Not part of the fluent API.
 	 *
 	 * @param rejected if rejected
 	 */
 	public void setRejected(boolean rejected) {
 		this.rejected = rejected;
-		if (rejected)
-			for (MessageObserver handler:getMessageObservers())
+		if (rejected) {
+			for (MessageObserver handler : getMessageObservers()) {
 				handler.onReject();
+			}
+		}
 	}
 
 	/**
@@ -568,6 +588,7 @@ a	 */
 
 	/**
 	 * Marks this message as canceled.
+	 * 
 	 * Not part of the fluent API.
 	 * 
 	 * @param canceled if canceled
@@ -575,7 +596,7 @@ a	 */
 	public void setCanceled(boolean canceled) {
 		this.canceled = canceled;
 		if (canceled) {
-			for (MessageObserver handler:getMessageObservers()) {
+			for (MessageObserver handler : getMessageObservers()) {
 				handler.onCancel();
 			}
 		}
@@ -591,7 +612,8 @@ a	 */
 	}
 
 	/**
-	 * Marks this message as a duplicate
+	 * Marks this message as a duplicate.
+	 * 
 	 * Not part of the fluent API.
 	 *
 	 * @param duplicate if a duplicate
@@ -611,6 +633,7 @@ a	 */
 
 	/**
 	 * Sets the bytes of the serialized message.
+	 * 
 	 * Not part of the fluent API.
 	 *
 	 * @param bytes the serialized bytes
@@ -623,7 +646,8 @@ a	 */
 	 * Checks whether a given block offset falls into this message's payload.
 	 * 
 	 * @param block2 The offset of the block.
-	 * @return {@code true} if this message has a payload and its size is &gt; the offset.
+	 * @return {@code true} if this message has a payload and its size is
+	 *         greater then the offset.
 	 */
 	public boolean hasBlock(final BlockOption block2) {
 
@@ -641,6 +665,7 @@ a	 */
 
 	/**
 	 * Sets the timestamp.
+	 * 
 	 * Not part of the fluent API.
 	 *
 	 * @param timestamp the new timestamp
@@ -650,8 +675,10 @@ a	 */
 	}
 
 	/**
-	 * Cancels this message. This method calls #setCanceled(true).
-	 * Subclasses should override #setCanceled(boolean) to react to
+	 * Cancels this message.
+	 * 
+	 * This method calls {@link #setCanceled(boolean)} with {@code true}.
+	 * Subclasses should override {@link #setCanceled(boolean)} to react to
 	 * cancellation.
 	 */
 	public void cancel() {
@@ -659,8 +686,8 @@ a	 */
 	}
 
 	/**
-	 * Notifies all registered {@code MessageObserver}s that this message
-	 * is about to be re-transmitted.
+	 * Notifies all registered {@code MessageObserver}s that this message is
+	 * about to be re-transmitted.
 	 */
 	public void retransmitting() {
 		for (MessageObserver observer : getMessageObservers()) {
@@ -731,8 +758,8 @@ a	 */
 	}
 
 	/**
-	 * Creates a new list of {@link MessageObserver} if not already defined. This
-	 * method is thread-safe and creates exactly one list.
+	 * Creates a new list of {@link MessageObserver} if not already defined.
+	 * This method is thread-safe and creates exactly one list.
 	 */
 	private void initMessageObserverList() {
 		synchronized (this) {
