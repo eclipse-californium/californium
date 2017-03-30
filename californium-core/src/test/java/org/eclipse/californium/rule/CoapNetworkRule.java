@@ -94,8 +94,17 @@ public class CoapNetworkRule extends NetworkRule {
 
 		@Override
 		public String format(byte[] data) {
-			Message message = parser.parseMessage(data);
-			return message.toString();
+			if (null == data) {
+				return "<null>";
+			} else if (0 == data.length) {
+				return "[] (empty)";
+			}
+			try {
+				Message message = parser.parseMessage(data);
+				return message.toString();
+			} catch (RuntimeException ex) {
+				return "decode " + data.length + " received bytes with " + ex.getMessage();
+			}
 		}
 
 	};
@@ -137,6 +146,11 @@ public class CoapNetworkRule extends NetworkRule {
 		}
 		messageThreads.set(threads);
 		return this;
+	}
+
+	@Override
+	public CoapNetworkRule setDelay(int delayInMillis) {
+		return (CoapNetworkRule) super.setDelay(delayInMillis);
 	}
 
 	@Override
