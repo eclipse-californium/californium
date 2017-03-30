@@ -25,6 +25,8 @@ import java.net.PortUnreachableException;
 import java.net.SocketException;
 import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -61,9 +63,29 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 */
 	public static final int AUTO_PORT_RANGE_SIZE = AUTO_PORT_RANGE_MAX - AUTO_PORT_RANGE_MIN + 1;
 
+	/**
+	 * Maximum number of kept exchanges, if logging FINE/FINER is disabled.
+	 */
+	private static final int MAX_KEPT_EXCHANGES = 200;
+
 	private static final Logger LOGGER = Logger.getLogger(DirectDatagramSocketImpl.class.getName());
 
+	/**
+	 * Default factory, if {@code null} is provided for
+	 * {@link #initialize(DatagramSocketImplFactory)}.
+	 */
 	private static final DatagramSocketImplFactory DEFAULT = new DirectDatagramSocketImplFactory();
+
+	/**
+	 * List for exchanges, if logging FINE/FINER is disabled.
+	 * 
+	 * Limited to maximum {@link #MAX_KEPT_EXCHANGES} exchanges.
+	 * 
+	 * @see #clearConditionalLog()
+	 * @see #conditionalLog()
+	 * @see #keepForConditionalLogging(DatagramExchange)
+	 */
+	private static final List<DatagramExchange> exchangesForConditionalLogging = new LinkedList<DatagramExchange>();
 
 	/**
 	 * Map of sockets.
@@ -177,8 +199,12 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (isClosed) {
 				LOGGER.log(Level.FINE, "socket already closed {0}", exchange.format(currentSetup));
 				throw new SocketException("Socket " + addr + ":" + port + " closed!");
-			} else if (LOGGER.isLoggable(Level.FINE)) {
-				LOGGER.log(Level.FINE, "incoming {0}", exchange.format(currentSetup));
+			} else if (LOGGER.isLoggable(Level.FINER)) {
+				LOGGER.log(Level.FINER, "incoming {0}", exchange.format(currentSetup));
+			} else if (LOGGER.isLoggable(Level.INFO)) {
+				LOGGER.log(Level.INFO, "{0}", exchange.format(currentSetup));
+			} else if (LOGGER.isLoggable(Level.INFO)) {
+				keepForConditionalLogging(exchange);
 			}
 			int receivedLength = exchange.data.length;
 			int destPacketLength = destPacket.getLength();
@@ -191,7 +217,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 				}
 				if (destPacketLength < receivedLength) {
 					LOGGER.log(Level.FINE, "truncating data [length: {0}] to fit into receive buffer [size: {1}]",
-							new Object[]{ receivedLength, destPacketLength });
+							new Object[] { receivedLength, destPacketLength });
 					receivedLength = destPacketLength;
 				}
 			}
@@ -234,8 +260,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		} else if (!destination.incomingQueue.offer(exchange)) {
 			LOGGER.log(Level.SEVERE, "packet dropped! {0}", exchange.format(currentSetup));
 			throw new PortUnreachableException("buffer exhausted");
-		} else {
-			LOGGER.log(Level.FINE, "outgoing {0}", exchange.format(currentSetup));
+		} else if (LOGGER.isLoggable(Level.FINER)) {
+			LOGGER.log(Level.FINER, "outgoing {0}", exchange.format(currentSetup));
 		}
 	}
 
@@ -277,12 +303,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		/**
 		 * Create datagram exchange.
 		 * 
-		 * @param address
-		 *            local address
-		 * @param port
-		 *            local port
-		 * @param packet
-		 *            datagram packet with destination and data
+		 * @param address local address
+		 * @param port local port
+		 * @param packet datagram packet with destination and data
 		 */
 		public DatagramExchange(InetAddress address, int port, DatagramPacket packet) {
 			this.sourceAddress = address;
@@ -303,6 +326,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			long tid = Thread.currentThread().getId();
 			String delay = "";
 			String content = "";
+			String destination = "";
 			if (null != currentSetup) {
 				if (null != currentSetup.formatter) {
 					content = currentSetup.formatter.format(data);
@@ -311,21 +335,22 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 					delay = String.format("%dms", currentSetup.delayInMs);
 				}
 			}
+			if (!sourceAddress.equals(destinationAddress)) {
+				destination = destinationAddress.getHostAddress();
+			}
 			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", new Object[] { id, tid,
-					sourceAddress, sourcePort, delay, destinationAddress, destinationPort, content });
+					sourceAddress.getHostAddress(), sourcePort, delay, destination, destinationPort, content });
 		}
 	}
 
 	/**
 	 * Bind socket to provided port. Register socket at {@link #map}.
 	 * 
-	 * @param lport
-	 *            provided local port. if 0, choose a free one from the
+	 * @param lport provided local port. if 0, choose a free one from the
 	 *            automatic range.
 	 * @return local port
-	 * @throws SocketException
-	 *             if provided port is not free or, if lport was -1, no free
-	 *             port is available.
+	 * @throws SocketException if provided port is not free or, if lport was -1,
+	 *             no free port is available.
 	 */
 	private int bind(int lport) throws SocketException {
 		if (0 >= lport) {
@@ -351,8 +376,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Get socket timeout.
 	 * 
 	 * @return timeout in milliseconds. 0, doen't wait.
-	 * @throws SocketException
-	 *             not used
+	 * @throws SocketException not used
 	 */
 	private int getSoTimeout() throws SocketException {
 		Object option = getOption(SocketOptions.SO_TIMEOUT);
@@ -366,9 +390,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	/**
 	 * Initialize DatagramSocketImplFactory.
 	 * 
-	 * @param factory
-	 *            factory for datagram socket. if null, {@link #DEFAULT} factory
-	 *            is used, which creates {@link DirectDatagramSocketImpl}.
+	 * @param factory factory for datagram socket. if null, {@link #DEFAULT}
+	 *            factory is used, which creates
+	 *            {@link DirectDatagramSocketImpl}.
 	 * @return true, if initialization is executed, false, if it was already
 	 *         executed.
 	 * @see DatagramSocket#setDatagramSocketImplFactory(DatagramSocketImplFactory)
@@ -404,11 +428,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	/**
 	 * Configure DatagramSocketImplFactory.
 	 * 
-	 * @param formatter
-	 *            datagram formatter.
-	 * @param delayInMs
-	 *            delay processing of incoming message. Value in milliseconds. 0
-	 *            for no delay.
+	 * @param formatter datagram formatter.
+	 * @param delayInMs delay processing of incoming message. Value in
+	 *            milliseconds. 0 for no delay.
 	 */
 	public static void configure(final DatagramFormatter formatter, final int delayInMs) {
 		setup.set(new Setup(formatter, delayInMs));
@@ -425,19 +447,61 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	}
 
 	/**
-	 * Check, if no open socket exists.
+	 * Check, if no open sockets exists.
 	 * 
-	 * @return true, if no socket exists, false, otherwise
+	 * @return {@code true}, if no sockets exists, {@code false}, otherwise
 	 */
 	public static boolean isEmpty() {
 		return map.isEmpty();
 	}
 
 	/**
-	 * Force socket cleanup.
+	 * Force sockets cleanup.
 	 */
 	public static void clearAll() {
 		map.clear();
+	}
+
+	/**
+	 * Clear exchanges kept for conditional logging.
+	 * 
+	 * @see #exchangesForConditionalLogging
+	 */
+	public static void clearConditionalLog() {
+		synchronized (exchangesForConditionalLogging) {
+			exchangesForConditionalLogging.clear();
+		}
+	}
+
+	/**
+	 * Log exchanges kept for conditional logging.
+	 * 
+	 * @see #exchangesForConditionalLogging
+	 */
+	public static void conditionalLog() {
+		final Setup currentSetup = setup.get();
+		DatagramExchange list[];
+		synchronized (exchangesForConditionalLogging) {
+			list = exchangesForConditionalLogging.toArray(new DatagramExchange[exchangesForConditionalLogging.size()]);
+			exchangesForConditionalLogging.clear();
+		}
+		for (DatagramExchange exchange : list) {
+			LOGGER.log(Level.INFO, ">> {0}", exchange.format(currentSetup));
+		}
+	}
+
+	/**
+	 * Keep exchange for conditional logging.
+	 * 
+	 * @param exchange exchange to be kept
+	 */
+	private static void keepForConditionalLogging(DatagramExchange exchange) {
+		synchronized (exchangesForConditionalLogging) {
+			if (MAX_KEPT_EXCHANGES <= exchangesForConditionalLogging.size()) {
+				exchangesForConditionalLogging.remove(0);
+			}
+			exchangesForConditionalLogging.add(exchange);
+		}
 	}
 
 	private static class Setup {
@@ -456,10 +520,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		/**
 		 * Create new setup.
 		 * 
-		 * @param formatter
-		 *            datagram formatter.
-		 * @param delayInMs
-		 *            delay processing of incoming message. Value in
+		 * @param formatter datagram formatter.
+		 * @param delayInMs delay processing of incoming message. Value in
 		 *            milliseconds. 0 for no delay.
 		 */
 		public Setup(final DatagramFormatter formatter, final int delayInMs) {

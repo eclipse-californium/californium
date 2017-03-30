@@ -104,6 +104,9 @@ public class NetworkRule implements TestRule {
 	static {
 		Mode mode = Mode.NATIVE;
 		String envMode = System.getProperty(PROPERTY_NAME);
+		if (null == envMode) {
+			envMode = System.getenv(PROPERTY_NAME);
+		}
 		if (null != envMode) {
 			try {
 				mode = Mode.valueOf(envMode);
@@ -171,7 +174,7 @@ public class NetworkRule implements TestRule {
 	 * 
 	 * @see #DEFAULT_FORMATTER
 	 */
-	private DatagramFormatter formatter;
+	private final DatagramFormatter formatter;
 	/**
 	 * Delay for message processing.
 	 * 
@@ -187,8 +190,7 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Create rule supporting provided modes.
 	 * 
-	 * @param modes
-	 *            supported datagram socket implementation modes.
+	 * @param modes supported datagram socket implementation modes.
 	 */
 	public NetworkRule(Mode... modes) {
 		this(DEFAULT_FORMATTER, modes);
@@ -197,10 +199,8 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Create rule supporting provided modes and formatter.
 	 * 
-	 * @param formatter
-	 *            datagram formatter to be used
-	 * @param modes
-	 *            supported datagram socket implementation modes.
+	 * @param formatter datagram formatter to be used
+	 * @param modes supported datagram socket implementation modes.
 	 */
 	protected NetworkRule(DatagramFormatter formatter, Mode... modes) {
 		this.supportedModes = modes;
@@ -226,8 +226,7 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Check, if provided mode is in {@link #supportedModes}.
 	 * 
-	 * @param mode
-	 *            mode to check
+	 * @param mode mode to check
 	 * @return true, if provided mode is supported, false, otherwise
 	 */
 	private boolean supports(final Mode mode) {
@@ -244,12 +243,10 @@ public class NetworkRule implements TestRule {
 	 * 
 	 * Only used in DIRECT mode.
 	 * 
-	 * @param delayInMillis
-	 *            delay in milliseconds
+	 * @param delayInMillis delay in milliseconds
 	 * @return this rule
-	 * @throws IllegalArgumentException,
-	 *             if the value is smaller then 0 or DIRECT is not within the
-	 *             supported modes.
+	 * @throws IllegalArgumentException, if the value is smaller then 0 or
+	 *             DIRECT is not within the supported modes.
 	 */
 	public NetworkRule setDelay(int delayInMillis) {
 		if (0 > delayInMillis) {
@@ -289,8 +286,10 @@ public class NetworkRule implements TestRule {
 	 * {@link #initNetwork(boolean)}, when available. When the last rule is
 	 * removed from stack and no next rule is available, calls
 	 * {@link #closeNetwork()}.
+	 * 
+	 * @param failed true, if test failed, false, otherwise
 	 */
-	private final void closeConfig() {
+	private final void closeConfig(final boolean failed) {
 		int size;
 		NetworkRule closedRule;
 		NetworkRule activeRule;
@@ -302,6 +301,9 @@ public class NetworkRule implements TestRule {
 		LOGGER.log(Level.INFO, "{0} rules active.", size);
 		if (this != closedRule) {
 			throw new IllegalStateException("closed rule differs!");
+		}
+		if (failed && Mode.DIRECT == usedMode) {
+			DirectDatagramSocketImpl.conditionalLog();
 		}
 		if (null == activeRule) {
 			closeNetwork();
@@ -317,11 +319,15 @@ public class NetworkRule implements TestRule {
 
 				@Override
 				public void evaluate() throws Throwable {
+					boolean failed = false;
 					applyConfig(description);
 					try {
 						base.evaluate();
+					} catch (Throwable t) {
+						failed = true;
+						throw t;
 					} finally {
-						closeConfig();
+						closeConfig(failed);
 					}
 				}
 			};
@@ -339,13 +345,12 @@ public class NetworkRule implements TestRule {
 	 * {@link DirectDatagramSocketImpl#configure(DatagramFormatter, int)}, if
 	 * {@link #usedMode} is {@link Mode#DIRECT}.
 	 * 
-	 * @param outerScope
-	 *            true, if called from the outer most rule. Usually the rule is
-	 *            used as class rule and my use nested method rules. If that's
-	 *            the case, outerScope is true for the class rule and false for
-	 *            the method rule. If only method rules are used, it's always
-	 *            true. If true, all open DIRECT sockets are cleaned up and
-	 *            warnings are logged. This indicator is introduced to cover
+	 * @param outerScope true, if called from the outer most rule. Usually the
+	 *            rule is used as class rule and my use nested method rules. If
+	 *            that's the case, outerScope is true for the class rule and
+	 *            false for the method rule. If only method rules are used, it's
+	 *            always true. If true, all open DIRECT sockets are cleaned up
+	 *            and warnings are logged. This indicator is introduced to cover
 	 *            situations, where the class setup starts a server, which is
 	 *            then reused by several tests.
 	 */
@@ -355,6 +360,7 @@ public class NetworkRule implements TestRule {
 				LOGGER.info("Previous test didn't 'closeNetwork()'!");
 				DirectDatagramSocketImpl.clearAll();
 			}
+			DirectDatagramSocketImpl.clearConditionalLog();
 			DirectDatagramSocketImpl.configure(formatter, delayInMillis);
 		}
 	}
@@ -381,8 +387,7 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Ensure, that this rule is the currently active rule.
 	 * 
-	 * @throws IllegalStateException,
-	 *             if this rule is not currently active.
+	 * @throws IllegalStateException, if this rule is not currently active.
 	 */
 	protected void ensureThisRuleIsActive() throws IllegalStateException {
 		NetworkRule activeRule;
