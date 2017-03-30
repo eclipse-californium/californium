@@ -65,7 +65,7 @@
 					<!-- parallel>classes</parallel>
 					<threadCountClasses>8</threadCountClasses-->
 					<groups>org.eclipse.californium.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
+					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 				</configuration>
 				<executions>
 					<execution>
@@ -76,7 +76,7 @@
 						</goals>
 						<configuration>
 							<groups>org.eclipse.californium.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large</excludedGroups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -87,7 +87,21 @@
 						</goals>
 						<configuration>
 							<groups>org.eclipse.californium.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium</excludedGroups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>native-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<systemPropertyVariables>
+								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
+							</systemPropertyVariables>
+							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
 						</configuration>
 					</execution>
 				</executions>
