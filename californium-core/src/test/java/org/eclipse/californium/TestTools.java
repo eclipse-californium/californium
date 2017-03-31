@@ -17,6 +17,7 @@ package org.eclipse.californium;
 
 import java.net.InetSocketAddress;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Endpoint;
 
@@ -46,7 +47,8 @@ public final class TestTools {
 	/**
 	 * Creates a URI string for a resource hosted on an endpoint.
 	 * 
-	 * @param address The address of the endpoint that the resource is hosted on.
+	 * @param address The address of the endpoint that the resource is hosted
+	 *            on.
 	 * @param path The path of the resource on the endpoint.
 	 * @return The URI string.
 	 */
@@ -63,7 +65,7 @@ public final class TestTools {
 	public static String generateRandomPayload(final int length) {
 		StringBuffer buffer = new StringBuffer();
 		int counter = 0;
-		while(counter < length) {
+		while (counter < length) {
 			buffer.append(Integer.toString(RAND.nextInt(10)));
 			counter++;
 		}
@@ -79,10 +81,50 @@ public final class TestTools {
 	public static String generatePayload(final int length) {
 		StringBuffer buffer = new StringBuffer();
 		int n = 0;
-		while(buffer.length() < length) {
+		while (buffer.length() < length) {
 			buffer.append(Integer.toString(n % 10));
 			n++;
 		}
 		return buffer.toString();
+	}
+
+	/**
+	 * Wait for condition to come {@code true}.
+	 * 
+	 * Used for none notifying conditions, which must be polled.
+	 * 
+	 * @param timeout timeout in {@code unit}
+	 * @param interval interval of condition check in {@code unit}
+	 * @param unit time units for {@code timeout} and {@code interval}
+	 * @param check callback for condition check
+	 * @return {@code true}, if the condition is fulfilled within timeout,
+	 *         {@code false} otherwise.
+	 * @throws InterruptedException if the Thread is interrupted.
+	 */
+	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, CheckCondition check)
+			throws InterruptedException {
+		if (0 >= timeout) {
+			throw new IllegalArgumentException("timeout must be greather than 0!");
+		}
+		if (0 >= interval || timeout < interval) {
+			throw new IllegalArgumentException("interval must be greather than 0, and not greather than timeout!");
+		}
+		if (null == check) {
+			throw new NullPointerException("check must be provided!");
+		}
+		long leftTimeInMilliseconds = unit.toMillis(timeout);
+		long sleepTimeInMilliseconds = unit.toMillis(interval);
+		long end = System.nanoTime() + unit.toNanos(timeout);
+		while (0 < leftTimeInMilliseconds) {
+			if (check.isFulFilled()) {
+				return true;
+			}
+			Thread.sleep(sleepTimeInMilliseconds);
+			leftTimeInMilliseconds = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
+			if (sleepTimeInMilliseconds > leftTimeInMilliseconds) {
+				sleepTimeInMilliseconds = leftTimeInMilliseconds;
+			}
+		}
+		return check.isFulFilled();
 	}
 }
