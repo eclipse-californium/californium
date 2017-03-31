@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -129,7 +130,12 @@ public class MemoryLeakingHashMapTest {
 	@After
 	public void assertAllExchangesAreCompleted() {
 		try {
-			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+				@Override
+				public boolean isFulFilled() throws IllegalStateException {
+					return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
+				}
+			});
 			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
 			assertTrue("Server side message exchange store still contains exchanges", serverExchangeStore.isEmpty());
 		} finally {

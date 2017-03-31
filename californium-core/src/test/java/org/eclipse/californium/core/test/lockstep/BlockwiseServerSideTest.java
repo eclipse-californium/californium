@@ -35,6 +35,7 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -330,7 +331,12 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
 
-		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return exchangeStore.isEmpty();
+			}
+		});
 		assertTrue(
 				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
 				exchangeStore.isEmpty());
@@ -371,7 +377,12 @@ public class BlockwiseServerSideTest {
 
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last PUT ////////");
 
-		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return exchangeStore.isEmpty();
+			}
+		});
 		assertTrue(
 				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
 				exchangeStore.isEmpty());

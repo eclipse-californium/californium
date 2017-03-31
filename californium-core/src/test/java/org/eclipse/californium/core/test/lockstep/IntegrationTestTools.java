@@ -22,7 +22,10 @@ import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.CheckCondition;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -102,10 +105,11 @@ public final class IntegrationTestTools {
 		return bytes;
 	}
 
-	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval) {
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
+			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 			Thread.sleep(timeToWait);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
