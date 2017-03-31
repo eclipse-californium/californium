@@ -20,6 +20,9 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add volatile and AtomicInteger
+ *                                                    Relax retransmission timing by
+ *                                                    increasing the ACK_TIMEOUT.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -39,6 +42,7 @@ import static org.junit.Assert.assertThat;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -61,12 +65,20 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/**
+ * Tests for server side observes.
+ * 
+ * Understanding the threading model of this test isn't easy. The
+ * {@link #TestObserveResource} is mainly executed synchronous to the test
+ * execution. But there are exceptions, especially the response and some
+ * retransmission are executed in an other thread. So be careful!
+ */
 @Category(Medium.class)
 public class ObserveServerSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private static final int ACK_TIMEOUT = 100;
+	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
 	private static NetworkConfig CONFIG;
 
@@ -76,8 +88,8 @@ public class ObserveServerSideTest {
 	private int mid = 7000;
 
 	private static TestObserveResource testObsResource;
-	private static String respPayload;
-	private static Type respType;
+	private volatile static String respPayload;
+	private volatile static Type respType;
 
 	private static ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
@@ -427,7 +439,7 @@ public class ObserveServerSideTest {
 	// All tests are made with this resource
 	private static class TestObserveResource extends CoapResource {
 
-		private short etagSequence = 1;
+		private AtomicInteger etagSequence = new AtomicInteger(1);
 
 		public TestObserveResource(String name) { 
 			super(name);
@@ -449,7 +461,7 @@ public class ObserveServerSideTest {
 		}
 
 		private void addEtag(final Response response) {
-			short etag = etagSequence++;
+			short etag = (short) etagSequence.getAndIncrement();
 			ByteBuffer b = ByteBuffer.wrap(new byte[2]);
 			b.putShort(etag);
 			b.flip();
