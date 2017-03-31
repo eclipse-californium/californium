@@ -20,6 +20,9 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add volatile and relax
+ *                                                    retransmission timing by
+ *                                                    increasing the ACK_TIMEOUT.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -60,12 +63,20 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/**
+ * Tests for server side observes.
+ * 
+ * Understanding the threading model of this test isn't easy. The
+ * {@link #TestObserveResource} is mainly executed synchronous to the test
+ * execution. But there are exceptions, especially the response and some
+ * retransmission are executed in an other thread. So be careful!
+ */
 @Category(Medium.class)
 public class ObserveServerSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private static final int ACK_TIMEOUT = 100;
+	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
 	private static NetworkConfig CONFIG;
 
@@ -75,8 +86,8 @@ public class ObserveServerSideTest {
 	private int mid = 7000;
 
 	private static TestObserveResource testObsResource;
-	private static String respPayload;
-	private static Type respType;
+	private volatile static String respPayload;
+	private volatile static Type respType;
 
 	private static ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
