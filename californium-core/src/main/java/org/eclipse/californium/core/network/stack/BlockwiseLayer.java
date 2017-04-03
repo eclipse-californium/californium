@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use exchange.calculateRTT
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -842,7 +843,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						status.assembleMessage(assembled);
 
 						// set overall transfer RTT
-						assembled.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+						assembled.setRTT(exchange.calculateRTT());
 
 						if (status.isNotification()) {
 

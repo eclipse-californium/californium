@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use nanoTime instead of 
+ *                                                    currentTimeMillis
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -31,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -50,9 +51,9 @@ public final class SweepDeduplicator implements Deduplicator {
 
 	/** The hash map with all incoming messages. */
 	private final ConcurrentMap<KeyMID, Exchange> incomingMessages = new ConcurrentHashMap<>();
-	private boolean running = false;
+	private final SweepAlgorithm algorithm;
 	private ScheduledExecutorService scheduler;
-	private SweepAlgorithm algorithm;
+	private boolean running = false;
 
 	/**
 	 * Creates a new deduplicator from configuration values.
@@ -165,19 +166,20 @@ public final class SweepDeduplicator implements Deduplicator {
 		 * Iterate through all entries and remove the obsolete ones.
 		 */
 		private void sweep() {
-			final long oldestAllowed = System.currentTimeMillis() - exchangeLifetime;
+			
+			final long start = System.nanoTime();
+			final long oldestAllowed = start - TimeUnit.MILLISECONDS.toNanos(exchangeLifetime);
 
 			// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
-			final long start = System.currentTimeMillis();
 			for (Map.Entry<?, Exchange> entry : incomingMessages.entrySet()) {
 				Exchange exchange = entry.getValue();
-				if (exchange.getTimestamp() < oldestAllowed) {
+				if (exchange.getNanoTimestamp() < oldestAllowed) {
 					//TODO check if exchange of observe relationship is periodically created and sweeped
 					LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
 					incomingMessages.remove(entry.getKey());
 				}
 			}
-			LOGGER.log(Level.FINE, "Sweep run took {0}ms", System.currentTimeMillis() - start);
+			LOGGER.log(Level.FINE, "Sweep run took {0}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - start);
 		}
 
 		/**

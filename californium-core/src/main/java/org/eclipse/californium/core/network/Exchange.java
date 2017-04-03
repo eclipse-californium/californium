@@ -18,11 +18,15 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add calculateRTT
+ *                                                    use nanoTime instead of 
+ *                                                    currentTimeMillis
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -91,8 +95,8 @@ public class Exchange {
 	/** Indicates if the exchange is complete */
 	private boolean complete = false;
 
-	/** The timestamp when this exchange has been created */
-	private final long timestamp;
+	/** The nano timestamp when this exchange has been created */
+	private final long nanoTimestamp;
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -159,7 +163,7 @@ public class Exchange {
 	public Exchange(final Request request, final Origin origin) {
 		this.currentRequest = request; // might only be the first block of the whole request
 		this.origin = origin;
-		this.timestamp = System.currentTimeMillis();
+		this.nanoTimestamp = System.nanoTime();
 	}
 	
 	/**
@@ -173,7 +177,7 @@ public class Exchange {
 		this.currentRequest = request; // might only be the first block of the whole request
 		this.origin = origin;
 		this.correlationContext = ctx;
-		this.timestamp = System.currentTimeMillis();
+		this.nanoTimestamp = System.nanoTime();
 	}
 
 	/**
@@ -475,9 +479,27 @@ public class Exchange {
 			obs.completed(this);
 	}
 
-	public long getTimestamp() {
-		return timestamp;
+	/**
+	 * Get the nano-timestamp of the creation of this exchange.
+	 * 
+	 * @return nano-timestamp
+	 * @see System#nanoTime()
+	 */
+	public long getNanoTimestamp() {
+		return nanoTimestamp;
 	}
+
+	/**
+	 * Calculates the RTT (round trip time) of this exchange.
+	 * 
+	 * MUST be called on receiving the response.
+	 * 
+	 * @return RTT in milliseconds
+	 */
+	public long calculateRTT() {
+		return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanoTimestamp);
+	}
+
 
 	/**
 	 * Returns the CoAP observe relation that this exchange has established.
