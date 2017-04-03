@@ -27,6 +27,7 @@
  *                                                    from matchNotifyResponse. Don't
  *                                                    remove exchange by MID on notify. 
  *                                                    Add Exchange for save remove.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -68,14 +69,15 @@ public final class UdpMatcher extends BaseMatcher {
 	 *            received from peers.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
+	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 * @param matchingStrategy correlation context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final CorrelationContextMatcher matchingStrategy) {
-		super(config, notificationListener, observationStore);
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final CorrelationContextMatcher matchingStrategy) {
+		super(config, notificationListener, observationStore, exchangeStore);
 		this.correlationContextMatcher = matchingStrategy;
 	}
 

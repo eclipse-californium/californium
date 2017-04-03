@@ -32,6 +32,8 @@
  *                                                     sending a message
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use exchange.calculateRTT
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in
+ *                                                    BaseMatcher final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -182,8 +184,6 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
 
-	private final MessageExchangeStore exchangeStore;
-
 	/**
 	 * Creates a new <em>coap</em> endpoint using default configuration.
 	 * <p>
@@ -319,8 +319,8 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
-		ObservationStore observationStore = store != null ? store : new InMemoryObservationStore();
-		this.exchangeStore = exchangeStore;
+		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore : new InMemoryMessageExchangeStore(config);
+		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
 		if (null == correlationContextMatcher) {
 			correlationContextMatcher = CorrelationContextMatcherFactory.create(connector, config);
 		}
@@ -330,7 +330,7 @@ public class CoapEndpoint implements Endpoint {
 
 		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)
 				|| connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
-			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore,
+			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					correlationContextMatcher);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
@@ -338,7 +338,7 @@ public class CoapEndpoint implements Endpoint {
 			this.scheme = CoAP.COAP_TCP_URI_SCHEME;
 			this.secureScheme = CoAP.COAP_SECURE_TCP_URI_SCHEME;
 		} else {
-			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore,
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					correlationContextMatcher);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
@@ -400,12 +400,6 @@ public class CoapEndpoint implements Endpoint {
 					executor.shutdown();
 				}
 			});
-		}
-
-		if (exchangeStore == null) {
-			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
-		} else {
-			matcher.setMessageExchangeStore(exchangeStore);
 		}
 
 		try {
