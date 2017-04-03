@@ -23,6 +23,7 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - processing of notifies according UdpMatcher.
  * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
+ * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -52,8 +53,8 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
-	public TcpMatcher(final NetworkConfig config) {
-		super(config);
+	public TcpMatcher(final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		super(config, exchangeStore);
 	}
 
 	@Override

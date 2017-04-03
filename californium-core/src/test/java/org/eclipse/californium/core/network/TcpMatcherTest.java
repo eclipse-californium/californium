@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust for changed TcpMatcher 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -47,7 +48,9 @@ public class TcpMatcherTest {
 	private TcpMatcher newMatcher(boolean useStrictMatching) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		TcpMatcher matcher = new TcpMatcher(config);
+		TokenProvider tokenProvider = new InMemoryRandomTokenProvider(config);
+		MessageExchangeStore messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
+		TcpMatcher matcher = new TcpMatcher(config, messageExchangeStore);
 		matcher.start();
 		return matcher;
 	}

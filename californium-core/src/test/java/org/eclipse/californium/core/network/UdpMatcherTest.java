@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust for changed UdpMatcher 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -229,8 +230,7 @@ public class UdpMatcherTest {
 
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		UdpMatcher matcher = new UdpMatcher(config);
-		matcher.setMessageExchangeStore(messageExchangeStore);
+		UdpMatcher matcher = new UdpMatcher(config, messageExchangeStore);
 		matcher.start();
 		return matcher;
 	}

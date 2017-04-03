@@ -21,6 +21,7 @@
  * Bosch Software Innovations GmbH - use correlation context to improve matching
  * of Response(s) to Request (fix GitHub issue #1)
  * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
+ * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -58,8 +59,8 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param config the configuration to use.
 	 * @throws NullPointerException if the configuration is {@code null}.
 	 */
-	public UdpMatcher(final NetworkConfig config) {
-		super(config);
+	public UdpMatcher(final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		super(config, exchangeStore);
 		useStrictResponseMatching = config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING);
 
 		if (LOGGER.isLoggable(Level.CONFIG)) {

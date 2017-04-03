@@ -25,6 +25,8 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in
+ *                                                    BaseMatcher final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -163,8 +165,6 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
 
-	private final MessageExchangeStore exchangeStore;
-
 	/**
 	 * Creates a new <em>coap</em> endpoint using default configuration.
 	 * <p>
@@ -262,18 +262,19 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
-		this.exchangeStore = exchangeStore;
+		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
+				: new InMemoryMessageExchangeStore(config);
 
 		// To make TCP support backwards compatible using less clean "instanceof" shortcut in 1.1 branch.
 		// In 2.0 branch, the connector API has been expected to export a new isSchemeSupported(String scheme)
 		// method, which is used instead.
 		if (connector instanceof TcpConnector) {
-			this.matcher = new TcpMatcher(config);
+			this.matcher = new TcpMatcher(config, localExchangeStore);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config);
+			this.matcher = new UdpMatcher(config, localExchangeStore);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
@@ -332,12 +333,6 @@ public class CoapEndpoint implements Endpoint {
 					executor.shutdown();
 				}
 			});
-		}
-
-		if (exchangeStore == null) {
-			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
-		} else {
-			matcher.setMessageExchangeStore(exchangeStore);
 		}
 
 		try {
