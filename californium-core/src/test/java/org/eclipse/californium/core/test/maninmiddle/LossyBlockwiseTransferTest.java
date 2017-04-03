@@ -29,6 +29,7 @@ import org.junit.Assert;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -131,7 +132,9 @@ public class LossyBlockwiseTransferTest {
 				middle.reset();
 				middle.drop(numbers);
 				
-				resp = coapclient.get().getResponseText();
+				CoapResponse response = coapclient.get();
+				Assert.assertNotNull("miss response", response);
+				resp = response.getResponseText();
 				Assert.assertEquals(respPayload, resp);
 				System.out.println("Received " + resp.length() + " bytes");
 				
