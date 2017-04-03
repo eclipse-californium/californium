@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add waitForCondition
  ******************************************************************************/
 package org.eclipse.californium;
 

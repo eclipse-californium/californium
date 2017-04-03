@@ -20,6 +20,7 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 

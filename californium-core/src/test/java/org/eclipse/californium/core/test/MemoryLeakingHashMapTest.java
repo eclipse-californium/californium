@@ -15,6 +15,7 @@
  *    (a lot of changes from different authors, please refer to gitlog).
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
