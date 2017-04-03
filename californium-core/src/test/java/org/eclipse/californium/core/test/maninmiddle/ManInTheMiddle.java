@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - get MAX_RETRANSMIT without
+ *                                                    changing the NetworkConfig 
+ *                                                    standard.
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
@@ -46,7 +49,7 @@ public class ManInTheMiddle implements Runnable {
 	private int current = 0;
 
 	// drop bursts longer than MAX_RETRANSMIT must be avoided
-	private static final int MAX = NetworkConfig.createStandardWithoutFile().getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
+	private static final int MAX = new NetworkConfig().getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 	private int last = -3;
 	private int burst = 1;
 
