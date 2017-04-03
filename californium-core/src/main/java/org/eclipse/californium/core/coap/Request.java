@@ -522,7 +522,7 @@ public class Request extends Message {
 	 *
 	 * @return the response
 	 */
-	public Response getResponse() {
+	public synchronized Response getResponse() {
 		return response;
 	}
 
