@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - refactor common functionality for integration
  *                                      tests into separate utility class
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -21,8 +22,10 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
-import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.CheckCondition;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -34,7 +37,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
  */
 public final class IntegrationTestTools {
 
-	private static final Random RAND = new Random();
 	private static int currentToken = 10;
 
 	private IntegrationTestTools() {
@@ -94,11 +96,11 @@ public final class IntegrationTestTools {
 		return bytes;
 	}
 
-	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval) {
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
-			Thread.sleep(timeToWait);
+			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}

@@ -20,29 +20,21 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.TestTools.*;
-import static org.eclipse.californium.core.coap.CoAP.Code.GET;
-import static org.eclipse.californium.core.coap.CoAP.Code.POST;
-import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_INCOMPLETE;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
-import static org.eclipse.californium.core.coap.CoAP.Type.NON;
+import static org.eclipse.californium.core.coap.CoAP.Code.*;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -178,7 +170,12 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
 
-		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return exchangeStore.isEmpty();
+			}
+		});
 		Assert.assertTrue(
 				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
 				exchangeStore.isEmpty());

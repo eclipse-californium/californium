@@ -15,6 +15,7 @@
  *    (a lot of changes from different authors, please refer to gitlog).
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -129,9 +131,14 @@ public class MemoryLeakingHashMapTest {
 	@After
 	public void assertAllExchangesAreCompleted() {
 		try {
-			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
-			assertTrue(clientExchangeStore.isEmpty());
-			assertTrue(serverExchangeStore.isEmpty());
+			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+				@Override
+				public boolean isFulFilled() throws IllegalStateException {
+					return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
+				}
+			});
+			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
+			assertTrue("Server side message exchange store still contains exchanges", serverExchangeStore.isEmpty());
 		} finally {
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();
@@ -338,7 +345,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static void createServerAndClientEndpoints() throws Exception {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+		NetworkConfig config = network.getStandardTestConfig()
 			// We make sure that the sweep deduplicator is used
 			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP)
 			.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
