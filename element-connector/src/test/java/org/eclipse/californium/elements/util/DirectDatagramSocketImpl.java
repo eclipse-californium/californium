@@ -78,7 +78,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			/* check properties for default level */
 			String name = DirectDatagramSocketImpl.class.getName() + ".level";
 			String levelValue = System.getProperty(name);
-			if (null == levelValue) {
+			if (null != levelValue) {
 				try {
 					Level level = Level.parse(levelValue);
 					LOGGER.setLevel(level);
