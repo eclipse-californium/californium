@@ -592,7 +592,6 @@ public class Request extends Message {
 					}
 				}
 			}
-			System.currentTimeMillis();
 			
 			Response r = this.response;
 			this.response = null;
