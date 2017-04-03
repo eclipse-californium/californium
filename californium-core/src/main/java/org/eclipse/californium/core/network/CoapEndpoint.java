@@ -31,6 +31,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContext when
  *                                                     sending a message
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use exchange.calculateRTT
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -45,7 +46,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
@@ -833,7 +833,7 @@ public class CoapEndpoint implements Endpoint {
 				Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
 				if (exchange != null) {
 					exchange.setEndpoint(CoapEndpoint.this);
-					response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
+					response.setRTT(exchange.calculateRTT());
 					coapstack.receiveResponse(exchange, response);
 				} else if (response.getType() != Type.ACK) {
 					LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
