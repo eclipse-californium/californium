@@ -17,6 +17,7 @@
  *                                                    stored within the matcher
  *                                                    and therefore don't require
  *                                                    a cleanup.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -42,10 +43,10 @@ public abstract class BaseMatcher implements Matcher {
 
 	private static final Logger LOG = Logger.getLogger(BaseMatcher.class.getName());
 	protected final NetworkConfig config;
+	protected final ObservationStore observationStore;
+	protected final MessageExchangeStore exchangeStore;
 	protected boolean running = false;
-	protected MessageExchangeStore exchangeStore;
-	protected ObservationStore observationStore;
-	private NotificationListener notificationListener;
+	private final NotificationListener notificationListener;
 
 	/**
 	 * Creates a new matcher based on configuration values.
@@ -55,47 +56,32 @@ public abstract class BaseMatcher implements Matcher {
 	 *            received from peers.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
+	 * @param exchangeStore the exchange store to use for keeping track of
+	 *            message exchanges with endpoints.
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
 			throw new NullPointerException("NotificationListener must not be null");
+		} else if (exchangeStore == null) {
+			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
 			throw new NullPointerException("ObservationStore must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;
+			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
-		}
-	}
-
-	@Override
-	public synchronized final void setMessageExchangeStore(final MessageExchangeStore store) {
-		if (running) {
-			throw new IllegalStateException("MessageExchangeStore can only be set on stopped Matcher");
-		} else if (store == null) {
-			throw new NullPointerException("Message exchange store must not be null");
-		} else {
-			this.exchangeStore = store;
-		}
-	}
-
-	protected final void assertMessageExchangeStoreIsSet() {
-		if (exchangeStore == null) {
-			LOG.log(Level.CONFIG, "no MessageExchangeStore set, using default {0}",
-					InMemoryMessageExchangeStore.class.getName());
-			exchangeStore = new InMemoryMessageExchangeStore(config);
 		}
 	}
 
 	@Override
 	public synchronized void start() {
 		if (!running) {
-			assertMessageExchangeStoreIsSet();
 			exchangeStore.start();
 			running = true;
 		}

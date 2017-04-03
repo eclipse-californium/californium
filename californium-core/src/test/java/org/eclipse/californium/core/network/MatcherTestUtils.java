@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in 
+ *                                                    BaseMatcher final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -46,7 +48,7 @@ public final class MatcherTestUtils {
 			}
 			
 		};
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener,  new InMemoryObservationStore(), CorrelationContextMatcherFactory.create(null, config));
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), CorrelationContextMatcherFactory.create(null, config));
 		matcher.start();
 		return matcher;
 	}
@@ -61,9 +63,8 @@ public final class MatcherTestUtils {
 			}
 			
 		};
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, CorrelationContextMatcherFactory.create(null, config));
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, CorrelationContextMatcherFactory.create(null, config));
 
-		matcher.setMessageExchangeStore(exchangeStore);
 		matcher.start();
 		return matcher;
 	}
