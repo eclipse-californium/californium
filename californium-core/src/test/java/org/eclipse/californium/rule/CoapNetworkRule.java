@@ -169,10 +169,10 @@ public class CoapNetworkRule extends NetworkRule {
 
 	@Override
 	protected void closeNetwork() {
-		super.closeNetwork();
 		EndpointManager.reset();
 		messageThreads.set(DEFAULT_MESSAGE_THREADS);
 		NetworkConfig.setStandard(null);
+		super.closeNetwork();
 	}
 
 	/**
