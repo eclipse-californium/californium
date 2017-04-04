@@ -53,6 +53,10 @@ import java.util.logging.Logger;
  * default VM arguments (Window->Preferences | Java -> Installed JREs | select
  * and EDIT).
  * 
+ * Note: ensure, that the used "logging.properties" are also matching your
+ * requirements, either by editing the global file "JRE/lib/logging.properties"
+ * or by providing the property "java.util.logging.config.file".
+ * 
  * Currently neither multicast nor specific/multi network interfaces are
  * supported.
  */
@@ -82,6 +86,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 				try {
 					Level level = Level.parse(levelValue);
 					LOGGER.setLevel(level);
+					LOGGER.log(Level.CONFIG, "level ''{0}''", level);
 				} catch (IllegalArgumentException ex) {
 					LOGGER.log(Level.SEVERE, "level ''{0}'' is not supported!", levelValue);
 				}
