@@ -39,7 +39,7 @@ import org.eclipse.californium.elements.RawData;
 public class ConnectorTestUtil {
 
 	public static final int NUMBER_OF_THREADS = 1;
-	public static final int CONECTION_TIMEOUT_IN_MS = 100;
+	public static final int CONNECTION_TIMEOUT_IN_MS = 100;
 	public static final int IDLE_TIMEOUT_IN_S = 100;
 	public static final int IDLE_TIMEOUT_RECONNECT_IN_S = 2;
 	public static final int CONTEXT_TIMEOUT_IN_MS = 1000;

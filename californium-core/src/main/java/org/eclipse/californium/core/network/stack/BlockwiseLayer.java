@@ -495,7 +495,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * @param exchange The message exchange that the response is part of.
 	 * @param response The response received from the peer.
-	 * @param block2 The block2 option from the reponse.
+	 * @param block2 The block2 option from the response.
 	 */
 	private void handleBlock2Response(final Exchange exchange, final Response response, final BlockOption block2) {
 
@@ -805,7 +805,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
-			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise trasnfer",
+			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise transfer",
 					new Object[]{request.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
