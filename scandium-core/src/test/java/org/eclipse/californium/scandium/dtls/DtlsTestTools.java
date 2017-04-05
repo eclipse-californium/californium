@@ -11,7 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Kai Hudalla (Bosch Software Innovations GmbH) - inital creation
+ *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for retrieving
  *                                                    trust anchor
  ******************************************************************************/

@@ -116,7 +116,7 @@ public class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the (intial) time to wait before a handshake flight of messages gets re-transmitted.
+	 * Gets the (initial) time to wait before a handshake flight of messages gets re-transmitted.
 	 * 
 	 * This timeout gets adjusted during the course of repeated re-transmission of a flight.
 	 * The DTLS spec suggests an exponential back-off strategy, i.e. after each re-transmission the

@@ -674,7 +674,7 @@ public final class HttpTranslator {
 
 					// since ISO-8859-1 is a subset of UTF-8, it is needed to
 					// check if the mapping could be accomplished, only if the
-					// operation is succesful the payload and the charset should
+					// operation is successful the payload and the charset should
 					// be changed
 					if (newPayload != null) {
 						payload = newPayload;

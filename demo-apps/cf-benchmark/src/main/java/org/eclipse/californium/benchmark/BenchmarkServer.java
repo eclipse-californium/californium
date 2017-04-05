@@ -89,7 +89,7 @@ public class BenchmarkServer {
 				} else if ("-use-workers".equals(arg)) {
 					use_workers = true;
 				} else {
-					System.err.println("Unknwon arg "+arg);
+					System.err.println("Unknown arg "+arg);
 					printUsage();
 				}
 				index += 2;

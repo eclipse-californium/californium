@@ -288,7 +288,7 @@ public class MemoryLeakingHashMapTest {
 		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);
 		server.add(new TestResource(PIGGY, Mode.PIGGY_BACKED_RESPONSE, timer));
-		server.add(new TestResource(SEPARATE, Mode.SEPARATE_RESPONE, timer));
+		server.add(new TestResource(SEPARATE, Mode.SEPARATE_RESPONSE, timer));
 		server.start();
 		serverPort = serverEndpoint.getAddress().getPort();
 	}
@@ -297,7 +297,7 @@ public class MemoryLeakingHashMapTest {
 		return "coap://localhost:" + serverPort + "/" + resourcePath;
 	}
 	
-	public enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONE; }
+	public enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONSE; }
 	
 	public static class TestResource extends CoapResource {
 
@@ -319,7 +319,7 @@ public class MemoryLeakingHashMapTest {
 		
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			if (mode == Mode.SEPARATE_RESPONE)
+			if (mode == Mode.SEPARATE_RESPONSE)
 				exchange.accept();
 			exchange.respond(currentResponseText);
 		}
@@ -327,7 +327,7 @@ public class MemoryLeakingHashMapTest {
 		@Override
 		public void handlePOST(CoapExchange exchange) {
 			assertEquals(currentRequestText, exchange.getRequestText());
-			if (mode == Mode.SEPARATE_RESPONE)
+			if (mode == Mode.SEPARATE_RESPONSE)
 				exchange.accept();
 			
 			LOGGER.log(Level.FINE, "TestResource [{0}] received POST message: {1}", new Object[]{getName(), exchange.getRequestText()});

@@ -83,7 +83,7 @@ public class ObserveBenchmarkClient {
 				} else if ("-use-executor".equals(arg)) {
 					use_executor = true;
 				} else {
-					System.err.println("Unknwon arg "+arg);
+					System.err.println("Unknown arg "+arg);
 					printUsage();
 				}
 				index += 2;
