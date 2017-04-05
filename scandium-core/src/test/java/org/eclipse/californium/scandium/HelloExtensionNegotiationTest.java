@@ -108,7 +108,7 @@ public class HelloExtensionNegotiationTest {
 	}
 
 	/**
-	 * Destroys client and re-sets server to inital state. 
+	 * Destroys client and re-sets server to initial state.
 	 */
 	@After
 	public void cleanUp() {

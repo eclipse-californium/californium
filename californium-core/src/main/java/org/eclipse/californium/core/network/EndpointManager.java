@@ -149,7 +149,7 @@ public class EndpointManager {
 	}
 
 	/*
-	 * Creates an endpoint with the wildcard adress (::0) and an ephemeral port.
+	 * Creates an endpoint with the wildcard address (::0) and an ephemeral port.
 	 * The new endpoint gets a client message deliverer and is started. To
 	 * listen on specific interfaces or ports, set the default endpoint
 	 * manually. To distinguish different interfaces, one endpoint per interface

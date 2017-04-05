@@ -36,7 +36,7 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.*;
  * control mechanisms. The RTO calculations and other mechanisms are implemented in the correspondent child classes. 
  * The alternatives to CoCoA are implemented for testing purposes and are not maintained/updated.  
  * 
- * BASICRTO = Use previously measured RTT and mutliply it by 1.5 to calculate the RTO for the next transmission
+ * BASICRTO = Use previously measured RTT and multiply it by 1.5 to calculate the RTO for the next transmission
  * COCOA = CoCoA algorithm as defined in draft-bormann-cocoa-02
  * LINUXRTO = The Linux RTO calculation mechanism
  * COCOASTRONG = CoCoA but only with the strong estimator
