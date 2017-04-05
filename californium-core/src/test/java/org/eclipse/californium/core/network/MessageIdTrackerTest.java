@@ -13,16 +13,21 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - relax lifetime tests
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.eclipse.californium.CheckCondition;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.junit.Before;
 import org.junit.Test;
-
 
 /**
  * Verifies that MessageIdTracker correctly marks MIDs as <em>in use</em>.
@@ -58,23 +63,26 @@ public class MessageIdTrackerTest {
 		// GIVEN a tracker with an EXCHANGE_LIFETIME of 100ms
 		int exchangeLifetime = 100; // ms
 		config.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, exchangeLifetime);
-		MessageIdTracker tracker = new MessageIdTracker(config);
+		final MessageIdTracker tracker = new MessageIdTracker(config);
 
 		// WHEN retrieving all message IDs from the tracker
 		int firstMid = tracker.getNextMessageId();
-		long start = System.currentTimeMillis();
 		for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
 			tracker.getNextMessageId();
 		}
 
-		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has expired
+		// THEN the first message ID is re-used after 
+		// EXCHANGE_LIFETIME has expired
 		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
-		long timeElapsed = System.currentTimeMillis() - start;
-		if (timeElapsed < exchangeLifetime) {
-			Thread.sleep(exchangeLifetime - timeElapsed);
-			timeElapsed = System.currentTimeMillis() - start;
-		}
-		int mid = tracker.getNextMessageId();
-		assertThat(mid, is(firstMid));
+		final AtomicInteger mid = new AtomicInteger(-1);
+		TestTools.waitForCondition(exchangeLifetime, 10, TimeUnit.MILLISECONDS, new CheckCondition() {
+
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				mid.set(tracker.getNextMessageId());
+				return 0 <= mid.get();
+			}
+		});
+		assertThat(mid.get(), is(firstMid));
 	}
 }
