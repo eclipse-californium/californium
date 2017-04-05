@@ -1189,7 +1189,7 @@ public class CoapClient {
 	/**
 	 * The Builder can be used to build a CoapClient if the URI's pieces are
 	 * available in separate strings. This is in particular useful to add 
-	 * mutliple queries to the URI.
+	 * multiple queries to the URI.
 	 */
 	public static class Builder {
 		

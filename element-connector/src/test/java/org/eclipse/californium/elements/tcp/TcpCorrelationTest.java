@@ -75,7 +75,7 @@ public class TcpCorrelationTest {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -152,7 +152,7 @@ public class TcpCorrelationTest {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -218,7 +218,7 @@ public class TcpCorrelationTest {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -290,7 +290,7 @@ public class TcpCorrelationTest {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		client.setCorrelationContextMatcher(matcher);
 
 		cleanup.add(server);
@@ -354,7 +354,7 @@ public class TcpCorrelationTest {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		server.setCorrelationContextMatcher(matcher);
 
 		cleanup.add(server);
@@ -429,7 +429,7 @@ public class TcpCorrelationTest {
 		Set<InetSocketAddress> serverAddresses = servers.keySet();
 
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
-				ConnectorTestUtil.CONECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		cleanup.add(client);
 		Catcher clientCatcher = new Catcher();
 		client.setRawDataReceiver(clientCatcher);
