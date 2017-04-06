@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make first and second
+ *                                                    volatile
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -48,12 +50,12 @@ public class CropRotation implements Deduplicator {
 	private boolean running = false;
 	private ScheduledExecutorService executor;
 
-	private ExchangeMap[] maps;
-	private int first;
-	private int second;
+	private final ExchangeMap maps[];
+	private volatile int first;
+	private volatile int second;
 
-	private long period;
-	private Rotation rotation;
+	private final long period;
+	private final Rotation rotation;
 
 	/**
 	 * Creates a new crop rotation deduplicator for configuration properties.

@@ -18,13 +18,14 @@
  *                                                    longer, so that MID (observe)
  *                                                    or token (blockwise) may
  *                                                    be reused for an other
- *                                                    exchange. 
+ *                                                    exchange.
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply formatter
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup synchronization
+ *                                                    integrate clear() into stop()
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -61,13 +62,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 
 	private final NetworkConfig config;
+	private final TokenProvider tokenProvider;
 	private boolean running = false;
-	private Deduplicator deduplicator;
+	private volatile Deduplicator deduplicator;
+	private volatile MessageIdProvider messageIdProvider;
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledExecutorService scheduler;
-	private MessageIdProvider messageIdProvider;
-	private TokenProvider tokenProvider;
-	private SecureRandom secureRandom;
 
 	/**
 	 * Creates a new store for configuration values.
@@ -168,75 +168,63 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public int assignMessageId(final Message message) {
-
-		synchronized (messageIdProvider) {
-			int mid = message.getMID();
-			if (message.getMID() == Message.NONE) {
-				InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
-				mid = messageIdProvider.getNextMessageId(dest);
-				if (mid < 0) {
-					LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
-				} else {
-					message.setMID(mid);
-				}
+		int mid = message.getMID();
+		if (Message.NONE == mid) {
+			InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
+			mid = messageIdProvider.getNextMessageId(dest);
+			if (Message.NONE == mid) {
+				LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
+			} else {
+				message.setMID(mid);
 			}
-			return mid;
 		}
+		return mid;
 	}
 
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
 
-		synchronized (messageIdProvider) {
-			int mid = message.getMID();
-			if (message.getMID() == Message.NONE) {
-				InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
-				mid = messageIdProvider.getNextMessageId(dest);
-				if (mid < 0) {
-					LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
-				} else {
-					message.setMID(mid);
-					KeyMID key = KeyMID.fromOutboundMessage(message);
-					if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-						LOGGER.log(Level.WARNING,
-								"newly generated MID [{0}] already in use, overwriting already registered exchange",
-								message.getMID());
-					}
-				}
-			} else {
-				Exchange existingExchange = exchangesByMID.putIfAbsent(KeyMID.fromOutboundMessage(message), exchange);
-				if (existingExchange != null) {
-					if (existingExchange != exchange) {
-						throw new IllegalArgumentException(String
-								.format("message ID [%d] already in use, cannot register exchange", message.getMID()));
-					} else if (exchange.getFailedTransmissionCount() == 0) {
-						throw new IllegalArgumentException(String.format(
-								"message with already registered ID [%d] is not a re-transmission, cannot register exchange",
-								message.getMID()));
-					}
+		int mid = message.getMID();
+		if (Message.NONE == mid) {
+			mid = assignMessageId(message);
+			if (Message.NONE != mid) {
+				KeyMID key = KeyMID.fromOutboundMessage(message);
+				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
+					LOGGER.log(Level.WARNING,
+							"newly generated MID [{0}] already in use, overwriting already registered exchange", mid);
 				}
 			}
-			return mid;
+		} else {
+			Exchange existingExchange = exchangesByMID.putIfAbsent(KeyMID.fromOutboundMessage(message), exchange);
+			if (existingExchange != null) {
+				if (existingExchange != exchange) {
+					throw new IllegalArgumentException(String
+							.format("message ID [%d] already in use, cannot register exchange", message.getMID()));
+				} else if (exchange.getFailedTransmissionCount() == 0) {
+					throw new IllegalArgumentException(String.format(
+							"message with already registered ID [%d] is not a re-transmission, cannot register exchange",
+							message.getMID()));
+				}
+			}
 		}
+		return mid;
 	}
 
 	private void registerWithToken(final Exchange exchange) {
 		Request request = exchange.getCurrentRequest();
 		KeyToken idByToken;
-		synchronized (exchangesByToken) {
-			if (request.getToken() == null) {
-				idByToken = tokenProvider.getUnusedToken(request);
-				request.setToken(idByToken.getToken());
-			} else {
-				idByToken = KeyToken.fromOutboundMessage(request);
-				// ongoing requests may reuse token
-				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
-						|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
-						&& tokenProvider.isTokenInUse(idByToken)) {
-					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
-				}
+		if (request.getToken() == null) {
+			idByToken = tokenProvider.getUnusedToken(request);
+			request.setToken(idByToken.getToken());
+		} else {
+			idByToken = KeyToken.fromOutboundMessage(request);
+			// ongoing requests may reuse token
+			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
+					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
+					&& tokenProvider.isTokenInUse(idByToken)) {
+				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 			}
-			exchangesByToken.put(idByToken, exchange);
 		}
+		exchangesByToken.put(idByToken, exchange);
 	}
 
 	@Override
@@ -248,7 +236,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
 			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
-			if (mid > Message.NONE) {
+			if (Message.NONE != mid) {
 				registerWithToken(exchange);
 				return true;
 			} else {
@@ -271,35 +259,24 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public void remove(final KeyToken token, final Exchange exchange) {
-		boolean removed;
-		int size;
-		synchronized (exchangesByToken) {
-			removed = exchangesByToken.remove(token, exchange);
-			size = exchangesByToken.size();
-		}
+		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.log(Level.FINE, "removing exchange for token {0}, remaining exchanges by tokens: {1}",
-					new Object[] { token, size });
+			LOGGER.log(Level.FINE, "removing exchange for token {0}", new Object[] { token });
 		}
 	}
 
 	@Override
 	public Exchange remove(final KeyMID messageId, final Exchange exchange) {
 		Exchange removedExchange;
-		int size;
-		synchronized (messageIdProvider) {
-			if (null == exchange) {
-				removedExchange = exchangesByMID.remove(messageId);
-			} else if (exchangesByMID.remove(messageId, exchange)) {
-				removedExchange = exchange;
-			} else {
-				removedExchange = null;
-			}
-			size = exchangesByMID.size();
+		if (null == exchange) {
+			removedExchange = exchangesByMID.remove(messageId);
+		} else if (exchangesByMID.remove(messageId, exchange)) {
+			removedExchange = exchange;
+		} else {
+			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.log(Level.FINE, "removing exchange for MID {0}, remaining exchanges by MIDs: {1}",
-					new Object[] { messageId, size });
+			LOGGER.log(Level.FINE, "removing exchange for MID {0}", new Object[] { messageId });
 		}
 		return removedExchange;
 	}
@@ -309,9 +286,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		if (token == null) {
 			return null;
 		} else {
-			synchronized (exchangesByToken) {
-				return exchangesByToken.get(token);
-			}
+			return exchangesByToken.get(token);
 		}
 	}
 
@@ -320,9 +295,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		if (messageId == null) {
 			return null;
 		} else {
-			synchronized (messageIdProvider) {
-				return exchangesByMID.get(messageId);
-			}
+			return exchangesByMID.get(messageId);
 		}
 	}
 
@@ -349,18 +322,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 	}
 
-	/**
-	 * Purges all registered exchanges from this store.
-	 */
-	public void clear() {
-		synchronized (messageIdProvider) {
-			synchronized (exchangesByToken) {
-				exchangesByMID.clear();
-				exchangesByToken.clear();
-			}
-		}
-	}
-
 	@Override
 	public synchronized void start() {
 		if (!running) {
@@ -375,8 +336,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 						InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
-			secureRandom = new SecureRandom();
-			secureRandom.nextInt(10); // trigger self-seeding of the PRNG
 			running = true;
 		}
 	}
@@ -391,7 +350,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				statusLogger.cancel(false);
 			}
 			deduplicator.stop();
-			clear();
+			exchangesByMID.clear();
+			exchangesByToken.clear();
 			running = false;
 		}
 	}

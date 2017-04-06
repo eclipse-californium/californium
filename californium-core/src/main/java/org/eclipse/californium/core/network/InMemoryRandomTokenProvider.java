@@ -13,6 +13,7 @@
  * Contributors:
  *     Daniel Maier (Bosch Software Innovations GmbH)
  *                                - initial API and implementation
+ *     Achim Kraus (Bosch Software Innovations GmbH) - cleanup
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -37,9 +38,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class InMemoryRandomTokenProvider implements TokenProvider {
 
 	private static final Logger LOGGER = Logger.getLogger(InMemoryRandomTokenProvider.class.getName());
-
-	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
 	private static final int MAX_TOKEN_LENGTH = 8; // bytes
+	
+	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
 	private final int tokenSizeLimit;
 	private final SecureRandom rng;
 
@@ -54,9 +55,9 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 			throw new NullPointerException("NetworkConfig must not be null");
 		}
 		this.rng = new SecureRandom();
+		this.rng.nextInt(10);  // trigger self-seeding of the PRNG, may "take a while"
 		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
-		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length",
-				networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH));
+		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length", this.tokenSizeLimit);
 	}
 
 	@Override
@@ -75,14 +76,13 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 	}
 
 	private KeyToken createUnusedToken(final Message message) {
-
-		byte[] token;
+		byte[] address = message.getDestination().getAddress();
+		byte[] token = new byte[tokenSizeLimit];
 		KeyToken result;
 		// TODO what to do when there are no more unused tokens left?
 		do {
-			token = new byte[tokenSizeLimit];
 			rng.nextBytes(token);
-			result =  KeyToken.fromValues(token, message.getDestination().getAddress(), message.getDestinationPort());
+			result =  KeyToken.fromValues(token, address, message.getDestinationPort());
 		} while (!usedTokens.add(result));
 		return result;
 	}
