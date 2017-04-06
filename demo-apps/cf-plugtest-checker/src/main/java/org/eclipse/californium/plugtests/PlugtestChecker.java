@@ -514,7 +514,7 @@ public class PlugtestChecker {
 			if (!success) {
 				StringBuilder sb = new StringBuilder();
 				for (Type messageType : expectedMessageTypes) {
-					sb.append(", " + messageType.toString());
+					sb.append(", ").append(messageType);
 				}
 				sb.delete(0, 2); // delete the first ", "
 
