@@ -21,6 +21,7 @@
 package org.eclipse.californium.core.network.config;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.network.GroupedMessageIdTracker;
 import org.eclipse.californium.elements.UDPConnector;
 
 /**
@@ -55,6 +56,14 @@ public class NetworkConfigDefaults {
 	 */
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins
 
+	/**
+	 * The default number of MID groups.
+	 * <p>
+	 * The default value is 16.
+	 * @see GroupedMessageIdTracker
+	 */
+	public static final int DEFAULT_MID_PROVIDER_GROUPS = 16;
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -85,6 +94,7 @@ public class NetworkConfigDefaults {
 		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
 
 		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, true);
+		config.setInt(NetworkConfig.Keys.MID_PROVIDER_GROUPS, DEFAULT_MID_PROVIDER_GROUPS);
 		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
