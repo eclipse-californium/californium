@@ -279,8 +279,8 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		for (CacheKey cachedRequest : responseCache.asMap().keySet()) {
 			Response response = responseCache.asMap().get(cachedRequest);
 
-			builder.append(cachedRequest.getProxyUri().toString() + " (" + 
-					MediaTypeRegistry.toString(cachedRequest.getMediaType()) + ") > " + getRemainingLifetime(response) + " seconds | (" + cachedRequest.getMediaType() + ")\n");
+			builder.append(cachedRequest.getProxyUri()).append(" (").append(
+					MediaTypeRegistry.toString(cachedRequest.getMediaType())).append(") > ").append(getRemainingLifetime(response)).append(" seconds | (").append(cachedRequest.getMediaType()).append(")\n");
 		}
 
 		exchange.respond(ResponseCode.CONTENT, builder.toString());
