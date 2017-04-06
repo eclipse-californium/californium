@@ -12,14 +12,18 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup and use 
+ *                                                    System.nanoTime() instead
+ *                                                    of currentTimeMillis().
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
@@ -35,8 +39,8 @@ public class MessageIdTracker {
 
 	private static final int TOTAL_NO_OF_MIDS = 1 << 16;
 	private final long exchangeLifetime; // milliseconds
-	private Map<Integer, Long> messageIds;
-	private AtomicInteger counter;
+	private final Map<Integer, Long> messageIds;
+	private int counter;
 
 	/**
 	 * Creates a new tracker based on configuration values.
@@ -57,9 +61,9 @@ public class MessageIdTracker {
 		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		boolean useRandomFirstMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
 		if (useRandomFirstMID) {
-			counter = new AtomicInteger(new Random().nextInt(1 << 10));
+			counter = new Random().nextInt(TOTAL_NO_OF_MIDS);
 		} else {
-			counter = new AtomicInteger(0);
+			counter = 0;
 		}
 		messageIds = new HashMap<>(TOTAL_NO_OF_MIDS);
 	}
@@ -67,35 +71,32 @@ public class MessageIdTracker {
 	/**
 	 * Gets the next usable message ID.
 	 * 
-	 * @return a message ID or {@code -1} if all message IDs are in use currently.
+	 * @return a message ID or {@code Message.NONE} if all message IDs are in use currently.
 	 */
 	public int getNextMessageId() {
-		int result = -1;
+		int result = Message.NONE;
 		boolean wrapped = false;
+		long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 		synchronized (messageIds) {
-			int startIdx = counter.get() % TOTAL_NO_OF_MIDS;
+			int startIdx = counter % TOTAL_NO_OF_MIDS;
 			while (result < 0 && !wrapped) {
-				int idx = counter.getAndIncrement() % TOTAL_NO_OF_MIDS;
+				int idx = counter++ % TOTAL_NO_OF_MIDS;
 				Long earliestUsage = messageIds.get(idx);
 				if (earliestUsage != null) {
 					// MID has been used before
-					if (System.currentTimeMillis() >= earliestUsage) {
+					if (now >= earliestUsage) {
 						// message Id can be safely re-used
 						result = idx;
-						messageIds.put(idx, computeMidRetirementPeriod());
+						messageIds.put(idx, now + exchangeLifetime);
 					}
 				} else {
 					// MID has not been used before
 					result = idx;
-					messageIds.put(idx, computeMidRetirementPeriod());
+					messageIds.put(idx, now + exchangeLifetime);
 				}
-				wrapped = counter.get() % TOTAL_NO_OF_MIDS == startIdx;
+				wrapped = counter % TOTAL_NO_OF_MIDS == startIdx;
 			}
 		}
 		return result;
-	}
-
-	private long computeMidRetirementPeriod() {
-		return System.currentTimeMillis() + exchangeLifetime;
 	}
 }
