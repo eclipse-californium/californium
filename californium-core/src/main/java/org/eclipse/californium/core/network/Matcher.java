@@ -47,28 +47,28 @@ public class Matcher {
 	private final static Logger LOGGER = Logger.getLogger(Matcher.class.getCanonicalName());
 	
 	private boolean started;
-	private ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
+	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	
 	/* the executor, by default the one of the protocol stage */
 	private ScheduledExecutorService executor;
 	
 	/* managing the MID per endpoint requires remote endpoint management */
-	private AtomicInteger currendMID;
+	private final AtomicInteger currendMID;
 	
 	/* limit the token size to save bytes in closed environments */
-	private int tokenSizeLimit;
+	private final int tokenSizeLimit;
 	
-	private ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
-	private ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
-	private ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
+	private final ConcurrentHashMap<KeyMID, Exchange> exchangesByMID; // for all
+	private final ConcurrentHashMap<KeyToken, Exchange> exchangesByToken; // for outgoing
+	private final ConcurrentHashMap<KeyUri, Exchange> ongoingExchanges; // for blockwise
 	
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private Deduplicator deduplicator;
+	private final Deduplicator deduplicator;
 	// Idea: Only store acks/rsts and not the whole exchange. Responses should be sent CON.
 	
 	/* Health status output */
-	private Level healthStatusLevel;
-	private int healthStatusInterval; // seconds
+	private final Level healthStatusLevel;
+	private final int healthStatusInterval; // seconds
 	
 	public Matcher(NetworkConfig config) {
 		this.started = false;
