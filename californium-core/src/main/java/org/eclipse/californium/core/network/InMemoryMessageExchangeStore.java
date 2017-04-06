@@ -19,6 +19,7 @@
  *                                                    or token (blockwise) may
  *                                                    be reused for an other
  *                                                    exchange. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - apply formatter
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -37,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
@@ -48,7 +48,6 @@ import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
-
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
  *
@@ -56,8 +55,10 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private static final Logger LOGGER = Logger.getLogger(InMemoryMessageExchangeStore.class.getName());
-	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>(); // for all
-	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>(); // for outgoing
+	// for all
+	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
+	// for outgoing
+	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 
 	private final NetworkConfig config;
 	private boolean running = false;
@@ -67,7 +68,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private MessageIdProvider messageIdProvider;
 	private TokenProvider tokenProvider;
 	private SecureRandom secureRandom;
-	
+
 	/**
 	 * Creates a new store for configuration values.
 	 * 
@@ -100,12 +101,16 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void startStatusLogging() {
 
-		final Level healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, Level.FINEST.getName()));
+		final Level healthStatusLevel = Level
+				.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, Level.FINEST.getName()));
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
-		// this is a useful health metric that could later be exported to some kind of monitoring interface
+		// this is a useful health metric
+		// that could later be exported to some kind of monitoring interface
 		if (LOGGER.isLoggable(healthStatusLevel)) {
-			this.scheduler = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
+			this.scheduler = Executors
+					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
 			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
+
 				@Override
 				public void run() {
 					LOGGER.log(healthStatusLevel, dumpCurrentLoadLevels());
@@ -192,7 +197,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 					message.setMID(mid);
 					KeyMID key = KeyMID.fromOutboundMessage(message);
 					if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-						LOGGER.log(Level.WARNING, "newly generated MID [{0}] already in use, overwriting already registered exchange",
+						LOGGER.log(Level.WARNING,
+								"newly generated MID [{0}] already in use, overwriting already registered exchange",
 								message.getMID());
 					}
 				}
@@ -200,9 +206,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				Exchange existingExchange = exchangesByMID.putIfAbsent(KeyMID.fromOutboundMessage(message), exchange);
 				if (existingExchange != null) {
 					if (existingExchange != exchange) {
-						throw new IllegalArgumentException(String.format("message ID [%d] already in use, cannot register exchange", message.getMID()));
+						throw new IllegalArgumentException(String
+								.format("message ID [%d] already in use, cannot register exchange", message.getMID()));
 					} else if (exchange.getFailedTransmissionCount() == 0) {
-						throw new IllegalArgumentException(String.format("message with already registered ID [%d] is not a re-transmission, cannot register exchange",
+						throw new IllegalArgumentException(String.format(
+								"message with already registered ID [%d] is not a re-transmission, cannot register exchange",
 								message.getMID()));
 					}
 				}
@@ -221,8 +229,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			} else {
 				idByToken = KeyToken.fromOutboundMessage(request);
 				// ongoing requests may reuse token
-				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1() || request.getOptions()
-						.hasBlock2() || request.getOptions().hasObserve()) && tokenProvider.isTokenInUse(idByToken)) {
+				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
+						|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
+						&& tokenProvider.isTokenInUse(idByToken)) {
 					LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
 				}
 			}
@@ -289,8 +298,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			size = exchangesByMID.size();
 		}
 		if (null != removedExchange) {
-			LOGGER.log(Level.FINE, "removing exchange for MID {0}, remaining exchanges by MIDs: {1}", new Object[] {
-					messageId, size });
+			LOGGER.log(Level.FINE, "removing exchange for MID {0}, remaining exchanges by MIDs: {1}",
+					new Object[] { messageId, size });
 		}
 		return removedExchange;
 	}
@@ -320,8 +329,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * This method does nothing because all exchanges are kept in memory and thus
-	 * the correlation context will already be set on the corresponding exchange object.
+	 * This method does nothing because all exchanges are kept in memory and
+	 * thus the correlation context will already be set on the corresponding
+	 * exchange object.
 	 */
 	@Override
 	public void setContext(final KeyToken token, final CorrelationContext correlationContext) {
@@ -361,7 +371,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			}
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
-				LOGGER.log(Level.CONFIG, "no MessageIdProvider set, using default {0}", InMemoryMessageIdProvider.class.getName());
+				LOGGER.log(Level.CONFIG, "no MessageIdProvider set, using default {0}",
+						InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
 			secureRandom = new SecureRandom();
@@ -410,9 +421,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 		return result;
 	}
-	
+
 	@Override
-	public void releaseToken(KeyToken keyToken){
+	public void releaseToken(KeyToken keyToken) {
 		tokenProvider.releaseToken(keyToken);
 	}
 }

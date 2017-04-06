@@ -27,12 +27,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
-
 
 /**
  * This deduplicator is probably inferior to the {@link SweepDeduplicator}. This
@@ -41,8 +39,8 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
  * one. When a message arrives, the deduplicator adds it to the two active hash
  * maps. Therefore, it is remembered for at least one lifecycle and at most two.
  * This deduplicator adds most messages to two hash maps but does not need to
- * remove them one-by-one. Instead, it clears all entries of the passive
- * hash map at once.
+ * remove them one-by-one. Instead, it clears all entries of the passive hash
+ * map at once.
  */
 public class CropRotation implements Deduplicator {
 
@@ -60,8 +58,10 @@ public class CropRotation implements Deduplicator {
 	/**
 	 * Creates a new crop rotation deduplicator for configuration properties.
 	 * <p>
-	 * Uses the value of the {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#CROP_ROTATION_PERIOD}
-	 * param from the given configuration as the waiting period between crop rotation (in milliseconds).
+	 * Uses the value of the
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#CROP_ROTATION_PERIOD}
+	 * param from the given configuration as the waiting period between crop
+	 * rotation (in milliseconds).
 	 * 
 	 * @param config The configuration properties.
 	 */
@@ -102,7 +102,7 @@ public class CropRotation implements Deduplicator {
 		int f = first;
 		int s = second;
 		Exchange prev = maps[f].putIfAbsent(key, exchange);
-		if (prev != null || f==s) 
+		if (prev != null || f == s)
 			return prev;
 		prev = maps[s].putIfAbsent(key, exchange);
 		return prev;
@@ -113,7 +113,7 @@ public class CropRotation implements Deduplicator {
 		int f = first;
 		int s = second;
 		Exchange prev = maps[f].get(key);
-		if (prev != null || f==s)
+		if (prev != null || f == s)
 			return prev;
 		prev = maps[s].get(key);
 		return prev;
@@ -139,15 +139,14 @@ public class CropRotation implements Deduplicator {
 	}
 
 	private class Rotation implements Runnable {
-		
+
 		private ScheduledFuture<?> future;
-		
+
 		public void run() {
 			try {
 				rotation();
 			} catch (Throwable t) {
 				LOGGER.log(Level.WARNING, "Exception in Crop-Rotation algorithm", t);
-			
 			} finally {
 				try {
 					schedule();
@@ -156,16 +155,16 @@ public class CropRotation implements Deduplicator {
 				}
 			}
 		}
-		
+
 		private void rotation() {
 			synchronized (maps) {
 				int third = first;
 				first = second;
-				second = (second+1)%3;
+				second = (second + 1) % 3;
 				maps[third].clear();
 			}
 		}
-		
+
 		private void schedule() {
 			if (!executor.isShutdown()) {
 				LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
@@ -179,8 +178,9 @@ public class CropRotation implements Deduplicator {
 			}
 		}
 	}
-	
+
 	private static class ExchangeMap extends ConcurrentHashMap<KeyMID, Exchange> {
+
 		private static final long serialVersionUID = 1504940670839294042L;
 	}
 }
