@@ -101,6 +101,7 @@ public final class NetworkConfig {
 		public static final String PROBING_RATE = "PROBING_RATE";
 
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
+		public static final String MID_PROVIDER_GROUPS = "MID_PROVIDER_GROUPS";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
 		/**
