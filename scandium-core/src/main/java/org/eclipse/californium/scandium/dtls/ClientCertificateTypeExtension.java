@@ -55,7 +55,7 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 		StringBuilder sb = new StringBuilder(super.toString());
 
 		for (CertificateType type : certificateTypes) {
-			sb.append("\t\t\t\tClient certificate type: ").append(type).append("\n");
+			sb.append("\t\t\t\tClient certificate type: ").append(type).append(System.lineSeparator());
 		}
 
 		return sb.toString();

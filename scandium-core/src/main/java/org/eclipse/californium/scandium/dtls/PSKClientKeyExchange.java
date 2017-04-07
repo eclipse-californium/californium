@@ -78,7 +78,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity: ").append(identity).append("\n");
+		sb.append("\t\tPSK Identity: ").append(identity).append(System.lineSeparator());
 
 		return sb.toString();
 	}

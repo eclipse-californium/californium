@@ -90,9 +90,9 @@ public class ScandiumFormatter extends Formatter {
 		}
 		if (logPolicy.dateFormat != null) {
 			b.append(" at (").append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(")");
-        }
-		b.append("\n").append(stackTrace);
-        return b.toString();
+		}
+		b.append(System.lineSeparator()).append(stackTrace);
+		return b.toString();
 	}
 
 	/**

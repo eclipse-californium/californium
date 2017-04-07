@@ -106,8 +106,8 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		sb.append("\t\t\tFragmented Handshake Message: ").append(fragmentedBytes.length).append(" bytes\n");
-		sb.append("\t\t\t\t").append(ByteArrayUtils.toHexString(fragmentedBytes)).append("\n");
+		sb.append("\t\t\tFragmented Handshake Message: ").append(fragmentedBytes.length).append(" bytes").append(System.lineSeparator());
+		sb.append("\t\t\t\t").append(ByteArrayUtils.toHexString(fragmentedBytes)).append(System.lineSeparator());
 
 		return sb.toString();
 	}

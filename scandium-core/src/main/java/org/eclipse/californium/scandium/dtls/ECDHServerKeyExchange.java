@@ -397,7 +397,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		sb.append("\t\tDiffie-Hellman public key: ");
 		sb.append(getPublicKey().toString());
 		// bug in ECPublicKey.toString() gives object pointer
-		sb.append("\n");
+		sb.append(System.lineSeparator());
 
 		return sb.toString();
 	}
