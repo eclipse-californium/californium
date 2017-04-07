@@ -608,8 +608,8 @@ public class Record {
 		byte[] explicitNonceUsed = reader.readBytes(8);
 		if (!Arrays.equals(explicitNonce, explicitNonceUsed) && LOGGER.isLoggable(Level.FINE)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-			b.append("\nUsed    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
-			b.append("\nExpected: ").append(ByteArrayUtils.toHexString(explicitNonce));
+			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
+			b.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
 			LOGGER.log(Level.FINE, b.toString());
 		}
 
@@ -935,19 +935,19 @@ public class Record {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("==[ DTLS Record ]==============================================");
-		sb.append("\nContent Type: ").append(type.toString());
-		sb.append("\nPeer address: ").append(getPeerAddress());
-		sb.append("\nVersion: ").append(version.getMajor()).append(", ").append(version.getMinor());
-		sb.append("\nEpoch: ").append(epoch);
-		sb.append("\nSequence Number: ").append(sequenceNumber);
-		sb.append("\nLength: ").append(length);
-		sb.append("\nFragment:");
+		sb.append(System.lineSeparator()).append("Content Type: ").append(type.toString());
+		sb.append(System.lineSeparator()).append("Peer address: ").append(getPeerAddress());
+		sb.append(System.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
+		sb.append(System.lineSeparator()).append("Epoch: ").append(epoch);
+		sb.append(System.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
+		sb.append(System.lineSeparator()).append("Length: ").append(length);
+		sb.append(System.lineSeparator()).append("Fragment:");
 		if (fragment != null) {
-			sb.append("\n").append(fragment);
+			sb.append(System.lineSeparator()).append(fragment);
 		} else {
-			sb.append("\nfragment is not decrypted yet\n");
+			sb.append(System.lineSeparator()).append("fragment is not decrypted yet");
 		}
-		sb.append("\n===============================================================");
+		sb.append(System.lineSeparator()).append("===============================================================");
 
 		return sb.toString();
 	}

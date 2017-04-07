@@ -124,7 +124,7 @@ public final class ECDHClientKeyExchange extends ClientKeyExchange {
 		sb.append(super.toString());
 		sb.append("\t\tDiffie-Hellman public value: ");
 		sb.append(ByteArrayUtils.toHexString(pointEncoded));
-		sb.append("\n");
+		sb.append(System.lineSeparator());
 
 		return sb.toString();
 	}
