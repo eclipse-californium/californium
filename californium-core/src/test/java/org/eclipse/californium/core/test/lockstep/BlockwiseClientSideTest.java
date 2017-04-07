@@ -20,6 +20,8 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add testGETMissOrderedResponses
+ *                                                    (see hudson 2.0.x/146, issue #275)
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -268,6 +270,66 @@ public class BlockwiseClientSideTest {
 		assertThat("Retransmitted Token must be the same", req1[1], is(req2[1]));
 
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload, 256, 300).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+	}
+
+	/**
+	 * In the second example, the client anticipates the blockwise transfer
+	 * (e.g., because of a size indication in the link- format description
+	 * [RFC6690]) and sends a size proposal. All ACK messages except for the
+	 * last carry 64 bytes of payload; the last one carries between 1 and 64
+	 * bytes.
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * |                                                          |
+	 * | CON [MID=1234], GET, /status, 2:0/0/64           ------> |
+	 * | {CON [MID=1234], GET, /status, 2:0/0/64 (repeat)  ---->} | (skipped, we just send 2 ACKs)
+	 * | <------   ACK [MID=1234], 2.05 Content, 2:0/1/64         |
+	 * |                                                          |
+	 * | CON [MID=1235], GET, /status, 2:1/0/64           ------> |
+	 * | <------   ACK [MID=1234], 2.05 Content, 2:0/1/64 (repeat)| (the wrong ACK for the repeat)
+	 * |                                                          |
+	 * | {<-----   ACK [MID=1235], 2.05 Content, 2:1/1/64 }       | (lost)
+	 * |                                                          |
+	 * | CON [MID=1235], GET, /status, 2:1/0/64           ------> | (should repeat, but currently missing!)
+	 * | <------   ACK [MID=1235], 2.05 Content, 2:1/1/64         |
+	 * |                                                          |
+	 * | CON [MID=1236], GET, /status, 2:2/0/64           ------> |
+	 * |                                                          |
+	 * | <------   ACK [MID=1239], 2.05 Content, 2:2/0/64         |
+	 * </pre>
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testGETWithDisorderedResponses() throws Exception {
+		System.out.println("Blockwise GET with responses disordered:");
+		respPayload = generateRandomPayload(170);
+		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.getOptions().setBlock2(BlockOption.size2Szx(64), false, 0);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").block2(0, false, 64).go();
+		// either wait for repeat, or just send two ACK :-)
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 64).size2(respPayload.length()).payload(respPayload, 0, 64).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 64).go();
+		// retransmitted ACK, as if the GET 0 would have been repeated.
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 64).size2(respPayload.length()).payload(respPayload, 0, 64).go();
+		// lost ACK
+		//server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
+		// give client a chance to repeat
+		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, 100);
+		Thread.sleep(timeout * 2);
+		// repeat GET 1
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(1, false, 64).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(1, true, 64).payload(respPayload, 64, 128).go();
+
+		server.expectRequest(CON, GET, path).storeBoth("D").block2(2, false, 64).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(2, false, 64).payload(respPayload, 128, 170).go();
 
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
