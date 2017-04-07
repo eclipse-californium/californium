@@ -690,7 +690,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		KeyUri key = getKey(exchange, response);
 
 		if (exchange.getRequest().isCanceled()) {
-
+			// temporary workaround for issue #275
+			stopRetransmission(exchange);
 			// We have received a block of the resource body in response to a request that
 			// has been canceled by the application layer. There is no need to retrieve the
 			// remaining blocks.
@@ -704,6 +705,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 		} else if (responseExceedsMaxBodySize(response)) {
+			// temporary workaround for issue #275
+			stopRetransmission(exchange);
 
 			LOGGER.log(Level.FINE, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
 			exchange.getRequest().cancel();
@@ -721,6 +724,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					if (response.getOptions().getObserve() > status.getObserve()) {
 						status = resetInboundBlock2Status(key, exchange, response);
 					} else {
+						// temporary workaround for issue #275
+						stopRetransmission(exchange);
+						
 						LOGGER.log(
 								Level.FINER,
 								"discarding old notification [{0}] received during ongoing blockwise transfer: {1}",
@@ -746,6 +752,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				// Block2BlockwiseStatus that has been looked up for the key.
 
 				if (exchange.getNotificationNumber() != null && exchange.getNotificationNumber() != status.getObserve()) {
+					// temporary workaround for issue #275
+					stopRetransmission(exchange);
 
 					// we are processing a "delayed" response to a block2 request issued for a previous notification
 					// this may happen if the peer sends a new notification before the blockwise transfer has finished
@@ -755,6 +763,8 @@ public class BlockwiseLayer extends AbstractLayer {
 							new Object[]{ exchange.getNotificationNumber(), status.getObserve(), response });
 
 				} else if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
+					// temporary workaround for issue #275
+					stopRetransmission(exchange);
 
 					// check token to avoid mixed blockwise transfers (possible with observe) 
 
@@ -882,6 +892,14 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/////////// HELPER METHODS //////////
+
+	// workaround for issue #275. Only for BLOCK 2!
+	// Moved temporary ReliabilityLayer.receiveResponse 
+	private static void stopRetransmission(Exchange exchange) {
+		exchange.setFailedTransmissionCount(0);
+		exchange.getCurrentRequest().setAcknowledged(true);
+		exchange.setRetransmissionHandle(null);
+	}
 
 	private static KeyUri getKey(final Exchange exchange, final Request request) {
 
