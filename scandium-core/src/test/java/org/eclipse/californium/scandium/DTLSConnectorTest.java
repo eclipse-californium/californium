@@ -909,7 +909,12 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			client.releaseSocket();
+			synchronized (client) {
+				client.releaseSocket();
+				// in order to prevent sporadic BindExceptions during test execution
+				// give OS some time before allowing test cases to re-bind to same port
+				client.wait(200);
+			}
 		}
 	}
 
