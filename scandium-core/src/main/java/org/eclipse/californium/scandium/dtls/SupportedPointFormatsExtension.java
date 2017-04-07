@@ -68,11 +68,11 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append("\n\t\t\t\tEC point formats length: ").append(getLength() - 5);
-		sb.append("\n\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
+		sb.append(System.lineSeparator()).append("\t\t\t\tEC point formats length: ").append(getLength() - 5);
+		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
 
 		for (ECPointFormat format : ecPointFormatList) {
-			sb.append("\n\t\t\t\t\tEC point format: ").append(format.toString());
+			sb.append(System.lineSeparator()).append("\t\t\t\t\tEC point format: ").append(format.toString());
 		}
 
 		return sb.toString();

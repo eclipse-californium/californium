@@ -319,16 +319,16 @@ public final class ServerHello extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tServer Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor());
-		sb.append("\n\t\tRandom: \n").append(random);
-		sb.append("\t\tSession ID Length: ").append(sessionId.length());
+		sb.append(System.lineSeparator()).append("\t\tRandom:").append(random);
+		sb.append(System.lineSeparator()).append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(System.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
-		sb.append("\n\t\tCipher Suite: ").append(cipherSuite);
-		sb.append("\n\t\tCompression Method: ").append(compressionMethod);
-		
+		sb.append(System.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
+		sb.append(System.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);
+
 		if (extensions != null) {
-			sb.append("\n").append(extensions);
+			sb.append(System.lineSeparator()).append(extensions);
 		}
 
 		return sb.toString();

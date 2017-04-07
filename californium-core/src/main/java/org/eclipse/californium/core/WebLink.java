@@ -54,16 +54,26 @@ public class WebLink implements Comparable<WebLink> {
 	 */
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		
+
 		builder.append('<');
 		builder.append(this.uri);
 		builder.append('>');
 		builder.append(' ').append(this.attributes.getTitle());
-		if (this.attributes.containsAttribute(LinkFormat.RESOURCE_TYPE)) builder.append("\n\t").append(LinkFormat.RESOURCE_TYPE).append(":\t").append(this.attributes.getResourceTypes());
-		if (this.attributes.containsAttribute(LinkFormat.INTERFACE_DESCRIPTION)) builder.append("\n\t").append(LinkFormat.INTERFACE_DESCRIPTION).append(":\t").append(this.attributes.getInterfaceDescriptions());
-		if (this.attributes.containsAttribute(LinkFormat.CONTENT_TYPE)) builder.append("\n\t").append(LinkFormat.CONTENT_TYPE).append(":\t").append(this.attributes.getContentTypes());
-		if (this.attributes.containsAttribute(LinkFormat.MAX_SIZE_ESTIMATE)) builder.append("\n\t").append(LinkFormat.MAX_SIZE_ESTIMATE).append(":\t").append(this.attributes.getMaximumSizeEstimate());
-		if (this.attributes.hasObservable()) builder.append("\n\t").append(LinkFormat.OBSERVABLE);
+		if (this.attributes.containsAttribute(LinkFormat.RESOURCE_TYPE)) {
+			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.RESOURCE_TYPE).append(":\t").append(this.attributes.getResourceTypes());
+		}
+		if (this.attributes.containsAttribute(LinkFormat.INTERFACE_DESCRIPTION)) {
+			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.INTERFACE_DESCRIPTION).append(":\t").append(this.attributes.getInterfaceDescriptions());
+		}
+		if (this.attributes.containsAttribute(LinkFormat.CONTENT_TYPE)) {
+			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.CONTENT_TYPE).append(":\t").append(this.attributes.getContentTypes());
+		}
+		if (this.attributes.containsAttribute(LinkFormat.MAX_SIZE_ESTIMATE)) {
+			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.MAX_SIZE_ESTIMATE).append(":\t").append(this.attributes.getMaximumSizeEstimate());
+		}
+		if (this.attributes.hasObservable()) {
+			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.OBSERVABLE);
+		}
 		return builder.toString();
 	}
 

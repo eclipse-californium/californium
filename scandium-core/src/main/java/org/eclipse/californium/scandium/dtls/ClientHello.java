@@ -286,27 +286,27 @@ public final class ClientHello extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tVersion: ").append(clientVersion.getMajor()).append(", ").append(clientVersion.getMinor());
-		sb.append("\n\t\tRandom: \n").append(random);
+		sb.append(System.lineSeparator()).append("\t\tRandom:").append(System.lineSeparator()).append(random);
 		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append("\n\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(System.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
-		sb.append("\n\t\tCookie Length: ").append(cookie.length);
+		sb.append(System.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
-			sb.append("\n\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
+			sb.append(System.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
 		}
-		sb.append("\n\t\tCipher Suites Length: ").append(cipherSuites.size() * 2);
-		sb.append("\n\t\tCipher Suites (").append(cipherSuites.size()).append(" suites)");
+		sb.append(System.lineSeparator()).append("\t\tCipher Suites Length: ").append(cipherSuites.size() * 2);
+		sb.append(System.lineSeparator()).append("\t\tCipher Suites (").append(cipherSuites.size()).append(" suites)");
 		for (CipherSuite cipher : cipherSuites) {
-			sb.append("\n\t\t\tCipher Suite: ").append(cipher);
+			sb.append(System.lineSeparator()).append("\t\t\tCipher Suite: ").append(cipher);
 		}
-		sb.append("\n\t\tCompression Methods Length: ").append(compressionMethods.size());
-		sb.append("\n\t\tCompression Methods (").append(compressionMethods.size()).append(" method)");
+		sb.append(System.lineSeparator()).append("\t\tCompression Methods Length: ").append(compressionMethods.size());
+		sb.append(System.lineSeparator()).append("\t\tCompression Methods (").append(compressionMethods.size()).append(" method)");
 		for (CompressionMethod method : compressionMethods) {
-			sb.append("\n\t\t\tCompression Method: ").append(method);
+			sb.append(System.lineSeparator()).append("\t\t\tCompression Method: ").append(method);
 		}
 		if (extensions != null) {
-			sb.append("\n").append(extensions);
+			sb.append(System.lineSeparator()).append(extensions);
 		}
 
 		return sb.toString();
