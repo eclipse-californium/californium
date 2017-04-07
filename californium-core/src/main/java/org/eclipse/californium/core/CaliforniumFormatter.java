@@ -16,11 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging improvements
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move time to begin of line
+ *                                                    use append for each
+ *                                                    stacktrace line
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -53,15 +54,8 @@ public class CaliforniumFormatter extends Formatter {
 	@Override
 	public String format(final LogRecord record) {
 
-		String stackTrace = "";
-		Throwable throwable = record.getThrown();
-		if (throwable != null) {
-			StringWriter sw = new StringWriter();
-			throwable.printStackTrace(new PrintWriter(sw));
-			stackTrace = sw.toString();
-		}
-
 		int lineNo;
+		Throwable throwable = record.getThrown();
 		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 		if (throwable != null && stack.length > 7) {
 			lineNo = stack[7].getLineNumber();
@@ -71,33 +65,70 @@ public class CaliforniumFormatter extends Formatter {
 			lineNo = -1;
 		}
 
-		StringBuilder b = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
+		if (logPolicy.dateFormat != null) {
+			builder.append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(": ");
+		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD_ID)) {
-			b.append(String.format("%2d", record.getThreadID())).append(" ");
+			builder.append(String.format("%3d", record.getThreadID())).append(" ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_LEVEL)) {
-			b.append(record.getLevel().toString()).append(" ");
+			builder.append(record.getLevel().toString()).append(" ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_CLASS)) {
-			b.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
+			builder.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_MESSAGE)) {
-			b.append(formatMessage(record));
+			builder.append(formatMessage(record));
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
-			b.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
+			builder.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_METHOD)) {
-			b.append(record.getSourceMethodName()).append("()");
+			builder.append(record.getSourceMethodName()).append("()");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD)) {
-			b.append(" in thread ").append(Thread.currentThread().getName());
+			builder.append(" in thread ").append(Thread.currentThread().getName());
 		}
-		if (logPolicy.dateFormat != null) {
-			b.append(" at (").append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(")");
+		builder.append(System.lineSeparator());
+		append(builder, throwable);
+		return builder.toString();
+	}
+
+	/**
+	 * Append stack trace of throwable to string builder.
+	 * 
+	 * @param builder string builder to append
+	 * @param throwable throwable, may be {@code null}.
+	 */
+	private static void append(StringBuilder builder, Throwable throwable) {
+		Throwable cause = throwable;
+		while (null != cause) {
+			builder.append(throwable).append(System.lineSeparator());
+			StackTraceElement[] stack = throwable.getStackTrace();
+			for (StackTraceElement element : stack) {
+				builder.append("\tat ").append(element.getClassName()).append(".").append(element.getMethodName());
+				if (element.isNativeMethod()) {
+					builder.append("(Native Method)");
+				}
+				String filename = element.getFileName();
+				if (null == filename) {
+					builder.append("(Unknown Source)");
+				} else {
+					builder.append("(").append(filename);
+					int line = element.getLineNumber();
+					if (0 <= line) {
+						builder.append(":").append(line);
+					}
+					builder.append(")");
+				}
+				builder.append(System.lineSeparator());
+			}
+			cause = cause.getCause();
+			if (null != cause) {
+				builder.append("caused by ");
+			}
 		}
-		b.append(System.lineSeparator()).append(stackTrace);
-		return b.toString();
 	}
 
 	/**
@@ -108,7 +139,7 @@ public class CaliforniumFormatter extends Formatter {
 	 */
 	private static String getSimpleClassName(final String absolute) {
 		String[] parts = absolute.split("\\.");
-		return parts[parts.length -1];
+		return parts[parts.length - 1];
 	}
 
 	/**
@@ -126,7 +157,7 @@ public class CaliforniumFormatter extends Formatter {
 		private static final String LOG_POLICY_SHOW_THREAD_ID = "californium.LogPolicy.showThreadID";
 		private static final String LOG_POLICY_DATE_FORMAT = "californium.LogPolicy.dateFormat";
 
-		private Map<String, Boolean> policy = new HashMap<String, Boolean>();		
+		private Map<String, Boolean> policy = new HashMap<String, Boolean>();
 		private Format dateFormat = null;
 
 		/**
@@ -154,16 +185,15 @@ public class CaliforniumFormatter extends Formatter {
 				dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			}
 		}
-		
+
 		/**
 		 * Adds a particular configuration property for controlling content to
 		 * be included in the formatter's output.
 		 * 
-		 * @param propertyName
-		 *            the name of the property to add to the policy
-		 * @param defaultValue
-		 *            the value to fall back to if the {@link LogManager} does
-		 *            not contain a value for the configuration property
+		 * @param propertyName the name of the property to add to the policy
+		 * @param defaultValue the value to fall back to if the
+		 *            {@link LogManager} does not contain a value for the
+		 *            configuration property
 		 * @return the updated policy
 		 */
 		private LogPolicy addPolicy(final String propertyName, final boolean defaultValue) {
