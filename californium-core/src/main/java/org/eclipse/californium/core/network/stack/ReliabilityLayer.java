@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission only for
+ *                                                    none duplicate responses.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -221,9 +223,11 @@ public class ReliabilityLayer extends AbstractLayer {
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
-		exchange.setFailedTransmissionCount(0);
-		exchange.getCurrentRequest().setAcknowledged(true);
-		exchange.setRetransmissionHandle(null);
+		if (!response.isDuplicate()) {
+			exchange.setFailedTransmissionCount(0);
+			exchange.getCurrentRequest().setAcknowledged(true);
+			exchange.setRetransmissionHandle(null);
+		}
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
 			LOGGER.finer("acknowledging CON response");

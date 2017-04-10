@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't reuse MID for different 
+ *                                                    messages!
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -109,12 +111,12 @@ public class DeduplicationTest {
 		server.expectEmpty(RST, 42).go();
 
 		request = createRequest(GET, path, server);
-		request.setMID(4711);
+		request.setMID(4712);
 		client.sendRequest(request);
 
 		server.expectRequest(CON, GET, path).storeBoth("B").storeToken("C").go();
-		server.sendResponse(ACK, CONTENT).loadBoth("B").payload("possible conflict").go();
-		server.sendResponse(ACK, CONTENT).loadBoth("B").payload("possible conflict").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").payload(payload).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").payload(payload).go();
 
 		Response response = request.waitForResponse(500);
 		assertResponseContainsExpectedPayload(response, CONTENT, payload);
