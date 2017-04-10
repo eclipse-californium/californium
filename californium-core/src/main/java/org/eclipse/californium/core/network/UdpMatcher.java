@@ -22,6 +22,7 @@
  * of Response(s) to Request (fix GitHub issue #1)
  * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
  * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
+ * Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -277,6 +278,22 @@ public final class UdpMatcher extends BaseMatcher {
 			return null;
 		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
 
+			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+				// The token matches but not the MID.
+				LOGGER.log(Level.WARNING,
+						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
+								response.getMID() });
+				// when nested blockwise request/responses occurs (e.g. caused
+				// by retransmission), a old response may stop the
+				// retransmission of the current blockwise request. This seems
+				// to be a side effect of reusing the token. If the response to
+				// this current request is lost, the blockwise transfer times
+				// out, because the retransmission is stopped too early.
+				// Therefore don't return a exchange when the MID doesn't match.
+				// See issue #275
+				return null;
+			}
 			// we have received a Response matching the token of an ongoing Exchange's Request
 			// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
 			// message deduplication is relevant for CON and NON messages only
@@ -291,14 +308,6 @@ public final class UdpMatcher extends BaseMatcher {
 				if (exchangeStore.remove(idByMID, exchange) != null) {
 					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
 				}
-			}
-
-			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
-				// The token matches but not the MID.
-				LOGGER.log(Level.WARNING,
-						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
-						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
-								response.getMID() });
 			}
 
 			return exchange;
