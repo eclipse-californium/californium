@@ -18,13 +18,15 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new MID for new notifications
+ *                                                    add NON notifications only to relation,
+ *                                                    if they are really sent as NON.
+ *                                                    (issue #258, RFC Section 4.5.2 of RFC 7641)
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 
 import java.util.logging.Level;
@@ -54,12 +56,8 @@ public class ObserveLayer extends AbstractLayer {
 	}
 
 	@Override
-	public void sendRequest(final Exchange exchange, final Request request) {
-		lower().sendRequest(exchange, request);
-	}
+	public void sendResponse(final Exchange exchange, final Response response) {
 
-	@Override
-	public void sendResponse(final Exchange exchange, Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
 
@@ -88,14 +86,6 @@ public class ObserveLayer extends AbstractLayer {
 			response.setLast(false);
 
 			/*
-			 * The matcher must be able to find the NON notifications to remove
-			 * them from the exchangesByMID hashmap
-			 */
-			if (response.getType() == Type.NON) {
-				relation.addNotification(response);
-			}
-
-			/*
 			 * Only one Confirmable message is allowed to be in transit. A CON
 			 * is in transit as long as it has not been acknowledged, rejected,
 			 * or timed out. All further notifications are postponed here. If a
@@ -115,8 +105,6 @@ public class ObserveLayer extends AbstractLayer {
 				Response current = relation.getCurrentControlNotification();
 				if (current != null && isInTransit(current)) {
 					LOGGER.log(Level.FINE, "A former notification is still in transit. Postpone {0}", response);
-					// use the same MID
-					response.setMID(current.getMID());
 					relation.setNextControlNotification(response);
 					// do not send now
 					return;
@@ -124,6 +112,14 @@ public class ObserveLayer extends AbstractLayer {
 					relation.setCurrentControlNotification(response);
 					relation.setNextControlNotification(null);
 				}
+			}
+
+			/*
+			 * The matcher must be able to find the NON notifications to remove
+			 * them from the exchangesByMID hashmap
+			 */
+			if (response.getType() == Type.NON) {
+				relation.addNotification(response);
 			}
 
 		} // else no observe was requested or the resource does not allow it
@@ -199,8 +195,13 @@ public class ObserveLayer extends AbstractLayer {
 				relation.setNextControlNotification(null);
 				if (next != null) {
 					LOGGER.fine("Notification has been acknowledged, send the next one");
-					// this is not a self replacement, hence a new MID
-					next.setMID(Message.NONE);
+					/*
+					 * The matcher must be able to find the NON notifications to remove
+					 * them from the exchangesByMID hashmap
+					 */
+					if (response.getType() == Type.NON) {
+						relation.addNotification(response);
+					}
 					// Create a new task for sending next response so that we
 					// can leave the sync-block
 					executor.execute(new Runnable() {
@@ -223,8 +224,6 @@ public class ObserveLayer extends AbstractLayer {
 					// Cancel the original retransmission and send the fresh
 					// notification here
 					response.cancel();
-					// use the same MID
-					next.setMID(response.getMID());
 					// Convert all notification retransmissions to CON
 					if (next.getType() != Type.CON) {
 						next.setType(Type.CON);
