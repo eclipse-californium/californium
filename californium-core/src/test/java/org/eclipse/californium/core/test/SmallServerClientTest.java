@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - destroy server after test
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -55,6 +56,8 @@ public class SmallServerClientTest {
 
 	private static String SERVER_RESPONSE = "server responds hi";
 
+	private CoapServer server;
+
 	private int serverPort;
 
 	@Before
@@ -65,6 +68,9 @@ public class SmallServerClientTest {
 
 	@After
 	public void after() {
+		if (null != server) {
+			server.destroy();
+		}
 		System.out.println("End " + getClass().getSimpleName());
 	}
 
@@ -90,7 +96,7 @@ public class SmallServerClientTest {
 
 	private void createSimpleServer() {
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		CoapServer server = new CoapServer();
+		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {
 			@Override
