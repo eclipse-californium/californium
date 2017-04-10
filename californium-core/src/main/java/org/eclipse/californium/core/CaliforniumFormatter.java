@@ -101,11 +101,11 @@ public class CaliforniumFormatter extends Formatter {
 	 * @param builder string builder to append
 	 * @param throwable throwable, may be {@code null}.
 	 */
-	private static void append(StringBuilder builder, Throwable throwable) {
+	private static void append(final StringBuilder builder, final Throwable throwable) {
 		Throwable cause = throwable;
 		while (null != cause) {
-			builder.append(throwable).append(System.lineSeparator());
-			StackTraceElement[] stack = throwable.getStackTrace();
+			builder.append(cause).append(System.lineSeparator());
+			StackTraceElement[] stack = cause.getStackTrace();
 			for (StackTraceElement element : stack) {
 				builder.append("\tat ").append(element.getClassName()).append(".").append(element.getMethodName());
 				if (element.isNativeMethod()) {
