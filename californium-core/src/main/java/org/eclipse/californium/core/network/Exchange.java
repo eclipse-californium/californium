@@ -39,15 +39,15 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * An exchange represents the complete state of an exchange of one request and
  * one or more responses. The lifecycle of an exchange ends when either the last
  * response has arrived and is acknowledged, when a request or response has been
- * rejected from the remote endpoint, when the request has been canceled, or when
- * a request or response timed out, i.e., has reached the retransmission
+ * rejected from the remote endpoint, when the request has been canceled, or
+ * when a request or response timed out, i.e., has reached the retransmission
  * limit without being acknowledged.
  * <p>
- * The framework internally uses the class Exchange to manage an exchange
- * of {@link Request}s and {@link Response}s. The Exchange only contains state,
- * no functionality. The CoAP Stack contains the functionality of the CoAP
- * protocol and modifies the exchange appropriately. The class Exchange and its
- * fields are <em>NOT</em> thread-safe.
+ * The framework internally uses the class Exchange to manage an exchange of
+ * {@link Request}s and {@link Response}s. The Exchange only contains state, no
+ * functionality. The CoAP Stack contains the functionality of the CoAP protocol
+ * and modifies the exchange appropriately. The class Exchange and its fields
+ * are <em>NOT</em> thread-safe.
  * <p>
  * The class {@link CoapExchange} provides the corresponding API for developers.
  * Proceed with caution when using this class directly, e.g., through
@@ -56,9 +56,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * This class might change with the implementation of CoAP extensions.
  */
 public class Exchange {
-	
+
 	private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
-	
+
 	/**
 	 * The origin of an exchange. If Cf receives a new request and creates a new
 	 * exchange the origin is REMOTE since the request has been initiated from a
@@ -71,33 +71,36 @@ public class Exchange {
 
 	/** The endpoint that processes this exchange */
 	private Endpoint endpoint;
-	
+
 	/** An observer to be called when a request is complete */
 	private ExchangeObserver observer;
-	
+
 	/** Indicates if the exchange is complete */
 	private boolean complete = false;
-	
+
 	/** The timestamp when this exchange has been created */
 	private final long timestamp;
-	
+
 	/**
 	 * The actual request that caused this exchange. Layers below the
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
 	 * while layers above should work with the {@link #request}.
 	 */
 	private Request request; // the initial request we have to exchange
-	
+
 	/**
-	 * The current block of the request that is being processed. This is a single
-	 * block in case of a blockwise transfer or the same as {@link #request} in
-	 * case of a normal transfer.
+	 * The current block of the request that is being processed. This is a
+	 * single block in case of a blockwise transfer or the same as
+	 * {@link #request} in case of a normal transfer.
 	 */
-	private Request currentRequest; // Matching needs to know for what we expect a response
-	
-	/** The status of the blockwise transfer. null in case of a normal transfer */
+	// Matching needs to know for what we expect a response
+	private Request currentRequest;
+
+	/**
+	 * The status of the blockwise transfer. null in case of a normal transfer
+	 */
 	private BlockwiseStatus requestBlockStatus;
-	
+
 	/**
 	 * The actual response that is supposed to be sent to the client. Layers
 	 * below the {@link BlockwiseLayer} should only work with the
@@ -105,23 +108,26 @@ public class Exchange {
 	 * {@link #response}.
 	 */
 	private Response response;
-	
+
 	/** The current block of the response that is being transferred. */
-	private Response currentResponse; // Matching needs to know when receiving duplicate
-	
-	/** The status of the blockwise transfer. null in case of a normal transfer */
+	// Matching needs to know when receiving duplicate
+	private Response currentResponse;
+
+	/**
+	 * The status of the blockwise transfer. null in case of a normal transfer
+	 */
 	private BlockwiseStatus responseBlockStatus;
-	
+
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
 	private final Origin origin;
-	
+
 	// true if the exchange has failed due to a timeout
 	private boolean timedOut;
-	
+
 	// the timeout of the current request or response set by reliability layer
 	private int currentTimeout;
-	
+
 	// the amount of attempted transmissions that have not succeeded yet
 	private int failedTransmissionCount = 0;
 
@@ -130,55 +136,58 @@ public class Exchange {
 
 	// handle to extend blockwise status lifetime
 	private ScheduledFuture<?> blockCleanupHandle = null;
-	
+
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
 	private BlockOption block1ToAck;
-	
+
 	// The relation that the target resource has established with the source
 	private ObserveRelation relation;
-	
-	// When the request is handled by an executor different than the protocol stage set to true.
-	// The endpoint will hand sending responses over to the protocol stage executor
+
+	// When the request is handled by an executor different than the protocol
+	// stage set to true. The endpoint will hand sending responses over to the
+	// protocol stage executor
 	private boolean customExecutor = false;
 
 	/**
-	 * Constructs a new exchange with the specified request and origin. 
+	 * Constructs a new exchange with the specified request and origin.
+	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 */
-	public Exchange(Request request, Origin origin) {
+	public Exchange(final Request request, final Origin origin) {
 		INSTANCE_COUNTER.incrementAndGet();
-		this.currentRequest = request; // might only be the first block of the whole request
+		// might only be the first block of the whole request
+		this.currentRequest = request;
 		this.origin = origin;
 		this.timestamp = System.currentTimeMillis();
 	}
-	
+
 	/**
 	 * Accept this exchange and therefore the request. Only if the request's
 	 * type was a <code>CON</code> and the request has not been acknowledged
 	 * yet, it sends an ACK to the client.
 	 */
 	public void sendAccept() {
-		assert(origin == Origin.REMOTE);
+		assert (origin == Origin.REMOTE);
 		if (request.getType() == Type.CON && !request.isAcknowledged()) {
 			request.setAcknowledged(true);
 			EmptyMessage ack = EmptyMessage.newACK(request);
 			endpoint.sendEmptyMessage(this, ack);
 		}
 	}
-	
+
 	/**
 	 * Reject this exchange and therefore the request. Sends an RST back to the
 	 * client.
 	 */
 	public void sendReject() {
-		assert(origin == Origin.REMOTE);
+		assert (origin == Origin.REMOTE);
 		request.setRejected(true);
 		EmptyMessage rst = EmptyMessage.newRST(request);
 		endpoint.sendEmptyMessage(this, rst);
 	}
-	
+
 	/**
 	 * Sends the specified response over the same endpoint as the request has
 	 * arrived.
@@ -191,13 +200,13 @@ public class Exchange {
 		setResponse(response);
 		endpoint.sendResponse(this, response);
 	}
-	
+
 	public Origin getOrigin() {
 		return origin;
 	}
 
 	public boolean isOfLocalOrigin() {
-	    return origin == Origin.LOCAL;
+		return origin == Origin.LOCAL;
 	}
 
 	/**
@@ -211,7 +220,7 @@ public class Exchange {
 	public Request getRequest() {
 		return request;
 	}
-	
+
 	/**
 	 * Sets the request that this exchange is associated with.
 	 * 
@@ -235,8 +244,8 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets the current request block. If a request is not being sent
-	 * blockwise, the origin request (equal to getRequest()) should be set.
+	 * Sets the current request block. If a request is not being sent blockwise,
+	 * the origin request (equal to getRequest()) should be set.
 	 * 
 	 * @param currentRequest the current request block
 	 */
@@ -273,7 +282,7 @@ public class Exchange {
 	public Response getResponse() {
 		return response;
 	}
-	
+
 	/**
 	 * Sets the response.
 	 * 
@@ -306,7 +315,7 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the blockwise transfer status of the response or null if no one 
+	 * Returns the blockwise transfer status of the response or null if no one
 	 * is set.
 	 * 
 	 * @return the status of the blockwise transfer of the response
@@ -336,16 +345,15 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets the block option of the last block of a blockwise sent request.
-	 * When the server sends the response, this block option has to be
-	 * acknowledged.
+	 * Sets the block option of the last block of a blockwise sent request. When
+	 * the server sends the response, this block option has to be acknowledged.
 	 * 
 	 * @param block1ToAck the block option of the last request block
 	 */
 	public void setBlock1ToAck(BlockOption block1ToAck) {
 		this.block1ToAck = block1ToAck;
 	}
-	
+
 	/**
 	 * Returns the endpoint which has created and processed this exchange.
 	 * 
@@ -394,10 +402,10 @@ public class Exchange {
 	}
 
 	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
-		if (this.retransmissionHandle!=null) {
+		if (this.retransmissionHandle != null) {
 			// avoid race condition of multiple responses (e.g., notifications)
 			synchronized (this) {
-				if (this.retransmissionHandle!=null) {
+				if (this.retransmissionHandle != null) {
 					this.retransmissionHandle.cancel(false);
 				}
 			}
@@ -410,10 +418,10 @@ public class Exchange {
 	}
 
 	public void setBlockCleanupHandle(ScheduledFuture<?> blockCleanupHandle) {
-		if (this.blockCleanupHandle!=null) {
+		if (this.blockCleanupHandle != null) {
 			// avoid race condition of multiple block requests
 			synchronized (this) {
-				if (this.blockCleanupHandle!=null) {
+				if (this.blockCleanupHandle != null) {
 					this.blockCleanupHandle.cancel(false);
 				}
 			}
@@ -454,8 +462,8 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange) completed}
-	 * method on the observer registered on this exchange (if any).
+	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange)
+	 * completed} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
@@ -468,13 +476,13 @@ public class Exchange {
 		if (obs != null)
 			obs.completed(this);
 	}
-	
+
 	/**
 	 * This method is only needed when the same {@link Exchange} instance uses
 	 * different tokens during its lifetime, e.g., when using a different token
 	 * for retrieving the rest of a blockwise notification (when not altered,
-	 * Californium reuses the same token for this).
-	 * See {@link BlockwiseLayer} for an example use case.
+	 * Californium reuses the same token for this). See {@link BlockwiseLayer}
+	 * for an example use case.
 	 */
 	public void completeCurrentRequest() {
 		ExchangeObserver obs = this.observer;
@@ -506,8 +514,9 @@ public class Exchange {
 
 	/**
 	 * Checks if this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own Executor.
-	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 * If so, the protocol stage must hand the processing over to its own
+	 * Executor. Otherwise the exchange was handled directly by a protocol stage
+	 * thread.
 	 * 
 	 * @return true if for handler with custom executor
 	 */
@@ -517,8 +526,9 @@ public class Exchange {
 
 	/**
 	 * Marks that this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own Executor.
-	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 * If so, the protocol stage must hand the processing over to its own
+	 * Executor. Otherwise the exchange was handled directly by a protocol stage
+	 * thread.
 	 */
 	public void setCustomExecutor() {
 		this.customExecutor = true;
@@ -529,41 +539,41 @@ public class Exchange {
 	 * source/destination.
 	 */
 	public static final class KeyMID {
-		
+
 		protected final int MID;
 		protected final byte[] address;
 		protected final int port;
 		private final int hash;
-		
+
 		public KeyMID(int mid, byte[] address, int port) {
 			this.MID = mid;
 			this.address = address;
 			this.port = port;
-			this.hash = (port*31 + mid) * 31 + Arrays.hashCode(address);
+			this.hash = (port * 31 + mid) * 31 + Arrays.hashCode(address);
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
-			if (! (o instanceof KeyMID))
+			if (!(o instanceof KeyMID))
 				return false;
 			KeyMID key = (KeyMID) o;
 			return MID == key.MID && port == key.port && Arrays.equals(address, key.address);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyMID["+MID+" for "+Utils.toHexString(address)+":"+port+"]";
+			return "KeyMID[" + MID + " for " + Utils.toHexString(address) + ":" + port + "]";
 		}
 	}
-	
+
 	/**
-	 * This class is used by the matcher to remember a request by its token and
-	 * destination.
+	 * This class is used by the matcher to correlate messages by their token
+	 * and endpoint address.
 	 */
 	public static final class KeyToken {
 
@@ -576,28 +586,28 @@ public class Exchange {
 			this.token = token;
 			this.hash = Arrays.hashCode(token);
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
-			if (! (o instanceof KeyToken))
+			if (!(o instanceof KeyToken))
 				return false;
 			KeyToken key = (KeyToken) o;
 			return Arrays.equals(token, key.token);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyToken["+Utils.toHexString(token)+"]";
+			return "KeyToken[" + Utils.toHexString(token) + "]";
 		}
 	}
-	
+
 	/**
-	 * This class is used by the matcher to remember a request by its 
+	 * This class is used by the matcher to remember a request by its
 	 * destination URI (for observe relations).
 	 */
 	public static class KeyUri {
@@ -606,32 +616,34 @@ public class Exchange {
 		protected final byte[] address;
 		protected final int port;
 		private final int hash;
-		
+
 		public KeyUri(String uri, byte[] address, int port) {
-			if (uri == null) throw new NullPointerException();
-			if (address == null) throw new NullPointerException();
+			if (uri == null)
+				throw new NullPointerException();
+			if (address == null)
+				throw new NullPointerException();
 			this.uri = uri;
 			this.address = address;
 			this.port = port;
-			this.hash = (port*31 + uri.hashCode()) * 31 + Arrays.hashCode(address);
+			this.hash = (port * 31 + uri.hashCode()) * 31 + Arrays.hashCode(address);
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return hash;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
-			if (! (o instanceof KeyUri))
+			if (!(o instanceof KeyUri))
 				return false;
 			KeyUri key = (KeyUri) o;
 			return uri.equals(key.uri) && port == key.port && Arrays.equals(address, key.address);
 		}
-		
+
 		@Override
 		public String toString() {
-			return "KeyUri["+uri+" for "+Utils.toHexString(address)+":"+port+"]";
+			return "KeyUri[" + uri + " for " + Utils.toHexString(address) + ":" + port + "]";
 		}
 	}
 }
