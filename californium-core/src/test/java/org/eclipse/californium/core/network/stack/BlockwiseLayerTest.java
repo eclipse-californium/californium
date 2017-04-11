@@ -118,6 +118,7 @@ public class BlockwiseLayerTest {
 
 		Exchange exchange = new Exchange(null, Origin.LOCAL);
 		exchange.setRequest(req);
+		exchange.setCurrentRequest(req);
 		blockwiseLayer.receiveResponse(exchange, response);
 
 		verify(requestObserver).onCancel();
@@ -141,6 +142,7 @@ public class BlockwiseLayerTest {
 		req.setURI("coap://127.0.0.1/bigResource");
 		Exchange exchange = new Exchange(null, Origin.LOCAL);
 		exchange.setRequest(req);
+		exchange.setCurrentRequest(req);
 
 		// WHEN the request used to establish the observe relation has been canceled
 		// and a notification arrives

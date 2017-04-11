@@ -221,9 +221,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
-		exchange.setFailedTransmissionCount(0);
-		exchange.getCurrentRequest().setAcknowledged(true);
-		exchange.setRetransmissionHandle(null);
+		// workaround for issue #275
+		if (!response.getOptions().hasBlock2()) {
+			// for BLOCK 2 moved temporary to BlockwiseLayer.stopRetransmission
+			exchange.setFailedTransmissionCount(0);
+			exchange.getCurrentRequest().setAcknowledged(true);
+			exchange.setRetransmissionHandle(null);
+		}
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
 			LOGGER.finer("acknowledging CON response");
