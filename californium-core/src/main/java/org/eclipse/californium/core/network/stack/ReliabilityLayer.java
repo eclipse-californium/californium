@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use final for fields and adjust
+ *                                                    thread safe random usage
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -44,12 +46,12 @@ public class ReliabilityLayer extends AbstractLayer {
 	protected final static Logger LOGGER = Logger.getLogger(ReliabilityLayer.class.getCanonicalName());
 
 	/** The random numbers generator for the back-off timer */
-	private Random rand = new Random();
+	private final Random rand = new Random();
 
-	private int ack_timeout;
-	private float ack_random_factor;
-	private float ack_timeout_scale;
-	private int max_retransmit;
+	private final int ack_timeout;
+	private final float ack_random_factor;
+	private final float ack_timeout_scale;
+	private final int max_retransmit;
 
 	/**
 	 * Constructs a new reliability layer. Changes to the configuration are
@@ -282,7 +284,9 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (min == max) {
 			return min;
 		}
-		return min + rand.nextInt(max - min);
+		synchronized (rand) {
+			return min + rand.nextInt(max - min);
+		}
 	}
 
 	/*
