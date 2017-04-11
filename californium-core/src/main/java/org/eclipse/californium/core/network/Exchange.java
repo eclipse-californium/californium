@@ -42,15 +42,15 @@ import org.eclipse.californium.elements.CorrelationContext;
  * An exchange represents the complete state of an exchange of one request and
  * one or more responses. The lifecycle of an exchange ends when either the last
  * response has arrived and is acknowledged, when a request or response has been
- * rejected from the remote endpoint, when the request has been canceled, or when
- * a request or response timed out, i.e., has reached the retransmission
+ * rejected from the remote endpoint, when the request has been canceled, or
+ * when a request or response timed out, i.e., has reached the retransmission
  * limit without being acknowledged.
  * <p>
- * The framework internally uses the class Exchange to manage an exchange
- * of {@link Request}s and {@link Response}s. The Exchange only contains state,
- * no functionality. The CoAP Stack contains the functionality of the CoAP
- * protocol and modifies the exchange appropriately. The class Exchange and its
- * fields are <em>NOT</em> thread-safe.
+ * The framework internally uses the class Exchange to manage an exchange of
+ * {@link Request}s and {@link Response}s. The Exchange only contains state, no
+ * functionality. The CoAP Stack contains the functionality of the CoAP protocol
+ * and modifies the exchange appropriately. The class Exchange and its fields
+ * are <em>NOT</em> thread-safe.
  * <p>
  * The class {@link CoapExchange} provides the corresponding API for developers.
  * Proceed with caution when using this class directly, e.g., through
@@ -90,13 +90,16 @@ public class Exchange {
 	private Request request; // the initial request we have to exchange
 
 	/**
-	 * The current block of the request that is being processed. This is a single
-	 * block in case of a blockwise transfer or the same as {@link #request} in
-	 * case of a normal transfer.
+	 * The current block of the request that is being processed. This is a
+	 * single block in case of a blockwise transfer or the same as
+	 * {@link #request} in case of a normal transfer.
 	 */
-	private Request currentRequest; // Matching needs to know for what we expect a response
+	// Matching needs to know for what we expect a response
+	private Request currentRequest;
 
-	/** The status of the blockwise transfer. null in case of a normal transfer */
+	/**
+	 * The status of the blockwise transfer. null in case of a normal transfer
+	 */
 	private BlockwiseStatus requestBlockStatus;
 
 	/**
@@ -108,9 +111,12 @@ public class Exchange {
 	private Response response;
 
 	/** The current block of the response that is being transferred. */
-	private Response currentResponse; // Matching needs to know when receiving duplicate
+	// Matching needs to know when receiving duplicate
+	private Response currentResponse;
 
-	/** The status of the blockwise transfer. null in case of a normal transfer */
+	/**
+	 * The status of the blockwise transfer. null in case of a normal transfer
+	 */
 	private BlockwiseStatus responseBlockStatus;
 
 	// indicates where the request of this exchange has been initiated.
@@ -139,8 +145,9 @@ public class Exchange {
 	// The relation that the target resource has established with the source
 	private ObserveRelation relation;
 
-	// When the request is handled by an executor different than the protocol stage set to true.
-	// The endpoint will hand sending responses over to the protocol stage executor
+	// When the request is handled by an executor different than the protocol
+	// stage set to true. The endpoint will hand sending responses over to the
+	// protocol stage executor
 	private boolean customExecutor = false;
 
 	private CorrelationContext correlationContext;
@@ -152,8 +159,24 @@ public class Exchange {
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 */
 	public Exchange(final Request request, final Origin origin) {
-		this.currentRequest = request; // might only be the first block of the whole request
+		// might only be the first block of the whole request
+		this.currentRequest = request;
 		this.origin = origin;
+		this.timestamp = System.currentTimeMillis();
+	}
+
+	/**
+	 * Creates a new exchange with the specified request, origin and context.
+	 * 
+	 * @param request the request that starts the exchange
+	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param ctx the correlation context of this exchange
+	 */
+	public Exchange(Request request, Origin origin, CorrelationContext ctx) {
+		// might only be the first block of the whole request
+		this.currentRequest = request;
+		this.origin = origin;
+		this.correlationContext = ctx;
 		this.timestamp = System.currentTimeMillis();
 	}
 
@@ -163,7 +186,7 @@ public class Exchange {
 	 * yet, it sends an ACK to the client.
 	 */
 	public void sendAccept() {
-		assert(origin == Origin.REMOTE);
+		assert (origin == Origin.REMOTE);
 		if (request.getType() == Type.CON && !request.isAcknowledged()) {
 			request.setAcknowledged(true);
 			EmptyMessage ack = EmptyMessage.newACK(request);
@@ -176,7 +199,7 @@ public class Exchange {
 	 * client.
 	 */
 	public void sendReject() {
-		assert(origin == Origin.REMOTE);
+		assert (origin == Origin.REMOTE);
 		request.setRejected(true);
 		EmptyMessage rst = EmptyMessage.newRST(request);
 		endpoint.sendEmptyMessage(this, rst);
@@ -214,7 +237,7 @@ public class Exchange {
 	public Request getRequest() {
 		return request;
 	}
-	
+
 	/**
 	 * Sets the request that this exchange is associated with.
 	 * 
@@ -238,8 +261,8 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets the current request block. If a request is not being sent
-	 * blockwise, the origin request (equal to getRequest()) should be set.
+	 * Sets the current request block. If a request is not being sent blockwise,
+	 * the origin request (equal to getRequest()) should be set.
 	 * 
 	 * @param currentRequest the current request block
 	 */
@@ -276,7 +299,7 @@ public class Exchange {
 	public Response getResponse() {
 		return response;
 	}
-	
+
 	/**
 	 * Sets the response.
 	 * 
@@ -309,7 +332,7 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the blockwise transfer status of the response or null if no one 
+	 * Returns the blockwise transfer status of the response or null if no one
 	 * is set.
 	 * 
 	 * @return the status of the blockwise transfer of the response
@@ -339,16 +362,15 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets the block option of the last block of a blockwise sent request.
-	 * When the server sends the response, this block option has to be
-	 * acknowledged.
+	 * Sets the block option of the last block of a blockwise sent request. When
+	 * the server sends the response, this block option has to be acknowledged.
 	 * 
 	 * @param block1ToAck the block option of the last request block
 	 */
 	public void setBlock1ToAck(BlockOption block1ToAck) {
 		this.block1ToAck = block1ToAck;
 	}
-	
+
 	/**
 	 * Returns the endpoint which has created and processed this exchange.
 	 * 
@@ -398,7 +420,7 @@ public class Exchange {
 
 	public synchronized void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
 		// avoid race condition of multiple responses (e.g., notifications)
-		if (this.retransmissionHandle!=null) {
+		if (this.retransmissionHandle != null) {
 			this.retransmissionHandle.cancel(false);
 		}
 		this.retransmissionHandle = retransmissionHandle;
@@ -449,8 +471,8 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange) completed}
-	 * method on the observer registered on this exchange (if any).
+	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange)
+	 * completed} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
@@ -463,13 +485,13 @@ public class Exchange {
 		if (obs != null)
 			obs.completed(this);
 	}
-	
+
 	/**
 	 * This method is only needed when the same {@link Exchange} instance uses
 	 * different tokens during its lifetime, e.g., when using a different token
 	 * for retrieving the rest of a blockwise notification (when not altered,
-	 * Californium reuses the same token for this).
-	 * See {@link BlockwiseLayer} for an example use case.
+	 * Californium reuses the same token for this). See {@link BlockwiseLayer}
+	 * for an example use case.
 	 */
 	public void completeCurrentRequest() {
 		ExchangeObserver obs = this.observer;
@@ -501,8 +523,9 @@ public class Exchange {
 
 	/**
 	 * Checks if this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own Executor.
-	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 * If so, the protocol stage must hand the processing over to its own
+	 * Executor. Otherwise the exchange was handled directly by a protocol stage
+	 * thread.
 	 * 
 	 * @return true if for handler with custom executor
 	 */
@@ -512,20 +535,23 @@ public class Exchange {
 
 	/**
 	 * Marks that this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own Executor.
-	 * Otherwise the exchange was handled directly by a protocol stage thread.
+	 * If so, the protocol stage must hand the processing over to its own
+	 * Executor. Otherwise the exchange was handled directly by a protocol stage
+	 * thread.
 	 */
 	public void setCustomExecutor() {
 		this.customExecutor = true;
 	}
 
 	/**
-	 * Sets additional information about the context this exchange's request has been sent in.
+	 * Sets additional information about the context this exchange's request has
+	 * been sent in.
 	 * <p>
-	 * The information is usually obtained from the <code>Connector</code> this exchange is using
-	 * to send and receive data. The information contained in the context can be used in addition
-	 * to the message ID and token of this exchange to increase security when matching an incoming
-	 * response to this exchange's request.
+	 * The information is usually obtained from the <code>Connector</code> this
+	 * exchange is using to send and receive data. The information contained in
+	 * the context can be used in addition to the message ID and token of this
+	 * exchange to increase security when matching an incoming response to this
+	 * exchange's request.
 	 * </p>
 	 * 
 	 * @param ctx the correlation information
@@ -538,10 +564,11 @@ public class Exchange {
 	}
 
 	/**
-	 * Gets transport layer specific information that can be used to correlate a response with
-	 * this exchange's original request.
-	 *  
-	 * @return the correlation information or <code>null</code> if no information is available.
+	 * Gets transport layer specific information that can be used to correlate a
+	 * response with this exchange's original request.
+	 * 
+	 * @return the correlation information or <code>null</code> if no
+	 *         information is available.
 	 */
 	public CorrelationContext getCorrelationContext() {
 		return correlationContext;
@@ -550,7 +577,8 @@ public class Exchange {
 	/**
 	 * A CoAP message ID scoped to a remote endpoint.
 	 * <p>
-	 * This class is used by the matcher to correlate messages by MID and endpoint address.
+	 * This class is used by the matcher to correlate messages by MID and
+	 * endpoint address.
 	 */
 	public static final class KeyMID {
 
@@ -619,17 +647,16 @@ public class Exchange {
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyMID[").append(MID)
-				.append(", ").append(Utils.toHexString(address)).append(":").append(port)
-				.append("]").toString();
+			return new StringBuilder("KeyMID[").append(MID).append(", ").append(Utils.toHexString(address)).append(":")
+					.append(port).append("]").toString();
 		}
 
 		/**
 		 * Creates a key from an inbound CoAP message.
 		 * 
 		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is scoped to the message's
-		 *         source address and port.
+		 * @return the key derived from the message. The key's <em>mid</em> is
+		 *         scoped to the message's source address and port.
 		 */
 		public static KeyMID fromInboundMessage(Message message) {
 			return new KeyMID(message.getMID(), message.getSource().getAddress(), message.getSourcePort());
@@ -639,8 +666,8 @@ public class Exchange {
 		 * Creates a key from an outbound CoAP message.
 		 * 
 		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is scoped to the message's
-		 *         destination address and port.
+		 * @return the key derived from the message. The key's <em>mid</em> is
+		 *         scoped to the message's destination address and port.
 		 */
 		public static KeyMID fromOutboundMessage(Message message) {
 			return new KeyMID(message.getMID(), message.getDestination().getAddress(), message.getDestinationPort());
@@ -650,8 +677,8 @@ public class Exchange {
 	/**
 	 * A CoAP message token scoped to a remote endpoint.
 	 * <p>
-	 * This class is used by the matcher to correlate messages by their token and
-	 * endpoint address.
+	 * This class is used by the matcher to correlate messages by their token
+	 * and endpoint address.
 	 */
 	public static final class KeyToken {
 
@@ -679,7 +706,7 @@ public class Exchange {
 		 * Creates a new key for an inbound CoAP message.
 		 * <p>
 		 * The key will be scoped to the message's source endpoint.
-		 *  
+		 * 
 		 * @param msg the message.
 		 * @return the key.
 		 */
@@ -691,7 +718,7 @@ public class Exchange {
 		 * Creates a new key for an outbound CoAP message.
 		 * <p>
 		 * The key will be scoped to the message's destination endpoint.
-		 *  
+		 * 
 		 * @param msg the message.
 		 * @return the key.
 		 */
@@ -701,7 +728,7 @@ public class Exchange {
 
 		/**
 		 * Creates a new key for a token and an endpoint address.
-		 *  
+		 * 
 		 * @param token the token.
 		 * @param address the endpoint's address.
 		 * @param port the endpoint's port.
@@ -724,9 +751,8 @@ public class Exchange {
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyToken[").append(Utils.toHexString(token))
-				.append(", ").append(Utils.toHexString(address)).append(":").append(port)
-				.append("]").toString();
+			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append(", ")
+					.append(Utils.toHexString(address)).append(":").append(port).append("]").toString();
 		}
 
 		@Override
@@ -802,7 +828,7 @@ public class Exchange {
 
 		@Override
 		public boolean equals(Object o) {
-			if (! (o instanceof KeyUri))
+			if (!(o instanceof KeyUri))
 				return false;
 			KeyUri key = (KeyUri) o;
 			return uri.equals(key.uri) && port == key.port && Arrays.equals(address, key.address);
@@ -810,9 +836,8 @@ public class Exchange {
 
 		@Override
 		public String toString() {
-			return new StringBuilder("KeyUri[").append(uri)
-					.append(", ").append(Utils.toHexString(address)).append(":").append(port)
-					.append("]").toString();
+			return new StringBuilder("KeyUri[").append(uri).append(", ").append(Utils.toHexString(address)).append(":")
+					.append(port).append("]").toString();
 		}
 	}
 }
