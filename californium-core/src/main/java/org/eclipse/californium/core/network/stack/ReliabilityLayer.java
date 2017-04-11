@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use final for fields and adjust
+ *                                                    thread safe random usage
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -47,12 +49,12 @@ public class ReliabilityLayer extends AbstractLayer {
 	private final NetworkConfigObserverAdapter observer;
 
 	/** The random numbers generator for the back-off timer */
-	private Random rand = new Random();
+	private final Random rand = new Random();
 	
-	private int ack_timeout;
-	private float ack_random_factor;
-	private float ack_timeout_scale;
-	private int max_retransmit;
+	private volatile int ack_timeout;
+	private volatile float ack_random_factor;
+	private volatile float ack_timeout_scale;
+	private volatile int max_retransmit;
 
 	/**
 	 * Constructs a new reliability layer.
@@ -304,8 +306,12 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @return a random value between min and max
 	 */
 	protected int getRandomTimeout(final int min, final int max) {
-		if (min == max) return min;
-		return min + rand.nextInt(max - min);
+		if (min == max) {
+			return min;
+		}
+		synchronized (rand) {
+			return min + rand.nextInt(max - min);
+		}
 	}
 
 	@Override
