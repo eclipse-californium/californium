@@ -28,6 +28,13 @@
  *                                                    remove exchange by MID on notify. 
  *                                                    Add Exchange for save remove.
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use deduplicator for all message types.
+ *                                                    RFC7252 limits deduplication to CON/NON
+ *                                                    but this seems to cover the message flow 
+ *                                                    for responses and such request. The 
+ *                                                    internal processing of ACK/RST is not 
+ *                                                    covered, because it doesn't influence 
+ *                                                    the message exchange.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -235,11 +242,8 @@ public final class UdpMatcher extends BaseMatcher {
 		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
 
 			// we have received a Response matching the token of an ongoing Exchange's Request
-			// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
-			// message deduplication is relevant for CON and NON messages only
 
-			if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
-					exchangeStore.findPrevious(idByMID, exchange) != null) {
+			if (exchangeStore.findPrevious(idByMID, exchange) != null) {
 				LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
 				response.setDuplicate(true);
 			} else if (!isNotify) {
