@@ -18,11 +18,14 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - use correlation context to improve matching
  *                                      of Response(s) to Request (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - ensure states visibility for
+ *                                                    different threads
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -57,6 +60,17 @@ import org.eclipse.californium.elements.CorrelationContext;
  * {@link CoapExchange#advanced()}.
  * <p>
  * This class might change with the implementation of CoAP extensions.
+ * <p>
+ * Even if above mentions, that this class is not thread safe, its used from
+ * several different threads! Generally the Exchanges are hand over via a
+ * concurrent collections in the matcher and therefore establish a "happens
+ * before" order (as long as threads accessing the exchange via the matcher).
+ * But some methods are out of scope of that and use Exchange directly (e.g.
+ * {@link #setCorrelationContext(CorrelationContext) the "sender thread" or
+ * {@link #setFailedTransmissionCount(int)} the "retransmission thread
+ * (executor)"). Therefore use at least volatile for the fields. This doesn't
+ * ensure, that Exchange is thread safe, it only ensures the visibility of the
+ * states.
  */
 public class Exchange {
 
@@ -70,14 +84,18 @@ public class Exchange {
 		LOCAL, REMOTE;
 	}
 
-	/** The endpoint that processes this exchange */
-	private Endpoint endpoint;
+	/**
+	 * The endpoint that processes this exchange.
+	 * 
+	 * Set on receiving a message.
+	 */
+	private volatile Endpoint endpoint;
 
 	/** An observer to be called when a request is complete */
-	private ExchangeObserver observer;
+	private volatile ExchangeObserver observer;
 
 	/** Indicates if the exchange is complete */
-	private boolean complete = false;
+	private volatile boolean complete = false;
 
 	/** The timestamp when this exchange has been created */
 	private final long timestamp;
@@ -87,7 +105,7 @@ public class Exchange {
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
 	 * while layers above should work with the {@link #request}.
 	 */
-	private Request request; // the initial request we have to exchange
+	private volatile Request request; // the initial request we have to exchange
 
 	/**
 	 * The current block of the request that is being processed. This is a
@@ -95,12 +113,12 @@ public class Exchange {
 	 * {@link #request} in case of a normal transfer.
 	 */
 	// Matching needs to know for what we expect a response
-	private Request currentRequest;
+	private volatile Request currentRequest;
 
 	/**
 	 * The status of the blockwise transfer. null in case of a normal transfer
 	 */
-	private BlockwiseStatus requestBlockStatus;
+	private volatile BlockwiseStatus requestBlockStatus;
 
 	/**
 	 * The actual response that is supposed to be sent to the client. Layers
@@ -108,49 +126,49 @@ public class Exchange {
 	 * {@link #currentResponse} while layers above should work with the
 	 * {@link #response}.
 	 */
-	private Response response;
+	private volatile Response response;
 
 	/** The current block of the response that is being transferred. */
 	// Matching needs to know when receiving duplicate
-	private Response currentResponse;
+	private volatile Response currentResponse;
 
 	/**
 	 * The status of the blockwise transfer. null in case of a normal transfer
 	 */
-	private BlockwiseStatus responseBlockStatus;
+	private volatile BlockwiseStatus responseBlockStatus;
 
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
 	private final Origin origin;
 
 	// true if the exchange has failed due to a timeout
-	private boolean timedOut;
+	private volatile boolean timedOut;
 
 	// the timeout of the current request or response set by reliability layer
-	private int currentTimeout;
+	private volatile int currentTimeout;
 
 	// the amount of attempted transmissions that have not succeeded yet
-	private int failedTransmissionCount = 0;
+	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private ScheduledFuture<?> retransmissionHandle = null;
+	private AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
 
 	// handle to extend blockwise status lifetime
-	private ScheduledFuture<?> blockCleanupHandle = null;
+	private AtomicReference<ScheduledFuture<?>> blockCleanupHandle = new AtomicReference<ScheduledFuture<?>>();
 
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
-	private BlockOption block1ToAck;
+	private volatile BlockOption block1ToAck;
 
 	// The relation that the target resource has established with the source
-	private ObserveRelation relation;
+	private volatile ObserveRelation relation;
 
 	// When the request is handled by an executor different than the protocol
 	// stage set to true. The endpoint will hand sending responses over to the
 	// protocol stage executor
-	private boolean customExecutor = false;
+	private volatile boolean customExecutor = false;
 
-	private CorrelationContext correlationContext;
+	private volatile CorrelationContext correlationContext;
 
 	/**
 	 * Creates a new exchange with the specified request and origin.
@@ -380,6 +398,11 @@ public class Exchange {
 		return endpoint;
 	}
 
+	/**
+	 * Set endpoint of received message.
+	 * 
+	 * @param endpoint endpoint, which received the message.
+	 */
 	public void setEndpoint(Endpoint endpoint) {
 		this.endpoint = endpoint;
 	}
@@ -414,28 +437,28 @@ public class Exchange {
 		this.currentTimeout = currentTimeout;
 	}
 
-	public synchronized ScheduledFuture<?> getRetransmissionHandle() {
-		return retransmissionHandle;
+	public ScheduledFuture<?> getRetransmissionHandle() {
+		return retransmissionHandle.get();
 	}
 
-	public synchronized void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
+	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
 		// avoid race condition of multiple responses (e.g., notifications)
-		if (this.retransmissionHandle != null) {
-			this.retransmissionHandle.cancel(false);
+		ScheduledFuture<?> previous = this.retransmissionHandle.getAndSet(retransmissionHandle);
+		if (previous != null) {
+			previous.cancel(false);
 		}
-		this.retransmissionHandle = retransmissionHandle;
 	}
 
-	public synchronized ScheduledFuture<?> getBlockCleanupHandle() {
-		return blockCleanupHandle;
+	public ScheduledFuture<?> getBlockCleanupHandle() {
+		return blockCleanupHandle.get();
 	}
 
-	public synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
+	public void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
 		// avoid race condition of multiple block requests
-		if (this.blockCleanupHandle != null) {
-			this.blockCleanupHandle.cancel(false);
+		ScheduledFuture<?> previous = this.blockCleanupHandle.getAndSet(blockCleanupHandle);
+		if (previous != null) {
+			previous.cancel(false);
 		}
-		this.blockCleanupHandle = blockCleanupHandle;
 	}
 
 	/**
@@ -482,8 +505,9 @@ public class Exchange {
 	public void setComplete() {
 		this.complete = true;
 		ExchangeObserver obs = this.observer;
-		if (obs != null)
+		if (obs != null) {
 			obs.completed(this);
+		}
 	}
 
 	/**
@@ -495,8 +519,9 @@ public class Exchange {
 	 */
 	public void completeCurrentRequest() {
 		ExchangeObserver obs = this.observer;
-		if (obs != null)
+		if (obs != null) {
 			obs.completed(this);
+		}
 	}
 
 	public long getTimestamp() {
@@ -558,8 +583,9 @@ public class Exchange {
 	 */
 	public void setCorrelationContext(final CorrelationContext ctx) {
 		correlationContext = ctx;
-		if (observer != null) {
-			observer.contextEstablished(this);
+		ExchangeObserver obs = this.observer;
+		if (obs != null) {
+			obs.contextEstablished(this);
 		}
 	}
 
