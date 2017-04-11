@@ -12,9 +12,12 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add saving payload
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -51,12 +54,20 @@ public class GETClient {
 				
 				System.out.println(response.getCode());
 				System.out.println(response.getOptions());
-				System.out.println(response.getResponseText());
-				
-				System.out.println("\nADVANCED\n");
-				// access advanced API with access to more details through .advanced()
-				System.out.println(Utils.prettyPrint(response));
-				
+				if (args.length > 1) {
+					try (FileOutputStream out = new FileOutputStream(args[1])) {
+						out.write(response.getPayload());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				} else {
+					System.out.println(response.getResponseText());
+					
+					System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
+					// access advanced API with access to more details through
+					// .advanced()
+					System.out.println(Utils.prettyPrint(response));
+				}
 			} else {
 				System.out.println("No response received.");
 			}
@@ -66,8 +77,9 @@ public class GETClient {
 			System.out.println("Californium (Cf) GET Client");
 			System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
 			System.out.println();
-			System.out.println("Usage: " + GETClient.class.getSimpleName() + " URI");
-			System.out.println("  URI: The CoAP URI of the remote resource to GET");
+			System.out.println("Usage : " + GETClient.class.getSimpleName() + " URI [file]");
+			System.out.println("  URI : The CoAP URI of the remote resource to GET");
+			System.out.println("  file: optional filename to save the received payload");
 		}
 	}
 
