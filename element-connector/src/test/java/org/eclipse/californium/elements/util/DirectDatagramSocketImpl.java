@@ -12,10 +12,15 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove log level property and
+ *                                                    redirect this to logging.properties
+ *                                                    (handler must be adjusted anyway).
+ *                                                    Set InterruptedException as cause.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.DatagramSocketImpl;
@@ -44,18 +49,14 @@ import java.util.logging.Logger;
  * The full range is used before any free port is reused.
  * 
  * To log all exchanged message, use level FINE. If sending and receiving should
- * be distinguished, use level FINER. This usually configured using the logging
- * properties ("src/test/resources/Californium-logging.properties"). For
- * executing the junit test within eclipse, you may also define the level as
- * property
- * "org.eclipse.californium.elements.util.DirectDatagramSocketImpl.level",
- * either at project/runner level as VM arguments, or general for a JRE as
- * default VM arguments (Window->Preferences | Java -> Installed JREs | select
- * and EDIT).
+ * be distinguished, use level FINER. For the test executed with maven, this is
+ * usually configured using the logging properties
+ * ("src/test/resources/Californium-logging.properties").
  * 
- * Note: ensure, that the used "logging.properties" are also matching your
- * requirements, either by editing the global file "JRE/lib/logging.properties"
- * or by providing the property "java.util.logging.config.file".
+ * Note: If not executed with maven, ensure, that the used "logging.properties"
+ * are also matching your requirements, either by editing the global file
+ * "JRE/lib/logging.properties" or by providing the property
+ * "java.util.logging.config.file".
  * 
  * Currently neither multicast nor specific/multi network interfaces are
  * supported.
@@ -76,23 +77,6 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	public static final int AUTO_PORT_RANGE_SIZE = AUTO_PORT_RANGE_MAX - AUTO_PORT_RANGE_MIN + 1;
 
 	private static final Logger LOGGER = Logger.getLogger(DirectDatagramSocketImpl.class.getName());
-
-	static {
-		if (null == LOGGER.getLevel()) {
-			/* check properties for default level */
-			String name = DirectDatagramSocketImpl.class.getName() + ".level";
-			String levelValue = System.getProperty(name);
-			if (null != levelValue) {
-				try {
-					Level level = Level.parse(levelValue);
-					LOGGER.setLevel(level);
-					LOGGER.log(Level.CONFIG, "level ''{0}''", level);
-				} catch (IllegalArgumentException ex) {
-					LOGGER.log(Level.SEVERE, "level ''{0}'' is not supported!", levelValue);
-				}
-			}
-		}
-	}
 
 	/**
 	 * Default factory, if {@code null} is provided for
@@ -181,16 +165,16 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void receive(DatagramPacket destPacket) throws IOException {
-		int port;
-		InetAddress addr;
+		final int port;
+		final InetAddress addr;
 		synchronized (this) {
 			port = this.localPort;
 			addr = this.localAddress;
 		}
+		final int timeout = getSoTimeout();
+		final Setup currentSetup = setup.get();
+		final DatagramExchange exchange;
 		try {
-			final int timeout = getSoTimeout();
-			final DatagramExchange exchange;
-			final Setup currentSetup = setup.get();
 			if (0 < timeout) {
 				exchange = incomingQueue.poll(timeout, TimeUnit.MILLISECONDS);
 				if (null == exchange) {
@@ -203,51 +187,51 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 				// intended for special test conditions
 				Thread.sleep(currentSetup.delayInMs);
 			}
-			boolean isClosed;
-			synchronized (this) {
-				isClosed = this.closed;
-				port = this.localPort;
-				addr = this.localAddress;
-			}
-			if (isClosed) {
-				LOGGER.log(Level.FINE, "socket already closed {0}", exchange.format(currentSetup));
-				throw new SocketException("Socket " + addr + ":" + port + " closed!");
-			} else if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(Level.FINER, "incoming {0}", exchange.format(currentSetup));
-			} else if (LOGGER.isLoggable(Level.FINE)) {
-				LOGGER.log(Level.FINE, "{0}", exchange.format(currentSetup));
-			}
-			int receivedLength = exchange.data.length;
-			int destPacketLength = destPacket.getLength();
-			byte[] destPacketData = destPacket.getData();
-			if (destPacketLength < receivedLength) {
-				if (destPacketData.length > destPacketLength) {
-					LOGGER.log(Level.FINE, "increasing receive buffer from {0} to full buffer capacity [{1}]",
-							new Object[] { destPacketLength, destPacketData.length });
-					destPacketLength = destPacketData.length;
-				}
-				if (destPacketLength < receivedLength) {
-					LOGGER.log(Level.FINE, "truncating data [length: {0}] to fit into receive buffer [size: {1}]",
-							new Object[] { receivedLength, destPacketLength });
-					receivedLength = destPacketLength;
-				}
-			}
-			destPacket.setLength(receivedLength);
-			System.arraycopy(exchange.data, 0, destPacketData, 0, receivedLength);
-			destPacket.setPort(exchange.sourcePort);
-			destPacket.setAddress(exchange.sourceAddress);
 		} catch (InterruptedException exception) {
 			if (!incomingQueue.isEmpty()) {
 				LOGGER.log(Level.WARNING, "interrupted while receiving!");
 			}
-			throw new SocketException(exception.getMessage() + addr + ":" + port);
+			throw new InterruptedIOException(addr + ":" + port);
 		}
+		final boolean isClosed;
+		synchronized (this) {
+			isClosed = this.closed;
+		}
+		if (isClosed) {
+			if (LOGGER.isLoggable(Level.FINE)) {
+				LOGGER.log(Level.FINE, "socket already closed {0}", exchange.format(currentSetup));
+			}
+			throw new SocketException("Socket " + addr + ":" + port + " closed!");
+		} else if (LOGGER.isLoggable(Level.FINER)) {
+			LOGGER.log(Level.FINER, "incoming {0}", exchange.format(currentSetup));
+		} else if (LOGGER.isLoggable(Level.FINE)) {
+			LOGGER.log(Level.FINE, "{0}", exchange.format(currentSetup));
+		}
+		int receivedLength = exchange.data.length;
+		int destPacketLength = destPacket.getLength();
+		byte[] destPacketData = destPacket.getData();
+		if (destPacketLength < receivedLength) {
+			if (destPacketData.length > destPacketLength) {
+				LOGGER.log(Level.FINE, "increasing receive buffer from {0} to full buffer capacity [{1}]",
+						new Object[] { destPacketLength, destPacketData.length });
+				destPacketLength = destPacketData.length;
+			}
+			if (destPacketLength < receivedLength) {
+				LOGGER.log(Level.FINE, "truncating data [length: {0}] to fit into receive buffer [size: {1}]",
+						new Object[] { receivedLength, destPacketLength });
+				receivedLength = destPacketLength;
+			}
+		}
+		destPacket.setLength(receivedLength);
+		System.arraycopy(exchange.data, 0, destPacketData, 0, receivedLength);
+		destPacket.setPort(exchange.sourcePort);
+		destPacket.setAddress(exchange.sourceAddress);
 	}
 
 	@Override
 	protected void send(DatagramPacket packet) throws IOException {
-		boolean isClosed;
-		int port;
+		final boolean isClosed;
+		final int port;
 		InetAddress local;
 		synchronized (this) {
 			isClosed = this.closed;
@@ -258,18 +242,24 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			// adjust any to destination host
 			local = packet.getAddress();
 		}
-		Setup currentSetup = setup.get();
-		DatagramExchange exchange = new DatagramExchange(local, port, packet);
-		DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
+		final Setup currentSetup = setup.get();
+		final DatagramExchange exchange = new DatagramExchange(local, port, packet);
+		final DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
 		if (null == destination) {
-			LOGGER.log(Level.SEVERE, "destination (port {0}) not available! {1}",
-					new Object[] { exchange.destinationPort, exchange.format(currentSetup) });
+			if (LOGGER.isLoggable(Level.SEVERE)) {
+				LOGGER.log(Level.SEVERE, "destination (port {0}) not available! {1}",
+						new Object[] { exchange.destinationPort, exchange.format(currentSetup) });
+			}
 			throw new PortUnreachableException("destination not available");
 		} else if (isClosed) {
-			LOGGER.log(Level.WARNING, "closed/packet dropped! {0}", exchange.format(currentSetup));
+			if (LOGGER.isLoggable(Level.WARNING)) {
+				LOGGER.log(Level.WARNING, "closed/packet dropped! {0}", exchange.format(currentSetup));
+			}
 			throw new SocketException("socket is closed");
 		} else if (!destination.incomingQueue.offer(exchange)) {
-			LOGGER.log(Level.SEVERE, "packet dropped! {0}", exchange.format(currentSetup));
+			if (LOGGER.isLoggable(Level.SEVERE)) {
+				LOGGER.log(Level.SEVERE, "packet dropped! {0}", exchange.format(currentSetup));
+			}
 			throw new PortUnreachableException("buffer exhausted");
 		} else if (LOGGER.isLoggable(Level.FINER)) {
 			LOGGER.log(Level.FINER, "outgoing {0}", exchange.format(currentSetup));
