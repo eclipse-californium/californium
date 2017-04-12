@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -331,6 +332,20 @@ public class Matcher {
 		Exchange exchange = exchangesByToken.get(idByToken);
 		
 		if (exchange != null) {
+			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+				// The token matches but not the MID.
+				LOGGER.warning("Possible MID reuse before lifetime end: "+response.getTokenString()+" expected MID "+exchange.getCurrentRequest().getMID()+" but received "+response.getMID());
+				// when nested blockwise request/responses occurs (e.g. caused
+				// by retransmission), a old response may stop the
+				// retransmission of the current blockwise request. This seems
+				// to be a side effect of reusing the token. If the response to
+				// this current request is lost, the blockwise transfer times
+				// out, because the retransmission is stopped too early.
+				// Therefore don't return a exchange when the MID doesn't match.
+				// See issue #275
+				return null;
+			}
+			
 			// There is an exchange with the given token
 			Exchange prev = deduplicator.findPrevious(idByMID, exchange);
 			if (prev != null) { // (and thus it holds: prev == exchange)
@@ -340,11 +355,6 @@ public class Matcher {
 				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
 				exchangesByMID.remove(idByMID);
 				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
-			}
-			
-			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
-				// The token matches but not the MID.
-				LOGGER.warning("Possible MID reuse before lifetime end: "+response.getTokenString()+" expected MID "+exchange.getCurrentRequest().getMID()+" but received "+response.getMID());
 			}
 			
 			return exchange;
