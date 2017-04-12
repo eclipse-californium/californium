@@ -20,7 +20,7 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
- *    Achim Kraus (Bosch Software Innovations GmbH) - add testGETMissOrderedResponses
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add testGETWithDisorderedResponses
  *                                                    (see hudson 2.0.x/146, issue #275)
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
