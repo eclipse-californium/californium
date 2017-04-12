@@ -16,6 +16,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContextMatcher
  *                                                    for outgoing messages
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - clear thread-list on stop
+ *                                                    log exception when stopping.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -58,7 +60,7 @@ public class UDPConnector implements Connector {
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
-	private boolean running;
+	private volatile boolean running;
 
 	private DatagramSocket socket;
 
@@ -77,7 +79,7 @@ public class UDPConnector implements Connector {
 	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
 	 * @see #getCorrelationContextMatcher()
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private volatile CorrelationContextMatcher correlationContextMatcher;
 
 	/** The receiver of incoming messages. */
 	private RawDataChannel receiver;
@@ -125,11 +127,10 @@ public class UDPConnector implements Connector {
 		if (running) {
 			return;
 		}
+		running = true;
 
 		// if localAddr is null or port is 0, the system decides
 		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
-
-		this.running = true;
 
 		if (receiveBufferSize != UNDEFINED) {
 			socket.setReceiveBufferSize(receiveBufferSize);
@@ -169,37 +170,47 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 		
-		String startupMsg = new StringBuilder("UDPConnector listening on ")
-			.append(socket.getLocalSocketAddress()).append(", recv buf = ")
-			.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
-			.append(", recv packet size = ").append(receiverPacketSize).toString();
-		LOGGER.log(Level.CONFIG, startupMsg);
+		if (LOGGER.isLoggable(Level.CONFIG)) {
+			String startupMsg = new StringBuilder("UDPConnector listening on ")
+				.append(socket.getLocalSocketAddress()).append(", recv buf = ")
+				.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
+				.append(", recv packet size = ").append(receiverPacketSize).toString();
+			LOGGER.log(Level.CONFIG, startupMsg);
+		}
 	}
 
 	@Override
 	public synchronized void stop() {
-		if (!running) return;
-		this.running = false;
+		if (!running) {
+			return;
+		}
+		running = false;
 		// stop all threads
-		if (senderThreads!= null)
-			for (Thread t:senderThreads) {
+		if (senderThreads != null) {
+			for (Thread t : senderThreads) {
 				t.interrupt();
 			}
-		if (receiverThreads!= null)
-			for (Thread t:receiverThreads) {
+			senderThreads.clear();
+			senderThreads = null;
+		}
+		if (receiverThreads != null) {
+			for (Thread t : receiverThreads) {
 				t.interrupt();
 			}
+			receiverThreads.clear();
+			receiverThreads = null;
+		}
 		outgoing.clear();
 		String address = socket.getLocalSocketAddress().toString();
 		if (socket != null) {
 			socket.close();
+			socket = null;
 		}
-		socket = null;
 		LOGGER.log(Level.CONFIG, "UDPConnector on [{0}] has stopped.", address);
 	}
 
 	@Override
-	public synchronized void destroy() {
+	public void destroy() {
 		stop();
 	}
 
@@ -218,12 +229,8 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
+	public void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
 		this.correlationContextMatcher = matcher;
-	}
-
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
-		return correlationContextMatcher;
 	}
 
 	public InetSocketAddress getAddress() {
@@ -245,14 +252,19 @@ public class UDPConnector implements Connector {
 
 		public void run() {
 			LOGGER.log(Level.FINE, "Starting network stage thread [{0}]", getName());
-			while (running) {
+			while (true) {
 				try {
 					work();
+					if (!running) {
+						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						break;
+					}
 				} catch (Throwable t) {
 					if (running) {
 						LOGGER.log(Level.SEVERE, "Exception in network stage thread [" + getName() + "]:", t);
 					} else {
-						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						LOGGER.log(Level.FINE, "Network stage thread [" + getName() + "] was stopped successfully", t);
+						break;
 					}
 				}
 			}
@@ -303,8 +315,8 @@ public class UDPConnector implements Connector {
 		protected void work() throws InterruptedException, IOException {
 			RawData raw = outgoing.take(); // Blocking
 			/* check, if message should be sent with the "none correlation context" of UDP connector */
-			CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
-			if (null != correlationMatcher && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
+			CorrelationContextMatcher correlationMatcher = UDPConnector.this.correlationContextMatcher;
+			if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
 				if (LOGGER.isLoggable(Level.WARNING)) {
 					LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
 							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(), datagram.getAddress(),
