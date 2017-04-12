@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add CANCELED to log
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -82,7 +83,9 @@ public abstract class BlockwiseInterceptor {
 		}
 	}
 	protected final void appendRequestDetails(final Request request) {
-
+		if (request.isCanceled()) {
+			buffer.append("CANCELED ");
+		}
 		buffer.append(request.getType()).append(" [MID=").append(request.getMID())
 			.append(", T=").append(request.getTokenString()).append("], ")
 			.append(request.getCode()).append(", /").append(request.getOptions().getUriPathString());
@@ -94,7 +97,9 @@ public abstract class BlockwiseInterceptor {
 	}
 
 	protected final void appendResponseDetails(final Response response) {
-
+		if (response.isCanceled()) {
+			buffer.append("CANCELED ");
+		}
 		buffer.append(response.getType()).append(" [MID=").append(response.getMID())
 			.append(", T=").append(response.getTokenString()).append("], ")
 			.append(response.getCode());
@@ -107,6 +112,9 @@ public abstract class BlockwiseInterceptor {
 	}
 
 	protected final void appendEmptyMessageDetails(final EmptyMessage message) {
+		if (message.isCanceled()) {
+			buffer.append("CANCELED ");
+		}
 		buffer.append(message.getType()).append(" [MID=").append(message.getMID()).append("]");
 	}
 
