@@ -19,6 +19,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move time to begin of line
  *                                                    use append for each
  *                                                    stacktrace line
+ *    Achim Kraus (Bosch Software Innovations GmbH) - search for line number of caller
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -51,20 +52,33 @@ public class CaliforniumFormatter extends Formatter {
 		logPolicy = new LogPolicy();
 	}
 
-	@Override
-	public String format(final LogRecord record) {
-
-		int lineNo;
-		Throwable throwable = record.getThrown();
-		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-		if (throwable != null && stack.length > 7) {
-			lineNo = stack[7].getLineNumber();
-		} else if (stack.length > 8) {
-			lineNo = stack[8].getLineNumber();
-		} else {
-			lineNo = -1;
+	/**
+	 * Get line number of log call.
+	 * 
+	 * @param className class name of call
+	 * @param methodName method name of call
+	 * @return line number of log call, or {@code -1}, if caller could not be
+	 *         determined.
+	 */
+	public int getCallersLineNumber(final String className, final String methodName) {
+		// check for valid parameters
+		if (null == className || null == methodName) {
+			return -1;
 		}
 
+		StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+		for (StackTraceElement element : stackTrace) {
+			if (className.equals(element.getClassName()) && methodName.equals(element.getMethodName())) {
+				return element.getLineNumber();
+			}
+		}
+
+		return -1;
+	}
+
+	@Override
+	public String format(final LogRecord record) {
 		StringBuilder builder = new StringBuilder();
 		if (logPolicy.dateFormat != null) {
 			builder.append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(": ");
@@ -79,19 +93,20 @@ public class CaliforniumFormatter extends Formatter {
 			builder.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_MESSAGE)) {
-			builder.append(formatMessage(record));
+			builder.append(formatMessage(record)).append(" - ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
-			builder.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
+			int lineNo = getCallersLineNumber(record.getSourceClassName(), record.getSourceMethodName());
+			builder.append("(").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_METHOD)) {
-			builder.append(record.getSourceMethodName()).append("()");
+			builder.append(record.getSourceMethodName()).append("() ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD)) {
-			builder.append(" in thread ").append(Thread.currentThread().getName());
+			builder.append("in thread ").append(Thread.currentThread().getName());
 		}
 		builder.append(System.lineSeparator());
-		append(builder, throwable);
+		append(builder, record.getThrown());
 		return builder.toString();
 	}
 
@@ -105,8 +120,8 @@ public class CaliforniumFormatter extends Formatter {
 		Throwable cause = throwable;
 		while (null != cause) {
 			builder.append(cause).append(System.lineSeparator());
-			StackTraceElement[] stack = cause.getStackTrace();
-			for (StackTraceElement element : stack) {
+			StackTraceElement[] stackTrace = cause.getStackTrace();
+			for (StackTraceElement element : stackTrace) {
 				builder.append("\tat ").append(element.getClassName()).append(".").append(element.getMethodName());
 				if (element.isNativeMethod()) {
 					builder.append("(Native Method)");
@@ -178,7 +193,9 @@ public class CaliforniumFormatter extends Formatter {
 			// configuration
 			String df = LogManager.getLogManager().getProperty(LOG_POLICY_DATE_FORMAT);
 			if (df != null) {
-				if (!df.equals("")) {
+				if (df.isEmpty()) {
+					// date format configured as "" => disable date in output
+				} else {
 					dateFormat = new SimpleDateFormat(df);
 				}
 			} else {
