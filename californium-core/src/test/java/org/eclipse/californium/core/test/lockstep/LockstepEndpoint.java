@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -23,8 +24,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -463,6 +466,58 @@ public class LockstepEndpoint {
 		
 		@Override public ResponseExpectation loadMID(final String var) {
 			super.loadMID(var); return this;
+		}
+
+		/**
+		 * Check, if the MID of the response is not already contained in the MID
+		 * set with the provided name. After the check, add MID to the set.
+		 * 
+		 * Provides a fluent API to chain expectations.
+		 * 
+		 * @param var name of MID set
+		 * @return this ResponseExpectation
+		 */
+		public ResponseExpectation newMID(final String var) {
+			expectations.add(new Expectation<Response>() {
+
+				@Override
+				public void check(final Response response) {
+					final int mid = response.getMID();
+					@SuppressWarnings("unchecked")
+					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
+					if (usedMIDs != null && !usedMIDs.isEmpty()) {
+						for (Integer usedMID : usedMIDs) {
+							if (mid == usedMID) {
+								Assert.fail("MID [" + mid + "] is not new! " + midsToString());
+							}
+						}
+					}
+					if (usedMIDs == null) {
+						usedMIDs = new HashSet<Integer>();
+					}
+					usedMIDs.add(mid);
+					storage.put(var, usedMIDs);
+				}
+
+				@Override
+				public String toString() {
+					return "Expected new MID, not " + midsToString();
+				}
+
+				private String midsToString() {
+					StringBuilder message = new StringBuilder("used MIDs [");
+					@SuppressWarnings("unchecked")
+					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
+					if (usedMIDs != null && !usedMIDs.isEmpty()) {
+						for (Integer mid : usedMIDs) {
+							message.append(mid).append(',');
+						}
+						message.setLength(message.length() - 1);
+					}
+					return message.append(']').toString();
+				}
+			});
+			return this;
 		}
 		
 		public ResponseExpectation code(final ResponseCode code) {

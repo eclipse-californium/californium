@@ -23,6 +23,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add volatile and relax
  *                                                    retransmission timing by
  *                                                    increasing the ACK_TIMEOUT.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check MIDs of notifies
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -399,26 +400,26 @@ public class ObserveServerSideTest {
 
 		// First notification
 		testObsResource.change("First notification " + generateRandomPayload(10));
-		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
+		client.expectResponse().type(NON).code(CONTENT).token(tok).newMID("MID").checkObs("A", "B").payload(respPayload).go();
 
 		// Now client crashes and no longer responds
 
 		respType = CON;
 		testObsResource.change("Second notification " + generateRandomPayload(10));
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "C").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "C").payload(respPayload).go();
 
 		respType = NON;
 		testObsResource.change("NON notification 1 " + generateRandomPayload(10));
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
 
 		testObsResource.change("NON notification 2 " + generateRandomPayload(10));
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").storeMID("MID_R").checkObs("B", "B").payload(respPayload).go();
+
+		// server re-transmits unACKed CON notification with unmodified payload and (repeated) MID
+		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID_R").loadObserve("B").payload(respPayload).go();
 
 		testObsResource.change("NON notification 3 " + generateRandomPayload(10));
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
-
-		testObsResource.change("NON notification 4 " + generateRandomPayload(10));
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
 
 		serverInterceptor.log(System.lineSeparator() + "   server cancels the relation");
 
