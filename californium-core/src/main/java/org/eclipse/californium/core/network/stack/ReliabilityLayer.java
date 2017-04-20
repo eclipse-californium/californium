@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use final for fields and adjust
  *                                                    thread safe random usage
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use synchronized to access exchange.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -186,15 +187,18 @@ public class ReliabilityLayer extends AbstractLayer {
 		 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
 		 * ACK_RANDOM_FACTOR)
 		 */
-		int timeout;
-		if (exchange.getFailedTransmissionCount() == 0) {
-			timeout = getRandomTimeout(ack_timeout, (int) (ack_timeout*ack_random_factor));
-		} else {
-			timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
+		synchronized(exchange) {
+			int timeout;
+			if (exchange.getFailedTransmissionCount() == 0) {
+				timeout = getRandomTimeout(ack_timeout, (int) (ack_timeout * ack_random_factor));
+			} else {
+				timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
+			}
+			exchange.setCurrentTimeout(timeout);
+			exchange.setRetransmissionHandle(null); // cancel before reschedule
+			ScheduledFuture<?> f = executor.schedule(task, timeout, TimeUnit.MILLISECONDS);
+			exchange.setRetransmissionHandle(f);
 		}
-		exchange.setCurrentTimeout(timeout);
-		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
-		exchange.setRetransmissionHandle(f);
 	}
 
 	/**
@@ -343,9 +347,11 @@ public class ReliabilityLayer extends AbstractLayer {
 			 * number of times.
 			 */
 			try {
-				int failedCount = exchange.getFailedTransmissionCount() + 1;
-				exchange.setFailedTransmissionCount(failedCount);
-
+				int failedCount;
+				synchronized(exchange) {
+					failedCount = exchange.getFailedTransmissionCount() + 1;
+					exchange.setFailedTransmissionCount(failedCount);
+				}
 				if (message.isAcknowledged()) {
 					LOGGER.finest("Timeout: message already acknowledged, cancel retransmission of "+message);
 					return;
@@ -365,9 +371,11 @@ public class ReliabilityLayer extends AbstractLayer {
 					message.retransmitting();
 
 					// MessageObserver might have canceled
-					if (!message.isCanceled()) {
-						retransmit();
+					if (message.isCanceled()) {
+						LOGGER.log(Level.FINER, "Timeout: canceled (MID={0}), do not retransmit", message.getMID());
+						return;
 					}
+					retransmit();
 				} else {
 					LOGGER.fine("Timeout: retransmission limit reached, exchange failed, message: "+message);
 					exchange.setTimedOut();
