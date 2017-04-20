@@ -17,6 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -141,7 +142,7 @@ public class LockstepEndpoint {
 		if (type == null) throw new NullPointerException();
 		if (code == null) throw new NullPointerException();
 		if (token == null) throw new NullPointerException();
-		if (mid < 0 || mid > (2<<16)-1) throw new RuntimeException();
+		if (mid < 0 || mid > (1<<16)-1) throw new RuntimeException();
 		return new RequestProperty(type, code, token, mid);
 	}
 	
@@ -223,7 +224,7 @@ public class LockstepEndpoint {
 					int actualLength = message.getPayloadSize();
 					Assert.assertEquals("Wrong payload length: ", expectedLength, actualLength);
 					Assert.assertEquals("Wrong payload:", payload, message.getPayloadString());
-					print("Correct payload ("+actualLength+" bytes):\n"+message.getPayloadString());
+					print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator() + message.getPayloadString());
 				}
 			});
 			return this;
