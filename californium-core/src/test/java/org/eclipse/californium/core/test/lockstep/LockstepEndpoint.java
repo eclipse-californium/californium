@@ -19,6 +19,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use static reference to Serializer
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -170,7 +171,7 @@ public class LockstepEndpoint {
 		if (token == null) {
 			throw new NullPointerException();
 		}
-		if (mid < 0 || mid > (2 << 16) - 1) {
+		if (mid < 0 || mid > Message.MAX_MID) {
 			throw new RuntimeException();
 		}
 		return new RequestProperty(type, code, token, mid);
@@ -298,7 +299,7 @@ public class LockstepEndpoint {
 					int actualLength = message.getPayloadSize();
 					assertEquals("Wrong payload length: ", expectedLength, actualLength);
 					assertEquals("Wrong payload:", payload, message.getPayloadString());
-					print("Correct payload (" + actualLength + " bytes):\n" + message.getPayloadString());
+					print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator() + message.getPayloadString());
 				}
 
 				public String toString() {
