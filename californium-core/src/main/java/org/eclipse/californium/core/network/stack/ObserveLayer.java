@@ -20,6 +20,9 @@
  *                                                    add NON notifications only to relation,
  *                                                    if they are really sent as NON.
  *                                                    (issue #258, RFC Section 4.5.2 of RFC 7641)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix copy & paste error
+ *                                                    replace "response" with "next" in
+ *                                                    onAcknowledgement()
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -179,8 +182,8 @@ public class ObserveLayer extends AbstractLayer {
 					 * The matcher must be able to find the NON notifications to remove
 					 * them from the exchangesByMID hashmap
 					 */
-					if (response.getType() == Type.NON) {
-						relation.addNotification(response);
+					if (next.getType() == Type.NON) {
+						relation.addNotification(next);
 					}
 					// Create a new task for sending next response so that we can leave the sync-block
 					executor.execute(new Runnable() {
