@@ -20,6 +20,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use option names for logging
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -46,6 +47,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.serialization.DataParser;
@@ -396,7 +398,7 @@ public class LockstepEndpoint {
 					for (Option option : options) {
 						for (int n : numbers) {
 							if (option.getNumber() == n) {
-								assertTrue("Must not have option number " + n + " but has", false);
+								fail("Must not have option number " + n + " but has " + option);
 							}
 						}
 					}
@@ -408,9 +410,9 @@ public class LockstepEndpoint {
 						final int end = numbers.length - 1;
 						int index = 0;
 						for (; index < end; ++index) {
-							result.append(numbers[index]).append(",");
+							result.append(OptionNumberRegistry.toString(numbers[index])).append(",");
 						}
-						result.append(numbers[index]);
+						result.append(OptionNumberRegistry.toString(numbers[index]));
 					}
 					result.append(']');
 					return result.toString();
