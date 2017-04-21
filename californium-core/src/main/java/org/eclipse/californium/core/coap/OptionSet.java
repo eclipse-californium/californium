@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make getOthers() public.
+ *                                                    issue #286
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -1254,16 +1256,31 @@ public class OptionSet {
 	public boolean hasOption(int number) {
 		return Collections.binarySearch(asSortedList(), new Option(number)) >= 0;
 	}
-	
-	private List<Option> getOthers() {
-		if (others == null)
-			synchronized (this) {
-				if (others == null)
-					others = new LinkedList<Option>();
-			}
+
+	private List<Option> getOthersInternal() {
+		synchronized (this) {
+			if (others == null)
+				others = new LinkedList<Option>();
+		}
 		return others;
 	}
-	
+
+	/**
+	 * Returns list of other options.
+	 * 
+	 * The list is unmodifiable and not sorted.
+	 * 
+	 * @return list of other options.
+	 */
+	public List<Option> getOthers() {
+		List<Option> others = this.others;
+		if (others == null) {
+			return Collections.emptyList();
+		} else {
+			return Collections.unmodifiableList(others);
+		}
+	}
+
 	/**
 	 * Returns all options in a list sorted according to their option number.
 	 * The list cannot be use to modify the OptionSet of the message, since it is a copy.
@@ -1346,7 +1363,7 @@ public class OptionSet {
 			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
 			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
 			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
-			default: getOthers().add(option);
+			default: getOthersInternal().add(option);
 		}
 		return this;
 	}
