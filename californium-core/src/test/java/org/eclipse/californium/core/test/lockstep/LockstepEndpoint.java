@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use option names for logging
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -282,7 +283,7 @@ public class LockstepEndpoint {
 					for (Option option:options) {
 						for (int n:numbers) {
 							if (option.getNumber() == n) {
-								Assert.assertTrue("Must not have option number "+n+" but has", false);
+								Assert.fail("Must not have option number " + n + " but has " + option);
 							}
 						}
 					}
