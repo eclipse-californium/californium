@@ -174,6 +174,8 @@ public class BufferedLogHandler extends Handler {
 	 */
 	private final BlockingQueue<LogRecord> buffer = new LinkedBlockingQueue<LogRecord>();
 
+	private volatile boolean direct;
+
 	/**
 	 * Create new buffered logging handler.
 	 * 
@@ -181,17 +183,23 @@ public class BufferedLogHandler extends Handler {
 	 * {@link #thread}.
 	 */
 	public BufferedLogHandler() {
+		this(null);
+	}
+
+	public BufferedLogHandler(Handler targetHandler) {
 		super();
-		Handler targetHandler = newInstance(Handler.class, PROPERTY_NAME_TARGET);
 		if (null == targetHandler) {
-			targetHandler = new ConsoleHandler();
+			targetHandler = newInstance(Handler.class, PROPERTY_NAME_TARGET);
+			if (null == targetHandler) {
+				targetHandler = new ConsoleHandler();
+			}
 		}
 		this.target = targetHandler;
 		Formatter formatter = newInstance(Formatter.class, PROPERTY_NAME_FORMATTER);
 		if (null == formatter) {
 			formatter = targetHandler.getFormatter();
-			targetHandler.setFormatter(new BufferedOutputFormatter());
 		}
+		targetHandler.setFormatter(new BufferedOutputFormatter());
 		this.formatter = formatter;
 		Level level;
 		String levelName = getValue(PROPERTY_NAME_LEVEL);
@@ -348,8 +356,13 @@ public class BufferedLogHandler extends Handler {
 	@Override
 	public void publish(LogRecord record) {
 		if (!isClosed.get() && isLoggable(record)) {
-			record.setMessage(formatter.format(record));
-			buffer.offer(record);
+			if (direct) {
+				record.setMessage("#" + formatter.format(record));
+				target.publish(record);
+			} else {
+				record.setMessage("*" + formatter.format(record));
+				buffer.offer(record);
+			}
 		}
 	}
 
@@ -379,5 +392,9 @@ public class BufferedLogHandler extends Handler {
 		} catch (InterruptedException e) {
 		}
 		target.close();
+	}
+
+	public void setMode(boolean direct) {
+		this.direct = direct;
 	}
 }
