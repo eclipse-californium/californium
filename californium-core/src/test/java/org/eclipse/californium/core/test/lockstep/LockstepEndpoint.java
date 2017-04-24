@@ -21,6 +21,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add newMID to ResponseExpectation
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
  *    Achim Kraus (Bosch Software Innovations GmbH) - use option names for logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename loadMID into sameMID
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -230,7 +231,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 
-		public MessageExpectation loadMID(final String var) {
+		public MessageExpectation sameMID(final String var) {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
@@ -724,8 +725,8 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public ResponseExpectation loadMID(final String var) {
-			super.loadMID(var);
+		public ResponseExpectation sameMID(final String var) {
+			super.sameMID(var);
 			return this;
 		}
 
