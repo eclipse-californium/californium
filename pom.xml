@@ -90,6 +90,16 @@
 				<role>Committer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>boaks</id>
+			<name>Achim Kraus</name>
+			<email>achim.kraus@bosch-si.com</email>
+			<organization>Bosch Software Innovations GmbH</organization>
+			<organizationUrl>http://www.bosch-si.com</organizationUrl>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
 	</developers>
 
 	<properties>
