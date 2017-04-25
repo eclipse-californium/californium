@@ -21,6 +21,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
  *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - split responseType in
+ *                                                    type(Type... types) and
+ *                                                    storeType(String var)
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -648,7 +651,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(280);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -664,7 +667,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(290);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -701,7 +704,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(140);
 		test2.changed(); // First notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -717,7 +720,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(145);
 		test2.changed(); // Second notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
