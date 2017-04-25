@@ -22,6 +22,8 @@
  *                                                    setup of test-network
  *    Achim Kraus (Bosch Software Innovations GmbH) - add testGETWithDisorderedResponses
  *                                                    (see hudson 2.0.x/146, issue #275)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add MID expectation for
+ *                                                    smart deduplication
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -263,13 +265,9 @@ public class BlockwiseClientSideTest {
 		// We lose this ACK, and therefore the client retransmits the CON
 		clientInterceptor.log(" // lost");
 
-		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
-		Object[] req1 = (Object[]) server.get("B");
-		Object[] req2 = (Object[]) server.get("C");
-		assertThat("Retransmitted MID must be the same", req1[0], is(req2[0]));
-		assertThat("Retransmitted Token must be the same", req1[1], is(req2[1]));
+		server.expectRequest(CON, GET, path).sameBoth("B").block2(2, false, 128).go();
 
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload, 256, 300).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(2, false, 128).payload(respPayload, 256, 300).go();
 
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
@@ -325,11 +323,11 @@ public class BlockwiseClientSideTest {
 		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, 100);
 		Thread.sleep(timeout * 2);
 		// repeat GET 1
-		server.expectRequest(CON, GET, path).storeBoth("C").block2(1, false, 64).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(1, true, 64).payload(respPayload, 64, 128).go();
+		server.expectRequest(CON, GET, path).sameBoth("B").block2(1, false, 64).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
 
-		server.expectRequest(CON, GET, path).storeBoth("D").block2(2, false, 64).go();
-		server.sendResponse(ACK, CONTENT).loadBoth("D").block2(2, false, 64).payload(respPayload, 128, 170).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 64).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 64).payload(respPayload, 128, 170).go();
 
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
