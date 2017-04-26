@@ -168,13 +168,13 @@ public class ObserveServerSideTest {
 		testObsResource.change("Fifth notification");
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("D", "E").payload(respPayload).go();
 		serverInterceptor.log("// lost");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log("// lost");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log("// lost");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log("// lost");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log("// lost");
 
 		Thread.sleep(TIMEOUT + 100);
@@ -202,7 +202,7 @@ public class ObserveServerSideTest {
 		testObsResource.change("First notification " + generateRandomPayload(10));
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
 		serverInterceptor.log("// lost ");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("B").payload(respPayload).go();
 		serverInterceptor.log("// lost (1. retransmission)");
 
 		// Resource changes and sends next CON which will be transmitted after the former has timeouted
@@ -217,7 +217,7 @@ public class ObserveServerSideTest {
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("C", "D").payload(respPayload).go();
 		serverInterceptor.log("// lost (3. retransmission)");
 
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("D").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("D").payload(respPayload).go();
 		serverInterceptor.log("// lost (4. retransmission)");
 
 		Thread.sleep(TIMEOUT + 100);
@@ -244,7 +244,7 @@ public class ObserveServerSideTest {
 		testObsResource.change("First notification " + generateRandomPayload(10));
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
 		serverInterceptor.log("// lost ");
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("B").payload(respPayload).go();
 
 		System.out.println("Reject notification");
 		client.sendEmpty(RST).loadMID("MID").go();
@@ -416,7 +416,7 @@ public class ObserveServerSideTest {
 		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").storeMID("MID_R").checkObs("B", "B").payload(respPayload).go();
 
 		// server re-transmits unACKed CON notification with unmodified payload and (repeated) MID
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID_R").loadObserve("B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID_R").loadObserve("B").payload(respPayload).go();
 
 		testObsResource.change("NON notification 3 " + generateRandomPayload(10));
 		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
