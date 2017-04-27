@@ -20,7 +20,16 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct mid check. issue #289
  *    Achim Kraus (Bosch Software Innovations GmbH) - use option names for logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename loadMID into sameMID
- *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
+ *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add smart deduplication filter.
+ *                                                    filter messages based on the last
+ *                                                    received messages and the current 
+ *                                                    expectation. If the test expect the
+ *                                                    message to be repeated, add the mid 
+ *                                                    expectation. Change type(Type type)
+ *                                                    to accept multiple types (Type... types).
+ *                                                    Changed reponseType in type(Type... types)
+ *                                                    and storeType().
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -31,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +70,14 @@ public class LockstepEndpoint {
 	private UDPConnector connector;
 	private InetSocketAddress destination;
 	private LinkedBlockingQueue<RawData> incoming;
+	/**
+	 * Last incoming message.
+	 * 
+	 * Deduplication is based on that last received message.
+	 * 
+	 * @see #receiveNextMessage(MidExpectation)
+	 */
+	private Message lastIncomingMessage;
 
 	private HashMap<String, Object> storage;
 
@@ -119,6 +137,35 @@ public class LockstepEndpoint {
 
 	public Object get(String var) {
 		return storage.get(var);
+	}
+
+	/**
+	 * Get MID from stored values.
+	 * 
+	 * The MID may be stored either by
+	 * {@link MessageExpectation#storeMID(String)} or
+	 * {@link MessageExpectation#storeBoth(String)}.
+	 * 
+	 * @param var name of variable
+	 * @return MID
+	 * @throws NoSuchElementException, if nothing so stored under the name, or
+	 *             the item doesn't contain a MID.
+	 */
+	public int getMID(String var) {
+		Object item = storage.get(var);
+		if (null != item) {
+			if (item instanceof Integer) {
+				// saveMID
+				return (Integer) item;
+			}
+			if (item instanceof Object[]) {
+				// saveBoth
+				Object[] items = (Object[]) item;
+				return (Integer) items[0];
+			}
+			throw new NoSuchElementException("Variable '" + var + "' is no MID (" + item.getClass() + ")");
+		}
+		throw new NoSuchElementException("No variable '" + var + "'");
 	}
 
 	public RequestExpectation expectRequest() {
@@ -189,8 +236,71 @@ public class LockstepEndpoint {
 		this.destination = destination;
 	}
 
-	public abstract class MessageExpectation implements Action {
+	/**
+	 * Receive next message.
+	 * 
+	 * Apply smart deduplication based on {@link #lastIncomingMessage} and the
+	 * MID, if the repeated MID is not expected. If no next message arrives,
+	 * reports an assert.
+	 * 
+	 * <code>
+	 *    ... expectRequest.storeMID("A").type(CON) ...
+	 * 
+	 *        // wait until retransmission
+	 * 
+	 *        // OK, expecting the MID suppresses deduplication
+	 *    ... expectRequest.sameMID("A").type(CON) ... 
+	 *        // will fail, not expecting the MID, 
+	 *        // the retransmission would be dropped by deduplication
+	 *    ... expectRequest.type(CON)... 
+	 * 
+	 * </code>
+	 * 
+	 * MID expectations are based on {@link MessageExpectation#mid(int)},
+	 * {@link MessageExpectation#sameMID(String)} or
+	 * {@link MessageExpectation#sameBoth(String)}.
+	 * 
+	 * @param midExpectation MID expectation
+	 * @return next received message
+	 * @throws InterruptedException if waiting for message is interrupted.
+	 */
+	public Message receiveNextMessage(MidExpectation midExpectation) throws InterruptedException {
+		while (true) {
+			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
+			Assert.assertNotNull("did not receive message within expected time frame (2 secs)", raw);
 
+			Message msg;
+			DataParser parser = new DataParser(raw.getBytes());
+			if (parser.isEmpty()) {
+				msg = parser.parseEmptyMessage();
+			} else if (parser.isResponse()) {
+				msg = parser.parseResponse();
+			} else if (parser.isRequest()) {
+				msg = parser.parseRequest();
+			} else {
+				Assert.fail("Message type unknown");
+				return null; // never reached
+			}
+			if (null != midExpectation && null != lastIncomingMessage && lastIncomingMessage.getMID() == msg.getMID()
+					&& lastIncomingMessage.getType() == msg.getType() && !midExpectation.expectMID(msg)) {
+				// received message with same MID but not expected
+				// => discard message!
+				print("discarding duplicate message: " + msg);
+			} else {
+				msg.setSource(raw.getAddress());
+				msg.setSourcePort(raw.getPort());
+				lastIncomingMessage = msg;
+				return msg;
+			}
+		}
+	}
+
+	public abstract class MessageExpectation implements Action, MidExpectation {
+
+		/**
+		 * List of MID expectation. Used for smart deduplication.
+		 */
+		private List<MidExpectation> midExpectations = new LinkedList<MidExpectation>();
 		private List<Expectation<Message>> expectations = new LinkedList<Expectation<Message>>();
 
 		public MessageExpectation mid(final int mid) {
@@ -201,6 +311,14 @@ public class LockstepEndpoint {
 					print("Correct MID: " + mid);
 				}
 			});
+			midExpectations.add(new MidExpectation() {
+
+				@Override
+				public boolean expectMID(Message message) {
+					return message.getMID() == mid;
+				}
+
+			});
 			return this;
 		}
 
@@ -208,20 +326,60 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					int expected = (Integer) storage.get(var);
+					int expected = getMID(var);
 					Assert.assertEquals("Wrong MID:", expected, message.getMID());
 					print("Correct MID: " + expected);
+				}
+			});
+			midExpectations.add(new MidExpectation() {
+
+				@Override
+				public boolean expectMID(Message message) {
+					int expected = getMID(var);
+					return message.getMID() == expected;
+				}
+
+			});
+			return this;
+		}
+
+		/**
+		 * Check, if the MID of the response is not already contained in the MID
+		 * set with the provided name. After the check, add the MID to the set.
+		 * 
+		 * Provides a fluent API to chain expectations.
+		 * 
+		 * @param var name of MID set
+		 * @return this MessageExpectation
+		 */
+		public MessageExpectation newMID(final String var) {
+			expectations.add(new Expectation<Message>() {
+
+				@Override
+				public void check(final Message response) {
+					final int mid = response.getMID();
+					@SuppressWarnings("unchecked")
+					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
+					if (usedMIDs != null && !usedMIDs.isEmpty()) {
+						Assert.assertFalse("MID: " + mid + " is not new! " + usedMIDs, usedMIDs.contains(mid));
+					}
+					if (usedMIDs == null) {
+						usedMIDs = new HashSet<Integer>();
+					}
+					usedMIDs.add(mid);
+					storage.put(var, usedMIDs);
 				}
 			});
 			return this;
 		}
 
-		public MessageExpectation type(final Type type) {
+		public MessageExpectation type(final Type... types) {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					Assert.assertEquals("Wrong type:", type, message.getType());
-					print("Correct type: " + type);
+					Type type = message.getType();
+					Assert.assertTrue("Unexpected type: " + type + ", expected: " + Arrays.toString(types),
+							Arrays.asList(types).contains(type));
 				}
 			});
 			return this;
@@ -338,11 +496,65 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		public MessageExpectation storeBoth(final String var) {
+			expectations.add(new Expectation<Message>() {
+
+				public void check(final Message request) {
+					Object[] pair = new Object[2];
+					pair[0] = request.getMID();
+					pair[1] = request.getToken();
+					storage.put(var, pair);
+				}
+			});
+			return this;
+		}
+
+		public MessageExpectation sameBoth(final String var) {
+			expectations.add(new Expectation<Message>() {
+
+				@Override
+				public void check(Message message) {
+					Object[] pair = (Object[]) storage.get(var);
+					Assert.assertEquals("Wrong MID:", pair[0], message.getMID());
+					Assert.assertArrayEquals("Wrong token:", (byte[]) pair[1], message.getToken());
+					print("Correct MID: " + message.getMID() + " and token: " + Utils.toHexString(message.getToken()));
+				}
+
+			});
+			midExpectations.add(new MidExpectation() {
+
+				@Override
+				public boolean expectMID(Message message) {
+					int expected = getMID(var);
+					return message.getMID() == expected;
+				}
+
+			});
+			return this;
+		}
+
 		public void check(Message message) {
 			for (Expectation<Message> expectation : expectations) {
 				expectation.check(message);
 			}
 		}
+
+		/**
+		 * Check, if the message with the contained MID is expected.
+		 * 
+		 * @param message message to check
+		 * @return true, message is expected, don't drop it for deduplication.
+		 *         false, message is not expected and could be dropped.
+		 */
+		public boolean expectMID(Message message) {
+			for (MidExpectation expectation : midExpectations) {
+				if (expectation.expectMID(message)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
 	}
 
 	public class RequestExpectation extends MessageExpectation {
@@ -356,7 +568,7 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public RequestExpectation type(final Type type) {
+		public RequestExpectation type(final Type... type) {
 			super.type(type);
 			return this;
 		}
@@ -416,15 +628,13 @@ public class LockstepEndpoint {
 		}
 
 		public RequestExpectation storeBoth(final String var) {
-			expectations.add(new Expectation<Request>() {
+			super.storeBoth(var);
+			return this;
+		}
 
-				public void check(final Request request) {
-					Object[] pair = new Object[2];
-					pair[0] = request.getMID();
-					pair[1] = request.getToken();
-					storage.put(var, pair);
-				}
-			});
+		@Override
+		public RequestExpectation sameBoth(final String var) {
+			super.sameBoth(var);
 			return this;
 		}
 
@@ -459,25 +669,18 @@ public class LockstepEndpoint {
 
 		@Override
 		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
-			Assert.assertNotNull("Did not receive a request (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
+			Message msg = receiveNextMessage(this);
 
-			if (parser.isRequest()) {
-				Request request = parser.parseRequest();
-				request.setSource(raw.getAddress());
-				request.setSourcePort(raw.getPort());
+			if (msg instanceof Request) {
+				Request request = (Request) msg;
 				check(request);
-
 			} else {
-				Assert.fail("Expected request but received " + parser);
+				Assert.fail("Expected request but received " + msg);
 			}
 		}
 	}
 
 	public class ResponseExpectation extends MessageExpectation {
-
-		private Response response;
 
 		private List<Expectation<Response>> expectations = new LinkedList<LockstepEndpoint.Expectation<Response>>();
 
@@ -488,7 +691,7 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public ResponseExpectation type(final Type type) {
+		public ResponseExpectation type(final Type... type) {
 			super.type(type);
 			return this;
 		}
@@ -547,55 +750,9 @@ public class LockstepEndpoint {
 			return this;
 		}
 
-		/**
-		 * Check, if the MID of the response is not already contained in the MID
-		 * set with the provided name. After the check, add MID to the set.
-		 * 
-		 * Provides a fluent API to chain expectations.
-		 * 
-		 * @param var name of MID set
-		 * @return this ResponseExpectation
-		 */
+		@Override
 		public ResponseExpectation newMID(final String var) {
-			expectations.add(new Expectation<Response>() {
-
-				@Override
-				public void check(final Response response) {
-					final int mid = response.getMID();
-					@SuppressWarnings("unchecked")
-					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
-					if (usedMIDs != null && !usedMIDs.isEmpty()) {
-						for (Integer usedMID : usedMIDs) {
-							if (mid == usedMID) {
-								Assert.fail("MID [" + mid + "] is not new! " + midsToString());
-							}
-						}
-					}
-					if (usedMIDs == null) {
-						usedMIDs = new HashSet<Integer>();
-					}
-					usedMIDs.add(mid);
-					storage.put(var, usedMIDs);
-				}
-
-				@Override
-				public String toString() {
-					return "Expected new MID, not " + midsToString();
-				}
-
-				private String midsToString() {
-					StringBuilder message = new StringBuilder("used MIDs [");
-					@SuppressWarnings("unchecked")
-					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
-					if (usedMIDs != null && !usedMIDs.isEmpty()) {
-						for (Integer mid : usedMIDs) {
-							message.append(mid).append(',');
-						}
-						message.setLength(message.length() - 1);
-					}
-					return message.append(']').toString();
-				}
-			});
+			super.newMID(var);
 			return this;
 		}
 
@@ -610,17 +767,12 @@ public class LockstepEndpoint {
 			return this;
 		}
 
-		public ResponseExpectation responseType(final String key, final Type... acceptable) {
+		public ResponseExpectation storeType(final String key) {
 			expectations.add(new Expectation<Response>() {
 
 				public void check(Response response) {
 					Type type = response.getType();
-					Assert.assertTrue("Unexpected type: " + type + ", expected: " + Arrays.toString(acceptable),
-							Arrays.asList(acceptable).contains(type));
-					print("Correct type: " + type);
-					if (key != null) {
-						storage.put(key, type);
-					}
+					storage.put(key, type);
 				}
 			});
 			return this;
@@ -683,17 +835,13 @@ public class LockstepEndpoint {
 		}
 
 		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
-			Assert.assertNotNull("Did not receive a response (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
+			Message msg = receiveNextMessage(this);
 
-			if (parser.isResponse()) {
-				this.response = parser.parseResponse();
-				response.setSource(raw.getAddress());
-				response.setSourcePort(raw.getPort());
+			if (msg instanceof Response) {
+				Response response = (Response) msg;
 				check(response);
 			} else {
-				Assert.fail("Expected response but received " + parser);
+				Assert.fail("Expected response but received " + msg);
 			}
 		}
 
@@ -708,16 +856,13 @@ public class LockstepEndpoint {
 
 		@Override
 		public void go() throws Exception {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take() ?
-			Assert.assertNotNull("Did not receive an empty message (but nothing)", raw);
-			DataParser parser = new DataParser(raw.getBytes());
-			if (parser.isEmpty()) {
-				EmptyMessage empty = parser.parseEmptyMessage();
-				empty.setSource(raw.getAddress());
-				empty.setSourcePort(raw.getPort());
+			Message msg = receiveNextMessage(this);
+
+			if (msg instanceof EmptyMessage) {
+				EmptyMessage empty = (EmptyMessage) msg;
 				check(empty);
 			} else {
-				Assert.fail("Expected empty message but received " + parser);
+				Assert.fail("Expected empty message but received " + msg);
 			}
 		}
 	}
@@ -754,8 +899,9 @@ public class LockstepEndpoint {
 			message.setType(type);
 			message.setToken(token);
 			message.setMID(mid);
-			for (Property<Message> property : properties)
+			for (Property<Message> property : properties) {
 				property.set(message);
+			}
 		}
 
 		public MessageProperty mid(final int mid) {
@@ -1028,4 +1174,10 @@ public class LockstepEndpoint {
 		 */
 		public void go() throws Exception;
 	}
+
+	public static interface MidExpectation {
+
+		public boolean expectMID(Message message);
+	}
+
 }
