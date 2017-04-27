@@ -55,7 +55,7 @@ public class MultiFormat extends CoapResource {
 	
 			case APPLICATION_XML:
 				response.getOptions().setContentFormat(APPLICATION_XML);
-				format = "<msg type=\"%s\" code=\"%s\" mid=%s accept=\"%s\"/>"; // should fit 64 bytes
+				format = "<msg type=\"%s\" code=\"%s\" mid=\"%i\" accept=\"%i\"/>"; // should fit 64 bytes
 				break;
 	
 			default:
@@ -69,7 +69,7 @@ public class MultiFormat extends CoapResource {
 						request.getType(), 
 						request.getCode(), 
 						request.getMID(),
-						MediaTypeRegistry.toString(request.getOptions().getAccept())) 
+						request.getOptions().getAccept()) // no MediaTypeRegistry.toString() to keep below 64 bytes
 				);
 
 		exchange.respond(response);
