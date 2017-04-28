@@ -24,6 +24,7 @@
  *                                                    (for message tracing)
  *                                                    set scheme on setOptions(URI)
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix empty uri query in getURI()
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -371,7 +372,8 @@ public class Request extends Message {
 	 * <p>
 	 * This method falls back to using <em>localhost</em> as the host part in
 	 * the returned URI if both the <em>destination</em> as well as the
-	 * <em>Uri-Host</em> option are {@code null}.
+	 * <em>Uri-Host</em> option are {@code null} (mostly when receiving a
+	 * request without a <em>Uri-Host</em> option).
 	 * 
 	 * @return The URI string.
 	 * @throws IllegalStateException if this request contains options and/or
@@ -384,6 +386,7 @@ public class Request extends Message {
 			if (getDestination() != null) {
 				host = getDestination().getHostAddress();
 			} else {
+				// used during construction or when receiving
 				host = "localhost";
 			}
 		}
@@ -401,11 +404,14 @@ public class Request extends Message {
 		} else {
 			port = -1;
 		}
-		String path = new StringBuilder("/").append(getOptions().getUriPathString()).toString();
-		String query = getOptions().getUriQueryString();
+		// according RFC7252, section 6.5, item 7, a empty resource name is represented by "/" as path. 
+		// therefore always use the leading "/", even if the uri path is empty. 
+		String path = "/" + getOptions().getUriPathString();
+		String query = getOptions().getURIQueryCount() > 0 ? getOptions().getUriQueryString() : null;
 		try {
 			URI uri = new URI(getScheme(), null, host, port, path, query, null);
-			return uri.toASCIIString();
+			// ensure, that non-ascii characters are "percent-encoded"
+			return uri.toASCIIString();  
 		} catch (URISyntaxException e) {
 			throw new IllegalStateException("cannot create URI from request", e);
 		}
