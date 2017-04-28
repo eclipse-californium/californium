@@ -35,6 +35,7 @@
  *                                      (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce synchronized getSocket()
  *                                                    as pair to synchronized releaseSocket().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - restart internal executor
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -421,6 +422,7 @@ public class DTLSConnector implements Connector {
 			timer.shutdownNow();
 			if (hasInternalExecutor) {
 				executor.shutdownNow();
+				executor = null;
 				hasInternalExecutor = false;
 			}
 			releaseSocket();
