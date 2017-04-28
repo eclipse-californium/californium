@@ -36,6 +36,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CorrelationContextMatcher
  *                                                    for outgoing messages
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce synchronized getSocket()
+ *                                                    as pair to synchronized releaseSocket().
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -424,6 +426,10 @@ public class DTLSConnector implements Connector {
 		maximumTransmissionUnit = 0;
 	}
 
+	private final synchronized DatagramSocket getSocket() {
+		return socket;
+	}
+
 	@Override
 	public final synchronized void stop() {
 		if (running.get()) {
@@ -457,10 +463,16 @@ public class DTLSConnector implements Connector {
 
 		byte[] buffer = new byte[inboundDatagramBufferSize];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-		synchronized (socket) {
+		DatagramSocket socket = getSocket();
+		if (socket == null) {
+			// very unlikely race condition.
+			return;
+		}
+		
+		synchronized(socket) {
 			socket.receive(packet);
 		}
-
+		
 		if (packet.getLength() == 0) {
 			// nothing to do
 			return;
@@ -1473,9 +1485,11 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void sendDatagram(DatagramPacket datagramPacket) throws IOException {
-		if (!socket.isClosed()) {
+		DatagramSocket socket = getSocket();
+		if (socket != null && !socket.isClosed()) {
 			socket.send(datagramPacket);
 		} else {
+			
 			LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
 		}
 	}
@@ -1591,6 +1605,7 @@ public class DTLSConnector implements Connector {
 	 */
 	@Override
 	public final InetSocketAddress getAddress() {
+		DatagramSocket socket = getSocket();
 		if (socket == null) {
 			return config.getAddress();
 		} else {
