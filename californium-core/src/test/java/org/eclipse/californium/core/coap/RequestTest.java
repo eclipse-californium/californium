@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for getURI() with
+ *                                                    empty path and empty uri query
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -125,6 +127,36 @@ public class RequestTest {
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
 		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
 		assertThat(req.getDestinationPort(), is(dest.getPort()));
+	}
+
+	/**
+	 * Verifies that a URI without "path" and "query part" is well formed.
+	 */
+	@Test
+	public void testGetURIWithoutPathAndQuery() {
+		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
+		String uri = req.getURI();
+		assertThat(uri, is("coap://192.168.0.1:12000/"));
+	}
+
+	/**
+	 * Verifies that a URI with "path" and without "query part" is well formed.
+	 */
+	@Test
+	public void testGetURIWithPathAndWithoutQuery() {
+		Request req = Request.newGet().setURI("coap://192.168.0.1:12000/30/40");
+		String uri = req.getURI();
+		assertThat(uri, is("coap://192.168.0.1:12000/30/40"));
+	}
+
+	/**
+	 * Verifies that a URI without "path" and with "query part" is well formed.
+	 */
+	@Test
+	public void testGetURIWithoutPathAndWithQuery() {
+		Request req = Request.newGet().setURI("coap://192.168.0.1:12000?parameter");
+		String uri = req.getURI();
+		assertThat(uri, is("coap://192.168.0.1:12000/?parameter"));
 	}
 
 	/**
