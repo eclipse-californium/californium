@@ -18,10 +18,11 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - add key for selecting strict request/response matching
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add InputStream support for environments
+ *                                                    without file access.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -32,7 +33,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
@@ -64,16 +64,18 @@ public final class NetworkConfig {
 		/**
 		 * The maximum number of active peers supported.
 		 * <p>
-		 * An active peer is a node with which we exchange CoAP messages.
-		 * For each active peer we need to maintain some state, e.g. we need
-		 * to keep track of MIDs and tokens in use with the peer. It
-		 * therefore is reasonable to limit the number of peers so that
-		 * memory consumption can be better predicted.
+		 * An active peer is a node with which we exchange CoAP messages. For
+		 * each active peer we need to maintain some state, e.g. we need to keep
+		 * track of MIDs and tokens in use with the peer. It therefore is
+		 * reasonable to limit the number of peers so that memory consumption
+		 * can be better predicted.
 		 * <p>
- 		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_MAX_ACTIVE_PEERS}.
- 		 * <p>
- 		 * For clients this value can safely be set to a small one or two digit number as
- 		 * most clients will only communicate with a small set of peers (servers).
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_MAX_ACTIVE_PEERS}.
+		 * <p>
+		 * For clients this value can safely be set to a small one or two digit
+		 * number as most clients will only communicate with a small set of
+		 * peers (servers).
 		 */
 		public static final String MAX_ACTIVE_PEERS = "MAX_ACTIVE_PEERS";
 		/**
@@ -102,40 +104,49 @@ public final class NetworkConfig {
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
 		/**
-		 * The block size (number of bytes) to use when doing a blockwise transfer.
-		 * This value serves as the upper limit for block size in blockwise transfers.
+		 * The block size (number of bytes) to use when doing a blockwise
+		 * transfer. This value serves as the upper limit for block size in
+		 * blockwise transfers.
 		 */
 		public static final String PREFERRED_BLOCK_SIZE = "PREFERRED_BLOCK_SIZE";
 		/**
-		 * The maximum payload size (in bytes) that can be transferred in a single message,
-		 * i.e. without requiring a blockwise transfer.
+		 * The maximum payload size (in bytes) that can be transferred in a
+		 * single message, i.e. without requiring a blockwise transfer.
 		 * 
-		 * NB: this value MUST be adapted to the maximum message size supported by the
-		 * transport layer. In particular, this value cannot exceed the network's MTU if
-		 * UDP is used as the transport protocol.
+		 * NB: this value MUST be adapted to the maximum message size supported
+		 * by the transport layer. In particular, this value cannot exceed the
+		 * network's MTU if UDP is used as the transport protocol.
 		 */
 		public static final String MAX_MESSAGE_SIZE = "MAX_MESSAGE_SIZE";
 		/**
-		 * The maximum size of a resource body (in bytes) that will be accepted as the payload of a
-		 * POST/PUT or the response to a GET request in a <em>transparent</em> blockwise transfer.
+		 * The maximum size of a resource body (in bytes) that will be accepted
+		 * as the payload of a POST/PUT or the response to a GET request in a
+		 * <em>transparent</em> blockwise transfer.
 		 * <p>
-		 * This option serves as a safeguard against excessive memory consumption when many resources
-		 * contain large bodies that cannot be transferred in a single CoAP message. This option
-		 * has no impact on *manually* managed blockwise transfers in which the blocks are handled
-		 * individually.
-		 * <p>Note that this option does not prevent local clients or resource implementations from
-		 * sending large bodies as part of a request or response to a peer.
+		 * This option serves as a safeguard against excessive memory
+		 * consumption when many resources contain large bodies that cannot be
+		 * transferred in a single CoAP message. This option has no impact on
+		 * *manually* managed blockwise transfers in which the blocks are
+		 * handled individually.
 		 * <p>
-		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_MAX_RESOURCE_BODY_SIZE}.
+		 * Note that this option does not prevent local clients or resource
+		 * implementations from sending large bodies as part of a request or
+		 * response to a peer.
 		 * <p>
-		 * A value of {@code 0} turns off transparent handling of blockwise transfers altogether.
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_MAX_RESOURCE_BODY_SIZE}.
+		 * <p>
+		 * A value of {@code 0} turns off transparent handling of blockwise
+		 * transfers altogether.
 		 */
 		public static final String MAX_RESOURCE_BODY_SIZE = "MAX_RESOURCE_BODY_SIZE";
 		/**
-		 * The maximum amount of time (in milliseconds) allowed between transfers of individual
-		 * blocks in a blockwise transfer before the blockwise transfer state is discarded.
+		 * The maximum amount of time (in milliseconds) allowed between
+		 * transfers of individual blocks in a blockwise transfer before the
+		 * blockwise transfer state is discarded.
 		 * <p>
-		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
 		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
 
@@ -158,20 +169,21 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
 		/**
-		 * The interval after which the next sweep run should occur (in MILLISECONDS).
+		 * The interval after which the next sweep run should occur (in
+		 * MILLISECONDS).
 		 */
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
 		public static final String USE_STRICT_RESPONSE_MATCHING = "USE_STRICT_RESPONSE_MATCHING";
-		
+
 		public static final String HTTP_PORT = "HTTP_PORT";
 		public static final String HTTP_SERVER_SOCKET_TIMEOUT = "HTTP_SERVER_SOCKET_TIMEOUT";
 		public static final String HTTP_SERVER_SOCKET_BUFFER_SIZE = "HTTP_SERVER_SOCKET_BUFFER_SIZE";
 		public static final String HTTP_CACHE_RESPONSE_MAX_AGE = "HTTP_CACHE_RESPONSE_MAX_AGE";
 		public static final String HTTP_CACHE_SIZE = "HTTP_CACHE_SIZE";
-		
+
 		public static final String HEALTH_STATUS_PRINT_LEVEL = "HEALTH_STATUS_PRINT_LEVEL";
 		public static final String HEALTH_STATUS_INTERVAL = "HEALTH_STATUS_INTERVAL";
 
@@ -216,9 +228,28 @@ public final class NetworkConfig {
 	}
 
 	/**
+	 * Creates the standard from stream.
+	 *
+	 * Support environments without file access.
+	 * 
+	 * @param inStream input stream to read properties.
+	 * @return the configuration
+	 */
+	public static NetworkConfig createStandardFromStream(InputStream inStream) {
+		LOGGER.config("Creating standard network configuration properties from stream");
+		standard = new NetworkConfig();
+		try {
+			standard.load(inStream);
+		} catch (IOException e) {
+			LOGGER.log(Level.WARNING, "cannot load properties from stream: {0}", e.getMessage());
+		}
+		return standard;
+	}
+
+	/**
 	 * Creates the standard with a file. If the file with the name
-	 * {@link #DEFAULT_FILE_NAME} exists, the configuration reads the properties from this
-	 * file. Otherwise it creates the file.
+	 * {@link #DEFAULT_FILE_NAME} exists, the configuration reads the properties
+	 * from this file. Otherwise it creates the file.
 	 * 
 	 * @param file the configuration file
 	 * @return the network configuration
@@ -253,17 +284,26 @@ public final class NetworkConfig {
 			throw new NullPointerException("file must not be null");
 		} else {
 			LOGGER.log(Level.INFO, "loading properties from file {0}", file.getAbsolutePath());
-			InputStream inStream = null;
-			try {
-				inStream = new FileInputStream(file);
-				properties.load(inStream);
+			try (InputStream inStream = new FileInputStream(file)) {
+				load(inStream);
 			} catch (IOException e) {
 				LOGGER.log(Level.WARNING, "cannot load properties from file {0}: {1}",
-						new Object[]{file.getAbsolutePath(), e.getMessage()});
-			} finally {
-				closeStream(inStream);
+						new Object[] { file.getAbsolutePath(), e.getMessage() });
 			}
 		}
+	}
+
+	/**
+	 * Loads properties from a input stream.
+	 *
+	 * @param inStream the input stream
+	 * @throws NullPointerException if the inStream is {@code null}.
+	 */
+	public void load(final InputStream inStream) throws IOException {
+		if (inStream == null) {
+			throw new NullPointerException("input stream must not be null");
+		}
+		properties.load(inStream);
 	}
 
 	/**
@@ -288,25 +328,11 @@ public final class NetworkConfig {
 			throw new NullPointerException("file must not be null");
 		} else {
 			LOGGER.log(Level.INFO, "writing properties to file {0}", file.getAbsolutePath());
-			FileWriter writer = null;
-			try {
-				writer = new FileWriter(file);
+			try (FileWriter writer = new FileWriter(file)) {
 				properties.store(writer, header);
 			} catch (IOException e) {
 				LOGGER.log(Level.WARNING, "cannot write properties to file {0}: {1}",
-						new Object[]{file.getAbsolutePath(), e.getMessage()});
-			} finally {
-				closeStream(writer);
-			}
-		}
-	}
-
-	private static void closeStream(final Closeable stream) {
-		if (stream != null) {
-			try {
-				stream.close();
-			} catch (IOException e) {
-				// ignore
+						new Object[] { file.getAbsolutePath(), e.getMessage() });
 			}
 		}
 	}
@@ -315,7 +341,8 @@ public final class NetworkConfig {
 	 * Gets the string value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value or {@code null} if this configuration does not contain the given key.
+	 * @return the value or {@code null} if this configuration does not contain
+	 *         the given key.
 	 */
 	public String getString(final String key) {
 		return properties.getProperty(key);
@@ -326,8 +353,8 @@ public final class NetworkConfig {
 	 *
 	 * @param key the key the key to look up.
 	 * @param defaultValue the default value.
-	 * @return the value for the key if this configuration contains a value for the key,
-	 *         otherwise the default value.
+	 * @return the value for the key if this configuration contains a value for
+	 *         the key, otherwise the default value.
 	 */
 	public String getString(final String key, final String defaultValue) {
 		String result = properties.getProperty(key);
@@ -338,8 +365,8 @@ public final class NetworkConfig {
 	 * Gets the integer value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value for the key or {@code 0} if this configuration does not contain a value
-	 *         for the given key or the value is not an integer.
+	 * @return the value for the key or {@code 0} if this configuration does not
+	 *         contain a value for the given key or the value is not an integer.
 	 */
 	public int getInt(final String key) {
 		return getInt(key, 0);
@@ -349,12 +376,14 @@ public final class NetworkConfig {
 	 * Gets the integer value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @param defaultValue the default value to return if there is no value registered for the key.
-	 * @return the value for the key if this configuration contains a value for the key
-	 *         and the value is an integer, otherwise the default value.
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the value for the key if this configuration contains a value for
+	 *         the key and the value is an integer, otherwise the default value.
 	 */
 	public int getInt(final String key, final int defaultValue) {
 		return getNumberValue(new PropertyParser<Integer>() {
+
 			@Override
 			public Integer parseValue(String value) {
 				return Integer.parseInt(value);
@@ -366,8 +395,8 @@ public final class NetworkConfig {
 	 * Gets the long value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value for the key or {@code 0} if this configuration does not contain a value
-	 *         for the given key or the value is not a long.
+	 * @return the value for the key or {@code 0} if this configuration does not
+	 *         contain a value for the given key or the value is not a long.
 	 */
 	public long getLong(final String key) {
 		return getLong(key, 0L);
@@ -377,12 +406,14 @@ public final class NetworkConfig {
 	 * Gets the long value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @param defaultValue the default value to return if there is no value registered for the key.
-	 * @return the value for the key if this configuration contains a value for the key
-	 *         and the value is a long, otherwise the default value.
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the value for the key if this configuration contains a value for
+	 *         the key and the value is a long, otherwise the default value.
 	 */
 	public long getLong(final String key, final long defaultValue) {
 		return getNumberValue(new PropertyParser<Long>() {
+
 			@Override
 			public Long parseValue(String value) {
 				return Long.parseLong(value);
@@ -394,8 +425,9 @@ public final class NetworkConfig {
 	 * Gets the float value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value for the key or {@code 0.0} if this configuration does not contain a value
-	 *         for the given key or the value is not a float.
+	 * @return the value for the key or {@code 0.0} if this configuration does
+	 *         not contain a value for the given key or the value is not a
+	 *         float.
 	 */
 	public float getFloat(final String key) {
 		return getFloat(key, 0.0F);
@@ -405,12 +437,14 @@ public final class NetworkConfig {
 	 * Gets the float value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @param defaultValue the default value to return if there is no value registered for the key.
-	 * @return the value for the key if this configuration contains a value for the key
-	 *         and the value is a float, otherwise the default value.
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the value for the key if this configuration contains a value for
+	 *         the key and the value is a float, otherwise the default value.
 	 */
 	public float getFloat(final String key, final float defaultValue) {
 		return getNumberValue(new PropertyParser<Float>() {
+
 			@Override
 			public Float parseValue(String value) {
 				return Float.parseFloat(value);
@@ -422,8 +456,9 @@ public final class NetworkConfig {
 	 * Gets the double value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value for the key or {@code 0.0} if this configuration does not contain a value
-	 *         for the given key or the value is not a double.
+	 * @return the value for the key or {@code 0.0} if this configuration does
+	 *         not contain a value for the given key or the value is not a
+	 *         double.
 	 */
 	public double getDouble(final String key) {
 		return getDouble(key, 0.0D);
@@ -433,12 +468,14 @@ public final class NetworkConfig {
 	 * Gets the double value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @param defaultValue the default value to return if there is no value registered for the key.
-	 * @return the value for the key if this configuration contains the key
-	 *         and the value is an double, otherwise the default value.
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the value for the key if this configuration contains the key and
+	 *         the value is an double, otherwise the default value.
 	 */
 	public double getDouble(final String key, final double defaultValue) {
 		return getNumberValue(new PropertyParser<Double>() {
+
 			@Override
 			public Double parseValue(String value) {
 				return Double.parseDouble(value);
@@ -453,10 +490,8 @@ public final class NetworkConfig {
 			try {
 				result = parser.parseValue(value);
 			} catch (NumberFormatException e) {
-				LOGGER.log(
-						Level.WARNING,
-						"value for key [{0}] is not a {1}, returning default value",
-						new Object[]{key, defaultValue.getClass()});
+				LOGGER.log(Level.WARNING, "value for key [{0}] is not a {1}, returning default value",
+						new Object[] { key, defaultValue.getClass() });
 			}
 		} else {
 			LOGGER.log(Level.WARNING, "key [{0}] is undefined, returning default value", key);
@@ -481,6 +516,7 @@ public final class NetworkConfig {
 	}
 
 	private interface PropertyParser<T> {
+
 		T parseValue(String value);
 	}
 
@@ -498,7 +534,7 @@ public final class NetworkConfig {
 			throw new NullPointerException("value must not be null");
 		} else {
 			properties.put(key, String.valueOf(value));
-			for (NetworkConfigObserver obs:observers) {
+			for (NetworkConfigObserver obs : observers) {
 				obs.changed(key, value);
 			}
 			return this;
