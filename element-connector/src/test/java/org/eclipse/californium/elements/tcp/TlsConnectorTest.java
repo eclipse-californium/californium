@@ -18,6 +18,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - use ConnectorTestUtil
  * Achim Kraus (Bosch Software Innovations GmbH) - use create server address
  *                                                 (LoopbackAddress)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add NUMBER_OF_CONNECTIONS
+ *                                                 and reduce it to 50
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -59,6 +61,7 @@ public class TlsConnectorTest {
 
 	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
 
+	private static final int NUMBER_OF_CONNECTIONS = 50;
 	private static final int NUMBER_OF_THREADS = 1;
 	private static final int IDLE_TIMEOUT = 100;
 	private static KeyManager[] keyManagers;
@@ -137,7 +140,6 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int clients = 100;
 		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
 		assertThat(server.getUri().getScheme(), is("coaps+tcp"));
@@ -148,7 +150,7 @@ public class TlsConnectorTest {
 		server.start();
 
 		List<RawData> messages = new ArrayList<>();
-		for (int i = 0; i < clients; i++) {
+		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
@@ -160,8 +162,8 @@ public class TlsConnectorTest {
 			client.send(msg);
 		}
 
-		serverCatcher.blockUntilSize(clients);
-		for (int i = 0; i < clients; i++) {
+		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS);
+		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			RawData received = serverCatcher.getMessage(i);
 
 			// Make sure that we intended to send that message
