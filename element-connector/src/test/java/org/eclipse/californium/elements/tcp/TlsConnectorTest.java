@@ -16,6 +16,10 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - implement checkServerTrusted
  *                                                 to check the DN more relaxed.
  * Achim Kraus (Bosch Software Innovations GmbH) - use ConnectorTestUtil
+ * Achim Kraus (Bosch Software Innovations GmbH) - use create server address
+ *                                                 (LoopbackAddress)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add NUMBER_OF_CONNECTIONS
+ *                                                 and reduce it to 50
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -56,6 +60,7 @@ public class TlsConnectorTest {
 
 	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
 
+	private static final int NUMBER_OF_CONNECTIONS = 50;
 	private static final int NUMBER_OF_THREADS = 1;
 	private static final int IDLE_TIMEOUT = 100;
 	private static KeyManager[] keyManagers;
@@ -105,8 +110,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-				NUMBER_OF_THREADS, IDLE_TIMEOUT);
+		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0), NUMBER_OF_THREADS,
+				IDLE_TIMEOUT);
 		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
 
 		Catcher serverCatcher = new Catcher();
@@ -134,9 +139,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		int clients = 100;
-		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-				NUMBER_OF_THREADS, IDLE_TIMEOUT);
+		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0), NUMBER_OF_THREADS,
+				IDLE_TIMEOUT);
 		cleanup.add(server);
 
 		Catcher serverCatcher = new Catcher();
@@ -144,7 +148,7 @@ public class TlsConnectorTest {
 		server.start();
 
 		List<RawData> messages = new ArrayList<>();
-		for (int i = 0; i < clients; i++) {
+		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
@@ -156,8 +160,8 @@ public class TlsConnectorTest {
 			client.send(msg);
 		}
 
-		serverCatcher.blockUntilSize(clients);
-		for (int i = 0; i < clients; i++) {
+		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS);
+		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			RawData received = serverCatcher.getMessage(i);
 
 			// Make sure that we intended to send that message
@@ -177,8 +181,8 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-					NUMBER_OF_THREADS, IDLE_TIMEOUT);
+			TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0), NUMBER_OF_THREADS,
+					IDLE_TIMEOUT);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
 			server.setRawDataReceiver(serverCatcher);
@@ -217,9 +221,10 @@ public class TlsConnectorTest {
 		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
 			for (X509Certificate cert : x509Certificates) {
 				cert.checkValidity();
-				/* only check, if the subject DN starts with the expected name */
-				if (cert.getSubjectDN().getName()
-						.startsWith("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-")) {
+				/*
+				 * only check, if the subject DN starts with the expected name
+				 */
+				if (cert.getSubjectDN().getName().startsWith("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-")) {
 					return;
 				}
 			}
@@ -227,8 +232,8 @@ public class TlsConnectorTest {
 				LOGGER.log(Level.WARNING, "Untrusted certificate from {0}", cert.getSubjectDN().getName());
 			}
 			if (0 < x509Certificates.length) {
-				throw new CertificateException("Unexpected domain name: "
-						+ x509Certificates[0].getSubjectDN().getName());
+				throw new CertificateException(
+						"Unexpected domain name: " + x509Certificates[0].getSubjectDN().getName());
 			} else {
 				throw new CertificateException("Certificates missing!");
 			}
