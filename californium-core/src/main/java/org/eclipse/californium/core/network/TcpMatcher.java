@@ -24,6 +24,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - processing of notifies according UdpMatcher.
  * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
  * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
+ * Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
+ *                                                 complete exchange. Issue #103
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -183,6 +185,10 @@ public final class TcpMatcher extends BaseMatcher {
 
 		@Override
 		public void completed(final Exchange exchange) {
+			if (exchange.isComplete()) {
+				// not for completeCurrentRequest
+				exchange.setBlockCleanupHandle(null);
+			}
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());

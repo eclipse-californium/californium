@@ -23,6 +23,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
  * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  * Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
+ * Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
+ *                                                 complete exchange. Issue #103
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -402,7 +404,10 @@ public final class UdpMatcher extends BaseMatcher {
 			 * Logging in this method leads to significant performance loss.
 			 * Uncomment logging code only for debugging purposes.
 			 */
-
+			if (exchange.isComplete()) {
+				// not for completeCurrentRequest
+				exchange.setBlockCleanupHandle(null);
+			}
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 

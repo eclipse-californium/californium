@@ -18,6 +18,9 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check, if exchange is already
+ *                                                    completed before report timeout.
+ *                                                    Issue #103
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -892,12 +895,14 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			if (exchange.getRequest() == null) {
-				LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
-			} else {
-				LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
+			if (!exchange.isComplete()) {
+				if (exchange.getRequest() == null) {
+					LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
+				} else {
+					LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
+				}
+				exchange.setComplete();
 			}
-			exchange.setComplete();
 		}
 	}
 
