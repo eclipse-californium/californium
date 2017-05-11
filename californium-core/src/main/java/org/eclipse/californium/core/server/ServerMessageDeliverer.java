@@ -149,7 +149,8 @@ public final class ServerMessageDeliverer implements MessageDeliverer {
 		Resource current = root;
 		while (!path.isEmpty() && current != null) {
 			String name = path.removeFirst();
-			current = current.getChild(name);
+			String sanitizedName = java.net.URLDecoder.decode(name, "UTF-8");
+			current = current.getChild(sanitizedName);
 		}
 		return current;
 	}
