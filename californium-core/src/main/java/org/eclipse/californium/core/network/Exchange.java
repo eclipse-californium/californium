@@ -20,6 +20,8 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - ensure states visibility for
  *                                                    different threads
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct exception text for
+ *                                                    invalid MIDs.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -626,7 +628,7 @@ public class Exchange {
 		 */
 		private KeyMID(final int mid, final byte[] address, final int port) {
 			if (mid < 0 || mid > 1 << 16) {
-				throw new IllegalArgumentException("MID must not be a 16 bit unsigned int");
+				throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
 			} else if (address == null) {
 				throw new NullPointerException("address must not be null");
 			} else if (port < 0 || port > MAX_PORT_NO) {
