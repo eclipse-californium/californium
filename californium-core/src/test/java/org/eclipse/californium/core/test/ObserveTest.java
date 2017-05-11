@@ -19,6 +19,8 @@
  *    Achim Kraus - fixing race condition and visibility
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for 
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for reregister
+ *                                                    issue #56 
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -92,8 +94,10 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ObserveTest {
+
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
 
 	static final String TARGET_X = "resX";
 	static final String TARGET_Y = "resY";
@@ -227,6 +231,46 @@ public class ObserveTest {
 		assertEquals(1, notificationCounter.get());
 		assertEquals(repeat, resetCounter.get()); // repeat RST received
 		// no RST delivered (interceptor)
+		assertEquals(1, resourceX.getObserverCount());
+	}
+
+	@Test
+	public void testObserveClientReregister() throws Exception {
+		resourceX.setObserveType(Type.NON);
+
+		final int repeat = 3;
+
+		CoapClient client = new CoapClient(uriX);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		assertFalse("Response not received", rel.isCanceled());
+
+		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		for (int i = 0; i < repeat; ++i) {
+			resourceX.changed("client");
+			Thread.sleep(50);
+		}
+
+		assertTrue(handler.waitForLoadCalls(1 + repeat, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse(rel.isCanceled());
+		rel.reregister();
+		assertFalse(rel.isCanceled());
+
+		assertTrue(handler.waitForLoadCalls(2 + repeat, 1000, TimeUnit.MILLISECONDS));
+
+		System.out.println(uriX + " reregistered");
+
+		assertFalse(rel.isCanceled());
+
+		for (int i = 0; i < repeat; ++i) {
+			resourceX.changed("client");
+			Thread.sleep(50);
+		}
+
+		assertTrue(handler.waitForLoadCalls(2 + repeat + repeat, 1000, TimeUnit.MILLISECONDS));
 		assertEquals(1, resourceX.getObserverCount());
 	}
 
@@ -462,5 +506,43 @@ public class ObserveTest {
 			System.out.println("Resource " + getName() + " changed to " + currentResponse);
 		}
 
+	}
+
+	private class CountingHandler implements CoapHandler {
+
+		public AtomicInteger loadCalls = new AtomicInteger();
+		public AtomicInteger errorCalls = new AtomicInteger();
+
+		@Override
+		public void onLoad(CoapResponse response) {
+			int counter;
+			synchronized (this) {
+				counter = loadCalls.incrementAndGet();
+				notifyAll();
+			}
+			System.out.println("Received " + counter + ". Notification: " + response.advanced());
+		}
+
+		@Override
+		public void onError() {
+			int counter = errorCalls.incrementAndGet();
+			System.out.println("Received " + counter + ". Error!");
+		}
+
+		public synchronized boolean waitForLoadCalls(final int counter, final long timeout, final TimeUnit unit)
+				throws InterruptedException {
+			if (0 < timeout) {
+				long end = System.nanoTime() + unit.toNanos(timeout);
+				while (loadCalls.get() < counter) {
+					long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
+					if (0 < left) {
+						wait(left);
+					} else {
+						break;
+					}
+				}
+			}
+			return loadCalls.get() >= counter;
+		}
 	}
 }
