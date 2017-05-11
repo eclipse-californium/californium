@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check, if exchange is already
+ *                                                    completed before report timeout.
+ *                                                    Issue #103
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -680,12 +683,14 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			if (exchange.getRequest()==null) {
-				LOGGER.info("Block1 transfer timed out: " + exchange.getCurrentRequest());
-			} else {
-				LOGGER.info("Block2 transfer timed out: " + exchange.getRequest());
+			if (!exchange.isComplete()) {
+				if (exchange.getRequest()==null) {
+					LOGGER.info("Block1 transfer timed out: " + exchange.getCurrentRequest());
+				} else {
+					LOGGER.info("Block2 transfer timed out: " + exchange.getRequest());
+				}
+				exchange.setComplete();
 			}
-			exchange.setComplete();
 		}
 	}
 
