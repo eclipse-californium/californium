@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use onResponse of CoapObserveRelation
+ *                                                    to order notifies and responses.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -884,9 +886,9 @@ public class CoapClient {
 			// relation should remove this listener when the request is cancelled
 			relation.setNotificationListener(notificationListener);
 			CoapResponse response = synchronous(request, outEndpoint);
-			if (response == null || !response.advanced().getOptions().hasObserve())
+			if (response == null || !response.advanced().getOptions().hasObserve()) {
 				relation.setCanceled(true);
-			relation.setCurrent(response);
+			}
 			return relation;
 		} else {
 			throw new IllegalArgumentException("please make sure that the request has observe option set.");
@@ -1164,9 +1166,7 @@ public class CoapClient {
 		 */
 		@Override protected void deliver(CoapResponse response) {
 			synchronized (relation) {
-				if (relation.getOrderer().isNew(response.advanced())) {
-					relation.setCurrent(response);
-					relation.prepareReregistration(response, 2000);
+				if (relation.onResponse(response)) {
 					handler.onLoad(response);
 				} else {
 					LOGGER.log(Level.FINER, "Dropping old notification: {0}", response.advanced());
