@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use onResponse of CoapObserveRelation
+ *                                                    to order notifies and responses.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -857,14 +859,18 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	private CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		CoapResponse response = synchronous(request, outEndpoint);
-		if (response == null || !response.advanced().getOptions().hasObserve())
-			relation.setCanceled(true);
-		relation.setCurrent(response);
-		return relation;
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			CoapResponse response = synchronous(request, outEndpoint);
+			if (response == null || !response.advanced().getOptions().hasObserve()) {
+				relation.setCanceled(true);
+			}
+			return relation;
+		} else {
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
+		}
 	}
 	
 	/*
@@ -876,11 +882,15 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 */
 	private CoapObserveRelation observe(Request request, CoapHandler handler) {
-		Endpoint outEndpoint = getEffectiveEndpoint(request);
-		CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
-		request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
-		send(request, outEndpoint);
-		return relation;
+		if (request.getOptions().hasObserve()) {
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
+			send(request, outEndpoint);
+			return relation;
+		} else {
+			throw new IllegalArgumentException("please make sure that the request has observe option set.");
+		}
 	}
 	
 	/**
@@ -1053,9 +1063,7 @@ public class CoapClient {
 		 */
 		@Override protected void deliver(CoapResponse response) {
 			synchronized (relation) {
-				if (relation.getOrderer().isNew(response.advanced())) {
-					relation.setCurrent(response);
-					relation.prepareReregistration(response, 2000);
+				if (relation.onResponse(response)) {
 					handler.onLoad(response);
 				} else {
 					LOGGER.finer("Dropping old notification: "+response.advanced());
