@@ -20,8 +20,8 @@ import static org.junit.Assert.*;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
@@ -40,7 +40,7 @@ public class ECDHServerKeyExchangeTest {
 
 		SupportedGroup usableGroup = SupportedGroup.getUsableGroups()[0];
 		msg = new ECDHServerKeyExchange(
-				new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA),
+				new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA),
 				ECDHECryptography.fromNamedCurveId(usableGroup.getId()),
 				DtlsTestTools.getPrivateKey(),
 				new Random(),

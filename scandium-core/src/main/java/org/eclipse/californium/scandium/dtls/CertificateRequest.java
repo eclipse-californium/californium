@@ -213,7 +213,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		for (int i = 0; i < length; i += 2) {
 			int codeHash = reader.read(SUPPORTED_SIGNATURE_BITS);
 			int codeSignature = reader.read(SUPPORTED_SIGNATURE_BITS);
-			supportedSignatureAlgorithms.add(new SignatureAndHashAlgorithm(HashAlgorithm.getAlgorithmByCode(codeHash), SignatureAlgorithm.getAlgorithmByCode(codeSignature)));
+			supportedSignatureAlgorithms.add(new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.getAlgorithmByCode(codeHash), SignatureAndHashAlgorithm.SignatureAlgorithm.getAlgorithmByCode(codeSignature)));
 		}
 		
 		length = reader.read(CERTIFICATE_AUTHORITIES_LENGTH_BITS);
@@ -260,87 +260,6 @@ public final class CertificateRequest extends HandshakeMessage {
 				}
 			}
 			return null;
-		}
-	}
-
-	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC
-	 * 5246</a> for details. Code is at most 255 (1 byte needed for
-	 * representation).
-	 */
-	public enum HashAlgorithm {
-		NONE(0), MD5(1), SHA1(2), SHA224(3), SHA256(4), SHA384(5), SHA512(6);
-
-		private int code;
-
-		private HashAlgorithm(int code) {
-			this.code = code;
-		}
-
-		public static HashAlgorithm getAlgorithmByCode(int code) {
-			for (HashAlgorithm algorithm : values()) {
-				if (algorithm.code == code) {
-					return algorithm;
-				}
-			}
-			return null;
-		}
-
-		public int getCode() {
-			return code;
-		}
-
-		public void setCode(int code) {
-			this.code = code;
-		}
-
-		@Override
-		public String toString() {
-			return name();
-		}
-	}
-
-	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC
-	 * 5246</a> for details. Code is at most 255 (1 byte needed for
-	 * representation).
-	 */
-	public enum SignatureAlgorithm {
-		ANONYMOUS(0), RSA(1), DSA(2), ECDSA(3);
-
-		private int code;
-
-		private SignatureAlgorithm(int code) {
-			this.code = code;
-		}
-
-		public static SignatureAlgorithm getAlgorithmByCode(int code) {
-			switch (code) {
-			case 0:
-				return ANONYMOUS;
-			case 1:
-				return RSA;
-			case 2:
-				return DSA;
-			case 3:
-				return ECDSA;
-
-			default:
-				return null;
-			}
-		}
-
-		public int getCode() {
-			return code;
-		}
-
-		public void setCode(int code) {
-			this.code = code;
-		}
-
-		@Override
-		public String toString() {
-			return name();
 		}
 	}
 
