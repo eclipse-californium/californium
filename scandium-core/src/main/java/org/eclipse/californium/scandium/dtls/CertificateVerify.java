@@ -168,7 +168,7 @@ public final class CertificateVerify extends HandshakeMessage {
 		signatureBytes = new byte[] {};
 
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.toString());
+			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
 			signature.initSign(clientPrivateKey);
 
 			signature.update(handshakeMessages);
@@ -194,7 +194,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	public void verifySignature(PublicKey clientPublicKey, byte[] handshakeMessages) throws HandshakeException {
 		boolean verified = false;
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.toString());
+			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
 			signature.initVerify(clientPublicKey);
 
 			signature.update(handshakeMessages);
