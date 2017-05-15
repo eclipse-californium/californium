@@ -37,8 +37,8 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 
@@ -138,7 +138,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		// See http://tools.ietf.org/html/rfc4492#section-2.2
 		// These parameters MUST be signed with ECDSA using the private key
 		// corresponding to the public key in the server's Certificate.
-		Signature signature = Signature.getInstance(this.signatureAndHashAlgorithm.toString());
+		Signature signature = Signature.getInstance(this.signatureAndHashAlgorithm.jcaName());
 		signature.initSign(serverPrivateKey);
 
 		updateSignature(signature, clientRandom, serverRandom);
@@ -262,7 +262,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		byte[] bytesLeft = reader.readBytesLeft();
 
 		// default is SHA256withECDSA
-		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
+		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
 		byte[] signatureEncoded = null;
 		if (bytesLeft.length > 0) {
@@ -321,7 +321,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		}
 		boolean verified = false;
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.toString());
+			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
 			signature.initVerify(serverPublicKey);
 
 			updateSignature(signature, clientRandom, serverRandom);

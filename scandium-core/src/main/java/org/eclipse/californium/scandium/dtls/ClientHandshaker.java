@@ -430,12 +430,13 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
 	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
-		DTLSFlight flight = new DTLSFlight(getSession());
+
 		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
 			// discard duplicate message
 			return;
 		}
 		serverHelloDone = message;
+		DTLSFlight flight = new DTLSFlight(getSession());
 
 		/*
 		 * All possible handshake messages sent in this flight. Used to compute
