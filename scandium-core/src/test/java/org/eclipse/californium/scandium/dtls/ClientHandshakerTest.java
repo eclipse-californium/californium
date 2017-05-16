@@ -65,10 +65,7 @@ public class ClientHandshakerTest {
 				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 					.setIdentity(
 						DtlsTestTools.getPrivateKey(),
-						DtlsTestTools.getCertificateChainFromStore(
-											DtlsTestTools.KEY_STORE_LOCATION,
-											DtlsTestTools.KEY_STORE_PASSWORD,
-											DtlsTestTools.CLIENT_NAME),
+						DtlsTestTools.getClientCertificateChain(),
 						false);
 
 		if (configureTrustStore) {

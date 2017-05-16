@@ -26,7 +26,7 @@ import static org.junit.Assert.*;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,7 +47,7 @@ public class HandshakerTest {
 	Handshaker handshaker;
 	final int[] receivedMessages = new int[10];
 	DTLSSession session;
-	Certificate[] certificateChain;
+	X509Certificate[] certificateChain;
 	CertificateMessage certificateMessage;
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
 
@@ -59,11 +59,7 @@ public class HandshakerTest {
 
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
-		certificateChain = 
-				DtlsTestTools.getCertificateChainFromStore(
-						DtlsTestTools.KEY_STORE_LOCATION,
-						DtlsTestTools.KEY_STORE_PASSWORD,
-						"server");
+		certificateChain = DtlsTestTools.getServerCertificateChain();
 		certificateMessage = createCertificateMessage(1);
 
 		handshaker = new Handshaker(false, session, null, null, 1500) {

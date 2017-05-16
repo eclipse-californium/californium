@@ -33,14 +33,12 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -61,8 +59,8 @@ public class ServerHandshakerTest {
 	final static int ETHERNET_MTU = 1500;
 
 	static PrivateKey privateKey;
-	static Certificate[] certificateChain;
-	static Certificate[] trustedCertificates;
+	static X509Certificate[] certificateChain;
+	static X509Certificate[] trustedCertificates;
 
 	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;
@@ -76,14 +74,8 @@ public class ServerHandshakerTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		privateKey = DtlsTestTools.getPrivateKey();
-		certificateChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD, DtlsTestTools.SERVER_NAME);
-		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
-		trustedCertificates = new Certificate[trustStore.size()];
-		int j = 0;
-		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
-			trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
-		}
+		certificateChain = DtlsTestTools.getServerCertificateChain();
+		trustedCertificates = DtlsTestTools.getTrustedCertificates();
 	}
 
 	@Before
@@ -338,10 +330,7 @@ public class ServerHandshakerTest {
 		processClientHello(0, null);
 		assertThat(handshaker.getNextReceiveSeq(), is(1));
 		// create client CERTIFICATE msg
-		Certificate[] clientChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD,
-				DtlsTestTools.CLIENT_NAME);
+		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
 		CertificateMessage certificateMsg = new CertificateMessage(clientChain, endpoint);
 		certificateMsg.setMessageSeq(1);
 		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);

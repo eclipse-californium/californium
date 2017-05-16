@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,11 +25,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Enumeration;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -45,8 +42,8 @@ import org.junit.experimental.categories.Category;
 public class CertificateMessageTest {
 
 	CertificateMessage message;
-	Certificate[] certificateChain;
-	Certificate[] trustAnchor;
+	X509Certificate[] certificateChain;
+	X509Certificate[] trustAnchor;
 	InetSocketAddress peerAddress;
 	byte[] serializedMessage;
 	PublicKey serverPublicKey;
@@ -54,30 +51,20 @@ public class CertificateMessageTest {
 	@Before
 	public void setUp() throws Exception {
 		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
-		certificateChain = DtlsTestTools.getCertificateChainFromStore(
-				DtlsTestTools.KEY_STORE_LOCATION,
-				DtlsTestTools.KEY_STORE_PASSWORD,
-				DtlsTestTools.SERVER_NAME);
+		certificateChain = DtlsTestTools.getServerCertificateChain();
 		serverPublicKey = certificateChain[0].getPublicKey();
-		KeyStore trustStore = DtlsTestTools.loadKeyStore(DtlsTestTools.TRUST_STORE_LOCATION, DtlsTestTools.TRUST_STORE_PASSWORD);
-		trustAnchor = new Certificate[trustStore.size()];
-		int i = 0;
-		for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
-			trustAnchor[i++] = trustStore.getCertificate(e.nextElement());
-		}
+		trustAnchor = DtlsTestTools.getTrustedCertificates();
 	}
 
 	@Test
 	public void testCertificateMessageDoesNotContainRootCert() throws IOException, GeneralSecurityException {
-		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
+		givenACertificateMessage(certificateChain, false);
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
 
-	private void assertThatCertificateChainDoesNotContainRootCert(Certificate[] chain) {
+	private void assertThatCertificateChainDoesNotContainRootCert(X509Certificate[] chain) {
 		X500Principal issuer = null;
-		for (Certificate c : chain) {
-			assertThat(c, instanceOf(X509Certificate.class));
-			X509Certificate cert = (X509Certificate) c;
+		for (X509Certificate cert : chain) {
 			assertThat(cert.getSubjectX500Principal(), is(not(cert.getIssuerX500Principal())));
 			if (issuer != null) {
 				assertThat(issuer, is(cert.getSubjectX500Principal()));
@@ -141,7 +128,7 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
-		givenACertificateMessage(DtlsTestTools.SERVER_NAME, true);
+		givenACertificateMessage(certificateChain, true);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -152,7 +139,7 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testSerializationUsingX509() throws IOException, GeneralSecurityException, HandshakeException {
-		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
+		givenACertificateMessage(certificateChain, false);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -165,17 +152,17 @@ public class CertificateMessageTest {
 	@Test
 	public void testVerifyCertificateSucceedsForExampleCertificates() throws IOException, GeneralSecurityException {
 
-		givenACertificateMessage(DtlsTestTools.SERVER_NAME, false);
+		givenACertificateMessage(certificateChain, false);
 		assertThatCertificateVerificationSucceeds();
 
-		givenACertificateMessage(DtlsTestTools.CLIENT_NAME, false);
+		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
 		assertThatCertificateVerificationSucceeds();
 	}
 
 	@Test
 	public void testVerifyCertificateFailsIfTrustAnchorIsEmpty() throws IOException, GeneralSecurityException {
 
-		givenACertificateMessage(DtlsTestTools.CLIENT_NAME, false);
+		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
 		assertThatCertificateValidationFailsForEmptyTrustAnchor();
 	}
 
@@ -203,9 +190,8 @@ public class CertificateMessageTest {
 		assertThat(serializedMsg.length, is(length));
 	}
 	
-	private void givenACertificateMessage(String certChainName, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
-		certificateChain = DtlsTestTools.getCertificateChainFromStore(DtlsTestTools.KEY_STORE_LOCATION, DtlsTestTools.KEY_STORE_PASSWORD,
-				certChainName);
+	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
+		certificateChain = chain;
 		if (useRawPublicKey) {
 			message = new CertificateMessage(certificateChain[0].getPublicKey().getEncoded(), peerAddress);
 		} else {
@@ -226,7 +212,7 @@ public class CertificateMessageTest {
 	}
 
 	private void givenAnEmptyCertificateMessage() {
-		message = new CertificateMessage(new Certificate[]{}, peerAddress);
+		message = new CertificateMessage(new X509Certificate[]{}, peerAddress);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {

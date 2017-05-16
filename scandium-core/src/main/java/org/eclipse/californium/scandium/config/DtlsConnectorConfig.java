@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -54,7 +55,7 @@ public class DtlsConnectorConfig {
 
 	private static final String EC_ALGORITHM_NAME = "EC";
 	private InetSocketAddress address;
-	private Certificate[] trustStore = new Certificate[0];
+	private X509Certificate[] trustStore = new X509Certificate[0];
 
 	/**
 	 * The maximum fragment length this connector can process at once.
@@ -86,7 +87,7 @@ public class DtlsConnectorConfig {
 	private PublicKey publicKey = null;
 
 	/** the certificate for RPK and X509 mode */
-	private Certificate[] certChain;
+	private X509Certificate[] certChain;
 
 	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites;
@@ -164,7 +165,7 @@ public class DtlsConnectorConfig {
 	 * @return the certificates or <code>null</code> if the connector is
 	 * not supposed to support certificate based authentication
 	 */
-	public final Certificate[] getCertificateChain() {
+	public X509Certificate[] getCertificateChain() {
 		if (certChain == null) {
 			return null;
 		} else {
@@ -222,7 +223,7 @@ public class DtlsConnectorConfig {
 	 * 
 	 * @return the root certificates
 	 */
-	public final Certificate[] getTrustStore() {
+	public X509Certificate[] getTrustStore() {
 		return trustStore;
 	}
 
@@ -524,7 +525,7 @@ public class DtlsConnectorConfig {
 		 * @param privateKey
 		 *            the private key used for creating signatures
 		 * @param certificateChain
-		 *            the chain of certificates asserting the private key subject's
+		 *            the chain of X.509 certificates asserting the private key subject's
 		 *            identity
 		 * @param preferRawPublicKeys
 		 *            <code>true</code> if the connector should indicate preference for
@@ -532,7 +533,8 @@ public class DtlsConnectorConfig {
 		 *            handshake with a peer (instead of including the full X.509 certificate chain)
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate chain is <code>null</code>
-		 *            or the certificate chain does not contain any certificates 
+		 *            or the certificate chain does not contain any certificates
+		 * @throws IllegalArgumentException if the certificate chain contains a non-X.509 certificate
 		 * @see #setIdentity(PrivateKey, PublicKey) for configuring <em>RawPublicKey</em>
 		 *            mode only
 		 */
@@ -544,7 +546,7 @@ public class DtlsConnectorConfig {
 				throw new NullPointerException("The certificate chain must not be null or empty");
 			} else {
 				config.privateKey = privateKey;
-				config.certChain = Arrays.copyOf(certificateChain, certificateChain.length);
+				config.certChain = toX509Certificates(certificateChain);
 				config.publicKey =  config.certChain[0].getPublicKey();
 				config.sendRawKey = preferRawPublicKeys;
 				return this;
@@ -558,14 +560,27 @@ public class DtlsConnectorConfig {
 		 * @param trustedCerts the trusted root certificates
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
+		 * @throws IllegalArgumentException if the array contains a non-X.509 certificate
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
-				config.trustStore = Arrays.copyOf(trustedCerts, trustedCerts.length);
+				config.trustStore = toX509Certificates(trustedCerts);
 				return this;
 			}
+		}
+
+		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
+			List<X509Certificate> result = new ArrayList<>(certs.length);
+			for (Certificate cert : certs) {
+				if (X509Certificate.class.isInstance(cert)) {
+					result.add((X509Certificate) cert);
+				} else {
+					throw new IllegalArgumentException("can only process X.509 certificates");
+				}
+			}
+			return result.toArray(new X509Certificate[certs.length]);
 		}
 
 		private boolean isConfiguredWithKeyPair() {

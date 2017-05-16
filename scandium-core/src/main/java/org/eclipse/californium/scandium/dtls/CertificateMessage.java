@@ -117,7 +117,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            certification.
 	 * 
 	 */
-	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
+	public CertificateMessage(X509Certificate[] certificateChain, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
@@ -160,28 +160,21 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *  
 	 * @param chain the certificate chain
 	 */
-	private void setCertificateChain(Certificate[] chain) {
+	private void setCertificateChain(final X509Certificate[] chain) {
 		List<X509Certificate> certificates = new ArrayList<>();
 		X500Principal issuer = null;
-		X509Certificate cert;
-		for (Certificate c : chain) {
-			if (!(c instanceof X509Certificate)) {
-				throw new IllegalArgumentException(
-						"Certificate chain must consist of X.509 certificates only");
-			} else {
-				cert = (X509Certificate) c;
-				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
-				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-					LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
-							cert.getSubjectX500Principal().getName());
-					throw new IllegalArgumentException("Given certificates do not form a chain");
-				}
-				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
-					// not a self-signed certificate
-					certificates.add(cert);
-					issuer = cert.getIssuerX500Principal();
-					LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
-				}
+		for (X509Certificate cert : chain) {
+			LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
+			if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
+				LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
+						cert.getSubjectX500Principal().getName());
+				throw new IllegalArgumentException("Given certificates do not form a chain");
+			}
+			if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
+				// not a self-signed certificate
+				certificates.add(cert);
+				issuer = cert.getIssuerX500Principal();
+				LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
 			}
 		}
 		this.certificateChain = certificates.toArray(new X509Certificate[]{});
@@ -258,18 +251,12 @@ public final class CertificateMessage extends HandshakeMessage {
 			return null;
 		}
 	}
-	
-	private static Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
+
+	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
 		Set<TrustAnchor> result = new HashSet<>();
 		if (trustedCertificates != null) {
-			for (Certificate cert : trustedCertificates) {
-				if (CERTIFICATE_TYPE_X509.equals(cert.getType())) {
-					result.add(new TrustAnchor((X509Certificate) cert, null));
-				} else {
-					LOGGER.log(Level.INFO,
-							"List of trusted CA certificates contains non-X.509 certificate of type [{0}]",
-							cert.getType());
-				}
+			for (X509Certificate cert : trustedCertificates) {
+				result.add(new TrustAnchor((X509Certificate) cert, null));
 			}
 		}
 		return result;
@@ -289,7 +276,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @throws HandshakeException if any of the checks fails
 	 */
-	public void verifyCertificate(Certificate[] trustedCertificates) throws HandshakeException {
+	public void verifyCertificate(X509Certificate[] trustedCertificates) throws HandshakeException {
 		if (rawPublicKeyBytes == null) {
 
 			Set<TrustAnchor> trustAnchors = getTrustAnchors(trustedCertificates);
