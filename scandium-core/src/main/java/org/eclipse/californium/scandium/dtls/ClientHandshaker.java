@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -34,12 +34,14 @@ import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertPath;
+import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -100,8 +102,10 @@ public class ClientHandshaker extends Handshaker {
 	protected ServerHello serverHello;
 	/** The server's {@link CertificateMessage}. Optional. */
 	protected CertificateMessage serverCertificate = null;
+	protected CertificateMessage clientCertificate = null;
 	/** The server's {@link CertificateRequest}. Optional. */
 	protected CertificateRequest certificateRequest = null;
+	protected CertificateVerify certificateVerify = null;
 	/** The server's {@link ServerKeyExchange}. Optional. */
 	protected ServerKeyExchange serverKeyExchange = null;
 	/** The server's {@link ServerHelloDone}. Mandatory. */
@@ -114,6 +118,8 @@ public class ClientHandshaker extends Handshaker {
 	protected final PskStore pskStore;
 	protected final ServerNameResolver serverNameResolver;
 	protected ServerNames indicatedServerNames;
+	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
+
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -166,7 +172,10 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	// Methods ////////////////////////////////////////////////////////
-	
+
+	final SignatureAndHashAlgorithm getNegotiatedSignatureAndHashAlgorithm() {
+		return negotiatedSignatureAndHashAlgorithm;
+	}
 
 	@Override
 	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
@@ -179,7 +188,7 @@ public class ClientHandshaker extends Handshaker {
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
 			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(message);
+				msg.append(":").append(System.lineSeparator()).append(message);
 			}
 			LOGGER.fine(msg.toString());
 		}
@@ -438,26 +447,7 @@ public class ClientHandshaker extends Handshaker {
 		serverHelloDone = message;
 		DTLSFlight flight = new DTLSFlight(getSession());
 
-		/*
-		 * All possible handshake messages sent in this flight. Used to compute
-		 * handshake hash.
-		 */
-		CertificateMessage clientCertificate = null;
-		CertificateVerify certificateVerify = null;
-
-		/*
-		 * First, if required by server, send Certificate.
-		 */
-		if (certificateRequest != null) {
-			// TODO load the client's certificate according to the allowed
-			// parameters in the CertificateRequest
-			if (session.sendRawPublicKey()){
-				clientCertificate = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
-			} else {
-				clientCertificate = new CertificateMessage(certificateChain, session.getPeer());
-			}
-			flight.addMessage(wrapMessage(clientCertificate));
-		}
+		createCertificateMessage(flight);
 
 		/*
 		 * Second, send ClientKeyExchange as specified by the key exchange
@@ -477,13 +467,12 @@ public class ClientHandshaker extends Handshaker {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
 			}
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
-
 			byte[] psk = pskStore.getKey(identity);
 			if (psk == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
 			}
+			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
 			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
@@ -508,7 +497,7 @@ public class ClientHandshaker extends Handshaker {
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
-		if (certificateRequest != null) {
+		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
 			// prepare handshake messages
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
@@ -519,9 +508,7 @@ public class ClientHandshaker extends Handshaker {
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
 
-			// TODO make sure, that signature is supported
-			SignatureAndHashAlgorithm signatureAndHashAlgorithm = certificateRequest.getSupportedSignatureAlgorithms().get(0);
-			certificateVerify = new CertificateVerify(signatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
+			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
 
 			flight.addMessage(wrapMessage(certificateVerify));
 		}
@@ -574,13 +561,84 @@ public class ClientHandshaker extends Handshaker {
 		handshakeHash = md.digest();
 		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
-		
+
 		// compute handshake hash with client's finished message also
 		// included, used for server's finished message
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
 
 		recordLayer.sendFlight(flight);
+	}
+
+	private void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
+
+		/*
+		 * First, if required by server, send Certificate.
+		 */
+		if (certificateRequest != null) {
+
+			if (session.sendRawPublicKey()) {
+				byte[] rawPublicKeyBytes = new byte[0];
+				PublicKey key = determineClientRawPublicKey(certificateRequest);
+				if (key != null) {
+					rawPublicKeyBytes = key.getEncoded();
+				}
+				LOGGER.log(Level.FINE, "sending CERTIFICATE with RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
+			} else {
+				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
+				LOGGER.log(Level.FINE, "sending CERTIFICATE with certificate chain [length: {0}] to server", clientChain.length);
+				clientCertificate = new CertificateMessage(clientChain, session.getPeer());
+			}
+			flight.addMessage(wrapMessage(clientCertificate));
+		}
+	}
+
+	/**
+	 * Determines the public key to send to the server based on the constraints conveyed in the server's
+	 * <em>CERTIFICATE_REQUEST</em>.
+	 * 
+	 * @param certRequest The certificate request containing the constraints to match.
+	 * @return An appropriate key or {@code null} if this handshaker has not been configured with an appropriate key.
+	 * @throws HandshakeException if this handshaker has not been configured with any public key.
+	 */
+	PublicKey determineClientRawPublicKey(CertificateRequest certRequest) throws HandshakeException {
+
+		if (publicKey == null) {
+			throw new HandshakeException("no public key configured",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+		} else {
+			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(publicKey);
+			if (negotiatedSignatureAndHashAlgorithm == null) {
+				return null;
+			} else {
+				return publicKey;
+			}
+		}
+	}
+
+	/**
+	 * Determines the certificate chain to send to the server based on the constraints conveyed in the server's
+	 * <em>CERTIFICATE_REQUEST</em>.
+	 * 
+	 * @param certRequest The certificate request containing the constraints to match.
+	 * @return The certificate chain to send to the server. The chain will have length 0 if this handshaker has not been
+	 * configured with an appropriate certificate chain.
+	 * @throws HandshakeException if this handshaker has not been configured with any certificate chain.
+	 */
+	X509Certificate[] determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
+
+		if (certificateChain == null) {
+			throw new HandshakeException("no client certificate configured",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+		} else {
+			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(certificateChain);
+			if (negotiatedSignatureAndHashAlgorithm == null) {
+				return new X509Certificate[0];
+			} else {
+				return certificateChain;
+			}
+		}
 	}
 
 	@Override
