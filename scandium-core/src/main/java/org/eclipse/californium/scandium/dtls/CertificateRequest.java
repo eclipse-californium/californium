@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,7 +18,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -301,10 +300,10 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * @param certificateAuthorities
 	 *            trusted certificates.
 	 */
-	public void addCertificateAuthorities(Certificate[] certificateAuthorities) {
+	public void addCertificateAuthorities(X509Certificate[] certificateAuthorities) {
 		if (certificateAuthorities != null){
-			for (Certificate certificate : certificateAuthorities) {
-				byte[] ca = ((X509Certificate) certificate).getSubjectX500Principal().getEncoded();
+			for (X509Certificate certificate : certificateAuthorities) {
+				byte[] ca = certificate.getSubjectX500Principal().getEncoded();
 				addCertificateAuthority(new DistinguishedName(ca));
 			}
 		}

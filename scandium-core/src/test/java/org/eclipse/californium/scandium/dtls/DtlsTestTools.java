@@ -24,9 +24,11 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Enumeration;
 
@@ -47,28 +49,48 @@ public final class DtlsTestTools {
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static KeyStore keyStore;
 	private static KeyStore trustStore;
-	private static Certificate[] trustedCertificates = new Certificate[1];
-	private static Certificate[] serverCertificateChain;
-	private static Certificate[] clientCertificateChain;
+	private static X509Certificate[] trustedCertificates = new X509Certificate[1];
+	private static X509Certificate[] serverCertificateChain;
+	private static X509Certificate[] clientCertificateChain;
 
 	static {
 		try {
 			// load key stores once only
 			keyStore = loadKeyStore(KEY_STORE_LOCATION, KEY_STORE_PASSWORD);
 			trustStore = loadKeyStore(TRUST_STORE_LOCATION, TRUST_STORE_PASSWORD);
-			trustedCertificates = new Certificate[trustStore.size()];
+			trustedCertificates = new X509Certificate[trustStore.size()];
 			int j = 0;
 			for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
-				trustedCertificates[j++] = trustStore.getCertificate(e.nextElement());
+				Certificate trustedCert = trustStore.getCertificate(e.nextElement());
+				if (X509Certificate.class.isInstance(trustedCert)) {
+					trustedCertificates[j++] = (X509Certificate) trustedCert;
+				}
 			}
-			serverCertificateChain = keyStore.getCertificateChain(SERVER_NAME);
-			clientCertificateChain = keyStore.getCertificateChain(CLIENT_NAME);
+			serverCertificateChain = getCertificateChain(keyStore, SERVER_NAME);
+			clientCertificateChain = getCertificateChain(keyStore, CLIENT_NAME);
 		} catch (IOException | GeneralSecurityException e) {
 			// nothing we can do
 		}
 	}
 
 	private DtlsTestTools() {
+	}
+
+	private static X509Certificate[] getCertificateChain(KeyStore store, String alias) throws KeyStoreException {
+		Certificate[] chain = store.getCertificateChain(alias);
+		if (chain == null) {
+			return null;
+		} else {
+			X509Certificate[] result = new X509Certificate[chain.length];
+			for (int i = 0; i < chain.length; i++) {
+				if (X509Certificate.class.isInstance(chain[i])) {
+					result[i] = (X509Certificate) chain[i];
+				} else {
+					return null;
+				}
+			}
+			return result;
+		}
 	}
 
 	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
@@ -158,16 +180,16 @@ public final class DtlsTestTools {
 	private static KeyStore loadKeyStore(String keyStoreLocation, String keyStorePassword)
 			throws IOException, GeneralSecurityException {
 		char[] passwd = keyStorePassword.toCharArray();
-		KeyStore keyStore = KeyStore.getInstance("JKS");
-		keyStore.load(DtlsTestTools.class.getClassLoader().getResourceAsStream(keyStoreLocation), passwd);
-		return keyStore;
+		KeyStore store = KeyStore.getInstance("JKS");
+		store.load(DtlsTestTools.class.getClassLoader().getResourceAsStream(keyStoreLocation), passwd);
+		return store;
 	}
 
-	public static Certificate[] getServerCertificateChain()	throws IOException, GeneralSecurityException {
+	public static X509Certificate[] getServerCertificateChain()	throws IOException, GeneralSecurityException {
 		return Arrays.copyOf(serverCertificateChain, serverCertificateChain.length);
 	}
 
-	public static Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
+	public static X509Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
 		return Arrays.copyOf(clientCertificateChain, clientCertificateChain.length);
 	}
 
@@ -196,28 +218,43 @@ public final class DtlsTestTools {
 	/**
 	 * Gets the server's public key from the example key store.
 	 * 
-	 * @return the key
+	 * @return The key.
 	 * @throws IOException if the key store cannot be read
 	 * @throws GeneralSecurityException if the key cannot be found
+	 * @throws IllegalStateException if the key store does not contain a server certificate chain.
 	 */
 	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
 		Certificate[] certChain = keyStore.getCertificateChain(SERVER_NAME);
-		return certChain[0].getPublicKey();
+		if (certChain == null) {
+			throw new IllegalStateException("cannot read " + SERVER_NAME + " certificate chain from example key store");
+		} else {
+			return certChain[0].getPublicKey();
+		}
 	}
 
 	/**
 	 * Gets the client's public key from the example key store.
 	 * 
-	 * @return the key
+	 * @return The key.
 	 * @throws IOException if the key store cannot be read
 	 * @throws GeneralSecurityException if the key cannot be found
+	 * @throws IllegalStateException if the key store does not contain a client certificate chain.
 	 */
 	public static PublicKey getClientPublicKey() throws IOException, GeneralSecurityException {
 		Certificate[] certChain = keyStore.getCertificateChain(CLIENT_NAME);
-		return certChain[0].getPublicKey();
+		if (certChain == null) {
+			throw new IllegalStateException("cannot read " + CLIENT_NAME + " certificate chain from example key store");
+		} else {
+			return certChain[0].getPublicKey();
+		}
 	}
 
-	public static Certificate[] getTrustedCertificates() throws IOException, GeneralSecurityException {
+	/**
+	 * Gets the trusted anchor certificates from the example trust store.
+	 * 
+	 * @return The trusted certificates.
+	 */
+	public static X509Certificate[] getTrustedCertificates() {
 		return trustedCertificates;
 	}
 }

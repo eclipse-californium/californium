@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -37,7 +37,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -102,7 +102,7 @@ public abstract class Handshaker {
 	protected final DTLSSession session;
 	protected final RecordLayer recordLayer;
 	/** list of trusted self-signed root certificates */
-	protected final Certificate[] rootCertificates;
+	protected final X509Certificate[] rootCertificates;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)
@@ -135,7 +135,7 @@ public abstract class Handshaker {
 	protected PublicKey publicKey;
 
 	/** The chain of certificates asserting this handshaker's identity */
-	protected Certificate[] certificateChain;
+	protected X509Certificate[] certificateChain;
 
 	private Set<SessionListener> sessionListeners = new HashSet<>();
 
@@ -163,8 +163,8 @@ public abstract class Handshaker {
 	 * @throws NullPointerException
 	 *            if session or recordLayer is <code>null</code>.
 	 */
-	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener, 
-			Certificate[] rootCertificates, int maxTransmissionUnit) {
+	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
+			X509Certificate[] rootCertificates, int maxTransmissionUnit) {
 		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit);
 	}
 
@@ -196,7 +196,7 @@ public abstract class Handshaker {
 	 * @throws IllegalArgumentException if the initial message sequence number is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, Certificate[] rootCertificates, int maxTransmissionUnit) {
+			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
@@ -210,7 +210,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;
+		this.rootCertificates = rootCertificates == null ? new X509Certificate[0] : rootCertificates;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 

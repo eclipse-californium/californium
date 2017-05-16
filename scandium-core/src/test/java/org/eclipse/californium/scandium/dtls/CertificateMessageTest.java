@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -46,8 +46,8 @@ import org.junit.experimental.categories.Category;
 public class CertificateMessageTest {
 
 	CertificateMessage message;
-	Certificate[] certificateChain;
-	Certificate[] trustAnchor;
+	X509Certificate[] certificateChain;
+	X509Certificate[] trustAnchor;
 	InetSocketAddress peerAddress;
 	byte[] serializedMessage;
 	PublicKey serverPublicKey;
@@ -66,7 +66,7 @@ public class CertificateMessageTest {
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
 
-	private void assertThatCertificateChainDoesNotContainRootCert(CertPath chain) {
+	private static void assertThatCertificateChainDoesNotContainRootCert(CertPath chain) {
 		X500Principal issuer = null;
 		for (Certificate c : chain.getCertificates()) {
 			assertThat(c, instanceOf(X509Certificate.class));
@@ -196,7 +196,7 @@ public class CertificateMessageTest {
 		assertThat(serializedMsg.length, is(length));
 	}
 	
-	private void givenACertificateMessage(Certificate[] chain, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
+	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
 		certificateChain = chain;
 		if (useRawPublicKey) {
 			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
@@ -218,7 +218,7 @@ public class CertificateMessageTest {
 	}
 
 	private void givenAnEmptyCertificateMessage() {
-		message = new CertificateMessage(new Certificate[]{}, peerAddress);
+		message = new CertificateMessage(new X509Certificate[]{}, peerAddress);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {

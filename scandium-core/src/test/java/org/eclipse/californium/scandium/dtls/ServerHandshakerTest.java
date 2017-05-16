@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -60,8 +61,8 @@ public class ServerHandshakerTest {
 	final static int ETHERNET_MTU = 1500;
 
 	static PrivateKey privateKey;
-	static Certificate[] certificateChain;
-	static Certificate[] trustedCertificates;
+	static X509Certificate[] certificateChain;
+	static X509Certificate[] trustedCertificates;
 
 	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;
@@ -360,7 +361,7 @@ public class ServerHandshakerTest {
 		processClientHello(0, null);
 		assertThat(handshaker.getNextReceiveSeq(), is(1));
 		// create client CERTIFICATE msg
-		Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
+		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
 		CertificateMessage certificateMsg = new CertificateMessage(clientChain, endpoint);
 		certificateMsg.setMessageSeq(1);
 		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);
