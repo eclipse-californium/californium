@@ -18,11 +18,17 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -42,6 +48,8 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.Signature
  * @see <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, 7.4.4. Certificate Request</a>
  */
 public final class CertificateRequest extends HandshakeMessage {
+
+	private static final Logger LOGGER = Logger.getLogger(CertificateRequest.class.getName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -146,7 +154,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		if (!supportedSignatureAlgorithms.isEmpty()) {
 			sb.append("\t\tSignature and hash algorithm:").append(System.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append(THREE_TABS).append(algo).append(System.lineSeparator());
+				sb.append(THREE_TABS).append(algo.jcaName()).append(System.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
@@ -368,6 +376,118 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public List<ClientCertificateType> getCertificateTypes() {
 		return Collections.unmodifiableList(certificateTypes);
+	}
+
+	/**
+	 * Checks if a given key is compatible with the client certificate types supported by the server.
+	 * 
+	 * @param key The key.
+	 * @return {@code true} if the key is compatible.
+	 */
+	boolean isSupportedKeyType(PublicKey key) {
+		for (ClientCertificateType type : certificateTypes) {
+			if (type.isCompatibleWithKeyAlgorithm(key.getAlgorithm())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if a given certificate contains a public key that is compatible with the server's requirements.
+	 * 
+	 * @param cert The certificate.
+	 * @return {@code true} if the certificate's public key is compatible.
+	 */
+	boolean isSupportedKeyType(X509Certificate cert) {
+
+		for (ClientCertificateType type : certificateTypes) {
+			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
+			boolean meetsSigningRequirements = !type.requiresSigningCapability() ||
+					(type.requiresSigningCapability() && cert.getKeyUsage() != null && cert.getKeyUsage()[0]);
+			LOGGER.log(Level.FINER, "type: {0}, isCompatibleWithKeyAlgorithm[{1}]: {2}, meetsSigningRequirements: {3}", 
+					new Object[]{ type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements});
+			if (isCompatibleType && meetsSigningRequirements) {
+				return true;
+			}
+		}
+		LOGGER.log(Level.FINER, "certificate [{0}] is not of any supported type", cert);
+		return false;
+	}
+
+	/**
+	 * Gets the signature algorithm that is compatible with a given public key.
+	 * 
+	 * @param key The public key.
+	 * @return A signature algorithm that can be used with the given key or {@code null} if
+	 *         the given key is not compatible with any of the supported certificate types
+	 *         or any of the supported signature algorithms.
+	 */
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key) {
+
+		if (isSupportedKeyType(key)) {
+			return getSupportedSignatureAlgorithm(key);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets a signature algorithm that is compatible with a given certificate chain.
+	 * 
+	 * @param chain The certificate chain.
+	 * @return A signature algorithm that can be used with the key contained in the given chain's
+	 *         end entity certificate or {@code null} if any of the chain's certificates is not
+	 *         compatible with any of the supported certificate types or any of the supported signature algorithms.
+	 */
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(X509Certificate[] chain) {
+
+		if (isSignedWithSupportedAlgorithm(chain)) {
+			if (isSupportedKeyType(chain[0])) {
+				return getSupportedSignatureAlgorithm(chain[0].getPublicKey());
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Checks if all of a given certificate chain's certificates have been signed using one of the
+	 * algorithms supported by the server.
+	 * 
+	 * @param cert The certificate chain to test.
+	 * @return {@code true} if all certificates have been signed using one of the supported algorithms.
+	 */
+	boolean isSignedWithSupportedAlgorithm(X509Certificate[] chain) {
+
+		for (X509Certificate cert : chain) {
+			boolean certSignatureAlgorithmSupported = false;
+			for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+				if (supportedAlgorithm.jcaName().equals(cert.getSigAlgName())) {
+					certSignatureAlgorithmSupported = true;
+					break;
+				}
+			}
+			if (!certSignatureAlgorithmSupported) {
+				LOGGER.log(Level.FINE, "certificate chain is NOT signed with supported algorithm(s)");
+				return false;
+			}
+		}
+		LOGGER.log(Level.FINE, "certificate chain is signed with supported algorithm(s)");
+		return true;
+	}
+
+	SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(PublicKey key) {
+
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			try {
+				Signature sign = Signature.getInstance(supportedAlgorithm.jcaName());
+				sign.initVerify(key);
+				return supportedAlgorithm;
+			} catch (NoSuchAlgorithmException | InvalidKeyException e) {
+				// nothing to do
+			}
+		}
+		return null;
 	}
 
 	/**
