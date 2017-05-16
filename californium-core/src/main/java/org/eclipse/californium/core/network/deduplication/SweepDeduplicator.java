@@ -20,6 +20,7 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use nanoTime instead of 
  *                                                    currentTimeMillis
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -179,7 +180,7 @@ public final class SweepDeduplicator implements Deduplicator {
 					incomingMessages.remove(entry.getKey());
 				}
 			}
-			LOGGER.log(Level.FINE, "Sweep run took {0}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - start);
+			LOGGER.log(Level.FINE, "Sweep run took {0}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 		}
 
 		/**
