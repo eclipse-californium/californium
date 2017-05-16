@@ -309,9 +309,6 @@ public final class CertificateMessage extends HandshakeMessage {
 			Set<TrustAnchor> trustAnchors = getTrustAnchors(trustedCertificates);
 
 			try {
-//				CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-//				CertPath certPath = certFactory.generateCertPath(Arrays.asList(certificateChain));
-
 				PKIXParameters params = new PKIXParameters(trustAnchors);
 				// TODO: implement alternative means of revocation checking
 				params.setRevocationEnabled(false);
