@@ -610,12 +610,14 @@ public class ClientHandshaker extends Handshaker {
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
 				}
-				LOGGER.log(Level.FINE, "sending CERTIFICATE with RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
 				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
-				LOGGER.log(Level.FINE, "sending CERTIFICATE with certificate chain [length: {0}] to server", clientChain.length);
-				clientCertificate = new CertificateMessage(clientChain, session.getPeer());
+				// make sure we only send certs not part of the server's trust anchor
+				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
+				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client certificate chain [length: {0}] to server", truncatedChain.length);
+				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}

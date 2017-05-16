@@ -73,10 +73,10 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	private final List<ClientCertificateType> certificateTypes = new ArrayList<>();
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms = new ArrayList<>();
-	private final List<DistinguishedName> certificateAuthorities = new ArrayList<>();
+	private final List<X500Principal> certificateAuthorities = new ArrayList<>();
 
 	// Constructors ///////////////////////////////////////////////////
-	
+
 	/**
 	 * Initializes an empty certificate request.
 	 * 
@@ -101,7 +101,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	public CertificateRequest(
 			List<ClientCertificateType> certificateTypes,
 			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
-			List<DistinguishedName> certificateAuthorities,
+			List<X500Principal> certificateAuthorities,
 			InetSocketAddress peerAddress) {
 		super(peerAddress);
 		if (certificateTypes != null) {
@@ -135,8 +135,8 @@ public final class CertificateRequest extends HandshakeMessage {
 		// each distinguished name has a variable length, therefore we need an
 		// additional 2 bytes length field for each name
 		int certificateAuthLength = 0;
-		for (DistinguishedName distinguishedName : certificateAuthorities) {
-			certificateAuthLength += distinguishedName.getName().length + 2;
+		for (X500Principal distinguishedName : certificateAuthorities) {
+			certificateAuthLength += distinguishedName.getEncoded().length + 2;
 		}
 
 		return certificateAuthLength;
@@ -159,9 +159,8 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 		if (!certificateAuthorities.isEmpty()) {
 			sb.append("\t\tCertificate authorities:").append(System.lineSeparator());
-			for (DistinguishedName name : certificateAuthorities) {
-				X500Principal principal = new X500Principal(name.getName());
-				sb.append(THREE_TABS).append(principal.getName()).append(System.lineSeparator());
+			for (X500Principal subject : certificateAuthorities) {
+				sb.append(THREE_TABS).append(subject.getName()).append(System.lineSeparator());
 			}
 		}
 		return sb.toString();
@@ -185,10 +184,11 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 		
 		writer.write(getCertificateAuthoritiesLength(), CERTIFICATE_AUTHORITIES_LENGTH_BITS);
-		for (DistinguishedName distinguishedName : certificateAuthorities) {
+		for (X500Principal distinguishedName : certificateAuthorities) {
 			// since a distinguished name has variable length, we need to write length field for each name as well, has influence on total length!
-			writer.write(distinguishedName.getName().length, CERTIFICATE_AUTHORITY_LENGTH_BITS);
-			writer.writeBytes(distinguishedName.getName());
+			byte[] encoded = distinguishedName.getEncoded();
+			writer.write(encoded.length, CERTIFICATE_AUTHORITY_LENGTH_BITS);
+			writer.writeBytes(encoded);
 		}
 
 		return writer.toByteArray();
@@ -214,11 +214,11 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 
 		length = reader.read(CERTIFICATE_AUTHORITIES_LENGTH_BITS);
-		List<DistinguishedName> certificateAuthorities = new ArrayList<>();
+		List<X500Principal> certificateAuthorities = new ArrayList<>();
 		while (length > 0) {
 			int nameLength = reader.read(CERTIFICATE_AUTHORITY_LENGTH_BITS);
 			byte[] name = reader.readBytes(nameLength);
-			certificateAuthorities.add(new DistinguishedName(name));
+			certificateAuthorities.add(new X500Principal(name));
 
 			length -= 2 + name.length;
 		}
@@ -311,33 +311,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 	}
 
-	/**
-	 * A distinguished name is between 1 and 2<sup>16</sup>-1 bytes long. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246 -
-	 * Certificate Request</a> for details.
-	 */
-	public static class DistinguishedName {
-		private final byte[] name;
-
-		public DistinguishedName(byte[] name) {
-			this.name = Arrays.copyOf(name, name.length);
-		}
-
-		public byte[] getName() {
-			return name;
-		}
-
-		/**
-		 * Gets this distinguished name as a principal so that it can be compared to
-		 * other certificates' issuer.
-		 * 
-		 * @return The principal.
-		 */
-		public X500Principal asPrincipal() {
-			return new X500Principal(name);
-		}
-	}
-
 	// Getters and Setters ////////////////////////////////////////////
 
 	public void addCertificateType(ClientCertificateType certificateType) {
@@ -348,7 +321,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		supportedSignatureAlgorithms.add(signatureAndHashAlgorithm);
 	}
 
-	public void addCertificateAuthority(DistinguishedName authority) {
+	public void addCertificateAuthority(X500Principal authority) {
 		// TODO make sure that the max size (2^16 - 1 bytes) is not exceeded
 		certificateAuthorities.add(authority);
 	}
@@ -363,8 +336,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	public void addCertificateAuthorities(X509Certificate[] trustedCas) {
 		if (trustedCas != null){
 			for (X509Certificate certificate : trustedCas) {
-				byte[] ca = certificate.getSubjectX500Principal().getEncoded();
-				addCertificateAuthority(new DistinguishedName(ca));
+				addCertificateAuthority(certificate.getSubjectX500Principal());
 			}
 		}
 	}
@@ -491,6 +463,32 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
+	 * Truncates a given certificate chain at the first certificate encountered having
+	 * a subject listed in <em>certificateAuthorities</em>.
+	 * 
+	 * @param chain The original certificate chain.
+	 * @return A (potentially) truncated copy of the original chain.
+	 * @throws NullPointerException if the given chain is {@code null}.
+	 */
+	public X509Certificate[] removeTrustedCertificates(X509Certificate[] chain) {
+
+		if (chain == null) {
+			throw new NullPointerException("certificate chain must not be null");
+		} else if (chain.length > 1) {
+			int i = 1;
+			for ( ; i < chain.length; i++) {
+				if (certificateAuthorities.contains(chain[i].getIssuerX500Principal())) {
+					break;
+				}
+				i++;
+			}
+			return Arrays.copyOf(chain, i);
+		} else {
+			return Arrays.copyOf(chain, chain.length);
+		}
+	}
+
+	/**
 	 * Gets the signature algorithms that the server is able to verify.
 	 * 
 	 * @return The supported algorithms in order of preference (never {@code null}).
@@ -509,7 +507,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * 
 	 * @return The distinguished names (never {@code null}).
 	 */
-	public List<DistinguishedName> getCertificateAuthorities() {
+	public List<X500Principal> getCertificateAuthorities() {
 		return Collections.unmodifiableList(certificateAuthorities);
 	}
 }
