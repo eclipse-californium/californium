@@ -124,7 +124,7 @@ public final class SignatureAndHashAlgorithm {
 	 * @param hashAlgorithm The hash algorithm.
 	 * @param signatureAlgorithm The signature algorithm.
 	 */
-	public SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm hashAlgorithm, SignatureAndHashAlgorithm.SignatureAlgorithm signatureAlgorithm) {
+	public SignatureAndHashAlgorithm(HashAlgorithm hashAlgorithm, SignatureAlgorithm signatureAlgorithm) {
 
 		this.signature = signatureAlgorithm;
 		this.hash = hashAlgorithm;
@@ -139,8 +139,8 @@ public final class SignatureAndHashAlgorithm {
 	 *            the signature algorithm's code.
 	 */
 	public SignatureAndHashAlgorithm(int hashAlgorithmCode, int signatureAlgorithmCode) {
-		this.signature = SignatureAndHashAlgorithm.SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
-		this.hash = SignatureAndHashAlgorithm.HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
+		this.signature = SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
+		this.hash = HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
