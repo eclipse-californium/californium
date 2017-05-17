@@ -191,10 +191,22 @@ public final class TcpMatcher extends BaseMatcher {
 			}
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
-				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-				exchangeStore.remove(idByToken, exchange);
-				if (!exchange.getCurrentRequest().getOptions().hasObserve()) {
-					exchangeStore.releaseToken(idByToken);
+				Request originRequest = exchange.getCurrentRequest();
+				if (originRequest.getToken() == null) {
+					// this should not happen because we only register the observer
+					// if we have successfully registered the exchange
+					LOGGER.log(
+							Level.WARNING,
+							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+									exchange.getOrigin()});
+				} else {
+					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					exchangeStore.remove(idByToken, exchange);
+					if(!originRequest.getOptions().hasObserve()) {
+						exchangeStore.releaseToken(idByToken);
+					}
+					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request

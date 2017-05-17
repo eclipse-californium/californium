@@ -76,13 +76,24 @@ public final class UdpMatcher extends BaseMatcher {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		exchange.setObserver(exchangeObserver);
+		observe(exchange);
 		exchangeStore.registerOutboundRequest(exchange);
 		if (LOGGER.isLoggable(Level.FINER)) {
 			LOGGER.log(
 					Level.FINER,
 					"Tracking open request [MID: {0}, Token: {1}]",
 					new Object[] { request.getMID(), request.getTokenString() });
+		}
+	}
+
+	/**
+	 * Registers this matcher's {@link ExchangeObserver} on a given exchange.
+	 * 
+	 * @param exchange The exchange to observe.
+	 */
+	void observe(final Exchange exchange) {
+		if (exchange != null) {
+			exchange.setObserver(exchangeObserver);
 		}
 	}
 
@@ -411,18 +422,41 @@ public final class UdpMatcher extends BaseMatcher {
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
 
-				KeyMID idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
-				KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
+				Request originRequest = exchange.getCurrentRequest();
+				if (!originRequest.hasMID()) {
+					// This means that the original request has never been sent at all to the peer,
+					// e.g. if the original request contained a payload that required
+					// transparent blockwise transfer handled by the BlockwiseLayer.
 
-				exchangeStore.remove(idByToken, exchange);
-
-				// in case an empty ACK was lost
-				exchangeStore.remove(idByMID, exchange);
-
-				if(!exchange.getCurrentRequest().getOptions().hasObserve()) {
-					exchangeStore.releaseToken(idByToken);
+					// In this case the original request has been (transparently) replaced
+					// by the BlockwiseLayer with a sequence of separate request/response message
+					// exchanges for transferring the large payload of the request (and possibly also
+					// for retrieving the large response). All of these exchanges
+					// will already have been completed individually and we are now looking at the original
+					// request that has never been sent to the peer. We therefore do not
+					// need to try to remove its corresponding exchange from the store.
+				} else {
+					// in case an empty ACK was lost
+					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
+					exchangeStore.remove(idByMID, exchange);
 				}
-				LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+
+				if (originRequest.getToken() == null) {
+					// this should not happen because we only register the observer
+					// if we have successfully registered the exchange
+					LOGGER.log(
+							Level.WARNING,
+							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+									exchange.getOrigin()});
+				} else {
+					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					exchangeStore.remove(idByToken, exchange);
+					if (!originRequest.getOptions().hasObserve()) {
+						exchangeStore.releaseToken(idByToken);
+					}
+					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+				}
 
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
