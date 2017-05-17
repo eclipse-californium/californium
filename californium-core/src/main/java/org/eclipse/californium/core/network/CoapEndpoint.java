@@ -528,8 +528,20 @@ public class CoapEndpoint implements Endpoint {
 				messageInterceptor.sendRequest(request);
 			}
 
-			// One of the interceptors may have cancelled the request
-			if (!request.isCanceled()) {
+			// Request may have been canceled already, e.g. by one of the interceptors
+			// or client code
+			if (request.isCanceled()) {
+
+				// make sure we do necessary house keeping, e.g. removing the exchange from
+				// ExchangeStore to avoid memory leak
+				// The Exchange may already have been completed implicitly by client code
+				// invoking Request.cancel().
+				// However, that might have happened BEFORE the exchange got registered with the
+				// ExchangeStore. So, to make sure that we do not leak memory we complete the
+				// Exchange again here, triggering the "housekeeping" functionality in the Matcher
+				exchange.setComplete();
+
+			} else {
 				// create callback for setting correlation context
 				MessageCallback callback = new MessageCallback() {
 
