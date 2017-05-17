@@ -69,11 +69,14 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	private static final int SUPPORTED_SIGNATURE_BITS = 8;
 
+	private static final int MAX_LENGTH_CERTIFICATE_AUTHORITIES = (1 << 16) - 1;
+
 	// Members ////////////////////////////////////////////////////////
 
 	private final List<ClientCertificateType> certificateTypes = new ArrayList<>();
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms = new ArrayList<>();
 	private final List<X500Principal> certificateAuthorities = new ArrayList<>();
+	private int certificateAuthoritiesEncodedLength = 0;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -111,7 +114,7 @@ public final class CertificateRequest extends HandshakeMessage {
 			this.supportedSignatureAlgorithms.addAll(supportedSignatureAlgorithms);
 		}
 		if (certificateAuthorities != null) {
-			this.certificateAuthorities.addAll(certificateAuthorities);
+			addCerticiateAuthorities(certificateAuthorities);
 		}
 	}
 
@@ -128,18 +131,12 @@ public final class CertificateRequest extends HandshakeMessage {
 		// algorithms length field (2 bytes) + certificate authorities length
 		// field (2 bytes) = 5 bytes
 
-		return 5 + certificateTypes.size() + (supportedSignatureAlgorithms.size() * 2) + getCertificateAuthoritiesLength();
-	}
-	
-	private int getCertificateAuthoritiesLength() {
-		// each distinguished name has a variable length, therefore we need an
-		// additional 2 bytes length field for each name
-		int certificateAuthLength = 0;
-		for (X500Principal distinguishedName : certificateAuthorities) {
-			certificateAuthLength += distinguishedName.getEncoded().length + 2;
-		}
-
-		return certificateAuthLength;
+		return 1 + // certificate type length field
+			certificateTypes.size() + // each type is represented by 1 byte
+			2 + // supported signature algorithms length field
+			(supportedSignatureAlgorithms.size() * 2) + // each algorithm is represented by 2 bytes
+			2 + // certificate authorities length field
+			certificateAuthoritiesEncodedLength;
 	}
 
 	@Override
@@ -182,8 +179,8 @@ public final class CertificateRequest extends HandshakeMessage {
 			writer.write(signatureAndHashAlgorithm.getHash().getCode(), SUPPORTED_SIGNATURE_BITS);
 			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SUPPORTED_SIGNATURE_BITS);
 		}
-		
-		writer.write(getCertificateAuthoritiesLength(), CERTIFICATE_AUTHORITIES_LENGTH_BITS);
+
+		writer.write(certificateAuthoritiesEncodedLength, CERTIFICATE_AUTHORITIES_LENGTH_BITS);
 		for (X500Principal distinguishedName : certificateAuthorities) {
 			// since a distinguished name has variable length, we need to write length field for each name as well, has influence on total length!
 			byte[] encoded = distinguishedName.getEncoded();
@@ -194,6 +191,13 @@ public final class CertificateRequest extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
+	/**
+	 * Parses a certificate request message from its binary encoding.
+	 * 
+	 * @param byteArray The encoded message.
+	 * @param peerAddress The origin address of the message.
+	 * @return The parsed instance.
+	 */
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		DatagramReader reader = new DatagramReader(byteArray);
 
@@ -313,32 +317,91 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	/**
+	 * Adds a certificate type to the list of supported certificate types.
+	 * 
+	 * @param certificateType The type to add.
+	 */
 	public void addCertificateType(ClientCertificateType certificateType) {
 		certificateTypes.add(certificateType);
 	}
 
+	/**
+	 * Appends a signature algorithm to the end of the list of supported algorithms.
+	 * <p>
+	 * The algorithm's position in list indicates <em>least preference</em> to the
+	 * recipient (the DTLS client) of the message.
+	 * 
+	 * @param signatureAndHashAlgorithm The algorithm to add.
+	 */
 	public void addSignatureAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
 		supportedSignatureAlgorithms.add(signatureAndHashAlgorithm);
 	}
 
-	public void addCertificateAuthority(X500Principal authority) {
-		// TODO make sure that the max size (2^16 - 1 bytes) is not exceeded
-		certificateAuthorities.add(authority);
+	/**
+	 * Adds a distinguished name to the list of acceptable certificate authorities.
+	 * 
+	 * @param authority The authority to add.
+	 * @return {@code false} if the authority could not be added because it would exceed the
+	 *         maximum encoded length allowed for the certificate request message's
+	 *         certificate authorities vector (2^16 - 1 bytes).
+	 * @throws NullPointerException if the authority is {@code null}.
+	 */
+	public boolean addCertificateAuthority(X500Principal authority) {
+
+		if (authority == null) {
+			throw new NullPointerException("authority must not be null");
+		}
+		int encodedAuthorityLength = 2 + // length field
+				authority.getEncoded().length;
+		if (certificateAuthoritiesEncodedLength + encodedAuthorityLength <= MAX_LENGTH_CERTIFICATE_AUTHORITIES) {
+			certificateAuthorities.add(authority);
+			certificateAuthoritiesEncodedLength += encodedAuthorityLength;
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	private boolean addCerticiateAuthorities(List<X500Principal> authorities) {
+
+		int authoritiesAdded = 0;
+		for (X500Principal authority : authorities) {
+			if (!addCertificateAuthority(authority)) {
+				LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+						new Object[]{ authoritiesAdded, authorities.size() });
+				return false;
+			} else {
+				authoritiesAdded++;
+			}
+		}
+		return true;
 	}
 
 	/**
 	 * Takes a list of trusted certificates, extracts the subject principal and
 	 * adds the DER-encoded distinguished name to the certificate authorities.
 	 * 
-	 * @param trustedCas
-	 *            trusted certificates.
+	 * @param trustedCas The trusted certificates to add.
+	 * @return {@code false} if not all certificates could not be added because it would exceed the
+	 *         maximum encoded length allowed for the certificate request message's
+	 *         certificate authorities vector (2^16 - 1 bytes).
 	 */
-	public void addCertificateAuthorities(X509Certificate[] trustedCas) {
-		if (trustedCas != null){
+	public boolean addCertificateAuthorities(X509Certificate[] trustedCas) {
+
+		if (trustedCas != null) {
+			int authoritiesAdded = 0;
 			for (X509Certificate certificate : trustedCas) {
-				addCertificateAuthority(certificate.getSubjectX500Principal());
+				if (!addCertificateAuthority(certificate.getSubjectX500Principal())) {
+					LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+							new Object[]{ authoritiesAdded, trustedCas.length });
+					return false;
+				} else {
+					authoritiesAdded++;
+				}
 			}
 		}
+		return true;
 	}
 
 	/**
