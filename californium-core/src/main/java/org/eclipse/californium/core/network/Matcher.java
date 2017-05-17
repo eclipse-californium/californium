@@ -434,7 +434,7 @@ public class Matcher {
 
 		@Override
 		public void completed(Exchange exchange) {
-			
+
 			/* 
 			 * Logging in this method leads to significant performance loss.
 			 * Uncomment logging code only for debugging purposes.
@@ -445,16 +445,29 @@ public class Matcher {
 			}
 			if (exchange.getOrigin() == Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
-				
-				KeyMID idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
-				KeyToken idByToken = new KeyToken(exchange.getCurrentRequest().getToken());
-				
-//				LOGGER.fine("Exchange completed: Cleaning up "+idByTok);
-				exchangesByToken.remove(idByToken);
-				
-				// in case an empty ACK was lost
-				exchangesByMID.remove(idByMID);
-			
+
+				Request originRequest = exchange.getCurrentRequest();
+
+				if (originRequest.hasMID()) {
+					KeyMID idByMID = new KeyMID(originRequest.getMID(), null, 0);
+					// in case an empty ACK was lost
+					exchangesByMID.remove(idByMID);
+				}
+
+				if (originRequest.getToken() == null) {
+					// this should not happen because we only register the observer
+					// if we have successfully registered the exchange
+					LOGGER.log(
+							Level.WARNING,
+							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+									exchange.getOrigin()});
+				} else {
+					KeyToken idByToken = new KeyToken(originRequest.getToken());
+					exchangesByToken.remove(idByToken);
+					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{ idByToken, exchange.getOrigin() });
+				}
+
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
 
@@ -462,7 +475,7 @@ public class Matcher {
 				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
 					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
-//					LOGGER.fine("Remote ongoing completed, cleaning up "+midKey);
+					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
 					exchangesByMID.remove(midKey);
 				}
 				
