@@ -23,6 +23,8 @@ import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
@@ -99,7 +101,7 @@ public class CertificateRequestTest {
 	}
 
 	/**
-	 * Verifies that an EC based key is considered incompatible with non-EC based signature algorithms.
+	 * Verifies that an EC based key is considered incompatible with only non-EC based signature algorithms.
 	 * 
 	 * @throws Exception if the key cannot be loaded.
 	 */
@@ -107,27 +109,59 @@ public class CertificateRequestTest {
 	public void testGetSignatureAndHashAlgorithmFailsForNonMatchingSupportedSignatureAlgorithms() throws Exception {
 
 		PublicKey key = DtlsTestTools.getClientPublicKey();
+		assertThat(key.getAlgorithm(), is("EC"));
 		CertificateRequest req = new CertificateRequest(peerAddress);
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA));
+		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.MD5, SignatureAlgorithm.DSA));
+		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.NONE, SignatureAlgorithm.ANONYMOUS));
 		assertThat(req.getSignatureAndHashAlgorithm(key), is(nullValue()));
 	}
 
 	/**
-	 * Verifies that an EC based key is considered incompatible with an EC based signature algorithms.
+	 * Verifies that an EC based key is considered compatible with a set of signature algorithms containing at least one
+	 * EC based algorithm.
 	 * 
 	 * @throws Exception if the key cannot be loaded.
 	 */
 	@Test
 	public void testGetSignatureAndHashAlgorithmSucceedsForMatchingSupportedSignatureAlgorithms() throws Exception {
 
+		// GIVEN a certificate request preferring an RSA based signature algorithm but also supporting an ECDSA based
+		// algorithm
 		PublicKey key = DtlsTestTools.getClientPublicKey();
+		assertThat(key.getAlgorithm(), is("EC"));
 		CertificateRequest req = new CertificateRequest(peerAddress);
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-		SignatureAndHashAlgorithm matchingAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
-		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA));
-		req.addSignatureAlgorithm(matchingAlgorithm);
-		assertThat(req.getSignatureAndHashAlgorithm(key), is(matchingAlgorithm));
+		SignatureAndHashAlgorithm preferredAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA);
+		SignatureAndHashAlgorithm ecdsaBasedAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
+		req.addSignatureAlgorithm(preferredAlgorithm);
+		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.NONE, SignatureAlgorithm.ANONYMOUS));
+		req.addSignatureAlgorithm(ecdsaBasedAlgorithm);
+
+		// WHEN negotiating the signature algorithm to use with the server
+		SignatureAndHashAlgorithm negotiatedAlgorithm = req.getSignatureAndHashAlgorithm(key);
+
+		// THEN the negotiated algorithm is the ECDSA based one
+		assertThat(negotiatedAlgorithm, is(ecdsaBasedAlgorithm));
+	}
+
+	/**
+	 * Verifies that the maximum length of the certificate authorities vector is not exceeded.
+	 */
+	@Test
+	public void testAddCertificateAuthorityAssertsMaxLength() {
+
+		CertificateRequest req = new CertificateRequest(peerAddress);
+		X500Principal authority = new X500Principal("O=Eclipse, OU=Hono Project, CN=test");
+		int encodedLength = 2 + authority.getEncoded().length;
+		int maxLength = (1 << 16) - 1;
+		int maxNoOfAuthorities = (int) Math.floor(maxLength / encodedLength);
+		for (int i = 0; i < maxNoOfAuthorities; i++) {
+			assertTrue(req.addCertificateAuthority(authority));
+		}
+		// next one should exceed max length
+		assertFalse(req.addCertificateAuthority(authority));
 	}
 
 	/**
