@@ -19,6 +19,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
  *    Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
  *                                                    complete exchange. Issue #103
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use save removes with
+ *                                                    additional object to remove
+ *                                                    as argument. 
+ *                                                    Fix null response in
+ *                                                    ExchangeObserverImpl
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -178,10 +183,7 @@ public class Matcher {
 
 		// If this is a CON notification we now can forget all previous NON notifications
 		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
-			ObserveRelation relation = exchange.getRelation();
-			if (relation != null) {
-				removeNotificatoinsOf(relation);
-			}
+			removeNotificatoinsOf(exchange);
 		}
 		
 		// Blockwise transfers are identified by URI and remote endpoint
@@ -198,7 +200,7 @@ public class Matcher {
 				}
 			} else {
 				LOGGER.fine("Ongoing Block2 completed, cleaning up "+idByUri + " for " + request);
-				ongoingExchanges.remove(idByUri);
+				ongoingExchanges.remove(idByUri, exchange);
 			}
 		}
 		
@@ -280,7 +282,7 @@ public class Matcher {
 					if (ongoing.getCurrentResponse()!=null && ongoing.getCurrentResponse().getType() != Type.ACK && !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = new KeyMID(ongoing.getCurrentResponse().getMID(), null, 0);
 						if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Ongoing exchange got new request, cleaning up "+idByMID);
-						exchangesByMID.remove(idByMID);
+						exchangesByMID.remove(idByMID, ongoing);
 					}
 				}
 				return ongoing;
@@ -355,7 +357,7 @@ public class Matcher {
 				response.setDuplicate(true);
 			} else {
 				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
-				exchangesByMID.remove(idByMID);
+				exchangesByMID.remove(idByMID, exchange);
 				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
 			}
 			
@@ -388,7 +390,7 @@ public class Matcher {
 		
 		if (exchange != null) {
 			if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Exchange got reply: Cleaning up "+idByMID);
-			exchangesByMID.remove(idByMID);
+			exchangesByMID.remove(idByMID, exchange);
 			return exchange;
 		} else {
 			LOGGER.info("Ignoring unmatchable empty message from "+message.getSource()+":"+message.getSourcePort()+": "+message);
@@ -403,14 +405,17 @@ public class Matcher {
 		deduplicator.clear();
 	}
 	
-	private void removeNotificatoinsOf(ObserveRelation relation) {
-		LOGGER.fine("Remove all remaining NON-notifications of observe relation");
-		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
-			Response previous = iterator.next();
-			// notifications are local MID namespace
-			KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
-			exchangesByMID.remove(idByMID);
-			iterator.remove();
+	private void removeNotificatoinsOf(Exchange exchange) {
+		ObserveRelation relation = exchange.getRelation();
+		if (null != relation) {
+			LOGGER.fine("Remove all remaining NON-notifications of observe relation");
+			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+				Response previous = iterator.next();
+				// notifications are local MID namespace
+				KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
+				exchangesByMID.remove(idByMID, exchange);
+				iterator.remove();
+			}
 		}
 	}
 	
@@ -451,7 +456,7 @@ public class Matcher {
 				if (originRequest.hasMID()) {
 					KeyMID idByMID = new KeyMID(originRequest.getMID(), null, 0);
 					// in case an empty ACK was lost
-					exchangesByMID.remove(idByMID);
+					exchangesByMID.remove(idByMID, exchange);
 				}
 
 				if (originRequest.getToken() == null) {
@@ -464,7 +469,7 @@ public class Matcher {
 									exchange.getOrigin()});
 				} else {
 					KeyToken idByToken = new KeyToken(originRequest.getToken());
-					exchangesByToken.remove(idByToken);
+					exchangesByToken.remove(idByToken, exchange);
 					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{ idByToken, exchange.getOrigin() });
 				}
 
@@ -476,21 +481,18 @@ public class Matcher {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
 					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
-					exchangesByMID.remove(midKey);
+					exchangesByMID.remove(midKey, exchange);
 				}
 				
 				Request request = exchange.getCurrentRequest();
-				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2()) ) {
+				if (request != null && (request.getOptions().hasBlock1() || (response != null && response.getOptions().hasBlock2())) ) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
 					LOGGER.fine("Remote ongoing completed, cleaning up "+uriKey);
-					ongoingExchanges.remove(uriKey);
+					ongoingExchanges.remove(uriKey, exchange);
 				}
 				
 				// Remove all remaining NON-notifications if this exchange is an observe relation
-				ObserveRelation relation = exchange.getRelation();
-				if (relation != null) {
-					removeNotificatoinsOf(relation);
-				}
+				removeNotificatoinsOf(exchange);
 			}
 		}
 		
