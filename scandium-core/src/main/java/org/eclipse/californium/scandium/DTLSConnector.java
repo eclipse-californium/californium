@@ -41,6 +41,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - restart internal executor
  *    Achim Kraus (Bosch Software Innovations GmbH) - processing retransmission of flight
  *                                                    after last flight was sent.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -73,6 +75,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.CorrelationMismatchException;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -1160,7 +1163,11 @@ public class DTLSConnector implements Connector {
 		// mandated by section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
 		Record helloVerify = new Record(ContentType.HANDSHAKE, 0, record.getSequenceNumber(), msg, record.getPeerAddress());
-		sendRecord(helloVerify);
+		try {
+			sendRecord(helloVerify);
+		} catch (IOException e) {
+			// already logged ...
+		}
 	}
 
 	private SecretKey getMacKeyForCookies() {
@@ -1225,6 +1232,8 @@ public class DTLSConnector implements Connector {
 		} else {
 			try {
 				sendRecord(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert, session));
+			} catch (IOException e) {
+				// already logged ...
 			} catch (GeneralSecurityException e) {
 				LOGGER.log(
 					Level.FINE,
@@ -1336,18 +1345,20 @@ public class DTLSConnector implements Connector {
 				return;
 			}
 			
+			message.onContextEstablished(ctx);
 			Record record = new Record(
 					ContentType.APPLICATION_DATA,
 					session.getWriteEpoch(),
 					session.getSequenceNumber(),
 					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
 					session);
-			if (message.getMessageCallback() != null) {
-				message.getMessageCallback().onContextEstablished(ctx);
-			}
 			sendRecord(record);
+			message.onSent();
+		} catch (IOException e) {
+			message.onError(e);
 		} catch (GeneralSecurityException e) {
 			LOGGER.log(Level.FINE, String.format("Cannot send APPLICATION record to peer [%s]", message.getInetSocketAddress()), e);
+			message.onError(e);
 		}
 	}
 
@@ -1370,6 +1381,7 @@ public class DTLSConnector implements Connector {
 						new Object[] {getUri(), message.getSize(), message.getAddress(),
 						message.getPort() });
 			}
+			message.onError(new CorrelationMismatchException());
 			return false;
 		}
 		return true;
@@ -1479,23 +1491,24 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void sendRecord(Record record) {
-		try {
-			byte[] recordBytes = record.toByteArray();
-			DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
-			sendDatagram(datagram);
-		} catch (IOException e) {
-			LOGGER.log(Level.WARNING, "Could not send record", e);
-		}
+	private void sendRecord(Record record) throws IOException {
+		byte[] recordBytes = record.toByteArray();
+		DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
+		sendDatagram(datagram);
 	}
 
 	private void sendDatagram(DatagramPacket datagramPacket) throws IOException {
 		DatagramSocket socket = getSocket();
 		if (socket != null && !socket.isClosed()) {
-			socket.send(datagramPacket);
+			try {
+				socket.send(datagramPacket);
+			} catch(IOException e) {
+				LOGGER.log(Level.WARNING, "Could not send record", e);
+				throw e;
+			}
 		} else {
-			
 			LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
+			throw new IOException("Socket closed.");
 		}
 	}
 

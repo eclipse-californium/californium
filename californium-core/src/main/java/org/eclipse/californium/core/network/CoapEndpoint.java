@@ -34,6 +34,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use exchange.calculateRTT
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in
  *                                                    BaseMatcher final
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new MessageCallback functions
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -631,15 +633,7 @@ public class CoapEndpoint implements Endpoint {
 				exchange.setComplete();
 
 			} else {
-				// create callback for setting correlation context
-				MessageCallback callback = new MessageCallback() {
-
-					@Override
-					public void onContextEstablished(final CorrelationContext context) {
-						exchange.setCorrelationContext(context);
-					}
-				};
-				RawData message = serializer.serializeRequest(request, callback);
+				RawData message = serializer.serializeRequest(request, new RequestCallback(exchange, request));
 				connector.send(message);
 			}
 		}
@@ -665,7 +659,7 @@ public class CoapEndpoint implements Endpoint {
 				if (null != exchange) {
 					correlationContext = exchange.getCorrelationContext();
 				}
-				connector.send(serializer.serializeResponse(response, correlationContext));
+				connector.send(serializer.serializeResponse(response, correlationContext, new MessageCallbackForwarder(response)));
 			}
 		}
 
@@ -690,7 +684,7 @@ public class CoapEndpoint implements Endpoint {
 				if (null != exchange) {
 					correlationContext = exchange.getCorrelationContext();
 				}
-				connector.send(serializer.serializeEmptyMessage(message, correlationContext));
+				connector.send(serializer.serializeEmptyMessage(message, correlationContext, new MessageCallbackForwarder(message)));
 			}
 		}
 
@@ -873,6 +867,77 @@ public class CoapEndpoint implements Endpoint {
 					}
 				}
 			}
+		}
+	}
+
+	/**
+	 * Base message callback implementation. Forwards callbacks to
+	 * {@link Message}
+	 */
+	private class MessageCallbackForwarder implements MessageCallback {
+
+		/**
+		 * Related send message.
+		 */
+		private final Message message;
+
+		/**
+		 * Creates a new message callback.
+		 * 
+		 * @param message related send message
+		 * @throws NullPointerException if message is {@code null}
+		 */
+		public MessageCallbackForwarder(final Message message) {
+			if (null == message) {
+				throw new NullPointerException("message must not be null");
+			}
+			this.message = message;
+		}
+		
+		@Override
+		public void onContextEstablished(CorrelationContext context) {
+			
+		}
+
+		@Override
+		public void onSent() {
+			message.setSent(true);
+		}
+
+		@Override
+		public void onError(Throwable error) {
+			message.setSendError(error);
+		}
+	}
+
+	/**
+	 * Message callback for request. 
+	 * Additional calls {@link Exchange#setCorrelationContext(CorrelationContext).
+	 */
+	private class RequestCallback extends MessageCallbackForwarder {
+
+		/**
+		 * Exchange of send reques.
+		 */
+		private final Exchange exchange;
+
+		/**
+		 * Create a new instance.
+		 * @param exchange related exchange
+		 * @param request related request
+		 * @throws NullPointerException if exchange or request is {@code null}
+		 */
+		public RequestCallback(final Exchange exchange, final Request request) {
+			super(request);
+			if (null == exchange) {
+				throw new NullPointerException("exchange must not be null");
+			}
+			this.exchange = exchange;
+		}
+
+		@Override
+		public void onContextEstablished(CorrelationContext context) {
+			exchange.setCorrelationContext(context);
 		}
 	}
 

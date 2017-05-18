@@ -20,6 +20,9 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use onResponse of CoapObserveRelation
  *                                                    to order notifies and responses.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
+ *                                                    instead of onReject() and
+ *                                                    onTimeout().
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -1076,16 +1079,6 @@ public class CoapClient {
 		@Override public void onResponse(final Response response) {
 			succeeded(response != null ? new CoapResponse(response) : null);
 		}
-		
-		/* (non-Javadoc)
-		 * @see org.eclipse.californium.core.coap.MessageObserverAdapter#rejected()
-		 */
-		@Override public void onReject()  { failed(); }
-		
-		/* (non-Javadoc)
-		 * @see org.eclipse.californium.core.coap.MessageObserverAdapter#timedOut()
-		 */
-		@Override public void onTimeout() { failed(); }
 		
 		/**
 		 * Invoked when a response arrives (even if the response code is not

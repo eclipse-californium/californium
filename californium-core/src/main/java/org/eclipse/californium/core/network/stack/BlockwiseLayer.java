@@ -19,6 +19,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use exchange.calculateRTT
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
+ *                                                    instead of onReject() and
+ *                                                    onTimeout(). Add onSendError()
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -217,24 +220,23 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 
 				@Override
-				public void onAcknowledgement() {
-					copyToken();
-				}
-
-				@Override
-				public void onReject() {
-					copyToken();
-					clearBlock1Status(key);
-				}
-
-				@Override
-				public void onTimeout() {
-					copyToken();
-					clearBlock1Status(key);
-				}
-
-				@Override
 				public void onCancel() {
+					failed();
+				}
+
+				@Override
+				public void onSent() {
+					copyToken();
+				}
+
+				@Override
+				public void onSendError(Throwable error) {
+					copyToken();
+					failed();
+				}
+
+				@Override
+				public void failed() {
 					clearBlock1Status(key);
 				}
 			});
@@ -1098,12 +1100,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			@Override
-			public void onReject() {
-				clearBlock1Status(key);
-			}
-
-			@Override
-			public void onTimeout() {
+			protected void failed() {
 				clearBlock1Status(key);
 			}
 		};
@@ -1121,12 +1118,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			@Override
-			public void onReject() {
-				clearBlock2Status(key);
-			}
-
-			@Override
-			public void onTimeout() {
+			protected void failed() {
 				clearBlock2Status(key);
 			}
 		};

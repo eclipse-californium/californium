@@ -21,6 +21,8 @@
  *                                                 (implemented afterwards)
  * Achim Kraus (Bosch Software Innovations GmbH) - add TcpCorrelationContextMatcher
  *                                                 implementation
+ * Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
+ *                                                 issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -40,6 +42,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.CorrelationMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -47,6 +50,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -129,6 +133,7 @@ public class TcpClientConnector implements Connector {
 				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
 						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			}
+			msg.onError(new CorrelationMismatchException());
 			return;
 		}
 		final ChannelPool channelPool = poolMap.get(addressKey);
@@ -148,10 +153,24 @@ public class TcpClientConnector implements Connector {
 								LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
 										new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 							}
+							msg.onError(new CorrelationMismatchException());
 							return;
 						}
-						channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
 						msg.onContextEstablished(context);
+						ChannelFuture channelFuture = channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
+						channelFuture.addListener(new GenericFutureListener<ChannelFuture>() {
+
+							@Override
+							public void operationComplete(ChannelFuture future) throws Exception {
+								if (future.isSuccess()) {
+									msg.onSent();
+								} else if (future.isCancelled()) {
+									msg.onError(new CancellationException());
+								} else {
+									msg.onError(future.cause());
+								}
+							}
+						});
 					} finally {
 						channelPool.release(channel);
 					}

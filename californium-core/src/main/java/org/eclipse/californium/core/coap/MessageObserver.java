@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onSendError()
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -86,4 +88,19 @@ public interface MessageObserver {
 	 * observed might cancel a response to send another one instead.
 	 */
 	void onCancel();
+
+	/**
+	 * Invoked when the message has been sent.
+	 * <p>
+	 * Triggered, when the message was sent by a connector.
+	 */
+	void onSent();
+	
+	/**
+	 * Invoked when sending the message caused an error.
+	 * <p>
+	 * For instance, if the message is not sent, because the correlation context has changed.
+	 */
+	void onSendError(Throwable error);
+	
 }

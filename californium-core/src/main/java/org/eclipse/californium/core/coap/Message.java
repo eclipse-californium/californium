@@ -20,6 +20,8 @@
  *                                                    (for message tracing)
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - make messaging states thread safe
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add sent and sendError
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -107,6 +109,9 @@ public abstract class Message {
 	/** The source port of this message. */
 	private int sourcePort;
 
+	/** Indicates if the message has sent. */
+	private volatile boolean sent;
+
 	/** Indicates if the message has been acknowledged. */
 	private volatile boolean acknowledged;
 
@@ -121,6 +126,9 @@ public abstract class Message {
 
 	/** Indicates if the message is a duplicate. */
 	private volatile boolean duplicate;
+
+	/** Indicates if sending the message caused an error. */
+	private volatile Throwable sendError;
 
 	/** The serialized message as byte array. */
 	private byte[] bytes;
@@ -600,6 +608,56 @@ public abstract class Message {
 		if (canceled) {
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onCancel();
+			}
+		}
+	}
+
+	/**
+	 * Checks if this message has been sent.
+	 * 
+	 * @return true, if is sent
+	 */
+	public boolean isSent() {
+		return sent;
+	}
+
+	/**
+	 * Marks this message as sent.
+	 * 
+	 * Not part of the fluent API.
+	 * 
+	 * @param sent if sent
+	 */
+	public void setSent(boolean sent) {
+		this.sent = sent;
+		if (sent) {
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onSent();
+			}
+		}
+	}
+
+	/**
+	 * Checks if this message has been sent.
+	 * 
+	 * @return true, if is sent
+	 */
+	public Throwable getSendError() {
+		return sendError;
+	}
+
+	/**
+	 * Marks this message with send error.
+	 * 
+	 * Not part of the fluent API.
+	 * 
+	 * @param sendError if error occurred while sending
+	 */
+	public void setSendError(Throwable sendError) {
+		this.sendError = sendError;
+		if (sendError != null) {
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onSendError(sendError);
 			}
 		}
 	}

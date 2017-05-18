@@ -22,6 +22,12 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<classifier>tests</classifier>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
 		</dependency>
 		<dependency>
