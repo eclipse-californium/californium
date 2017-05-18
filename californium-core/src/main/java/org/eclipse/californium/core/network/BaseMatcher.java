@@ -19,6 +19,9 @@
  *                                                    a cleanup.
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix cancelObserve()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
+ *                                                    instead of onReject() and
+ *                                                    onTimeout().
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -125,23 +128,15 @@ public abstract class BaseMatcher implements Matcher {
 			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
 			LOG.log(Level.FINER, "registering observe request {0}", request);
 			observationStore.add(new Observation(request, null));
-			// remove it if the request is cancelled, rejected or timedout
+			// remove it if the request is cancelled, rejected, timedout, or send error
 			request.addMessageObserver(new MessageObserverAdapter() {
-
 				@Override
 				public void onCancel() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
+					failed();
 				}
-
+				
 				@Override
-				public void onReject() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-
-				@Override
-				public void onTimeout() {
+				protected void failed() {
 					observationStore.remove(request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
@@ -150,7 +145,7 @@ public abstract class BaseMatcher implements Matcher {
 	}
 
 	/**
-	 * Special matching for notify reponses. Check, is a observe is stored in
+	 * Special matching for notify responses. Check, is a observe is stored in
 	 * {@link #observationStore} and if found, recreate a exchange.
 	 * 
 	 * @param response notify response
@@ -178,12 +173,6 @@ public abstract class BaseMatcher implements Matcher {
 			request.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
-				public void onTimeout() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-
-				@Override
 				public void onResponse(Response resp) {
 					// check whether the client has established the observe
 					// requested
@@ -204,13 +193,12 @@ public abstract class BaseMatcher implements Matcher {
 				}
 
 				@Override
-				public void onReject() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
+				public void onCancel() {
+					failed();
 				}
 
 				@Override
-				public void onCancel() {
+				protected void failed() {
 					observationStore.remove(request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}

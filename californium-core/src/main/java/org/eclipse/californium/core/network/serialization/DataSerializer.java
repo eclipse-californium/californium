@@ -20,6 +20,8 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext for response
  *                                                 (fix GitHub issue #104)
+ * Achim Kraus (Bosch Software Innovations GmbH) - add outboundCallback for responses
+ *                                                 and empty messages. issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -64,8 +66,7 @@ public abstract class DataSerializer {
 	 * byte array.
 	 * 
 	 * @param request The request to serialize.
-	 * @param outboundCallback The callback to invoke once the message's correlation context
-	 *                         has been established. 
+	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized request and the callback.
 	 */
 	public final RawData serializeRequest(final Request request, final MessageCallback outboundCallback) {
@@ -111,7 +112,7 @@ public abstract class DataSerializer {
 	 * @return The object containing the serialized response.
 	 */
 	public final RawData serializeResponse(final Response response) {
-		return serializeResponse(response, null);
+		return serializeResponse(response, null, null);
 	}
 	
 	/**
@@ -119,9 +120,10 @@ public abstract class DataSerializer {
 	 * 
 	 * @param response The response to serialize.
 	 * @param context correlation context for response. Maybe null.
+	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized response.
 	 */
-	public final RawData serializeResponse(final Response response, final CorrelationContext context) {
+	public final RawData serializeResponse(final Response response, final CorrelationContext context, final MessageCallback outboundCallback) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -139,7 +141,7 @@ public abstract class DataSerializer {
 				new InetSocketAddress(response.getDestination(),
 						response.getDestinationPort()),
 				context,
-				null,
+				outboundCallback,
 				false);
 	}
 
@@ -150,16 +152,17 @@ public abstract class DataSerializer {
 	 * @return The object containing the serialized message.
 	 */
 	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage) {
-		return serializeEmptyMessage(emptyMessage, null);
+		return serializeEmptyMessage(emptyMessage, null, null);
 	}
 	/**
 	 * Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations.
 	 * 
 	 * @param emptyMessage The message to serialize.
 	 * @param context correlation context for response. Maybe null.
+	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized message.
 	 */
-	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final CorrelationContext context) {
+	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final CorrelationContext context, final MessageCallback outboundCallback) {
 		if (emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);
@@ -177,7 +180,7 @@ public abstract class DataSerializer {
 				new InetSocketAddress(emptyMessage.getDestination(),
 						emptyMessage.getDestinationPort()),
 				context,
-				null,
+				outboundCallback,
 				false);
 	}
 

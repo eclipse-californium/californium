@@ -21,6 +21,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use final for fields and adjust
  *                                                    thread safe random usage
  *    Achim Kraus (Bosch Software Innovations GmbH) - use synchronized to access exchange.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - start retransmission timer, when message
+ *                                                    is reported as sent. introduce 
+ *                                                    updateRetransmissionTimeout() for
+ *                                                    supporting CongestionControlLayer
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -33,6 +38,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -150,7 +156,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param exchange the exchange
 	 * @param task the retransmission task
 	 */
-	protected void prepareRetransmission(final Exchange exchange, final RetransmissionTask task) {
+	private void prepareRetransmission(final Exchange exchange, final RetransmissionTask task) {
 
 		// prevent RejectedExecutionException
 		if (executor.isShutdown()) {
@@ -158,22 +164,18 @@ public class ReliabilityLayer extends AbstractLayer {
 			return;
 		}
 
-		/*
-		 * For a new confirmable message, the initial timeout is set to a random
-		 * number between ACK_TIMEOUT and (ACK_TIMEOUT * ACK_RANDOM_FACTOR)
-		 */
-		synchronized(exchange) {
-			int timeout;
-			if (exchange.getFailedTransmissionCount() == 0) {
-				timeout = getRandomTimeout(ack_timeout, (int) (ack_timeout * ack_random_factor));
-			} else {
-				timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
+		exchange.setRetransmissionHandle(null); // cancel before reschedule
+		updateRetransmissionTimeout(exchange);
+
+		task.message.addMessageObserver(new MessageObserverAdapter() {
+
+			@Override
+			public void onSent() {
+				task.message.removeMessageObserver(this);
+				task.start();
 			}
-			exchange.setCurrentTimeout(timeout);
-			exchange.setRetransmissionHandle(null); // cancel before reschedule
-			ScheduledFuture<?> f = executor.schedule(task, timeout, TimeUnit.MILLISECONDS);
-			exchange.setRetransmissionHandle(f);
-		}
+
+		});
 	}
 
 	/**
@@ -277,7 +279,35 @@ public class ReliabilityLayer extends AbstractLayer {
 		upper().receiveEmptyMessage(exchange, message);
 	}
 
-	/*
+	/**
+	 * Update the exchange's current timeout.
+	 * 
+	 * Prepares either for the first transmission or stretches timeout for
+	 * follow-up retransmissions.
+	 * 
+	 * @param exchange exchange to update the current timeout
+	 * @see Exchange#getCurrentTimeout()
+	 * @see Exchange#setCurrentTimeout(int)
+	 * @see Exchange#getFailedTransmissionCount()
+	 */
+	protected void updateRetransmissionTimeout(final Exchange exchange) {
+		synchronized (exchange) {
+			int timeout;
+			if (exchange.getFailedTransmissionCount() == 0) {
+				/*
+				 * For a new confirmable message, the initial timeout is set to
+				 * a random number between ACK_TIMEOUT and (ACK_TIMEOUT *
+				 * ACK_RANDOM_FACTOR)
+				 */
+				timeout = getRandomTimeout(ack_timeout, (int) (ack_timeout * ack_random_factor));
+			} else {
+				timeout = (int) (ack_timeout_scale * exchange.getCurrentTimeout());
+			}
+			exchange.setCurrentTimeout(timeout);
+		}
+	}
+
+	/**
 	 * Returns a random timeout between the specified min and max.
 	 * 
 	 * @param min the min
@@ -309,6 +339,12 @@ public class ReliabilityLayer extends AbstractLayer {
 			this.message = message;
 		}
 
+		public void start() {
+			int timeout = exchange.getCurrentTimeout();
+			ScheduledFuture<?> f = executor.schedule(this, timeout, TimeUnit.MILLISECONDS);
+			exchange.setRetransmissionHandle(f);
+		}
+
 		@Override
 		public void run() {
 			/*
@@ -318,7 +354,7 @@ public class ReliabilityLayer extends AbstractLayer {
 			 */
 			try {
 				int failedCount;
-				synchronized(exchange) {
+				synchronized (exchange) {
 					failedCount = exchange.getFailedTransmissionCount() + 1;
 					exchange.setFailedTransmissionCount(failedCount);
 				}
@@ -358,4 +394,5 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		public abstract void retransmit();
 	}
+
 }

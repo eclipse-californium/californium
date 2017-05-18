@@ -14,6 +14,9 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - extend to report the sending 
+ *                                                    of the data or errors.
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -33,4 +36,16 @@ public interface MessageCallback {
 	 *                   which the message is sent
 	 */
 	void onContextEstablished(CorrelationContext context);
+
+	/**
+	 * Called after message was sent by the connector.
+	 */
+	void onSent();
+
+	/**
+	 * Called, when message was not sent by the connector.
+	 * 
+	 * @param error details for not sending the message.
+	 */
+	void onError(Throwable error);
 }

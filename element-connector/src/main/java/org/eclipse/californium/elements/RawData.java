@@ -20,6 +20,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onContextEstablished.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext to outbound
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace onContextEstablished by
+ *                                                    onSent. Add onError.
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -319,20 +322,13 @@ public final class RawData {
 	}
 
 	/**
-	 * @return the callback
-	 */
-	public MessageCallback getMessageCallback() {
-		return callback;
-	}
-
-	/**
 	 * Determines if the correlation context of this object is secure.
 	 *
-	 * @return <code>true</code> if context is secure, <code>false</code> otherwise
+	 * @return <code>true</code> if context is secure, <code>false</code>
+	 *         otherwise
 	 */
 	public boolean isSecure() {
-		return (correlationContext != null &&
-				correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
+		return (correlationContext != null && correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
 	}
 
 	/**
@@ -343,6 +339,31 @@ public final class RawData {
 	public void onContextEstablished(CorrelationContext context) {
 		if (null != callback) {
 			callback.onContextEstablished(context);
+		}
+	}
+
+	/**
+	 * Callback after message was sent by the connector.
+	 */
+	public void onSent() {
+		if (null != callback) {
+			callback.onSent();
+		}
+	}
+
+	/**
+	 * Called, when message was not sent by the connector.
+	 * 
+	 * @param error details for not sending the message. If {@code null},
+	 *            {@link UnknownError} is used to call
+	 *            {@link MessageCallback#onError(Throwable)}.
+	 */
+	public void onError(Throwable error) {
+		if (null != callback) {
+			if (null == error) {
+				error = new UnknownError();
+			}
+			callback.onError(error);
 		}
 	}
 

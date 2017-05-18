@@ -16,20 +16,26 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onSendError()
+ *                                                    implement onReject, onTimeout,
+ *                                                    and onSendError calling failed().
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
-
 
 /**
  * An abstract adapter class for reacting to a message's lifecylce events.
  * <p>
- * The methods in this class are empty. This class exists as convenience for creating message
+ * The methods in this class are empty, except {@link #onReject()},
+ *  {@link #onTimeout()}, and
+ * {@link #onSendError(Throwable)}, which are calling {@link #failed()} as
+ * default implementation. This class exists as convenience for creating message
  * observer objects.
  * <p>
  * Subclasses should override the methods for the events of interest.
  * <p>
- * An instance of the concrete message observer can then be registered with a message using
- * the message's <code>addMessageObserver</code> method.
+ * An instance of the concrete message observer can then be registered with a
+ * message using the message's <code>addMessageObserver</code> method.
  */
 public abstract class MessageObserverAdapter implements MessageObserver {
 
@@ -50,7 +56,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onReject() {
-		// empty default implementation
+		failed();
 	}
 
 	@Override
@@ -60,6 +66,28 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onTimeout() {
+		failed();
+	}
+
+	@Override
+	public void onSent() {
 		// empty default implementation
 	}
+
+	@Override
+	public void onSendError(Throwable error) {
+		failed();
+	}
+
+	/**
+	 * Common method to be overwritten to catch failed messages.
+	 * 
+	 * @see #onReject()
+	 * @see #onTimeout()
+	 * @see #onSendError(Throwable)
+	 */
+	protected void failed() {
+		// empty default implementation
+	}
+
 }

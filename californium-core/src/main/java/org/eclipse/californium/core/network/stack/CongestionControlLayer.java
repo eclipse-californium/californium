@@ -16,11 +16,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - change lower()/upper() back to super
  *                                                    to ensure, that ReliabilityLayer
  *                                                    is processed.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce updateRetransmissionTimeout()
+ *                                                    issue #305
  ******************************************************************************/
  
 package org.eclipse.californium.core.network.stack;
 
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -323,12 +324,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		}
 	}
 
-	/**
-	 * The following method overrides the method provided by the reliability layer to include the advanced RTO calculation values
-	 * when determining the RTO.
-	 */
 	@Override
-	protected void prepareRetransmission(final Exchange exchange, final RetransmissionTask task) {
+	protected void updateRetransmissionTimeout(final Exchange exchange) {
 		int timeout;
 		//System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
 		if (exchange.getFailedTransmissionCount() == 0) {
@@ -352,8 +349,6 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		exchange.setCurrentTimeout(timeout);
 		//expectedmaxduration = calculateMaxTransactionDuration(exchange); //FIXME what was this for?
 		//System.out.println("Sending MSG (timeout;timestamp:" + timeout + ";" + System.currentTimeMillis() + ")");
-		ScheduledFuture<?> f = executor.schedule(task , timeout, TimeUnit.MILLISECONDS);
-		exchange.setRetransmissionHandle(f);	
 	}
 
 	@Override

@@ -15,6 +15,10 @@
  *    Bosch Software Innovations GmbH - add test case for GitHub issue #1
  *    Achim Kraus (Bosch Software Innovations GmbH) - dummy for setCorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - initialize latch always.
+ *                                                    adjust MessageCallback test to
+ *                                                    testSendRequestCallsMessageCallbackOnSent
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -34,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -72,6 +77,7 @@ public class CoapEndpointTest {
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
 		sentLatch = new CountDownLatch(1);
+		latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override
@@ -100,13 +106,18 @@ public class CoapEndpointTest {
 	}
 
 	@Test
-	public void testSendRequestAddsMessageCallbackToOutboundMessage() throws Exception {
+	public void testSendRequestCallsMessageCallbackOnSent() throws Exception {
 
 		// GIVEN an outbound request
-		latch = new CountDownLatch(1);
 		Request request = Request.newGet();
 		request.setDestination(InetAddress.getLoopbackAddress());
 		request.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
+		request.addMessageObserver(new MessageObserverAdapter() {
+			@Override
+			public void onSent() {
+				latch.countDown();
+			}
+		});
 
 		// WHEN sending the request to the peer
 		endpoint.sendRequest(request);
@@ -125,7 +136,6 @@ public class CoapEndpointTest {
 				return "Client";
 			}
 		};
-		latch = new CountDownLatch(1);
 
 		RawData inboundRequest = new RawData(getSerializedRequest(), new InetSocketAddress(CoAP.DEFAULT_COAP_PORT),
 				clientId);
@@ -136,8 +146,6 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
-		latch = new CountDownLatch(1);
-
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, null, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
@@ -146,7 +154,6 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
-		latch = new CountDownLatch(1);
 		CorrelationContext secureCtx = new DtlsCorrelationContext("session", "1", "CIPHER");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, secureCtx, false);
 		connector.receiveMessage(inboundRequest);
@@ -208,10 +215,8 @@ public class CoapEndpointTest {
 
 		@Override
 		public void send(RawData msg) {
-			if (msg.getMessageCallback() != null) {
-				msg.getMessageCallback().onContextEstablished(context);
-				latch.countDown();
-			}
+			msg.onContextEstablished(context);
+			msg.onSent();
 			sentLatch.countDown();
 		}
 

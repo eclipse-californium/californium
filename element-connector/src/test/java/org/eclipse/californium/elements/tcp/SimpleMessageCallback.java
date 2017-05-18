@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onError. issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -28,10 +29,30 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * Correlation context of sent message.
 	 */
 	private CorrelationContext context;
+	/**
+	 * Error of sending message.
+	 */
+	private Throwable sendError;
+	/**
+	 * Indicator for message sent.
+	 */
+	private boolean sent;
 
 	@Override
 	public synchronized void onContextEstablished(CorrelationContext context) {
 		this.context = context;
+		notifyAll();
+	}
+
+	@Override
+	public synchronized void onSent() {
+		sent = true;
+		notifyAll();
+	}
+
+	@Override
+	public synchronized void onError(Throwable error) {
+		this.sendError = error;
 		notifyAll();
 	}
 
@@ -47,16 +68,66 @@ public class SimpleMessageCallback implements MessageCallback {
 	}
 
 	/**
+	 * Check, if message was sent.
+	 * 
+	 * @return {@code true}, if message was sent, {@code false} otherwise
+	 * @see #isSent(long)
+	 */
+	public synchronized boolean isSent() {
+		return sent;
+	}
+
+	/**
+	 * Get error of sending message.
+	 * 
+	 * @return error of sending message, or null, if not jet sent or no error
+	 *         occurred.
+	 * @see #getError(long)
+	 */
+	public synchronized Throwable getError() {
+		return sendError;
+	}
+
+	/**
 	 * Get correlation context of sent message waiting with timeout.
 	 * 
 	 * @return correlation context of sent message, or null, if not sent within
 	 *         provided timeout or no correlation context is available.
-	 * @see #getCorrelationContext(long)
+	 * @see #getCorrelationContext()
 	 */
 	public synchronized CorrelationContext getCorrelationContext(long timeout) throws InterruptedException {
-		if (null == context) {
+		if (null == context && null == sendError) {
 			wait(timeout);
 		}
 		return context;
 	}
+
+	/**
+	 * Check, if message was sent with timeout.
+	 * 
+	 * @return {@code true}, if message was sent with the timeout, {@code false}
+	 *         otherwise
+	 * @see #isSent()
+	 */
+	public synchronized boolean isSent(long timeout) throws InterruptedException {
+		if (!sent && null == sendError) {
+			wait(timeout);
+		}
+		return sent;
+	}
+
+	/**
+	 * Get error of sending message waiting with timeout.
+	 * 
+	 * @return error of sending message, or {@code null}, if not occurred within
+	 *         provided timeout.
+	 * @see #getError()
+	 */
+	public synchronized Throwable getError(long timeout) throws InterruptedException {
+		if (!sent && null == sendError) {
+			wait(timeout);
+		}
+		return sendError;
+	}
+
 }

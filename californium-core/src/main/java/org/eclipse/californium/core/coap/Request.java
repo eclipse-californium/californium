@@ -25,6 +25,8 @@
  *                                                    set scheme on setOptions(URI)
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix empty uri query in getURI()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add setSendError() 
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -590,7 +592,7 @@ public class Request extends Message {
 		long expired = timeout > 0 ? (before + timeout) : 0;
 		long leftTimeout = timeout;
 		synchronized (this) {
-			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected()) {
+			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
 				wait(leftTimeout);
 				long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 				// timeout expired?
@@ -644,6 +646,16 @@ public class Request extends Message {
 	public void setRejected(boolean rejected) {
 		super.setRejected(rejected);
 		if (rejected) {
+			synchronized (this) {
+				notifyAll();
+			}
+		}
+	}
+
+	@Override
+	public void setSendError(Throwable sendError) {
+		super.setSendError(sendError);
+		if (sendError != null) {
 			synchronized (this) {
 				notifyAll();
 			}

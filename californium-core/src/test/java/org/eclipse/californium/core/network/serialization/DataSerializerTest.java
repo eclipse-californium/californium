@@ -14,6 +14,9 @@
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for CorrelationContext
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add null callback
+ *                                                    for response and empty message
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -115,7 +118,7 @@ public class DataSerializerTest {
 		response.setType(Type.ACK);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
-		RawData data = serializer.serializeResponse(response, context);
+		RawData data = serializer.serializeResponse(response, context, null);
 
 		assertThat(data.getCorrelationContext(), is(equalTo(context)));
 	}
@@ -132,7 +135,7 @@ public class DataSerializerTest {
 
 		EmptyMessage ack = EmptyMessage.newACK(request);
 		ack.setToken(new byte[0]);
-		RawData data = serializer.serializeEmptyMessage(ack, context);
+		RawData data = serializer.serializeEmptyMessage(ack, context, null);
 
 		assertThat(data.getCorrelationContext(), is(equalTo(context)));
 	}

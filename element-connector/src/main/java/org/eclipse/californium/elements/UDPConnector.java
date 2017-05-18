@@ -18,6 +18,8 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - clear thread-list on stop
  *                                                    log exception when stopping.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent and onError. 
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -312,27 +314,35 @@ public class UDPConnector implements Connector {
 			this.datagram = new DatagramPacket(new byte[0], 0);
 		}
 
-		protected void work() throws InterruptedException, IOException {
+		protected void work() throws InterruptedException {
 			RawData raw = outgoing.take(); // Blocking
-			/* check, if message should be sent with the "none correlation context" of UDP connector */
-			CorrelationContextMatcher correlationMatcher = UDPConnector.this.correlationContextMatcher;
-			if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
-				if (LOGGER.isLoggable(Level.WARNING)) {
-					LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
-							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(), datagram.getAddress(),
-									datagram.getPort() });
+			try {
+				/*
+				 * check, if message should be sent with the
+				 * "none correlation context" of UDP connector
+				 */
+				CorrelationContextMatcher correlationMatcher = UDPConnector.this.correlationContextMatcher;
+				if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
+					if (LOGGER.isLoggable(Level.WARNING)) {
+						LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
+								new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
+										datagram.getAddress(), datagram.getPort() });
+					}
+					raw.onError(new CorrelationMismatchException());
+					return;
 				}
-				return;
+				datagram.setData(raw.getBytes());
+				datagram.setAddress(raw.getAddress());
+				datagram.setPort(raw.getPort());
+				if (LOGGER.isLoggable(Level.FINER)) {
+					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
+							new Object[] { getUri(), datagram.getLength(), datagram.getAddress(), datagram.getPort() });
+				}
+				socket.send(datagram);
+				raw.onSent();
+			} catch (IOException ex) {
+				raw.onError(ex);
 			}
-			datagram.setData(raw.getBytes());
-			datagram.setAddress(raw.getAddress());
-			datagram.setPort(raw.getPort());
-			if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-						new Object[] { getUri(), datagram.getLength(), datagram.getAddress(),
-								datagram.getPort() });
-			}
-			socket.send(datagram);
 		}
 	}
 

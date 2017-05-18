@@ -30,6 +30,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add test for retransmission of FINISHED
  *                                                    add asserts for record sequence numbers
  *                                                    of retransmitted flights
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError().
+ *                                                    use SimpleMessageCallback
+ *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -60,9 +63,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
-import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -228,28 +231,22 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
-	public void testSendInvokesMessageCallback() throws Exception {
+	public void testSendInvokesMessageCallbackOnSent() throws Exception {
 
 		// GIVEN a message including a MessageCallback
-		final AtomicBoolean isCallbackInvoked = new AtomicBoolean();
+		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData outboundMessage = RawData.outbound(
 				new byte[]{0x01},
 				serverEndpoint,
 				null, 
-				new MessageCallback() {
-
-					@Override
-					public void onContextEstablished(CorrelationContext context) {
-						isCallbackInvoked.set(context != null);
-					}
-				},
+				callback,
 				false);
 
 		// WHEN sending the message
 		givenAnEstablishedSession(outboundMessage, true);
 
 		// THEN assert that the callback has been invoked with a correlation context
-		assertTrue(isCallbackInvoked.get());
+		assertTrue(callback.isSent(1000));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext(), is(notNullValue()));
 	}
@@ -261,10 +258,11 @@ public class DTLSConnectorTest {
 	@Test
 	public void testInitialSendingBlockedInvokesCorrelationContextMatcher() throws Exception {
 		// GIVEN a CorrelationContextMatcher, blocking
+		SimpleMessageCallback callback = new SimpleMessageCallback();
 		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(1);
 		client.setCorrelationContextMatcher(correlationMatcher);
 		// GIVEN a message to send
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverEndpoint, null, null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverEndpoint, null, callback, false);
 
 		// WHEN sending the initial message, but being blocked by CorrelationContextMatcher
 		CountDownLatch latch = new CountDownLatch(1);
@@ -279,6 +277,9 @@ public class DTLSConnectorTest {
 
 		// THEN assert that the CorrelationContextMatcher is invoked once
 		assertThat(correlationMatcher.getConnectionCorrelationContext(0), is(nullValue()));
+		
+		// THEN assert that onError is invoked
+		assertThat(callback.getError(1000), is(notNullValue()));
 	}
 
 	/**
