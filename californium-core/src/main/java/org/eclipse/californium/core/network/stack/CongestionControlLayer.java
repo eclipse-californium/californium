@@ -13,6 +13,9 @@
  * Contributors:
  *    August Betzler    – CoCoA implementation
  *    Matthias Kovatsch - Embedding of CoCoA in Californium
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change lower()/upper() back to super
+ *                                                    to ensure, that ReliabilityLayer
+ *                                                    is processed.
  ******************************************************************************/
  
 package org.eclipse.californium.core.network.stack;
@@ -23,6 +26,7 @@ import java.util.logging.Level;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -108,17 +112,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * 3.) Checks if message is confirmable and if the NSTART rule is followed. If more than NSTART exchanges are running, the Request is enqueued.
 	 *     If the NSTART limit is respected, the message is passed on to the reliability layer.
 	 */
-	private boolean processMessage(final Exchange exchange, final Object message) {
-		Type messageType;
-		messageType = Type.NON;
-
-		// Determine type of message
-		if (message.getClass() == Request.class) {
-			messageType = exchange.getCurrentRequest().getType();
-		}
-		if (message.getClass() == Response.class) {
-			messageType = exchange.getCurrentResponse().getType();
-		}
+	private boolean processMessage(final Exchange exchange, final Message message) {
+		Type messageType = message.getType();
 
 		// Put into queues for NON or CON messages
 		if (messageType == Type.CON) {
@@ -302,10 +297,12 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	public void sendRequest(final Exchange exchange, final Request request) {
 		// Check if exchange is already running into a retransmission; if so, don't call processMessage
 		if (exchange.getFailedTransmissionCount() > 0) {
-			lower().sendRequest(exchange, request);
+			// process ReliabilityLayer
+			super.sendRequest(exchange, request);
 		} else if (processMessage(exchange, request)) {
 			checkAging(exchange);
-			lower().sendRequest(exchange, request);
+			// process ReliabilityLayer
+			super.sendRequest(exchange, request);
 		}
 	}
 
@@ -318,10 +315,11 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// Check if exchange is already running into a retransmission; if so, don't call processMessage, since this is a retransmission
 		if (exchange.getFailedTransmissionCount() > 0) {
-			lower().sendResponse(exchange, response);
+			// process ReliabilityLayer
+			super.sendResponse(exchange, response);
 		} else if (processMessage(exchange, response)) {
 			checkAging(exchange);
-			lower().sendResponse(exchange, response);
+			super.sendResponse(exchange, response);
 		}
 	}
 
@@ -364,7 +362,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		if (exchange.getFailedTransmissionCount() != 0) {
 			getRemoteEndpoint(exchange).setEstimatorState(exchange);
 		}
-		upper().receiveResponse(exchange, response);
+		super.receiveResponse(exchange, response);
 		
 		calculateRTT(exchange);	
 		checkRemoteEndpointQueue(exchange);	
@@ -379,7 +377,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		if (exchange.getFailedTransmissionCount() != 0) {
 			getRemoteEndpoint(exchange).setEstimatorState(exchange);
 		}
-		upper().receiveEmptyMessage(exchange, message);
+		super.receiveEmptyMessage(exchange, message);
 		
 		calculateRTT(exchange);
 		checkRemoteEndpointQueue(exchange);
