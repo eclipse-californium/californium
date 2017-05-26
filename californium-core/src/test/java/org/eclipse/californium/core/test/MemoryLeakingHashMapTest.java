@@ -309,7 +309,7 @@ public class MemoryLeakingHashMapTest {
 		// Wait until we have received all the notifications and canceled the relation
 		assertTrue(
 				"Client has not received all expected responses",
-				latch.await(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 500, TimeUnit.MILLISECONDS));
+				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
 		assertFalse(isOnErrorInvoked.get()); // should not happen
 	}
 
@@ -339,8 +339,12 @@ public class MemoryLeakingHashMapTest {
 
 		assertTrue(
 				"Client has not received all expected responses",
-				latch.await(HOW_MANY_NOTIFICATION_WE_WAIT_FOR * OBS_NOTIFICATION_INTERVAL + 500, TimeUnit.MILLISECONDS));
+				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
 		assertFalse(isOnErrorInvoked.get()); // should not happen
+	}
+	
+	private static long calculateNotifiesTimeout(int numberOfNotifiesToWait) {
+		return ((numberOfNotifiesToWait + 1) * OBS_NOTIFICATION_INTERVAL) + 2000L;
 	}
 
 	private static void createServerAndClientEndpoints() throws Exception {
