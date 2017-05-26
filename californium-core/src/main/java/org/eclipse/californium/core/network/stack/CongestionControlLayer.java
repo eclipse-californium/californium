@@ -390,7 +390,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @param request the request
 	 */
 	public void sendBucketRequest(final Exchange exchange, final Request request) {
-		lower().sendRequest(exchange, request);
+		super.sendRequest(exchange, request);
 	}
 
 	/**
@@ -400,7 +400,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @param response the response
 	 */
 	public void sendBucketResponse(final Exchange exchange, final Response response) {
-		lower().sendResponse(exchange, response);
+		super.sendResponse(exchange, response);
 	}
 
 	/*
