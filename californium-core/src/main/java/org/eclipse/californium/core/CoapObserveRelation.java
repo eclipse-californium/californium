@@ -161,9 +161,7 @@ public class CoapObserveRelation {
 		cancel.setObserveCancel();
 
 		// dispatch final response to the same message observers
-		for (MessageObserver mo : request.getMessageObservers()) {
-			cancel.addMessageObserver(mo);
-		}
+		cancel.addMessageObservers(request.getMessageObservers());
 
 		endpoint.sendRequest(cancel);
 	}

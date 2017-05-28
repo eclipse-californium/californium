@@ -18,6 +18,7 @@
  *                                                    and therefore don't require
  *                                                    a cleanup.
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix cancelObserve()
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -116,7 +117,7 @@ public abstract class BaseMatcher implements Matcher {
 	 */
 	protected final void registerObserve(final Request request) {
 
-		// We ignore blockwise request, except when this is an early negociation
+		// We ignore blockwise request, except when this is an early negotiation
 		// (num and M is set to 0)
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
@@ -230,10 +231,15 @@ public abstract class BaseMatcher implements Matcher {
 	public void cancelObserve(final byte[] token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
+		// Note: observe exchanges are not longer stored, so this may be in vain.
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
-			exchange.getRequest().cancel();
-			KeyToken idByToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.releaseToken(idByToken);
+			Request request = exchange.getRequest();
+			if (request.isObserve()) {
+				// cancel only observe requests, 
+				// not "token" related proactive cancel observe request!
+				// Message.cancel() releases the token in the MessageObserver
+				request.cancel();
+			}
 		}
 		observationStore.remove(token);
 	}
