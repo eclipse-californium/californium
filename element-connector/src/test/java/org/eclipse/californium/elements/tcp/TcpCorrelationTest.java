@@ -16,6 +16,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use import static ConnectorTestUtil.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use create server address
  *                                                    (LoopbackAddress)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use timeout when get the 
+ *                                                    correlation context
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -97,7 +99,7 @@ public class TcpCorrelationTest {
 				is(instanceOf(TcpCorrelationContext.class)));
 		assertThat(receivingServerContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext();
+		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("no TCP Correlation Context", clientContext, is(instanceOf(TcpCorrelationContext.class)));
 		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
@@ -109,7 +111,7 @@ public class TcpCorrelationTest {
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 
-		CorrelationContext serverContext = serverCallback.getCorrelationContext();
+		CorrelationContext serverContext = serverCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("Serverside no TCP Correlation Context", serverContext, is(instanceOf(TcpCorrelationContext.class)));
 		assertThat(serverContext, is(receivingServerContext));
 		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID),
@@ -171,7 +173,7 @@ public class TcpCorrelationTest {
 		serverCatcher.blockUntilSize(1);
 		CorrelationContext serverContext = serverCatcher.getMessage(0).getCorrelationContext();
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext();
+		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 
 		// timeout connection, hopefully this triggers a reconnect
 		Thread.sleep(TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
@@ -182,7 +184,7 @@ public class TcpCorrelationTest {
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
-		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext();
+		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("no TCP Correlation Context after reconnect", clientContextAfterReconnect,
 				is(instanceOf(TcpCorrelationContext.class)));
 		// new (different) client side connection id
@@ -237,7 +239,7 @@ public class TcpCorrelationTest {
 		serverCatcher.blockUntilSize(1);
 		CorrelationContext serverContext = serverCatcher.getMessage(0).getCorrelationContext();
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext();
+		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 
 		/* stop / start the server */
 		server.stop();
@@ -249,7 +251,7 @@ public class TcpCorrelationTest {
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
-		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext();
+		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("no TCP Correlation Context after reconnect", clientContextAfterReconnect,
 				is(instanceOf(TcpCorrelationContext.class)));
 		// new (different) client side connection id
@@ -315,7 +317,7 @@ public class TcpCorrelationTest {
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext();
+		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("client side missing TCP Correlation Context", clientContext,
 				is(instanceOf(TcpCorrelationContext.class)));
 		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
@@ -476,8 +478,8 @@ public class TcpCorrelationTest {
 		 * servers
 		 */
 		for (int index = 0; index < messages.size(); ++index) {
-			CorrelationContext context1 = callbacks.get(index).getCorrelationContext();
-			CorrelationContext context2 = followupCallbacks.get(index).getCorrelationContext();
+			CorrelationContext context1 = callbacks.get(index).getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
+			CorrelationContext context2 = followupCallbacks.get(index).getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
 			// same connection id used for follow up message
 			assertThat(context1, is(context2));
 			assertThat(context1.get(TcpCorrelationContext.KEY_CONNECTION_ID),
