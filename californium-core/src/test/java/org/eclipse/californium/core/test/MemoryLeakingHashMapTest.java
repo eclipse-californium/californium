@@ -16,6 +16,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
  *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust timing for waiting
+ *                                                    on notifies.
+ *                                                    fix thread visibility of 
+ *                                                    CoapObserverAndCanceler fields
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -33,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -309,7 +314,7 @@ public class MemoryLeakingHashMapTest {
 		// Wait until we have received all the notifications and canceled the relation
 		assertTrue(
 				"Client has not received all expected responses",
-				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
+				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1), TimeUnit.MILLISECONDS));
 		assertFalse(isOnErrorInvoked.get()); // should not happen
 	}
 
@@ -344,7 +349,7 @@ public class MemoryLeakingHashMapTest {
 	}
 	
 	private static long calculateNotifiesTimeout(int numberOfNotifiesToWait) {
-		return ((numberOfNotifiesToWait + 1) * OBS_NOTIFICATION_INTERVAL) + 2000L;
+		return (numberOfNotifiesToWait * OBS_NOTIFICATION_INTERVAL) + 1000L;
 	}
 
 	private static void createServerAndClientEndpoints() throws Exception {
@@ -448,11 +453,11 @@ public class MemoryLeakingHashMapTest {
 	private class CoapObserverAndCanceler implements CoapHandler {
 
 		private CoapObserveRelation relation;
-		int counter = 1;
-		CountDownLatch latch;
-		AtomicBoolean errorFlag;
-		String uri;
-		boolean cancelProactively;
+		final AtomicInteger counter = new AtomicInteger();
+		final CountDownLatch latch;
+		final AtomicBoolean errorFlag;
+		final String uri;
+		final boolean cancelProactively;
 
 		public CoapObserverAndCanceler(final CountDownLatch latch, final AtomicBoolean errorFlag, final String uri, final boolean cancelProactively) {
 			this.latch = latch;
@@ -465,30 +470,42 @@ public class MemoryLeakingHashMapTest {
 			this.relation = relation;
 		}
 
+		@Override
 		public void onLoad(CoapResponse response) {
 			CoapObserveRelation relation;
 			synchronized (this) {
 				relation = this.relation;
 			}
+			int counter = this.counter.incrementAndGet();
 
 			if (null == relation) {
-				LOGGER.log(Level.INFO, "Client ignore notification {0}: [{1}]", new Object[]{counter++, response.getResponseText()});
+				LOGGER.log(Level.INFO, "Client ignore notification {0}: [{1}]",
+						new Object[] { counter, response.getResponseText() });
 				return;
 			}
 
-			latch.countDown();
-			LOGGER.log(Level.FINE, "Client received notification {0}: [{1}]", new Object[]{counter++, response.getResponseText()});
-
-			if (latch.getCount() == 1 && cancelProactively) {
-				LOGGER.log(Level.FINE, "Client proactively cancels observe relation to {0}", uri);
-				relation.proactiveCancel();
+			long countDown;
+			synchronized (latch) {
+				latch.countDown();
+				countDown = latch.getCount();
 			}
-			if (latch.getCount() == 0 && !cancelProactively) {
-				LOGGER.log(Level.FINE, "Client forgets observe relation to {0}", uri);
-				relation.reactiveCancel();
+			LOGGER.log(Level.FINE, "Client received notification {0}: [{1}]",
+					new Object[] { counter, response.getResponseText() });
+
+			if (cancelProactively) {
+				if (countDown == 1) {
+					LOGGER.log(Level.FINE, "Client proactively cancels observe relation to {0}", uri);
+					relation.proactiveCancel();
+				}
+			} else {
+				if (countDown == 0) {
+					LOGGER.log(Level.FINE, "Client forgets observe relation to {0}", uri);
+					relation.reactiveCancel();
+				}
 			}
 		}
 
+		@Override
 		public void onError() {
 			errorFlag.set(true);
 		}
