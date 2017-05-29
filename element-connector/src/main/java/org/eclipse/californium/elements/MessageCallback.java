@@ -17,6 +17,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - extend to report the sending 
  *                                                    of the data or errors.
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add comment on processing
+ *                                                    onContextEstablished. issue #311 
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -31,6 +33,9 @@ public interface MessageCallback {
 	 * context will include e.g. the DTLS session's ID, epoch number and cipher
 	 * that is used for sending the message to the peer.
 	 * </p>
+	 * Note: usually this callback must be processed in a synchronous manner, because
+	 * if it returns, the message is sent. Therefore take special care in methods called
+	 * on this callback.
 	 *  
 	 * @param context transport specific properties describing the context in
 	 *                   which the message is sent

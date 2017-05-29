@@ -13,6 +13,8 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to remove for
  *                                                    save cleanup.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -21,7 +23,6 @@ import java.util.List;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
-import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * A registry for keeping track of message exchanges with peers.
@@ -141,21 +142,6 @@ public interface MessageExchangeStore {
 	 * @return the exchange or {@code null} if no exchange exists for the given message ID.
 	 */
 	Exchange get(KeyMID messageId);
-
-	/**
-	 * Sets the correlation context on the exchange initiated by a request
-	 * with a given token.
-	 * <p>
-	 * This method is necessary because the correlation context may not be known
-	 * when the exchange is originally registered. This is due to the fact
-	 * that the information contained in the correlation context is gathered by
-	 * the transport layer when the request establishing the observation is sent
-	 * to the peer.
-	 * 
-	 * @param token the token of the request.
-	 * @param correlationContext the context.
-	 */
-	void setContext(KeyToken token, CorrelationContext correlationContext);
 
 	/**
 	 * Checks if the specified message ID is already associated with a previous
