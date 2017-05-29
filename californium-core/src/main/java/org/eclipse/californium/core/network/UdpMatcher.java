@@ -29,6 +29,8 @@
  *                                                    Add Exchange for save remove.
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  *    Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
+ *    Achim Kraus (Bosch Software Innovations GmbH) - release all tokens except of
+ *                                                    starting observe requests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -344,20 +346,25 @@ public final class UdpMatcher extends BaseMatcher {
 				} else {
 					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
 					exchangeStore.remove(idByToken, exchange);
+					if (!originRequest.isObserve()) {
+						exchangeStore.releaseToken(idByToken);
+					}
 					/* filter calls by completeCurrentRequest */
 					if (exchange.isComplete()) {
-						/* keep track of the starting request. Currently only used with blockwise transfer */
+						/*
+						 * keep track of the starting request. Currently only
+						 * used with blockwise transfer
+						 */
 						Request request = exchange.getRequest();
-						if (request != originRequest && null != request &&  null != request.getToken()
+						if (request != originRequest && null != request.getToken()
 								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
 							// remove starting request also
-							originRequest = request;
-							idByToken = KeyToken.fromOutboundMessage(originRequest);
+							idByToken = KeyToken.fromOutboundMessage(request);
 							exchangeStore.remove(idByToken, exchange);
+							if (!request.isObserve()) {
+								exchangeStore.releaseToken(idByToken);
+							}
 						}
-					}
-					if (!originRequest.getOptions().hasObserve()) {
-						exchangeStore.releaseToken(idByToken);
 					}
 					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
