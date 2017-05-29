@@ -26,6 +26,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  * Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
  *                                                 complete exchange. Issue #103
+ * Achim Kraus (Bosch Software Innovations GmbH) - release all tokens except of
+ *                                                 starting observe requests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -203,7 +205,7 @@ public final class TcpMatcher extends BaseMatcher {
 				} else {
 					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
 					exchangeStore.remove(idByToken, exchange);
-					if(!originRequest.getOptions().hasObserve()) {
+					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
 					}
 					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
