@@ -28,6 +28,8 @@
  *                                                 complete exchange. Issue #103
  * Achim Kraus (Bosch Software Innovations GmbH) - release all tokens except of
  *                                                 starting observe requests
+ * Achim Kraus (Bosch Software Innovations GmbH) - remove contextEstablished.
+ *                                                 issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -224,10 +226,5 @@ public final class TcpMatcher extends BaseMatcher {
 			}
 		}
 
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
-		}
 	}
 }

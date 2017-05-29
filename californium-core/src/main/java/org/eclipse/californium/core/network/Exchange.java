@@ -22,6 +22,9 @@
  *                                                    different threads
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct exception text for
  *                                                    invalid MIDs.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't pass CorrelationContext to
+ *                                                    ExchangeObserver.
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -153,7 +156,7 @@ public class Exchange {
 	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
+	private final AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
 
 	// handle to extend blockwise status lifetime
 	private AtomicReference<ScheduledFuture<?>> blockCleanupHandle = new AtomicReference<ScheduledFuture<?>>();
@@ -585,10 +588,6 @@ public class Exchange {
 	 */
 	public void setCorrelationContext(final CorrelationContext ctx) {
 		correlationContext = ctx;
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.contextEstablished(this);
-		}
 	}
 
 	/**

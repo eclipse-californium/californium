@@ -22,6 +22,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup synchronization
  *                                                    integrate clear() into stop()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -43,7 +45,6 @@ import org.eclipse.californium.core.network.Exchange.KeyUri;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 
@@ -292,17 +293,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else {
 			return exchangesByMID.get(messageId);
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * This method does nothing because all exchanges are kept in memory and thus
-	 * the correlation context will already be set on the corresponding exchange object.
-	 */
-	@Override
-	public void setContext(final KeyToken token, final CorrelationContext correlationContext) {
-		// nothing to do
 	}
 
 	@Override
