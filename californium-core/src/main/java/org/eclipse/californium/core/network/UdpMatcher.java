@@ -31,6 +31,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
  *    Achim Kraus (Bosch Software Innovations GmbH) - release all tokens except of
  *                                                    starting observe requests
+ *    Achim Kraus (Bosch Software Innovations GmbH) - optimize correlation context
+ *                                                    processing. issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -396,12 +398,10 @@ public final class UdpMatcher extends BaseMatcher {
 
 		@Override
 		public void contextEstablished(final Exchange exchange) {
-
-			if (exchange.getRequest() != null) {
-				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
+			Request request = exchange.getRequest(); 
+			if (request != null && request.isObserve()) {
+				observationStore.setContext(request.getToken(), exchange.getCorrelationContext());
 			}
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 }

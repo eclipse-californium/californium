@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust comment for
+ *                                                    contextEstablished.
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -35,7 +38,11 @@ public interface ExchangeObserver {
 	void completed(Exchange exchange);
 
 	/**
-	 * Invoked when a new correlation context is set.
+	 * Invoked when the first correlation context is set.
+	 * 
+	 * Note: usually this callback must be processed in a synchronous manner, because
+	 * if it returns, the message is sent. Therefore take special care in methods called
+	 * on this callback.
 	 * 
 	 * @param exchange the exchange
 	 */

@@ -23,6 +23,9 @@
  *                                                    currentTimeMillis
  *    Achim Kraus (Bosch Software Innovations GmbH) - ensure states visibility for
  *                                                    different threads
+ *    Achim Kraus (Bosch Software Innovations GmbH) - forward CorrelationContext only
+ *                                                    for the first time set.
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -156,7 +159,7 @@ public class Exchange {
 	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
+	private final AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
 
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
@@ -172,7 +175,7 @@ public class Exchange {
 	// protocol stage executor
 	private volatile boolean customExecutor = false;
 
-	private volatile CorrelationContext correlationContext;
+	private final AtomicReference<CorrelationContext> correlationContext = new AtomicReference<CorrelationContext>();
 
 	/**
 	 * Creates a new exchange with the specified request and origin.
@@ -198,7 +201,7 @@ public class Exchange {
 		// might only be the first block of the whole request
 		this.currentRequest = request;
 		this.origin = origin;
-		this.correlationContext = ctx;
+		this.correlationContext.set(ctx);
 		this.nanoTimestamp = System.nanoTime();
 	}
 
@@ -583,10 +586,13 @@ public class Exchange {
 	 * @param ctx the correlation information
 	 */
 	public void setCorrelationContext(final CorrelationContext ctx) {
-		correlationContext = ctx;
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.contextEstablished(this);
+		if (correlationContext.compareAndSet(null, ctx)) {
+			ExchangeObserver obs = this.observer;
+			if (obs != null) {
+				obs.contextEstablished(this);
+			}
+		} else {
+			correlationContext.set(ctx);
 		}
 	}
 
@@ -598,7 +604,7 @@ public class Exchange {
 	 *         information is available.
 	 */
 	public CorrelationContext getCorrelationContext() {
-		return correlationContext;
+		return correlationContext.get();
 	}
 
 	/**
