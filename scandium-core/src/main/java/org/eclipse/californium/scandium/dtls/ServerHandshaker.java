@@ -30,6 +30,7 @@
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - support MaxFragmentLength Hello extension sent by client
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,8 +52,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -223,6 +222,8 @@ public class ServerHandshaker extends Handshaker {
 			// its finished message again, so we simply retransmit our last flight
 			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
+			lastFlight.incrementTries();
+			lastFlight.setNewSequenceNumbers();
 			recordLayer.sendFlight(lastFlight);
 			return;
 		}
@@ -305,7 +306,11 @@ public class ServerHandshaker extends Handshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
 
-			incrementNextReceiveSeq();
+			if (lastFlight == null) {
+				// only increment for ongoing handshake flights, not for the last flight!
+				// not ignore a client FINISHED retransmission caused by lost server FINISHED
+				incrementNextReceiveSeq();
+			}
 			LOGGER.log(Level.FINE, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
 					new Object[]{message.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
