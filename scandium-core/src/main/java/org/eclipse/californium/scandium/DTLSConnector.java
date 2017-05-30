@@ -36,6 +36,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce synchronized getSocket()
  *                                                    as pair to synchronized releaseSocket().
  *    Achim Kraus (Bosch Software Innovations GmbH) - restart internal executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - processing retransmission of flight
+ *                                                    after last flight was sent.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -838,14 +840,23 @@ public class DTLSConnector implements Connector {
 	 * @throws HandshakeException if the handshake message cannot be processed
 	 */
 	private void processHandshakeRecordWithConnection(final Record record, final Connection connection) throws HandshakeException {
-		if (connection.hasOngoingHandshake() && connection.getOngoingHandshake().getSession().getReadEpoch() == record.getEpoch()) {
-			// evaluate message in context of ongoing handshake
-			record.setSession(connection.getOngoingHandshake().getSession());
+		if (connection.hasOngoingHandshake()) {
+			DTLSSession handshakeSession = connection.getOngoingHandshake().getSession();
+			if (handshakeSession.getReadEpoch() == record.getEpoch()) {
+				// evaluate message in context of ongoing handshake
+				record.setSession(handshakeSession);
+			} else if (!record.isNewClientHello()) {
+				// epoch is not the same as the current session so we
+				// can not decrypt the message now. Let handshaker handle it
+				// (it can queue it to deal with it later)
+				connection.getOngoingHandshake().processMessage(record);
+				return;
+			}
 		} else if (connection.hasEstablishedSession() && connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
 			// client wants to re-negotiate established connection's crypto params
 			// evaluate message in context of established session
 			record.setSession(connection.getEstablishedSession());
-		} else if (record.getEpoch() == 0) {
+		} else if (record.isNewClientHello()) {
 			// client has lost track of existing connection and wants to negotiate a new connection
 			// in epoch 0 no crypto params have been established yet, thus we do not need to set a session
 		} else {
