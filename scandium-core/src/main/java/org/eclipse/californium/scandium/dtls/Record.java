@@ -17,6 +17,7 @@
  *                   property of type long in order to prevent tedious conversions
  *                   in client code
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -700,6 +701,23 @@ public class Record {
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
+
+	/**
+	 * Check, if record is CLIENT_HELLO of epoch 0.
+	 * 
+	 * This is important to detect a new association according RFC6347, section 4.2.8.
+	 * 
+	 * 
+	 * @return {@code true}, if record contains CLIENT_HELLO of epoch 0,
+	 *         {@code false} otherwise.
+	 */
+	public boolean isNewClientHello() {
+		if (0 < epoch || type != ContentType.HANDSHAKE || null == fragmentBytes || 0 == fragmentBytes.length) {
+			return false;
+		}
+		HandshakeType handshakeType = HandshakeType.getTypeByCode(fragmentBytes[0]);
+		return handshakeType == HandshakeType.CLIENT_HELLO;
+	}
 
 	public ContentType getType() {
 		return type;
