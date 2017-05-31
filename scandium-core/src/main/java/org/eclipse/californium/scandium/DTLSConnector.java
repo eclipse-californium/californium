@@ -1652,6 +1652,10 @@ public class DTLSConnector implements Connector {
 			public void sendFlight(DTLSFlight flight) {
 				sendHandshakeFlight(flight, connection);
 			}
+
+			public void cancelRetransmissions() {
+				connection.cancelPendingFlight();
+			}
 		};
 	}
 

@@ -135,6 +135,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			break;
 
 		case HANDSHAKE:
+			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 

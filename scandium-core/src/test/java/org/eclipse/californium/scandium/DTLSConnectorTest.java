@@ -37,9 +37,8 @@
 package org.eclipse.californium.scandium;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.number.OrderingComparison.*;
+import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.junit.Assert.*;
-
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -1816,6 +1815,10 @@ public class DTLSConnectorTest {
 			flight.setNewSequenceNumbers();
 			sendFlight(flight);
 		}
+
+		@Override
+		public void cancelRetransmissions() {
+		}
 	};
 
 	public class ReverseRecordLayer implements RecordLayer {
@@ -1840,6 +1843,10 @@ public class DTLSConnectorTest {
 					throw new RuntimeException(e);
 				}
 			}
+		}
+
+		@Override
+		public void cancelRetransmissions() {
 		}
 	};
 
