@@ -89,6 +89,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			break;
 
 		case HANDSHAKE:
+			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:

@@ -39,4 +39,9 @@ public interface RecordLayer {
 	 *                  timespan to wait between re-transmissions. 
 	 */
 	void sendFlight(DTLSFlight flight);
+
+	/**
+	 * Cancels any pending re-transmission of the previous outbound flight.
+	 */
+	public void cancelRetransmissions();
 }

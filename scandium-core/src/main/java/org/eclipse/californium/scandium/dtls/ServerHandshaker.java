@@ -250,6 +250,7 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
+			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 
 			switch (handshakeMsg.getMessageType()) {
