@@ -67,6 +67,11 @@ public final class DtlsConnectorConfig {
 	private X509Certificate[] trustStore = new X509Certificate[0];
 
 	/**
+	 * Experimental feature : Stop retransmission at message receipt
+	 */
+	private boolean earlyStopRetransmission = true;
+
+	/**
 	 * The maximum fragment length this connector can process at once.
 	 */
 	private Integer maxFragmentLengthCode = null;
@@ -151,6 +156,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public int getMaxRetransmissions() {
 		return maxRetransmissions;
+	}
+
+	/**
+	 * @return true if retransmissions should be stopped as soon as we receive
+	 *         handshake message
+	 */
+	public boolean isEarlyStopRetransmission() {
+		return earlyStopRetransmission;
 	}
 
 	/**
@@ -515,6 +528,18 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			config.supportedCipherSuites = suites;
+			return this;
+		}
+
+		/**
+		 * Activate/Deactivate experimental feature : Stop retransmission at message receipt.
+		 * 
+		 * @param activate Set it to true if retransmissions should be stopped as soon as we receive
+		 *         handshake message
+		 * @return this builder for command chaining
+		 */
+		public Builder setEarlyStopRetransmission(boolean activate) {
+			config.earlyStopRetransmission = activate;
 			return this;
 		}
 
