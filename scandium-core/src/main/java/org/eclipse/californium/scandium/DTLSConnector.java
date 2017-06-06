@@ -1641,7 +1641,11 @@ public class DTLSConnector implements Connector {
 			}
 
 			public void cancelRetransmissions() {
-				connection.cancelPendingFlight();
+				// TODO remove this check when this experimental feature will be
+				// not experimental anymore ^^
+				if (config.isEarlyStopRetransmission()) {
+					connection.cancelPendingFlight();
+				}
 			}
 		};
 	}
