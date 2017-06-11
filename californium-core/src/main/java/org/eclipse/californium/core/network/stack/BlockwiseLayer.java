@@ -290,7 +290,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 					if (status.getCurrentSzx() == 7) {
 						// For BERT option.
-						status.setCurrentNum(status.getCurrentNum() + (preferredBlockSize / 1024));
+						status.setCurrentNum(status.getCurrentNum() + (request.getPayloadSize() / 1024));
 					} else {
 						status.setCurrentNum(status.getCurrentNum() + 1);
 					}
@@ -605,11 +605,11 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else if (block2.isM()) {
 
 				Request request = exchange.getRequest();
-				int szx = block2.getSzx();
+				int szx = responseStatus.getCurrentSzx();
 				int num = 0;
 				if (szx == 7) {
 					// For BERT Option.
-					num = block2.getNum() + (preferredBlockSize / 1024);
+					num = block2.getNum() + (response.getPayloadSize() / 1024);
 				} else {
 					num = block2.getNum() + 1;
 				}
@@ -722,6 +722,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// we are sending a large body out in a POST/GET to a peer
 				// we only need to buffer one block each
 				status = new BlockwiseStatus(preferredBlockSize, request.getOptions().getContentFormat());
+				status.setCurrentSzx(computeSZX(preferredBlockSize));
 			} else {
 				// we are receiving a large body in a POST/GET from a peer
 				// we need to be prepared to buffer up to MAX_RESOURCE_BODY_SIZE bytes
@@ -731,9 +732,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					bufferSize = request.getOptions().getSize1();
 				}
 				status = new BlockwiseStatus(bufferSize, request.getOptions().getContentFormat());
+				status.setCurrentSzx(request.getOptions().getBlock1().getSzx());
 			}
 			status.setFirst(request);
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			exchange.setRequestBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
 		} else {
@@ -761,12 +762,14 @@ public class BlockwiseLayer extends AbstractLayer {
 					bufferSize = response.getOptions().getSize2();
 				}
 				status = new BlockwiseStatus(bufferSize, response.getOptions().getContentFormat());
+				status.setCurrentSzx(response.getOptions().getBlock2().getSzx());
 			} else {
 				// we are sending out a large body in response to a request from a peer
 				// we do not need to buffer and assemble anything
 				status = new BlockwiseStatus(0, response.getOptions().getContentFormat());
+				status.setCurrentSzx(computeSZX(preferredBlockSize));
 			}
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
+
 			status.setFirst(response);
 			exchange.setResponseBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
@@ -992,12 +995,8 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 1024 bytes = 2^10 -> 6
 	 */
 	private int computeSZX(final int blockSize) {
-		if (blockSize >= 1024) {
-			if (isBertOptionEnabled) {
-				return 7; // BERT option.
-			} else {
-				return 6;
-			}
+		if (blockSize > 1024) {
+			return 7; // BERT option.
 		} else if (blockSize <= 16) {
 			return 0;
 		} else {
