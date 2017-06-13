@@ -17,6 +17,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getSupportedCipherSuites() and
+ *                                                    has??? to Builder. Enables to check,
+ *                                                    which configuration is still required.
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -379,6 +382,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Check, if connector is set to be used for clients only.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setClientOnly()
+		 */
+		public boolean isClientOnly() {
+			return clientOnly;
+		}
+		
+		/**
 		 * Sets the maximum amount of payload data that can be received and processed by this connector
 		 * in a single DTLS record.
 		 * <p>
@@ -416,6 +430,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Get the outbound message buffer size set.
+		 * 
+		 * @return set outbound message buffer size
+		 * 
+		 * @see #setMaxFragmentLengthCode(Integer)
+		 */
+		public Integer getMaxFragmentLengthCode() {
+			return config.maxFragmentLengthCode;
+		}
+
+		/**
 		 * Sets the number of outbound messages that can be buffered in memory before
 		 * dropping messages.
 		 * 
@@ -430,6 +455,17 @@ public final class DtlsConnectorConfig {
 				config.outboundMessageBufferSize = capacity;
 				return this;
 			}
+		}
+
+		/**
+		 * Get the outbound message buffer size set.
+		 * 
+		 * @return set outbound message buffer size
+		 * 
+		 * @see #setOutboundMessageBufferSize(int)
+		 */
+		public int getOutboundMessageBufferSize() {
+			return config.outboundMessageBufferSize;
 		}
 
 		/**
@@ -449,6 +485,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Get the maximum retransmissions set.
+		 * 
+		 * @return set maximum retransmissions
+		 * 
+		 * @see #setMaxRetransmissions(int)
+		 */
+		public int getMaxRetransmissions() {
+			return config.maxRetransmissions;
+		}
+
+		/**
 		 * Sets whether the connector requires DTLS clients to authenticate during
 		 * the handshake.
 		 * 
@@ -459,6 +506,17 @@ public final class DtlsConnectorConfig {
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
 			config.clientAuthenticationRequired = authRequired;
 			return this;
+		}
+
+		/**
+		 * Check, if connector is set to require client authentication.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setClientAuthenticationRequired(boolean)
+		 */
+		public boolean isClientAuthenticationRequired() {
+			return config.clientAuthenticationRequired;
 		}
 
 		/**
@@ -519,6 +577,21 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Get the set supported cipher suites.
+		 * 
+		 * May be {@code null}, if not set. Note: {@link #build()} may chose
+		 * cipher suites according other set values.
+		 * 
+		 * @return set supported cipher suites
+		 * 
+		 * @see #setSupportedCipherSuites(CipherSuite[])
+		 * @see #setSupportedCipherSuites(String[])
+		 */
+		public CipherSuite[] getSupportedCipherSuites() {
+			return config.supportedCipherSuites;
+		}
+		
+		/**
 		 * Sets the time to wait before a handshake package gets re-transmitted.
 		 * 
 		 * @param timeout the time in milliseconds
@@ -535,6 +608,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Get the retransmission timeout set in milliseconds.
+		 * 
+		 * @return set retransmission timeout in milliseconds
+		 * 
+		 * @see #setRetransmissionTimeout(int)
+		 */
+		public int getRetransmissionTimeout() {
+			return config.retransmissionTimeout;
+		}
+
+		/**
 		 * Sets the key store to use for authenticating clients based
 		 * on a pre-shared key.
 		 * 
@@ -545,6 +629,17 @@ public final class DtlsConnectorConfig {
 		public Builder setPskStore(PskStore pskStore) {
 			config.pskStore = pskStore;
 			return this;
+		}
+		
+		/**
+		 * Check, if PSK store is set.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setPskStore(PskStore)
+		 */
+		public boolean hasPskStore() {
+			return null != config.pskStore;
 		}
 
 		/**
@@ -563,6 +658,17 @@ public final class DtlsConnectorConfig {
 		public Builder setServerNameResolver(final ServerNameResolver resolver) {
 			config.serverNameResolver = resolver;
 			return this;
+		}
+
+		/**
+		 * Check, if server name resolver is set.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setServerNameResolver(ServerNameResolver)
+		 */
+		public boolean hasServerNameResolver() {
+			return null != config.serverNameResolver;
 		}
 
 		/**
@@ -629,6 +735,18 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Check, if identity is set.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setIdentity(PrivateKey, PublicKey)
+		 * @see #setIdentity(PrivateKey, Certificate[], boolean)
+		 */
+		public boolean hasIdentity() {
+			return null != config.privateKey && null != config.publicKey;
+		}
+
+		/**
 		 * Sets the root certificates the connector should use as the trust anchor when verifying
 		 * a peer's identity based on an X.509 certificate chain.
 		 * 
@@ -644,6 +762,17 @@ public final class DtlsConnectorConfig {
 				config.trustStore = toX509Certificates(trustedCerts);
 				return this;
 			}
+		}
+
+		/**
+		 * Check, if trust store is set.
+		 * 
+		 * @return {@code true} if set, {@code false} otherwise.
+		 * 
+		 * @see #setTrustStore(Certificate[])
+		 */
+		public boolean hasTrustStore() {
+			return null != config.trustStore;
 		}
 
 		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
@@ -794,7 +923,7 @@ public final class DtlsConnectorConfig {
 				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
 			}
 
-			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[0]);
+			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[ciphers.size()]);
 		}
 	}
 }
