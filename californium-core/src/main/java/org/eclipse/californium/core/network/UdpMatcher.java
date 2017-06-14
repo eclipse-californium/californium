@@ -93,7 +93,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 			// for observe request.
 			if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
-				registerObserve(request);
+				registerObserve(exchange, request);
 			}
 
 			if (LOGGER.isLoggable(Level.FINER)) {
@@ -308,7 +308,7 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class ExchangeObserverImpl extends BaseExchangeObserver  {
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -392,16 +392,6 @@ public final class UdpMatcher extends BaseMatcher {
 					removeNotificationsOf(relation, exchange);
 				}
 			}
-		}
-
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-
-			if (exchange.getRequest() != null) {
-				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
-			}
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 }

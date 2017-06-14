@@ -338,6 +338,7 @@ public class UDPConnector implements Connector {
 					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
 							new Object[] { getUri(), datagram.getLength(), datagram.getAddress(), datagram.getPort() });
 				}
+				raw.onContextEstablished(null);
 				socket.send(datagram);
 				raw.onSent();
 			} catch (IOException ex) {

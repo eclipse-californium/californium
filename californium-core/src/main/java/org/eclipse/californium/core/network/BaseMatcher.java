@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -118,7 +119,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * 
 	 * @param request observe request.
 	 */
-	protected final void registerObserve(final Request request) {
+	protected final void registerObserve(final Exchange exchange, final Request request) {
 
 		// We ignore blockwise request, except when this is an early negotiation
 		// (num and M is set to 0)
@@ -127,7 +128,6 @@ public abstract class BaseMatcher implements Matcher {
 			// add request to the store
 			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
 			LOG.log(Level.FINER, "registering observe request {0}", request);
-			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
 			request.addMessageObserver(new MessageObserverAdapter() {
 				@Override
@@ -137,8 +137,13 @@ public abstract class BaseMatcher implements Matcher {
 				
 				@Override
 				protected void failed() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(request.getDestinationEndpoint(), request.getToken());
 					exchangeStore.releaseToken(idByToken);
+				}
+
+				public void onDestinationEndpointDefined(EndpointIdentifier destination) {
+					LOG.log(Level.FINER, "registering observe request {0}", request);
+					observationStore.add(destination, new Observation(request, exchange.getCorrelationContext()));
 				}
 			});
 		}
@@ -158,7 +163,8 @@ public abstract class BaseMatcher implements Matcher {
 		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = null;
 
-		final Observation obs = observationStore.get(response.getToken());
+		final EndpointIdentifier sourceEndpoint = response.getSourceEndpoint();
+		final Observation obs = observationStore.get(sourceEndpoint, response.getToken());
 		if (obs != null) {
 			// there is an observation for the token from the response
 			// re-create a corresponding Exchange object for it so
@@ -185,7 +191,7 @@ public abstract class BaseMatcher implements Matcher {
 						LOG.log(Level.FINE,
 								"Response to observe request with token {0} does not contain observe option, removing request from observation store",
 								idByToken);
-						observationStore.remove(request.getToken());
+						observationStore.remove(sourceEndpoint, request.getToken());
 						exchangeStore.releaseToken(idByToken);
 					} else {
 						notificationListener.onNotification(request, resp);
@@ -199,7 +205,7 @@ public abstract class BaseMatcher implements Matcher {
 
 				@Override
 				protected void failed() {
-					observationStore.remove(request.getToken());
+					observationStore.remove(sourceEndpoint, request.getToken());
 					exchangeStore.releaseToken(idByToken);
 				}
 			});
@@ -216,7 +222,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
+	public void cancelObserve(EndpointIdentifier endpoint, final byte[] token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this may be in vain.
@@ -229,7 +235,20 @@ public abstract class BaseMatcher implements Matcher {
 				request.cancel();
 			}
 		}
-		observationStore.remove(token);
+		observationStore.remove(endpoint, token);
+	}
+
+	abstract class BaseExchangeObserver implements ExchangeObserver {
+
+		@Override
+		public final void contextEstablished(final Exchange exchange) {
+			// TODO shall we still need correlation context at coap/exchange
+			// level.
+			Request request = exchange.getCurrentRequest();
+			CorrelationContext context = exchange.getCorrelationContext();
+			KeyToken token = KeyToken.fromOutboundMessage(request);
+			exchangeStore.setContext(token, context);
+		}
 	}
 
 }

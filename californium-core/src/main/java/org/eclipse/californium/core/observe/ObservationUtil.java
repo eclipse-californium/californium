@@ -45,6 +45,7 @@ public final class ObservationUtil {
 		clonedRequest.setOptions(request.getOptions());
 		clonedRequest.setPayload(request.getPayload());
 		clonedRequest.setUserContext(request.getUserContext());
+		clonedRequest.setDestinationEndpoint(request.getDestinationEndpoint());
 		return new Observation(clonedRequest, observation.getContext());
 	}
 }

@@ -21,6 +21,7 @@ package org.eclipse.californium.core.network;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
 import org.eclipse.californium.elements.CorrelationContext;
 
 /**
@@ -148,10 +149,11 @@ public interface Matcher {
 	void clear();
 
 	/**
-	 * Cancels all pending blockwise requests that have been induced by a notification
-	 * we have received indicating a blockwise transfer of the resource.
+	 * Cancels all pending blockwise requests that have been triggered by notifications
+	 * received from an endpoint.
 	 * 
-	 * @param token the token of the observation.
+	 * @param endpoint The identifier or the endpoint the notifications originate from.
+	 * @param token The token of the observation the notifications have been received for.
 	 */
-	void cancelObserve(byte[] token);
+	void cancelObserve(EndpointIdentifier endpoint, byte[] token);
 }

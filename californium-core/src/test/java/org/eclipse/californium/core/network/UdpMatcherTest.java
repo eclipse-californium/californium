@@ -17,11 +17,10 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.eclipse.californium.core.network.MatcherTestUtils.*;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
-import static org.eclipse.californium.core.network.MatcherTestUtils.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -242,7 +241,7 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher);
 
 		// WHEN canceling any observe relations for the exchange's token
-		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
+		matcher.cancelObserve(exchange.getRequest().getDestinationEndpoint(), exchange.getCurrentRequest().getToken());
 
 		// THEN the token has been released for re-use
 		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
