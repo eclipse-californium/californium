@@ -20,8 +20,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onContextEstablished.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContext to outbound
  *                                                    (fix GitHub issue #104)
- *    Achim Kraus (Bosch Software Innovations GmbH) - replace onContextEstablished by
- *                                                    onSent. Add onError.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent and onError.
  *                                                    issue #305
  ******************************************************************************/
 package org.eclipse.californium.elements;
