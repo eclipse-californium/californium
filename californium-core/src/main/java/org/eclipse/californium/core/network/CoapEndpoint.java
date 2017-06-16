@@ -58,6 +58,9 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.identifier.DefaultIdentifierFactory;
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
+import org.eclipse.californium.core.identifier.IdentifierFactory;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
@@ -164,6 +167,9 @@ public class CoapEndpoint implements Endpoint {
 	
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private final Matcher matcher;
+	
+	/** The class responsible to extract endpoint identifier from connection context  */
+	private final IdentifierFactory identifierFactory;
 
 	/** Serializer to convert messages to datagrams. */
 	private final DataSerializer serializer;
@@ -323,6 +329,7 @@ public class CoapEndpoint implements Endpoint {
 		this.connector.setRawDataReceiver(new InboxImpl());
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore : new InMemoryMessageExchangeStore(config);
 		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
+		this.identifierFactory = new DefaultIdentifierFactory();
 		if (null == correlationContextMatcher) {
 			correlationContextMatcher = CorrelationContextMatcherFactory.create(connector, config);
 		}
@@ -738,6 +745,8 @@ public class CoapEndpoint implements Endpoint {
 				msg = parser.parseMessage(raw);
 				msg.setSource(raw.getAddress());
 				msg.setSourcePort(raw.getPort());
+				msg.setSourceEndpoint(identifierFactory.extractIdentifier(raw.getCorrelationContext(),
+						new InetSocketAddress(raw.getAddress(), raw.getPort())));
 
 				if (CoAP.isRequest(msg.getRawCode())) {
 
@@ -879,7 +888,7 @@ public class CoapEndpoint implements Endpoint {
 		/**
 		 * Related send message.
 		 */
-		private final Message message;
+		protected final Message message;
 
 		/**
 		 * Creates a new message callback.
@@ -937,13 +946,20 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		public void onContextEstablished(CorrelationContext context) {
+			// TODO shall we still need correlation context at coap/exchange level.
 			exchange.setCorrelationContext(context);
+			
+			// TODO Should we do this for all message not only for request.
+			InetSocketAddress destination = new InetSocketAddress(message.getDestination(),
+					message.getDestinationPort());
+			EndpointIdentifier extractIdentifier = identifierFactory.extractIdentifier(context, destination);
+			message.setDestinationEndpoint(extractIdentifier);
 		}
 	}
 
 	@Override
-	public void cancelObservation(byte[] token) {
-		matcher.cancelObserve(token);
+	public void cancelObservation(EndpointIdentifier targetEndpoint, byte[] token) {
+		matcher.cancelObserve(targetEndpoint, token);
 	}
 
 	/**

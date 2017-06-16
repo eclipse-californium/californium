@@ -33,6 +33,8 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.logging.Handler;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Request;
@@ -56,6 +58,30 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
+
+	static Logger logger;
+	static Logger cflog;
+	static {
+        Logger globalLogger = Logger.getLogger("");
+        globalLogger.setLevel(java.util.logging.Level.OFF);
+        for (Handler handler : globalLogger.getHandlers()) {
+            handler.setLevel(java.util.logging.Level.ALL);
+        }
+
+		cflog = Logger.getLogger("org.eclipse.californium.core.network");
+		cflog.setLevel(java.util.logging.Level.FINER);
+        for (Handler handler : cflog.getHandlers()) {
+            handler.setLevel(java.util.logging.Level.ALL);
+        }
+
+		// logger = Logger.getLogger(BaseMatcher.class.getCanonicalName());
+		// logger.setLevel(java.util.logging.Level.FINER);
+		// for (Handler handler : logger.getHandlers()) {
+		// handler.setLevel(java.util.logging.Level.ALL);
+		// }
+	}
+	
+	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -291,7 +317,7 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 
 		// canceling in the middle of blockwise transfer
-		client.cancelObservation(request.getToken());
+		client.cancelObservation(request.getDestinationEndpoint(), request.getToken());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
 		// notification must not be delivered
@@ -373,6 +399,81 @@ public class ObserveClientSideTest {
 		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(4).mid(++mid_notif).payload(notifpayload).go();
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifpayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	@Test
+	public void testSameTokenForDifferentPeer() throws Exception {
+		System.out.println("Same Token can be used by different peer:");
+		respPayload = generatePayload(1);
+		byte[] sameToken = generateNextToken();
+		String path = "test";
+		int obs = 100;
+		LockstepEndpoint server2 = createLockstepEndpoint(client.getAddress());
+
+		// established observe relation
+		Request request = createRequest(GET, path, server);
+		request.setToken(sameToken);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
+		server.sendResponse(ACK, CONTENT).loadMID("A").loadToken("B").payload(respPayload).go();
+		Thread.sleep(50);
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// send a notification
+		respPayload = generatePayload(2);
+		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(obs).go();
+		server.expectEmpty(ACK, mid).go();
+		Response notification1 = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification1, respPayload);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+
+		// established observe relation with the same token to another server
+		Request request2 = createRequest(GET, path, server2);
+		request2.setToken(sameToken);
+		SynchronousNotificationListener notificationListener2 = new SynchronousNotificationListener(request2);
+		client.addNotificationListener(notificationListener2);
+		request2.setObserve();
+		client.sendRequest(request2);
+		System.out.println(server2.getPort());
+
+		respPayload = generatePayload(3);
+		server2.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
+		server2.sendResponse(ACK, CONTENT).loadMID("A").loadToken("B").payload(respPayload).go();
+		Thread.sleep(50);
+		Response response2 = request2.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response2, respPayload);
+
+		// send a notification from the 2nd server
+		respPayload = generatePayload(4);
+		server2.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
+		server2.expectEmpty(ACK, mid).go();
+		Response notification2 = notificationListener2.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification2, respPayload);
+		assertNumberOfReceivedNotifications(notificationListener2, 1, true);
+
+		// send a notification from the both servers
+		respPayload = generatePayload(5);
+		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
+		server.expectEmpty(ACK, mid).go();
+		String respPayload2 = generatePayload(6);
+		server2.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload2).mid(++mid).observe(++obs).go();
+		server2.expectEmpty(ACK, mid).go();
+
+		// check each notification is handle by the right notification listener.
+		Response notification3 = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification3, respPayload);
+		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+
+		Response notification4 = notificationListener2.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification4, respPayload2);
+		assertNumberOfReceivedNotifications(notificationListener2, 1, true);
 
 		printServerLog(clientInterceptor);
 	}

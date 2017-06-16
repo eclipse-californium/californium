@@ -85,7 +85,7 @@ public final class TcpMatcher extends BaseMatcher {
 		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { request.getTokenString() });
 
 		if (request.isObserve()) {
-			registerObserve(request);
+			registerObserve(exchange, request);
 		}
 	}
 
@@ -155,7 +155,7 @@ public final class TcpMatcher extends BaseMatcher {
 		return null;
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class ExchangeObserverImpl extends BaseExchangeObserver {
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -182,15 +182,6 @@ public final class TcpMatcher extends BaseMatcher {
 			} else { // Origin.REMOTE
 				// nothing to do
 			}
-		}
-
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-			if (exchange.getRequest() != null) {
-				observationStore.setContext(exchange.getRequest().getToken(), exchange.getCorrelationContext());
-			}
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
 		}
 	}
 }

@@ -51,6 +51,7 @@
 						<Export-Package>
 							org.eclipse.californium.core,
 							org.eclipse.californium.core.coap,
+							org.eclipse.californium.core.identifier,
 							org.eclipse.californium.core.network,
 							org.eclipse.californium.core.network.config,
 							org.eclipse.californium.core.network.interceptors,

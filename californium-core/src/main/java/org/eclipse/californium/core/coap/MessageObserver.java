@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
 
 /**
  * A callback that gets invoked on a message's lifecycle events.
@@ -103,4 +104,8 @@ public interface MessageObserver {
 	 */
 	void onSendError(Throwable error);
 	
+	/**
+	 * Invoked when the destination endpoint is defined.
+	 */
+	void onDestinationEndpointDefined(EndpointIdentifier destination);
 }

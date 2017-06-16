@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -194,11 +195,10 @@ public interface Endpoint {
 	NetworkConfig getConfig();
 
 	/**
-	 * Cancel observation for this request.
+	 * Cancels an observation created for this endpoint.
 	 * 
-	 * @param token
-	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 * @param remoteEndpoint The identifier of the remote endpoint  the observation has been established for.
+	 * @param token The token of the original request which established the observe relation.
 	 */
-	void cancelObservation(byte[] token);
+	void cancelObservation(EndpointIdentifier remoteEndpoint, byte[] token);
 }

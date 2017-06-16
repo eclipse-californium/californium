@@ -58,7 +58,8 @@ public class SynchronousNotificationListener implements NotificationListener {
 
 	@Override
 	public void onNotification(final Request req, final Response resp) {
-		if (request == null || Arrays.equals(request.getToken(), req.getToken())) {
+		if (request == null || Arrays.equals(request.getToken(), req.getToken())
+				&& request.getDestinationEndpoint().equals(req.getDestinationEndpoint())) {
 			synchronized (lock) {
 				response = resp;
 				notificationCount.incrementAndGet();

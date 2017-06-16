@@ -19,11 +19,10 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
-import static org.hamcrest.core.Is.*;
+import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
-import static org.hamcrest.core.IsSame.theInstance;
-import static org.hamcrest.core.IsSame.sameInstance;
+import static org.hamcrest.core.IsSame.*;
 import static org.junit.Assert.assertThat;
 
 import java.util.HashMap;

@@ -20,7 +20,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.core.identifier.EndpointIdentifier;
 
 /**
  * An observation store that keeps all observations in-memory.
@@ -32,24 +32,24 @@ public final class InMemoryObservationStore implements ObservationStore {
 	private Map<Key, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
-	public void add(final Observation obs) {
+	public void add(final EndpointIdentifier endpoint, final Observation obs) {
 
 		if (obs == null) {
 			throw new NullPointerException("observation must not be null");
 		} else {
-			Key key = Key.fromToken(obs.getRequest().getToken());
+			Key key = Key.from(endpoint, obs.getRequest().getToken());
 			LOG.log(Level.FINER, "adding observation for token {0}", key);
 			map.put(key, obs);
 		}
 	}
 
 	@Override
-	public Observation get(final byte[] token) {
-		if (token == null) {
+	public Observation get(final EndpointIdentifier endpoint, final byte[] token) {
+		if (endpoint == null || token == null) {
 			return null;
 		} else {
-			Key key = Key.fromToken(token);
-			LOG.log(Level.FINER, "looking up observation for token {0}", key);
+			Key key = Key.from(endpoint, token);
+			LOG.log(Level.FINER, "looking up observation for {0}", key);
 			Observation obs = map.get(key);
 			// clone request in order to prevent accumulation of message observers
 			// on original request
@@ -58,11 +58,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 	}
 
 	@Override
-	public void remove(byte[] token) {
-		if (token != null) {
-			Key key = Key.fromToken(token);
+	public void remove(EndpointIdentifier endpoint, byte[] token) {
+		if (endpoint != null && token != null) {
+			Key key = Key.from(endpoint, token);
 			map.remove(key);
-			LOG.log(Level.FINER, "removed observation for token {0}", key);
+			LOG.log(Level.FINER, "removed observation for {0}", key);
 		}
 	}
 
@@ -91,54 +91,62 @@ public final class InMemoryObservationStore implements ObservationStore {
 		map.clear();
 	}
 
-	@Override
-	public void setContext(final byte[] token, final CorrelationContext ctx) {
-
-		if (token != null && ctx != null) {
-			Key key = Key.fromToken(token);
-			Observation obs = map.get(key);
-			if (obs != null) {
-				map.put(key, new Observation(obs.getRequest(), ctx));
-			}
-		}
-	}
-
 	private static class Key {
 
 		private final byte[] token;
+		private final EndpointIdentifier endpoint;
 
-		private Key(final byte[] token) {
+		private Key(final EndpointIdentifier endpoint, final byte[] token) {
+			this.endpoint = endpoint;
 			this.token = token;
 		}
 
-		private static Key fromToken(byte[] token) {
-			return new Key(token);
+		private static Key from(EndpointIdentifier endpoint, byte[] token) {
+			return new Key(endpoint, token);
 		}
 
 		@Override
 		public String toString() {
-			return Utils.toHexString(token);
+			return String.format("Key[endpoint[%s], token[%s]]", endpoint, Utils.toHexString(token));
 		}
 
+		/* (non-Javadoc)
+		 * @see java.lang.Object#hashCode()
+		 */
 		@Override
 		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
+			result = prime * result + ((endpoint == null) ? 0 : endpoint.hashCode());
 			result = prime * result + Arrays.hashCode(token);
 			return result;
 		}
 
+		/* (non-Javadoc)
+		 * @see java.lang.Object#equals(java.lang.Object)
+		 */
 		@Override
 		public boolean equals(Object obj) {
-			if (this == obj)
+			if (this == obj) {
 				return true;
-			if (obj == null)
+			}
+			if (obj == null) {
 				return false;
-			if (getClass() != obj.getClass())
+			}
+			if (getClass() != obj.getClass()) {
 				return false;
+			}
 			Key other = (Key) obj;
-			if (!Arrays.equals(token, other.token))
+			if (endpoint == null) {
+				if (other.endpoint != null) {
+					return false;
+				}
+			} else if (!endpoint.equals(other.endpoint)) {
 				return false;
+			}
+			if (!Arrays.equals(token, other.token)) {
+				return false;
+			}
 			return true;
 		}
 	}
