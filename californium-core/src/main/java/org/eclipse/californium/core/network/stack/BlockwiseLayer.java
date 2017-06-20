@@ -22,6 +22,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
  *                                                    instead of onReject() and
  *                                                    onTimeout(). Add onSendError()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use onReadyToSend() to copy token
+ *                                                    to fix rare race condition in
+ *                                                    block1wise, when the generated
+ *                                                    token was copied too late 
+ *                                                    (after sending). 
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -210,7 +215,8 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			block.addMessageObserver(new MessageObserverAdapter() {
 
-				private void copyToken() {
+				@Override
+				public void onReadyToSend() {
 					// when the request for transferring the first block
 					// has been sent out, we copy the token to the
 					// original request so that at the end of the
@@ -221,17 +227,6 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				@Override
 				public void onCancel() {
-					failed();
-				}
-
-				@Override
-				public void onSent() {
-					copyToken();
-				}
-
-				@Override
-				public void onSendError(Throwable error) {
-					copyToken();
 					failed();
 				}
 

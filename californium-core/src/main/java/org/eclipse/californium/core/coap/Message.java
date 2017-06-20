@@ -25,6 +25,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use unmodifiable facade
  *                                                    instead of create it on
  *                                                    every getMessageObservers()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make more messaging states thread
+ *                                                    safe (add volatile)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add setReadyToSend() to fix rare
+ *                                                    race condition in block1wise
+ *                                                    when the generated token was 
+ *                                                    copied too late (after sending). 
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -82,7 +88,7 @@ public abstract class Message {
 	private CoAP.Type type;
 
 	/** The 16-bit Message Identification. */
-	private int mid = NONE; // Message ID
+	private volatile int mid = NONE; // Message ID
 
 	/**
 	 * The token, a 0-8 byte array.
@@ -92,7 +98,7 @@ public abstract class Message {
 	 * empty array would not work here because it is already a valid token
 	 * according to the CoAP spec.
 	 */
-	private byte[] token = null;
+	private volatile byte[] token = null;
 
 	/** The set of options of this message. */
 	private OptionSet options;
@@ -134,7 +140,7 @@ public abstract class Message {
 	private volatile Throwable sendError;
 
 	/** The serialized message as byte array. */
-	private byte[] bytes;
+	private volatile byte[] bytes;
 
 	/**
 	 * A list of all {@link ObserveManager} that should be notified when an
@@ -155,7 +161,7 @@ public abstract class Message {
 	 * The timestamp when this message has been received, sent, or 0, if neither
 	 * has happened yet. The {@link Matcher} sets the timestamp.
 	 */
-	private long timestamp;
+	private volatile long timestamp;
 
 	/**
 	 * Creates a new message with no specified message type.
@@ -619,6 +625,17 @@ public abstract class Message {
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onCancel();
 			}
+		}
+	}
+
+	/**
+	 * Indicate, that this message is ready to be send.
+	 * 
+	 * Not part of the fluent API.
+	 */
+	public void setReadyToSend() {
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onReadyToSend();
 		}
 	}
 
