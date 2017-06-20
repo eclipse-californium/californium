@@ -33,6 +33,10 @@
  *                                                    starting observe requests
  *    Achim Kraus (Bosch Software Innovations GmbH) - optimize correlation context
  *                                                    processing. issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for MID also to responses.
+ *                                                    Proactive observe cancellation may cause
+ *                                                    errors, if they cancel not completely 
+ *                                                    created notifies (before the MID is assigned).
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -304,8 +308,13 @@ public final class UdpMatcher extends BaseMatcher {
 			Response previous = iterator.next();
 			LOGGER.log(Level.FINER, "removing NON notification: {0}", previous);
 			// notifications are local MID namespace
-			KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
-			exchangeStore.remove(idByMID, exchange);
+			if (previous.hasMID()) {
+				KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
+				exchangeStore.remove(idByMID, exchange);
+			}
+			else {
+				previous.cancel();
+			}
 			iterator.remove();
 		}
 	}
@@ -382,10 +391,16 @@ public final class UdpMatcher extends BaseMatcher {
 					// than the original request
 
 					// first remove the entry for the (separate) response's MID
-					KeyMID midKey = KeyMID.fromOutboundMessage(response);
-					exchangeStore.remove(midKey, exchange);
+					if (response.hasMID()) {
+						KeyMID midKey = KeyMID.fromOutboundMessage(response);
+						exchangeStore.remove(midKey, exchange);
 
-					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+						LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+					}
+					else {
+						// sometime proactive cancel requests and notifies are overlapping
+						response.cancel();
+					}
 				}
 
 				// Remove all remaining NON-notifications if this exchange is an observe relation
