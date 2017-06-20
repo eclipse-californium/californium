@@ -20,6 +20,11 @@
  *                                                    reregister. issue #56.
  *                                                    cleanup thread visibility and
  *                                                    response ordering. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup proactive cancel
+ *                                                    cancel the original observe request
+ *                                                    may release the token, which is then
+ *                                                    reused by the cancel request. Therefore
+ *                                                    rely on the cleanup of the cancel request.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -156,8 +161,9 @@ public class CoapObserveRelation {
 		cancel.setDestinationPort(request.getDestinationPort());
 		// use same Token
 		cancel.setToken(request.getToken());
-		// copy options, but set Observe to cancel
+		// copy options
 		cancel.setOptions(request.getOptions());
+		// set Observe to cancel
 		cancel.setObserveCancel();
 
 		// dispatch final response to the same message observers
@@ -170,8 +176,6 @@ public class CoapObserveRelation {
 	 * Cancel observer.
 	 */
 	private void cancel() {
-		Request request = this.request;
-		request.cancel();
 		endpoint.cancelObservation(request.getToken());
 		setCanceled(true);
 	}
@@ -182,8 +186,7 @@ public class CoapObserveRelation {
 	 */
 	public void proactiveCancel() {
 		sendCancelObserve();
-
-		// cancel old ongoing request
+		// cancel observe relation
 		cancel();
 	}
 
@@ -199,6 +202,7 @@ public class CoapObserveRelation {
 			proactiveCancel();
 		} else {
 			// cancel old ongoing request
+			request.cancel();
 			cancel();
 		}
 	}
