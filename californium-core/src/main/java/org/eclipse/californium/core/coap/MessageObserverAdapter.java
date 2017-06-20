@@ -20,6 +20,10 @@
  *                                                    implement onReject, onTimeout,
  *                                                    and onSendError calling failed().
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onReadyToSend() to fix rare
+ *                                                    race condition in block1wise
+ *                                                    when the generated token was 
+ *                                                    copied too late (after sending). 
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -67,6 +71,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	@Override
 	public void onTimeout() {
 		failed();
+	}
+
+	@Override
+	public void onReadyToSend() {
+		// empty default implementation
 	}
 
 	@Override

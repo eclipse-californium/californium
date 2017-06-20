@@ -18,6 +18,10 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onSendError()
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onReadyToSend() to fix rare
+ *                                                    race condition in block1wise
+ *                                                    when the generated token was 
+ *                                                    copied too late (after sending). 
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -88,6 +92,14 @@ public interface MessageObserver {
 	 * observed might cancel a response to send another one instead.
 	 */
 	void onCancel();
+
+	/**
+	 * Invoked when the message was built and is ready to send.
+	 * <p>
+	 * Triggered, before the message was sent by a connector. 
+	 * MID and token is prepared.
+	 */
+	void onReadyToSend();
 
 	/**
 	 * Invoked when the message has been sent.

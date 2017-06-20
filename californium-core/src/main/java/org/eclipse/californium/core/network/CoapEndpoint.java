@@ -36,6 +36,10 @@
  *                                                    BaseMatcher final
  *    Achim Kraus (Bosch Software Innovations GmbH) - use new MessageCallback functions
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call Message.setReadyToSend() to fix
+ *                                                    rare race condition in block1wise
+ *                                                    when the generated token was copied
+ *                                                    too late (after sending). 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -619,6 +623,7 @@ public class CoapEndpoint implements Endpoint {
 				messageInterceptor.sendRequest(request);
 			}
 
+			request.setReadyToSend();
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
 			if (request.isCanceled()) {
@@ -652,6 +657,7 @@ public class CoapEndpoint implements Endpoint {
 			for (MessageInterceptor interceptor:interceptors) {
 				interceptor.sendResponse(response);
 			}
+			response.setReadyToSend();
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
@@ -677,7 +683,7 @@ public class CoapEndpoint implements Endpoint {
 			for (MessageInterceptor interceptor:interceptors) {
 				interceptor.sendEmptyMessage(message);
 			}
-
+			message.setReadyToSend();
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled()) {
 				CorrelationContext correlationContext = null;
