@@ -22,6 +22,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - make messaging states thread safe
  *    Achim Kraus (Bosch Software Innovations GmbH) - add sent and sendError
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use unmodifiable facade
+ *                                                    instead of create it on
+ *                                                    every getMessageObservers()
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -140,6 +143,13 @@ public abstract class Message {
 	 * and from then on must never again become null.
 	 */
 	private AtomicReference<List<MessageObserver>> messageObservers = new AtomicReference<List<MessageObserver>>();
+	
+	/**
+	 * A unmodifiable facade for the list of all {@link ObserveManager}.
+	 * @see #messageObservers
+	 * @see #getMessageObservers() 
+	 */
+	private volatile List<MessageObserver> unmodifiableMessageObserversFacade = null;
 
 	/**
 	 * The timestamp when this message has been received, sent, or 0, if neither
@@ -766,11 +776,10 @@ public abstract class Message {
 	 * @return an immutable list of the registered observers.
 	 */
 	public List<MessageObserver> getMessageObservers() {
-		List<MessageObserver> list = messageObservers.get();
-		if (list == null) {
+		if (null == unmodifiableMessageObserversFacade) {
 			return Collections.emptyList();
 		} else {
-			return Collections.unmodifiableList(list);
+			return unmodifiableMessageObserversFacade;
 		}
 	}
 
@@ -797,7 +806,9 @@ public abstract class Message {
 		if (observers == null) {
 			throw new NullPointerException();
 		}
-		ensureMessageObserverList().addAll(observers);
+		if (!observers.isEmpty()) {
+			ensureMessageObserverList().addAll(observers);
+		}
 	}
 
 	/**
@@ -823,9 +834,13 @@ public abstract class Message {
 	private List<MessageObserver> ensureMessageObserverList() {
 		List<MessageObserver> list = messageObservers.get();
 		if (null == list) {
-			messageObservers.compareAndSet(null, new CopyOnWriteArrayList<MessageObserver>());
+			boolean created = messageObservers.compareAndSet(null, new CopyOnWriteArrayList<MessageObserver>());
 			list = messageObservers.get();
+			if (created) {
+				unmodifiableMessageObserversFacade = Collections.unmodifiableList(list);
+			}
 		}
 		return list;
 	}
+
 }
