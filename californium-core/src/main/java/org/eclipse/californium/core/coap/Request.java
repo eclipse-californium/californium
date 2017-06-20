@@ -19,14 +19,16 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add field for sender identity
  *                                                    (465073)
  *    Achim Kraus (Bosch Software Innovations GmbH) - move payload string conversion
- *    												  from toString() to
- *                                                    Message.getPayloadTracingString(). 
+ *                                                    from toString() to
+ *                                                    Message.getPayloadTracingString().
  *                                                    (for message tracing)
  *                                                    set scheme on setOptions(URI)
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix empty uri query in getURI()
- *    Achim Kraus (Bosch Software Innovations GmbH) - add setSendError() 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add setSendError()
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - copy user context in
+ *                                                    setUserContext()
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -36,6 +38,7 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.Principal;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -667,10 +670,7 @@ public class Request extends Message {
 	 *         request.
 	 */
 	public Map<String, String> getUserContext() {
-		if (userContext == null) {
-			return Collections.emptyMap();
-		}
-		return Collections.unmodifiableMap(userContext);
+		return userContext;
 	}
 
 	/**
@@ -680,7 +680,11 @@ public class Request extends Message {
 	 * @return this request
 	 */
 	public Request setUserContext(Map<String, String> userContext) {
-		this.userContext = userContext;
+		if (userContext == null || userContext.isEmpty()) {
+			this.userContext = Collections.emptyMap();
+		} else {
+			this.userContext = Collections.unmodifiableMap(new HashMap<String, String>(userContext));
+		}
 		return this;
 	}
 
