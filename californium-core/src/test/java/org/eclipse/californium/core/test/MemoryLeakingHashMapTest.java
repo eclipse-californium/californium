@@ -20,6 +20,12 @@
  *                                                    on notifies.
  *                                                    fix thread visibility of 
  *                                                    CoapObserverAndCanceler fields
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce lower notify rate for 
+ *                                                    blockwise notifies. Reuse 
+ *                                                    TestResource for all tests
+ *                                                    preparing it for each test
+ *                                                    by using setResponse() or 
+ *                                                    setNotifies().
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -32,9 +38,12 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -87,16 +96,14 @@ public class MemoryLeakingHashMapTest {
 	private static final String LONG_REQUEST = "123456789.123456789.";
 	private static final String LONG_RESPONSE = LONG_REQUEST + LONG_REQUEST;
 
-	// the interval at which the server sends notifications
-	// this should be set to a value that is long enough for the client
-	// to retrieve all blocks before the next notification arrives
-	private static final int OBS_NOTIFICATION_INTERVAL = 200; // send a notification every 200 ms
+	// the interval at which the server sends notifications (200 ms)
+	// may be multiplied by the number of blocks, if notify is sent blockwise
+	private static final int OBS_NOTIFICATION_INTERVAL = 200; 
 	private static final int HOW_MANY_NOTIFICATION_WE_WAIT_FOR = 3;
 	private static final int ACK_TIMEOUT = 100; // ms
 
-	// The names of the two resources of the server
-	private static final String PIGGY = "piggy";
-	private static final String SEPARATE = "separate";
+	// The name of the resource of the server
+	private static final String URI = "test";
 
 	private static final Logger LOGGER = Logger.getLogger(MemoryLeakingHashMapTest.class.getName());
 	private static ScheduledExecutorService timer;
@@ -109,8 +116,8 @@ public class MemoryLeakingHashMapTest {
 	private static MessageExchangeStore clientExchangeStore;
 	private static MessageExchangeStore serverExchangeStore;
 
-	private static String currentRequestText;
-	private static String currentResponseText;
+	private static volatile String currentRequestText;
+	private static TestResource resource;
 
 	@BeforeClass
 	public static void startupServer() throws Exception {
@@ -158,10 +165,11 @@ public class MemoryLeakingHashMapTest {
 	@Test
 	public void testSimpleNONGet() throws Exception {
 
-		String uri = uriOf(PIGGY);
+		String uri = uriOf(URI);
 		LOGGER.log(Level.FINE, "Test simple NON GET to {0}", uri);
 
-		currentResponseText = "simple NON GET";
+		String currentResponseText = "simple NON GET";
+		resource.setResponse(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
 
 		Request request = Request.newGet();
 		request.setURI(uri);
@@ -181,7 +189,7 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testSimpleGetUsingPiggyBacking() throws Exception {
-		testSimpleGet(uriOf(PIGGY));
+		testSimpleGet(Mode.PIGGY_BACKED_RESPONSE);
 	}
 
 	/**
@@ -192,14 +200,16 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testSimpleGetUsingSeparateMessage() throws Exception {
-		testSimpleGet(uriOf(SEPARATE));
+		testSimpleGet(Mode.SEPARATE_RESPONSE);
 	}
 
-	private static void testSimpleGet(final String uri) throws Exception {
+	private static void testSimpleGet(final Mode mode) throws Exception {
 
+		String uri = uriOf(URI);
 		LOGGER.log(Level.FINE, "Test simple GET to {0}", uri);
 
-		currentResponseText = "simple GET";
+		String currentResponseText = "simple GET";
+		resource.setResponse(currentResponseText, mode);
 
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
@@ -216,7 +226,7 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testBlockwiseUsingPiggyBacking() throws Exception {
-		testBlockwise(uriOf(PIGGY));
+		testBlockwise(Mode.PIGGY_BACKED_RESPONSE);
 	}
 
 	/**
@@ -227,7 +237,7 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testBlockwiseUsingSeparateResponse() throws Exception {
-		testBlockwise(uriOf(SEPARATE));
+		testBlockwise(Mode.SEPARATE_RESPONSE);
 	}
 
 	/**
@@ -238,30 +248,31 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testBlockwiseUsingNONMessages() throws Exception {
-		CoapClient client = new CoapClient(uriOf(PIGGY)).useNONs();
+		CoapClient client = new CoapClient(uriOf(URI)).useNONs();
 		client.setEndpoint(clientEndpoint);
-		testBlockwise(client);
+		testBlockwise(client, Mode.PIGGY_BACKED_RESPONSE);
 	}
 
-	private static void testBlockwise(final String uri) throws Exception {
-		CoapClient client = new CoapClient(uri);
+	private static void testBlockwise(final Mode mode) throws Exception {
+		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
-		testBlockwise(client);
+		testBlockwise(client, mode);
 	}
 
-	private static void testBlockwise(final CoapClient client) {
+	private static void testBlockwise(final CoapClient client, final Mode mode) {
 
 		LOGGER.log(Level.FINE, "Test blockwise POST to {0}", client.getURI());
 
 		currentRequestText = LONG_REQUEST;
-		currentResponseText = LONG_RESPONSE;
+		String currentResponseText = LONG_RESPONSE;
+		resource.setResponse(currentResponseText, mode);
 
 		CoapResponse response = client.post(currentRequestText, MediaTypeRegistry.TEXT_PLAIN);
 		assertThatResponseContainsValue(response, currentResponseText);
 	}
 
 	private static void assertThatResponseContainsValue(CoapResponse response, String expectedValue) {
-		assertThat(response,  is(notNullValue()));
+		assertThat(response, is(notNullValue()));
 		LOGGER.log(Level.FINE, "Client received response [{0}]", response.getResponseText());
 		assertThat(response.getResponseText(), is(expectedValue));
 	}
@@ -275,10 +286,8 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testObserveProactive() throws Exception {
-
-		final String uri = uriOf(PIGGY);
-		LOGGER.log(Level.FINE, "Test observe relation with a proactive cancelation of {0}", uri);
-		testObserveProactive(uri, "Hello observer");
+		LOGGER.log(Level.FINE, "Test observe relation with a proactive cancelation");
+		testObserveProactive("Hello observer");
 	}
 
 	/**
@@ -290,31 +299,34 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testObserveProactiveBlockwise() throws Exception {
-
-		final String uri = uriOf(PIGGY);
-		LOGGER.log(Level.FINE, "Test observe relation with blockwise notifications and proactive cancelation of {0}", uri);
-
-		// We need a long response text (>16) 
-		testObserveProactive(uri, LONG_RESPONSE);
+		LOGGER.log(Level.FINE, "Test observe relation with blockwise notifications and proactive cancelation");
+		// We need a long response text (>16)
+		testObserveProactive(LONG_RESPONSE);
 	}
 
-	private void testObserveProactive(final String uri, final String responseText) throws Exception {
+	private void testObserveProactive(final String responseText) throws Exception {
 
-		currentResponseText = responseText;
-
+		String currentResponseText = responseText;
+		int blocks = resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
 		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1);
 		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
 
-		CoapClient client = new CoapClient(uri);
+		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, uri, true);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, true);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
-		// Wait until we have received all the notifications and canceled the relation
-		assertTrue(
-				"Client has not received all expected responses",
-				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1), TimeUnit.MILLISECONDS));
+		if (1 < blocks) {
+			// wait longer, blocks may require retransmission and 
+			// blockwise notifies may overlap 
+			blocks <<= 2;
+		}
+
+		// Wait until all the notifications are received and
+		// the relation is canceled
+		latch.await(calculateNotifiesTimeout((HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks), TimeUnit.MILLISECONDS);
+		assertTrue("Client has not received all expected responses, left " + latch.getCount(), 0 == latch.getCount());
 		assertFalse(isOnErrorInvoked.get()); // should not happen
 	}
 
@@ -328,26 +340,26 @@ public class MemoryLeakingHashMapTest {
 	@Test
 	public void testObserveReactive() throws Exception {
 
-		final String uri = uriOf(PIGGY);
-		System.out.println("Test observe relation with a reactive cancelation to "+uri);
+		final String uri = uriOf(URI);
+		System.out.println("Test observe relation with a reactive cancelation to " + uri);
 
-		currentResponseText = "Hello observer";
+		String currentResponseText = "Hello observer";
+		resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
 
 		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR);
 		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
 
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, uri, false);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, false);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
-		assertTrue(
-				"Client has not received all expected responses",
+		assertTrue("Client has not received all expected responses",
 				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
 		assertFalse(isOnErrorInvoked.get()); // should not happen
 	}
-	
+
 	private static long calculateNotifiesTimeout(int numberOfNotifiesToWait) {
 		return (numberOfNotifiesToWait * OBS_NOTIFICATION_INTERVAL) + 1000L;
 	}
@@ -382,8 +394,8 @@ public class MemoryLeakingHashMapTest {
 
 		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);
-		server.add(new TestResource(PIGGY, Mode.PIGGY_BACKED_RESPONSE, timer));
-		server.add(new TestResource(SEPARATE, Mode.SEPARATE_RESPONSE, timer));
+		resource = new TestResource(timer);
+		server.add(resource);
 		server.start();
 		serverPort = serverEndpoint.getAddress().getPort();
 	}
@@ -396,20 +408,46 @@ public class MemoryLeakingHashMapTest {
 
 	private static class TestResource extends CoapResource {
 
-		private Mode mode;
+		private final ScheduledExecutorService timer;
+		private ScheduledFuture<?> scheduledTimer;
+		private volatile String currentResponseText;
+		private volatile Mode mode;
 
-		public TestResource(final String name, final Mode mode, final ScheduledExecutorService timer) {
-			super(name);
-			this.mode = mode;
+		public TestResource(final ScheduledExecutorService timer) {
+			super(URI);
+			this.timer = timer;
 
 			setObservable(true);
-			timer.scheduleWithFixedDelay(new Runnable() {
+		}
+
+		public int setResponse(final String responseText, final Mode mode) {
+			if (null != this.scheduledTimer) {
+				this.scheduledTimer.cancel(false);
+				try {
+					this.scheduledTimer.get();
+				} catch (InterruptedException | CancellationException | ExecutionException e) {
+				}
+				this.scheduledTimer = null;
+			}
+			this.mode = mode;
+			this.currentResponseText = responseText;
+			int blocks = (responseText.length() + TEST_BLOCK_SIZE - 1) / TEST_BLOCK_SIZE;
+			if (0 == blocks) {
+				blocks = 1;
+			}
+			return blocks;
+		}
+
+		public int setNotifies(final String responseText, final Mode mode) {
+			int blocks = setResponse(responseText, mode);
+			this.scheduledTimer = this.timer.scheduleWithFixedDelay(new Runnable() {
 
 				@Override
 				public void run() {
 					changed();
 				}
-			}, OBS_NOTIFICATION_INTERVAL, OBS_NOTIFICATION_INTERVAL, TimeUnit.MILLISECONDS);
+			}, OBS_NOTIFICATION_INTERVAL * blocks, OBS_NOTIFICATION_INTERVAL * blocks, TimeUnit.MILLISECONDS);
+			return blocks;
 		}
 
 		@Override
@@ -456,13 +494,11 @@ public class MemoryLeakingHashMapTest {
 		final AtomicInteger counter = new AtomicInteger();
 		final CountDownLatch latch;
 		final AtomicBoolean errorFlag;
-		final String uri;
 		final boolean cancelProactively;
 
-		public CoapObserverAndCanceler(final CountDownLatch latch, final AtomicBoolean errorFlag, final String uri, final boolean cancelProactively) {
+		public CoapObserverAndCanceler(final CountDownLatch latch, final AtomicBoolean errorFlag, final boolean cancelProactively) {
 			this.latch = latch;
 			this.errorFlag = errorFlag;
-			this.uri = uri;
 			this.cancelProactively = cancelProactively;
 		}
 
@@ -494,12 +530,12 @@ public class MemoryLeakingHashMapTest {
 
 			if (cancelProactively) {
 				if (countDown == 1) {
-					LOGGER.log(Level.FINE, "Client proactively cancels observe relation to {0}", uri);
+					LOGGER.log(Level.FINE, "Client proactively cancels observe relation");
 					relation.proactiveCancel();
 				}
 			} else {
 				if (countDown == 0) {
-					LOGGER.log(Level.FINE, "Client forgets observe relation to {0}", uri);
+					LOGGER.log(Level.FINE, "Client forgets observe relation");
 					relation.reactiveCancel();
 				}
 			}
