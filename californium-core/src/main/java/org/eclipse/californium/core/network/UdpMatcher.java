@@ -29,6 +29,10 @@
  *                                                 starting observe requests
  * Achim Kraus (Bosch Software Innovations GmbH) - remove contextEstablished.
  *                                                 issue #311
+ * Achim Kraus (Bosch Software Innovations GmbH) - add check for MID also to responses.
+ *                                                 Proactive observe cancellation may cause
+ *                                                 errors, if they cancel not completely 
+ *                                                 created notifies (before the MID is assigned).
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -404,8 +408,13 @@ public final class UdpMatcher extends BaseMatcher {
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
 			Response previous = iterator.next();
 			// notifications are local MID namespace
-			KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
-			exchangeStore.remove(idByMID, relation.getExchange());
+			if (previous.hasMID()) {
+				KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
+				exchangeStore.remove(idByMID, relation.getExchange());
+			}
+			else {
+				previous.cancel();
+			}
 			iterator.remove();
 		}
 	}
@@ -474,10 +483,16 @@ public final class UdpMatcher extends BaseMatcher {
 					// than the original request
 
 					// first remove the entry for the (separate) response's MID
-					KeyMID midKey = KeyMID.fromOutboundMessage(response);
-					exchangeStore.remove(midKey, exchange);
+					if (response.hasMID()) {
+						KeyMID midKey = KeyMID.fromOutboundMessage(response);
+						exchangeStore.remove(midKey, exchange);
 
-					LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+						LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+					}
+					else {
+						// sometime proactive cancel requests and notifies are overlapping
+						response.cancel();
+					}
 				}
 
 				if (request != null && (request.getOptions().hasBlock1() || ( null != response && response.getOptions().hasBlock2()))) {

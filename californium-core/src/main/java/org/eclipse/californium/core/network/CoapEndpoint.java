@@ -27,6 +27,8 @@
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in
  *                                                    BaseMatcher final
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
+ *                                                    canceled messages
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -571,7 +573,12 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!response.isCanceled()) {
+			if (response.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serializeResponse(response));
 			}
 		}
@@ -592,7 +599,12 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled()) {
+			if (message.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serializeEmptyMessage(message));
 			}
 		}
