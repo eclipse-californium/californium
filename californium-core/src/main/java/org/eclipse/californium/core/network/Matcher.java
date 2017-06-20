@@ -17,13 +17,17 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - return null for ACK with mismatching MID
- *    Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on
  *                                                    complete exchange. Issue #103
  *    Achim Kraus (Bosch Software Innovations GmbH) - use save removes with
  *                                                    additional object to remove
- *                                                    as argument. 
+ *                                                    as argument.
  *                                                    Fix null response in
  *                                                    ExchangeObserverImpl
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for MID also to responses.
+ *                                                    Proactive observe cancellation may cause
+ *                                                    errors, if they cancel not completely
+ *                                                    created notifies (before the MID is assigned).
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -412,9 +416,14 @@ public class Matcher {
 			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
 				Response previous = iterator.next();
 				// notifications are local MID namespace
-				KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
-				exchangesByMID.remove(idByMID, exchange);
-				iterator.remove();
+				if (previous.hasMID()) {
+					KeyMID idByMID = new KeyMID(previous.getMID(), null, 0);
+					exchangesByMID.remove(idByMID, exchange);
+					iterator.remove();
+				}
+				else {
+					previous.cancel();
+				}
 			}
 		}
 	}
@@ -479,9 +488,14 @@ public class Matcher {
 				Response response = exchange.getCurrentResponse();
 				if (response != null && response.getType() != Type.ACK) {
 					// only response MIDs are stored for ACK and RST, no reponse Tokens
-					KeyMID midKey = new KeyMID(response.getMID(), null, 0);
-					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
-					exchangesByMID.remove(midKey, exchange);
+					if (response.hasMID()) {
+						KeyMID midKey = new KeyMID(response.getMID(), null, 0);
+						LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up {0}", midKey);
+						exchangesByMID.remove(midKey, exchange);
+					}
+					else {
+						response.cancel();
+					}
 				}
 				
 				Request request = exchange.getCurrentRequest();

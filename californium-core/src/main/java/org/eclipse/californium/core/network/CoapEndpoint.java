@@ -18,6 +18,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - include client identity in Requests
  *                                                    (465073)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
+ *                                                    canceled messages
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -509,8 +511,14 @@ public class CoapEndpoint implements Endpoint {
 				interceptor.sendResponse(response);
 
 			// MessageInterceptor might have canceled
-			if (!response.isCanceled())
+			if (response.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serialize(response));
+			}
 		}
 
 		@Override
@@ -533,8 +541,14 @@ public class CoapEndpoint implements Endpoint {
 				interceptor.sendEmptyMessage(message);
 
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled())
+			if (message.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serialize(message));
+			}
 		}
 	}
 	
