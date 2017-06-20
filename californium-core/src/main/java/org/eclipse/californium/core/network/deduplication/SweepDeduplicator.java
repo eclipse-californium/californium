@@ -23,6 +23,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timestamp of add for deduplication 
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging for empty deduplicator.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add size() for test-logging
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -151,7 +152,12 @@ public final class SweepDeduplicator implements Deduplicator {
 	public boolean isEmpty() {
 		return incomingMessages.isEmpty();
 	}
-
+	
+	@Override
+	public int size() {
+		return incomingMessages.size();
+	}
+	
 	/**
 	 * The sweep algorithm periodically iterates over all exchanges and removes
 	 * obsolete entries.

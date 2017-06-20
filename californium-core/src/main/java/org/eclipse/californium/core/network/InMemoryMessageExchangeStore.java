@@ -24,6 +24,10 @@
  *                                                    integrate clear() into stop()
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dump() and call it from
+ *                                                    isEmpty depending on the log-level.
+ *                                                    Intended to be used for logging
+ *                                                    while testing.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -32,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -124,6 +129,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
+		b.append(deduplicator.size()).append(" MIDs, ");
 		return b.toString();
 	}
 
@@ -163,8 +169,16 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public boolean isEmpty() {
-		LOGGER.finer(dumpCurrentLoadLevels());
-		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
+		boolean empty = exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
+		// enable dump exchanges with WARNING, if log level is FINEST
+		boolean verbose = !empty && LOGGER.isLoggable(Level.FINEST);
+		dump(verbose ? Level.WARNING : Level.FINER, 3);
+		return empty;
+	}
+
+	@Override
+	public String toString() {
+		return dumpCurrentLoadLevels();
 	}
 
 	@Override
@@ -342,6 +356,44 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			exchangesByMID.clear();
 			exchangesByToken.clear();
 			running = false;
+		}
+	}
+
+	/**
+	 * Dump exchanges of stores.
+	 * 
+	 * @param logLevel log level for dump
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 */
+	private void dump(Level logLevel, int logMaxExchanges) {
+		if (LOGGER.isLoggable(logLevel)) {
+			LOGGER.log(logLevel, dumpCurrentLoadLevels());
+			if (0 < logMaxExchanges) {
+				if (!exchangesByMID.isEmpty()) {
+					dumpExchanges(logLevel, logMaxExchanges, exchangesByMID.entrySet());
+				}
+				if (!exchangesByToken.isEmpty()) {
+					dumpExchanges(logLevel, logMaxExchanges, exchangesByToken.entrySet());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Dump collection of exchange entries.
+	 * 
+	 * @param logLevel log level for dump
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 * @param exchangeEntries collection with exchanges entries
+	 */
+	private <K> void dumpExchanges(Level logLevel, int logMaxExchanges, Set<Entry<K, Exchange>> exchangeEntries) {
+		for (Entry<K, Exchange> exchangeEntry : exchangeEntries) {
+			Exchange exchange = exchangeEntry.getValue();
+			LOGGER.log(logLevel, "  {0}, {1}, {2}", new Object[] { exchangeEntry.getKey(), exchange.getCurrentRequest(),
+					exchange.getCurrentResponse() });
+			if (0 >= --logMaxExchanges) {
+				break;
+			}
 		}
 	}
 
