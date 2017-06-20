@@ -40,6 +40,8 @@
  *                                                    rare race condition in block1wise
  *                                                    when the generated token was copied
  *                                                    too late (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
+ *                                                    canceled messages
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -660,7 +662,12 @@ public class CoapEndpoint implements Endpoint {
 			response.setReadyToSend();
 
 			// MessageInterceptor might have canceled
-			if (!response.isCanceled()) {
+			if (response.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				CorrelationContext correlationContext = null;
 				if (null != exchange) {
 					correlationContext = exchange.getCorrelationContext();
@@ -685,7 +692,12 @@ public class CoapEndpoint implements Endpoint {
 			}
 			message.setReadyToSend();
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled()) {
+			if (message.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				CorrelationContext correlationContext = null;
 				if (null != exchange) {
 					correlationContext = exchange.getCorrelationContext();
