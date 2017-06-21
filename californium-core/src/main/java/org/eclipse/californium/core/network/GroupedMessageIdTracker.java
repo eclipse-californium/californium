@@ -13,12 +13,14 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *                                 (derived from MessageIdTracker)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce MessageIdTracker
+ *                                                    interface
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
@@ -37,13 +39,10 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  * little longer to use the first MIDs of a group because they freed with the
  * lease of the last MID of the group.
  */
-public class GroupedMessageIdTracker {
+public class GroupedMessageIdTracker implements MessageIdTracker {
 
-	private static final int TOTAL_NO_OF_MIDS = 1 << 16;
 	/**
 	 * Number of groups.
-	 * 
-	 * Configurable using {@link NetworkConfig.Keys#MID_PROVIDER_GROUPS}.
 	 */
 	private final int numberOfGroups;
 	/**
@@ -55,7 +54,7 @@ public class GroupedMessageIdTracker {
 	 * 
 	 * @see System#nanoTime()
 	 */
-	private final long exchangeLifetime;
+	private final long exchangeLifetimeNanos;
 	/**
 	 * Array with end of lease for MID groups. MID divided by
 	 * {@link #sizeOfGroups} is used as index. Values in nanoseconds.
@@ -69,34 +68,26 @@ public class GroupedMessageIdTracker {
 	private int currentMID;
 
 	/**
-	 * Creates a new tracker based on configuration values.
-	 * <p>
+	 * Creates a new MID group based tracker.
+	 * 
 	 * The following configuration values are used:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MID_PROVIDER_GROUPS}
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MID_TRACKER_GROUPS}
 	 * - determine the group size for the message IDs. Each group is marked as
 	 * <em>in use</em>, if a MID within the group is used.</li>
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
 	 * - each group of a message ID returned by <em>getNextMessageId</em> is
 	 * marked as <em>in use</em> for this amount of time (ms).</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#USE_RANDOM_MID_START}
-	 * - if this value is {@code true} then the message IDs returned by
-	 * <em>getNextMessageId</em> will start at a random index. Otherwise the
-	 * first message ID returned will be {@code 0}.</li>
 	 * </ul>
 	 * 
-	 * @param config the configuration to use.
+	 * @param initialMid initial MID
+	 * @param config configuration
 	 */
-	public GroupedMessageIdTracker(final NetworkConfig config) {
-		numberOfGroups = config.getInt(NetworkConfig.Keys.MID_PROVIDER_GROUPS);
+	public GroupedMessageIdTracker(int initialMid, NetworkConfig config) {
+		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME));
+		numberOfGroups = config.getInt(NetworkConfig.Keys.MID_TRACKER_GROUPS);
+		currentMID = initialMid;
 		sizeOfGroups = (TOTAL_NO_OF_MIDS + numberOfGroups - 1) / numberOfGroups;
-		exchangeLifetime = TimeUnit.MILLISECONDS.toNanos(config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME));
-		boolean useRandomFirstMID = config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START);
-		if (useRandomFirstMID) {
-			currentMID = new SecureRandom().nextInt(TOTAL_NO_OF_MIDS);
-		} else {
-			currentMID = 0;
-		}
 		midLease = new long[numberOfGroups];
 	}
 
@@ -109,16 +100,17 @@ public class GroupedMessageIdTracker {
 	public int getNextMessageId() {
 		final long now = System.nanoTime();
 		synchronized (this) {
-			int mid = currentMID % TOTAL_NO_OF_MIDS;
+			// mask mid to the 16 low bits
+			int mid = currentMID & 0x0000FFFF;
 			int index = mid / sizeOfGroups;
 			int nextIndex = (index + 1) % numberOfGroups;
 			if (midLease[nextIndex] < now) {
-				midLease[index] = now + exchangeLifetime;
+				midLease[index] = now + exchangeLifetimeNanos;
 				++currentMID;
 				return mid;
 			}
 		}
-		return -1;
+		return Message.NONE;
 	}
 
 	/**
