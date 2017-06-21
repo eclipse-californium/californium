@@ -14,11 +14,14 @@
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - relax lifetime tests
  *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename MessageIdTrackerTest
+ *                                                    to MapBasedMessageIdTrackerTest.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,27 +29,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.junit.Before;
 import org.junit.Test;
 
 /**
  * Verifies that MessageIdTracker correctly marks MIDs as <em>in use</em>.
  *
  */
-public class MessageIdTrackerTest {
-
-	private static final int TOTAL_NO_OF_MIDS = 1 << 16;
-	private NetworkConfig config;
-
-	@Before
-	public void setUp() {
-		config = NetworkConfig.createStandardWithoutFile();
-	}
+public class MapBasedMessageIdTrackerTest {
 
 	@Test
 	public void testGetNextMessageIdFailsIfAllMidsAreInUse() throws Exception {
 		// GIVEN a tracker whose MIDs are all in use
-		MessageIdTracker tracker = new MessageIdTracker(config);
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(0, config);
 		for (int i = 0; i < TOTAL_NO_OF_MIDS; i++) {
 			tracker.getNextMessageId();
 		}
@@ -62,8 +57,9 @@ public class MessageIdTrackerTest {
 	public void testGetNextMessageIdReusesIdAfterExchangeLifetime() throws Exception {
 		// GIVEN a tracker with an EXCHANGE_LIFETIME of 100ms
 		int exchangeLifetime = 100; // ms
-		config.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, exchangeLifetime);
-		final MessageIdTracker tracker = new MessageIdTracker(config);
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile().setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME,
+				exchangeLifetime);
+		final MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(0, config);
 
 		// WHEN retrieving all message IDs from the tracker
 		int firstMid = tracker.getNextMessageId();

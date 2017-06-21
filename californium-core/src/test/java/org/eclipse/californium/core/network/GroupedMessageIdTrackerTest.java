@@ -18,6 +18,7 @@ package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,29 +27,23 @@ import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 /**
- * Verifies that GroupedMessageIdTracker correctly marks MIDs as <em>in use</em>.
+ * Verifies that GroupedMessageIdTracker correctly marks MIDs as <em>in
+ * use</em>.
  */
 @Category(Small.class)
 public class GroupedMessageIdTrackerTest {
 
-	private static final int TOTAL_NO_OF_MIDS = 1 << 16;
-	private NetworkConfig config;
-
-	@Before
-	public void setUp() {
-		config = NetworkConfig.createStandardWithoutFile();
-	}
+	private static final int INITIAL_MID = 0;
 
 	@Test
 	public void testGetNextMessageIdFailsIfAllMidsAreInUse() throws Exception {
 		// GIVEN a tracker whose MIDs are half in use
-		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, false);
-		GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(config);
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(INITIAL_MID, config);
 		for (int i = 0; i < TOTAL_NO_OF_MIDS / 2; i++) {
 			int mid = tracker.getNextMessageId();
 			assertThat(mid, is(not(-1)));
@@ -66,8 +61,9 @@ public class GroupedMessageIdTrackerTest {
 	public void testGetNextMessageIdReusesIdAfterExchangeLifetime() throws Exception {
 		// GIVEN a tracker with an EXCHANGE_LIFETIME of 100ms
 		int exchangeLifetime = 100; // ms
-		config.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, exchangeLifetime);
-		final GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(config);
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile().setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME,
+				exchangeLifetime);
+		final GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(INITIAL_MID, config);
 		int groupSize = tracker.getGroupSize();
 
 		// WHEN retrieving all message IDs from the tracker
@@ -85,7 +81,7 @@ public class GroupedMessageIdTrackerTest {
 		if (100 > timeLeft) {
 			timeLeft = 100;
 		}
-		
+
 		final AtomicInteger mid = new AtomicInteger(-1);
 		TestTools.waitForCondition(timeLeft, 100, TimeUnit.MILLISECONDS, new CheckCondition() {
 
