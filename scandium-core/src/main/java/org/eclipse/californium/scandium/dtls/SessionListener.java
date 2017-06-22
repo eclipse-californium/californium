@@ -17,6 +17,8 @@
  *                                                    session expiration (466554)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for start and completion
  *                                                    of handshake
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed to report
+ *                                                    handshake errors.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -36,7 +38,7 @@ public interface SessionListener {
 	 *              limitations
 	 */
 	void handshakeStarted(Handshaker handshaker) throws HandshakeException;
-	
+
 	/**
 	 * Indicates that a session has successfully been established.
 	 * 
@@ -62,4 +64,13 @@ public interface SessionListener {
 	 * @param peer the IP address and port of the peer the handshake has been completed with
 	 */
 	void handshakeCompleted(InetSocketAddress peer);
+
+	/**
+	 * Indicates that a handshake with a given peer has failed.
+	 * 
+	 * @param peer the IP address and port of the peer the handshake has failed
+	 * @param error the error occurred during the handshake
+	 */
+	void handshakeFailed(InetSocketAddress peer, Throwable error);
+
 }

@@ -33,6 +33,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError().
  *                                                    use SimpleMessageCallback
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for onError() in
+ *                                                    testConnectorAbortsHandshakeOnUnknownPskIdentity
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -261,7 +263,7 @@ public class DTLSConnectorTest {
 		givenAnEstablishedSession(outboundMessage, true);
 
 		// THEN assert that the callback has been invoked with a correlation context
-		assertTrue(callback.isSent(1000));
+		assertTrue(callback.isSent(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext(), is(notNullValue()));
 	}
@@ -294,7 +296,7 @@ public class DTLSConnectorTest {
 		assertThat(correlationMatcher.getConnectionCorrelationContext(0), is(nullValue()));
 		
 		// THEN assert that onError is invoked
-		assertThat(callback.getError(1000), is(notNullValue()));
+		assertThat(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
 	}
 
 	/**
@@ -1510,9 +1512,12 @@ public class DTLSConnectorTest {
 			}
 		});
 		client.start();
-		client.send(new RawData("Hello".getBytes(), serverEndpoint));
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData data = RawData.outbound("Hello".getBytes(), serverEndpoint, null, callback, false);
+		client.send(data);
 
 		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertThat("Error callback missing", callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
 	}
 
 	/**

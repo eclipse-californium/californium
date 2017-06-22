@@ -13,6 +13,8 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onError. issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add javadoc for parameter
+ *                                                    timeout
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -91,6 +93,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	/**
 	 * Get correlation context of sent message waiting with timeout.
 	 * 
+	 * @param timeout timeout in milliseconds
 	 * @return correlation context of sent message, or null, if not sent within
 	 *         provided timeout or no correlation context is available.
 	 * @see #getCorrelationContext()
@@ -105,6 +108,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	/**
 	 * Check, if message was sent with timeout.
 	 * 
+	 * @param timeout timeout in milliseconds
 	 * @return {@code true}, if message was sent with the timeout, {@code false}
 	 *         otherwise
 	 * @see #isSent()
@@ -119,6 +123,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	/**
 	 * Get error of sending message waiting with timeout.
 	 * 
+	 * @param timeout timeout in milliseconds
 	 * @return error of sending message, or {@code null}, if not occurred within
 	 *         provided timeout.
 	 * @see #getError()
