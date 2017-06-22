@@ -43,6 +43,13 @@
  *                                                    after last flight was sent.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Change RetransmitTask to
+ *                                                    schedule a "stripped job"
+ *                                                    instead of executing 
+ *                                                    handleTimeout directly.
+ *                                                    cancel flight only, if they
+ *                                                    should not be retransmitted
+ *                                                    anymore.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1424,10 +1431,12 @@ public class DTLSConnector implements Connector {
 
 	private void sendHandshakeFlight(DTLSFlight flight, Connection connection) {
 		if (flight != null) {
-			connection.cancelPendingFlight();
 			if (flight.isRetransmissionNeeded()) {
 				connection.setPendingFlight(flight);
 				scheduleRetransmission(flight);
+			}
+			else {
+				connection.cancelPendingFlight();
 			}
 			sendFlight(flight);
 		}
@@ -1542,9 +1551,6 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void scheduleRetransmission(DTLSFlight flight) {
-
-		// cancel existing retransmission task (if any)
-		flight.cancelRetransmission();
 
 		if (flight.isRetransmissionNeeded()) {
 
@@ -1673,7 +1679,18 @@ public class DTLSConnector implements Connector {
 
 		@Override
 		public void run() {
-			handleTimeout(flight);
+			executor.execute(new StripedRunnable() {
+
+				@Override
+				public Object getStripe() {
+					return flight.getPeerAddress();
+				}
+
+				@Override
+				public void run() {
+					handleTimeout(flight);
+				}
+			});
 		}
 	}
 
