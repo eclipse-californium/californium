@@ -29,6 +29,9 @@
  *                                                    from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483371
  *    Benjamin Cabe - fix typos in logger
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel flight only, if they
+ *                                                    should not be retransmitted
+ *                                                    anymore.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -49,6 +52,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1209,10 +1213,12 @@ public class DTLSConnector implements Connector {
 
 	private void sendHandshakeFlight(DTLSFlight flight, Connection connection) {
 		if (flight != null) {
-			connection.cancelPendingFlight();
 			if (flight.isRetransmissionNeeded()) {
 				connection.setPendingFlight(flight);
 				scheduleRetransmission(flight);
+			}
+			else {
+				connection.cancelPendingFlight();
 			}
 			sendFlight(flight);
 		}
@@ -1315,14 +1321,7 @@ public class DTLSConnector implements Connector {
 
 	private void scheduleRetransmission(DTLSFlight flight) {
 
-		// cancel existing schedule (if any)
-		if (flight.getRetransmitTask() != null) {
-			flight.getRetransmitTask().cancel();
-		}
-
 		if (flight.isRetransmissionNeeded()) {
-			// create new retransmission task
-			flight.setRetransmitTask(new RetransmitTask(flight));
 			
 			// calculate timeout using exponential back-off
 			if (flight.getTimeout() == 0) {
@@ -1332,9 +1331,11 @@ public class DTLSConnector implements Connector {
 				// double timeout
 				flight.incrementTimeout();
 			}
-	
+
 			// schedule retransmission task
-			timer.schedule(flight.getRetransmitTask(), flight.getTimeout());
+			TimerTask retransmitTask = new RetransmitTask(flight);
+			timer.schedule(retransmitTask, flight.getTimeout());
+			flight.setRetransmitTask(retransmitTask);
 		}
 	}
 
