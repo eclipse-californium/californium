@@ -16,6 +16,7 @@
  *    Bosch Software Innovations GmbH - add constructor based on current connection state
  *    Achim Kraus (Bosch Software Innovations GmbH) - make pending flight and handshaker
  *                                                    access thread safe.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -255,6 +256,15 @@ public final class Connection implements SessionListener {
 		}
 	}
 
+	@Override
+	public void handshakeFailed(InetSocketAddress peer, Throwable error) {
+		Handshaker handshaker = ongoingHandshake.getAndSet(null);
+		if (handshaker != null) {
+			cancelPendingFlight();
+			LOGGER.log(Level.FINE, "Handshake with [{0}] has failed", peer);
+		}
+	}
+	
 	/**
 	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
 	 */

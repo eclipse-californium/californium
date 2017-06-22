@@ -28,6 +28,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF code to separate PseudoRandomFunction class
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed to report
+ *                                                    handshake errors.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -875,6 +877,12 @@ public abstract class Handshaker {
 	protected final void handshakeCompleted() {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(getPeerAddress());
+		}
+	}
+
+	public final void handshakeFailed(Throwable error) {
+		for (SessionListener sessionListener : sessionListeners) {
+			sessionListener.handshakeFailed(getPeerAddress(), error);
 		}
 	}
 

@@ -50,6 +50,12 @@
  *                                                    cancel flight only, if they
  *                                                    should not be retransmitted
  *                                                    anymore.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call handshakeFailed on 
+ *                                                    terminateOngoingHandshake,
+ *                                                    processAlertRecord, 
+ *                                                    handleTimeout,
+ *                                                    and add error callback in
+ *                                                    newDeferredMessageSender.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -598,7 +604,8 @@ public class DTLSConnector implements Connector {
 					"Aborting handshake with peer [{0}]: {1}",
 					new Object[]{peerAddress, cause.getMessage()});
 			}
-			DTLSSession session = connection.getOngoingHandshake().getSession();
+			Handshaker handshaker = connection.getOngoingHandshake();
+			DTLSSession session = handshaker.getSession();
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, description, peerAddress);
 			if (!connection.hasEstablishedSession()) {
 				terminateConnection(connection, alert, session);
@@ -607,6 +614,7 @@ public class DTLSConnector implements Connector {
 				send(alert, session);
 				connection.terminateOngoingHandshake();
 			}
+			handshaker.handshakeFailed(cause);
 		}
 	}
 
@@ -765,6 +773,8 @@ public class DTLSConnector implements Connector {
 		record.setSession(session);
 		try {
 			AlertMessage alert = (AlertMessage) record.getFragment();
+			Handshaker handshaker = connection.getOngoingHandshake();
+			HandshakeException error = null;
 			LOGGER.log(
 					Level.FINEST,
 					"Processing {0} ALERT from [{1}]: {2}",
@@ -774,6 +784,7 @@ public class DTLSConnector implements Connector {
 				// (http://tools.ietf.org/html/rfc5246#section-7.2.1)
 				// we need to respond with a CLOSE_NOTIFY alert and
 				// then close and remove the connection immediately
+				error = new HandshakeException("Received 'close notify'", alert);
 				terminateConnection(
 						connection,
 						new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()),
@@ -782,6 +793,7 @@ public class DTLSConnector implements Connector {
 				// according to section 7.2 of the TLS 1.2 spec
 				// (http://tools.ietf.org/html/rfc5246#section-7.2)
 				// the connection needs to be terminated immediately
+				error = new HandshakeException("Received 'fatal alert'", alert);
 				terminateConnection(connection);
 			} else {
 				// non-fatal alerts do not require any special handling
@@ -791,6 +803,9 @@ public class DTLSConnector implements Connector {
 				if (errorHandler != null) {
 					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
 				}
+			}
+			if (null != error && null != handshaker) {
+				handshaker.handshakeFailed(error);
 			}
 		} catch (HandshakeException | GeneralSecurityException e) {
 			discardRecord(record, e);
@@ -1408,6 +1423,12 @@ public class DTLSConnector implements Connector {
 				LOGGER.log(Level.FINE, "Session with [{0}] established, now sending deferred message", establishedSession.getPeer());
 				sendMessage(message, establishedSession);
 			}
+			
+			@Override
+			public void handshakeFailed(InetSocketAddress peer, Throwable error) {
+				LOGGER.log(Level.FINE, "Session with [{0}] failed, report error", peer);
+				message.onError(error);
+			}
 		};
 	}
 
@@ -1547,6 +1568,14 @@ public class DTLSConnector implements Connector {
 		} else {
 			LOGGER.log(Level.FINE, "Flight for [{0}] has reached maximum no. [{1}] of retransmissions, discarding ...",
 					new Object[]{flight.getPeerAddress(), max});
+			// inform handshaker
+			Connection connection = connectionStore.get(flight.getPeerAddress());
+			if (null != connection) {
+				Handshaker handshaker = connection.getOngoingHandshake();
+				if (null != handshaker) {
+					handshaker.handshakeFailed(new Exception("handshake flight timeout!"));
+				}
+			}
 		}
 	}
 

@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation 
+ *                                                    for handshakeFailed.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -261,6 +263,11 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public void handshakeCompleted(final InetSocketAddress peer) {
+		// nothing to do
+	}
+
+	@Override
+	public void handshakeFailed(final InetSocketAddress peer, Throwable error) {
 		// nothing to do
 	}
 }

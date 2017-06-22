@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Simon Bernard (Sierra Wireless) - Initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation 
+ *                                                    for handshakeFailed.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -33,5 +35,9 @@ public class SessionAdapter implements SessionListener{
 
 	@Override
 	public void handshakeCompleted(InetSocketAddress peer) {
+	}
+
+	@Override
+	public void handshakeFailed(InetSocketAddress peer, Throwable error) {
 	}
 }
