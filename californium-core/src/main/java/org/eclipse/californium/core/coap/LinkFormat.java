@@ -19,20 +19,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.regex.Pattern;
-
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.regex.Pattern;
 
 
 public class LinkFormat {
@@ -162,66 +155,64 @@ public class LinkFormat {
 		
 		return linkFormat;
 	}
-	
+
 	public static boolean matches(Resource resource, List<String> queries) {
-		
-		if (resource==null) return false;
-		if (queries==null || queries.size()==0) return true;
-		
+
+		if (resource == null)
+			return false;
+		if (queries == null || queries.size() == 0)
+			return true;
+
 		ResourceAttributes attributes = resource.getAttributes();
-		String path = resource.getPath()+resource.getName();
-		
+		String path = resource.getPath() + resource.getName();
+
 		for (String s : queries) {
 			int delim = s.indexOf("=");
 			if (delim != -1) {
-				
 				// split name-value-pair
 				String attrName = s.substring(0, delim);
-				String expected = s.substring(delim+1);
-
+				String expected = s.substring(delim + 1);
 				if (attrName.equals(LinkFormat.LINK)) {
 					if (expected.endsWith("*")) {
-						return path.startsWith(expected.substring(0, expected.length()-1));
+						if (!path.startsWith(expected.substring(0, expected.length() - 1)))
+							return false;
 					} else {
-						return path.equals(expected);
+						if (!path.equals(expected))
+							return false;
 					}
 				} else if (attributes.containsAttribute(attrName)) {
 					// lookup attribute value
+					boolean matched = false;
 					for (String actual : attributes.getAttributeValues(attrName)) {
-					
 						// get prefix length according to "*"
 						int prefixLength = expected.indexOf('*');
 						if (prefixLength >= 0 && prefixLength < actual.length()) {
-					
 							// reduce to prefixes
-							expected = expected.substring(0, prefixLength);
+							String shortened = expected.substring(0, prefixLength);
 							actual = actual.substring(0, prefixLength);
-						}
-						
-						// handle case like rt=[Type1 Type2]
-						if (actual.indexOf(" ") > -1) { // if contains white space
-							String[] parts = actual.split(" ");
-							for (String part : parts) { // check each part for match
-								if (part.equals(expected)) {
-									return true;
-								}
+							// Wildcard query
+							if (actual.equals(shortened)) {
+								matched = true;
 							}
-						}
-						
-						// compare strings
-						if (expected.equals(actual)) {
-							return true;
+						} else if (actual.equals(expected)) {
+							// Regular query
+							matched = true;
 						}
 					}
+					if (!matched) {
+						return false;
+					}
+				} else if (!attributes.containsAttribute(attrName)) {
+					return false;
 				}
 			} else {
 				// flag attribute
-				if (attributes.getAttributeValues(s).size()>0) {
-					return true;
+				if (attributes.getAttributeValues(s).size() == 0) {
+					return false;
 				}
 			}
 		}
-		return false;
+		return true;
 	}
 	
 	public static Set<WebLink> parse(String linkFormat) {
