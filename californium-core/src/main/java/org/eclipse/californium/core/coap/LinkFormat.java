@@ -193,10 +193,12 @@ public class LinkFormat {
 							// Wildcard query
 							if (actual.equals(shortened)) {
 								matched = true;
+								break;
 							}
 						} else if (actual.equals(expected)) {
 							// Regular query
 							matched = true;
+							break;
 						}
 					}
 					if (!matched) {
