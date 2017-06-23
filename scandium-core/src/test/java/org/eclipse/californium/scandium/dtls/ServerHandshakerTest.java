@@ -24,9 +24,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -34,7 +32,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import java.util.LinkedList;
@@ -47,8 +44,8 @@ import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.Certificat
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -86,7 +83,8 @@ public class ServerHandshakerTest {
 		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		session = new DTLSSession(endpoint, false);
 		recordLayer = new SimpleRecordLayer();
-		config = new DtlsConnectorConfig.Builder(endpoint)
+		config = new DtlsConnectorConfig.Builder()
+				.setAddress(endpoint)
 				.setIdentity(privateKey, certificateChain, false)
 				.setTrustStore(trustedCertificates)
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
@@ -211,7 +209,8 @@ public class ServerHandshakerTest {
 
 		// GIVEN a server handshaker that supports a public key based cipher using RawPublicKeys
 		// only as well as a pre-shared key based cipher
-		config = new DtlsConnectorConfig.Builder(endpoint)
+		config = new DtlsConnectorConfig.Builder()
+				.setAddress(endpoint)
 				.setIdentity(privateKey, DtlsTestTools.getPublicKey())
 				.setSupportedCipherSuites(new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,

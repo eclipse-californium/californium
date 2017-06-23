@@ -343,6 +343,8 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * The builder is initialized to the following default values
 		 * <ul>
+		 * <li><em>address</em>: a wildcard address with a system chosen ephemeral port
+		 *  see {@link InetSocketAddress#InetSocketAddress(int)}</li>
 		 * <li><em>maxFragmentLength</em>: 4096 bytes</li>
 		 * <li><em>maxPayloadSize</em>: 4096 + 25 bytes (max fragment size + 25 bytes for headers)</li>
 		 * <li><em>maxRetransmissions</em>: 4</li>
@@ -362,17 +364,25 @@ public final class DtlsConnectorConfig {
 		 * only if the server does not require clients to authenticate, i.e. this only
 		 * works with the ECDH based cipher suites. If you want to create such a <em>client-only</em>
 		 * configuration, you need to use the {@link #setClientOnly()} method on the builder.
+		 */
+		public Builder() {
+			config = new DtlsConnectorConfig();
+		}
+
+		/**
+		 * Sets the IP address and port the connector should bind to
 		 * 
 		 * @param address the IP address and port the connector should bind to
 		 * @throws IllegalArgumentException if the given addess is unresolved
 		 */
-		public Builder(InetSocketAddress address) {
+		public Builder setAddress(InetSocketAddress address) {
 			if (address.isUnresolved()) {
 				throw new IllegalArgumentException("Bind address must not be unresolved");
 			}
-			config = new DtlsConnectorConfig();
 			config.address = address;
+			return this;
 		}
+
 
 		/**
 		 * Indicates that the <em>DTLSConnector</em> will only be used as a
@@ -772,6 +782,9 @@ public final class DtlsConnectorConfig {
 		 */
 		public DtlsConnectorConfig build() {
 			// set default values
+			if (config.address == null) {
+				config.address = new InetSocketAddress(0);
+			}
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];
 			}
