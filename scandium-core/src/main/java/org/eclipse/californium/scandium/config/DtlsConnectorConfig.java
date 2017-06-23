@@ -63,42 +63,43 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	private static final String EC_ALGORITHM_NAME = "EC";
+
 	private InetSocketAddress address;
-	private X509Certificate[] trustStore = new X509Certificate[0];
+	private X509Certificate[] trustStore;
 
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
 	 */
-	private boolean earlyStopRetransmission = true;
+	private Boolean earlyStopRetransmission;
 
 	/**
 	 * The maximum fragment length this connector can process at once.
 	 */
-	private Integer maxFragmentLengthCode = null;
+	private Integer maxFragmentLengthCode;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
-	private int retransmissionTimeout = 1000;
+	private Integer retransmissionTimeout;
 
 	/**
 	 * Maximal number of retransmissions before the attempt to transmit a
 	 * message is canceled
 	 */
-	private int maxRetransmissions = 4;
+	private Integer maxRetransmissions;
 
 	/** does the server require the client to authenticate */
-	private boolean clientAuthenticationRequired = true;
+	private Boolean clientAuthenticationRequired;
 
 	/** do we send only the raw key (RPK) and not the full certificate (X509) */
-	private boolean sendRawKey = true;
+	private Boolean sendRawKey;
 
 	/** store of the PSK */
-	private PskStore pskStore = null;
+	private PskStore pskStore;
 
 	/** the private key for RPK and X509 mode */
-	private PrivateKey privateKey = null;
+	private PrivateKey privateKey;
 
 	/** the public key for both RPK and X.509 mode */
-	private PublicKey publicKey = null;
+	private PublicKey publicKey;
 
 	/** the certificate for RPK and X509 mode */
 	private X509Certificate[] certChain;
@@ -106,10 +107,10 @@ public final class DtlsConnectorConfig {
 	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites;
 
-	private int outboundMessageBufferSize = 100000;
+	private Integer outboundMessageBufferSize;
 
-	private int maxConnections = DEFAULT_MAX_CONNECTIONS;
-	private long staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
+	private Integer maxConnections = DEFAULT_MAX_CONNECTIONS;
+	private Long staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 
 	private ServerNameResolver serverNameResolver;
 
@@ -144,7 +145,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the (initial) time to wait in milliseconds
 	 */
-	public int getRetransmissionTimeout() {
+	public Integer getRetransmissionTimeout() {
 		return retransmissionTimeout;
 	}
 
@@ -154,7 +155,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the maximum number of re-transmissions
 	 */
-	public int getMaxRetransmissions() {
+	public Integer getMaxRetransmissions() {
 		return maxRetransmissions;
 	}
 
@@ -162,7 +163,7 @@ public final class DtlsConnectorConfig {
 	 * @return true if retransmissions should be stopped as soon as we receive
 	 *         handshake message
 	 */
-	public boolean isEarlyStopRetransmission() {
+	public Boolean isEarlyStopRetransmission() {
 		return earlyStopRetransmission;
 	}
 
@@ -172,7 +173,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the number of messages
 	 */
-	public int getOutboundMessageBufferSize() {
+	public Integer getOutboundMessageBufferSize() {
 		return outboundMessageBufferSize;
 	}
 
@@ -276,7 +277,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return <code>true</code> if clients need to authenticate
 	 */
-	public boolean isClientAuthenticationRequired() {
+	public Boolean isClientAuthenticationRequired() {
 		return clientAuthenticationRequired;
 	}
 
@@ -290,7 +291,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return <code>true</code> if <em>RawPublicKey</em> is used by the connector
 	 */
-	public boolean isSendRawKey() {
+	public Boolean isSendRawKey() {
 		return sendRawKey;
 	}
 
@@ -304,7 +305,7 @@ public final class DtlsConnectorConfig {
 	 * @return The maximum number of active connections supported.
 	 * @see #getStaleConnectionThreshold()
 	 */
-	public int getMaxConnections() {
+	public Integer getMaxConnections() {
 		return maxConnections;
 	}
 
@@ -317,7 +318,7 @@ public final class DtlsConnectorConfig {
 	 * @return The number of seconds.
 	 * @see #getMaxConnections()
 	 */
-	public long getStaleConnectionThreshold() {
+	public Long getStaleConnectionThreshold() {
 		return staleConnectionThreshold;
 	}
 
@@ -738,6 +739,18 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Returns a potentially incomplete configuration. Only fields set by
+		 * users are affected, there is no default value, no consistency check.
+		 * To get a full usable {@link DtlsConnectorConfig} use {@link #build()}
+		 * instead.
+		 * 
+		 * @return the incomplete Configuration
+		 */
+		public DtlsConnectorConfig getIncompleteConfig() {
+			return config;
+		}
+
+		/**
 		 * Creates an instance of <code>DtlsConnectorConfig</code> based on the properties
 		 * set on this builder.
 		 * <p>
@@ -758,15 +771,43 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
 		public DtlsConnectorConfig build() {
+			// set default values
+			if (config.trustStore == null) {
+				config.trustStore = new X509Certificate[0];
+			}
+			if (config.earlyStopRetransmission == null) {
+				config.earlyStopRetransmission = true;
+			}
+			if (config.retransmissionTimeout == null) {
+				config.retransmissionTimeout = 1000;
+			}
+			if (config.maxRetransmissions == null) {
+				config.maxRetransmissions = 4;
+			}
+			if (config.clientAuthenticationRequired == null) {
+				config.clientAuthenticationRequired = true;
+			}
+			if (config.sendRawKey == null) {
+				config.sendRawKey = true;
+			}
+			if (config.outboundMessageBufferSize == null) {
+				config.outboundMessageBufferSize = 100000;
+			}
+			if (config.maxConnections == null){
+				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
+			}
+			if (config.staleConnectionThreshold == null) {
+				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
+			}
 			if (config.getSupportedCipherSuites().length == 0) {
 				determineCipherSuitesFromConfig();
 			}
 
+			// check cipher consistency
 			if (config.getSupportedCipherSuites().length == 0) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
 			}
-
 			for (CipherSuite suite : config.getSupportedCipherSuites()) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
