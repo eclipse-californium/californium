@@ -173,7 +173,8 @@ public class DTLSConnectorTest {
 			}
 		};
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+		serverConfig = new DtlsConnectorConfig.Builder()
+			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
 				new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -228,7 +229,8 @@ public class DTLSConnectorTest {
 	}
 
 	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
-		return new DtlsConnectorConfig.Builder(bindAddress)
+		return new DtlsConnectorConfig.Builder()
+				.setAddress(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
@@ -1493,7 +1495,8 @@ public class DTLSConnectorTest {
 	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
 
 		final CountDownLatch latch = new CountDownLatch(1);
-		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+		clientConfig = new DtlsConnectorConfig.Builder()
+			.setAddress(clientEndpoint)
 			.setPskStore(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
 		client = new DTLSConnector(clientConfig);
@@ -1517,7 +1520,8 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
-		clientConfig =  new DtlsConnectorConfig.Builder(clientEndpoint)
+		clientConfig =  new DtlsConnectorConfig.Builder()
+			.setAddress(clientEndpoint)
 			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
@@ -1548,7 +1552,8 @@ public class DTLSConnectorTest {
 	public void testProcessApplicationMessageAddsPreSharedKeyIdentity() throws Exception {
 
 		// given an established session with a client using PSK authentication
-		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+		clientConfig = new DtlsConnectorConfig.Builder()
+			.setAddress(clientEndpoint)
 			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -1566,7 +1571,8 @@ public class DTLSConnectorTest {
 	public void testProcessApplicationMessageAddsX509CertPath() throws Exception {
 
 		// given an established session with a client using X.509 based authentication
-		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
+		clientConfig = new DtlsConnectorConfig.Builder()
+			.setAddress(clientEndpoint)
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
@@ -1588,7 +1594,8 @@ public class DTLSConnectorTest {
 
 		// given an established session with a server that doesn't require
 		// clients to authenticate
-		serverConfig = new DtlsConnectorConfig.Builder(serverEndpoint)
+		serverConfig = new DtlsConnectorConfig.Builder()
+				.setAddress(clientEndpoint)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 				.setClientAuthenticationRequired(false)
 				.build();

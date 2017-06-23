@@ -27,8 +27,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -103,9 +102,9 @@ public class ConnectorHelper {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-			.setSupportedCipherSuites(
-				new CipherSuite[]{
+		serverConfig = new DtlsConnectorConfig.Builder()
+			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+			.setSupportedCipherSuites(new CipherSuite[] {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
@@ -150,7 +149,8 @@ public class ConnectorHelper {
 	}
 
 	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
-		return new DtlsConnectorConfig.Builder(bindAddress)
+		return new DtlsConnectorConfig.Builder()
+				.setAddress(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}

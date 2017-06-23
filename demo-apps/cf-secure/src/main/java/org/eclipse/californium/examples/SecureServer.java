@@ -91,7 +91,8 @@ public class SecureServer {
 			InputStream in = SecureServer.class.getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
 
-			DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(new InetSocketAddress(DTLS_PORT));
+			DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
+			config.setAddress(new InetSocketAddress(DTLS_PORT));
 			config.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 			config.setPskStore(pskStore);

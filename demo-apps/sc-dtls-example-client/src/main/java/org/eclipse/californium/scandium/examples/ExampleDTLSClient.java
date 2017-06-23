@@ -70,7 +70,7 @@ public class ExampleDTLSClient {
 			Certificate[] trustedCertificates = new Certificate[1];
 			trustedCertificates[0] = trustStore.getCertificate("root");
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(0));
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
 			builder.setIdentity((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("client"), true);

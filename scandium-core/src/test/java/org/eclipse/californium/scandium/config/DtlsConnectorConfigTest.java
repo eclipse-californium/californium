@@ -47,7 +47,7 @@ public class DtlsConnectorConfigTest {
 	@Before
 	public void setUp() throws Exception {
 		endpoint =  new InetSocketAddress(InetAddress.getLocalHost(), 10000);
-		builder = new DtlsConnectorConfig.Builder(endpoint);
+		builder = new DtlsConnectorConfig.Builder().setAddress(endpoint);
 	}
 
 	@Test(expected = IllegalArgumentException.class)

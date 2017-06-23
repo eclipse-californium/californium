@@ -20,8 +20,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.net.InetAddress;
@@ -133,7 +132,8 @@ public class ClientHandshakerTest {
 
 	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore) throws Exception {
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+				new DtlsConnectorConfig.Builder()
+					.setAddress(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),

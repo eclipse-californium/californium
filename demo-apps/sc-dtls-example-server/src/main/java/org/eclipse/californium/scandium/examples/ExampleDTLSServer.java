@@ -71,7 +71,8 @@ public class ExampleDTLSServer {
 			Certificate[] trustedCertificates = new Certificate[1];
 			trustedCertificates[0] = trustStore.getCertificate("root");
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(new InetSocketAddress(DEFAULT_PORT));
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
 			builder.setPskStore(pskStore);
 			builder.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
