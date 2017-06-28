@@ -26,6 +26,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *                                                    supportedServerCertificateTypes
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -151,10 +153,11 @@ public class ClientHandshaker extends Handshaker {
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		if (rootCertificates != null && rootCertificates.length > 0) {
-			this.supportedServerCertificateTypes.add(CertificateType.X_509);
-		}
 		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+		if (rootCertificates != null && rootCertificates.length > 0) {
+			int index = config.isSendRawKey() ? 1 : 0;
+			this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
+		}
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		if (privateKey != null && publicKey != null) {
