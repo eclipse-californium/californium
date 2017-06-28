@@ -30,6 +30,8 @@
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - support MaxFragmentLength Hello extension sent by client
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *                                                    supportedClientCertificateTypes
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,8 +52,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -187,7 +187,8 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 		if (rootCertificates != null && rootCertificates.length > 0) {
-			this.supportedClientCertificateTypes.add(CertificateType.X_509);
+			int index = config.isSendRawKey() ? 1 : 0;
+			this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 		}
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
