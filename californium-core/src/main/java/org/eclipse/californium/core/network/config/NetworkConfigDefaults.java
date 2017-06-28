@@ -21,6 +21,7 @@
  *                                                    DEFAULT_MID_TRACKER,
  *                                                    DEFAULT_MID_TRACKER_GROUPS, and
  *                                                    DEFAULT_EXCHANGE_LIFETIME
+ *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -155,6 +156,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s
 		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
+		config.setInt(NetworkConfig.Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2);// BERT enabled when > 1.
 	}
 
 	// prevent instantiation
