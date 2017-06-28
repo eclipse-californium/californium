@@ -21,6 +21,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add InputStream support for environments
  *                                                    without file access.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add new keys for MID tracker
+ *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -194,6 +195,13 @@ public final class NetworkConfig {
 		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
+		
+		/**
+		 * If the value is greater than 1, this sets up the active use of BERT.
+		 * i.e. Messages will be sent with BERT option. The passive
+		 * receiving of BERT message is always enabled while using TCP connector.
+		 */
+		public static final String TCP_NUMBER_OF_BULK_BLOCKS = "TCP_NUMBER_OF_BULK_BLOCKS";
 	}
 
 	/**
