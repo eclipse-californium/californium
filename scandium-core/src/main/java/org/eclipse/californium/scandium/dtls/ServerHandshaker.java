@@ -31,6 +31,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - support MaxFragmentLength Hello extension sent by client
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *                                                    supportedClientCertificateTypes
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -194,7 +196,8 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 		if (rootCertificates != null && rootCertificates.length > 0) {
-			this.supportedClientCertificateTypes.add(CertificateType.X_509);
+			int index = config.isSendRawKey() ? 1 : 0;
+			this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 		}
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
