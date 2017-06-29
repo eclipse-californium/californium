@@ -21,6 +21,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check, if exchange is already
  *                                                    completed before report timeout.
  *                                                    Issue #103
+ *    Pratheek Rai - BERT option added.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -100,6 +101,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int preferredBlockSize;
 	private int blockTimeout;
 	private int maxResourceBodySize;
+	private boolean isBertOptionEnabled;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -138,7 +140,15 @@ public class BlockwiseLayer extends AbstractLayer {
 		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME);
 		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 2048);
-
+		isBertOptionEnabled = config.getBoolean(NetworkConfig.Keys.BERT_OPTION);
+		if (isBertOptionEnabled) {
+			// BERT step indicates the number of blocks of size = 1024 Bytes that can be sent together.
+			int bertStep = config.getInt(NetworkConfig.Keys.BERT_OPTION_STEP, 1);
+			// When BERT option is enabled each block is of size 1024.
+			preferredBlockSize = 1024 * bertStep;
+			// When BERT option is enabled the maxMessageSize is set to the value of szx = 6.i.e 1024.
+			maxMessageSize = 1024;
+		}
 		LOGGER.log(Level.CONFIG,
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={0}, PREFERRED_BLOCK_SIZE={1}, BLOCKWISE_STATUS_LIFETIME={2} and MAX_RESOURCE_BODY_SIZE={3}",
 			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
@@ -174,10 +184,16 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private void startBlockwiseUpload(final Exchange exchange, final Request request) {
+		BlockwiseStatus status = null;
+		status = findRequestBlockStatus(exchange, request);
 
-		BlockwiseStatus status = findRequestBlockStatus(exchange, request);
-
-		final Request block = getNextRequestBlock(request, status);
+		final Request block;
+		if (status.getCurrentSzx() == 7) {
+			//BERT option
+			block = getNextBertRequestBlock(request, status, preferredBlockSize);
+		} else {
+			block = getNextRequestBlock(request, status);
+		}
 		// indicate overall body size to peer
 		block.getOptions().setSize1(request.getPayloadSize());
 
@@ -215,7 +231,13 @@ public class BlockwiseLayer extends AbstractLayer {
 			status.setCurrentNum(block2.getNum());
 			status.setCurrentSzx(block2.getSzx());
 
-			Response block = getNextResponseBlock(response, status);
+			Response block;
+			if (status.getCurrentSzx() == 7) {
+				//  BERT option.
+				block = getNextBertResponseBlock(response, status, preferredBlockSize);
+			} else {
+				block = getNextResponseBlock(response, status);
+			}
 			// indicate overall body size to peer
 			block.getOptions().setSize2(response.getPayloadSize());
 			if (status.isComplete()) {
@@ -265,8 +287,14 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (status.hasContentFormat(request.getOptions().getContentFormat())) {
 
 					status.addBlock(request.getPayload());
-					status.setCurrentNum(status.getCurrentNum() + 1);
-					if ( block1.isM() ) {
+
+					if (status.getCurrentSzx() == 7) {
+						// For BERT option.
+						status.setCurrentNum(status.getCurrentNum() + (request.getPayloadSize() / 1024));
+					} else {
+						status.setCurrentNum(status.getCurrentNum() + 1);
+					}
+					if (block1.isM()) {
 						LOGGER.finest("There are more blocks to come. Acknowledge this block.");
 						
 						Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
@@ -334,7 +362,13 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			BlockwiseStatus status = findResponseBlockStatus(exchange, response);
 			int bodySize = response.getPayloadSize();
-			Response block = getNextResponseBlock(response, status);
+			Response block;
+			if (status.getCurrentSzx() == 7) {
+				// For BERT option
+				block = getNextBertResponseBlock(response, status, preferredBlockSize);
+			} else {
+				block = getNextResponseBlock(response, status);
+			}
 			// indicate overall body size to peer
 			block.getOptions().setSize2(bodySize);
 
@@ -464,22 +498,23 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	private void sendNextBlock(final Exchange exchange, final Response response, final BlockOption block1, final BlockwiseStatus requestStatus) {
 
-		// Send next block
-		int currentSize = 1 << (4 + requestStatus.getCurrentSzx());
-		// Define new size of the block depending of preferred size block
-		int newSize, newSzx;
-		if (block1.getSize() < currentSize) {
-			newSize = block1.getSize();
-			newSzx = block1.getSzx();
-		} else {
-			newSize = currentSize;
-			newSzx = requestStatus.getCurrentSzx();
-		}
-		int nextNum = requestStatus.getCurrentNum() + currentSize / newSize;
-		LOGGER.log(Level.FINER, "Sending next Block1 num={0}", nextNum);
-		requestStatus.setCurrentNum(nextNum);
-		requestStatus.setCurrentSzx(newSzx);
-		Request nextBlock = getNextRequestBlock(exchange.getRequest(), requestStatus);
+		if (requestStatus.getCurrentSzx() <= 6) {
+			// Send next block
+			int currentSize = 1 << (4 + requestStatus.getCurrentSzx());
+			// Define new size of the block depending of preferred size block
+			int newSize, newSzx;
+			if (block1.getSize() < currentSize) {
+				newSize = block1.getSize();
+				newSzx = block1.getSzx();
+			} else {
+				newSize = currentSize;
+				newSzx = requestStatus.getCurrentSzx();
+			}
+			int nextNum = requestStatus.getCurrentNum() + currentSize / newSize;
+			LOGGER.log(Level.FINER, "Sending next Block1 num={0}", nextNum);
+			requestStatus.setCurrentNum(nextNum);
+			requestStatus.setCurrentSzx(newSzx);
+			Request nextBlock = getNextRequestBlock(exchange.getRequest(), requestStatus);
 
 		// indicate overall body size to peer
 		nextBlock.getOptions().setSize1(exchange.getRequest().getPayloadSize());
@@ -490,6 +525,26 @@ public class BlockwiseLayer extends AbstractLayer {
 		exchange.setCurrentRequest(nextBlock);
 		lower().sendRequest(exchange, nextBlock);
 		// do not deliver response
+		} else if (requestStatus.getCurrentSzx() == 7) {
+			// handling BERT option. This is only used when the connector is
+			// either TCP or Websocket.
+
+			int nextNum = (preferredBlockSize / 1024) + requestStatus.getCurrentNum();
+			requestStatus.setCurrentNum(nextNum);
+			requestStatus.setCurrentSzx(7);
+
+			Request nextBlock = getNextBertRequestBlock(exchange.getRequest(), requestStatus, preferredBlockSize);
+
+			// indicate overall body size to peer
+			nextBlock.getOptions().setSize1(exchange.getRequest().getPayloadSize());
+
+			// we use the same token to ease traceability
+			nextBlock.setToken(response.getToken());
+
+			exchange.setCurrentRequest(nextBlock);
+			lower().sendRequest(exchange, nextBlock);
+
+		}
 	}
 
 	/**
@@ -550,8 +605,14 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else if (block2.isM()) {
 
 				Request request = exchange.getRequest();
-				int num = block2.getNum() + 1;
-				int szx = block2.getSzx();
+				int szx = responseStatus.getCurrentSzx();
+				int num = 0;
+				if (szx == 7) {
+					// For BERT Option.
+					num = block2.getNum() + (response.getPayloadSize() / 1024);
+				} else {
+					num = block2.getNum() + 1;
+				}
 				boolean m = false;
 
 				LOGGER.log(Level.FINER, "Requesting next Block2 num={0}", num);
@@ -661,6 +722,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// we are sending a large body out in a POST/GET to a peer
 				// we only need to buffer one block each
 				status = new BlockwiseStatus(preferredBlockSize, request.getOptions().getContentFormat());
+				status.setCurrentSzx(computeSZX(preferredBlockSize));
 			} else {
 				// we are receiving a large body in a POST/GET from a peer
 				// we need to be prepared to buffer up to MAX_RESOURCE_BODY_SIZE bytes
@@ -670,9 +732,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					bufferSize = request.getOptions().getSize1();
 				}
 				status = new BlockwiseStatus(bufferSize, request.getOptions().getContentFormat());
+				status.setCurrentSzx(request.getOptions().getBlock1().getSzx());
 			}
 			status.setFirst(request);
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			exchange.setRequestBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
 		} else {
@@ -700,12 +762,14 @@ public class BlockwiseLayer extends AbstractLayer {
 					bufferSize = response.getOptions().getSize2();
 				}
 				status = new BlockwiseStatus(bufferSize, response.getOptions().getContentFormat());
+				status.setCurrentSzx(response.getOptions().getBlock2().getSzx());
 			} else {
 				// we are sending out a large body in response to a request from a peer
 				// we do not need to buffer and assemble anything
 				status = new BlockwiseStatus(0, response.getOptions().getContentFormat());
+				status.setCurrentSzx(computeSZX(preferredBlockSize));
 			}
-			status.setCurrentSzx(computeSZX(preferredBlockSize));
+
 			status.setFirst(response);
 			exchange.setResponseBlockStatus(status);
 			LOGGER.log(Level.FINER, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
@@ -734,6 +798,43 @@ public class BlockwiseLayer extends AbstractLayer {
 		int currentSize = 1 << (4 + szx);
 		int from = num * currentSize;
 		int to = Math.min((num + 1) * currentSize, request.getPayloadSize());
+		int length = to - from;
+		byte[] blockPayload = new byte[length];
+		System.arraycopy(request.getPayload(), from, blockPayload, 0, length);
+		block.setPayload(blockPayload);
+
+		boolean m = (to < request.getPayloadSize());
+		block.getOptions().setBlock1(szx, m, num);
+
+		status.setComplete(!m);
+		return block;
+	}
+	/**
+	 * Returns the next BERT Request block.
+	 * 
+	 * @param request
+	 * @param status
+	 * @param bertSize
+	 *            - size of the BERT block.
+	 * @return BERT block
+	 */
+	private static Request getNextBertRequestBlock(final Request request, final BlockwiseStatus status, int bertSize) {
+		int num = status.getCurrentNum();
+		int szx = 7;
+		Request block = new Request(request.getCode());
+		// do not enforce CON, since NON could make sense over SMS or similar
+		// transports
+		block.setType(request.getType());
+		block.setDestination(request.getDestination());
+		block.setDestinationPort(request.getDestinationPort());
+		// copy options
+		block.setOptions(new OptionSet(request.getOptions()));
+		// copy message observers so that a failing blockwise request also
+		// notifies observers registered with
+		// the original request
+		block.addMessageObservers(request.getMessageObservers());
+		int from = num * 1024;
+		int to = Math.min(from + bertSize, request.getPayloadSize());
 		int length = to - from;
 		byte[] blockPayload = new byte[length];
 		System.arraycopy(request.getPayload(), from, blockPayload, 0, length);
@@ -791,6 +892,56 @@ public class BlockwiseLayer extends AbstractLayer {
 		return block;
 	}
 
+	/**
+	 * Returns the next BERT Response block.
+	 * @param response
+	 * @param status
+	 * @param bertsize
+	 * @return next BERT block.
+	 */
+	private static Response getNextBertResponseBlock(final Response response, final BlockwiseStatus status,
+			int bertsize) {
+
+		Response block;
+		int szx = 7;
+		int num = status.getCurrentNum();
+
+		if (response.getOptions().hasObserve()) {
+			// a blockwise notification transmits the first block only
+			block = response;
+		} else {
+			block = new Response(response.getCode());
+			block.setDestination(response.getDestination());
+			block.setDestinationPort(response.getDestinationPort());
+			block.setOptions(new OptionSet(response.getOptions()));
+
+			block.addMessageObserver(new TimeoutForwarder(response));
+		}
+
+		int payloadsize = response.getPayloadSize();
+		int from = num * 1024;
+		if (0 < payloadsize && from < payloadsize) {
+			int to = Math.min(from + bertsize, response.getPayloadSize());
+			int length = to - from;
+			byte[] blockPayload = new byte[length];
+			boolean m = (to < response.getPayloadSize());
+			block.getOptions().setBlock2(szx, m, num);
+
+			// crop payload -- do after calculation of m in case block==response
+			System.arraycopy(response.getPayload(), from, blockPayload, 0, length);
+			block.setPayload(blockPayload);
+
+			// do not complete notifications
+			block.setLast(!m && !response.getOptions().hasObserve());
+
+			status.setComplete(!m);
+		} else {
+			block.getOptions().setBlock2(szx, false, num);
+			block.setLast(true);
+			status.setComplete(true);
+		}
+		return block;
+	}
 	private static void assembleMessage(final BlockwiseStatus status, final Message message) {
 		// The assembled request will contain the options of the first block
 		message.setSource(status.getFirst().getSource());
@@ -843,9 +994,9 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * ... 
 	 * 1024 bytes = 2^10 -> 6
 	 */
-	static int computeSZX(final int blockSize) {
+	private int computeSZX(final int blockSize) {
 		if (blockSize > 1024) {
-			return 6;
+			return 7; // BERT option.
 		} else if (blockSize <= 16) {
 			return 0;
 		} else {
@@ -854,10 +1005,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	static int getSizeForSzx(final int szx) {
+	private int getSizeForSzx(final int szx) {
 		if (szx <= 0) {
 			return 16;
-		} else if (szx >= 6) {
+		} else if (szx == 7) {
+			return preferredBlockSize;
+		} else if (szx > 6) {
 			return 1024;
 		} else {
 			return 1 << (szx + 4);
@@ -895,14 +1048,12 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			if (!exchange.isComplete()) {
-				if (exchange.getRequest() == null) {
-					LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
-				} else {
-					LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
-				}
-				exchange.setComplete();
+			if (exchange.getRequest() == null) {
+				LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
+			} else {
+				LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
 			}
+			exchange.setComplete();
 		}
 	}
 

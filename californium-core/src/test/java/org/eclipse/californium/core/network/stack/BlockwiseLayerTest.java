@@ -118,6 +118,87 @@ public class BlockwiseLayerTest {
 
 		verify(requestObserver).onCancel();
 	}
+	
+	/**
+	 * Verifies that an inbound blockwise request is forwarded to application layer
+	 * if overall transparent blockwise handling is disabled.
+	 */
+	@Test
+	public void testWithBERTReceiveRequestDelegatesToApplicationLayer() {
+
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+				.setInt(Keys.MAX_MESSAGE_SIZE, 1024)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 0)
+				.setBoolean(Keys.BERT_OPTION, true)
+				.setInt(Keys.BERT_OPTION_STEP, 2);
+		Layer appLayer = mock(Layer.class);
+
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		blockwiseLayer.setUpperLayer(appLayer);
+
+		Request request = newBlockwiseRequest(2048, 1024);
+		Exchange exchange = new Exchange(request, Origin.REMOTE);
+
+		blockwiseLayer.receiveRequest(exchange, request);
+
+		verify(appLayer).receiveRequest(exchange, request);
+	}
+
+	/**
+	 * Verifies that an inbound blockwise request is rejected with a 4.13 error response.
+	 */
+	@Test
+	public void testWithBERTReceiveRequestRejectsExcessiveRequestBody() {
+
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+				.setInt(Keys.MAX_MESSAGE_SIZE, 1024)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 2048)
+				.setBoolean(Keys.BERT_OPTION, true)
+				.setInt(Keys.BERT_OPTION_STEP, 2);
+		Layer outbox = mock(Layer.class);
+		ArgumentCaptor<Response> errorResponse = ArgumentCaptor.forClass(Response.class);
+
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		blockwiseLayer.setLowerLayer(outbox);
+
+		Request request = newBlockwiseRequest(4096, 1024);
+		Exchange exchange = new Exchange(request, Origin.REMOTE);
+
+		blockwiseLayer.receiveRequest(exchange, request);
+
+		verify(outbox).sendResponse(Mockito.any(Exchange.class), errorResponse.capture());
+		assertThat(errorResponse.getValue().getCode(), is(ResponseCode.REQUEST_ENTITY_TOO_LARGE));
+	}
+
+	/**
+	 * Verifies that a request for a resource with a body exceeding the max buffer size is
+	 * cancelled when the first response block is received.
+	 */
+	@Test
+	public void testWithBERTReceiveResponseCancelsRequestForExcessiveResponseBody() {
+
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
+				.setInt(Keys.MAX_MESSAGE_SIZE, 1024)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 0)
+				.setBoolean(Keys.BERT_OPTION, true)
+				.setInt(Keys.BERT_OPTION_STEP, 10);
+		MessageObserver requestObserver = mock(MessageObserver.class);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+
+		Request req = Request.newGet();
+		req.setURI("coap://127.0.0.1/bigResource");
+		req.addMessageObserver(requestObserver);
+
+		Response response = Response.createResponse(req, ResponseCode.CONTENT);
+		response.getOptions().setSize2(1024).setBlock2(BlockOption.size2Szx(1024), true, 0);
+
+		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		exchange.setRequest(req);
+
+		blockwiseLayer.receiveResponse(exchange, response);
+
+		verify(requestObserver).onCancel();
+	}
 
 	private static Request newBlockwiseRequest(final int bodySize, final int blockSize) {
 		Request request = Request.newPut();

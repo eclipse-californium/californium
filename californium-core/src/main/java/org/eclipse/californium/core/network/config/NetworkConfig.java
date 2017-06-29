@@ -191,6 +191,10 @@ public final class NetworkConfig {
 		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
+		
+		/** BERT option settings. */
+		public static final String BERT_OPTION = "BERT_OPTION";
+		public static final String BERT_OPTION_STEP = "BERT_OPTION_STEP";
 	}
 
 	/**
