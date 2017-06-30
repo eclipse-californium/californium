@@ -15,6 +15,9 @@
  *    Martin Lanter - architect and initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - clear thread-list on stop
  *                                                    log exception when stopping.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix error stopping an connector,
+ *                                                    when socket failed to open.
+ *                                                    issue #345
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -109,10 +112,11 @@ public class UDPConnector implements Connector {
 		if (running) {
 			return;
 		}
-		running = true;
 
 		// if localAddr is null or port is 0, the system decides
 		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
+		// running only, if the socket could be opened
+		running = true;
 
 		if (receiveBufferSize != UNDEFINED) {
 			socket.setReceiveBufferSize(receiveBufferSize);
@@ -181,8 +185,10 @@ public class UDPConnector implements Connector {
 			receiverThreads = null;
 		}
 		outgoing.clear();
-		String address = socket.getLocalSocketAddress().toString();
+		
+		String address = localAddr.toString();
 		if (socket != null) {
+			address = socket.getLocalSocketAddress().toString();
 			socket.close();
 			socket = null;
 		}
