@@ -20,6 +20,7 @@
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add InputStream support for environments
  *                                                    without file access.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add new keys for MID tracker
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -101,6 +102,8 @@ public final class NetworkConfig {
 		public static final String PROBING_RATE = "PROBING_RATE";
 
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
+		public static final String MID_TRACKER = "MID_TACKER";
+		public static final String MID_TRACKER_GROUPS = "MID_TRACKER_GROUPS";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
 		/**
