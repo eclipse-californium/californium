@@ -143,7 +143,7 @@ public class Matcher {
 		
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
-			request.setMID(currendMID.getAndIncrement()%(1<<16));
+			request.setMID(currendMID.getAndIncrement() & 0x0000FFFF);
 		}
 		// request MID is from the local namespace -- use blank address
 		KeyMID idByMID = new KeyMID(request.getMID(), null, 0);
@@ -179,7 +179,7 @@ public class Matcher {
 		
 		// ensure MID is set
 		if (response.getMID() == Message.NONE) {
-			response.setMID(currendMID.getAndIncrement()%(1<<16));
+			response.setMID(currendMID.getAndIncrement() & 0x0000FFFF);
 		}
 		
 		// ensure Token is set
