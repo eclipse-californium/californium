@@ -246,7 +246,8 @@ public class UDPConnector implements Connector {
 					if (running) {
 						LOGGER.log(Level.SEVERE, "Exception in network stage thread [" + getName() + "]:", t);
 					} else {
-						LOGGER.log(Level.FINE, "Network stage thread [" + getName() + "] was stopped successfully", t);
+						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						LOGGER.log(Level.FINER, "   stopped at:", t);
 						break;
 					}
 				}
