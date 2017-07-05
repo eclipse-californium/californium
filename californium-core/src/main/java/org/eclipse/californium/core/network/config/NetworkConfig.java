@@ -21,6 +21,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add InputStream support for environments
  *                                                    without file access.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add new keys for MID tracker
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add USE_ENDPOINT_ID_MATCHING
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -180,6 +181,7 @@ public final class NetworkConfig {
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
 		public static final String USE_STRICT_RESPONSE_MATCHING = "USE_STRICT_RESPONSE_MATCHING";
+		public static final String USE_ENDPOINT_ID_MATCHING = "USE_ENDPOINT_ID_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
 		public static final String HTTP_SERVER_SOCKET_TIMEOUT = "HTTP_SERVER_SOCKET_TIMEOUT";

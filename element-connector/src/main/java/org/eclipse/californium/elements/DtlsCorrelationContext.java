@@ -14,6 +14,7 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add endpoint id.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -33,7 +34,9 @@ public class DtlsCorrelationContext extends MapBasedCorrelationContext {
 	 * @param epoch the session's current read/write epoch.
 	 * @param cipher the cipher suite of the session's current read/write state.
 	 * @throws NullPointerException if any of the params is <code>null</code>.
+	 * @deprecated
 	 */
+	@Deprecated
 	public DtlsCorrelationContext(String sessionId, String epoch, String cipher) {
 		if (sessionId == null) {
 			throw new NullPointerException("Session ID must not be null");
@@ -47,7 +50,24 @@ public class DtlsCorrelationContext extends MapBasedCorrelationContext {
 			put(KEY_CIPHER, cipher);
 		}
 	}
-
+	
+	public DtlsCorrelationContext(String endpointId, String sessionId, String epoch, String cipher) {
+		if (endpointId == null) {
+			throw new NullPointerException("Endpoint ID must not be null");
+		} else if (sessionId == null) {
+			throw new NullPointerException("Session ID must not be null");
+		} else if (epoch == null) {
+			throw new NullPointerException("Epoch must not be null");
+		} else if (cipher == null) {
+			throw new NullPointerException("Cipher must not be null");
+		} else {
+			put(KEY_ENDPOINT_ID, endpointId);
+			put(KEY_SESSION_ID, sessionId);
+			put(KEY_EPOCH, epoch);
+			put(KEY_CIPHER, cipher);
+		}
+	}
+	
 	public String getSessionId() {
 		return get(KEY_SESSION_ID);
 	}

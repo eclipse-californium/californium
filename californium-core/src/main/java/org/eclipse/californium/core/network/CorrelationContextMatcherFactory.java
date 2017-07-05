@@ -16,6 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - create CorrelationContextMatcher
  *                                      related to connector
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP support
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add ENDPOINT_ID_MATCHING
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -23,6 +24,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointCorrelationContextMatcher;
 import org.eclipse.californium.elements.RelaxedDtlsCorrelationContextMatcher;
 import org.eclipse.californium.elements.StrictDtlsCorrelationContextMatcher;
 import org.eclipse.californium.elements.TcpCorrelationContextMatcher;
@@ -60,7 +62,12 @@ public class CorrelationContextMatcherFactory {
 				return new TcpCorrelationContextMatcher();
 			}
 		}
-		return config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING) ? new StrictDtlsCorrelationContextMatcher()
-				: new RelaxedDtlsCorrelationContextMatcher();
+		if (config.getBoolean(NetworkConfig.Keys.USE_ENDPOINT_ID_MATCHING)) {
+			return new EndpointCorrelationContextMatcher();
+		} else if (config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING)) {
+			return new StrictDtlsCorrelationContextMatcher();
+		} else {
+			return new RelaxedDtlsCorrelationContextMatcher();
+		}
 	}
 }
