@@ -24,6 +24,11 @@
  *                                                    (see hudson 2.0.x/146, issue #275)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add MID expectation for
  *                                                    smart deduplication
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce fields for timeouts.
+ *                                                    increase response timeout
+ *                                                    for error tests. 50 ms 
+ *                                                    seems to be too short on
+ *                                                    slow hosts.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -71,6 +76,10 @@ public class BlockwiseClientSideTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
+	private static final int RESPONSE_TIMEOUT_IN_MS = 1000;
+	private static final int ERROR_TIMEOUT_IN_MS = 500;
+	// client retransmits after 200 ms
+	private static final int ACK_TIMEOUT_IN_MS = 200;
 
 	private static NetworkConfig config;
 
@@ -89,7 +98,7 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS)
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2);
 	}
@@ -133,7 +142,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").size2(MAX_RESOURCE_BODY_SIZE + 10).block2(0, true, 128).payload(respPayload).go();
 
-		request.waitForResponse(50);
+		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertTrue("Request should have been cancelled", request.isCanceled());
 	}
 
@@ -178,7 +187,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).hasEtag(etag).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).etag(etag).payload(respPayload.substring(256, 300)).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
 
@@ -223,7 +232,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 64).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 64).payload(respPayload, 128, 170).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
 
@@ -269,7 +278,7 @@ public class BlockwiseClientSideTest {
 
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(2, false, 128).payload(respPayload, 256, 300).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
 
@@ -320,7 +329,7 @@ public class BlockwiseClientSideTest {
 		// lost ACK
 		//server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
 		// give client a chance to repeat
-		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, 100);
+		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS);
 		Thread.sleep(timeout * 2);
 		// repeat GET 1
 		server.expectRequest(CON, GET, path).sameBoth("B").block2(1, false, 64).go();
@@ -329,7 +338,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 64).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 64).payload(respPayload, 128, 170).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
 
@@ -353,7 +362,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
 		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(MAX_RESOURCE_BODY_SIZE).go();
 
-		Response response = request.waitForResponse(50);
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -387,7 +396,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("A").block1(2, false, 128).payload(reqtPayload, 256, 300).go();
 		server.sendResponse(ACK, REQUEST_ENTITY_INCOMPLETE).loadBoth("A").go();
 
-		Response response = request.waitForResponse(50);
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_INCOMPLETE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -430,7 +439,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(2, false, 128).payload(reqtPayload, 256, 300).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("B").go();
 
-		Response response = concurrentRequest.waitForResponse(50);
+		Response response = concurrentRequest.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(CHANGED));
 		assertThat(response.getToken(), is(concurrentRequest.getToken()));
@@ -482,7 +491,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).payload(respPayload).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
 	}
 
@@ -539,7 +548,7 @@ public class BlockwiseClientSideTest {
 				.payload(reqtPayload.substring(192, 200)).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(6, false, 32).payload(respPayload).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
 	}
 
@@ -589,7 +598,7 @@ public class BlockwiseClientSideTest {
 				.payload(reqtPayload.substring(256, 300)).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 256).payload(respPayload).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
 	}
 
@@ -659,7 +668,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, POST, path).storeBoth("F").hasEtag(tag).block2(3, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("F").block2(3, false, 128).etag(tag).payload(respPayload.substring(384, 500)).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		printServerLog(clientInterceptor);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
 	}
@@ -678,7 +687,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(2, false, 128).payload(respPayload.substring(256)).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		printServerLog(clientInterceptor);
 		assertResponseContainsExpectedPayload(response, CONTENT, respPayload.substring(256));
 	}
@@ -708,7 +717,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").noOption(OBSERVE).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256)).go();
 
-		Response response = request.waitForResponse(1000);
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 		notificationListener.resetNotificationCount();
 
@@ -728,7 +737,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("E").noOption(OBSERVE).block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("E").block2(2, false, 128).payload(respPayload.substring(256)).go();
 
-		Response notification1 = notificationListener.waitForResponse(1000);
+		Response notification1 = notificationListener.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(notification1, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
@@ -775,7 +784,7 @@ public class BlockwiseClientSideTest {
 
 		server.sendResponse(ACK, CONTENT).loadBoth("I").block2(2, false, 128).payload(respPayload.substring(256)).go();
 
-		Response notification2 = notificationListener.waitForResponse(1000);
+		Response notification2 = notificationListener.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(notification2, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 	}
