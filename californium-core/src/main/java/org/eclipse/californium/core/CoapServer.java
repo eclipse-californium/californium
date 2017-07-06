@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove duplicated
+ *                                                    endpoints destroy
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -249,9 +251,6 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		executor.shutdown(); // cannot be started again
-		for (Endpoint ep : endpoints) {
-			ep.destroy();
-		}
 		try {
 			// wait for currently executing tasks to complete
 			if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
