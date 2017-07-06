@@ -109,8 +109,8 @@ public final class DtlsConnectorConfig {
 
 	private Integer outboundMessageBufferSize;
 
-	private Integer maxConnections = DEFAULT_MAX_CONNECTIONS;
-	private Long staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
+	private Integer maxConnections;
+	private Long staleConnectionThreshold;
 
 	private ServerNameResolver serverNameResolver;
 
