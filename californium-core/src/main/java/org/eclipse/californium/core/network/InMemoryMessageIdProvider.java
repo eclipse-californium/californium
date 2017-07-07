@@ -37,7 +37,7 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
-	enum TrackerMode {
+	public enum TrackerMode {
 		NULL, GROUPED, MAPBASED
 	}
 
