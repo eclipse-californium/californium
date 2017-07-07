@@ -56,6 +56,8 @@
  *                                                    handleTimeout,
  *                                                    and add error callback in
  *                                                    newDeferredMessageSender.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add peer identity name as
+ *                                                    endpoint id
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -723,6 +725,7 @@ public class DTLSConnector implements Connector {
 	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
 		if (messageHandler != null) {
 			DtlsCorrelationContext context = new DtlsCorrelationContext(
+					session.getPeerIdentity().getName(),
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
@@ -1360,6 +1363,7 @@ public class DTLSConnector implements Connector {
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
 			final CorrelationContext ctx = new DtlsCorrelationContext(
+					session.getPeerIdentity().getName(),
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getWriteEpoch()),
 					session.getWriteStateCipher());

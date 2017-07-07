@@ -14,6 +14,7 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add KEY_ENDPOINT_ID.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -25,6 +26,15 @@ import java.util.Set;
  * which a message has been sent or received.
  */
 public interface CorrelationContext {
+
+	/**
+	 * Key for endpoint identity.
+	 * 
+	 * Used to access the endpoint identity, if supported by the connector.
+	 * 
+	 * @see #get(String)
+	 */
+	final String KEY_ENDPOINT_ID = "ENDPOINT";
 
 	/**
 	 * Gets a value from this context.

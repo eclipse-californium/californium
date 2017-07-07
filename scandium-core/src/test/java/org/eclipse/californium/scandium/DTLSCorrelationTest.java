@@ -13,6 +13,9 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests from
  *                                                    DTLSConnectorTest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for using 
+ *                                                    the endpoint identity
+ *                                                    for matching
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -34,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.CorrelationContextMatcher;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.EndpointCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -227,6 +231,36 @@ public class DTLSCorrelationTest {
 		assertThat(context.getSessionId(), is(establishedClientSession.getSessionIdentifier().toString()));
 		assertThat(context.getEpoch(), is(String.valueOf(establishedClientSession.getReadEpoch())));
 		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
+		assertThat(context.get(CorrelationContext.KEY_ENDPOINT_ID), is(serverHelper.establishedServerSession.getPeerIdentity().getName()));
+	}
+
+	@Test
+	public void testConnectorUsingEndpointIdentity() throws Exception {
+		// GIVEN a message to be sent to the server
+		// prepared with the destination endpoint id
+		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(2);
+		client.setCorrelationContextMatcher(correlationMatcher);
+		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
+		String endpointID = serverHelper.serverRawPrincipal.getName();
+		EndpointCorrelationContext endpointContext = new EndpointCorrelationContext(endpointID);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, endpointContext, clientCallback, false);
+		
+		// WHEN a session has been established and the message has been sent to
+		// the server
+		serverHelper.givenAnEstablishedSession(client, outboundMessage, true);
+
+		
+		// THEN assert that the message delivered to the server side application layer
+		assertThat(serverHelper.serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
+		
+		assertEstablishedClientSession();
+		assertThat(establishedClientSession.getPeerIdentity().getName(), is(endpointID));
+		
+		// and the sending correlation context contains the endpoint id and is secure
+		DtlsCorrelationContext context = (DtlsCorrelationContext) clientCallback.getCorrelationContext(MAX_TIME_TO_WAIT_SECS);
+		assertThat(context, is(notNullValue()));
+		assertThat(context.getSessionId(), is(notNullValue()));
+		assertThat(context.get(CorrelationContext.KEY_ENDPOINT_ID), is(endpointID));
 	}
 
 	private void givenAStartedSession(RawData msgToSend, CountDownLatch latch) throws Exception {

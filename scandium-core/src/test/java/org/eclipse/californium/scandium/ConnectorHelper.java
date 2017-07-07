@@ -24,6 +24,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
  *    Bosch Software Innovations GmbH - add test cases for GitHub issue #1
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add server principals for
+ *                                                    endpoint id matcher tests
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -44,7 +46,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -73,6 +78,8 @@ public class ConnectorHelper {
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
 	DTLSSession establishedServerSession;
+	Principal serverRawPrincipal;
+	Principal serverX509Principal;
 
 	private static DtlsConnectorConfig serverConfig;
 
@@ -119,6 +126,10 @@ public class ConnectorHelper {
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
 		serverEndpoint = server.getAddress();
+
+		serverRawPrincipal = new RawPublicKeyIdentity(serverConfig.getPublicKey());
+		CertificateMessage message = new CertificateMessage(serverConfig.getCertificateChain(), serverEndpoint);
+		serverX509Principal = new X509CertPath(message.getCertificateChain());
 	}
 
 	/**
