@@ -572,6 +572,18 @@ public class BlockwiseLayer extends AbstractLayer {
 					upper().receiveResponse(exchange, resp);
 				}
 			} else if (!response.hasBlockOption()) {
+				
+				// most recent none blockwise notification should stop current blockwise transfer
+				KeyUri key = getKey(exchange, response);
+				Block2BlockwiseStatus status = getBlock2Status(key);
+				if (response.getOptions().hasObserve() && status != null && status.isNotification()
+						&& status.getObserve() < response.getOptions().getObserve()) {
+					// complete current exchange
+					exchange.setComplete();
+					exchange.setCurrentRequest(exchange.getRequest());
+					// clear blockwise status
+					clearBlock2Status(key);
+				}
 
 				// This is a normal response, no special treatment necessary
 				exchange.setResponse(response);
@@ -893,7 +905,6 @@ public class BlockwiseLayer extends AbstractLayer {
 					}
 
 				} else {
-
 					// ERROR, wrong block number (server error)
 					// Canceling the request would interfere with Observe, so just ignore it
 					LOGGER.log(Level.WARNING,
