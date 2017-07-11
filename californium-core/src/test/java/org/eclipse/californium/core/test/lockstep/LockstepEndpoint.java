@@ -31,6 +31,12 @@
  *                                                    to accept multiple types (Type... types).
  *                                                    Changed reponseType in type(Type... types)
  *                                                    and storeType().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getToken(String) to access
+ *                                                    both stored representations 
+ *                                                    ("token" and "both").
+ *                                                    Adjust usage to getMID(String) and
+ *                                                    getToken(String) and add some methods
+ *                                                    to use them.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -176,6 +182,35 @@ public class LockstepEndpoint {
 				return (Integer) items[0];
 			}
 			throw new NoSuchElementException("Variable '" + var + "' is no MID (" + item.getClass() + ")");
+		}
+		throw new NoSuchElementException("No variable '" + var + "'");
+	}
+
+	/**
+	 * Get token from stored values.
+	 * 
+	 * The token may be stored either by
+	 * {@link MessageExpectation#storeToken(String)} or
+	 * {@link MessageExpectation#storeBoth(String)}.
+	 * 
+	 * @param var name of variable
+	 * @return token
+	 * @throws NoSuchElementException, if nothing so stored under the name, or
+	 *             the item doesn't contain a token.
+	 */
+	public byte[] getToken(String var) {
+		Object item = storage.get(var);
+		if (null != item) {
+			if (item instanceof byte[]) {
+				// saveToken
+				return (byte[]) item;
+			}
+			if (item instanceof Object[]) {
+				// saveBoth
+				Object[] items = (Object[]) item;
+				return (byte[]) items[1];
+			}
+			throw new NoSuchElementException("Variable '" + var + "' is no token (" + item.getClass() + ")");
 		}
 		throw new NoSuchElementException("No variable '" + var + "'");
 	}
@@ -340,7 +375,7 @@ public class LockstepEndpoint {
 
 		/**
 		 * Check, if the MID stored under var is the same as the MID of the
-		 * message. The MID may be stored either by {@link #sameMID(String)} or
+		 * message. The MID may be stored either by {@link #storeMID(String)} or
 		 * {@link #storeBoth(String)}.
 		 * 
 		 * Provides a fluent API to chain expectations.
@@ -359,7 +394,7 @@ public class LockstepEndpoint {
 				}
 
 				public String toString() {
-					int expected = (Integer) storage.get(var);
+					int expected = getMID(var);
 					return "Expected MID: " + expected;
 				}
 			});
@@ -442,6 +477,34 @@ public class LockstepEndpoint {
 
 				public String toString() {
 					return "Expected token: " + Utils.toHexString(token);
+				}
+			});
+			return this;
+		}
+
+		/**
+		 * Check, if the token stored under var is the same as the token of the
+		 * message. The token may be stored either by {@link #storeToken(String)} or
+		 * {@link #storeBoth(String)}.
+		 * 
+		 * Provides a fluent API to chain expectations.
+		 * 
+		 * @param var variable name with the stored token
+		 * @return this for fluent API
+		 */
+		public MessageExpectation sameToken(final String var) {
+			expectations.add(new Expectation<Message>() {
+
+				@Override
+				public void check(Message message) {
+					byte[] expected = getToken(var);
+					assertEquals("Wrong token:", expected, message.getToken());
+					print("Correct token: " + Utils.toHexString(expected));
+				}
+
+				public String toString() {
+					byte[] expected = getToken(var);
+					return "Expected token: " + Utils.toHexString(expected);
 				}
 			});
 			return this;
@@ -805,6 +868,12 @@ public class LockstepEndpoint {
 		}
 
 		@Override
+		public RequestExpectation sameToken(final String var) {
+			super.sameToken(var);
+			return this;
+		}
+
+		@Override
 		public RequestExpectation storeBoth(final String var) {
 			super.storeBoth(var);
 			return this;
@@ -1098,6 +1167,11 @@ public class LockstepEndpoint {
 			type(type).mid(mid);
 		}
 
+		public EmptyMessageExpectation(Type type, String midVar) {
+			super();
+			type(type).sameMID(midVar);
+		}
+
 		@Override
 		public void go(Message msg) throws Exception {
 			if (CoAP.isEmptyMessage(msg.getRawCode())) {
@@ -1334,7 +1408,7 @@ public class LockstepEndpoint {
 			properties.add(new Property<Message>() {
 
 				public void set(Message message) {
-					int mid = (Integer) storage.get(var);
+					int mid = getMID(var);
 					message.setMID(mid);
 				}
 			});
@@ -1345,7 +1419,7 @@ public class LockstepEndpoint {
 			properties.add(new Property<Message>() {
 
 				public void set(Message message) {
-					byte[] tok = (byte[]) storage.get(var);
+					byte[] tok = getToken(var);
 					message.setToken(tok);
 				}
 			});
@@ -1357,6 +1431,11 @@ public class LockstepEndpoint {
 
 		public EmptyMessageProperty(Type type, int mid) {
 			super(type, new byte[0], mid);
+		}
+
+		public EmptyMessageProperty(Type type, String midVar) {
+			super(type);
+			super.loadMID(midVar);
 		}
 
 		@Override
@@ -1382,12 +1461,6 @@ public class LockstepEndpoint {
 		public RequestProperty(Type type, Code code, byte[] token, int mid) {
 			super(type, token, mid);
 			this.code = code;
-		}
-
-		@Override
-		public RequestProperty mid(final int mid) {
-			super.mid(mid);
-			return this;
 		}
 
 		@Override
