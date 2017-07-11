@@ -27,6 +27,10 @@
  *                                                    block1wise, when the generated
  *                                                    token was copied too late 
  *                                                    (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel a pending blockwise notify,
+ *                                                    if a new request is send.
+ *                                                    Please see comment below
+ *                                                    sendRequest() for more details
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -184,11 +188,30 @@ public class BlockwiseLayer extends AbstractLayer {
 				// a transparent blockwise transfer.
 				LOGGER.fine("outbound request contains block2 option, creating random-access blockwise status");
 				addRandomAccessBlock2Status(exchange, request);
-
-			} else if (requiresBlockwise(request)) {
-				// This must be a large POST or PUT request
-				requestToSend = startBlockwiseUpload(exchange, request);
-
+			} else {
+				KeyUri key = getKey(exchange, request);
+				Block2BlockwiseStatus status = getBlock2Status(key);
+				if (status != null && status.isNotification()) {
+					// Receiving a blockwise notification in transparent mode
+					// is done by in an "internal request" for the left payload.
+					// Therefore the client is not aware of that ongoing request
+					// and may send an additional request for the same resource.
+					// If that happens, two blockwise request may pend for the 
+					// same resource. RFC7959, section 2.4, page 13, 
+					// "The Block2 Option provides no way for a single endpoint
+					//  to perform multiple concurrently proceeding block-wise
+					//  response payload transfer (e.g., GET) operations to the
+					//  same resource."
+					// So one transfer must be abandoned. This chose the transfer
+					// of the notify to be abandoned so that the client receives
+					// the requested response but lose the notify. 
+					clearBlock2Status(key);
+				}
+				
+				if (requiresBlockwise(request)) {
+					// This must be a large POST or PUT request
+					requestToSend = startBlockwiseUpload(exchange, request);
+				}
 			}
 		}
 
