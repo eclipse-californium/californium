@@ -16,6 +16,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import java.net.InetAddress;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.mockito.Matchers.any;
@@ -50,6 +51,8 @@ public class CoapUdpStackTest {
 
 	@Test public void sendRequestExpectSent() {
 		Request message = new Request(CoAP.Code.GET);
+		message.setDestination(InetAddress.getLoopbackAddress());
+		message.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
 		stack.sendRequest(message);
 
 		verify(outbox).sendRequest(any(Exchange.class), eq(message));
