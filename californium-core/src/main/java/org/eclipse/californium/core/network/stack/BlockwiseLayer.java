@@ -27,6 +27,12 @@
  *                                                    block1wise, when the generated
  *                                                    token was copied too late 
  *                                                    (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel a pending blockwise notify,
+ *                                                    if a new request is send.
+ *                                                    Please see comment below
+ *                                                    sendRequest() for more details.
+ *                                                    cancel also the pending requests
+ *                                                    of the stale transfer.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -184,11 +190,31 @@ public class BlockwiseLayer extends AbstractLayer {
 				// a transparent blockwise transfer.
 				LOGGER.fine("outbound request contains block2 option, creating random-access blockwise status");
 				addRandomAccessBlock2Status(exchange, request);
-
-			} else if (requiresBlockwise(request)) {
-				// This must be a large POST or PUT request
-				requestToSend = startBlockwiseUpload(exchange, request);
-
+			} else {
+				KeyUri key = getKey(exchange, request);
+				Block2BlockwiseStatus status = getBlock2Status(key);
+				if (status != null && status.isNotification()) {
+					// Receiving a blockwise notification in transparent mode
+					// is done by in an "internal request" for the left payload.
+					// Therefore the client is not aware of that ongoing request
+					// and may send an additional request for the same resource.
+					// If that happens, two blockwise request may pend for the 
+					// same resource. RFC7959, section 2.4, page 13, 
+					// "The Block2 Option provides no way for a single endpoint
+					//  to perform multiple concurrently proceeding block-wise
+					//  response payload transfer (e.g., GET) operations to the
+					//  same resource."
+					// So one transfer must be abandoned. This chose the transfer
+					// of the notify to be abandoned so that the client receives
+					// the requested response but lose the notify. 
+					clearBlock2Status(key);
+					status.cancelTransfer();
+				}
+				
+				if (requiresBlockwise(request)) {
+					// This must be a large POST or PUT request
+					requestToSend = startBlockwiseUpload(exchange, request);
+				}
 			}
 		}
 
@@ -721,7 +747,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						LOGGER.log(
 								Level.FINER,
 								"discarding old notification [{0}] received during ongoing blockwise transfer: {1}",
-								new Object[]{ response.getOptions().getObserve(), response });
+								new Object[]{ response.getOptions().getObserve(), status.getObserve() });
 						return;
 					}
 				}
@@ -972,9 +998,11 @@ public class BlockwiseLayer extends AbstractLayer {
 		synchronized (block2Transfers) {
 
 			Block2BlockwiseStatus removedStatus = clearBlock2Status(key);
-
-			// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
-			LOGGER.log(Level.WARNING, "inbound block2 transfer reset at {0} by new notification: {1}", new Object[]{ removedStatus, response });
+			if (removedStatus != null) {
+				// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
+				LOGGER.log(Level.WARNING, "inbound block2 transfer reset at {0} by new notification: {1}", new Object[]{ removedStatus, response });
+				removedStatus.cancelTransfer();
+			}
 
 			return getInboundBlock2Status(key, exchange, response);
 		}
@@ -1019,8 +1047,10 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block2BlockwiseStatus clearBlock2Status(final KeyUri key) {
 		synchronized (block2Transfers) {
 			Block2BlockwiseStatus removedTracker = block2Transfers.remove(key);
-			LOGGER.log(Level.FINE, "removing block2 tracker [{0}], block2 transfers still in progress: {1}",
-					new Object[]{ key, block2Transfers.size() });
+			if (removedTracker != null) {
+				LOGGER.log(Level.FINE, "removing block2 tracker [{0}], block2 transfers still in progress: {1}",
+						new Object[]{ key, block2Transfers.size() });
+			}
 			return removedTracker;
 		}
 	}

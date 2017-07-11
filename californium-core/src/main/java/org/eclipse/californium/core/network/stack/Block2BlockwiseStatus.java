@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to cancel 
+ *                                                    a pending blockwise request.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -35,6 +37,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 
 	private static final Logger LOGGER = Logger.getLogger(Block2BlockwiseStatus.class.getName());
 
+	private Exchange exchange;
 	private Response response;
 	private byte[] etag;
 
@@ -80,6 +83,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		}
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(bufferSize, contentFormat);
 		status.setFirst(block);
+		status.exchange = exchange;
 		Integer observeCount = block.getOptions().getObserve();
 		if (observeCount != null && OptionSet.isValidObserveOption(observeCount)) {
 			// mark this tracker with the observe no of the block it has been created for
@@ -284,6 +288,28 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		return block;
 	}
 
+	/**
+	 * Cancel transfer.
+	 * Cancel current request and origin request, if it's not an observe.
+	 */
+	void cancelTransfer() {
+		Exchange exchange;
+		synchronized (this) {
+			exchange = this.exchange;
+			this.exchange = null;
+		}
+		if (exchange != null && !exchange.isComplete()) {
+			if (exchange.getRequest() != exchange.getCurrentRequest()) {
+				// blockwise transfer, cancel current request
+				exchange.getCurrentRequest().cancel();
+			}
+			if (!exchange.getRequest().isObserve()) {
+				// no observe => cancel request
+				exchange.getRequest().cancel();
+			}
+		}
+	}
+	
 	/**
 	 * Crops a response's payload down to a given block.
 	 * 

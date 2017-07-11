@@ -22,6 +22,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
  *                                                    instead of onReject() and
  *                                                    onTimeout().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't cleanup on cancel
+ *                                                    for received notifies
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -194,7 +196,7 @@ public abstract class BaseMatcher implements Matcher {
 
 				@Override
 				public void onCancel() {
-					failed();
+					// ignore cancel for request clones on incoming notifies
 				}
 
 				@Override
