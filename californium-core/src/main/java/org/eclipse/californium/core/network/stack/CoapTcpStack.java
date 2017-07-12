@@ -20,11 +20,13 @@
  * explicit String concatenation
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
+ * Pratheek Rai - BERT option changes.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 
@@ -81,11 +83,16 @@ public class CoapTcpStack extends BaseCoapStack {
 	 */
 	public CoapTcpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
+		int tcpBulkBlocks = config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+		if (tcpBulkBlocks > 1) {
+			// Change the NetworkConfig to accommodate BERT.
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024);
+		}
 
 		Layer layers[] = new Layer[] {
 				new ExchangeCleanupLayer(),
 				new TcpObserveLayer(config),
-				new BlockwiseLayer(config),
+				new TcpBlockwiseLayer(config),
 				new TcpAdaptionLayer() };
 
 		setLayers(layers);
