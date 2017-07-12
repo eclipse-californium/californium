@@ -156,6 +156,17 @@ public class LinkFormat {
 		return linkFormat;
 	}
 
+	/**
+	 * Check whether the given resource matches the given list of queries.
+	 *
+	 * Queries are interpreted according to <a href="https://tools.ietf.org/html/rfc6690#section-4.1">RFC 6690</a>,
+	 * section 4.1, with the important difference that more than one query can be passed to the function. The
+	 * resource only matches the list of queries if the resource matches every query in the list.
+	 *
+	 * @param resource The resource to match.
+	 * @param queries The list of queries to match the resource with.
+	 * @return True if the resource matches all queries, false otherwise.
+	 */
 	public static boolean matches(Resource resource, List<String> queries) {
 
 		if (resource == null)
