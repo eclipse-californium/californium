@@ -20,6 +20,7 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add testBlockwiseNotifyAndGet
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -373,6 +374,118 @@ public class ObserveClientSideTest {
 		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(4).mid(++mid_notif).payload(notifpayload).go();
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifpayload);
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verifies, that a GET is processed, while a notify is received in
+	 * "transparent" blockwise mode.
+	 * 
+	 * <pre>
+	 * (actual used MIDs my vary!)
+	 * ####### establish observe #############
+	 * CON [MID=8640, T=49e6fdcc16ab9ab7], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=8640, T=49e6fdcc16ab9ab7], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=8641, T=027256aace12e241], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8641, T=027256aace12e241], 2.05, 2:1/0/16
+	 * ####### partitial notify #############
+	 * <-----   CON [MID=8001, T=49e6fdcc16ab9ab7], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * ####### get request #############
+	 * CON [MID=8642, T=56d582eba534fb38], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8642]
+	 * CON [MID=8643, T=77bfb899c0e679fb], GET, /test    ----->
+	 * <-----   ACK [MID=8643, T=77bfb899c0e679fb], 2.05, 2:0/1/16
+	 * CON [MID=8644, T=77bfb899c0e679fb], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8644, T=77bfb899c0e679fb], 2.05, 2:1/1/16
+	 * CON [MID=8645, T=77bfb899c0e679fb], GET, /test, 2:2/0/16    ----->
+	 * <-----   ACK [MID=8645, T=77bfb899c0e679fb], 2.05, 2:2/0/16	 * 
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseNotifyAndGet() throws Exception {
+		System.out.println("Blockwise Observe:");
+		// observer request response will be sent using blockwise
+		String path = "test";
+		respPayload = generateRandomPayload(32);
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+
+		// Send next (last) block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		// Check that we get the response
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// generate new notify payload
+		respPayload = generateRandomPayload(64);
+
+		// Send new notify response
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		server.startMultiExpectation();
+		// Expect ACKs
+		server.expectEmpty(ACK, mid).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send ACK
+		server.sendEmpty(ACK).loadMID("BLOCK").go();
+
+		// stale blockwise notify
+
+		// generate new response payload
+		respPayload = generateRandomPayload(48);
+		// Now try to send a GET on the same resource using block2.
+		Request getRequest = createRequest(GET, path, server);
+		client.sendRequest(getRequest);
+
+		// Expect get request
+		server.expectRequest(CON, GET, path).storeBoth("GET").go();
+
+		// Send response with block2
+		server.sendResponse(ACK, CONTENT).loadBoth("GET").block2(0, true, 16).payload(respPayload.substring(0, 16))
+				.go();
+
+		// check we receive the next block request.
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+
+		// Send next response block
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		// check we receive the next block request.
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(2, false, 16).go();
+
+		// Send final response block
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(2, false, 16).payload(respPayload.substring(32, 48))
+				.go();
+
+		// Check that we get the response
+		response = getRequest.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
 
 		printServerLog(clientInterceptor);
 	}
