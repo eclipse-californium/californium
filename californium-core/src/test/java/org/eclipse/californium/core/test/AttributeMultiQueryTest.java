@@ -80,4 +80,14 @@ public class AttributeMultiQueryTest {
         testFiltering("foo&bar=one",
                 "</sensors/temp>;bar=\"one two\";foo;if=\"sensor\";rt=\"temperature-c\"");
     }
+
+    @Test
+    public void testMultipleSameAttributeFiltering() {
+        // bar=one and bar=two should match /sensors/temp
+        testFiltering("bar=one&bar=two",
+                "</sensors/temp>;bar=\"one two\";foo;if=\"sensor\";rt=\"temperature-c\"");
+        // bar=one and bar=three should match nothing.
+        testFiltering("bar=one&bar=three",
+                "");
+    }
 }
