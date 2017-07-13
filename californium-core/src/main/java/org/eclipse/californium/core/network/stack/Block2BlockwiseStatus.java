@@ -14,6 +14,10 @@
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to cancel 
  *                                                    a pending blockwise request.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename cancelTransfer()
+ *                                                    into stopTransfer() and
+ *                                                    stopTransfer of current
+ *                                                    request instead of cancel it
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -289,24 +293,17 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Cancel transfer.
-	 * Cancel current request and origin request, if it's not an observe.
+	 * Stop transfer.
+	 * Stop current transfer.
 	 */
-	void cancelTransfer() {
+	void stopTransfer() {
 		Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
 			this.exchange = null;
 		}
 		if (exchange != null && !exchange.isComplete()) {
-			if (exchange.getRequest() != exchange.getCurrentRequest()) {
-				// blockwise transfer, cancel current request
-				exchange.getCurrentRequest().cancel();
-			}
-			if (!exchange.getRequest().isObserve()) {
-				// no observe => cancel request
-				exchange.getRequest().cancel();
-			}
+			exchange.getCurrentRequest().stopTransfer();
 		}
 	}
 	

@@ -24,6 +24,8 @@
  *                                                    race condition in block1wise
  *                                                    when the generated token was 
  *                                                    copied too late (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onStopTransfer() to fix 
+ *                                                    overlapping blockwise notifies
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -65,6 +67,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onCancel() {
+		// empty default implementation
+	}
+
+	@Override
+	public void onStopTransfer() {
 		// empty default implementation
 	}
 

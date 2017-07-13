@@ -33,6 +33,8 @@
  *                                                    sendRequest() for more details.
  *                                                    cancel also the pending requests
  *                                                    of the stale transfer.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename cancelTransfer()
+ *                                                    into stopTransfer()
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -208,7 +210,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					// of the notify to be abandoned so that the client receives
 					// the requested response but lose the notify. 
 					clearBlock2Status(key);
-					status.cancelTransfer();
+					status.stopTransfer();
 				}
 				
 				if (requiresBlockwise(request)) {
@@ -1001,7 +1003,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (removedStatus != null) {
 				// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
 				LOGGER.log(Level.WARNING, "inbound block2 transfer reset at {0} by new notification: {1}", new Object[]{ removedStatus, response });
-				removedStatus.cancelTransfer();
+				removedStatus.stopTransfer();
 			}
 
 			return getInboundBlock2Status(key, exchange, response);
