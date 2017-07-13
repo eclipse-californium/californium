@@ -610,5 +610,88 @@ public class ObserveClientSideTest {
 		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
 		assertThat("still receiving messages", message, is(nullValue()));
 	}
+	
+	@Test
+	public void testBlockwiseNotifyWhileGet() throws Exception {
+		System.out.println("Blockwise Observe:");
+		// observer request response will be sent using blockwise
+		String path = "test";
+		respPayload = generateRandomPayload(64);
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+
+		// generate new notify payload
+		respPayload = generateRandomPayload(48);
+
+		// Send notify during intitial response
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		// Send next block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		server.startMultiExpectation();
+		// Expect ACKs
+		server.expectEmpty(ACK, mid).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send next block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(2, false, 16).go();
+
+		// Send next (last) block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(2, false, 16).payload(respPayload.substring(32, 48))
+				.go();
+
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// generate new notify payload
+		respPayload = generateRandomPayload(32);
+
+		// Send notify
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		server.startMultiExpectation();
+		// Expect ACKs
+		server.expectEmpty(ACK, mid).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send next block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		// Check that we get the notify
+		Response notification = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification, respPayload);
+		
+		// ensure, that not transfer is still ongoing
+		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
+		assertThat("still receiving messages", message, is(nullValue()));
+	}
 
 }
