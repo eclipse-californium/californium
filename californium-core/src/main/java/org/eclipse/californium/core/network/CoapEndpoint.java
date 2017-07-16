@@ -42,6 +42,8 @@
  *                                                    too late (after sending). 
  *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
  *                                                    canceled messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check isStopped() on outgoing
+ *                                                    messages also
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -628,7 +630,7 @@ public class CoapEndpoint implements Endpoint {
 			request.setReadyToSend();
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
-			if (request.isCanceled()) {
+			if (request.isCanceled() || request.isStopped()) {
 
 				// make sure we do necessary house keeping, e.g. removing the exchange from
 				// ExchangeStore to avoid memory leak
@@ -662,7 +664,7 @@ public class CoapEndpoint implements Endpoint {
 			response.setReadyToSend();
 
 			// MessageInterceptor might have canceled
-			if (response.isCanceled()) {
+			if (response.isCanceled() || response.isStopped()) {
 				if (null != exchange) {
 					exchange.setComplete();
 				}
@@ -692,7 +694,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 			message.setReadyToSend();
 			// MessageInterceptor might have canceled
-			if (message.isCanceled()) {
+			if (message.isCanceled() || message.isStopped()) {
 				if (null != exchange) {
 					exchange.setComplete();
 				}
