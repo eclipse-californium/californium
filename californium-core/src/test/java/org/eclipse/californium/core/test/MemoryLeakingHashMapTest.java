@@ -19,6 +19,9 @@
  *                                                    on notifies.
  *                                                    fix thread visibility of 
  *                                                    CoapObserverAndCanceler fields
+ *    Achim Kraus (Bosch Software Innovations GmbH) - relax timing on waiting for empty
+ *                                                    collections. Wait for client 
+ *                                                    collections also.
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -114,6 +117,7 @@ public class MemoryLeakingHashMapTest {
 	public void assertHashMapsEmpty() {
 		serverSurveillant.waitUntilDeduplicatorShouldBeEmpty();
 		serverSurveillant.assertHashMapsEmpty();
+		clientSurveillant.waitUntilDeduplicatorShouldBeEmpty();
 		clientSurveillant.assertHashMapsEmpty();
 	}
 	
