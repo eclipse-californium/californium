@@ -67,9 +67,14 @@ public class EndpointSurveillant {
 	
 	public void waitUntilDeduplicatorShouldBeEmpty() {
 		try {
-			int time = exchangeLifecycle + sweepDuplicatorInterval + 100;
-			System.out.println("Wait until deduplicator should be empty ("+time/1000f+" seconds)");
-			Thread.sleep(time);
+			int time = exchangeLifecycle + sweepDuplicatorInterval + 300;
+			System.out.println("Wait until deduplicator should be empty (" + time / 1000f + " seconds)");
+			for (int count = 0; count < 10; ++count) {
+				if (areHashMapsEmpty()) {
+					return;
+				}
+				Thread.sleep(time / 10);
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -120,4 +125,8 @@ public class EndpointSurveillant {
 		}
 	}
 	
+	private boolean areHashMapsEmpty() {
+		return (exchangesByMID.size() + exchangesByToken.size() + ongoingExchanges.size()
+				+ incommingMessages.size()) == 0;
+	}
 }
