@@ -26,6 +26,8 @@
  *                                                    updateRetransmissionTimeout() for
  *                                                    supporting CongestionControlLayer
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move Message.setTimedOut() into
+ *                                                    Exchange.setTimedOut()
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -384,8 +386,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					retransmit();
 				} else {
 					LOGGER.log(Level.FINE, "Timeout: retransmission limit reached, exchange failed, message: {0}", message);
-					exchange.setTimedOut();
-					message.setTimedOut(true);
+					exchange.setTimedOut(message);
 				}
 			} catch (Exception e) {
 				LOGGER.log(Level.SEVERE, String.format("Exception in MessageObserver: %s", e.getMessage()), e);
