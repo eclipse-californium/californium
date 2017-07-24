@@ -16,9 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovation GmbH) - use nano time
+ *                                                   remove unused methods
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.Response;
@@ -31,16 +34,28 @@ import org.eclipse.californium.core.coap.Response;
 public class ObserveNotificationOrderer {
 
 	/** The counter for observe numbers */
-	private AtomicInteger number;
+	private final AtomicInteger number = new AtomicInteger();
 	
 	/** The timestamp of the last response */
-	private long timestamp;
+	private long nanoTimestamp;
 	
 	/**
 	 * Creates a new notification orderer.
 	 */
 	public ObserveNotificationOrderer() {
-		this.number = new AtomicInteger();
+	}
+
+	/**
+	 * Creates a new notification orderer for a given notification.
+	 * 
+	 * @throws NullPointerException, if observe is {@code null}
+	 */
+	public ObserveNotificationOrderer(Integer observe) {
+		if (observe == null) {
+			throw new NullPointerException("observe option must not be null!");
+		}
+		number.set(observe);
+		nanoTimestamp = System.nanoTime();
 	}
 	
 	/**
@@ -68,29 +83,14 @@ public class ObserveNotificationOrderer {
 	}
 	
 	/**
-	 * Returns the current timeout.
-	 * @return the current timeout
-	 */
-	public long getTimestamp() {
-		return timestamp;
-	}
-
-	/**
-	 * Sets the current timestamp.
-	 * @param timestamp the timestamp
-	 */
-	public void setTimestamp(long timestamp) {
-		this.timestamp = timestamp;
-	}
-	
-	/**
 	 * Returns true if the specified notification is newer than the current one.
 	 * @param response the notification
 	 * @return true if the notification is new
 	 */
 	public synchronized boolean isNew(Response response) {
 		
-		if (!response.getOptions().hasObserve()) {
+		Integer observe = response.getOptions().getObserve();
+		if (observe == null) {
 			// this is a final response, e.g., error or proactive cancellation
 			return true;
 		}
@@ -99,15 +99,15 @@ public class ObserveNotificationOrderer {
 		// arrive and be processed by different threads. We have to
 		// ensure that only the most fresh one is being delivered.
 		// We use the notation from the observe draft-08.
-		long T1 = getTimestamp();
-		long T2 = System.currentTimeMillis();
-		int V1 = getCurrent();
-		int V2 = response.getOptions().getObserve();
-		if (V1 < V2 && V2 - V1 < 1<<23
-				|| V1 > V2 && V1 - V2 > 1<<23
-				|| T2 > T1 + 128000) {
+		long T1 = nanoTimestamp;
+		int V1 = number.get();
+		long T2 = System.nanoTime();
+		int V2 = observe;
+		if (V1 < V2 && (V2 - V1) < (1L<<23)
+				|| V1 > V2 && (V1 - V2) > (1L<<23)
+				|| T2 > (T1 + TimeUnit.SECONDS.toNanos(128))) {
 
-			setTimestamp(T2);
+			nanoTimestamp = T2;
 			number.set(V2);
 			return true;
 		} else {
