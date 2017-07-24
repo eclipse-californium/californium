@@ -24,6 +24,7 @@
  *                                                    and testBlockwiseGetAndNotify.
  *                                                    Add printServerLog after
  *                                                    tests.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for empty exchange store
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -34,17 +35,23 @@ import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.CheckCondition;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
+import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -62,11 +69,15 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
+	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static NetworkConfig CONFIG;
 
+	private MessageExchangeStore clientExchangeStore;
 	private LockstepEndpoint server;
 	private Endpoint client;
 	private int mid = 8000;
@@ -81,7 +92,9 @@ public class ObserveClientSideTest {
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
 	}
 
 	@Before
@@ -90,7 +103,8 @@ public class ObserveClientSideTest {
 		// bind to loopback address using an ephemeral port
 	//	CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		clientExchangeStore = new InMemoryMessageExchangeStore(CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, clientExchangeStore);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
@@ -99,10 +113,22 @@ public class ObserveClientSideTest {
 	}
 
 	@After
-	public void shutdownEndpoints() {
-		printServerLog(clientInterceptor);
-		client.destroy();
-		server.destroy();
+	public void shutdownEndpoints() throws InterruptedException {
+		try {
+			int timeToWait = TEST_EXCHANGE_LIFETIME +TEST_SWEEP_DEDUPLICATOR_INTERVAL + 300; // milliseconds
+			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, new CheckCondition() {
+				@Override
+				public boolean isFulFilled() throws IllegalStateException {
+					return clientExchangeStore.isEmpty();
+				}
+			});
+			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
+		} finally {
+			printServerLog(clientInterceptor);
+			
+			client.destroy();
+			server.destroy();
+		}
 	}
 
 	@AfterClass
@@ -172,9 +198,9 @@ public class ObserveClientSideTest {
 		client.addNotificationListener(notificationListener);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").go();
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").storeToken("T").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
-		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.expectRequest(CON, GET, path).noOption(OptionNumberRegistry.OBSERVE).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
@@ -353,7 +379,7 @@ public class ObserveClientSideTest {
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(25 * 16);
 		// notification payload sended without blockwise
-		String notifpayload = generateRandomPayload(8);
+		String notifyPayload = generateRandomPayload(8);
 		String path = "test";
 
 		Request request = createRequest(GET, path, server);
@@ -374,13 +400,12 @@ public class ObserveClientSideTest {
 				.block2(1, false, 16).go();
 
 		// During block transfer send a complete (none blockwise) response
-		int new_mid = 222;
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(2).mid(new_mid).payload(notifpayload).go();
-		server.expectEmpty(ACK, new_mid++).go();
+		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(2).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
 		// Check that we get the most recent response (with the higher observe
 		// option value)
 		Response response = request.waitForResponse();
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		// Send next block
 		server.sendResponse(CON, CONTENT).loadMID("SECOND_BLOCK_MID").loadToken("SECOND_BLOCK_TOK").block2(1, true, 16)
@@ -390,27 +415,27 @@ public class ObserveClientSideTest {
 		// TODO ensure that blockdata buffer is cleared in blockwiselayer...
 
 		// Send new notif without block
-		notifpayload = generateRandomPayload(8);
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(3).mid(new_mid).payload(notifpayload).go();
-		server.expectEmpty(ACK, new_mid++).go();
+		notifyPayload = generateRandomPayload(8);
+		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
 		response = notificationListener.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		// Send new notif without block
-		notifpayload = generateRandomPayload(16 * 2);
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(4).mid(new_mid).block2(0, true, 16)
-				.payload(notifpayload.substring(0, 16)).go();
+		notifyPayload = generateRandomPayload(16 * 2);
+		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(4).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
 		// expect ACK and GET for next block
 		server.startMultiExpectation();
-		server.expectEmpty(ACK, new_mid).go();
+		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("BLOCK_NOTIF").block2(1, false, 16).go();
 		server.goMultiExpectation();
 		// send next BLOCK
 		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK_NOTIF").block2(1, false, 16)
-				.payload(notifpayload.substring(16, 32)).go();
+				.payload(notifyPayload.substring(16, 32)).go();
 
 		response = notificationListener.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		printServerLog(clientInterceptor);
 	}
