@@ -33,6 +33,9 @@
  *                                                    sendRequest() for more details.
  *                                                    cancel also the pending requests
  *                                                    of the stale transfer.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce stop transfer on
+ *                                                    received responses generally.
+ *                                                    cleanup stale functions.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -208,7 +211,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					// of the notify to be abandoned so that the client receives
 					// the requested response but lose the notify. 
 					clearBlock2Status(key);
-					status.cancelTransfer();
+					status.completeTransfer(null);
 				}
 				
 				if (requiresBlockwise(request)) {
@@ -545,7 +548,6 @@ public class BlockwiseLayer extends AbstractLayer {
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
 		if (isTransparentBlockwiseHandlingEnabled()) {
-
 			if (response.isError()) {
 				// handle blockwise specific error codes
 				switch(response.getCode()) {
@@ -556,34 +558,69 @@ public class BlockwiseLayer extends AbstractLayer {
 					KeyUri key = getKey(exchange, exchange.getCurrentRequest());
 					clearBlock1Status(key);
 				default:
-					Response resp = new Response(response.getCode());
-					resp.setToken(exchange.getRequest().getToken());
-					if (exchange.getRequest().getType() == Type.CON) {
-						resp.setType(Type.ACK);
-						resp.setMID(exchange.getRequest().getMID());
+				}
+				// prepare the response as response to the original request
+				Response resp = new Response(response.getCode());
+				// adjust the token using the original request
+				resp.setToken(exchange.getRequest().getToken());
+				if (exchange.getRequest().getType() == Type.CON) {
+					resp.setType(Type.ACK);
+					// adjust MID also
+					resp.setMID(exchange.getRequest().getMID());
+				} else {
+					resp.setType(Type.NON);
+				}
+				resp.setSource(response.getSource());
+				resp.setSourcePort(response.getSourcePort());
+				resp.setPayload(response.getPayload());
+				resp.setOptions(response.getOptions());
+				exchange.setResponse(resp);
+				upper().receiveResponse(exchange, resp);
+				return;
+			}
+
+			KeyUri key = getKey(exchange, response);
+			BlockOption block = response.getOptions().getBlock2();
+			Block2BlockwiseStatus status = getBlock2Status(key);
+			if (status != null) {
+				// ongoing blockwise transfer
+				boolean starting = (block == null) || (block.getNum() == 0);
+				if (starting) {
+					if (status.isNew(response)) {
+						LOGGER.log(
+								Level.FINER,
+								"discarding outdated block2 transfer {0}, current is [{1}]",
+								new Object[]{ status.getObserve(), response });
+						clearBlock2Status(key);
+						status.completeTransfer(exchange);
 					} else {
-						resp.setType(Type.NON);
+						LOGGER.log(
+								Level.FINER,
+								"discarding old block2 transfer [{0}], received during ongoing block2 transfer {1}",
+								new Object[]{ response, status.getObserve() });
+						exchange.setComplete();
+						return;
 					}
-					resp.setSource(response.getSource());
-					resp.setSourcePort(response.getSourcePort());
-					resp.setPayload(response.getPayload());
-					resp.setOptions(response.getOptions());
-					exchange.setResponse(resp);
-					upper().receiveResponse(exchange, resp);
 				}
-			} else if (!response.hasBlockOption()) {
-				
-				// most recent none blockwise notification should stop current blockwise transfer
-				KeyUri key = getKey(exchange, response);
-				Block2BlockwiseStatus status = getBlock2Status(key);
-				if (response.getOptions().hasObserve() && status != null && status.isNotification()
-						&& status.getObserve() < response.getOptions().getObserve()) {
-					// complete current exchange
+				else if (!status.matchTransfer(exchange)) {
+					LOGGER.log(
+							Level.FINER,
+							"discarding outdate block2 response [{0}, {1}] received during ongoing block2 transfer {2}",
+							new Object[]{ exchange.getNotificationNumber(), response, status.getObserve() });
 					exchange.setComplete();
-					exchange.setCurrentRequest(exchange.getRequest());
-					// clear blockwise status
-					clearBlock2Status(key);
+					return;
 				}
+			}
+			else if (block != null && block.getNum() != 0) {
+				LOGGER.log(
+						Level.FINER,
+						"discarding stale block2 response [{0}, {1}] received without ongoing block2 transfer for {2}",
+						new Object[]{ exchange.getNotificationNumber(), response, key });
+				exchange.setComplete();
+				return;
+			}
+
+			if (!response.hasBlockOption()) {
 
 				// This is a normal response, no special treatment necessary
 				exchange.setResponse(response);
@@ -749,47 +786,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				Block2BlockwiseStatus status = getInboundBlock2Status(key, exchange, response);
 
-				if (status.isInterferingNotification(response)) {
-
-					// a new notification has arrived
-
-					if (response.getOptions().getObserve() > status.getObserve()) {
-						status = resetInboundBlock2Status(key, exchange, response);
-					} else {
-						LOGGER.log(
-								Level.FINER,
-								"discarding old notification [{0}] received during ongoing blockwise transfer: {1}",
-								new Object[]{ response.getOptions().getObserve(), status.getObserve() });
-						return;
-					}
-				}
-
-				// We now need to make sure that we are not processing a block from a blockwise transfer
-				// for a previous (outdated) notification.
-				// When a response to a block2 request is received from a peer, the Matcher will look up
-				// the corresponding Exchange and pass the response up the stack to the BlockwiseLayer.
-				// The problem we are facing is that the key used to look up the Block2BlockwiseStatus
-				// will always be the same if no ETag is contained in the notification (the key then only
-				// depends on the request's URI and source endpoint). So there is no way to distinguish a
-				// response to an outdated block2 request from a response that is part of the most recent
-				// block2 transfer.
-				// In order to be able to distinguish between a block of an old vs a new notification,
-				// the Exchange used to initially create the Block2BlockwiseStatus is
-				// marked with the notification's observe option (see Block2BlockwiseStatus.forInboundResponse()).
-				// We can then compare the observe option value from the Exchange that has been looked up
-				// for the incoming response with the value of the most recently received notification from the
-				// Block2BlockwiseStatus that has been looked up for the key.
-
-				if (exchange.getNotificationNumber() != null && exchange.getNotificationNumber() != status.getObserve()) {
-
-					// we are processing a "delayed" response to a block2 request issued for a previous notification
-					// this may happen if the peer sends a new notification before the blockwise transfer has finished
-					LOGGER.log(
-							Level.FINER,
-							"discarding outdated block2 transfer response for old notification {0}, current is {1}: {2}",
-							new Object[]{ exchange.getNotificationNumber(), status.getObserve(), response });
-
-				} else if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
+				if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
 
 					// check token to avoid mixed blockwise transfers (possible with observe) 
 
@@ -881,7 +878,6 @@ public class BlockwiseLayer extends AbstractLayer {
 						assembled.setRTT(exchange.calculateRTT());
 
 						if (status.isNotification()) {
-
 							/*
 							 * When retrieving the rest of a blockwise notification
 							 * with a different token, the additional Matcher state
@@ -966,7 +962,6 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
-
 		synchronized (block1Transfers) {
 			Block1BlockwiseStatus removedStatus = block1Transfers.remove(key);
 			LOGGER.log(Level.WARNING, "inbound block1 transfer reset at {0} by peer: {1}", new Object[]{ removedStatus, request });
@@ -997,25 +992,10 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (status == null) {
 				status = Block2BlockwiseStatus.forInboundResponse(exchange, response, maxResourceBodySize);
 				block2Transfers.put(key, status);
-				LOGGER.log(Level.FINE, "created tracker for inbound block2 transfer {0}, transfers in progress: {1}",
-						new Object[]{ status, block2Transfers.size() });
+				LOGGER.log(Level.FINE, "created tracker for {0} inbound block2 transfer {1}, transfers in progress: {2}, {3}",
+						new Object[]{ key, status, block2Transfers.size(), response });
 			}
 			return status;
-		}
-	}
-
-	private Block2BlockwiseStatus resetInboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
-
-		synchronized (block2Transfers) {
-
-			Block2BlockwiseStatus removedStatus = clearBlock2Status(key);
-			if (removedStatus != null) {
-				// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
-				LOGGER.log(Level.WARNING, "inbound block2 transfer reset at {0} by new notification: {1}", new Object[]{ removedStatus, response });
-				removedStatus.cancelTransfer();
-			}
-
-			return getInboundBlock2Status(key, exchange, response);
 		}
 	}
 

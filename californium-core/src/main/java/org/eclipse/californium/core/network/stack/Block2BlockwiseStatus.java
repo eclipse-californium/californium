@@ -14,6 +14,11 @@
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to cancel 
  *                                                    a pending blockwise request.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Use ObserveNotificationOrderer
+ *                                                    to order notifies.
+ *                                                    Add isNew and matchTransfer.
+ *                                                    Move isNotification and getObserve
+ *                                                    from BlockwiseStatus
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -27,16 +32,29 @@ import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 
 
 /**
  * A tracker for the blockwise transfer of a response body.
- *
  */
 final class Block2BlockwiseStatus extends BlockwiseStatus {
 
 	private static final Logger LOGGER = Logger.getLogger(Block2BlockwiseStatus.class.getName());
 
+	/**
+	 * Order for notifications according RFC 7641, 4-4.
+	 * 
+	 * It would be nice if we could get rid of this. Currently, the Cf client
+	 * needs it to mark a blockwise transferred notification as such. The
+	 * problem is, that the server includes the observe option only in the first
+	 * block of the notification and we still need to remember it, when the
+	 * last block arrives.
+	 */
+	private ObserveNotificationOrderer orderer;
+	/**
+	 * Starting exchange to stop deprecated transfers. 
+	 */
 	private Exchange exchange;
 	private Response response;
 	private byte[] etag;
@@ -60,9 +78,6 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		status.response = response;
 		status.buf.put(response.getPayload());
 		status.buf.flip();
-		if (response.isNotification()) {
-			status.observe = response.getOptions().getObserve();
-		}
 		status.setCurrentSzx(determineResponseBlock2Szx(exchange, preferredBlockSize));
 		return status;
 	}
@@ -87,7 +102,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Integer observeCount = block.getOptions().getObserve();
 		if (observeCount != null && OptionSet.isValidObserveOption(observeCount)) {
 			// mark this tracker with the observe no of the block it has been created for
-			status.observe = observeCount;
+			status.orderer = new ObserveNotificationOrderer(observeCount);
 			exchange.setNotificationNumber(observeCount);
 		}
 		if (block.getOptions().getETagCount() > 0) {
@@ -133,25 +148,59 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Checks if a given response is a notification that interferes with this
-	 * blockwise transfer.
+	 * Checks if this tracker tracks a notification.
 	 * 
-	 * @param responseBlock The response block to check.
-	 * @return {@code true} if the response is a new notification and this transfer's
-	 *         current block number is &gt; 0.
-	 * @throws NullPointerException if the response block is {@code null}.
-	 * @throws IllegalArgumentException if the response block has no block2 option.
+	 * @return {@code true} if this tracker has been created for a transferring
+	 *                      the body of a notification.
 	 */
-	synchronized boolean isInterferingNotification(final Response responseBlock) {
-		if (responseBlock == null) {
+	final synchronized boolean isNotification() {
+		return orderer != null;
+	}
+
+	/**
+	 * Gets the observe option value.
+	 * 
+	 * @return The value.
+	 */
+	final synchronized Integer getObserve() {
+		return orderer == null ? null : orderer.getCurrent();
+	}
+
+	/**
+	 * Check, if the provided response is newer than the current transfer.
+	 * 
+	 * Use {@link #orderer} to check according RFC7641, 4.4.
+	 * 
+	 * @param response response to check.
+	 * @return {@code true}, if response is newer than the current transfer,
+	 *         {@code false}, otherwise.
+	 */
+	final synchronized boolean isNew(final Response response) {
+		if (response == null) {
 			throw new NullPointerException("response block must not be null");
 		} else {
-			BlockOption block2 = responseBlock.getOptions().getBlock2();
-			if (block2 == null) {
-				throw new IllegalArgumentException("response has no block2 option");
-			} else {
-				return responseBlock.isNotification() && block2.getNum() == 0 && getCurrentNum() > 0;
+			if (!response.getOptions().hasObserve()) {
+				// none observe exchanges are cleared on sending request
+				return false;
 			}
+			return orderer == null || orderer.isNew(response);
+		}
+	}
+
+	/**
+	 * Check, if the provided exchange matches this transfer.
+	 * 
+	 * @param exchange exchange to check.
+	 * @return {@code true}, if exchange matches this transfer, {@code false},
+	 *         otherwise.
+	 */
+	final synchronized boolean matchTransfer(Exchange exchange) {
+		Integer notification = exchange.getNotificationNumber();
+		if (notification != null && orderer != null) {
+			return orderer.getCurrent() == notification;
+		}
+		else {
+			return notification == null && orderer == null;
 		}
 	}
 
@@ -289,27 +338,48 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Cancel transfer.
-	 * Cancel current request and origin request, if it's not an observe.
+	 * Complete transfer. If the blockwise transfer is based on the same
+	 * exchange then the new response, just complete the current request and
+	 * reset the currentRequest to the original request. If the exchanges are
+	 * different, complete the old exchange.
+	 * 
+	 * @param newExchange new exchange
 	 */
-	void cancelTransfer() {
+	final void completeTransfer(Exchange newExchange) {
 		Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
 			this.exchange = null;
 		}
-		if (exchange != null && !exchange.isComplete()) {
-			if (exchange.getRequest() != exchange.getCurrentRequest()) {
-				// blockwise transfer, cancel current request
-				exchange.getCurrentRequest().cancel();
+		if (exchange != null) {
+			if (newExchange != exchange) {
+				// complete old exchange
+				if (!exchange.getRequest().isObserve()) {
+					exchange.getRequest().setCanceled(true);
+				}
+				exchange.setComplete();
 			}
-			if (!exchange.getRequest().isObserve()) {
-				// no observe => cancel request
-				exchange.getRequest().cancel();
+			else {
+				// complete current exchange
+				exchange.completeCurrentRequest();
+				// reset to origin request
+				exchange.setCurrentRequest(exchange.getRequest());
 			}
 		}
 	}
-	
+
+	@Override
+	public synchronized String toString() {
+		String result = super.toString();
+		if (orderer != null) {
+			StringBuilder builder = new StringBuilder(result);
+			builder.setLength(result.length()-1);
+			builder.append(", observe=").append(orderer.getCurrent()).append("]");
+			result = builder.toString();
+		}
+		return result;
+	}
+
 	/**
 	 * Crops a response's payload down to a given block.
 	 * 
