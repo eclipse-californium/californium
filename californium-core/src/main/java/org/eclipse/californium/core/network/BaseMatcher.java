@@ -24,6 +24,9 @@
  *                                                    onTimeout().
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't cleanup on cancel
  *                                                    for received notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup on cancel again :-).
+ *                                                    complete exchange on 
+ *                                                    cancelObserve.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -196,7 +199,7 @@ public abstract class BaseMatcher implements Matcher {
 
 				@Override
 				public void onCancel() {
-					// ignore cancel for request clones on incoming notifies
+					failed();
 				}
 
 				@Override
@@ -221,7 +224,8 @@ public abstract class BaseMatcher implements Matcher {
 	public void cancelObserve(final byte[] token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
-		// Note: observe exchanges are not longer stored, so this may be in vain.
+		// Note: observe exchanges are not longer stored, so this almost in vain,
+		// except, when a blockwise notify is pending.
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
@@ -229,6 +233,7 @@ public abstract class BaseMatcher implements Matcher {
 				// not "token" related proactive cancel observe request!
 				// Message.cancel() releases the token in the MessageObserver
 				request.cancel();
+				exchange.setComplete();
 			}
 		}
 		observationStore.remove(token);
