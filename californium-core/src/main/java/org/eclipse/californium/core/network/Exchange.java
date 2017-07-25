@@ -27,6 +27,7 @@
  *                                                    for the first time set.
  *                                                    issue #311
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward setTimedOut to messages.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission on complete.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -509,6 +510,7 @@ public class Exchange {
 	 * rejecting a response, or when sending the (last) response.
 	 */
 	public void setComplete() {
+		setRetransmissionHandle(null);
 		this.complete = true;
 		ExchangeObserver obs = this.observer;
 		if (obs != null) {
@@ -524,6 +526,7 @@ public class Exchange {
 	 * for an example use case.
 	 */
 	public void completeCurrentRequest() {
+		setRetransmissionHandle(null);
 		ExchangeObserver obs = this.observer;
 		if (obs != null) {
 			obs.completed(this);
