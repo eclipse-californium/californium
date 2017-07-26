@@ -191,6 +191,20 @@ public class CertificateRequestTest {
 		assertFalse(isCertificatePartOfChain(trustedCertToRemove, truncatedChain));
 	}
 
+	/**
+	 * Verifies that a certificate chain is not truncated when it includes not trusted certificates only.
+	 *
+	 * @throws Exception if the key cannot be loaded.
+	 */
+	@Test
+	public void testTruncateCertificateChainReturnsAllNonTrustedCerts() throws Exception {
+		X509Certificate[] certChain = DtlsTestTools.getClientCertificateChain();
+		CertificateRequest req = new CertificateRequest(peerAddress);
+		X509Certificate[] truncatedChain = req.removeTrustedCertificates(certChain);
+
+		assertTrue(truncatedChain.length == certChain.length);
+	}
+
 	private static boolean isCertificatePartOfChain(X509Certificate cert, X509Certificate[] chain) {
 		for (X509Certificate certOfChain : chain) {
 			if (cert.getSubjectX500Principal().equals(certOfChain.getSubjectX500Principal())) {
