@@ -543,7 +543,6 @@ public final class CertificateRequest extends HandshakeMessage {
 				if (certificateAuthorities.contains(chain[i].getIssuerX500Principal())) {
 					break;
 				}
-				i++;
 			}
 			return Arrays.copyOf(chain, i);
 		} else {
