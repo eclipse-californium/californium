@@ -25,6 +25,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix copy & paste error
  *                                                    replace "response" with "next" in
  *                                                    onAcknowledgement()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - complete old notification
+ *                                                    exchange
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -227,6 +229,8 @@ public class ObserveLayer extends AbstractLayer {
 					// Cancel the original retransmission and send the fresh
 					// notification here
 					response.cancel();
+					// Using new MIDs requires to cleanup the current exchange with old MID.
+					exchange.completeCurrentRequest();
 					// Convert all notification retransmissions to CON
 					if (next.getType() != Type.CON) {
 						next.setType(Type.CON);
