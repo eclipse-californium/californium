@@ -152,6 +152,7 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s
 		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
+		config.setInt(NetworkConfig.Keys.TCP_NUMBER_OF_BULK_BLOCKS, 64);// BERT enabled when > 1.		
 	}
 
 	// prevent instantiation
