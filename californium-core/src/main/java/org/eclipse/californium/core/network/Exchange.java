@@ -28,6 +28,8 @@
  *                                                    issue #311
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward setTimedOut to messages.
  *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission on complete.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust javadoc for 
+ *                                                    completeCurrentRequest.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -519,11 +521,15 @@ public class Exchange {
 	}
 
 	/**
+	 * Complete exchange using the current request and response.
+	 * 
 	 * This method is only needed when the same {@link Exchange} instance uses
-	 * different tokens during its lifetime, e.g., when using a different token
-	 * for retrieving the rest of a blockwise notification (when not altered,
-	 * Californium reuses the same token for this). See {@link BlockwiseLayer}
-	 * for an example use case.
+	 * different tokens or MIDs during its lifetime, e.g., when using a different
+	 * token for retrieving the rest of a blockwise notification (when not altered,
+	 * Californium reuses the same token for this). Or when different CON notifies
+	 * are sent with different MIDs. 
+	 * <p>
+	 * See {@link BlockwiseLayer} or {@link ObserveLayer} for an example use case.
 	 */
 	public void completeCurrentRequest() {
 		setRetransmissionHandle(null);
