@@ -26,6 +26,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward CorrelationContext only
  *                                                    for the first time set.
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - forward setTimedOut to messages.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission on complete.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -185,9 +187,7 @@ public class Exchange {
 	 */
 	public Exchange(final Request request, final Origin origin) {
 		// might only be the first block of the whole request
-		this.currentRequest = request;
-		this.origin = origin;
-		this.nanoTimestamp = System.nanoTime();
+		this(request, origin, null);
 	}
 
 	/**
@@ -376,18 +376,38 @@ public class Exchange {
 		this.endpoint = endpoint;
 	}
 
+	/**
+	 * Indicated, that this exchange retransmission reached the timeout.
+	 * 
+	 * @return {@code true}, transmission reached timeout, {@code false},
+	 *         otherwise
+	 */
 	public boolean isTimedOut() {
 		return timedOut;
 	}
 
 	/**
-	 * This method also cleans up the Matcher state by eventually calling the
-	 * exchange observer.
+	 * Report transmission timeout for provided message to exchange.
+	 * <p>
+	 * This method also cleans up the Matcher state by calling the
+	 * exchange observer {@link #setComplete()}. The timeout is forward to the
+	 * provided message, and, for the {@link #currentRequest}, it is also
+	 * forwarded to the {@link #request} to timeout the blockwise transfer
+	 * itself.
+	 * 
+	 * @param message message, which transmission has reached the timeout.
 	 */
-	public void setTimedOut() {
+	public void setTimedOut(Message message) {
 		this.timedOut = true;
 		// clean up
 		this.setComplete();
+		// forward timeout to message
+		message.setTimedOut(true);
+		Request request = this.request;
+		if (currentRequest == message && request != message) {
+			// forward timeout to request
+			request.setTimedOut(true);
+		}
 	}
 
 	public int getFailedTransmissionCount() {
@@ -490,6 +510,7 @@ public class Exchange {
 	 * rejecting a response, or when sending the (last) response.
 	 */
 	public void setComplete() {
+		setRetransmissionHandle(null);
 		this.complete = true;
 		ExchangeObserver obs = this.observer;
 		if (obs != null) {
@@ -505,6 +526,7 @@ public class Exchange {
 	 * for an example use case.
 	 */
 	public void completeCurrentRequest() {
+		setRetransmissionHandle(null);
 		ExchangeObserver obs = this.observer;
 		if (obs != null) {
 			obs.completed(this);
