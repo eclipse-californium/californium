@@ -15,13 +15,26 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidator;
+import java.security.cert.CertificateFactory;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -172,27 +185,35 @@ public class CertificateRequestTest {
 	@Test
 	public void testTruncateCertificateChainReturnsNonTrustedCertsOnly() throws Exception {
 
+		// GIVEN a certificate request with a root CA trust anchor
+		CertificateFactory factory = CertificateFactory.getInstance("X.509");
 		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
-		X509Certificate[] trustAnchor = DtlsTestTools.getTrustedCertificates();
-		X509Certificate trustedCertToRemove = null;
-
-		for (X509Certificate trustedCert : trustAnchor) {
-			if (isCertificatePartOfChain(trustedCert, clientChain)) {
-				trustedCertToRemove = trustedCert;
-				break;
-			}
-		}
-		assertThat(trustedCertToRemove, is(notNullValue()));
-
+		X509Certificate[] trustAnchor = new X509Certificate[1];
+		trustAnchor[0] = DtlsTestTools.getTrustedRootCA();
+		Set<TrustAnchor> trustAnchors = getTrustAnchors(trustAnchor);
 		CertificateRequest req = new CertificateRequest(peerAddress);
 		req.addCertificateAuthorities(trustAnchor);
-		X509Certificate[] truncatedChain = req.removeTrustedCertificates(clientChain);
-		assertTrue(truncatedChain.length < clientChain.length);
-		assertFalse(isCertificatePartOfChain(trustedCertToRemove, truncatedChain));
+
+		// WHEN removing trusted certificates from a certificate chain rooting in the trust anchor
+		List<X509Certificate> truncatedChain = Arrays.asList(req.removeTrustedCertificates(clientChain));
+		CertPath clientPath = factory.generateCertPath(truncatedChain);
+
+		// THEN none of the trust anchors is part of the truncated chain
+		for (X509Certificate trustedCert : trustAnchor) {
+			if (isCertificatePartOfChain(trustedCert, truncatedChain)) {
+				fail("truncated certificate list should not contain any trust anchors");
+			}
+		}
+		// and the truncated chain can still be validated successfully based on the trust anchors
+		PKIXParameters params = new PKIXParameters(trustAnchors);
+		params.setRevocationEnabled(false);
+
+		CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+		validator.validate(clientPath, params);
 	}
 
 	/**
-	 * Verifies that a certificate chain is not truncated when it includes not trusted certificates only.
+	 * Verifies that a certificate chain is not truncated when it consists of untrusted certificates only.
 	 *
 	 * @throws Exception if the key cannot be loaded.
 	 */
@@ -205,12 +226,22 @@ public class CertificateRequestTest {
 		assertTrue(truncatedChain.length == certChain.length);
 	}
 
-	private static boolean isCertificatePartOfChain(X509Certificate cert, X509Certificate[] chain) {
+	private static boolean isCertificatePartOfChain(X509Certificate cert, List<X509Certificate> chain) {
 		for (X509Certificate certOfChain : chain) {
 			if (cert.getSubjectX500Principal().equals(certOfChain.getSubjectX500Principal())) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
+		Set<TrustAnchor> result = new HashSet<>();
+		if (trustedCertificates != null) {
+			for (X509Certificate cert : trustedCertificates) {
+				result.add(new TrustAnchor((X509Certificate) cert, null));
+			}
+		}
+		return result;
 	}
 }
