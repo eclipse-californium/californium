@@ -46,12 +46,14 @@ public final class DtlsTestTools {
 	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
+	public static final String ROOT_CA_ALIAS = "root";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static KeyStore keyStore;
 	private static KeyStore trustStore;
 	private static X509Certificate[] trustedCertificates = new X509Certificate[1];
 	private static X509Certificate[] serverCertificateChain;
 	private static X509Certificate[] clientCertificateChain;
+	private static X509Certificate rootCaCertificate;
 
 	static {
 		try {
@@ -61,8 +63,12 @@ public final class DtlsTestTools {
 			trustedCertificates = new X509Certificate[trustStore.size()];
 			int j = 0;
 			for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements(); ) {
-				Certificate trustedCert = trustStore.getCertificate(e.nextElement());
+				String alias = e.nextElement();
+				Certificate trustedCert = trustStore.getCertificate(alias);
 				if (X509Certificate.class.isInstance(trustedCert)) {
+					if (alias.equals(ROOT_CA_ALIAS)) {
+						rootCaCertificate = (X509Certificate) trustedCert;
+					}
 					trustedCertificates[j++] = (X509Certificate) trustedCert;
 				}
 			}
@@ -256,5 +262,14 @@ public final class DtlsTestTools {
 	 */
 	public static X509Certificate[] getTrustedCertificates() {
 		return trustedCertificates;
+	}
+
+	/**
+	 * Gets the trusted root CA certificate.
+	 * 
+	 * @return The certificate.
+	 */
+	public static X509Certificate getTrustedRootCA() {
+		return rootCaCertificate;
 	}
 }
