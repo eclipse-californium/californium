@@ -193,8 +193,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else {
 				KeyUri key = getKey(exchange, request);
 				Block2BlockwiseStatus status = getBlock2Status(key);
-				if (status != null && status.isNotification()) {
-					// Receiving a blockwise notification in transparent mode
+				if (status != null) {
+					// Receiving a blockwise response in transparent mode
 					// is done by in an "internal request" for the left payload.
 					// Therefore the client is not aware of that ongoing request
 					// and may send an additional request for the same resource.
