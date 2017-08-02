@@ -34,6 +34,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -642,4 +643,92 @@ public class ObserveClientSideTest {
 		assertThat("still receiving messages", message, is(nullValue()));
 	}
 
+	/**
+	 * Verifies, If a blockwise GET is correctly interrupted by a new
+	 * notification. The GET request is cancelled and the notification is taken
+	 * into account.
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * ####### establish observe #############
+	 * CON [MID=30668, T=a42c610c7697704e], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=30668, T=a42c610c7697704e], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=30669, T=17970efc30d3db36], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=30669, T=17970efc30d3db36], 2.05, 2:1/0/16
+	 * ###### Send a GET, response use block2 #########
+	 * CON [MID=30670, T=535e41280d7c5d6b], GET, /test    ----->
+	 * <-----   ACK [MID=30670, T=535e41280d7c5d6b], 2.05, 2:0/1/16
+	 * CON [MID=30671, T=535e41280d7c5d6b], GET, /test, 2:1/0/16    ----->
+	 * ###### block transfer interrupted by a notificaiton ########
+	 * <-----   CON [MID=8001, T=a42c610c7697704e], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * CON [MID=30672, T=fe773e4dc91e1930], GET, /test, 2:1/0/16    ----->
+	 * ##### Send 2nd block of the GET request, should be ignored #####
+	 * <-----   ACK [MID=30671, T=535e41280d7c5d6b], 2.05, 2:1/1/16
+	 * ##### Send 2nd block (last) of the notification #####
+	 * <-----   ACK [MID=30672, T=fe773e4dc91e1930], 2.05, 2:1/0/16
+	 * ##### ensure we get the notification and GET request is canceled #####
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseGetInterruptedByBlockwiseNotification() throws Exception {
+		String path = "test";
+
+		// Send observe request
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(32);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("OBS_BLOCK").block2(1, false, 16).go();
+		// Send next (last) block response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS_BLOCK").block2(1, false, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		// Check that we get the response
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		// Observation is established.
+
+		// Send a GET Request
+		Request getRequest = createRequest(GET, path, server);
+		client.sendRequest(getRequest);
+		String getPayload = generateRandomPayload(32);
+		server.expectRequest(CON, GET, path).storeBoth("GET").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("GET").block2(0, true, 16).payload(getPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("GET_BLOCK").block2(1, false, 16).go();
+		// Block transfer not completed.....
+
+		// ... interrupted by a new notification
+		String notifPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifPayload.substring(0, 16)).go();
+		// Expect ACK and Next Block request
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send 2nd block of GET request (should be ignored)
+		server.sendResponse(ACK, CONTENT).loadBoth("GET_BLOCK").block2(1, false, 16)
+				.payload(getPayload.substring(16, 32)).go();
+
+		// Send 2nd block of notification
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(notifPayload.substring(16, 32))
+				.go();
+		Response notification = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification, notifPayload);
+
+		// Check the GET request is canceled.
+		assertTrue(getRequest.isCanceled());
+	}
 }
