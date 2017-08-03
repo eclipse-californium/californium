@@ -122,6 +122,19 @@ public class ConcurrentCoapResource extends CoapResource {
 	}
 	
 	/**
+	 * Constructs a new resource that uses the specified executor service to
+	 * process requests.
+	 * 
+	 * @param name the name
+	 * @param executor the executor service to use
+	 */
+	public ConcurrentCoapResource(String name, ExecutorService executor) {
+		super(name);
+		this.threads = -1;
+		setExecutor(executor);
+	}
+	
+	/**
 	 * Sets the specified executor service to the resource.
 	 * 
 	 * @param executor the executor service
