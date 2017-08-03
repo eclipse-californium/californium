@@ -51,7 +51,6 @@ import org.eclipse.californium.proxy.TranslationException;
 public class ProxyHttpClientResource extends ForwardingResource {
 	
 	private static final int KEEP_ALIVE = 5000;
-	// TODO: Properties.std.getInt("HTTP_CLIENT_KEEP_ALIVE");
 	
 	/**
 	 * DefaultHttpClient is thread safe. It is recommended that the same
@@ -89,15 +88,11 @@ public class ProxyHttpClientResource extends ForwardingResource {
 	}
 
 	public ProxyHttpClientResource() {
-		// set the resource hidden
-//		this("proxy/httpClient");
-		this("httpClient");
+		this(100000);
 	}
 
-	public ProxyHttpClientResource(String name) {
-		// set the resource hidden
-		super(name, true);
-		getAttributes().setTitle("Forward the requests to a HTTP client.");
+	public ProxyHttpClientResource(long timeout) {
+		super("httpClient");
 	}
 
 	@Override
@@ -110,14 +105,10 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
-		// remove the fake uri-path // TODO: why? still necessary in new Cf?
-		incomingCoapRequest.getOptions().clearUriPath();; // HACK
-
 		// get the proxy-uri set in the incoming coap request
 		URI proxyUri;
 		try {
-			String proxyUriString = URLDecoder.decode(
-					incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
+			String proxyUriString = URLDecoder.decode(incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());

@@ -75,12 +75,9 @@ public final class CoapTranslator {
 		// get the code
 		Code code = incomingRequest.getCode();
 
-		// get message type
-		Type type = incomingRequest.getType();
-
 		// create the request
 		Request outgoingRequest = new Request(code);
-		outgoingRequest.setConfirmable(type == Type.CON);
+		outgoingRequest.setConfirmable(incomingRequest.getType() == Type.CON);
 
 		// copy payload
 		byte[] payload = incomingRequest.getPayload();
@@ -89,13 +86,10 @@ public final class CoapTranslator {
 		// get the uri address from the proxy-uri option
 		URI serverUri;
 		try {
-			/*
-			 * The new draft (14) only allows one proxy-uri option. Thus, this
-			 * code segment has changed.
-			 */
-			String proxyUriString = URLDecoder.decode(
-					incomingRequest.getOptions().getProxyUri(), "UTF-8");
+			// not that the Proxy-Uri option is a string and does not pre-parse URIs like the Uri-* options.
+			String proxyUriString = URLDecoder.decode(incomingRequest.getOptions().getProxyUri(), "UTF-8");
 			serverUri = new URI(proxyUriString);
+			// set after options have been copied from incomingRequest
 		} catch (UnsupportedEncodingException e) {
 			LOGGER.warning("UTF-8 do not support this encoding: " + e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
@@ -105,26 +99,23 @@ public final class CoapTranslator {
 		}
 
 		// copy every option from the original message
-		// do not copy the proxy-uri option because it is not necessary in
-		// the new message
-		// do not copy the token option because it is a local option and
-		// have to be assigned by the proper layer
-		// do not copy the block* option because it is a local option and
-		// have to be assigned by the proper layer
-		// do not copy the uri-* options because they are already filled in
-		// the new message
+		// do not copy the proxy-uri option because it is not necessary in the new message
+		// do not copy the token option because it is a local option and have to be assigned by the proper layer
+		// do not copy the block* option because it is a local option and have to be assigned by the proper layer
+		// do not copy the uri-* options because they must be ignored when Proxy-Uri is set
 		OptionSet options = new OptionSet(incomingRequest.getOptions());
 		options.removeProxyUri();
+		options.removeProxyScheme();
 		options.removeBlock1();
 		options.removeBlock2();
+		options.removeUriHost();
+		options.removeUriPort();
 		options.clearUriPath();
 		options.clearUriQuery();
 		outgoingRequest.setOptions(options);
 		
 		// set the proxy-uri as the outgoing uri
-		if (serverUri != null) {
-			outgoingRequest.setURI(serverUri);
-		}
+		outgoingRequest.setURI(serverUri);
 
 		LOGGER.finer("Incoming request translated correctly");
 		return outgoingRequest;

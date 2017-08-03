@@ -17,20 +17,22 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
-import org.eclipse.californium.core.CoapResource;
+import java.util.concurrent.Executors;
+
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.resources.ConcurrentCoapResource;
 
-
-public abstract class ForwardingResource extends CoapResource {
+/**
+ * The ForwardingResource uses an unlimited thread pool to handle requests,
+ * as it is unknown how long individual requests might take.
+ */
+public abstract class ForwardingResource extends ConcurrentCoapResource {
 
 	public ForwardingResource(String resourceIdentifier) {
-		super(resourceIdentifier);
-	}
-
-	public ForwardingResource(String resourceIdentifier, boolean hidden) {
-		super(resourceIdentifier, hidden);
+		super(resourceIdentifier, Executors.newCachedThreadPool());
+		this.setVisible(false);
 	}
 
 	@Override

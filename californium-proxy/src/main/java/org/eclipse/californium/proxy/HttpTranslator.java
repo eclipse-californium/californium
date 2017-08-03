@@ -22,11 +22,9 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -199,7 +197,7 @@ public final class HttpTranslator {
 		List<Option> optionList = new LinkedList<Option>();
 
 		// iterate over the headers
-		for (Header header : headers) {
+		headerLoop : for (Header header : headers) {
 			try {
 				String headerName = header.getName().toLowerCase();
 				
@@ -227,8 +225,7 @@ public final class HttpTranslator {
 					continue;
 				}
 	
-				// ignore the content-type because it will be handled within the
-				// payload
+				// ignore the content-type because it will be handled in the payload processing
 				if (optionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
 					continue;
 				}
@@ -266,14 +263,17 @@ public final class HttpTranslator {
 				} else if (optionNumber == OptionNumberRegistry.MAX_AGE) {
 					int maxAge = 0;
 					if (!headerValue.contains("no-cache")) {
-						headerValue = headerValue.split(",")[0];
-						if (headerValue != null) {
-							int index = headerValue.indexOf('=');
-							try {
-								maxAge = Integer.parseInt(headerValue.substring(index + 1).trim());
-							} catch (NumberFormatException e) {
-								LOGGER.warning("Cannot convert cache control in max-age option");
-								continue;
+						for (String headerValueItem : headerValue.split(",")) {
+							headerValueItem = headerValueItem.trim();
+							
+							if (headerValueItem.startsWith("max-age")) {
+								int index = headerValueItem.indexOf('=');
+								try {
+									maxAge = Integer.parseInt(headerValueItem.substring(index + 1).trim());
+								} catch (NumberFormatException e) {
+									LOGGER.warning("Cannot convert cache control in max-age option");
+									continue headerLoop;
+								}
 							}
 						}
 					}
@@ -383,20 +383,12 @@ public final class HttpTranslator {
 	 * @param proxyResource
 	 *            the proxy resource, if present in the uri, indicates the need
 	 *            of forwarding for the current request
-	 * @param proxyingEnabled
-	 *            TODO
 	 * 
 	 * 
 	 * @return the coap request * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
-		if (httpRequest == null) {
-			throw new IllegalArgumentException("httpRequest == null");
-		}
-		if (proxyResource == null) {
-			throw new IllegalArgumentException("proxyResource == null");
-		}
+	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource) throws TranslationException {
 
 		// get the http method
 		String httpMethod = httpRequest.getRequestLine().getMethod().toLowerCase();
@@ -420,8 +412,6 @@ public final class HttpTranslator {
 
 		// get the uri
 		String uriString = httpRequest.getRequestLine().getUri();
-		// remove the initial "/"
-		uriString = uriString.substring(1);
 
 		// decode the uri to translate the application/x-www-form-urlencoded
 		// format
@@ -443,42 +433,22 @@ public final class HttpTranslator {
 		// proxy resource: /proxy
 		// coap server: vslab-dhcp-17.inf.ethz.ch:5684
 		// coap resource: helloWorld
-		if (uriString.matches(".?" + proxyResource + ".*")) {
+		if (uriString.startsWith(proxyResource)) {
 
-			// find the first occurrence of the proxy resource
-			int index = uriString.indexOf(proxyResource);
-			// delete the slash
-			index = uriString.indexOf('/', index);
-			uriString = uriString.substring(index + 1);
+			// extract embedded URI
+			uriString = uriString.substring(proxyResource.length());
 
-			if (proxyingEnabled) {
-				// if the uri hasn't the indication of the scheme, add it
-				if (!uriString.matches("^coaps?://.*")) {
-					uriString = "coap://" + uriString;
-				}
-
-				// the uri will be set as a proxy-uri option
-				coapRequest.getOptions().setProxyUri(uriString);
-			} else {
-				coapRequest.setURI(uriString);
+			// if the uri hasn't the indication of the scheme, add it
+			if (!uriString.matches("^coaps?://.*")) {
+				uriString = "coap://" + uriString;
 			}
 
-			// set the proxy as the sender to receive the response correctly
-			try {
-				// TODO check with multihomed hosts
-				InetAddress localHostAddress = InetAddress.getLocalHost();
-				coapRequest.setDestination(localHostAddress);
-				// TODO: setDestinationPort???
-			} catch (UnknownHostException e) {
-				LOGGER.warning("Cannot get the localhost address: " + e.getMessage());
-				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
-			}
+			// the proxy internally always uses the Proxy-Uri option
+			coapRequest.getOptions().setProxyUri(uriString);
+
 		} else {
-			// if the uri does not contains the proxy resource, it means the
-			// request is local to the proxy and it shouldn't be forwarded
-
-			// set the uri string as uri-path option
-			coapRequest.getOptions().setUriPath(uriString);
+			LOGGER.warning("Malrouted request: " + httpRequest.getRequestLine());
+			return null;
 		}
 
 		// translate the http headers in coap options
@@ -834,6 +804,7 @@ public final class HttpTranslator {
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
 		}
+		httpRequest.setHeader("Connection", "close");
 
 		return httpRequest;
 	}

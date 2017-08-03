@@ -30,14 +30,15 @@ import org.eclipse.californium.proxy.TranslationException;
  */
 public class ProxyCoapClientResource extends ForwardingResource {
 	
+	private long timeout;
+	
 	public ProxyCoapClientResource() {
-		this("coapClient");
+		this(100000); // 100 s
 	} 
 	
-	public ProxyCoapClientResource(String name) {
-		// set the resource hidden
-		super(name, true);
-		getAttributes().setTitle("Forward the requests to a CoAP server.");
+	public ProxyCoapClientResource(long timeout) {
+		super("coap2coap");
+		this.timeout = timeout;
 	}
 
 	@Override
@@ -51,25 +52,15 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
-		// remove the fake uri-path
-		// FIXME: HACK // TODO: why? still necessary in new Cf?
-		incomingRequest.getOptions().clearUriPath();
-
 		// create a new request to forward to the requested coap server
 		Request outgoingRequest = null;
 		try {
 			// create the new request from the original
 			outgoingRequest = CoapTranslator.getRequest(incomingRequest);
 
-//			// enable response queue for blocking I/O
-//			outgoingRequest.enableResponseQueue(true);
-
-			// get the token from the manager // TODO: necessary?
-//			outgoingRequest.setToken(TokenManager.getInstance().acquireToken());
-
 			// execute the request
 			LOGGER.finer("Sending coap request.");
-//			outgoingRequest.execute();
+
 			LOGGER.info("ProxyCoapClient received CoAP request and sends a copy to CoAP target");
 			outgoingRequest.send();
 
@@ -85,8 +76,8 @@ public class ProxyCoapClientResource extends ForwardingResource {
 		}
 
 		try {
-			// receive the response // TODO: don't wait for ever
-			Response receivedResponse = outgoingRequest.waitForResponse();
+			// receive the response
+			Response receivedResponse = outgoingRequest.waitForResponse(timeout);
 
 			if (receivedResponse != null) {
 				LOGGER.finer("Coap response received.");
