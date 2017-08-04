@@ -172,8 +172,7 @@ public class HttpStack {
 		if (exchanger != null) {
 			try {
 				exchanger.exchange(response);
-				// if (Bench_Help.DO_LOG)
-				LOGGER.info("Exchanged correctly");
+				
 			} catch (InterruptedException e) {
 				LOGGER.log(Level.WARNING, "Exchange interrupted", e);
 
@@ -401,7 +400,7 @@ public class HttpStack {
 					throws HttpException, IOException {
 				httpResponse.setStatusCode(HttpStatus.SC_OK);
 				httpResponse.setEntity(new StringEntity(
-						"<html><body><h1>Californium (Cf) Proxy</h1><form method=\"get\" onsubmit=\"this.action='/proxy/'+this.uri.value;\"><input type=\"text\" size=\"50\" id=\"uri\"/><input type=\"submit\" value=\"GET\"/></form></body></html>",
+						"<html><body><h1>Californium (Cf) Proxy</h1>URI Template <tt>http://localhost:8080/proxy/{coap-uri}</tt> or use this form: <form method=\"get\" onsubmit=\"this.action='/proxy/'+this.uri.value;\"><input type=\"text\" size=\"50\" id=\"uri\"/><input type=\"submit\" value=\"GET\"/></form></body></html>",
 						ContentType.TEXT_HTML));
 
 				LOGGER.finer("Root request handled");

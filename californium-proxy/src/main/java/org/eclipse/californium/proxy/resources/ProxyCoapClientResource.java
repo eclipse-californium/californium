@@ -42,9 +42,8 @@ public class ProxyCoapClientResource extends ForwardingResource {
 	}
 
 	@Override
-	public Response forwardRequest(Request request) {
-		LOGGER.info("ProxyCoAP2CoAP forwards "+request);
-		Request incomingRequest = request;
+	public Response forwardRequest(Request incomingRequest) {
+		LOGGER.info("ProxyCoapClientResource forwards " + incomingRequest);
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
@@ -59,14 +58,9 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			outgoingRequest = CoapTranslator.getRequest(incomingRequest);
 
 			// execute the request
-			LOGGER.finer("Sending coap request.");
-
-			LOGGER.info("ProxyCoapClient received CoAP request and sends a copy to CoAP target");
+			LOGGER.finer("Sending proxied CoAP request.");
 			outgoingRequest.send();
-
-			// accept the request sending a separate response to avoid the
-			// timeout in the requesting client
-			LOGGER.finer("Acknowledge message sent");
+			
 		} catch (TranslationException e) {
 			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
@@ -77,15 +71,11 @@ public class ProxyCoapClientResource extends ForwardingResource {
 
 		try {
 			// receive the response
-			Response receivedResponse = outgoingRequest.waitForResponse(timeout);
+			Response incomingResponse = outgoingRequest.waitForResponse(timeout);
 
-			if (receivedResponse != null) {
-				LOGGER.finer("Coap response received.");
-
-				// create the real response for the original request
-				Response outgoingResponse = CoapTranslator.getResponse(receivedResponse);
-
-				return outgoingResponse;
+			if (incomingResponse != null) {
+				LOGGER.info("ProxyCoapClientResource received " + incomingResponse);
+				return CoapTranslator.getResponse(incomingResponse);
 			} else {
 				LOGGER.warning("No response received.");
 				return new Response(CoapTranslator.STATUS_TIMEOUT);

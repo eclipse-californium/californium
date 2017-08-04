@@ -22,13 +22,13 @@ import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.proxy.resources.ForwardingResource;
 import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
 
@@ -45,8 +45,9 @@ public class ProxyHttpServer {
 	private final ProxyCacheResource cacheResource = new ProxyCacheResource(true);
 	private final StatsResource statsResource = new StatsResource(cacheResource);
 	
-	private ProxyCoapResolver proxyCoapResolver;
 	private HttpStack httpStack;
+
+	private ForwardingResource coap2coap;
 
 	/**
 	 * Instantiates a new proxy endpoint from the default ports.
@@ -54,8 +55,8 @@ public class ProxyHttpServer {
 	 * @throws SocketException
 	 *             the socket exception
 	 */
-	public ProxyHttpServer(CoapServer server) throws IOException {
-		this(NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
+	public ProxyHttpServer(ForwardingResource coap) throws IOException {
+		this(coap, NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
 	}
 
 	/**
@@ -66,7 +67,7 @@ public class ProxyHttpServer {
 	 * @throws IOException
 	 *             the socket exception
 	 */
-	public ProxyHttpServer(int httpPort) throws IOException {
+	public ProxyHttpServer(ForwardingResource coap, int httpPort) throws IOException {
 	
 		this.httpStack = new HttpStack(httpPort);
 		this.httpStack.setRequestHandler(new RequestHandler() {
@@ -74,11 +75,10 @@ public class ProxyHttpServer {
 				ProxyHttpServer.this.handleRequest(request);
 			}
 		});
+		this.coap2coap = coap;
 	}
 
 	public void handleRequest(final Request request) {
-		
-		LOGGER.info("ProxyEndpoint handles request "+request);
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
 
@@ -100,6 +100,7 @@ public class ProxyHttpServer {
 					request.setResponse(response);
 					responseProduced(request, response);
 					httpStack.doSendResponse(request, response);
+					LOGGER.info("HTTP returned " + response);
 				} catch (Exception e) {
 					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);
 				}
@@ -130,7 +131,7 @@ public class ProxyHttpServer {
 		} else {
 			// HttpTranslator set Proxy-Uri from HTTP URI template
 			// handle the request as usual
-			proxyCoapResolver.forwardRequest(exchange);
+			coap2coap.handleRequest(exchange);
 		}
 	}
 
@@ -143,14 +144,5 @@ public class ProxyHttpServer {
 		} else {
 				LOGGER.info("Do not cache response");
 		}
-	}
-
-	public ProxyCoapResolver getProxyCoapResolver() {
-		return proxyCoapResolver;
-	}
-
-	public void setProxyCoapResolver(ProxyCoapResolver proxyCoapResolver) {
-		this.proxyCoapResolver = proxyCoapResolver;
-	}
-	
+	}	
 }

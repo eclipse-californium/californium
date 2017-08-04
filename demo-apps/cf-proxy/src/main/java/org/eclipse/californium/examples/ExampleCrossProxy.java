@@ -22,7 +22,6 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
-import org.eclipse.californium.proxy.DirectProxyCoapResolver;
 import org.eclipse.californium.proxy.ProxyHttpServer;
 import org.eclipse.californium.proxy.resources.ForwardingResource;
 import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
@@ -59,8 +58,7 @@ public class ExampleCrossProxy {
 		coapProxy.add(new TargetResource("test"));
 		coapProxy.start();
 		
-		ProxyHttpServer httpServer = new ProxyHttpServer(HTTP_PORT);
-		httpServer.setProxyCoapResolver(new DirectProxyCoapResolver(coap2coap));
+		ProxyHttpServer httpServer = new ProxyHttpServer(coap2coap, HTTP_PORT);
 		
 		System.out.println("CoAP resource \"test\" available over HTTP at: http://localhost:"+HTTP_PORT+"/proxy/coap://localhost:"+PORT+"/test");
 	}
