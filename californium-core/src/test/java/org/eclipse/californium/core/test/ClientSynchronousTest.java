@@ -18,12 +18,14 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for ping()
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
@@ -35,9 +37,11 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -156,7 +160,28 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(5, notifications.get());
 		Assert.assertFalse(failed);
 	}
-	
+
+	@Test
+	public void testSynchronousPing() throws Exception {
+		final AtomicBoolean sent = new AtomicBoolean();
+		CoapEndpoint clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+			
+			@Override
+			public void sendRequest(Request request) {
+				sent.set(true);
+			}
+		});
+		String uri = "coap://localhost:"+serverPort+"/"+TARGET;
+		CoapClient client = new CoapClient(uri).useExecutor();
+		client.setEndpoint(clientEndpoint);
+		
+		// Check that we get the right content when calling get()
+		boolean ping = client.ping();
+		Assert.assertTrue(ping);
+		Assert.assertTrue("Ping not sent using provided endpoint", sent.get());
+	}
+
 	private void createServer() {
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		
