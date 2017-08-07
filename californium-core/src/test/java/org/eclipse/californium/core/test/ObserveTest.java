@@ -23,6 +23,7 @@
  *                                                    Introduce CountingHandler
  *                                                    use expected= annotation for
  *                                                    expected exceptions
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageInterceptorAdapter
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -49,7 +50,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -336,7 +337,7 @@ public class ObserveTest {
 		uriY = "localhost:"+serverPort+"/"+TARGET_Y;
 	}
 	
-	private class ClientMessageInterceptor implements MessageInterceptor {
+	private class ClientMessageInterceptor extends MessageInterceptorAdapter {
 
 		private int counter = 0; // counts the incoming responses
 		
@@ -388,25 +389,15 @@ public class ObserveTest {
 			response.cancel();
 		}
 		
-		@Override public void sendRequest(Request request) { }
-		@Override public void sendResponse(Response response) { }
-		@Override public void sendEmptyMessage(EmptyMessage message) { }
-		@Override public void receiveRequest(Request request) { }
-		@Override public void receiveEmptyMessage(EmptyMessage message) { }
 	}
 	
-	private class ServerMessageInterceptor implements MessageInterceptor {
+	private class ServerMessageInterceptor extends MessageInterceptorAdapter {
 		private final AtomicInteger resetCounter;
 
 		public ServerMessageInterceptor(AtomicInteger resetCounter) {
 			this.resetCounter = resetCounter;
 		}
 		
-		@Override public void receiveResponse(Response response) { }
-		@Override public void sendRequest(Request request) { }
-		@Override public void sendResponse(Response response) { }
-		@Override public void sendEmptyMessage(EmptyMessage message) { }
-		@Override public void receiveRequest(Request request) { }
 		@Override public void receiveEmptyMessage(EmptyMessage message) {
 			if (message.getType() == Type.RST) {
 				int counter = resetCounter.incrementAndGet();
