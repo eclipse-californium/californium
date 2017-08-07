@@ -77,6 +77,12 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
  * Once all blocks have been received, the overall body is re-assembled and forwarded
  * to the client that has issued the original request.</li>
  * </ul>
+ * <p>
+ * Block-wise transfer does not support concurrent transfer for the same
+ * resource. So using <em>transparent</em> block-wise transfer with CoAP observe
+ * is not really advised. When concurrent transfer is detected we always
+ * privilege the most recent transfers. This is the most resilient way, as new
+ * transfer will never be blocked by old incomplete transfer.
  */
 public class BlockwiseLayer extends AbstractLayer {
 
