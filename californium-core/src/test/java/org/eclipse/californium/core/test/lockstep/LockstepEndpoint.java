@@ -30,6 +30,14 @@
  *                                                    to accept multiple types (Type... types).
  *                                                    Changed reponseType in type(Type... types)
  *                                                    and storeType().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add assumption for no unintended message
+ *                                                    retransmission. If a test fails on
+ *                                                    unintended retransmission (caused by
+ *                                                    execution time), this changes the test
+ *                                                    "fails" into "ignore result". Only
+ *                                                    support, if system property
+ *                                                    "org.eclipse.californium.junit.starving"
+ *                                                    is also set to true.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -46,7 +54,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
-
+import org.junit.Assume;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -64,6 +72,13 @@ import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 
 public class LockstepEndpoint {
+	/**
+	 * Name of configuration property for assumption supporting "starving HIPP". 
+	 * Supported values of property "true" and "false".
+	 * 
+	 * @see #assumeNoUnintendedRetransmission
+	 */
+	public static final String PROPERTY_NAME_STARVING = "org.eclipse.californium.junit.starving";
 
 	public static boolean DEFAULT_VERBOSE = false;
 
@@ -82,6 +97,16 @@ public class LockstepEndpoint {
 	private HashMap<String, Object> storage;
 
 	private boolean verbose = DEFAULT_VERBOSE;
+
+	/**
+	 * Enable the test to assume, that no unintended message retransmission occurs.
+	 * If a test would fail, if a unintended message retransmission was caused by a
+	 * timeout, this enables the test to be then ignored rather then fail.
+	 * 
+	 * @see #PROPERTY_NAME_STARVING
+	 * @see #assumeNoUnintendedRetransmission(boolean)
+	 */
+	private boolean assumeNoUnintendedRetransmission;
 
 	public LockstepEndpoint() {
 		this.storage = new HashMap<String, Object>();
@@ -116,6 +141,25 @@ public class LockstepEndpoint {
 	public void print(String text) {
 		if (verbose) {
 			System.out.println(text);
+		}
+	}
+
+	/**
+	 * Enable or disable the test to assume, that no unintended message
+	 * retransmission occurs. Only set, if system property
+	 * {@link #PROPERTY_NAME_STARVING} is true. Otherwise
+	 * {@link #assumeNoUnintendedRetransmission} is always set to {@code false}.
+	 * 
+	 * @param enable {@code true} enable the assumption for this test,
+	 *            {@code false} disable the assumption
+	 * @see #assumeNoUnintendedRetransmission
+	 * @see #PROPERTY_NAME_STARVING
+	 */
+	public void assumeNoUnintendedRetransmission(boolean enable) {
+		if (Boolean.getBoolean(PROPERTY_NAME_STARVING)) {
+			this.assumeNoUnintendedRetransmission = enable;
+		} else {
+			this.assumeNoUnintendedRetransmission = false;
 		}
 	}
 
@@ -285,6 +329,7 @@ public class LockstepEndpoint {
 					&& lastIncomingMessage.getType() == msg.getType() && !midExpectation.expectMID(msg)) {
 				// received message with same MID but not expected
 				// => discard message!
+				Assume.assumeFalse("Unintended message retransmission would cause the test to fail! " + msg, assumeNoUnintendedRetransmission);
 				print("discarding duplicate message: " + msg);
 			} else {
 				msg.setSource(raw.getAddress());
