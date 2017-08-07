@@ -24,6 +24,8 @@
  *                                                    retransmission timing by
  *                                                    increasing the ACK_TIMEOUT.
  *    Achim Kraus (Bosch Software Innovations GmbH) - check MIDs of notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add assumption for no 
+ *                                                    unintended message retransmission.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -197,6 +199,7 @@ public class ObserveServerSideTest {
 		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
 		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
 
+		client.assumeNoUnintendedRetransmission(true);
 		// First notification
 		respType = CON;
 		testObsResource.change("First notification " + generateRandomPayload(10));
@@ -205,13 +208,13 @@ public class ObserveServerSideTest {
 		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("B").payload(respPayload).go();
 		serverInterceptor.log("// lost (1. retransmission)");
 
-		// Resource changes and sends next CON which will be transmitted after the former has timeouted
+		// Resource changes and sends next CON which will be transmitted after the former has timed out
 		testObsResource.change("Second notification " + generateRandomPayload(10));
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("B", "C").payload(respPayload).go();
 		serverInterceptor.log("// lost (2. retransmission)");
 
 		// Resource changes. Even though the next notification is a NON it becomes
-		// a CON because it replaces the retransmission of the former CON control notifiation
+		// a CON because it replaces the retransmission of the former CON control notification
 		respType = NON;
 		testObsResource.change("Third notification " + generateRandomPayload(10));
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("C", "D").payload(respPayload).go();
