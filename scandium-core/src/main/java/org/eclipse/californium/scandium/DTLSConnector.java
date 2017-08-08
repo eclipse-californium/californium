@@ -340,8 +340,11 @@ public class DTLSConnector implements Connector {
 				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
 		if (executor == null) {
-			// use a decently sized thread pool
-			executor = new StripedExecutorService(DEFAULT_EXECUTOR_THREAD_POOL_SIZE);
+			if (config.getConnectionThreadCount() == null) {
+				executor = new StripedExecutorService(DEFAULT_EXECUTOR_THREAD_POOL_SIZE);
+			} else {
+				executor = new StripedExecutorService(config.getConnectionThreadCount());
+			}
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);

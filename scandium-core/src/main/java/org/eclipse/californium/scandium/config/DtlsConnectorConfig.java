@@ -114,6 +114,8 @@ public final class DtlsConnectorConfig {
 
 	private ServerNameResolver serverNameResolver;
 
+	private Integer connectionThreadCount;;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -320,6 +322,17 @@ public final class DtlsConnectorConfig {
 	 */
 	public Long getStaleConnectionThreshold() {
 		return staleConnectionThreshold;
+	}
+
+	/**
+	 * Gets the number of threads which should be use to handle DTLS connection.
+	 * <p>
+	 * The default value is 6 * <em>#(CPU cores)</em>.
+	 * 
+	 * @return the number of threads.
+	 */
+	public Integer getConnectionThreadCount() {
+		return connectionThreadCount;
 	}
 
 	/**
@@ -742,6 +755,19 @@ public final class DtlsConnectorConfig {
 				config.staleConnectionThreshold = threshold;
 				return this;
 			}
+		}
+
+		/**
+		 * Set the number of thread which should be used to handle DTLS
+		 * connection.
+		 * <p>
+		 * The default value is 6 * <em>#(CPU cores)</em>.
+		 * 
+		 * @return this builder for command chaining.
+		 */
+		public Builder setConnectionThreadCount(int threadCount) {
+			config.connectionThreadCount = threadCount;
+			return this;
 		}
 
 		private boolean isConfiguredWithKeyPair() {
