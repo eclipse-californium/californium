@@ -96,7 +96,7 @@ public class StripedExecutorService extends AbstractExecutorService {
      * @param executor the executor service that we use to execute
      *                 the tasks
      */
-    private StripedExecutorService(ExecutorService executor) {
+    public StripedExecutorService(ExecutorService executor) {
         this.executor = executor;
     }
 

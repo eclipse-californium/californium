@@ -337,14 +337,16 @@ public class DTLSConnector implements Connector {
 		}
 
 		timer = Executors.newSingleThreadScheduledExecutor(
-				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+				new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
 		if (executor == null) {
+			int threadCount; 
 			if (config.getConnectionThreadCount() == null) {
-				executor = new StripedExecutorService(DEFAULT_EXECUTOR_THREAD_POOL_SIZE);
+				threadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
 			} else {
-				executor = new StripedExecutorService(config.getConnectionThreadCount());
+				threadCount = config.getConnectionThreadCount();
 			}
+			executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
