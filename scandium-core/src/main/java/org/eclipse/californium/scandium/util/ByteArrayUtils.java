@@ -143,27 +143,20 @@ public class ByteArrayUtils {
 	/**
 	 * Takes a byte array and returns it HEX representation.
 	 * 
-	 * @param byteArray
-	 *            the byte array.
+	 * @param bytes the byte array.
 	 * @return the HEX representation.
 	 */
-	public static String toHexString(byte[] byteArray) {
-
-		if (byteArray != null && byteArray.length != 0) {
-
-			StringBuilder builder = new StringBuilder(byteArray.length * 3);
-			for (int i = 0; i < byteArray.length; i++) {
-				builder.append(String.format("%02X", 0xFF & byteArray[i]));
-
-				if (i < byteArray.length - 1) {
-					builder.append(' ');
-				}
-			}
-			return builder.toString();
-		} else {
-			return "--";
+	public static String toHexString(byte[] bytes) {
+		char[] hexChars = new char[bytes.length * 2];
+		for (int j = 0; j < bytes.length; j++) {
+			int v = bytes[j] & 0xFF;
+			hexChars[j * 2] = hexArray[v >>> 4];
+			hexChars[j * 2 + 1] = hexArray[v & 0x0F];
 		}
+		return new String(hexChars);
 	}
+
+	private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
 
 	/**
 	 * Takes a HEX stream and returns the corresponding byte array.
