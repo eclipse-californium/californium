@@ -586,7 +586,9 @@ public class ClientHandshaker extends Handshaker {
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
 				}
-				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				if (LOGGER.isLoggable(Level.FINE)) {
+					LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
 				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
