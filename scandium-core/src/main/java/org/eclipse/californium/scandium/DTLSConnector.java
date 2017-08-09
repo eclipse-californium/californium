@@ -72,6 +72,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -208,7 +209,7 @@ public class DTLSConnector implements Connector {
 	private RawDataChannel messageHandler;
 	private ErrorHandler errorHandler;
 	private SessionListener sessionCacheSynchronization;
-	private StripedExecutorService executor;
+	private ExecutorService executor;
 	private boolean hasInternalExecutor;
 
 	/**
@@ -346,7 +347,13 @@ public class DTLSConnector implements Connector {
 			} else {
 				threadCount = config.getConnectionThreadCount();
 			}
-			executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));
+			if (threadCount == 1) {
+				// Scheduling Striped task is costly so if user require only 1 Thread, we use a simple SingleThreadExecutor
+				executor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+			} else {
+				executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));	
+			}
+			
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
