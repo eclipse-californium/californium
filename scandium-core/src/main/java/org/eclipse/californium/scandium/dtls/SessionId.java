@@ -15,6 +15,8 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add equals() & hashCode()
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add toString()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use toHex() for compact
+ *                                                    hex representation. 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -115,6 +117,6 @@ public final class SessionId {
 	 */
 	@Override
 	public String toString() {
-		return ByteArrayUtils.toHexString(id);
+		return ByteArrayUtils.toHex(id);
 	}
 }
