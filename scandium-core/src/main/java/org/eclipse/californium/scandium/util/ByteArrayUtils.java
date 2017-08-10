@@ -13,6 +13,8 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use faster toHexString
+ *                                                    implementation.
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
@@ -143,23 +145,21 @@ public class ByteArrayUtils {
 	/**
 	 * Takes a byte array and returns it HEX representation.
 	 * 
-	 * @param byteArray
-	 *            the byte array.
-	 * @return the HEX representation.
+	 * @param byteArray the byte array.
+	 * @return the HEX representation. Separated by spaces, e.g. "11 22 0A". if
+	 *         {@code null} or a empty array is provided, the result is "--".
 	 */
 	public static String toHexString(byte[] byteArray) {
 
 		if (byteArray != null && byteArray.length != 0) {
-
-			StringBuilder builder = new StringBuilder(byteArray.length * 3);
-			for (int i = 0; i < byteArray.length; i++) {
-				builder.append(String.format("%02X", 0xFF & byteArray[i]));
-
-				if (i < byteArray.length - 1) {
-					builder.append(' ');
-				}
+			char[] bytesHexadecimal = new char[byteArray.length * 3];
+			for (int src = 0, dest = 0; src < byteArray.length; src++) {
+				int value = byteArray[src] & 0xFF;
+				bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value >>> 4];
+				bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value & 0x0F];
+				bytesHexadecimal[dest++] = ' ';
 			}
-			return builder.toString();
+			return new String(bytesHexadecimal, 0, bytesHexadecimal.length - 1);
 		} else {
 			return "--";
 		}
@@ -202,4 +202,11 @@ public class ByteArrayUtils {
 		System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
 		return trimmedByteArray;
 	}
+	
+	/**
+	 * Lookup table for hexadecimal digits.
+	 * 
+	 * @see #toHexString(byte[])
+	 */
+	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 }
