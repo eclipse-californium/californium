@@ -19,6 +19,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check, if exchange is already
  *                                                    completed before report timeout.
  *                                                    Issue #103
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup exchange, if ongoing 
+ *                                                    blockwise transfer is interrupted
+ *                                                    by new notification.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -363,7 +366,13 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				if (response.getOptions().getObserve()>status.getObserve()) {
 					// log a warning, since this might cause a loop where no notification is ever assembled (when the server sends notifications faster than the blocks can be transmitted)
-					LOGGER.warning("Ongoing blockwise transfer reseted at num="+status.getCurrentNum()+" by new notification: "+response);
+					LOGGER.log(Level.WARNING, "Ongoing blockwise transfer reseted at num={0} by new notification: {1}", new Object[]{status.getCurrentNum(), response});
+					// cleanup current request
+					byte[] token = exchange.getRequest().getToken();
+					byte[] currentToken = exchange.getCurrentRequest().getToken();
+					if (!Arrays.equals(token, currentToken)) {
+						exchange.completeCurrentRequest();
+					}
 					// reset current status
 					exchange.setResponseBlockStatus(null);
 					// and create new status for fresher notification
