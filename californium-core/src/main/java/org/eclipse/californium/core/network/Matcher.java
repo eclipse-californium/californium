@@ -357,7 +357,7 @@ public class Matcher {
 			// we have received a Response matching the token of an ongoing Exchange's Request
 			// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
 			// message deduplication is relevant for CON and NON messages only
-			if ((response.getType() == CoAP.Type.CON || response.getType() == CoAP.Type.NON) &&
+			if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
 					deduplicator.findPrevious(idByMID, exchange) != null) {
 				LOGGER.info("Duplicate response for open exchange: "+response);
 				response.setDuplicate(true);
