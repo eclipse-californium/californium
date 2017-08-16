@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -71,6 +72,11 @@ public final class DtlsConnectorConfig {
 	 * Experimental feature : Stop retransmission at message receipt
 	 */
 	private Boolean earlyStopRetransmission;
+
+	/**
+	 * Enable to reuse the address.
+	 */
+	private Boolean enableReuseAddress;
 
 	/**
 	 * The maximum fragment length this connector can process at once.
@@ -167,6 +173,13 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean isEarlyStopRetransmission() {
 		return earlyStopRetransmission;
+	}
+
+	/**
+	 * @return true, if address reuse should be enabled for the socket. 
+	 */
+	public Boolean isAddressReuseEnabled() {
+		return enableReuseAddress;
 	}
 
 	/**
@@ -396,6 +409,15 @@ public final class DtlsConnectorConfig {
 			return this;
 		}
 
+		/**
+		 * Enables address reuse for the socket.
+		 * 
+		 * @return this builder for command chaining
+		 */
+		public Builder setEnableAddressReuse(boolean enable) {
+			config.enableReuseAddress = enable;
+			return this;
+		}
 
 		/**
 		 * Indicates that the <em>DTLSConnector</em> will only be used as a
@@ -810,6 +832,9 @@ public final class DtlsConnectorConfig {
 			// set default values
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
+			}
+			if (config.enableReuseAddress == null) {
+				config.enableReuseAddress = true;
 			}
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];

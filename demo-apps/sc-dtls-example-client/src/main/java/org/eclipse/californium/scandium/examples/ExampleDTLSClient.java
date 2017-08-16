@@ -13,18 +13,24 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multiple clients
+ *                                                    exchange multiple messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,9 +55,11 @@ public class ExampleDTLSClient {
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
+	private final CountDownLatch latch = new CountDownLatch(1000);
 	private DTLSConnector dtlsConnector;
+	private final AtomicLong count = new AtomicLong();
 
-	public ExampleDTLSClient(final CountDownLatch latch) {
+	public ExampleDTLSClient() {
 		InputStream inTrust = null;
 		InputStream in = null;
 		try {
@@ -72,17 +80,25 @@ public class ExampleDTLSClient {
 
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-			builder.setIdentity((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
+			builder.setIdentity((PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("client"), true);
 			builder.setTrustStore(trustedCertificates);
+			builder.setEnableAddressReuse(false);
+			builder.setConnectionThreadCount(2);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
-				
+
 				@Override
 				public void receiveData(RawData raw) {
-					LOG.log(Level.INFO, "Received response: {0}", new String(raw.getBytes()));
+					long c = count.incrementAndGet();
+					LOG.log(Level.INFO, "Received response: {0} {1}", new Object[] { new String(raw.getBytes()), c });
 					latch.countDown();
-					dtlsConnector.destroy();
+					if (0 < latch.getCount()) {
+						dtlsConnector
+								.send(new RawData(("HELLO WORLD " + c + ".").getBytes(), raw.getInetSocketAddress()));
+					} else {
+						dtlsConnector.destroy();
+					}
 				}
 			});
 
@@ -102,7 +118,7 @@ public class ExampleDTLSClient {
 		}
 	}
 
-	private void test(InetSocketAddress peer) {
+	private void start(InetSocketAddress peer) {
 		try {
 			dtlsConnector.start();
 			dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), peer));
@@ -111,15 +127,46 @@ public class ExampleDTLSClient {
 		}
 	}
 
-	public static void main(String[] args) throws InterruptedException {
-
-		final CountDownLatch latch = new CountDownLatch(1);
-		ExampleDTLSClient client = new ExampleDTLSClient(latch);
-		InetSocketAddress peer = new InetSocketAddress("localhost", DEFAULT_PORT);
-		if (args.length == 2) {
-			peer = new InetSocketAddress(args[0], Integer.parseInt(args[1]));
+	private long waitReady(long timeout, TimeUnit unit) {
+		try {
+			latch.await(timeout, unit);
+			dtlsConnector.destroy();
+		} catch (InterruptedException e) {
 		}
-		client.test(peer);
-		latch.await(5, TimeUnit.SECONDS);
+		return count.get();
+	}
+
+	public static ExampleDTLSClient startTest(String[] args) throws InterruptedException {
+
+		ExampleDTLSClient client = new ExampleDTLSClient();
+		InetSocketAddress peer;
+		if (args.length == 3) {
+			peer = new InetSocketAddress(args[1], Integer.parseInt(args[2]));
+		} else {
+			peer = new InetSocketAddress(InetAddress.getLoopbackAddress(), DEFAULT_PORT);
+		}
+		client.start(peer);
+		return client;
+	}
+
+	public static void main(String[] args) throws InterruptedException {
+		long count = 0;
+		long nanos = System.nanoTime();
+		int max = 1;
+		if (0 < args.length) {
+			max = Integer.parseInt(args[0]);
+		}
+		List<ExampleDTLSClient> clients = new ArrayList<>();
+		for (int index = 0; index < max; ++index) {
+			ExampleDTLSClient client = startTest(args);
+			clients.add(client);
+		}
+		for (ExampleDTLSClient client : clients) {
+			count += client.waitReady(100000, TimeUnit.SECONDS);
+		}
+
+		nanos = System.nanoTime() - nanos;
+		System.out.println(count + " messages in " + TimeUnit.NANOSECONDS.toMillis(nanos) + " ms");
+		System.out.println((count * 1000) / TimeUnit.NANOSECONDS.toMillis(nanos) + " messages per s");
 	}
 }
