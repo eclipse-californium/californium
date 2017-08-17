@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,6 +67,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
 	private SessionCache sessionCache;
+	private final ReentrantReadWriteLock conLock = new ReentrantReadWriteLock();
 
 	/**
 	 * Creates a store with a capacity of 500000 connections and
@@ -147,17 +149,21 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *         remaining capacity is zero and no stale connection can be evicted
 	 */
 	@Override
-	public synchronized boolean put(final Connection connection) {
-
-		if (connection != null) {
-			return connections.put(connection.getPeerAddress(), connection);
-		} else {
-			return false;
+	public boolean put(final Connection connection) {
+		try {
+			conLock.writeLock().lock();
+			if (connection != null) {
+				return connections.put(connection.getPeerAddress(), connection);
+			} else {
+				return false;
+			}
+		} finally {
+			conLock.writeLock().unlock();
 		}
 	}
 
 	@Override
-	public synchronized Connection find(final SessionId id) {
+	public Connection find(final SessionId id) {
 
 		if (id == null) {
 			return null;
@@ -165,87 +171,126 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			Connection conFromLocalCache = findLocally(id);
 
 			if (sessionCache == null) {
-
 				return conFromLocalCache;
-
 			} else {
-
-				// make sure a stale session cannot be resumed
-				SessionTicket ticket = sessionCache.get(id);
-				if (ticket == null) {
-					// either a session with the given ID has never been established (on other nodes)
-					// or another node has removed the session from the cache, e.g. because it became
-					// stale
-
-					if (conFromLocalCache != null) {
-						// remove corresponding connection from this store
-						remove(conFromLocalCache.getPeerAddress());
-						// TODO: should we send a fatal alert to peer in this case?
+				try {
+					conLock.writeLock().lock();
+					// make sure a stale session cannot be resumed
+					SessionTicket ticket = sessionCache.get(id);
+					if (ticket == null) {
+						// either a session with the given ID has never been established (on other nodes)
+						// or another node has removed the session from the cache, e.g. because it became
+						// stale
+	
+						if (conFromLocalCache != null) {
+							// remove corresponding connection from this store
+							remove(conFromLocalCache.getPeerAddress());
+							// TODO: should we send a fatal alert to peer in this case?
+						}
+	
+						return null;
+	
+					} else if (conFromLocalCache == null) {
+						// this probably means that we are taking over the session from a failed node
+							return new Connection(ticket);
+							// connection will be put to first level cache as part of
+							// the abbreviated handshake
+					} else {
+						// resume connection found in local cache (i.e. this store)
+						return conFromLocalCache;
 					}
-
-					return null;
-
-				} else if (conFromLocalCache == null) {
-					// this probably means that we are taking over the session from a failed node
-						return new Connection(ticket);
-						// connection will be put to first level cache as part of
-						// the abbreviated handshake
-				} else {
-					// resume connection found in local cache (i.e. this store)
-					return conFromLocalCache;
+				} finally {
+					conLock.writeLock().unlock();
 				}
 			}
 		}
 	}
 
-	private synchronized Connection findLocally(final SessionId id) {
-
-		return connections.find(new Predicate<Connection>() {
-			@Override
-			public boolean accept(final Connection connection) {
-				DTLSSession session = connection.getEstablishedSession();
-				return session != null && id.equals(session.getSessionIdentifier());
-			}
-		});
-	}
-
-	@Override
-	public synchronized void markAllAsResumptionRequired() {
-		for (Iterator<Connection> iterator = connections.values(); iterator.hasNext(); ) {
-			Connection c = iterator.next();
-			if (c != null){
-				c.setResumptionRequired(true);
-			}
+	private Connection findLocally(final SessionId id) {
+		try {
+			conLock.readLock().lock();
+			return connections.find(new Predicate<Connection>() {
+				@Override
+				public boolean accept(final Connection connection) {
+					DTLSSession session = connection.getEstablishedSession();
+					return session != null && id.equals(session.getSessionIdentifier());
+				}
+			});
+		} finally {
+			conLock.readLock().unlock();
 		}
 	}
 
 	@Override
-	public synchronized int remainingCapacity() {
-		return connections.remainingCapacity();
-	}
-
-	@Override
-	public synchronized Connection get(final InetSocketAddress peerAddress) {
-		return connections.get(peerAddress);
-	}
-
-	@Override
-	public synchronized Connection remove(final InetSocketAddress peerAddress) {
-		Connection removedConnection = connections.remove(peerAddress);
-		removeSessionFromCache(removedConnection);
-		return removedConnection;
-	}
-
-	private synchronized void removeSessionFromCache(final Connection connection) {
-		if (sessionCache != null && connection.hasEstablishedSession()) {
-			sessionCache.remove(connection.getEstablishedSession().getSessionIdentifier());
+	public void markAllAsResumptionRequired() {
+		try {
+			conLock.writeLock().lock();
+			for (Iterator<Connection> iterator = connections.values(); iterator.hasNext(); ) {
+				Connection c = iterator.next();
+				if (c != null){
+					c.setResumptionRequired(true);
+				}
+			}
+		} finally {
+			conLock.writeLock().unlock();
 		}
 	}
 
 	@Override
-	public final synchronized void clear() {
-		connections.clear();
-		// TODO: does it make sense to clear the SessionCache as well?
+	public int remainingCapacity() {
+		try {
+			conLock.readLock().lock();
+			return connections.remainingCapacity();
+		} finally {
+			conLock.readLock().unlock();
+		}
+		
+	}
+
+	@Override
+	public Connection get(final InetSocketAddress peerAddress) {
+		try {
+			conLock.readLock().lock();
+			return connections.get(peerAddress);
+		} finally {
+			conLock.readLock().unlock();
+		}
+	}
+
+	@Override
+	public Connection remove(final InetSocketAddress peerAddress) {
+		try {
+			conLock.writeLock().lock();
+			Connection removedConnection = connections.remove(peerAddress);
+			removeSessionFromCache(removedConnection);
+			return removedConnection;
+		} finally {
+			conLock.writeLock().unlock();
+		}
+	}
+
+	private void removeSessionFromCache(final Connection connection) {
+		if (sessionCache != null) {
+			try {
+				conLock.writeLock().lock();
+				if (connection.hasEstablishedSession()) {
+					sessionCache.remove(connection.getEstablishedSession().getSessionIdentifier());
+			}
+			} finally {
+				conLock.writeLock().unlock();
+			}	
+		}
+	}
+
+	@Override
+	public final void clear() {
+		try {
+			conLock.writeLock().lock();
+			connections.clear();
+			// TODO: does it make sense to clear the SessionCache as well?
+		} finally {
+			conLock.writeLock().unlock();
+		}
 	}
 
 	@Override
