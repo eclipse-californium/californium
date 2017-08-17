@@ -67,7 +67,6 @@ import java.net.NetworkInterface;
 import java.net.URI;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -81,10 +80,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -102,7 +97,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
-import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
@@ -175,11 +169,8 @@ public class DTLSConnector implements Connector {
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
-	// guard access to cookieMacKey
-	private Object cookieMacKeyLock = new Object();
-	// last time when the master key was generated
-	private long lastGenerationDate = System.currentTimeMillis();
-	private SecretKey cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
+	private CookieGenerator cookieGenerator = new CookieGenerator();
+	private Object errorHandleLock= new Object();
 
 	private DatagramSocket socket;
 
@@ -816,7 +807,7 @@ public class DTLSConnector implements Connector {
 				// non-fatal alerts do not require any special handling
 			}
 
-			synchronized (cookieMacKeyLock) {
+			synchronized (errorHandleLock) {
 				if (errorHandler != null) {
 					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
 				}
@@ -1085,12 +1076,17 @@ public class DTLSConnector implements Connector {
 		// verify client's ability to respond on given IP address
 		// by exchanging a cookie as described in section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-		byte[] expectedCookie = generateCookie(clientHello);
-		if (Arrays.equals(expectedCookie, clientHello.getCookie())) {
-			return true;
-		} else {
-			sendHelloVerify(clientHello, record, expectedCookie);
-			return false;
+		try {
+			byte[] expectedCookie = cookieGenerator.generateCookie(clientHello);
+			if (Arrays.equals(expectedCookie, clientHello.getCookie())) {
+				return true;
+			} else {
+				sendHelloVerify(clientHello, record, expectedCookie);
+				return false;
+			}
+		} catch (GeneralSecurityException e) {
+			throw new DtlsHandshakeException("Cannot compute cookie for peer", AlertDescription.INTERNAL_ERROR,
+					AlertLevel.FATAL, clientHello.getPeer(), e);
 		}
 	}
 
@@ -1206,60 +1202,6 @@ public class DTLSConnector implements Connector {
 			sendRecord(helloVerify);
 		} catch (IOException e) {
 			// already logged ...
-		}
-	}
-
-	private SecretKey getMacKeyForCookies() {
-		synchronized (cookieMacKeyLock) {
-			// if the last generation was more than 5 minute ago, let's generate
-			// a new key
-			if (System.currentTimeMillis() - lastGenerationDate > TimeUnit.MINUTES.toMillis(5)) {
-				cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
-				lastGenerationDate = System.currentTimeMillis();
-			}
-			return cookieMacKey;
-		}
-
-	}
-
-	/**
-	 * Generates a cookie in such a way that they can be verified without
-	 * retaining any per-client state on the server.
-	 * 
-	 * <pre>
-	 * Cookie = HMAC(Secret, Client - IP, Client - Parameters)
-	 * </pre>
-	 * 
-	 * as suggested <a
-	 * href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
-	 * 
-	 * @return the cookie generated from the client's parameters
-	 * @throws DtlsHandshakeException if the cookie cannot be computed
-	 */
-	private byte[] generateCookie(ClientHello clientHello) {
-
-		try {
-			// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-			Mac hmac = Mac.getInstance("HmacSHA256");
-			hmac.init(getMacKeyForCookies());
-			// Client-IP
-			hmac.update(clientHello.getPeer().toString().getBytes());
-
-			// Client-Parameters
-			hmac.update((byte) clientHello.getClientVersion().getMajor());
-			hmac.update((byte) clientHello.getClientVersion().getMinor());
-			hmac.update(clientHello.getRandom().getRandomBytes());
-			hmac.update(clientHello.getSessionId().getId());
-			hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-			hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-			return hmac.doFinal();
-		} catch (GeneralSecurityException e) {
-			throw new DtlsHandshakeException(
-					"Cannot compute cookie for peer",
-					AlertDescription.INTERNAL_ERROR,
-					AlertLevel.FATAL,
-					clientHello.getPeer(),
-					e);
 		}
 	}
 
@@ -1807,7 +1749,7 @@ public class DTLSConnector implements Connector {
 	 * @param errorHandler the handler to invoke
 	 */
 	public final void setErrorHandler(final ErrorHandler errorHandler) {
-		synchronized (cookieMacKeyLock) {
+		synchronized (errorHandleLock) {
 			this.errorHandler = errorHandler;
 		}
 	}
@@ -1816,14 +1758,6 @@ public class DTLSConnector implements Connector {
 		if (peerAddress != null) {
 			connectionStore.remove(peerAddress);
 		}
-	}
-
-	/** generate a random byte[] of length 32 **/
-	private static byte[] randomBytes() {
-		SecureRandom rng = new SecureRandom();
-		byte[] result = new byte[32];
-		rng.nextBytes(result);
-		return result;
 	}
 
 	private void handleExceptionDuringHandshake(Throwable cause, AlertLevel level, AlertDescription description, Record record) {
