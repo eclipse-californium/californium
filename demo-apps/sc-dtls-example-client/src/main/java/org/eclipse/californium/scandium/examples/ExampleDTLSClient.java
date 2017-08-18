@@ -54,8 +54,9 @@ public class ExampleDTLSClient {
 	private static final String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+	private static final int NB_MESSAGE = 1000;
 
-	private final CountDownLatch latch = new CountDownLatch(1000);
+	private static CountDownLatch latch;
 	private DTLSConnector dtlsConnector;
 	private final AtomicLong count = new AtomicLong();
 
@@ -92,11 +93,11 @@ public class ExampleDTLSClient {
 				public void receiveData(RawData raw) {
 					long c = count.incrementAndGet();
 					LOG.log(Level.INFO, "Received response: {0} {1}", new Object[] { new String(raw.getBytes()), c });
-					latch.countDown();
-					if (0 < latch.getCount()) {
+					if (c < NB_MESSAGE) {
 						dtlsConnector
 								.send(new RawData(("HELLO WORLD " + c + ".").getBytes(), raw.getInetSocketAddress()));
 					} else {
+						latch.countDown();
 						dtlsConnector.destroy();
 					}
 				}
@@ -118,55 +119,72 @@ public class ExampleDTLSClient {
 		}
 	}
 
-	private void start(InetSocketAddress peer) {
-		try {
-			dtlsConnector.start();
-			dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), peer));
-		} catch (IOException e) {
-			LOG.log(Level.SEVERE, "Cannot send message", e);
-		}
-	}
-
-	private long waitReady(long timeout, TimeUnit unit) {
-		try {
-			latch.await(timeout, unit);
-			dtlsConnector.destroy();
-		} catch (InterruptedException e) {
-		}
+	public long nbMessageReceived() {
 		return count.get();
 	}
 
-	public static ExampleDTLSClient startTest(String[] args) throws InterruptedException {
+	private void start() {
+		try {
+			dtlsConnector.start();
+		} catch (IOException e) {
+			LOG.log(Level.SEVERE, "Cannot start connector", e);
+		}
+	}
 
-		ExampleDTLSClient client = new ExampleDTLSClient();
+	private void startTest(InetSocketAddress peer) {
+		dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), peer));
+	}
+
+	private void stop() {
+		if (dtlsConnector.isRunning())
+			dtlsConnector.destroy();
+	}
+
+	public static void main(String[] args) throws InterruptedException {
+		int max = 1;
+		if (0 < args.length) {
+			max = Integer.parseInt(args[0]);
+		}
+		latch = new CountDownLatch(max);
+		List<ExampleDTLSClient> clients = new ArrayList<>(max);
+
+		// Create & start clients
+		for (int index = 0; index < max; ++index) {
+			ExampleDTLSClient client = new ExampleDTLSClient();
+			client.start();
+			clients.add(client);
+		}
+
+		// Get peer address
 		InetSocketAddress peer;
 		if (args.length == 3) {
 			peer = new InetSocketAddress(args[1], Integer.parseInt(args[2]));
 		} else {
 			peer = new InetSocketAddress(InetAddress.getLoopbackAddress(), DEFAULT_PORT);
 		}
-		client.start(peer);
-		return client;
-	}
 
-	public static void main(String[] args) throws InterruptedException {
-		long count = 0;
+		// Start Test
 		long nanos = System.nanoTime();
-		int max = 1;
-		if (0 < args.length) {
-			max = Integer.parseInt(args[0]);
-		}
-		List<ExampleDTLSClient> clients = new ArrayList<>();
-		for (int index = 0; index < max; ++index) {
-			ExampleDTLSClient client = startTest(args);
-			clients.add(client);
-		}
 		for (ExampleDTLSClient client : clients) {
-			count += client.waitReady(100000, TimeUnit.SECONDS);
+			client.startTest(peer);
 		}
 
+		// Wait for it
+		latch.await(max * 50, TimeUnit.MILLISECONDS);
 		nanos = System.nanoTime() - nanos;
+
+		// Count messages
+		long count = 0;
+		for (ExampleDTLSClient client : clients) {
+			count += client.nbMessageReceived();
+		}
+
+		System.out.println(count + " messages received, " + (max * NB_MESSAGE) + " expected");
 		System.out.println(count + " messages in " + TimeUnit.NANOSECONDS.toMillis(nanos) + " ms");
 		System.out.println((count * 1000) / TimeUnit.NANOSECONDS.toMillis(nanos) + " messages per s");
+
+		for (ExampleDTLSClient client : clients) {
+			client.stop();
+		}
 	}
 }
