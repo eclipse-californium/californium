@@ -27,6 +27,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup on cancel again :-).
  *                                                    complete exchange on 
  *                                                    cancelObserve.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for observe option
+ *                                                    in response, before lookup
+ *                                                    for observes
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -160,56 +163,58 @@ public abstract class BaseMatcher implements Matcher {
 	 */
 	protected final Exchange matchNotifyResponse(final Response response, final CorrelationContext responseContext) {
 
-		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = null;
+		if (response.getOptions().hasObserve()) {
+			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 
-		final Observation obs = observationStore.get(response.getToken());
-		if (obs != null) {
-			// there is an observation for the token from the response
-			// re-create a corresponding Exchange object for it so
-			// that the "upper" layers can correctly process the notification
-			// response
-			final Request request = obs.getRequest();
-			request.setDestination(response.getSource());
-			request.setDestinationPort(response.getSourcePort());
-			exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
-			exchange.setRequest(request);
-			LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
-			request.addMessageObserver(new MessageObserverAdapter() {
+			final Observation obs = observationStore.get(response.getToken());
+			if (obs != null) {
+				// there is an observation for the token from the response
+				// re-create a corresponding Exchange object for it so
+				// that the "upper" layers can correctly process the
+				// notification
+				// response
+				final Request request = obs.getRequest();
+				request.setDestination(response.getSource());
+				request.setDestinationPort(response.getSourcePort());
+				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
+				exchange.setRequest(request);
+				LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
+				request.addMessageObserver(new MessageObserverAdapter() {
 
-				@Override
-				public void onResponse(Response resp) {
-					// check whether the client has established the observe
-					// requested
-					if (!resp.getOptions().hasObserve()) {
-						// Observe response received with no observe option
-						// set. It could be that the Client was not able to
-						// establish the observe. So remove the observe
-						// relation from observation store, which was stored
-						// earlier when the request was sent.
-						LOG.log(Level.FINE,
-								"Response to observe request with token {0} does not contain observe option, removing request from observation store",
-								idByToken);
+					@Override
+					public void onResponse(Response resp) {
+						// check whether the client has established the observe
+						// requested
+						if (!resp.getOptions().hasObserve()) {
+							// Observe response received with no observe option
+							// set. It could be that the Client was not able to
+							// establish the observe. So remove the observe
+							// relation from observation store, which was stored
+							// earlier when the request was sent.
+							LOG.log(Level.FINE,
+									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
+									idByToken);
+							observationStore.remove(request.getToken());
+							exchangeStore.releaseToken(idByToken);
+						} else {
+							notificationListener.onNotification(request, resp);
+						}
+					}
+
+					@Override
+					public void onCancel() {
+						failed();
+					}
+
+					@Override
+					protected void failed() {
 						observationStore.remove(request.getToken());
 						exchangeStore.releaseToken(idByToken);
-					} else {
-						notificationListener.onNotification(request, resp);
 					}
-				}
-
-				@Override
-				public void onCancel() {
-					failed();
-				}
-
-				@Override
-				protected void failed() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-			});
+				});
+			}
 		}
-
 		return exchange;
 	}
 
