@@ -174,6 +174,7 @@ public class ObserveClientSideTest {
 
 		Response notification1 = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(notification1, respPayload);
+		notificationListener.log();
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 	}
 
