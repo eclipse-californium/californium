@@ -21,6 +21,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use nanoTime instead of 
  *                                                    currentTimeMillis
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use timestamp of add for deduplication 
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -50,8 +51,33 @@ public final class SweepDeduplicator implements Deduplicator {
 
 	private final static Logger LOGGER = Logger.getLogger(SweepDeduplicator.class.getName());
 
+	/**
+	 * Add timestamp for deduplication to Exchange.
+	 */
+	private static class DedupExchange {
+
+		/**
+		 * Nano-timestamp for deduplication of Exchange.
+		 */
+		public final long nanoTimestamp;
+		/**
+		 * Exchange to be deduplicated.
+		 */
+		public final Exchange exchange;
+
+		/**
+		 * Create new exchange for deduplication.
+		 * 
+		 * @param exchange Exchange to be deduplicated
+		 */
+		public DedupExchange(Exchange exchange) {
+			this.exchange = exchange;
+			this.nanoTimestamp = System.nanoTime();
+		}
+	}
+	
 	/** The hash map with all incoming messages. */
-	private final ConcurrentMap<KeyMID, Exchange> incomingMessages = new ConcurrentHashMap<>();
+	private final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
 	private final SweepAlgorithm algorithm;
 	private ScheduledExecutorService scheduler;
 	private boolean running = false;
@@ -105,12 +131,14 @@ public final class SweepDeduplicator implements Deduplicator {
 	 */
 	@Override
 	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
-		return incomingMessages.putIfAbsent(key, exchange);
+		DedupExchange previous = incomingMessages.putIfAbsent(key, new DedupExchange(exchange));
+		return null == previous ? null : previous.exchange;
 	}
 
 	@Override
 	public Exchange find(KeyMID key) {
-		return incomingMessages.get(key);
+		DedupExchange previous = incomingMessages.get(key);
+		return null == previous ? null : previous.exchange;
 	}
 
 	@Override
@@ -172,9 +200,9 @@ public final class SweepDeduplicator implements Deduplicator {
 			final long oldestAllowed = start - TimeUnit.MILLISECONDS.toNanos(exchangeLifetime);
 
 			// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
-			for (Map.Entry<?, Exchange> entry : incomingMessages.entrySet()) {
-				Exchange exchange = entry.getValue();
-				if (exchange.getNanoTimestamp() < oldestAllowed) {
+			for (Map.Entry<?, DedupExchange> entry : incomingMessages.entrySet()) {
+				DedupExchange exchange = entry.getValue();
+				if (exchange.nanoTimestamp < oldestAllowed) {
 					//TODO check if exchange of observe relationship is periodically created and sweeped
 					LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
 					incomingMessages.remove(entry.getKey());
