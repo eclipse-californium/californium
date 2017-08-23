@@ -56,6 +56,7 @@
  *                                                    handleTimeout,
  *                                                    and add error callback in
  *                                                    newDeferredMessageSender.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet. 
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -393,11 +394,16 @@ public class DTLSConnector implements Connector {
 			};
 
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
-				@Override
-				public void doWork() throws Exception {
-					receiveNextDatagramFromNetwork();
-				}
-			};
+
+			private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
+			private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
+
+			@Override
+			public void doWork() throws Exception {
+				packet.setData(receiverBuffer);
+				receiveNextDatagramFromNetwork(packet);
+			}
+		};
 
 		receiver.start();
 		sender.start();
@@ -489,10 +495,8 @@ public class DTLSConnector implements Connector {
 		connectionStore.clear();
 	}
 
-	private void receiveNextDatagramFromNetwork() throws IOException {
+	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
-		byte[] buffer = new byte[inboundDatagramBufferSize];
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		DatagramSocket socket = getSocket();
 		if (socket == null) {
 			// very unlikely race condition.
