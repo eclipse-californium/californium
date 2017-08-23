@@ -69,6 +69,8 @@ public class NetworkConfig {
 		public static final String EXCHANGE_LIFETIME = "EXCHANGE_LIFETIME";
 		public static final String NON_LIFETIME = "NON_LIFETIME";
 		public static final String MAX_TRANSMIT_WAIT = "MAX_TRANSMIT_WAIT";
+		public static final String MAX_LATENCY = "MAX_LATENCY";
+		public static final String MAX_SERVER_RESPONSE_DELAY = "MAX_SERVER_RESPONSE_DELAY";
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";

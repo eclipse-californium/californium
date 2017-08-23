@@ -81,6 +81,7 @@ public class Matcher {
 	/* Health status output */
 	private final Level healthStatusLevel;
 	private final int healthStatusInterval; // seconds
+	private final int multicastMaxLifetime; // ms
 	
 	public Matcher(NetworkConfig config) {
 		this.started = false;
@@ -104,6 +105,9 @@ public class Matcher {
 		
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+		multicastMaxLifetime = config.getInt(NetworkConfig.Keys.NON_LIFETIME) 
+				+ config.getInt(NetworkConfig.Keys.MAX_LATENCY) 
+				+ config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
 	}
 	
 	public synchronized void start() {
@@ -139,7 +143,7 @@ public class Matcher {
 		// health status runnable is not migrated at the moment
 	}
 	
-	public void sendRequest(Exchange exchange, Request request) {
+	public void sendRequest(final Exchange exchange, Request request) {
 		
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
@@ -173,6 +177,19 @@ public class Matcher {
 		
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
+		
+		if(request.isMulticast()) {
+			executor.schedule(new Runnable() {
+				@Override
+				public void run() {
+						if(exchange.getResponse() == null)
+						{
+						    exchange.getCurrentRequest().setCanceled(true);
+						}
+						exchange.setComplete();
+					}
+				}, multicastMaxLifetime, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	public void sendResponse(Exchange exchange, Response response) {
