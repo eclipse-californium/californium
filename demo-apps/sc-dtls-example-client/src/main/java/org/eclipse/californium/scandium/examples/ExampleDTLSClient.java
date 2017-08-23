@@ -15,6 +15,7 @@
  *    Stefan Jucker - DTLS implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multiple clients
  *                                                    exchange multiple messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add client statistics
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
@@ -27,11 +28,13 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,7 +65,8 @@ public class ExampleDTLSClient {
 	private static CountDownLatch messageCounter;
 
 	private DTLSConnector dtlsConnector;
-
+	private AtomicInteger clientMessageCounter = new AtomicInteger();
+	
 	public ExampleDTLSClient() {
 		InputStream inTrust = null;
 		InputStream in = null;
@@ -124,6 +128,7 @@ public class ExampleDTLSClient {
 			LOG.log(Level.INFO, "Received response: {0} {1}", new Object[] { new String(raw.getBytes()), c });
 		}
 		if (0 < c) {
+			clientMessageCounter.incrementAndGet();
 			try {
 				dtlsConnector.send(new RawData(("HELLO WORLD " + c + ".").getBytes(), raw.getInetSocketAddress()));
 			} catch (IllegalStateException e) {
@@ -147,10 +152,11 @@ public class ExampleDTLSClient {
 		dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), peer));
 	}
 
-	private void stop() {
+	private int stop() {
 		if (dtlsConnector.isRunning()) {
 			dtlsConnector.destroy();
 		}
+		return clientMessageCounter.get();
 	}
 
 	public static void main(String[] args) throws InterruptedException {
@@ -219,9 +225,11 @@ public class ExampleDTLSClient {
 		nanos = System.nanoTime() - nanos;
 
 		System.out.println(clients + " DTLS example clients finished.");
-
-		for (ExampleDTLSClient client : clientList) {
-			client.stop();
+		
+		int statistic[] = new int[clients];
+		for (int index = 0; index < clients; ++index) {
+			ExampleDTLSClient client = clientList.get(index);
+			statistic[index] = client.stop();
 		}
 
 		System.out.println(count + " messages received, " + (maxMessages) + " expected");
@@ -229,6 +237,23 @@ public class ExampleDTLSClient {
 		System.out.println((count * 1000) / TimeUnit.NANOSECONDS.toMillis(nanos) + " messages per s");
 		if (count < maxMessages) {
 			System.out.println("Stale at " + lastMessageCountDown + " messages");
+		}
+		if (1 < clients) {
+			Arrays.sort(statistic);
+			int grouped = 10;
+			int last = 0;
+			for (int index = 1; index < clients; ++index) {
+				if ((statistic[index] / grouped) > (statistic[last] / grouped)) {
+					if (statistic[index-1] == statistic[last]) {
+						System.out.println((index - last) + " clients with " + statistic[last] + " messages.");
+					}
+					else {
+						System.out.println((index - last) + " clients with " + statistic[last] + " to " + statistic[index-1] + " messages.");
+					}
+					last = index;
+				}
+			}
+			System.out.println((clients - last) + " clients with " + statistic[last] + " to " + statistic[clients-1] + " messages.");
 		}
 	}
 }
