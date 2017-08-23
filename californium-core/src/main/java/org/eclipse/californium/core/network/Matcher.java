@@ -81,6 +81,7 @@ public class Matcher {
 	/* Health status output */
 	private final Level healthStatusLevel;
 	private final int healthStatusInterval; // seconds
+	private final int multicastMaxLifetime; // ms
 	
 	public Matcher(NetworkConfig config) {
 		this.started = false;
@@ -104,6 +105,9 @@ public class Matcher {
 		
 		healthStatusLevel = Level.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL));
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+		multicastMaxLifetime = config.getInt(NetworkConfig.Keys.NON_LIFETIME) 
+				+ config.getInt(NetworkConfig.Keys.MAX_LATENCY) 
+				+ config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
 	}
 	
 	public synchronized void start() {
@@ -139,7 +143,7 @@ public class Matcher {
 		// health status runnable is not migrated at the moment
 	}
 	
-	public void sendRequest(Exchange exchange, Request request) {
+	public void sendRequest(final Exchange exchange, Request request) {
 		
 		// ensure MID is set
 		if (request.getMID() == Message.NONE) {
@@ -173,6 +177,16 @@ public class Matcher {
 		
 		exchangesByMID.put(idByMID, exchange);
 		exchangesByToken.put(idByToken, exchange);
+		
+		if(request.isMulticast()) {
+			executor.schedule(new Runnable() {
+				@Override
+				public void run() {
+					exchange.getCurrentRequest().setTimedOut(true);
+					exchange.setTimedOut();
+					}
+				}, multicastMaxLifetime, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	public void sendResponse(Exchange exchange, Response response) {
@@ -353,18 +367,24 @@ public class Matcher {
 				// See issue #275
 				return null;
 			}
-
-			// we have received a Response matching the token of an ongoing Exchange's Request
-			// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
-			// message deduplication is relevant for CON and NON messages only
-			if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
-					deduplicator.findPrevious(idByMID, exchange) != null) {
-				LOGGER.info("Duplicate response for open exchange: "+response);
-				response.setDuplicate(true);
-			} else {
-				idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
-				exchangesByMID.remove(idByMID, exchange);
-				if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
+			
+			if (exchange.getCurrentRequest().isMulticast()) {
+			    // keep exchange open because we might receive additional responses
+			    LOGGER.log(Level.FINER, "Received response for multicast request: {0}", response);
+			}
+			else {
+				// we have received a Response matching the token of an ongoing Exchange's Request
+				// according to the CoAP spec (https://tools.ietf.org/html/rfc7252#section-4.5),
+				// message deduplication is relevant for CON and NON messages only
+				if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
+						deduplicator.findPrevious(idByMID, exchange) != null) {
+					LOGGER.info("Duplicate response for open exchange: "+response);
+					response.setDuplicate(true);
+				} else {
+					idByMID = new KeyMID(exchange.getCurrentRequest().getMID(), null, 0);
+					exchangesByMID.remove(idByMID, exchange);
+					if (LOGGER.isLoggable(Level.FINE)) LOGGER.fine("Closed open request with "+idByMID);
+				}
 			}
 			
 			return exchange;

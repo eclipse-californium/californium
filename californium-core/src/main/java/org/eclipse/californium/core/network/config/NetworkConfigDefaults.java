@@ -47,6 +47,8 @@ public class NetworkConfigDefaults {
 		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247 * 1000); // ms
 		config.setLong(NetworkConfig.Keys.NON_LIFETIME, 145 * 1000); // ms
 		config.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 93 * 1000);
+		config.setInt(NetworkConfig.Keys.MAX_LATENCY, 100 * 1000); //ms
+		config.setInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
 		config.setInt(NetworkConfig.Keys.NSTART, 1);
 		config.setInt(NetworkConfig.Keys.LEISURE, 5000);
 		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
