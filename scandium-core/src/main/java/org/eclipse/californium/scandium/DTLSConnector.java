@@ -180,6 +180,8 @@ public class DTLSConnector implements Connector {
 
 	/** The thread that receives messages */
 	private Worker receiver;
+	private byte[] receiverBuffer;
+	
 
 	/** The thread that sends messages */
 	private Worker sender;
@@ -392,6 +394,7 @@ public class DTLSConnector implements Connector {
 				}
 			};
 
+		receiverBuffer = new byte[inboundDatagramBufferSize];
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
 				@Override
 				public void doWork() throws Exception {
@@ -491,8 +494,8 @@ public class DTLSConnector implements Connector {
 
 	private void receiveNextDatagramFromNetwork() throws IOException {
 
-		byte[] buffer = new byte[inboundDatagramBufferSize];
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+		
+		DatagramPacket packet = new DatagramPacket(receiverBuffer, receiverBuffer.length);
 		DatagramSocket socket = getSocket();
 		if (socket == null) {
 			// very unlikely race condition.
