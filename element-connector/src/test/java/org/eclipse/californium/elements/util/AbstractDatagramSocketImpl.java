@@ -12,11 +12,17 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move "peekData" into actual
+ *                                                    DatagramSocketImpl implementation
+ *                                                    to prevent the DatagramSocket to
+ *                                                    use the erroneous internal
+ *                                                    "old implementation mode".
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.DatagramSocketImpl;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -28,13 +34,19 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Implementation for simple basic methods.
  * 
- * Intended to be extended by an implementation for
- * "in process message exchange". Throws IOException with message containing
- * "not supported" on {@link #peek(InetAddress)},
- * {@link #peekData(DatagramPacket)}, {@link #setTTL(byte)}, {@link #getTTL()},
+ * Intended to be extended by an implementation for "in process message
+ * exchange". Throws IOException with message containing "not supported" on
+ * {@link #peek(InetAddress)}, {@link #setTTL(byte)}, {@link #getTTL()},
  * {@link #join(InetAddress)}, {@link #leave(InetAddress)},
  * {@link #joinGroup(SocketAddress, NetworkInterface)}, and
- * {@link #leaveGroup(SocketAddress, NetworkInterface)}
+ * {@link #leaveGroup(SocketAddress, NetworkInterface)}.
+ * 
+ * The method {@link DatagramSocketImpl#peekData(DatagramPacket)} is not
+ * overridden here, because this method must be declared in the actual
+ * implementation of {@link DatagramSocketImpl}. Otherwise the
+ * {@code DatagramSocket} would use the internal "old implementation mode",
+ * which has an error in {@link DatagramSocket#getReuseAddress()}
+ * (ClassCastException).
  */
 public abstract class AbstractDatagramSocketImpl extends DatagramSocketImpl {
 
@@ -70,11 +82,6 @@ public abstract class AbstractDatagramSocketImpl extends DatagramSocketImpl {
 	@Override
 	protected int peek(InetAddress i) throws IOException {
 		throw new IOException("peek(InetAddress) not supported!");
-	}
-
-	@Override
-	protected int peekData(DatagramPacket p) throws IOException {
-		throw new IOException("peekData(DatagramPacket) not supported!");
 	}
 
 	@Override
