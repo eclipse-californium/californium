@@ -17,6 +17,7 @@
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Set;
@@ -76,13 +77,14 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 	}
 
 	private KeyToken createUnusedToken(final Message message) {
-		byte[] address = message.getDestination().getAddress();
+		InetSocketAddress socketAddress = message.getDestinationContext().getPeerAddress();
+		byte[] address = socketAddress.getAddress().getAddress();
 		byte[] token = new byte[tokenSizeLimit];
 		KeyToken result;
 		// TODO what to do when there are no more unused tokens left?
 		do {
 			rng.nextBytes(token);
-			result =  KeyToken.fromValues(token, address, message.getDestinationPort());
+			result =  KeyToken.fromValues(token, address, socketAddress.getPort());
 		} while (!usedTokens.add(result));
 		return result;
 	}

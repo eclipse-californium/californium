@@ -18,34 +18,40 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetSocketAddress;
+
+import static org.eclipse.californium.elements.EndpointContextBuilder.createTcpEndpointContext;
+
 import org.junit.Before;
 import org.junit.Test;
 
-public class TcpCorrelationContextMatcherTest {
+public class TcpEndpointContextMatcherTest {
 
-	private CorrelationContext connectorContext;
-	private CorrelationContext messageContext;
-	private CorrelationContext differentMessageContext;
-	private CorrelationContextMatcher matcher;
+	private EndpointContext addressContext;
+	private EndpointContext connectorContext;
+	private EndpointContext messageContext;
+	private EndpointContext differentMessageContext;
+	private EndpointContextMatcher matcher;
 
 	@Before
 	public void setup() {
-		connectorContext = new TcpCorrelationContext("ID1");
-		messageContext = new TcpCorrelationContext("ID1");
-		differentMessageContext = new TcpCorrelationContext("ID2");
-		matcher = new TcpCorrelationContextMatcher();
+		addressContext = new AddressEndpointContext(new InetSocketAddress(0));
+		connectorContext = createTcpEndpointContext("ID1");
+		messageContext = createTcpEndpointContext("ID1");
+		differentMessageContext = createTcpEndpointContext("ID2");
+		matcher = new TcpEndpointContextMatcher();
 	}
 
 	@Test
-	public void testWithConnectorCorrelationContext() {
-		assertThat(matcher.isToBeSent(null, connectorContext), is(true));
+	public void testWithConnectionEndpointContext() {
+		assertThat(matcher.isToBeSent(addressContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(messageContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(differentMessageContext, connectorContext), is(false));
 	}
 
 	@Test
-	public void testWithoutConnectorCorrelationContext() {
-		assertThat(matcher.isToBeSent(null, null), is(true));
+	public void testWithoutConnectionEndpointContext() {
+		assertThat(matcher.isToBeSent(addressContext, null), is(true));
 		assertThat(matcher.isToBeSent(messageContext, null), is(false));
 		assertThat(matcher.isToBeSent(differentMessageContext, null), is(false));
 	}

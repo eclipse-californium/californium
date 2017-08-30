@@ -31,10 +31,11 @@ import java.security.GeneralSecurityException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.TestEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
@@ -106,111 +107,111 @@ public class DTLSCorrelationTest {
 	}
 
 	/**
-	 * Test invoking of CorrelationContextMatcher on initial send. The
-	 * CorrelationContextMatcher is called once and block the sending.
+	 * Test invoking of EndpointContextMatcher on initial send. The
+	 * EndpointContextMatcher is called once and block the sending.
 	 */
 	@Test
-	public void testInitialSendingBlockedInvokesCorrelationContextMatcher() throws Exception {
-		// GIVEN a CorrelationContextMatcher, blocking
+	public void testInitialSendingBlockedInvokesEndpointContextMatcher() throws Exception {
+		// GIVEN a EndpointContextMatcher, blocking
 		SimpleMessageCallback callback = new SimpleMessageCallback();
-		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(1);
-		client.setCorrelationContextMatcher(correlationMatcher);
+		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(0, 0);
+		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a message to send
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, callback,
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), callback,
 				false);
 
 		// WHEN sending the initial message, but being blocked by
-		// CorrelationContextMatcher
+		// EndpointContextMatcher
 		CountDownLatch latch = new CountDownLatch(1);
 		givenAStartedSession(outboundMessage, latch);
 
 		// THEN assert that no session is established.
 		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
-		// THEN assert that the CorrelationContextMatcher is invoked once
-		assertThat(correlationMatcher.getConnectionCorrelationContext(0), is(nullValue()));
+		// THEN assert that the EndpointContextMatcher is invoked once
+		assertThat(endpointMatcher.getConnectionEndpointContext(0), is(nullValue()));
 
 		// THEN assert that onError is invoked
 		assertThat(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
 	}
 
 	/**
-	 * Test invoking of CorrelationContextMatcher on initial send. The
-	 * CorrelationContextMatcher is called twice, first without a connector
+	 * Test invoking of EndpointContextMatcher on initial send. The
+	 * EndpointContextMatcher is called twice, first without a connector
 	 * context and a second time after the DTLS session was established.
 	 */
 	@Test
-	public void testInitialSendingInvokesCorrelationContextMatcher() throws Exception {
-		// GIVEN a CorrelationContextMatcher
-		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(3);
-		client.setCorrelationContextMatcher(correlationMatcher);
+	public void testInitialSendingInvokesEndpointContextMatcher() throws Exception {
+		// GIVEN a EndpointContextMatcher
+		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(0, 2);
+		client.setEndpointContextMatcher(endpointMatcher);
 
 		// WHEN sending the initial message
 		serverHelper.givenAnEstablishedSession(client, true);
 
-		// THEN assert that the CorrelationContextMatcher is invoked
-		assertThat(correlationMatcher.getConnectionCorrelationContext(0), is(nullValue()));
-		assertThat(correlationMatcher.getConnectionCorrelationContext(1), is(notNullValue()));
+		// THEN assert that the EndpointContextMatcher is invoked
+		assertThat(endpointMatcher.getConnectionEndpointContext(0), is(nullValue()));
+		assertThat(endpointMatcher.getConnectionEndpointContext(1), is(notNullValue()));
 	}
 
 	/**
-	 * Test invoking of CorrelationContextMatcher when sending with already
+	 * Test invoking of EndpointContextMatcher when sending with already
 	 * established DTLS Session.
 	 */
 	@Test
-	public void testSendingInvokesCorrelationContextMatcher() throws Exception {
+	public void testSendingInvokesEndpointContextMatcher() throws Exception {
 
-		// GIVEN a CorrelationContextMatcher
-		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(3);
-		client.setCorrelationContextMatcher(correlationMatcher);
+		// GIVEN a EndpointContextMatcher
+		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(0, 3);
+		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
 		serverHelper.givenAnEstablishedSession(client, false);
 
-		CorrelationContext correlationContext = correlationMatcher.getConnectionCorrelationContext(1);
+		EndpointContext endpointContext = endpointMatcher.getConnectionEndpointContext(1);
 
-		// GIVEN a message with correlation context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, correlationContext,
+		// GIVEN a message with endpoint context
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext,
 				null, false);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
 
-		// THEN assert that the CorrelationContextMatcher is invoked
-		correlationMatcher.await();
-		assertThat(correlationMatcher.getConnectionCorrelationContext(2), is(correlationContext));
-		assertThat(correlationMatcher.getMessageCorrelationContext(2), is(correlationContext));
+		// THEN assert that the EndpointContextMatcher is invoked
+		endpointMatcher.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(endpointContext));
+		assertThat(endpointMatcher.getMessageEndpointContext(2), is(endpointContext));
 	}
 
 	/**
-	 * Test invoking of CorrelationContextMatcher when sending with resuming
+	 * Test invoking of EndpointContextMatcher when sending with resuming
 	 * DTLS Session.
 	 */
 	@Test
-	public void testSendingWhileResumingInvokesCorrelationContextMatcher() throws Exception {
+	public void testSendingWhileResumingInvokesEndpointContextMatcher() throws Exception {
 
-		// GIVEN a CorrelationContextMatcher
-		TestCorrelationContextMatcher correlationMatcher = new TestCorrelationContextMatcher(3);
-		client.setCorrelationContextMatcher(correlationMatcher);
+		// GIVEN a EndpointContextMatcher
+		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(0, 3);
+		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
 		serverHelper.givenAnEstablishedSession(client, false);
 
 		client.forceResumeAllSessions();
 
-		// GIVEN a message with correlation context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, null, false);
+		// GIVEN a message with endpoint context
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
 
-		// THEN assert that the CorrelationContextMatcher is invoked
-		correlationMatcher.await();
-		assertThat(correlationMatcher.getConnectionCorrelationContext(2), is(notNullValue()));
+		// THEN assert that the EndpointContextMatcher is invoked
+		endpointMatcher.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(notNullValue()));
 	}
 
 	@Test
-	public void testConnectorAddsCorrelationContextToReceivedApplicationMessage() throws Exception {
+	public void testConnectorAddsEndpointContextToReceivedApplicationMessage() throws Exception {
 		// GIVEN a message to be sent to the server
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// WHEN a session has been established and the message has been sent to
 		// the server
@@ -220,9 +221,9 @@ public class DTLSCorrelationTest {
 		
 		assertThat(serverHelper.serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
 		// THEN assert that the message delivered to the server side application layer
-		// contains a correlation context containing the established session's ID, epoch and cipher
-		DtlsCorrelationContext context = (DtlsCorrelationContext) serverHelper.serverRawDataProcessor
-				.getLatestInboundMessage().getCorrelationContext();
+		// contains a endpoint context containing the established session's ID, epoch and cipher
+		DtlsEndpointContext context = (DtlsEndpointContext) serverHelper.serverRawDataProcessor
+				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
 		assertThat(context.getSessionId(), is(establishedClientSession.getSessionIdentifier().toString()));
 		assertThat(context.getEpoch(), is(String.valueOf(establishedClientSession.getReadEpoch())));
@@ -244,59 +245,4 @@ public class DTLSCorrelationTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 	}
-
-	private static class TestCorrelationContextMatcher implements CorrelationContextMatcher {
-
-		private final int count;
-		private final CountDownLatch latchSendMatcher;
-		private final CorrelationContext[] messageContexts;
-		private final CorrelationContext[] connectorContexts;
-		private int current;
-
-		public TestCorrelationContextMatcher(int count) {
-			this.count = count;
-			this.latchSendMatcher = new CountDownLatch(count);
-			this.messageContexts = new CorrelationContext[count + 1];
-			this.connectorContexts = new CorrelationContext[count + 1];
-		}
-
-		public synchronized CorrelationContext getMessageCorrelationContext(final int index) {
-			if (index > current) {
-				throw new IllegalArgumentException("Index  " + index + " is not reached! Current " + current);
-			}
-			return messageContexts[index];
-		}
-
-		public synchronized CorrelationContext getConnectionCorrelationContext(final int index) {
-			if (index > current) {
-				throw new IllegalArgumentException("Index  " + index + " is not reached! Current " + current);
-			}
-			return connectorContexts[index];
-		}
-
-		@Override
-		public String getName() {
-			return "test-only";
-		}
-
-		@Override
-		public boolean isResponseRelatedToRequest(CorrelationContext requestContext,
-				CorrelationContext responseContext) {
-			return false;
-		}
-
-		@Override
-		public synchronized boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
-			current = count - (int) latchSendMatcher.getCount();
-			messageContexts[current] = messageContext;
-			connectorContexts[current] = connectorContext;
-			latchSendMatcher.countDown();
-			return current < count;
-		}
-
-		public void await() throws InterruptedException {
-			latchSendMatcher.await();
-		}
-
-	};
 }

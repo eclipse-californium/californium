@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.Utils;
@@ -129,7 +130,8 @@ public final class KeyUri {
 		} else if (requestUri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else {
-			return new KeyUri(requestUri, response.getOptions(), response.getSource().getAddress(), response.getSourcePort());
+			InetSocketAddress address = response.getSourceContext().getPeerAddress();
+			return new KeyUri(requestUri, response.getOptions(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -147,7 +149,8 @@ public final class KeyUri {
 		} else if (requestUri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else {
-			return new KeyUri(requestUri, response.getOptions(), response.getDestination().getAddress(), response.getDestinationPort());
+			InetSocketAddress address = response.getDestinationContext().getPeerAddress();
+			return new KeyUri(requestUri, response.getOptions(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -162,7 +165,8 @@ public final class KeyUri {
 		if (request == null) {
 			throw new NullPointerException("request must not be null");
 		} else {
-			return new KeyUri(request.getURI(), request.getOptions(), request.getSource().getAddress(), request.getSourcePort());
+			InetSocketAddress address = request.getSourceContext().getPeerAddress();
+			return new KeyUri(request.getURI(), request.getOptions(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -177,7 +181,8 @@ public final class KeyUri {
 		if (request == null) {
 			throw new NullPointerException("request must not be null");
 		} else {
-			return new KeyUri(request.getURI(), request.getOptions(), request.getDestination().getAddress(), request.getDestinationPort());
+			InetSocketAddress address = request.getDestinationContext().getPeerAddress();
+			return new KeyUri(request.getURI(), request.getOptions(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 }

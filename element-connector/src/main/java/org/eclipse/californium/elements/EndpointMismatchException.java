@@ -13,21 +13,23 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  *                                      (GitHub issue #305)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext 
+ *                                                    to EndpointContext.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * Exception indicating, that the correlation context doesn't match for some
+ * Exception indicating, that the endpoint context doesn't match for some
  * reason.
  */
-public class CorrelationMismatchException extends Exception {
+public class EndpointMismatchException extends Exception {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Create new instance.
 	 */
-	public CorrelationMismatchException() {
+	public EndpointMismatchException() {
 
 	}
 
@@ -36,7 +38,7 @@ public class CorrelationMismatchException extends Exception {
 	 * 
 	 * @param message message
 	 */
-	public CorrelationMismatchException(String message) {
+	public EndpointMismatchException(String message) {
 		super(message);
 	}
 }

@@ -23,6 +23,8 @@
  *                                                    DEFAULT_EXCHANGE_LIFETIME
  *    Achim Kraus (Bosch Software Innovations GmbH) - increase DEFAULT_MAX_RESOURCE_BODY_SIZE
  *                                                    to 8192.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
+ *                                                    by DTLS_RESPONSE_MATCHING
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -85,6 +87,15 @@ public class NetworkConfigDefaults {
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
 
+	/**
+	 * The default DTLS response matcher.
+	 * 
+	 * Supported values are {@code STRICT}, {@code RELAXED}, or {@code PRINCIPAL}.
+	 * <p>
+	 * The default value is {@code STRICT}.
+	 */
+	public static final String DEFAULT_DTLS_RESPONSE_MATCHING = "STRICT";
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -143,7 +154,7 @@ public class NetworkConfigDefaults {
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
 		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
-		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, false);
+		config.setString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING, DEFAULT_DTLS_RESPONSE_MATCHING);
 
 		config.setInt(NetworkConfig.Keys.HTTP_PORT, 8080);
 		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);

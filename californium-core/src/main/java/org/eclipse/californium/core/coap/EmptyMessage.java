@@ -76,8 +76,7 @@ public class EmptyMessage extends Message {
 	 */
 	public static EmptyMessage newACK(Message message) {
 		EmptyMessage ack = new EmptyMessage(Type.ACK);
-		ack.setDestination(message.getSource());
-		ack.setDestinationPort(message.getSourcePort());
+		ack.setDestinationContext(message.getSourceContext());
 		ack.setMID(message.getMID());
 		return ack;
 	}
@@ -90,8 +89,7 @@ public class EmptyMessage extends Message {
 	 */
 	public static EmptyMessage newRST(Message message) {
 		EmptyMessage rst = new EmptyMessage(Type.RST);
-		rst.setDestination(message.getSource());
-		rst.setDestinationPort(message.getSourcePort());
+		rst.setDestinationContext(message.getSourceContext());
 		rst.setMID(message.getMID());
 		return rst;
 	}

@@ -36,6 +36,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce stop transfer on
  *                                                    received responses generally.
  *                                                    cleanup stale functions.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -368,7 +369,6 @@ public class BlockwiseLayer extends AbstractLayer {
 					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
 					piggybacked.setLast(false);
-
 					exchange.setCurrentResponse(piggybacked);
 					lower().sendResponse(exchange, piggybacked);
 
@@ -381,8 +381,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 					// Assemble and deliver
 					Request assembled = new Request(request.getCode());
-					assembled.setSenderIdentity(request.getSenderIdentity());
-					status.assembleMessage(assembled);
+					status.assembleReceivedMessage(assembled);
 
 					// make sure we deliver the request using the MID and token of the latest request
 					// so that the response created by the application layer can reply to his token and
@@ -576,8 +575,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				} else {
 					resp.setType(Type.NON);
 				}
-				resp.setSource(response.getSource());
-				resp.setSourcePort(response.getSourcePort());
+				resp.setSourceContext(response.getSourceContext());
 				resp.setPayload(response.getPayload());
 				resp.setOptions(response.getOptions());
 				exchange.setResponse(resp);
@@ -831,8 +829,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						Request block = new Request(request.getCode());
 						// do not enforce CON, since NON could make sense over SMS or similar transports
 						block.setType(request.getType());
-						block.setDestination(request.getDestination());
-						block.setDestinationPort(request.getDestinationPort());
+						block.setDestinationContext(response.getSourceContext());
 
 						/*
 						 * WARNING:
@@ -878,7 +875,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								"all {0} blocks have been retrieved, assembling response and delivering to application layer",
 								status.getBlockCount());
 						Response assembled = new Response(response.getCode());
-						status.assembleMessage(assembled);
+						status.assembleReceivedMessage(assembled);
 
 						// set overall transfer RTT
 						assembled.setRTT(exchange.calculateRTT());

@@ -13,6 +13,8 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  *                                      (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext 
+ *                                                    to EndpointContext.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -21,23 +23,23 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * CorrelationContext utility.
+ * EndpointContext utility.
  */
-public class CorrelationContextUtil {
+public class EndpointContextUtil {
 
-	private static final Logger LOGGER = Logger.getLogger(CorrelationContextUtil.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(EndpointContextUtil.class.getName());
 
 	/**
-	 * Match correlation contexts based on a set of keys.
+	 * Match endpoint contexts based on a set of keys.
 	 * 
 	 * @param name name of matcher for logging.
 	 * @param keys set of keys to be matched.
-	 * @param context1 CorrelationContext to be compared
-	 * @param context2 CorrelationContext to be compared
-	 * @return true, if all values in the CorrelationContexts of the provided
-	 *         keys are equal, false, if not.
+	 * @param context1 EndpointContext to be compared
+	 * @param context2 EndpointContext to be compared
+	 * @return {@code true}, if all values in the EndpointContexts of the
+	 *         provided keys are equal, {@code false}, if not.
 	 */
-	public static boolean match(String name, Set<String> keys, CorrelationContext context1, CorrelationContext context2) {
+	public static boolean match(String name, Set<String> keys, EndpointContext context1, EndpointContext context2) {
 		boolean warn = LOGGER.isLoggable(Level.WARNING);
 		boolean info = LOGGER.isLoggable(Level.FINEST);
 		boolean matchAll = true;

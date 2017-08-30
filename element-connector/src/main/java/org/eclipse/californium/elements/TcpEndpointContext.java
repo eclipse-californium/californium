@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,13 +14,17 @@
  *    Bosch Software Innovations GmbH - initial support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages using TCP.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename TcpCorrelationContext 
+ *                                      into TcpEndpointContext.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.net.InetSocketAddress;
+
 /**
- * A correlation context that explicitly supports TCP specific properties.
+ * A endpoint context that explicitly supports TCP specific properties.
  */
-public class TcpCorrelationContext extends MapBasedCorrelationContext {
+public class TcpEndpointContext extends MapBasedEndpointContext {
 
 	/**
 	 * Key for TCP connection ID.
@@ -29,12 +33,13 @@ public class TcpCorrelationContext extends MapBasedCorrelationContext {
 	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
 
 	/**
-	 * Creates a new correlation context from TCP connection ID.
+	 * Creates a new endpoint context from TCP connection ID.
 	 * 
 	 * @param connectionId the connectionn's ID.
 	 * @throws NullPointerException if connectionId is <code>null</code>.
 	 */
-	public TcpCorrelationContext(String connectionId) {
+	public TcpEndpointContext(InetSocketAddress peerAddress, String connectionId) {
+		super(peerAddress, null);
 		if (connectionId == null) {
 			throw new NullPointerException("Connection ID must not be null");
 		} else {

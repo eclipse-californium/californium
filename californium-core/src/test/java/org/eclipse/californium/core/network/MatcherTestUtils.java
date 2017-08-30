@@ -27,7 +27,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * Helper methods for testing {@code Matcher}s.
@@ -38,52 +40,43 @@ public final class MatcherTestUtils {
 	private MatcherTestUtils() {
 	}
 
-	static TcpMatcher newTcpMatcher(boolean useStrictMatching) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		NotificationListener notificationListener = new NotificationListener() {
+	private static NotificationListener notificationListener = new NotificationListener() {
 
-			@Override
-			public void onNotification(Request request, Response response) {
-			}
-			
-		};
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), CorrelationContextMatcherFactory.create(null, config));
+		@Override
+		public void onNotification(Request request, Response response) {
+		}
+		
+	};
+
+	
+	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
+		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(boolean useStrictMatching, MessageExchangeStore exchangeStore, ObservationStore observationStore) {
+	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		NotificationListener notificationListener = new NotificationListener() {
-
-			@Override
-			public void onNotification(Request request, Response response) {
-			}
-			
-		};
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, CorrelationContextMatcherFactory.create(null, config));
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, correlationContextMatcher);
 
 		matcher.start();
 		return matcher;
 	}
 
-	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, CorrelationContext ctx) {
+	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
+		request.setDestinationContext(new AddressEndpointContext(dest));
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
 		matcher.sendRequest(exchange, request);
-		exchange.setCorrelationContext(ctx);
+		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}
 
 	static Exchange sendObserveRequest(InetSocketAddress dest, Matcher matcher) {
 		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
+		request.setDestinationContext(new AddressEndpointContext(dest));
 		request.setObserve();
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
@@ -91,15 +84,13 @@ public final class MatcherTestUtils {
 		return exchange;
 	}
 
-	static Response responseFor(final Request request) {
+	public static Response receiveResponseFor(final Request request) {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
 		response.setBytes(new byte[]{});
-		response.setSource(request.getDestination());
-		response.setSourcePort(request.getDestinationPort());
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
+		response.setSourceContext(request.getDestinationContext());
 		return response;
 	}
+
 }

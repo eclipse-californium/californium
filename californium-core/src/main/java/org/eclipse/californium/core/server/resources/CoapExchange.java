@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add source endpoint context.
  ******************************************************************************/
 package org.eclipse.californium.core.server.resources;
 
@@ -30,6 +31,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * The Class CoapExchange represents an exchange of a CoAP request and response
@@ -88,12 +90,21 @@ public class CoapExchange {
 	}
 
 	/**
+	 * Gets endpoint context of the request source.
+	 * 
+	 * @return the endpoint context
+	 */
+	public EndpointContext getSourceContext() {
+		return exchange.getRequest().getSourceContext();
+	}
+	
+	/**
 	 * Gets the source address of the request.
 	 *
 	 * @return the source address
 	 */
 	public InetAddress getSourceAddress() {
-		return exchange.getRequest().getSource();
+		return exchange.getRequest().getSourceContext().getPeerAddress().getAddress();
 	}
 	
 	/**
@@ -102,7 +113,7 @@ public class CoapExchange {
 	 * @return the source port
 	 */
 	public int getSourcePort() {
-		return exchange.getRequest().getSourcePort();
+		return exchange.getRequest().getSourceContext().getPeerAddress().getPort();
 	}
 	
 	/**

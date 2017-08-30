@@ -24,7 +24,7 @@ import static org.junit.Assert.*;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
 import org.junit.Before;
@@ -33,13 +33,13 @@ import org.junit.Test;
 public class UDPConnectorTest {
 
 	UDPConnector connector;
-	TestCorrelationContextMatcher matcher;
+	TestEndpointContextMatcher matcher;
 
 	@Before
 	public void setup() throws IOException {
-		matcher = new TestCorrelationContextMatcher(1);
+		matcher = new TestEndpointContextMatcher(0, 1);
 		connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		connector.setCorrelationContextMatcher(matcher);
+		connector.setEndpointContextMatcher(matcher);
 		connector.start();
 	}
 
@@ -56,56 +56,17 @@ public class UDPConnectorTest {
 	}
 
 	@Test
-	public void testSendMessageWithCorrelationContext() throws InterruptedException {
+	public void testSendMessageWithEndpointContext() throws InterruptedException {
 		byte[] data = { 0, 1, 2 };
 		InetSocketAddress dest = new InetSocketAddress(0);
-		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+		EndpointContext context = new DtlsEndpointContext(dest, null, "session", "1", "CIPHER");
 		
-		RawData message = RawData.outbound(data, dest, context, null, false);
-		connector.setCorrelationContextMatcher(matcher);
+		RawData message = RawData.outbound(data, context, null, false);
+		connector.setEndpointContextMatcher(matcher);
 		connector.send(message);
 		
-		matcher.await();
+		matcher.await(2000, TimeUnit.MILLISECONDS);
 		
-		assertThat(matcher.getMessageCorrelationContext(), is(sameInstance(context)));
+		assertThat(matcher.getMessageEndpointContext(0), is(sameInstance(context)));
 	}
-
-	private static class TestCorrelationContextMatcher implements CorrelationContextMatcher {
-
-		private final CountDownLatch latchSendMatcher;
-		private CorrelationContext messageContext;
-
-		public TestCorrelationContextMatcher(int count) {
-			this.latchSendMatcher = new CountDownLatch(count);
-		}
-
-		public synchronized CorrelationContext getMessageCorrelationContext() {
-			return messageContext;
-		}
-
-		@Override
-		public String getName() {
-			return "test-only";
-		}
-
-		@Override
-		public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
-			return false;
-		}
-
-		@Override
-		public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
-			synchronized (this) {
-				this.messageContext = messageContext;
-			}
-			latchSendMatcher.countDown();
-			return 0 < latchSendMatcher.getCount();
-		}
-		
-		public void await() throws InterruptedException {
-			latchSendMatcher.await();
-		}
-
-	};
-
 }

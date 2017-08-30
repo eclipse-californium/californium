@@ -13,19 +13,23 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - add flexible correlation context matching
  *                                      (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
+ *                                                    outgoing messages
+ *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename RelaxedDtlsCorrelationContextMatcher
+ *                                                    to RelaxedDtlsEndpointContextMatcher.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * Strict correlation context matcher. Uses strictly matching for DTLS including
- * the security epoch.
+ * Relaxed endpoint context matcher. Matches DTLS without epoch.
  */
-public class StrictDtlsCorrelationContextMatcher extends KeySetCorrelationContextMatcher {
+public class RelaxedDtlsEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	private static final String KEYS[] = { DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_EPOCH,
-			DtlsCorrelationContext.KEY_CIPHER };
+	private static final String KEYS[] = { DtlsEndpointContext.KEY_SESSION_ID, DtlsEndpointContext.KEY_CIPHER };
 
-	public StrictDtlsCorrelationContextMatcher() {
-		super("strict correlation", KEYS);
+	public RelaxedDtlsEndpointContextMatcher() {
+		super("relaxed correlation", KEYS);
 	}
+
 }

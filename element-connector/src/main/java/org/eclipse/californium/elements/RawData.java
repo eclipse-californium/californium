@@ -22,12 +22,14 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent and onError.
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext 
+ *                                                    to EndpointContext.
+ *                                                    Cleanup constructors.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.Principal;
 import java.util.Arrays;
 
 /**
@@ -49,15 +51,10 @@ public final class RawData {
 	/** The raw message. */
 	public final byte[] bytes;
 
-	/** The source/destination address. */
-	private InetSocketAddress address;
-
 	/** Indicates if this message is a multicast message */
 	private boolean multicast;
 
-	private Principal senderIdentity;
-
-	private CorrelationContext correlationContext;
+	private EndpointContext correlationContext;
 
 	private MessageCallback callback;
 
@@ -69,20 +66,7 @@ public final class RawData {
 	 * @throws NullPointerException if any of the given parameters is <code>null</code>
 	 */
 	public RawData(byte[] data, InetSocketAddress address) {
-		this(data, address, null, false);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address and port the data is to be sent to or has been received from
-	 * @param clientIdentity the identity of the authenticated sender of the message
-	 *     (or <code>null</code> if sender is not authenticated)
-	 * @throws NullPointerException if any of the given parameters is <code>null</code>
-	 */
-	public RawData(byte[] data, InetSocketAddress address, Principal clientIdentity) {
-		this(data, address, clientIdentity, false);
+		this(data, new AddressEndpointContext(address), false);
 	}
 
 	/**
@@ -94,47 +78,7 @@ public final class RawData {
 	 * @throws NullPointerException if data is <code>null</code>
 	 */
 	public RawData(byte[] data, InetAddress address, int port) {
-		this(data, address, port, null, false);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address the data is to be sent to or has been received from
-	 * @param port the port the data is to be sent to or has been received from
-	 * @param clientIdentity the identity of the authenticated sender of the message
-	 *     (or <code>null</code> if sender is not authenticated)
-	 * @throws NullPointerException if data is <code>null</code>
-	 */
-	public RawData(byte[] data, InetAddress address, int port, Principal clientIdentity) {
-		this(data, address, port, clientIdentity, false);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address and port the data is to be sent to or has been received from
-	 * @param multicast indicates whether the data represents a multicast message
-	 * @throws NullPointerException if data or address is <code>null</code>
-	 */
-	public RawData(byte[] data, InetSocketAddress address, boolean multicast) {
-		this(data, address, null, multicast);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address and port the data is to be sent to or has been received from
-	 * @param clientIdentity the identity of the authenticated sender of the message
-	 *     (or <code>null</code> if sender is not authenticated)
-	 * @param multicast indicates whether the data represents a multicast message
-	 * @throws NullPointerException if data or address is <code>null</code>
-	 */
-	public RawData(byte[] data, InetSocketAddress address, Principal clientIdentity, boolean multicast) {
-		this(data, address, clientIdentity, null, multicast);
+		this(data, new AddressEndpointContext(address, port), false);
 	}
 
 	/**
@@ -151,46 +95,18 @@ public final class RawData {
 	 * @param multicast indicates whether the data represents a multicast message
 	 * @throws NullPointerException if data or address is <code>null</code>
 	 */
-	private RawData(byte[] data, InetSocketAddress address, Principal clientIdentity, CorrelationContext correlationContext, boolean multicast) {
+	private RawData(byte[] data, EndpointContext correlationContext, boolean multicast) {
 		if (data == null) {
 			throw new NullPointerException("Data must not be null");
-		} else if (address == null) {
+		} else if (correlationContext == null) {
+			throw new NullPointerException("context must not be null");
+		} else if (correlationContext.getPeerAddress() == null) {
 			throw new NullPointerException("Address must not be null");
 		} else {
 			this.bytes = data;
-			this.address = address;
-			this.senderIdentity = clientIdentity;
 			this.correlationContext = correlationContext;
 			this.multicast = multicast;
 		}
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address the data is to be sent to or has been received from
-	 * @param port the port the data is to be sent to or has been received from
-	 * @param multicast indicates whether the data represents a multicast message
-	 * @throws NullPointerException if data is <code>null</code>
-	 */
-	public RawData(byte[] data, InetAddress address, int port, boolean multicast) {
-		this(data, address, port, null, multicast);
-	}
-
-	/**
-	 * Instantiates a new raw data.
-	 *
-	 * @param data the data that is to be sent or has been received
-	 * @param address the IP address the data is to be sent to or has been received from
-	 * @param port the port the data is to be sent to or has been received from
-	 * @param clientIdentity the identity of the authenticated sender of the message
-	 *     (or <code>null</code> if sender is not authenticated)
-	 * @param multicast indicates whether the data represents a multicast message
-	 * @throws NullPointerException if data is <code>null</code>
-	 */
-	public RawData(byte[] data, InetAddress address, int port, Principal clientIdentity, boolean multicast) {
-		this(data, new InetSocketAddress(address, port), clientIdentity, multicast);
 	}
 
 	/**
@@ -208,9 +124,8 @@ public final class RawData {
 	 * @return the raw data object containing the inbound message.
 	 * @throws NullPointerException if data or address is <code>null</code>.
 	 */
-	public static RawData inbound(byte[] data, InetSocketAddress address, Principal clientIdentity,
-			CorrelationContext correlationContext, boolean isMulticast) {
-		return new RawData(data, address, clientIdentity, correlationContext, isMulticast);
+	public static RawData inbound(byte[] data, EndpointContext correlationContext, boolean isMulticast) {
+		return new RawData(data, correlationContext, isMulticast);
 	}
 
 	/**
@@ -235,11 +150,9 @@ public final class RawData {
 	 * @return the raw data object containing the outbound message.
 	 * @throws NullPointerException if data or address is <code>null</code>.
 	 */
-	public static RawData outbound(byte[] data, InetSocketAddress address, CorrelationContext correlationContext, MessageCallback callback, boolean useMulticast) {
-		RawData result = new RawData(data, address);
-		result.correlationContext = correlationContext;
+	public static RawData outbound(byte[] data, EndpointContext correlationContext, MessageCallback callback, boolean useMulticast) {
+		RawData result = new RawData(data, correlationContext, useMulticast);
 		result.callback = callback;
-		result.multicast = useMulticast;
 		return result;
 	}
 
@@ -262,24 +175,6 @@ public final class RawData {
 	}
 
 	/**
-	 * Gets the address.
-	 *
-	 * @return the address
-	 */
-	public InetAddress getAddress() {
-		return address.getAddress();
-	}
-
-	/**
-	 * Gets the port.
-	 *
-	 * @return the port
-	 */
-	public int getPort() {
-		return address.getPort();
-	}
-
-	/**
 	 * Checks if this is a multicast message
 	 *
 	 * @return true, if this is a multicast message
@@ -289,34 +184,13 @@ public final class RawData {
 	}
 
 	/**
-	 * Gets the source/destination IP address and port.
-	 *
-	 * @return the address
-	 */
-	public InetSocketAddress getInetSocketAddress() {
-		return address;
-	}
-
-	/**
-	 * Gets the identity of the sender of the message.
-	 * 
-	 * This property is only meaningful for messages received from a client.
-	 * 
-	 * @return the identity or <code>null</code> if the
-	 *      sender has not been authenticated
-	 */
-	public Principal getSenderIdentity() {
-		return senderIdentity;
-	}
-
-	/**
 	 * Gets additional information regarding the context this message has been
 	 * received in or should be sent in.
 	 * 
 	 * @return the messageContext the correlation information or <code>null</code> if
 	 *           no additional correlation information is available
 	 */
-	public CorrelationContext getCorrelationContext() {
+	public EndpointContext getEndpointContext() {
 		return correlationContext;
 	}
 
@@ -327,7 +201,7 @@ public final class RawData {
 	 *         otherwise
 	 */
 	public boolean isSecure() {
-		return (correlationContext != null && correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
+		return (correlationContext != null && correlationContext.get(DtlsEndpointContext.KEY_SESSION_ID) != null);
 	}
 
 	/**
@@ -335,7 +209,7 @@ public final class RawData {
 	 * 
 	 * @param context established context to be forwarded to the callback.
 	 */
-	public void onContextEstablished(CorrelationContext context) {
+	public void onContextEstablished(EndpointContext context) {
 		if (null != callback) {
 			callback.onContextEstablished(context);
 		}

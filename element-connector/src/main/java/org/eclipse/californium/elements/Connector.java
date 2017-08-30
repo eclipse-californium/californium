@@ -15,6 +15,8 @@
  *    Martin Lanter - architect and initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContextMatcher
+ *                                                    to EndointContextMatcher
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -94,12 +96,12 @@ public interface Connector {
 	void setRawDataReceiver(RawDataChannel messageHandler);
 
 	/**
-	 * Set correlation context matcher to be used for sending messages.
+	 * Set endpoint context matcher to be used for sending messages.
 	 * 
-	 * @param matcher correlation context matcher
-	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 * @param matcher endpoint context matcher
+	 * @see EndpointContextMatcher#isToBeSent(EndpointContext, EndpointContext)
 	 */
-	void setCorrelationContextMatcher(CorrelationContextMatcher matcher);
+	void setEndpointContextMatcher(EndpointContextMatcher matcher);
 	
 	/**
 	 * Gets the address of the socket this connector is bound to.

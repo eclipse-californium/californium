@@ -49,9 +49,9 @@ public class AnnounceResource extends CoapResource {
 							testdump.set(true);
 							System.out.println("Used Memory: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + "kb (" + relationStorage.size() + " clients).");
 						}
-						if ((cor = relationStorage.get(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()))) != null) {
+						if ((cor = relationStorage.get(response.advanced().getSourceContext().getPeerAddress())) != null) {
 							cor.reactiveCancel();
-							relationStorage.remove(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()));
+							relationStorage.remove(response.advanced().getSourceContext().getPeerAddress());
 							cor = null;
 						}
 						if (relationStorage.size() == 0)

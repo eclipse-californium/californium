@@ -33,6 +33,8 @@
  *                                                 starting observe requests
  * Achim Kraus (Bosch Software Innovations GmbH) - optimize correlation context
  *                                                 processing. issue #311
+ * Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContextMatcher
+ *                                                 to EndpointContextMatcher.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -46,8 +48,7 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * Matcher that runs over reliable TCP/TLS protocol. Based on
@@ -57,7 +58,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = Logger.getLogger(TcpMatcher.class.getName());
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
-	private final CorrelationContextMatcher correlationContextMatcher;
+	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over TCP.
@@ -74,9 +75,9 @@ public final class TcpMatcher extends BaseMatcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final CorrelationContextMatcher correlationContextMatcher) {
+			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher correlationContextMatcher) {
 		super(config, notificationListener, observationStore, exchangeStore);
-		this.correlationContextMatcher = correlationContextMatcher;
+		this.endpointContextMatcher = correlationContextMatcher;
 	}
 
 	@Override
@@ -122,7 +123,7 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
+	public Exchange receiveResponse(final Response response) {
 
 		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = exchangeStore.get(idByToken);
@@ -135,13 +136,13 @@ public final class TcpMatcher extends BaseMatcher {
 			// because we do not check that the notification's sender is
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
-			exchange = matchNotifyResponse(response, responseContext);
+			exchange = matchNotifyResponse(response);
 		}
 
 		if (exchange == null) {
 			// There is no exchange with the given token - ignore response
 			return null;
-		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
+		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
 			return exchange;
 		} else {
 			LOGGER.log(Level.INFO,
@@ -190,7 +191,7 @@ public final class TcpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getCorrelationContext());
+				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
 			}
 		}
 	}

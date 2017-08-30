@@ -124,7 +124,7 @@ public class TlsConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(server.getAddress(), 100, null, null);
+		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -132,7 +132,7 @@ public class TlsConnectorTest {
 
 		// Response message must go over the same connection client already
 		// opened
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null, null);
+		msg = createMessage(serverCatcher.getMessage(0).getEndpointContext(), 10000, null);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
@@ -157,7 +157,7 @@ public class TlsConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(server.getAddress(), 100, null, null);
+			RawData msg = createMessage(server.getAddress(), 100, null);
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -201,13 +201,13 @@ public class TlsConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (InetSocketAddress address : servers.keySet()) {
-			RawData message = createMessage(address, 100, null, null);
+			RawData message = createMessage(address, 100, null);
 			messages.add(message);
 			client.send(message);
 		}
 
 		for (RawData message : messages) {
-			Catcher catcher = servers.get(message.getInetSocketAddress());
+			Catcher catcher = servers.get(message.getEndpointContext().getPeerAddress());
 			catcher.blockUntilSize(1);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}

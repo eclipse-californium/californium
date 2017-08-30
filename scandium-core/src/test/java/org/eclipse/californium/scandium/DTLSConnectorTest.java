@@ -63,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
@@ -253,8 +254,7 @@ public class DTLSConnectorTest {
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData outboundMessage = RawData.outbound(
 				new byte[]{0x01},
-				serverEndpoint,
-				null, 
+				new AddressEndpointContext(serverEndpoint),
 				callback,
 				false);
 
@@ -264,7 +264,7 @@ public class DTLSConnectorTest {
 		// THEN assert that the callback has been invoked with a correlation context
 		assertTrue(callback.isSent(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
-		assertThat(serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext(), is(notNullValue()));
+		assertThat(serverRawDataProcessor.getLatestInboundMessage().getEndpointContext(), is(notNullValue()));
 	}
 
 	@Test
@@ -1391,7 +1391,7 @@ public class DTLSConnectorTest {
 		});
 		client.start();
 		SimpleMessageCallback callback = new SimpleMessageCallback();
-		RawData data = RawData.outbound("Hello".getBytes(), serverEndpoint, null, callback, false);
+		RawData data = RawData.outbound("Hello".getBytes(), new AddressEndpointContext(serverEndpoint), callback, false);
 		client.send(data);
 
 		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -1859,13 +1859,13 @@ public class DTLSConnectorTest {
 		@Override
 		public RawData process(RawData request) {
 			inboundMessage.set(request);
-			return new RawData("ACK".getBytes(), request.getInetSocketAddress());
+			return RawData.outbound("ACK".getBytes(), request.getEndpointContext(), null, false);
 		}
 
 		@Override
 		public Principal getClientIdentity() {
 			if (inboundMessage != null) {
-				return inboundMessage.get().getSenderIdentity();
+				return inboundMessage.get().getEndpointContext().getPeerIdentity();
 			} else {
 				return null;
 			}

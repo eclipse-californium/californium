@@ -41,7 +41,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - restart internal executor
  *    Achim Kraus (Bosch Software Innovations GmbH) - processing retransmission of flight
  *                                                    after last flight was sent.
- *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError().
  *                                                    issue #305
  *    Achim Kraus (Bosch Software Innovations GmbH) - Change RetransmitTask to
  *                                                    schedule a "stripped job"
@@ -50,13 +50,15 @@
  *                                                    cancel flight only, if they
  *                                                    should not be retransmitted
  *                                                    anymore.
- *    Achim Kraus (Bosch Software Innovations GmbH) - call handshakeFailed on 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call handshakeFailed on
  *                                                    terminateOngoingHandshake,
  *                                                    processAlertRecord, 
  *                                                    handleTimeout,
  *                                                    and add error callback in
  *                                                    newDeferredMessageSender.
- *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext
+ *                                                    to EndpointContext. 
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -83,10 +85,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.CorrelationMismatchException;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -189,14 +191,14 @@ public class DTLSConnector implements Connector {
 	private AtomicBoolean running = new AtomicBoolean(false);
 
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
+	 * @see #getEndpointContextMatcher()
 	 * @see #sendMessage(RawData)
 	 * @see #sendMessage(RawData, DTLSSession)
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private EndpointContextMatcher endpointContextMatcher;
 
 	private RawDataChannel messageHandler;
 	private ErrorHandler errorHandler;
@@ -734,11 +736,12 @@ public class DTLSConnector implements Connector {
 
 	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
 		if (messageHandler != null) {
-			DtlsCorrelationContext context = new DtlsCorrelationContext(
-					session.getSessionIdentifier().toString(),
+			DtlsEndpointContext context = new DtlsEndpointContext(session.getPeer(), 
+					session.getPeerIdentity(),
+					session.getSessionIdentifier().toString(), 
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
-			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
+			messageHandler.receiveData(RawData.inbound(message.getData(), context, false));
 		}
 	}
 
@@ -1244,7 +1247,7 @@ public class DTLSConnector implements Connector {
 			boolean queueFull = !outboundMessages.offer(msg);
 			if (queueFull) {
 				LOGGER.log(Level.WARNING, "Outbound message queue is full! Dropping outbound message to peer [{0}]",
-						msg.getInetSocketAddress());
+						msg.getEndpointContext());
 			}
 		}
 	}
@@ -1275,7 +1278,7 @@ public class DTLSConnector implements Connector {
 	 */
 	private void sendMessage(final RawData message) throws HandshakeException {
 
-		InetSocketAddress peerAddress = message.getInetSocketAddress();
+		InetSocketAddress peerAddress = message.getEndpointContext().getPeerAddress();
 		LOGGER.log(Level.FINER, "Sending application layer message to peer [{0}]", peerAddress);
 		Connection connection = connectionStore.get(peerAddress);
 
@@ -1322,8 +1325,9 @@ public class DTLSConnector implements Connector {
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
-			final CorrelationContext ctx = new DtlsCorrelationContext(
-					session.getSessionIdentifier().toString(),
+			final EndpointContext ctx = new DtlsEndpointContext(session.getPeer(), 
+					session.getPeerIdentity(),
+					session.getSessionIdentifier().toString(), 
 					String.valueOf(session.getWriteEpoch()),
 					session.getWriteStateCipher());
 			if (!checkOutboundCorrelationContext(message, ctx)) {
@@ -1335,14 +1339,14 @@ public class DTLSConnector implements Connector {
 					ContentType.APPLICATION_DATA,
 					session.getWriteEpoch(),
 					session.getSequenceNumber(),
-					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
+					new ApplicationMessage(message.getBytes(), message.getEndpointContext().getPeerAddress()),
 					session);
 			sendRecord(record);
 			message.onSent();
 		} catch (IOException e) {
 			message.onError(e);
 		} catch (GeneralSecurityException e) {
-			LOGGER.log(Level.FINE, String.format("Cannot send APPLICATION record to peer [%s]", message.getInetSocketAddress()), e);
+			LOGGER.log(Level.FINE, String.format("Cannot send APPLICATION record to peer [%s]", message.getEndpointContext()), e);
 			message.onError(e);
 		}
 	}
@@ -1356,17 +1360,16 @@ public class DTLSConnector implements Connector {
 	 *            null, if not established.
 	 * @return true, if outgoing message matches, false, if not and should NOT
 	 *         be send.
-	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 * @see EndpointContextMatcher#isToBeSent(EndpointContext, EndpointContext)
 	 */
-	private boolean checkOutboundCorrelationContext(final RawData message, final CorrelationContext connectionContext) {
-		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
-		if (null != correlationMatcher && !correlationMatcher.isToBeSent(message.getCorrelationContext(), connectionContext)) {
+	private boolean checkOutboundCorrelationContext(final RawData message, final EndpointContext connectionContext) {
+		final EndpointContextMatcher correlationMatcher = getEndpointContextMatcher();
+		if (null != correlationMatcher && !correlationMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
-				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}:{3}",
-						new Object[] {getUri(), message.getSize(), message.getAddress(),
-						message.getPort() });
+				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}",
+						new Object[] {getUri(), message.getSize(), message.getEndpointContext()});
 			}
-			message.onError(new CorrelationMismatchException());
+			message.onError(new EndpointMismatchException());
 			return false;
 		}
 		return true;
@@ -1739,12 +1742,12 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher correlationContextMatcher) {
-		this.correlationContextMatcher = correlationContextMatcher;
+	public synchronized void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
-		return correlationContextMatcher;
+	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+		return endpointContextMatcher;
 	}
 
 	/**

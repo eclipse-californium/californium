@@ -36,10 +36,10 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -76,6 +76,7 @@ import org.junit.runners.Parameterized;
 		request.setToken(new byte[] { 11, 82, -91, 77, 3 });
 		request.getOptions().addIfMatch(new byte[] { 34, -17 }).addIfMatch(new byte[] { 88, 12, -2, -99, 5 })
 				.setContentFormat(40).setAccept(40);
+		request.setDestinationContext(new AddressEndpointContext(new InetSocketAddress(0)));
 
 		RawData rawData = serializer.serializeRequest(request);
 //		MessageHeader header = parser.parseHeader(rawData);
@@ -179,7 +180,7 @@ import org.junit.runners.Parameterized;
 				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
 				.addOption(new Option(57453, "Arbitrary".hashCode())).addOption(new Option(19205, "Arbitrary1"))
 				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
-
+		response.setDestinationContext(new AddressEndpointContext(new InetSocketAddress(0)));
 		RawData rawData = serializer.serializeResponse(response);
 
 		Response result = (Response) parser.parseMessage(rawData);
@@ -196,6 +197,7 @@ import org.junit.runners.Parameterized;
 		response.getOptions().addLocationPath("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ").addLocationPath("γλώσσα")
 				.addLocationPath("пустынных").addLocationQuery("ვეპხის=யாமறிந்த").addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
 		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");
+		response.setDestinationContext(new AddressEndpointContext(new InetSocketAddress(0)));
 
 		RawData rawData = serializer.serializeResponse(response);
 

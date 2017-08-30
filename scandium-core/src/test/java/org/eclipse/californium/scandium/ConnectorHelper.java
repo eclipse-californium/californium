@@ -245,13 +245,13 @@ public class ConnectorHelper {
 		@Override
 		public RawData process(RawData request) {
 			inboundMessage.set(request);
-			return new RawData("ACK".getBytes(), request.getInetSocketAddress());
+			return RawData.outbound("ACK".getBytes(), request.getEndpointContext(), null, false);
 		}
 
 		@Override
 		public Principal getClientIdentity() {
 			if (inboundMessage != null) {
-				return inboundMessage.get().getSenderIdentity();
+				return inboundMessage.get().getEndpointContext().getPeerIdentity();
 			} else {
 				return null;
 			}

@@ -34,9 +34,9 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.GenericFutureListener;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.CorrelationMismatchException;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -67,10 +67,10 @@ public class TcpServerConnector implements Connector {
 	/**
 	 * Correlation context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getCorrelationContextMatcher()
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private EndpointContextMatcher correlationContextMatcher;
 
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
@@ -135,24 +135,25 @@ public class TcpServerConnector implements Connector {
 
 	@Override
 	public void send(final RawData msg) {
-		Channel channel = activeChannels.get(msg.getInetSocketAddress());
+		InetSocketAddress address = msg.getEndpointContext().getPeerAddress();
+		Channel channel = activeChannels.get(address);
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
 			LOGGER.log(Level.WARNING, "Attempting to send message to an address without an active connection {0}",
-					msg.getAddress());
-			msg.onError(new CorrelationMismatchException());
+					address);
+			msg.onError(new EndpointMismatchException());
 			return;
 		}
-		CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
-		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+		EndpointContext context = NettyContextUtils.buildCorrelationContext(channel);
+		final EndpointContextMatcher correlationMatcher = getCorrelationContextMatcher();
 		/* check, if the message should be sent with the established connection */
 		if (null != correlationMatcher
-				&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), context)) {
+				&& !correlationMatcher.isToBeSent(msg.getEndpointContext(), context)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
-						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+						new Object[] { msg.getSize(), address.getAddress(), address.getPort() });
 			}
-			msg.onError(new CorrelationMismatchException());
+			msg.onError(new EndpointMismatchException());
 			return;
 		}
 
@@ -183,11 +184,11 @@ public class TcpServerConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
+	public synchronized void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		correlationContextMatcher = matcher;
 	}
 
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
+	private synchronized EndpointContextMatcher getCorrelationContextMatcher() {
 		return correlationContextMatcher;
 	}
 

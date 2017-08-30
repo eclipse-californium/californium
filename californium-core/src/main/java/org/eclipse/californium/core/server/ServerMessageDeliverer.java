@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use source endpoint context.
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
@@ -85,8 +86,8 @@ public final class ServerMessageDeliverer implements MessageDeliverer {
 				resource.handleRequest(exchange);
 			}
 		} else {
-			LOGGER.log(Level.INFO, "Did not find resource {0} requested by {1}:{2}",
-					new Object[]{path, request.getSource(), request.getSourcePort()});
+			LOGGER.log(Level.INFO, "Did not find resource {0} requested by {1}",
+					new Object[]{path, request.getSourceContext()});
 			exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 		}
 	}
@@ -110,15 +111,15 @@ public final class ServerMessageDeliverer implements MessageDeliverer {
 			return;
 		}
 
-		InetSocketAddress source = new InetSocketAddress(request.getSource(), request.getSourcePort());
+		InetSocketAddress source = request.getSourceContext().getPeerAddress();
 
 		if (request.getOptions().hasObserve() && resource.isObservable()) {
 			
 			if (request.getOptions().getObserve()==0) {
 				// Requests wants to observe and resource allows it :-)
 				LOGGER.log(Level.FINER,
-						"Initiate an observe relation between {0}:{1} and resource {2}",
-						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
+						"Initiate an observe relation between {0} and resource {2}",
+						new Object[]{request.getSourceContext(), resource.getURI()});
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);

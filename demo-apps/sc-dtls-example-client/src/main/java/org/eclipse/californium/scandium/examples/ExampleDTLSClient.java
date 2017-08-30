@@ -130,7 +130,8 @@ public class ExampleDTLSClient {
 		if (0 < c) {
 			clientMessageCounter.incrementAndGet();
 			try {
-				dtlsConnector.send(new RawData(("HELLO WORLD " + c + ".").getBytes(), raw.getInetSocketAddress()));
+				RawData data = RawData.outbound(("HELLO WORLD " + c + ".").getBytes(), raw.getEndpointContext(), null, false);
+				dtlsConnector.send(data);
 			} catch (IllegalStateException e) {
 				LOG.log(Level.FINER, "send failed after " + (c - 1) + " messages!", e);
 			}

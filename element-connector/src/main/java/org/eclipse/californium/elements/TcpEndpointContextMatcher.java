@@ -12,17 +12,19 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename TcpCorrelationContextMatcher 
+ *                                      into TcpEndpointContextMatcher.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * TCP correlation context matcher.
+ * TCP endpoint context matcher.
  */
-public class TcpCorrelationContextMatcher extends KeySetCorrelationContextMatcher {
+public class TcpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	private static final String KEYS[] = { TcpCorrelationContext.KEY_CONNECTION_ID };
+	private static final String KEYS[] = { TcpEndpointContext.KEY_CONNECTION_ID };
 
-	public TcpCorrelationContextMatcher() {
+	public TcpEndpointContextMatcher() {
 		super("tcp correlation", KEYS);
 	}
 }
