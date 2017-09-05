@@ -9,13 +9,23 @@
 		<version>2.0.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>element-connector</artifactId>
+	<artifactId>element-connector-tcp</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>element-connector</name>
-	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
+	<name>element-connector-tcp</name>
+	<description>Tcp implementations for element-connector.</description>
 	
+	<properties>
+		<netty.version>4.1.1.Final</netty.version>
+		<netty.version.lowerbound>4.1</netty.version.lowerbound>
+		<netty.version.upperbound>5</netty.version.upperbound>
+	</properties>
+
 	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -23,6 +33,11 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>${netty.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hamcrest</groupId>
@@ -40,10 +55,10 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.elements,
-							org.eclipse.californium.elements.util
+							org.eclipse.californium.elements.tcp
 						</Export-Package>
 						<Import-Package>
+							io.netty*; version="[${netty.version.lowerbound},${netty.version.upperbound})",
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>

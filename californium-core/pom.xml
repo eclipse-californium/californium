@@ -18,6 +18,13 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<type>jar</type>
+		</dependency>		
+
+		 <!-- test dependencies -->
+		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<scope>test</scope>
@@ -35,7 +42,8 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector</artifactId>
+			<artifactId>element-connector-tcp</artifactId>
+			<classifier>tests</classifier>
 			<type>jar</type>
 		</dependency>
 	</dependencies>

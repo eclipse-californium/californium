@@ -125,12 +125,8 @@ public class EndpointManagerTest {
 		// WHEN get the default endpoint
 		Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_TCP_URI_SCHEME);
 
-		// THEN assert that the uri scheme is "coap+tcp:" and the endpoint is
-		// started
-		assertThat(endpoint, is(notNullValue()));
-		assertThat(endpoint.getUri(), is(notNullValue()));
-		assertThat(endpoint.getUri().getScheme(), is(CoAP.COAP_TCP_URI_SCHEME));
-		assertThat(endpoint.isStarted(), is(true));
+		// THEN assert that the endpoint is not available
+		assertThat(endpoint, is(nullValue()));
 	}
 
 	@Test
