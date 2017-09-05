@@ -589,6 +589,10 @@ public class CoapEndpoint implements Endpoint {
 	public NetworkConfig getConfig() {
 		return config;
 	}
+	
+	public Connector getConnector() {
+		return connector;
+	}
 
 	private class NotificationDispatcher implements NotificationListener {
 		@Override
