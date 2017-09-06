@@ -32,6 +32,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -162,10 +163,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public boolean isEmpty() {
-		if (LOGGER.isDebugEnabled()) {
-			LOGGER.debug(dumpCurrentLoadLevels());
-		}
 		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
+	}
+
+	@Override
+	public String toString() {
+		return dumpCurrentLoadLevels();
 	}
 
 	@Override
@@ -374,5 +377,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public void releaseToken(KeyToken keyToken) {
 		tokenProvider.releaseToken(keyToken);
+	}
+
+	protected Map<KeyToken, Exchange> getExchangesByToken() {
+		return exchangesByToken;
+	}
+
+	protected Map<KeyMID, Exchange> getExchangesByMID() {
+		return exchangesByMID;
+	}
+
+	protected Deduplicator getDeduplicator() {
+		return deduplicator;
 	}
 }

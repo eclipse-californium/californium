@@ -22,6 +22,8 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.CheckCondition;
@@ -30,8 +32,8 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
@@ -41,6 +43,8 @@ import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -48,6 +52,8 @@ import org.eclipse.californium.elements.UdpEndpointContextMatcher;
  * Dumps exchanges, if MessageExchangeStore is not finally empty.
  */
 public class MessageExchangeStoreTool {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(MessageExchangeStoreTool.class.getName());
 
 	/**
 	 * Assert, that all exchanges in both stores are empty.
@@ -59,7 +65,7 @@ public class MessageExchangeStoreTool {
 	 * @param serverExchangeStore server message exchange store.
 	 */
 	public static void assertAllExchangesAreCompleted(NetworkConfig config,
-			final MessageExchangeStore clientExchangeStore, final MessageExchangeStore serverExchangeStore) {
+			final TestMessageExchangeStore clientExchangeStore, final TestMessageExchangeStore serverExchangeStore) {
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
@@ -69,8 +75,10 @@ public class MessageExchangeStoreTool {
 				return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
 			}
 		});
-		assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
-		assertTrue("Server side message exchange store still contains exchanges", serverExchangeStore.isEmpty());
+		assertTrue("Client side message exchange store still contains exchanges",
+				clientExchangeStore.isEmptyWithDump());
+		assertTrue("Server side message exchange store still contains exchanges",
+				serverExchangeStore.isEmptyWithDump());
 	}
 
 	/**
@@ -81,7 +89,7 @@ public class MessageExchangeStoreTool {
 	 * @param config used network configuration.
 	 * @param exchangeStore message exchange store.
 	 */
-	public static void assertAllExchangesAreCompleted(NetworkConfig config, final MessageExchangeStore exchangeStore) {
+	public static void assertAllExchangesAreCompleted(NetworkConfig config, final TestMessageExchangeStore exchangeStore) {
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
@@ -91,7 +99,7 @@ public class MessageExchangeStoreTool {
 				return exchangeStore.isEmpty();
 			}
 		});
-		assertTrue("message exchange store still contains exchanges", exchangeStore.isEmpty());
+		assertTrue("message exchange store still contains exchanges", exchangeStore.isEmptyWithDump());
 	}
 
 	/**
@@ -109,10 +117,9 @@ public class MessageExchangeStoreTool {
 				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
-		assertTrue("endpoint still contains states", endpoint.isEmpty());
-		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests()+ " not terminated with an event",
+		assertTrue("endpoint still contains states", endpoint.isEmptyWithDump());
+		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests() + " not terminated with an event",
 				endpoint.getRequestChecker().allRequestsTerminated());
-		
 	}
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
@@ -150,13 +157,13 @@ public class MessageExchangeStoreTool {
 
 	public static class CoapTestEndpoint extends CoapEndpoint {
 
-		private final MessageExchangeStore exchangeStore;
+		private final TestMessageExchangeStore exchangeStore;
 		private final InMemoryObservationStore observationStore;
 		private CoapUdpTestStack stack;
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
-				InMemoryObservationStore observationStore, MessageExchangeStore exchangeStore) {
+				InMemoryObservationStore observationStore, TestMessageExchangeStore exchangeStore) {
 			super(new UDPConnector(bind), true, config, observationStore, exchangeStore, new UdpEndpointContextMatcher());
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
@@ -164,7 +171,7 @@ public class MessageExchangeStoreTool {
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
-			this(bind, config, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config));
+			this(bind, config, new InMemoryObservationStore(), new TestMessageExchangeStore(config));
 		}
 
 		@Override
@@ -173,7 +180,7 @@ public class MessageExchangeStoreTool {
 			return stack;
 		}
 
-		public MessageExchangeStore getExchangeStore() {
+		public TestMessageExchangeStore getExchangeStore() {
 			return exchangeStore;
 		}
 
@@ -187,6 +194,10 @@ public class MessageExchangeStoreTool {
 
 		public boolean isEmpty() {
 			return exchangeStore.isEmpty() && (stack == null || stack.isEmpty());
+		}
+
+		public boolean isEmptyWithDump() {
+			return exchangeStore.isEmptyWithDump() && (stack == null || stack.isEmpty());
 		}
 
 		@Override
@@ -239,9 +250,80 @@ public class MessageExchangeStoreTool {
 		public boolean allRequestsTerminated() {
 			return requests.isEmpty();
 		}
-		
-		public Collection<Request> getUnterminatedRequests(){
+
+		public Collection<Request> getUnterminatedRequests() {
 			return requests;
+		}
+	}
+
+	public static class TestMessageExchangeStore extends InMemoryMessageExchangeStore {
+
+		public TestMessageExchangeStore(NetworkConfig config) {
+			super(config);
+		}
+
+		/**
+		 * Check if this ExchangeStore is empty and dump(log as warn) partial
+		 * content. Display maximum 3 exchanges in the dump.
+		 * 
+		 */
+		public boolean isEmptyWithDump() {
+			return isEmptyWithDump(3);
+		}
+
+		/**
+		 * Check if InMemoryExchangeStore is empty and dump(log as warn) partial
+		 * content.
+		 * 
+		 * @param logMaxExchanges maximum number of exchanges to include in
+		 *            dump.
+		 */
+		public boolean isEmptyWithDump(int logMaxExchanges) {
+			if (this.isEmpty()) {
+				return true;
+			} else {
+				dumpInMemoryExchangeStore(logMaxExchanges);
+				return false;
+			}
+		}
+
+		/**
+		 * Dump(log as warn) exchanges.
+		 * 
+		 * @param logMaxExchanges maximum number of exchanges to include in
+		 *            dump.
+		 */
+		public void dumpInMemoryExchangeStore(int logMaxExchanges) {
+			if (LOGGER.isWarnEnabled()) {
+				LOGGER.warn(toString());
+				if (logMaxExchanges > 0) {
+					if (!getExchangesByMID().isEmpty()) {
+						dumpExchanges(logMaxExchanges, getExchangesByMID().entrySet());
+					}
+					if (!getExchangesByToken().isEmpty()) {
+						dumpExchanges(logMaxExchanges, getExchangesByToken().entrySet());
+					}
+				}
+			}
+		}
+
+		/**
+		 * Dump(log as warn) collection of exchange entries.
+		 * 
+		 * @param logMaxExchanges maximum number of exchanges to include in
+		 *            dump.
+		 * @param exchangeEntries collection with exchanges entries
+		 */
+		public static <K> void dumpExchanges(int logMaxExchanges, Set<Entry<K, Exchange>> exchangeEntries) {
+			for (Entry<K, Exchange> exchangeEntry : exchangeEntries) {
+				if (logMaxExchanges <= 0) {
+					break;
+				}
+				Exchange exchange = exchangeEntry.getValue();
+				LOGGER.warn("  {}, {}, {}", new Object[] { exchangeEntry.getKey(), exchange.getCurrentRequest(),
+						exchange.getCurrentResponse() });
+				logMaxExchanges--;
+			}
 		}
 	}
 }

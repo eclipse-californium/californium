@@ -20,7 +20,8 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use nanoTime instead of 
  *                                                    currentTimeMillis
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add size() for test-logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timestamp of add for deduplication 
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging for empty deduplicator.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
@@ -151,6 +152,11 @@ public final class SweepDeduplicator implements Deduplicator {
 	@Override
 	public boolean isEmpty() {
 		return incomingMessages.isEmpty();
+	}
+
+	@Override
+	public int size() {
+		return incomingMessages.size();
 	}
 
 	/**

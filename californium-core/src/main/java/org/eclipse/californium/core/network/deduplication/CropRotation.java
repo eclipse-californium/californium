@@ -132,6 +132,13 @@ public class CropRotation implements Deduplicator {
 	}
 
 	@Override
+	public int size() {
+		synchronized (maps) {
+			return maps[0].size() + maps[1].size() + maps[2].size();
+		}
+	}
+
+	@Override
 	public boolean isEmpty() {
 		for (ExchangeMap map : maps) {
 			if (!map.isEmpty()) {
