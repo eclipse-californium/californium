@@ -17,10 +17,16 @@
 package org.eclipse.californium;
 
 import java.net.InetSocketAddress;
+import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 
 /**
  * A collection of utility methods for implementing tests.
@@ -29,6 +35,7 @@ public final class TestTools {
 
 	private static final Random RAND = new Random();
 	private static final String URI_TEMPLATE = "coap://%s:%d/%s";
+	private static final Logger LOGGER = Logger.getLogger(TestTools.class.getName());
 
 	private TestTools() {
 		// prevent instantiation
@@ -127,5 +134,75 @@ public final class TestTools {
 			}
 		}
 		return check.isFulFilled();
+	}
+
+	/**
+	 * Check if InMemoryExchangeStore is empty and dump partial content. Display
+	 * maximum 3 exchanges in the dump. Log level used is WARNING.
+	 * 
+	 * @param store the exchange store to check
+	 */
+	public static boolean isEmptyWithDump(InMemoryMessageExchangeStore store) {
+		return isEmptyWithDump(store, LOGGER, Level.WARNING, 3);
+	}
+
+	/**
+	 * Check if InMemoryExchangeStore is empty and dump partial content.
+	 * 
+	 * @param store the exchange store to check
+	 * @param logger logger used to log dump
+	 * @param logLevel log level for dump
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 */
+	public static boolean isEmptyWithDump(InMemoryMessageExchangeStore store, Logger logger, Level logLevel,
+			int logMaxExchanges) {
+		if (store.isEmpty()) {
+			return true;
+		} else {
+			dumpInMemoryExchangeStore(store, logger, logLevel, logMaxExchanges);
+			return false;
+		}
+	}
+
+	/**
+	 * Dump exchanges of maps from InMemoryExchangeStore.
+	 * 
+	 * @param logger logger used to log dump
+	 * @param logLevel log level for dump
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 */
+	public static void dumpInMemoryExchangeStore(InMemoryMessageExchangeStore store, Logger logger, Level logLevel,
+			int logMaxExchanges) {
+		if (logger.isLoggable(logLevel)) {
+			logger.log(logLevel, store.toString());
+			if (0 < logMaxExchanges) {
+				if (!store.getExchangesByMID().isEmpty()) {
+					dumpExchanges(logger, logLevel, logMaxExchanges, store.getExchangesByMID().entrySet());
+				}
+				if (!store.getExchangesByToken().isEmpty()) {
+					dumpExchanges(logger, logLevel, logMaxExchanges, store.getExchangesByToken().entrySet());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Dump collection of exchange entries.
+	 * 
+	 * @param logger logger used to log dump
+	 * @param logLevel log level for dump
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 * @param exchangeEntries collection with exchanges entries
+	 */
+	public static <K> void dumpExchanges(Logger logger, Level logLevel, int logMaxExchanges,
+			Set<Entry<K, Exchange>> exchangeEntries) {
+		for (Entry<K, Exchange> exchangeEntry : exchangeEntries) {
+			Exchange exchange = exchangeEntry.getValue();
+			logger.log(logLevel, "  {0}, {1}, {2}", new Object[] { exchangeEntry.getKey(), exchange.getCurrentRequest(),
+					exchange.getCurrentResponse() });
+			if (0 >= --logMaxExchanges) {
+				break;
+			}
+		}
 	}
 }

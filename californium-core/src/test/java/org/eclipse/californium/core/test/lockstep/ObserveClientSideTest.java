@@ -50,7 +50,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -76,7 +75,7 @@ public class ObserveClientSideTest {
 
 	private static NetworkConfig CONFIG;
 
-	private MessageExchangeStore clientExchangeStore;
+	private InMemoryMessageExchangeStore clientExchangeStore;
 	private LockstepEndpoint server;
 	private Endpoint client;
 	private int mid = 8000;
@@ -121,7 +120,7 @@ public class ObserveClientSideTest {
 					return clientExchangeStore.isEmpty();
 				}
 			});
-			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
+			assertTrue("Client side message exchange store still contains exchanges", isEmptyWithDump(clientExchangeStore));
 		} finally {
 			printServerLog(clientInterceptor);
 			
