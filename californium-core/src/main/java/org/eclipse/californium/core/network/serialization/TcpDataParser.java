@@ -24,7 +24,6 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.elements.tcp.DatagramFramer;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -41,11 +40,27 @@ public final class TcpDataParser extends DataParser {
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
 		assertValidTokenLength(tokenLength);
-		reader.readBytes(DatagramFramer.getLengthFieldSize(len));
+		reader.readBytes(getLengthFieldSize(len));
 		int code = reader.read(CODE_BITS);
 		byte token[] = reader.readBytes(tokenLength);
 
 		// No MID/Type/VERSION in TCP message. Use defaults.
 		return new MessageHeader(CoAP.VERSION, CoAP.Type.CON, token, code, Message.NONE, 0);
+	}
+	
+	public static int getLengthFieldSize(int len) {
+		if (len > 15 || len < 0) {
+			throw new IllegalArgumentException("Invalid len field: " + len);
+		}
+
+		if (len == 13) {
+			return 1;
+		} else if (len == 14) {
+			return 2;
+		} else if (len == 15) {
+			return 4;
+		} else {
+			return 0;
+		}
 	}
 }
