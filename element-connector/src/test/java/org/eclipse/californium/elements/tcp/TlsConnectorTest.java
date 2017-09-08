@@ -61,7 +61,7 @@ public class TlsConnectorTest {
 
 	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
 
-	private static final int NUMBER_OF_CONNECTIONS = 50;
+	private static final int NUMBER_OF_CONNECTIONS = 20;
 	private static final int NUMBER_OF_THREADS = 1;
 	private static final int IDLE_TIMEOUT = 100;
 	private static KeyManager[] keyManagers;
