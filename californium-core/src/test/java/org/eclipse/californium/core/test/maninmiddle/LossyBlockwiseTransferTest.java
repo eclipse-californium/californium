@@ -54,6 +54,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class LossyBlockwiseTransferTest {
+	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -77,7 +78,7 @@ public class LossyBlockwiseTransferTest {
 		NetworkConfig config = network.getStandardTestConfig()
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 300)
 			.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
+			.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1.5f)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 
@@ -99,7 +100,7 @@ public class LossyBlockwiseTransferTest {
 		clientPort = clientEndpoint.getAddress().getPort();
 		serverPort = serverEndpoint.getAddress().getPort();
 		middleAddress = InetAddress.getLoopbackAddress();
-		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort);
+		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT));
 		middlePort = middle.getPort();
 
 		System.out.println(
@@ -137,7 +138,6 @@ public class LossyBlockwiseTransferTest {
 			for (int j = 0; j < numbers.length; j++) {
 				numbers[j] = rand.nextInt(16);
 			}
-			middle.reset();
 			middle.drop(numbers);
 
 			getResourceAndAssertPayload(coapclient, respPayload);

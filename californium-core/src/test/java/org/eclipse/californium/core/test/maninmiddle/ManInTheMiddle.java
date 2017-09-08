@@ -19,6 +19,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - get MAX_RETRANSMIT without
  *                                                    changing the NetworkConfig 
  *                                                    standard.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct thread safe
+ *                                                    set of drops
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
@@ -26,9 +28,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.Arrays;
-
-import org.eclipse.californium.core.network.config.NetworkConfig;
-
 
 /**
  * The man in the middle is between the server and client and monitors the
@@ -39,22 +38,19 @@ public class ManInTheMiddle implements Runnable {
 	private final int clientPort;
 	private final int serverPort;
 
-	private DatagramSocket socket;
-	private DatagramPacket packet;
+	private final DatagramSocket socket;
+	private final DatagramPacket packet;
 	
 	private volatile boolean running = true;
 
 	private int[] drops = new int[0];
 
-	private int current = 0;
-
 	// drop bursts longer than MAX_RETRANSMIT must be avoided
-	private static final int MAX = new NetworkConfig().getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
-	private int last = -3;
-	private int burst = 1;
+	private final int max;
 
-	public ManInTheMiddle(final InetAddress bindAddress, final int clientPort, final int serverPort) throws Exception {
+	public ManInTheMiddle(final InetAddress bindAddress, final int clientPort, final int serverPort, final int maxRetransmissions) throws Exception {
 
+		this.max = maxRetransmissions;
 		this.clientPort = clientPort;
 		this.serverPort = serverPort;
 
@@ -68,28 +64,38 @@ public class ManInTheMiddle implements Runnable {
 		new Thread(this).start();
 	}
 
-	public void reset() {
-		current = 0;
-		last = -3;
-		burst = 1;
-	}
-
 	public void drop(int... numbers) {
 		Arrays.sort(numbers);
 		System.out.println("Man in the middle will drop packets " + Arrays.toString(numbers));
-		drops = numbers;
+		synchronized(this) {
+			drops = numbers;
+		}
 	}
 
 	@Override
 	public void run() {
 		try {
 			System.out.println("Starting man in the middle...");
+			int current = 0;
+			int last = -3;
+			int burst = 1;
+			int drops[] = null;
 			while (running) {
 				socket.receive(packet);
 
 				boolean isClientPacket = packet.getPort() == clientPort;
 
-				if (burst < MAX && contains(drops, current)) {
+				synchronized (this) {
+					if (drops != this.drops) {
+						drops= this.drops;
+						// new drops, reset counters
+						current = 0;
+						last = -3;
+						burst = 1;
+					}
+				}
+				
+				if (burst < max && contains(drops, current)) {
 					if (last + 1 == current || last + 2 == current) {
 						burst++;
 					}
@@ -132,6 +138,6 @@ public class ManInTheMiddle implements Runnable {
 
 	private static boolean contains(final int[] array, final int value) {
 
-		return Arrays.binarySearch(array, value) >= 0;
+		return (array != null) && (Arrays.binarySearch(array, value) >= 0);
 	}
 }
