@@ -30,12 +30,21 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check for observe option
  *                                                    in response, before lookup
  *                                                    for observes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for observe option only
+ *                                                    in success response, before
+ *                                                    lookup for observes.
+ *                                                    According RFC7641, 4.2, page 15, 
+ *                                                    none success notify-responses
+ *                                                    would terminate the observation
+ *                                                    and therefore doesn't contain a
+ *                                                    observe option.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -164,7 +173,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final Exchange matchNotifyResponse(final Response response, final CorrelationContext responseContext) {
 
 		Exchange exchange = null;
-		if (response.getOptions().hasObserve()) {
+		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
 			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 
 			final Observation obs = observationStore.get(response.getToken());
