@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix NullPointer accessing
+ *                                                    response, when notifies 
+ *                                                    are missing
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
@@ -20,6 +23,7 @@ import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -83,7 +87,7 @@ public class CO08 extends TestClientAbstract {
 		try {
 			Response response = null;
 			boolean success = true;
-
+			long maxAge = OptionNumberRegistry.Defaults.MAX_AGE;
 			request.send();
 
 			System.out.println();
@@ -99,6 +103,7 @@ public class CO08 extends TestClientAbstract {
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= hasObserve(response);
+				maxAge = response.getOptions().getMaxAge();
 			}
 
 			// receive multiple responses
@@ -118,6 +123,7 @@ public class CO08 extends TestClientAbstract {
 					}
 					
 					success &= checkResponse(request, response);
+					maxAge = response.getOptions().getMaxAge();
 
 					if (!hasObserve(response)) {
 						break;
@@ -143,9 +149,7 @@ public class CO08 extends TestClientAbstract {
 			// enable response queue for synchronous I/O
 			asyncRequest.send();
 
-			long time = response.getOptions().getMaxAge() * 1000;
-
-			response = request.waitForResponse(time + 1000);
+			response = request.waitForResponse(maxAge * 1000 + 1000);
 			System.out.println("received " + response);
 
 			if (response != null) {

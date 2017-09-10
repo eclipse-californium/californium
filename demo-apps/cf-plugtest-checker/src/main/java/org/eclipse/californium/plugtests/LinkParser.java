@@ -13,17 +13,21 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use LinkFormat to parse 
+ *                                                    payload into WebLinks.
+ *                                                    Fixes parsing for attribute
+ *                                                    with multiple values.
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
-import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.WebLink;
+import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.Resource;
-
 
 /**
  * This class implements attributes of the CoRE Link Format.
@@ -33,28 +37,23 @@ public class LinkParser {
 	protected static final Logger LOG = LoggerFactory.getLogger(LinkParser.class.getName());
 	
 	public static Resource parseTree(String linkFormat) {
-		Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
 
 		Resource root = new CoapResource("");
 		
 		if (linkFormat!=null) {
-			Scanner scanner = new Scanner(linkFormat);
+			Set<WebLink> links = LinkFormat.parse(linkFormat);
 			
-			String path = null;
-			while ((path = scanner.findInLine("</[^>]*>")) != null) {
-				
-				// Trim </...>
-				path = path.substring(2, path.length() - 1);
-				
+			for (WebLink link : links) {
+				String path = link.getURI();
+				if (path.startsWith("/")) {
+					path = path.substring(1);
+				}
 				LOG.debug("Parsing link resource: {}", path);
-	
-				// Retrieve specified resource, create if necessary
 				Resource resource = new CoapResource(path);
-				
-				// Read link format attributes
-				LinkAttribute attr = null;
-				while (scanner.findWithinHorizon(DELIMITER, 1)==null && (attr = LinkAttribute.parse(scanner))!=null) {
-					resource.getAttributes().addAttribute(attr.getName(), attr.getValue());
+				for (String attrName : link.getAttributes().getAttributeKeySet()) {
+					for (String attrValue : link.getAttributes().getAttributeValues(attrName)) {
+						resource.getAttributes().addAttribute(attrName, attrValue);
+					}
 				}
 				
 				root.add(resource);

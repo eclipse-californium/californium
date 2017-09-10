@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - sort resulting test class list
+ *                                                    don't load inner test classes
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -21,6 +23,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -32,11 +35,11 @@ import java.util.jar.JarFile;
  * A catalog with all tests
  */
 public class Catalog {
-	
+
 	private static final String PACKAGE = "org.eclipse.californium.plugtests.tests";
-	
+
 	private HashMap<String, Class<?>> catalog;
-	
+
 	public Catalog() {
 		this.catalog = new HashMap<String, Class<?>>();
 		try {
@@ -47,7 +50,7 @@ public class Catalog {
 			return;
 		}
 	}
-	
+
 	public void loadSubclasses() throws Exception {
 
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -55,13 +58,13 @@ public class Catalog {
 		URL packageURL = classLoader.getResource(packageName);
 
 		if (packageURL.getProtocol().equals("jar")) {
-			
+
 			String jarFileName = URLDecoder.decode(packageURL.getFile(), "UTF-8");
 			jarFileName = jarFileName.substring(5, jarFileName.indexOf("!"));
-			
+
 			JarFile jar = new JarFile(jarFileName);
 			Enumeration<JarEntry> jarEntries = jar.entries();
-			
+
 			while (jarEntries.hasMoreElements()) {
 				String clazz = jarEntries.nextElement().getName();
 				if (clazz.startsWith(packageName) && clazz.length() > packageName.length() + 5) {
@@ -70,44 +73,62 @@ public class Catalog {
 					loadClass(Class.forName(clazz));
 				}
 			}
-			
+
 			jar.close();
-			
+
 		} else {
 			URI uri = new URI(packageURL.toString());
-			
+
 			File folder = new File(uri.getPath());
 			File[] content = folder.listFiles();
-			
+
 			for (File file : content) {
 				String clazz = file.getName().substring(0, file.getName().length()-6); // remove ".class"
-				loadClass(Class.forName(PACKAGE+"."+clazz));
+				loadClass(Class.forName(PACKAGE + "." + clazz));
 			}
 		}
 	}
-	
+
 	public void loadClass(Class<?> clazz) {
-		catalog.put(clazz.getSimpleName(), clazz);
+		// don't load inner classes
+		if (!clazz.getSimpleName().isEmpty()) {
+			catalog.put(clazz.getSimpleName(), clazz);
+		}
 	}
-	
+
 	public Class<?> getTestClass(String name) {
 		return catalog.get(name);
 	}
-	
+
 	public List<Class<?>> getTestsClasses(String... names) {
-		if (names.length==0) names = new String[] {".*"};
-		
+		if (names.length == 0) {
+			names = new String[] { ".*" };
+		} else {
+			String[] regexs = new String[names.length];
+			for (int index = 0; index < names.length; ++index) {
+				regexs[index] = names[index].replace("*", ".*");
+			}
+			names = regexs;
+		}
+
 		List<Class<?>> list = new ArrayList<Class<?>>();
-		for (Entry<String, Class<?>> entry:catalog.entrySet()) {
-			for (String name:names) {
-				String regex = name.replace("*", ".*");
-				if (entry.getKey().matches(regex))
+		for (Entry<String, Class<?>> entry : catalog.entrySet()) {
+			for (String regex : names) {
+				if (entry.getKey().matches(regex)) {
 					list.add(entry.getValue());
+				}
 			}
 		}
+		Collections.sort(list, new Comparator<Class<?>>() {
+
+			@Override
+			public int compare(Class<?> o1, Class<?> o2) {
+				return o1.getSimpleName().compareTo(o2.getSimpleName());
+			}
+		});
 		return list;
 	}
-	
+
 	public List<String> getAllTestNames() {
 		ArrayList<String> list = new ArrayList<String>(catalog.keySet());
 		Collections.sort(list);

@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix NullPointer accessing
+ *                                                    response, when notifies 
+ *                                                    are missing
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
@@ -121,7 +124,8 @@ public class CO07 extends TestClientAbstract {
 						}
 						
 						success &= checkResponse(request, response);
-	
+						time = response.getOptions().getMaxAge() * 1000;
+
 						if (!hasObserve(response)) {
 							break;
 						}
@@ -142,8 +146,6 @@ public class CO07 extends TestClientAbstract {
 				});
 				asyncRequest.send();
 	
-				time = response.getOptions().getMaxAge() * 1000;
-	
 				response = request.waitForResponse(time + 1000);
 	
 				if (response != null) {
@@ -154,7 +156,7 @@ public class CO07 extends TestClientAbstract {
 					success &= hasToken(response);
 					success &= hasObserve(response, true);
 				} else {
-					System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received");
+					System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received in " + time + "ms");
 					success = false;
 				}
 	
