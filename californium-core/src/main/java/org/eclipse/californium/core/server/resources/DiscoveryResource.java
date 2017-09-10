@@ -17,6 +17,8 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - limit search to 1 query.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use setLength instead of 
+ *                                                    delete to remove last character.
  ******************************************************************************/
 package org.eclipse.californium.core.server.resources;
 
@@ -88,13 +90,14 @@ public class DiscoveryResource extends CoapResource {
 	 */
 	public String discoverTree(Resource root, List<String> queries) {
 		StringBuilder buffer = new StringBuilder();
-		for (Resource child:root.getChildren()) {
+		for (Resource child : root.getChildren()) {
 			LinkFormat.serializeTree(child, queries, buffer);
 		}
 		
 		// remove last comma ',' of the buffer
-		if (buffer.length()>1)
-			buffer.delete(buffer.length()-1, buffer.length());
+		if (buffer.length() > 1) {
+			buffer.setLength(buffer.length() - 1);
+		}
 		
 		return buffer.toString();
 	}
