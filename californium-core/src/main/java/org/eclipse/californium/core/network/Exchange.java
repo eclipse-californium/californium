@@ -30,9 +30,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission on complete.
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust javadoc for 
  *                                                    completeCurrentRequest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext to
+ *                                                    EndpointContext.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +52,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An exchange represents the complete state of an exchange of one request and
@@ -76,7 +79,7 @@ import org.eclipse.californium.elements.CorrelationContext;
  * concurrent collections in the matcher and therefore establish a "happens
  * before" order (as long as threads accessing the exchange via the matcher).
  * But some methods are out of scope of that and use Exchange directly (e.g.
- * {@link #setCorrelationContext(CorrelationContext) the "sender thread" or
+ * {@link #setEndpointContext(EndpointContext) the "sender thread" or
  * {@link #setFailedTransmissionCount(int)} the "retransmission thread
  * (executor)"). Therefore use at least volatile for the fields. This doesn't
  * ensure, that Exchange is thread safe, it only ensures the visibility of the
@@ -179,7 +182,7 @@ public class Exchange {
 	// protocol stage executor
 	private volatile boolean customExecutor = false;
 
-	private final AtomicReference<CorrelationContext> correlationContext = new AtomicReference<CorrelationContext>();
+	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
 	/**
 	 * Creates a new exchange with the specified request and origin.
@@ -199,11 +202,11 @@ public class Exchange {
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 * @param ctx the correlation context of this exchange
 	 */
-	public Exchange(Request request, Origin origin, CorrelationContext ctx) {
+	public Exchange(Request request, Origin origin, EndpointContext ctx) {
 		// might only be the first block of the whole request
 		this.currentRequest = request;
 		this.origin = origin;
-		this.correlationContext.set(ctx);
+		this.endpointContext.set(ctx);
 		this.nanoTimestamp = System.nanoTime();
 	}
 
@@ -239,8 +242,7 @@ public class Exchange {
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
+		response.setDestinationContext(request.getSourceContext());
 		setResponse(response);
 		endpoint.sendResponse(this, response);
 	}
@@ -601,8 +603,7 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets additional information about the context this exchange's request has
-	 * been sent in.
+	 * Sets the endpoint context this exchange's request has been sent in.
 	 * <p>
 	 * The information is usually obtained from the <code>Connector</code> this
 	 * exchange is using to send and receive data. The information contained in
@@ -611,28 +612,28 @@ public class Exchange {
 	 * exchange's request.
 	 * </p>
 	 * 
-	 * @param ctx the correlation information
+	 * @param ctx the endpoint context
 	 */
-	public void setCorrelationContext(final CorrelationContext ctx) {
-		if (correlationContext.compareAndSet(null, ctx)) {
+	public void setEndpointContext(final EndpointContext ctx) {
+		if (endpointContext.compareAndSet(null, ctx)) {
 			ExchangeObserver obs = this.observer;
 			if (obs != null) {
 				obs.contextEstablished(this);
 			}
 		} else {
-			correlationContext.set(ctx);
+			endpointContext.set(ctx);
 		}
 	}
 
 	/**
-	 * Gets transport layer specific information that can be used to correlate a
-	 * response with this exchange's original request.
+	 * Gets endpoint context that can be used to correlate a response with this
+	 * exchange's original request.
 	 * 
-	 * @return the correlation information or <code>null</code> if no
-	 *         information is available.
+	 * @return the endpoint context or <code>null</code> if no information is
+	 *         available.
 	 */
-	public CorrelationContext getCorrelationContext() {
-		return correlationContext.get();
+	public EndpointContext getEndpointContext() {
+		return endpointContext.get();
 	}
 
 	/**
@@ -720,7 +721,8 @@ public class Exchange {
 		 *         scoped to the message's source address and port.
 		 */
 		public static KeyMID fromInboundMessage(Message message) {
-			return new KeyMID(message.getMID(), message.getSource().getAddress(), message.getSourcePort());
+			InetSocketAddress address = message.getSourceContext().getPeerAddress();
+			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**
@@ -731,7 +733,8 @@ public class Exchange {
 		 *         scoped to the message's destination address and port.
 		 */
 		public static KeyMID fromOutboundMessage(Message message) {
-			return new KeyMID(message.getMID(), message.getDestination().getAddress(), message.getDestinationPort());
+			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
+			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -768,11 +771,12 @@ public class Exchange {
 		 * <p>
 		 * The key will be scoped to the message's source endpoint.
 		 * 
-		 * @param msg the message.
+		 * @param message the message.
 		 * @return the key.
 		 */
-		public static KeyToken fromInboundMessage(final Message msg) {
-			return new KeyToken(msg.getToken(), msg.getSource().getAddress(), msg.getSourcePort());
+		public static KeyToken fromInboundMessage(final Message message) {
+			InetSocketAddress address = message.getSourceContext().getPeerAddress();
+			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**
@@ -783,8 +787,9 @@ public class Exchange {
 		 * @param msg the message.
 		 * @return the key.
 		 */
-		public static KeyToken fromOutboundMessage(final Message msg) {
-			return new KeyToken(msg.getToken(), msg.getDestination().getAddress(), msg.getDestinationPort());
+		public static KeyToken fromOutboundMessage(final Message message) {
+			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
+			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**

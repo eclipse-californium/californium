@@ -76,6 +76,8 @@ import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -116,6 +118,7 @@ public class LockstepEndpoint {
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 
 			public void receiveData(RawData raw) {
+				
 				incoming.offer(raw);
 			}
 		});
@@ -289,7 +292,8 @@ public class LockstepEndpoint {
 	}
 
 	public void send(RawData raw) {
-		if (raw.getAddress() == null || raw.getPort() == 0) {
+		InetSocketAddress address = raw.getEndpointContext().getPeerAddress();
+		if (address.getAddress() == null || address.getPort() == 0) {
 			throw new RuntimeException("Message has no destination address/port");
 		}
 		connector.send(raw);
@@ -355,10 +359,7 @@ public class LockstepEndpoint {
 	public Message receiveNextMessage(int timeout, TimeUnit unit) throws InterruptedException {
 		RawData raw = incoming.poll(timeout, unit); // or take()?
 		if (raw != null) {
-			Message message = parser.parseMessage(raw);
-			message.setSource(raw.getAddress());
-			message.setSourcePort(raw.getPort());
-			return message;
+			return parser.parseMessage(raw);
 		}
 		return null;
 	}
@@ -1462,13 +1463,10 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			EmptyMessage message = new EmptyMessage(null);
-			if (destination != null) {
-				message.setDestination(destination.getAddress());
-				message.setDestinationPort(destination.getPort());
-			}
 			setProperties(message);
-
-			RawData raw = serializer.serializeEmptyMessage(message);
+			EndpointContext context = new AddressEndpointContext(destination);
+			message.setDestinationContext(context);
+			RawData raw = serializer.serializeEmptyMessage(message, null);
 			send(raw);
 		}
 	}
@@ -1569,12 +1567,9 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			Request request = new Request(code);
-			if (destination != null) {
-				request.setDestination(destination.getAddress());
-				request.setDestinationPort(destination.getPort());
-			}
 			setProperties(request);
-
+			EndpointContext context = new AddressEndpointContext(destination);
+			request.setDestinationContext(context);
 			RawData raw = serializer.serializeRequest(request);
 			send(raw);
 		}
@@ -1697,13 +1692,10 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			Response response = new Response(code);
-			if (destination != null) {
-				response.setDestination(destination.getAddress());
-				response.setDestinationPort(destination.getPort());
-			}
 			setProperties(response);
-
-			RawData raw = serializer.serializeResponse(response);
+			EndpointContext context = new AddressEndpointContext(destination);
+			response.setDestinationContext(context);
+			RawData raw = serializer.serializeResponse(response, null);
 			send(raw);
 		}
 	}

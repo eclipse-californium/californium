@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add endpoint context 
+ *                                                    to shallow clone.
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -39,6 +41,7 @@ public final class ObservationUtil {
 			throw new IllegalArgumentException("missing request for observation!");
 		}
 		Request clonedRequest = new Request(request.getCode());
+		clonedRequest.setDestinationContext(request.getDestinationContext());
 		clonedRequest.setType(request.getType());
 		clonedRequest.setMID(request.getMID());
 		clonedRequest.setToken(request.getToken());

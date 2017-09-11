@@ -6,6 +6,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -49,8 +50,7 @@ public class CoapStackTest {
 
 	@Test public void cancelledMessageExpectExchangeComplete() {
 		Request request = new Request(CoAP.Code.GET);
-		request.setDestination(InetAddress.getLoopbackAddress());
-		request.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 
 		ArgumentCaptor<Exchange> exchangeCaptor = ArgumentCaptor.forClass(Exchange.class);
 		doNothing().when(outbox).sendRequest(exchangeCaptor.capture(), eq(request));

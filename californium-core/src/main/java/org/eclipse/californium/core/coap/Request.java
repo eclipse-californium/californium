@@ -49,6 +49,8 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -122,8 +124,11 @@ public class Request extends Message {
 
 	private String scheme;
 
-	/** the authenticated (remote) sender's identity */
-	private Principal senderIdentity;
+	/** The destination address of this message. */
+	private InetAddress destination;
+
+	/** The destination port of this message. */
+	private int destinationPort;
 
 	/** Contextual information about this request */
 	private Map<String, String> userContext;
@@ -423,29 +428,111 @@ public class Request extends Message {
 	}
 
 	/**
+	 * Gets the destination address.
+	 *
+	 * @return the destination
+	 */
+	public InetAddress getDestination() {
+		EndpointContext context = getDestinationContext();
+		if (context != null) {
+			return context.getPeerAddress().getAddress();
+		}
+		return destination;
+	}
+
+	/**
+	 * Sets the destination address.
+	 *
+	 * Provides a fluent API to chain setters.
+	 *
+	 * @param destination the new destination
+	 * @return this Message
+	 * @throws IllegalStateException if destination context is already set.
+	 */
+	public Message setDestination(InetAddress destination) {
+		if (getDestinationContext() != null) {
+			throw new IllegalStateException("destination context already set!");
+		}
+		this.destination = destination;
+		return this;
+	}
+
+	/**
+	 * Gets the destination port.
+	 *
+	 * @return the destination port
+	 */
+	public int getDestinationPort() {
+		EndpointContext context = getDestinationContext();
+		if (context != null) {
+			return context.getPeerAddress().getPort();
+		}
+		return destinationPort;
+	}
+
+	/**
+	 * Sets the destination port.
+	 *
+	 * Provides a fluent API to chain setters.
+	 *
+	 * @param destinationPort the new destination port
+	 * @return this Message
+	 * @throws IllegalStateException if destination context is already set.
+	 */
+	public Message setDestinationPort(int destinationPort) {
+		if (getDestinationContext() != null) {
+			throw new IllegalStateException("destination context already set!");
+		}
+		this.destinationPort = destinationPort;
+		return this;
+	}
+
+
+	/**
 	 * Gets the authenticated (remote) sender's identity.
 	 * 
 	 * @return the identity or {@code null} if the sender has not been
 	 *         authenticated
+	 * @see #getSourceContext()
+	 * @deprecated
 	 */
 	public Principal getSenderIdentity() {
-		return this.senderIdentity;
+		return getSourceContext().getPeerIdentity();
 	}
 
 	/**
-	 * Sets the authenticated (remote) sender's identity.
+	 * Prepare destination endpoint context. If not already available, create it
+	 * from the {@link #destination} and {@link #destinationPort}.
 	 * 
-	 * This method is invoked by <em>Californium</em> when receiving a request
-	 * from a client in order to include the client's authenticated identity. It
-	 * has no effect on outbound requests sent to other CoAP servers. In
-	 * particular, it has no impact on a DTLS handshake (potentially) taking
-	 * place with that server.
-	 * 
-	 * @param senderIdentity the identity
-	 * @return this request
+	 * @throws IllegalStateException if no destination endpoint context is
+	 *             available and the destination is missing
 	 */
-	public Request setSenderIdentity(Principal senderIdentity) {
-		this.senderIdentity = senderIdentity;
+	public void prepareDestinationContext() {
+		EndpointContext context = getDestinationContext();
+		if (context == null) {
+			if (destination == null) {
+				throw new IllegalStateException("missing destination!");
+			}
+			context = new AddressEndpointContext(destination, destinationPort);
+			super.setDestinationContext(context);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Check, if {@link #destination} is different.
+	 * 
+	 * @throws IllegalStateException if destination differs.
+	 */
+	@Override
+	public Request setDestinationContext(EndpointContext peerContext) {
+		if (destination != null) {
+			if (!destination.equals(peerContext.getPeerAddress().getAddress())) {
+				throw new IllegalStateException("different destination!");
+			}
+		}
+		super.setDestinationContext(peerContext);
 		return this;
 	}
 

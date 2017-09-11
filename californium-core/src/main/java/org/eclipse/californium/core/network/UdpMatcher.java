@@ -37,6 +37,8 @@
  *                                                    Proactive observe cancellation may cause
  *                                                    errors, if they cancel not completely 
  *                                                    created notifies (before the MID is assigned).
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContextMatcher
+ *                                                    to EndpointContextMatcher.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -56,8 +58,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
@@ -68,7 +69,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private final CorrelationContextMatcher correlationContextMatcher;
+	private final EndpointContextMatcher correlationContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over UDP.
@@ -85,7 +86,7 @@ public final class UdpMatcher extends BaseMatcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final CorrelationContextMatcher matchingStrategy) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
 		super(config, notificationListener, observationStore, exchangeStore);
 		this.correlationContextMatcher = matchingStrategy;
 	}
@@ -196,7 +197,7 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
+	public Exchange receiveResponse(final Response response) {
 
 		/*
 		 * This response could be
@@ -220,7 +221,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
 			isNotify = true;
-			exchange = matchNotifyResponse(response, responseContext);
+			exchange = matchNotifyResponse(response);
 		}
 
 		if (exchange == null) {
@@ -236,12 +237,12 @@ public final class UdpMatcher extends BaseMatcher {
 					return prev;
 				}
 			} else {
-				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
-						new Object[]{response.getSource(), response.getSourcePort(), response});
+				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}]: {1}",
+						new Object[]{response.getSourceContext(), response});
 			}
 			// ignore response
 			return null;
-		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
+		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
 
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
 				// The token matches but not the MID.
@@ -295,8 +296,8 @@ public final class UdpMatcher extends BaseMatcher {
 			LOGGER.log(Level.FINE, "Received expected reply for message exchange {0}", idByMID);
 		} else {
 			LOGGER.log(Level.FINE,
-					"Ignoring unmatchable empty message from {0}:{1}: {2}",
-					new Object[]{message.getSource(), message.getSourcePort(), message});
+					"Ignoring unmatchable empty message from {0}: {1}",
+					new Object[]{message.getSourceContext(), message});
 		}
 		return exchange;
 	}
@@ -415,7 +416,7 @@ public final class UdpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getCorrelationContext());
+				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
 			}
 		}
 	}

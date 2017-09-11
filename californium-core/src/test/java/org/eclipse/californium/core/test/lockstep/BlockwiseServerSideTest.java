@@ -828,7 +828,7 @@ public class BlockwiseServerSideTest {
 		}
 
 		public void handleGET(final CoapExchange exchange) {
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CONTENT);
+			Response resp = new Response(ResponseCode.CONTENT);
 			resp.setPayload(respPayload);
 			respond(exchange, resp);
 		}
@@ -841,14 +841,14 @@ public class BlockwiseServerSideTest {
 			if (expectedToken != null) {
 				assertThat("request did not contain expected token", exchange.advanced().getRequest().getToken(), is(expectedToken));
 			}
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CHANGED);
+			Response resp = new Response(ResponseCode.CHANGED);
 			resp.setPayload(respPayload);
 			respond(exchange, resp);
 		}
 
 		public void handlePOST(final CoapExchange exchange) {
 			assertThat("server did not receive expected request payload", exchange.getRequestText(), is(reqtPayload));
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CHANGED);
+			Response resp = new Response(ResponseCode.CHANGED);
 			resp.setPayload(respPayload);
 			respond(exchange, resp);
 		}

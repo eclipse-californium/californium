@@ -40,7 +40,7 @@ public interface MessageCallback {
 	 * @param context transport specific properties describing the context in
 	 *                   which the message is sent
 	 */
-	void onContextEstablished(CorrelationContext context);
+	void onContextEstablished(EndpointContext context);
 
 	/**
 	 * Called after message was sent by the connector.

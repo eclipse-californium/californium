@@ -18,14 +18,17 @@
 package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MatcherTestUtils.newTcpMatcher;
-import static org.eclipse.californium.core.network.MatcherTestUtils.responseFor;
+import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
 import static org.eclipse.californium.core.network.MatcherTestUtils.sendRequest;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.elements.TestEndpointContextMatcher;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,11 +43,24 @@ public class TcpMatcherTest {
 
 	@Test
 	public void testRequestMatchesResponse() {
-		TcpMatcher matcher = newTcpMatcher(false);
+		TestEndpointContextMatcher correlationMatcher = new TestEndpointContextMatcher(1, 0);
+		TcpMatcher matcher = newTcpMatcher(correlationMatcher);
 		Exchange exchange = sendRequest(dest, matcher, null);
 
-		Exchange matched = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
+		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()));
 		assertSame(exchange, matched);
+		assertEquals(1,  correlationMatcher.callsIsResponseRelatedToRequest.get());
+	}
+
+	@Test
+	public void testRequestDoesntMatchesResponse() {
+		TestEndpointContextMatcher correlationMatcher = new TestEndpointContextMatcher(0, 0);
+		TcpMatcher matcher = newTcpMatcher(correlationMatcher);
+		Exchange exchange = sendRequest(dest, matcher, null);
+
+		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()));
+		assertNull(matched);
+		assertEquals(1,  correlationMatcher.callsIsResponseRelatedToRequest.get());
 	}
 
 }

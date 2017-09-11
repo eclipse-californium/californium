@@ -19,6 +19,7 @@
  *                                                    Add isNew and matchTransfer.
  *                                                    Move isNotification and getObserve
  *                                                    from BlockwiseStatus
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -289,8 +290,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		} else {
 
 			block = new Response(response.getCode());
-			block.setDestination(response.getDestination());
-			block.setDestinationPort(response.getDestinationPort());
+			block.setDestinationContext(response.getDestinationContext());
 			block.setOptions(new OptionSet(response.getOptions()));
 			// observe option must only be included in first block
 			block.getOptions().removeObserve();

@@ -48,21 +48,23 @@ public class Response extends Message {
 
 	/**
 	 * Creates a response to the specified request with the specified response
-	 * code. The destination address of the response is the source address of
-	 * the request.
-	 * Type and MID are usually set automatically by the {@link ReliabilityLayer}.
-	 * The token is set automatically by the {@link Matcher}.
+	 * code. The destination endpoint context of the response is the source
+	 * endpoint context of the request. Type and MID are usually set
+	 * automatically by the {@link ReliabilityLayer}. The token is set
+	 * automatically by the {@link Matcher}.
 	 *
-	 * @param request
-	 *            the request
-	 * @param code
-	 *            the code
+	 * @param request the request
+	 * @param code the code
 	 * @return the response
+	 * @throws IllegalArgumentException if request has not source endpoint
+	 *             context.
 	 */
 	public static Response createResponse(Request request, ResponseCode code) {
+		if (request.getSourceContext() == null) {
+			throw new IllegalArgumentException("received request must contain a source context.");
+		}
 		Response response = new Response(code);
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
+		response.setDestinationContext(request.getSourceContext());
 		return response;
 	}
 

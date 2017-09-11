@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - remove obsolete dependencies
  *                                                    introduced in JavaDoc
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 

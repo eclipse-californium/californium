@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -115,8 +116,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 		Request block = new Request(request.getCode());
 		// do not enforce CON, since NON could make sense over SMS or similar transports
 		block.setType(request.getType());
-		block.setDestination(request.getDestination());
-		block.setDestinationPort(request.getDestinationPort());
+		block.setDestinationContext(request.getDestinationContext());
 		// copy options
 		block.setOptions(new OptionSet(request.getOptions()));
 		// copy message observers so that a failing blockwise request also notifies observers registered with

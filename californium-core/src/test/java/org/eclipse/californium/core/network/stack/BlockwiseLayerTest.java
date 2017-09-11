@@ -16,6 +16,7 @@
 package org.eclipse.californium.core.network.stack;
 
 import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.*;
@@ -26,7 +27,6 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -34,6 +34,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
@@ -86,6 +87,8 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setLowerLayer(outbox);
 
 		Request request = newBlockwiseRequest(256, 64);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		
 		Exchange exchange = new Exchange(request, Origin.REMOTE);
 
 		blockwiseLayer.receiveRequest(exchange, request);
@@ -110,12 +113,11 @@ public class BlockwiseLayerTest {
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
 		req.addMessageObserver(requestObserver);
+		req.prepareDestinationContext();
 
-		Response response = Response.createResponse(req, ResponseCode.CONTENT);
-		response.setSource(InetAddress.getLoopbackAddress());
-		response.setSourcePort(CoAP.DEFAULT_COAP_PORT);
+		Response response = receiveResponseFor(req);
 		response.getOptions().setSize2(256).setBlock2(BlockOption.size2Szx(64), true, 0);
-
+		
 		Exchange exchange = new Exchange(null, Origin.LOCAL);
 		exchange.setRequest(req);
 		blockwiseLayer.receiveResponse(exchange, response);
@@ -139,15 +141,14 @@ public class BlockwiseLayerTest {
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
+		req.prepareDestinationContext();
 		Exchange exchange = new Exchange(null, Origin.LOCAL);
 		exchange.setRequest(req);
 
 		// WHEN the request used to establish the observe relation has been canceled
 		// and a notification arrives
 		req.cancel();
-		Response response = Response.createResponse(req, ResponseCode.CONTENT);
-		response.setSource(InetAddress.getLoopbackAddress());
-		response.setSourcePort(CoAP.DEFAULT_COAP_PORT);
+		Response response = receiveResponseFor(req);
 		response.getOptions().setSize2(100).setBlock2(BlockOption.size2Szx(64), true, 0).setObserve(12);
 		blockwiseLayer.receiveResponse(exchange, response);
 

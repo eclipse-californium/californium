@@ -79,12 +79,11 @@ public class UDPConnector implements Connector {
 	private final BlockingQueue<RawData> outgoing;
 
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 */
-	private volatile CorrelationContextMatcher correlationContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 
 	/** The receiver of incoming messages. */
 	private RawDataChannel receiver;
@@ -237,8 +236,8 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
-		this.correlationContextMatcher = matcher;
+	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+		this.endpointContextMatcher = matcher;
 	}
 
 	public InetSocketAddress getAddress() {
@@ -305,7 +304,7 @@ public class UDPConnector implements Connector {
 							datagram.getAddress(), datagram.getPort()});
 			}
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
+			RawData msg = RawData.inbound(bytes, new AddressEndpointContext((InetSocketAddress)datagram.getSocketAddress()), false);
 
 			receiver.receiveData(msg);
 		}
@@ -328,23 +327,26 @@ public class UDPConnector implements Connector {
 				 * check, if message should be sent with the
 				 * "none correlation context" of UDP connector
 				 */
-				CorrelationContextMatcher correlationMatcher = UDPConnector.this.correlationContextMatcher;
-				if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
+				EndpointContextMatcher correlationMatcher = UDPConnector.this.endpointContextMatcher;
+				if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getEndpointContext(), null)) {
 					if (LOGGER.isLoggable(Level.WARNING)) {
-						LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
-								new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
-										datagram.getAddress(), datagram.getPort() });
+						LOGGER.log(Level.WARNING, "UDPConnector ({0},{1}) drops {2} bytes to {3}:{4}",
+								new Object[] { socket.getLocalSocketAddress(), 
+										correlationMatcher.getName(),
+										datagram.getLength(),
+										datagram.getAddress(),
+										datagram.getPort() });
 					}
-					raw.onError(new CorrelationMismatchException());
+					raw.onError(new EndpointMismatchException());
 					return;
 				}
 				datagram.setData(raw.getBytes());
-				datagram.setAddress(raw.getAddress());
-				datagram.setPort(raw.getPort());
+				datagram.setSocketAddress(raw.getEndpointContext().getPeerAddress());
 				if (LOGGER.isLoggable(Level.FINER)) {
 					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
 							new Object[] { getUri(), datagram.getLength(), datagram.getAddress(), datagram.getPort() });
 				}
+				raw.onContextEstablished(raw.getEndpointContext());
 				socket.send(datagram);
 				raw.onSent();
 			} catch (IOException ex) {

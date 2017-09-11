@@ -22,7 +22,7 @@ package org.eclipse.californium.elements;
 /**
  * Correlation context matcher for UDP.
  */
-public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
+public class UdpCorrelationContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Create new instance of udp correlation context matcher.
@@ -36,17 +36,17 @@ public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
 	}
 
 	@Override
-	public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
+	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 		return internalMatch(requestContext, responseContext);
 	}
 
 	@Override
-	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
 		return internalMatch(messageContext, connectorContext);
 	}
 
-	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
-		return (null == requestedContext) || (null != availableContext);
+	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
 	}
 
 }

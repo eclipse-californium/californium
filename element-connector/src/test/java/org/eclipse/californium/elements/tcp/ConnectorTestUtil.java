@@ -29,7 +29,8 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 
@@ -50,15 +51,20 @@ public class ConnectorTestUtil {
 		return new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
 	}
 
-	public static InetSocketAddress getDestination(InetSocketAddress server) {
-		if (server.getAddress().isAnyLocalAddress()) {
+	public static InetSocketAddress getDestination(InetSocketAddress destination) {
+		if (destination.getAddress().isAnyLocalAddress()) {
 			// for destination replace any by localhost
-			server = new InetSocketAddress(InetAddress.getLoopbackAddress(), server.getPort());
+			destination = new InetSocketAddress(InetAddress.getLoopbackAddress(), destination.getPort());
 		}
-		return server;
+		return destination;
 	}
 
-	public static RawData createMessage(InetSocketAddress address, int messageSize, CorrelationContext contextToSent,
+	public static RawData createMessage(InetSocketAddress destination, int messageSize,
+			MessageCallback callback) throws Exception {
+		return createMessage(createEndpointContext(destination), messageSize, callback);
+	}
+
+	public static RawData createMessage(EndpointContext contextToSent, int messageSize, 
 			MessageCallback callback) throws Exception {
 		byte[] data = new byte[messageSize];
 		random.nextBytes(data);
@@ -87,7 +93,11 @@ public class ConnectorTestUtil {
 			stream.write(data);
 			stream.flush();
 
-			return RawData.outbound(stream.toByteArray(), getDestination(address), contextToSent, callback, false);
+			return RawData.outbound(stream.toByteArray(), contextToSent, callback, false);
 		}
+	}
+
+	public static EndpointContext createEndpointContext(InetSocketAddress destination) {
+		return new AddressEndpointContext(getDestination(destination));
 	}
 }
