@@ -28,6 +28,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF code to separate PseudoRandomFunction class
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use LinkedHashSet to order listeners
+ *                                                    see issue #406
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -41,7 +43,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,7 +139,7 @@ public abstract class Handshaker {
 	/** The chain of certificates asserting this handshaker's identity */
 	protected X509Certificate[] certificateChain;
 
-	private Set<SessionListener> sessionListeners = new HashSet<>();
+	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
 

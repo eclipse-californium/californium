@@ -16,6 +16,7 @@
  *    Bosch Software Innovations GmbH - add constructor based on current connection state
  *    Achim Kraus (Bosch Software Innovations GmbH) - make pending flight and handshaker
  *                                                    access thread safe.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use volatile for establishedSession.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -38,7 +39,7 @@ public final class Connection implements SessionListener {
 
 	private static final Logger LOGGER = Logger.getLogger(Connection.class.getName());
 	private final InetSocketAddress peerAddress;
-	private DTLSSession establishedSession;
+	private volatile DTLSSession establishedSession;
 	private final SessionTicket ticket;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
@@ -222,16 +223,14 @@ public final class Connection implements SessionListener {
 	 *                 an established session nor an ongoing handshake exists
 	 */
 	public DTLSSession getSession() {
-		if (establishedSession != null) {
-			return establishedSession;
-		} else {
+		DTLSSession session = establishedSession;
+		if (session == null) {
 			Handshaker handshaker = ongoingHandshake.get();
 			if (handshaker != null) {
-				return handshaker.getSession();
-			} else {
-				return null;
+				session = handshaker.getSession();
 			}
 		}
+		return session;
 	}
 
 	@Override
