@@ -1,9 +1,5 @@
 /*******************************************************************************
-<<<<<<< 1.0.x
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
-=======
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
->>>>>>> c738f47 Use X.509 certificates only.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +25,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - replace local compressionMethod and cipherSuite properties
  *                                                    with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use LinkedHashSet to order listeners
+ *                                                    see issue #406
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -42,7 +40,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -145,7 +143,7 @@ public abstract class Handshaker {
 	/** The chain of certificates asserting this handshaker's identity */
 	protected X509Certificate[] certificateChain;
 
-	private Set<SessionListener> sessionListeners = new HashSet<>();
+	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
 
