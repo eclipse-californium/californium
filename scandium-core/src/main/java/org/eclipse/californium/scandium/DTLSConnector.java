@@ -83,10 +83,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.CorrelationMismatchException;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -137,7 +137,7 @@ import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedRunnable;
 public class DTLSConnector implements Connector {
 
 	/**
-	 * The {@code CorrelationContext} key used to store the host name indicated by a
+	 * The {@code EndpointContext} key used to store the host name indicated by a
 	 * client in an SNI hello extension.
 	 */
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
@@ -189,14 +189,14 @@ public class DTLSConnector implements Connector {
 	private AtomicBoolean running = new AtomicBoolean(false);
 
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
+	 * @see #getEndpointContextMatcher()
 	 * @see #sendMessage(RawData)
 	 * @see #sendMessage(RawData, DTLSSession)
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private EndpointContextMatcher endpointContextMatcher;
 
 	private RawDataChannel messageHandler;
 	private ErrorHandler errorHandler;
@@ -734,7 +734,7 @@ public class DTLSConnector implements Connector {
 
 	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
 		if (messageHandler != null) {
-			DtlsCorrelationContext context = new DtlsCorrelationContext(
+			DtlsEndpointContext context = new DtlsEndpointContext(
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
@@ -1289,7 +1289,7 @@ public class DTLSConnector implements Connector {
 
 		DTLSSession session = connection.getEstablishedSession();
 		if (session == null) {
-			if (!checkOutboundCorrelationContext(message, null)) {
+			if (!checkOutboundEndpointContext(message, null)) {
 				return;
 			}
 			// no session with peer established yet, create new empty session &
@@ -1322,11 +1322,11 @@ public class DTLSConnector implements Connector {
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
-			final CorrelationContext ctx = new DtlsCorrelationContext(
+			final EndpointContext ctx = new DtlsEndpointContext(
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getWriteEpoch()),
 					session.getWriteStateCipher());
-			if (!checkOutboundCorrelationContext(message, ctx)) {
+			if (!checkOutboundEndpointContext(message, ctx)) {
 				return;
 			}
 			
@@ -1348,25 +1348,25 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
-	 * Check, if the correlation context match for outgoing messages using
-	 * {@link #correlationContextMatcher}.
+	 * Check, if the endpoint context match for outgoing messages using
+	 * {@link #endpointContextMatcher}.
 	 * 
 	 * @param message message to be checked
-	 * @param connectionContext correlation context of the connection. May be
+	 * @param connectionContext endpoint context of the connection. May be
 	 *            null, if not established.
 	 * @return true, if outgoing message matches, false, if not and should NOT
 	 *         be send.
-	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 * @see EndpointContextMatcher#isToBeSent(EndpointContext, EndpointContext)
 	 */
-	private boolean checkOutboundCorrelationContext(final RawData message, final CorrelationContext connectionContext) {
-		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
-		if (null != correlationMatcher && !correlationMatcher.isToBeSent(message.getCorrelationContext(), connectionContext)) {
+	private boolean checkOutboundEndpointContext(final RawData message, final EndpointContext connectionContext) {
+		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
+		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}:{3}",
 						new Object[] {getUri(), message.getSize(), message.getAddress(),
 						message.getPort() });
 			}
-			message.onError(new CorrelationMismatchException());
+			message.onError(new EndpointMismatchException());
 			return false;
 		}
 		return true;
@@ -1739,12 +1739,12 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher correlationContextMatcher) {
-		this.correlationContextMatcher = correlationContextMatcher;
+	public synchronized void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
-		return correlationContextMatcher;
+	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+		return endpointContextMatcher;
 	}
 
 	/**

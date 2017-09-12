@@ -18,9 +18,9 @@
 package org.eclipse.californium.elements;
 
 /**
- * A correlation context that explicitly supports TCP specific properties.
+ * A endpoint context that explicitly supports TCP specific properties.
  */
-public class TcpCorrelationContext extends MapBasedCorrelationContext {
+public class TcpEndpointContext extends MapBasedEndpointContext {
 
 	/**
 	 * Key for TCP connection ID.
@@ -29,12 +29,12 @@ public class TcpCorrelationContext extends MapBasedCorrelationContext {
 	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
 
 	/**
-	 * Creates a new correlation context from TCP connection ID.
+	 * Creates a new endpoint context from TCP connection ID.
 	 * 
 	 * @param connectionId the connectionn's ID.
 	 * @throws NullPointerException if connectionId is <code>null</code>.
 	 */
-	public TcpCorrelationContext(String connectionId) {
+	public TcpEndpointContext(String connectionId) {
 		if (connectionId == null) {
 			throw new NullPointerException("Connection ID must not be null");
 		} else {

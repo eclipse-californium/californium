@@ -44,10 +44,10 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
-import org.eclipse.californium.elements.MapBasedCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.junit.After;
@@ -68,11 +68,11 @@ public class CoapEndpointTest {
 	List<Request> receivedRequests;
 	CountDownLatch latch;
 	CountDownLatch sentLatch;
-	CorrelationContext context;
+	EndpointContext context;
 
 	@Before
 	public void setUp() throws Exception {
-		context = new MapBasedCorrelationContext();
+		context = new MapBasedEndpointContext();
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
@@ -154,7 +154,7 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
-		CorrelationContext secureCtx = new DtlsCorrelationContext("session", "1", "CIPHER");
+		EndpointContext secureCtx = new DtlsEndpointContext("session", "1", "CIPHER");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, secureCtx, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
@@ -226,7 +226,7 @@ public class CoapEndpointTest {
 		}
 
 		@Override
-		public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher strategy) {
+		public synchronized void setEndpointContextMatcher(EndpointContextMatcher strategy) {
 		}
 
 		@Override

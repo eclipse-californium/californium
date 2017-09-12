@@ -31,8 +31,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -106,11 +106,11 @@ public class DataSerializerTest {
 
 	/**
 	 * Verifies that the serializeResponse() method sets the Message's
-	 * <em>correlationContext</em>.
+	 * <em>endpointContext</em>.
 	 */
 	@Test
-	public void testSerializeResponseWithCorrelationContext() {
-		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+	public void testSerializeResponseWithEndpointContext() {
+		EndpointContext context = new DtlsEndpointContext("session", "1", "CIPHER");
 		Request request = Request.newGet();
 		request.setToken(new byte[] { 0x00 });
 		request.setMID(1);
@@ -120,16 +120,16 @@ public class DataSerializerTest {
 		response.setToken(request.getToken());
 		RawData data = serializer.serializeResponse(response, context, null);
 
-		assertThat(data.getCorrelationContext(), is(equalTo(context)));
+		assertThat(data.getEndpointContext(), is(equalTo(context)));
 	}
 
 	/**
 	 * Verifies that the serializeEmptyMessage() method sets the Message's
-	 * <em>correlationContext</em>.
+	 * <em>endpointContext</em>.
 	 */
 	@Test
-	public void testSerializeEmptyMessageWithCorrelationContext() {
-		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+	public void testSerializeEmptyMessageWithEndpointContext() {
+		EndpointContext context = new DtlsEndpointContext("session", "1", "CIPHER");
 		Request request = Request.newGet();
 		request.setMID(1);
 
@@ -137,6 +137,6 @@ public class DataSerializerTest {
 		ack.setToken(new byte[0]);
 		RawData data = serializer.serializeEmptyMessage(ack, context, null);
 
-		assertThat(data.getCorrelationContext(), is(equalTo(context)));
+		assertThat(data.getEndpointContext(), is(equalTo(context)));
 	}
 }

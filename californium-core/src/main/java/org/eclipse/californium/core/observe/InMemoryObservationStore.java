@@ -23,7 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An observation store that keeps all observations in-memory.
@@ -95,7 +95,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 	}
 
 	@Override
-	public void setContext(final byte[] token, final CorrelationContext ctx) {
+	public void setContext(final byte[] token, final EndpointContext ctx) {
 
 		if (token != null && ctx != null) {
 			Key key = Key.fromToken(token);

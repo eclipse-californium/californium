@@ -11,18 +11,21 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - initial implementation
+ *    Bosch Software Innovations GmbH - add flexible correlation context matching
+ *                                      (fix GitHub issue #104)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * TCP correlation context matcher.
+ * Strict endpoint context matcher. Uses strictly matching for DTLS including
+ * the security epoch.
  */
-public class TcpCorrelationContextMatcher extends KeySetCorrelationContextMatcher {
+public class StrictDtlsEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	private static final String KEYS[] = { TcpCorrelationContext.KEY_CONNECTION_ID };
+	private static final String KEYS[] = { DtlsEndpointContext.KEY_SESSION_ID, DtlsEndpointContext.KEY_EPOCH,
+			DtlsEndpointContext.KEY_CIPHER };
 
-	public TcpCorrelationContextMatcher() {
-		super("tcp correlation", KEYS);
+	public StrictDtlsEndpointContextMatcher() {
+		super("strict context", KEYS);
 	}
 }

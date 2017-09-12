@@ -84,8 +84,8 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -317,29 +317,29 @@ public class CoapEndpoint implements Endpoint {
 	 * @param store The store to use for keeping track of observations initiated by this
 	 *              endpoint.
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 * @param correlationContextMatcher correlation context matcher for relating
+	 * @param endpointContextMatcher endpoint context matcher for relating
 	 *            responses to requests. If <code>null</code>, the result of
-	 *            {@link CorrelationContextMatcherFactory#create(NetworkConfig)}
+	 *            {@link EndpointContextMatcherFactory#create(NetworkConfig)}
 	 *            is used as matcher.
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
-			MessageExchangeStore exchangeStore, CorrelationContextMatcher correlationContextMatcher) {
+			MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore : new InMemoryMessageExchangeStore(config);
 		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
-		if (null == correlationContextMatcher) {
-			correlationContextMatcher = CorrelationContextMatcherFactory.create(connector, config);
+		if (null == endpointContextMatcher) {
+			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 		}
-		this.connector.setCorrelationContextMatcher(correlationContextMatcher);
+		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.log(Level.CONFIG, "{0} uses {1}",
-				new Object[] { getClass().getSimpleName(), correlationContextMatcher.getName() });
+				new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
 
 		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)
 				|| connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
-					correlationContextMatcher);
+					endpointContextMatcher);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
@@ -347,7 +347,7 @@ public class CoapEndpoint implements Endpoint {
 			this.secureScheme = CoAP.COAP_SECURE_TCP_URI_SCHEME;
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
-					correlationContextMatcher);
+					endpointContextMatcher);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
@@ -672,11 +672,11 @@ public class CoapEndpoint implements Endpoint {
 				}
 			}
 			else {
-				CorrelationContext correlationContext = null;
+				EndpointContext endpointContext = null;
 				if (null != exchange) {
-					correlationContext = exchange.getCorrelationContext();
+					endpointContext = exchange.getEndpointContext();
 				}
-				connector.send(serializer.serializeResponse(response, correlationContext, new MessageCallbackForwarder(response)));
+				connector.send(serializer.serializeResponse(response, endpointContext, new MessageCallbackForwarder(response)));
 			}
 		}
 
@@ -702,11 +702,11 @@ public class CoapEndpoint implements Endpoint {
 				}
 			}
 			else {
-				CorrelationContext correlationContext = null;
+				EndpointContext endpointContext = null;
 				if (null != exchange) {
-					correlationContext = exchange.getCorrelationContext();
+					endpointContext = exchange.getEndpointContext();
 				}
-				connector.send(serializer.serializeEmptyMessage(message, correlationContext, new MessageCallbackForwarder(message)));
+				connector.send(serializer.serializeEmptyMessage(message, endpointContext, new MessageCallbackForwarder(message)));
 			}
 		}
 
@@ -852,7 +852,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				Exchange exchange = matcher.receiveResponse(response, raw.getCorrelationContext());
+				Exchange exchange = matcher.receiveResponse(response, raw.getEndpointContext());
 				if (exchange != null) {
 					exchange.setEndpoint(CoapEndpoint.this);
 					response.setRTT(exchange.calculateRTT());
@@ -917,7 +917,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 		
 		@Override
-		public void onContextEstablished(CorrelationContext context) {
+		public void onContextEstablished(EndpointContext context) {
 			
 		}
 
@@ -934,7 +934,7 @@ public class CoapEndpoint implements Endpoint {
 
 	/**
 	 * Message callback for request. 
-	 * Additional calls {@link Exchange#setCorrelationContext(CorrelationContext).
+	 * Additional calls {@link Exchange#setEndpointContext(EndpointContext)}.
 	 */
 	private class RequestCallback extends MessageCallbackForwarder {
 
@@ -958,8 +958,8 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		@Override
-		public void onContextEstablished(CorrelationContext context) {
-			exchange.setCorrelationContext(context);
+		public void onContextEstablished(EndpointContext context) {
+			exchange.setEndpointContext(context);
 		}
 	}
 

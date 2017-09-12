@@ -111,7 +111,7 @@ public interface MessageObserver {
 	/**
 	 * Invoked when sending the message caused an error.
 	 * <p>
-	 * For instance, if the message is not sent, because the correlation context has changed.
+	 * For instance, if the message is not sent, because the endpoint context has changed.
 	 */
 	void onSendError(Throwable error);
 	

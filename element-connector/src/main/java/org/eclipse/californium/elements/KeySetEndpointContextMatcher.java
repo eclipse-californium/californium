@@ -25,9 +25,9 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * Key set based correlation context matcher.
+ * Key set based endpoint context matcher.
  */
-public class KeySetCorrelationContextMatcher implements CorrelationContextMatcher {
+public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Name of matcher. Used for logging.
@@ -36,18 +36,18 @@ public class KeySetCorrelationContextMatcher implements CorrelationContextMatche
 	/**
 	 * Key set to be used for matching.
 	 * 
-	 * @see CorrelationContextUtil#match(String, Set, CorrelationContext,
-	 *      CorrelationContext)
+	 * @see EndpointContextUtil#match(String, Set, EndpointContext,
+	 *      EndpointContext)
 	 */
 	private final Set<String> keys;
 
 	/**
-	 * Create new instance of key set based correlation context matcher.
+	 * Create new instance of key set based endpoint context matcher.
 	 * 
 	 * @param name name (used for logging).
 	 * @param keys key set.
 	 */
-	public KeySetCorrelationContextMatcher(String name, String keys[]) {
+	public KeySetEndpointContextMatcher(String name, String keys[]) {
 		this.name = name;
 		this.keys = createKeySet(keys);
 	}
@@ -58,22 +58,22 @@ public class KeySetCorrelationContextMatcher implements CorrelationContextMatche
 	}
 
 	@Override
-	public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
+	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 		return internalMatch(requestContext, responseContext);
 	}
 
 	@Override
-	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
 		return internalMatch(messageContext, connectorContext);
 	}
 
-	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
+	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
 		if (null == requestedContext) {
 			return true;
 		} else if (null == availableContext) {
 			return false;
 		}
-		return CorrelationContextUtil.match(getName(), keys, requestedContext, availableContext);
+		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);
 	}
 
 	/**

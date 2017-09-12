@@ -18,23 +18,23 @@
 package org.eclipse.californium.elements;
 
 /**
- * A correlation context that explicitly supports DTLS specific properties.
+ * A endpoint context that explicitly supports DTLS specific properties.
  */
-public class DtlsCorrelationContext extends MapBasedCorrelationContext {
+public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
 	public static final String KEY_EPOCH = "DTLS_EPOCH";
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
 
 	/**
-	 * Creates a new correlation context from DTLS session parameters.
+	 * Creates a new endpoint context from DTLS session parameters.
 	 * 
 	 * @param sessionId the session's ID.
 	 * @param epoch the session's current read/write epoch.
 	 * @param cipher the cipher suite of the session's current read/write state.
 	 * @throws NullPointerException if any of the params is <code>null</code>.
 	 */
-	public DtlsCorrelationContext(String sessionId, String epoch, String cipher) {
+	public DtlsEndpointContext(String sessionId, String epoch, String cipher) {
 		if (sessionId == null) {
 			throw new NullPointerException("Session ID must not be null");
 		} else if (epoch == null) {

@@ -54,7 +54,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -166,11 +166,11 @@ public abstract class BaseMatcher implements Matcher {
 	 * {@link #observationStore} and if found, recreate a exchange.
 	 * 
 	 * @param response notify response
-	 * @param responseContext correlation context of response
+	 * @param responseContext endpoint context of response
 	 * @return exchange, if a new one is create of the stored observe
 	 *         informations, null, otherwise.
 	 */
-	protected final Exchange matchNotifyResponse(final Response response, final CorrelationContext responseContext) {
+	protected final Exchange matchNotifyResponse(final Response response, final EndpointContext responseContext) {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {

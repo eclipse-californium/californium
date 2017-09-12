@@ -22,9 +22,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A map based correlation context.
+ * A map based endpoint context.
  */
-public class MapBasedCorrelationContext implements CorrelationContext {
+public class MapBasedEndpointContext implements EndpointContext {
 
 	private Map<String, String> entries = new HashMap<>();
 
@@ -74,10 +74,10 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 	}
 
 	/**
-	 * Checks if this correlation context has the same entries as another instance.
+	 * Checks if this endpoint context has the same entries as another instance.
 	 * 
 	 * @param obj the object to compare this context to.
-	 * @return <code>true</code> if the other object also is a <code>MapBasedCorrelationContext</code>
+	 * @return <code>true</code> if the other object also is a <code>MapBasedEndpointContext</code>
 	 *         and has the same entries as this context.
 	 */
 	@Override
@@ -88,10 +88,10 @@ public class MapBasedCorrelationContext implements CorrelationContext {
 		if (obj == null) {
 			return false;
 		}
-		if (!(obj instanceof MapBasedCorrelationContext)) {
+		if (!(obj instanceof MapBasedEndpointContext)) {
 			return false;
 		}
-		MapBasedCorrelationContext other = (MapBasedCorrelationContext) obj;
+		MapBasedEndpointContext other = (MapBasedEndpointContext) obj;
 		if (entries == null) {
 			if (other.entries != null) {
 				return false;

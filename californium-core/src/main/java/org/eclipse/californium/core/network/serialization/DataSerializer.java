@@ -26,7 +26,7 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -119,11 +119,11 @@ public abstract class DataSerializer {
 	 * Serializes response and caches bytes on the request object to skip future serializations.
 	 * 
 	 * @param response The response to serialize.
-	 * @param context correlation context for response. Maybe null.
+	 * @param context endpoint context for response. Maybe null.
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized response.
 	 */
-	public final RawData serializeResponse(final Response response, final CorrelationContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeResponse(final Response response, final EndpointContext context, final MessageCallback outboundCallback) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -158,11 +158,11 @@ public abstract class DataSerializer {
 	 * Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations.
 	 * 
 	 * @param emptyMessage The message to serialize.
-	 * @param context correlation context for response. Maybe null.
+	 * @param context endpoint context for response. Maybe null.
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized message.
 	 */
-	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final CorrelationContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final EndpointContext context, final MessageCallback outboundCallback) {
 		if (emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);

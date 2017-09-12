@@ -13,7 +13,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A registry for keeping information about resources observed on other peers.
@@ -50,18 +50,18 @@ public interface ObservationStore {
 	Observation get(byte[] token);
 
 	/**
-	 * Sets the correlation context on the observation initiated by the request
+	 * Sets the endpoint context on the observation initiated by the request
 	 * with the given token.
 	 * <p>
-	 * This method is necessary because the correlation context may not be known
+	 * This method is necessary because the endpoint context may not be known
 	 * when the observation is originally registered. This is due to the fact
-	 * that the information contained in the correlation context is gathered by
+	 * that the information contained in the endpoint context is gathered by
 	 * the transport layer when the request establishing the observation is sent
 	 * to the peer.
 	 * </p>
 	 * 
 	 * @param token The token of the observation to set the context on.
-	 * @param correlationContext The context to set.
+	 * @param endpointContext The context to set.
 	 */
-	void setContext(byte[] token, CorrelationContext correlationContext);
+	void setContext(byte[] token, EndpointContext endpointContext);
 }

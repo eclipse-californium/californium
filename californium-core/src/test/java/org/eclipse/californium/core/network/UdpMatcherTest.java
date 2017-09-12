@@ -32,8 +32,8 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
-import org.eclipse.californium.elements.MapBasedCorrelationContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -66,31 +66,31 @@ public class UdpMatcherTest {
 	}
 
 	@Test
-	public void testReceiveResponseAcceptsResponseWithoutCorrelationInformation() {
-		// GIVEN a request sent without any additional correlation information
+	public void testReceiveResponseAcceptsResponseWithoutEndpointInformation() {
+		// GIVEN a request sent without any additional endpoint information
 		//  using a matcher set to lax matching
 		UdpMatcher matcher = newUdpMatcher(false);
 		Exchange exchange = sendRequest(dest, matcher, null);
 
-		// WHEN a response arrives with arbitrary additional correlation information
+		// WHEN a response arrives with arbitrary additional endpoint information
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new MapBasedCorrelationContext());
+												new MapBasedEndpointContext());
 
 		// THEN assert that the response is successfully matched against the request
 		assertThat(matchedExchange, is(exchange));
 	}
 
 	@Test
-	public void testReceiveResponseRejectsResponseWithArbitraryCorrelationInformation() {
-		// GIVEN a request sent with some additional correlation information
+	public void testReceiveResponseRejectsResponseWithArbitraryEndpointInformation() {
+		// GIVEN a request sent with some additional endpoint information
 		//  using a matcher set to lax matching
 		UdpMatcher matcher = newUdpMatcher(false);
-		MapBasedCorrelationContext ctx = new MapBasedCorrelationContext();
+		MapBasedEndpointContext ctx = new MapBasedEndpointContext();
 		ctx.put("key", "value");
 		Exchange exchange = sendRequest(dest, matcher, ctx);
 
-		// WHEN a response arrives without any correlation information
+		// WHEN a response arrives without any endpoint information
 		Exchange matchedExchange = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
 
 		// THEN assert that the response is not matched
@@ -103,13 +103,13 @@ public class UdpMatcherTest {
 	public void testReceiveResponseAcceptsResponseFromDifferentEpochUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
 		UdpMatcher matcher = newUdpMatcher(false);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID within the same DTLS session, using
 		// the same cipher but from a different epoch
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(SESSION_ID, OTHER_EPOCH, CIPHER));
+												new DtlsEndpointContext(SESSION_ID, OTHER_EPOCH, CIPHER));
 
 		// THEN assert that the response is matched successfully
 		assertThat(matchedExchange, is(exchange));
@@ -119,12 +119,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseRejectsResponseFromDifferentSessionUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
 		UdpMatcher matcher = newUdpMatcher(false);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID but a different DTLS session
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(OTHER_SESSION_ID, EPOCH, CIPHER));
+												new DtlsEndpointContext(OTHER_SESSION_ID, EPOCH, CIPHER));
 
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));
@@ -134,12 +134,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseRejectsResponseUsingDifferentCipherUsingLaxMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to lax matching
 		UdpMatcher matcher = newUdpMatcher(false);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID within the same DTLS session but using another cipher
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(SESSION_ID, EPOCH, OTHER_CIPHER));
+												new DtlsEndpointContext(SESSION_ID, EPOCH, OTHER_CIPHER));
 
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));
@@ -151,12 +151,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseAcceptsResponseFromSameSessionEpochAndCipherUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport
 		UdpMatcher matcher = newUdpMatcher(true);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID, epoch and cipher
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+												new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// THEN assert that the response is matched successfully
 		assertThat(matchedExchange, is(exchange));
@@ -166,12 +166,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseRejectsResponseFromDifferentEpochUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
 		UdpMatcher matcher = newUdpMatcher(true);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID and cipher but from a different epoch
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(SESSION_ID, OTHER_EPOCH, CIPHER));
+												new DtlsEndpointContext(SESSION_ID, OTHER_EPOCH, CIPHER));
 
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));
@@ -181,12 +181,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseRejectsResponseFromDifferentSessionUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
 		UdpMatcher matcher = newUdpMatcher(true);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, epoch and cipher but a different session ID
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(OTHER_SESSION_ID, EPOCH, CIPHER));
+												new DtlsEndpointContext(OTHER_SESSION_ID, EPOCH, CIPHER));
 
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));
@@ -196,12 +196,12 @@ public class UdpMatcherTest {
 	public void testReceiveResponseRejectsResponseUsingDifferentCipherUsingStrictMatching() {
 		// GIVEN a request sent via a DTLS transport using a matcher set to strict matching
 		UdpMatcher matcher = newUdpMatcher(true);
-		Exchange exchange = sendRequest(dest, matcher, new DtlsCorrelationContext(SESSION_ID, EPOCH, CIPHER));
+		Exchange exchange = sendRequest(dest, matcher, new DtlsEndpointContext(SESSION_ID, EPOCH, CIPHER));
 
 		// WHEN a response arrives with the same message ID, session ID and epoch but using a different cipher
 		Exchange matchedExchange = matcher.receiveResponse(
 												responseFor(exchange.getCurrentRequest()),
-												new DtlsCorrelationContext(SESSION_ID, EPOCH, OTHER_CIPHER));
+												new DtlsEndpointContext(SESSION_ID, EPOCH, OTHER_CIPHER));
 
 		// THEN assert that the response is not matched
 		assertThat(matchedExchange, is(nullValue()));

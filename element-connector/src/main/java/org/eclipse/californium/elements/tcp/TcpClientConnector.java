@@ -40,9 +40,9 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.CorrelationMismatchException;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -69,12 +69,12 @@ public class TcpClientConnector implements Connector {
 	private final int connectTimeoutMillis;
 	private final InetSocketAddress localSocketAddress = new InetSocketAddress(0);
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
+	 * @see #getEndpointContextMatcher()
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private EndpointContextMatcher endpointContextMatcher;
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -125,15 +125,15 @@ public class TcpClientConnector implements Connector {
 	@Override
 	public void send(final RawData msg) {
 		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
-		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
+		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
-		if (null != correlationMatcher && !poolMap.contains(addressKey)
-				&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), null)) {
+		if (null != endpointMatcher && !poolMap.contains(addressKey)
+				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
 						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			}
-			msg.onError(new CorrelationMismatchException());
+			msg.onError(new EndpointMismatchException());
 			return;
 		}
 		final ChannelPool channelPool = poolMap.get(addressKey);
@@ -144,16 +144,16 @@ public class TcpClientConnector implements Connector {
 			public void operationComplete(Future<Channel> future) throws Exception {
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
-					CorrelationContext context = NettyContextUtils.buildCorrelationContext(channel);
+					EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
 					try {
 						/* check, if the message should be sent with the established connection */
-						if (null != correlationMatcher
-								&& !correlationMatcher.isToBeSent(msg.getCorrelationContext(), context)) {
+						if (null != endpointMatcher
+								&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
 							if (LOGGER.isLoggable(Level.WARNING)) {
 								LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
 										new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 							}
-							msg.onError(new CorrelationMismatchException());
+							msg.onError(new EndpointMismatchException());
 							return;
 						}
 						msg.onContextEstablished(context);
@@ -190,12 +190,12 @@ public class TcpClientConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
-		correlationContextMatcher = matcher;
+	public synchronized void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+		endpointContextMatcher = matcher;
 	}
 
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
-		return correlationContextMatcher;
+	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+		return endpointContextMatcher;
 	}
 
 	@Override public InetSocketAddress getAddress() {
