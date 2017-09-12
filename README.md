@@ -56,7 +56,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `1.1.0-SNAPHOT`.
+You can then simply depend on `1.1.0-SNAPSHOT`.
  
 # Eclipse
 
