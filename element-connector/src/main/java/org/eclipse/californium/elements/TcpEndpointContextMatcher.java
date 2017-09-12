@@ -12,31 +12,17 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
- *                                      (GitHub issue #305)
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * Exception indicating, that the correlation context doesn't match for some
- * reason.
+ * TCP endpoint context matcher.
  */
-public class CorrelationMismatchException extends Exception {
+public class TcpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	private static final long serialVersionUID = 1L;
+	private static final String KEYS[] = { TcpEndpointContext.KEY_CONNECTION_ID };
 
-	/**
-	 * Create new instance.
-	 */
-	public CorrelationMismatchException() {
-
-	}
-
-	/**
-	 * Create new instance with message.
-	 * 
-	 * @param message message
-	 */
-	public CorrelationMismatchException(String message) {
-		super(message);
+	public TcpEndpointContextMatcher() {
+		super("tcp context", KEYS);
 	}
 }

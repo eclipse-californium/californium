@@ -24,7 +24,7 @@ import java.util.Set;
  * A container for storing transport specific information about the context in
  * which a message has been sent or received.
  */
-public interface CorrelationContext {
+public interface EndpointContext {
 
 	/**
 	 * Gets a value from this context.
@@ -36,7 +36,7 @@ public interface CorrelationContext {
 	String get(String key);
 
 	/**
-	 * Gets a Set of a Map.Entry which contains the key-value pair of the CorrelationContext.
+	 * Gets a Set of a Map.Entry which contains the key-value pair of the EndpointContext.
 	 *
 	 * @return A set of a map entry containing the key value pair.
 	 */

@@ -20,10 +20,11 @@
 package org.eclipse.californium.elements;
 
 /**
- * Interface for correlation context processing. Enable implementor to flexible
- * decide on context correlation information.
+ * Interface for endpoint context processing.
+ * 
+ * Enable implementor to flexible decide on endpoint context information.
  */
-public interface CorrelationContextMatcher {
+public interface EndpointContextMatcher {
 
 	/**
 	 * Return matcher name. Used for logging.
@@ -35,22 +36,22 @@ public interface CorrelationContextMatcher {
 	/**
 	 * Check, if responses is related to the request.
 	 * 
-	 * @param requestContext correlation context of request
-	 * @param responseContext correlation context of response
+	 * @param requestContext endpoint context of request
+	 * @param responseContext endpoint context of response
 	 * @return true, if response is related to the request, false, if response
 	 *         should not be considered for this request.
 	 */
-	boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext);
+	boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext);
 
 	/**
-	 * Check, if message should be sent out using the current correlation
+	 * Check, if message should be sent out using the current endpoint
 	 * context of the connector.
 	 * 
-	 * @param messageContext correlation context of message
-	 * @param connectorContext correlation context of connector
+	 * @param messageContext endpoint context of message
+	 * @param connectorContext endpoint context of connector
 	 * @return true, if message should be sent, false, if message should not be
 	 *         sent.
 	 */
-	boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext);
+	boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext);
 
 }

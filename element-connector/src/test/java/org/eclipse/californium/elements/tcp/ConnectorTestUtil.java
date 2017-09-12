@@ -29,7 +29,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 
@@ -58,7 +58,7 @@ public class ConnectorTestUtil {
 		return server;
 	}
 
-	public static RawData createMessage(InetSocketAddress address, int messageSize, CorrelationContext contextToSent,
+	public static RawData createMessage(InetSocketAddress address, int messageSize, EndpointContext contextToSent,
 			MessageCallback callback) throws Exception {
 		byte[] data = new byte[messageSize];
 		random.nextBytes(data);

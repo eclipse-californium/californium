@@ -33,27 +33,27 @@ public class RawDataTest {
 
 	/**
 	 * Verifies that isSecure() detects that the data has been received via a secure channel
-	 * based on the correlation context.
+	 * based on the endpoint context.
 	 */
 	@Test
 	public void testIsSecure() {
 
-		RawData rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getSecureCorrelationContext(), false);
+		RawData rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getSecureEndpointContext(), false);
 		assertTrue(rawData.isSecure());
 
-		rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getNonSecureCorrelationContext(), false);
+		rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getNonSecureEndpointContext(), false);
 		assertFalse(rawData.isSecure());
 
 		rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, null, false);
 		assertFalse(rawData.isSecure());
 	}
 
-	private CorrelationContext getSecureCorrelationContext() {
-		return new DtlsCorrelationContext("12345", "2", "PSK");
+	private EndpointContext getSecureEndpointContext() {
+		return new DtlsEndpointContext("12345", "2", "PSK");
 	}
 
-	private CorrelationContext getNonSecureCorrelationContext() {
-		MapBasedCorrelationContext ctx = new MapBasedCorrelationContext();
+	private EndpointContext getNonSecureEndpointContext() {
+		MapBasedEndpointContext ctx = new MapBasedEndpointContext();
 		ctx.put("someKey", "someValue");
 		return ctx;
 	}

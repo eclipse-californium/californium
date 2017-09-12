@@ -261,10 +261,10 @@ public class DTLSConnectorTest {
 		// WHEN sending the message
 		givenAnEstablishedSession(outboundMessage, true);
 
-		// THEN assert that the callback has been invoked with a correlation context
+		// THEN assert that the callback has been invoked with a endpoint context
 		assertTrue(callback.isSent(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
-		assertThat(serverRawDataProcessor.getLatestInboundMessage().getCorrelationContext(), is(notNullValue()));
+		assertThat(serverRawDataProcessor.getLatestInboundMessage().getEndpointContext(), is(notNullValue()));
 	}
 
 	@Test

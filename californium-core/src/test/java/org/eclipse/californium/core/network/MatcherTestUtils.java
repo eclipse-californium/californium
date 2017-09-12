@@ -27,7 +27,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * Helper methods for testing {@code Matcher}s.
@@ -48,7 +48,7 @@ public final class MatcherTestUtils {
 			}
 			
 		};
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), CorrelationContextMatcherFactory.create(null, config));
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), EndpointContextMatcherFactory.create(null, config));
 		matcher.start();
 		return matcher;
 	}
@@ -63,20 +63,20 @@ public final class MatcherTestUtils {
 			}
 			
 		};
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, CorrelationContextMatcherFactory.create(null, config));
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, EndpointContextMatcherFactory.create(null, config));
 
 		matcher.start();
 		return matcher;
 	}
 
-	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, CorrelationContext ctx) {
+	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext ctx) {
 		Request request = Request.newGet();
 		request.setDestination(dest.getAddress());
 		request.setDestinationPort(dest.getPort());
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
 		matcher.sendRequest(exchange, request);
-		exchange.setCorrelationContext(ctx);
+		exchange.setEndpointContext(ctx);
 		return exchange;
 	}
 

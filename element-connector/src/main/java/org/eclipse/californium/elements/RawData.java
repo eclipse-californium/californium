@@ -57,7 +57,7 @@ public final class RawData {
 
 	private Principal senderIdentity;
 
-	private CorrelationContext correlationContext;
+	private EndpointContext endpointContext;
 
 	private MessageCallback callback;
 
@@ -144,14 +144,14 @@ public final class RawData {
 	 * @param address the IP address and port the data is to be sent to or has been received from
 	 * @param clientIdentity the identity of the authenticated sender of the message
 	 *     (or <code>null</code> if sender is not authenticated)
-	 * @param correlationContext additional information regarding the context the message has been
+	 * @param endpointContext additional information regarding the context the message has been
 	 *      received in. The information contained will usually come from the transport layer, e.g.
 	 *      the ID of the DTLS session the message has been received in, and can be used to correlate
 	 *      this message with another (previously send) message.
 	 * @param multicast indicates whether the data represents a multicast message
 	 * @throws NullPointerException if data or address is <code>null</code>
 	 */
-	private RawData(byte[] data, InetSocketAddress address, Principal clientIdentity, CorrelationContext correlationContext, boolean multicast) {
+	private RawData(byte[] data, InetSocketAddress address, Principal clientIdentity, EndpointContext endpointContext, boolean multicast) {
 		if (data == null) {
 			throw new NullPointerException("Data must not be null");
 		} else if (address == null) {
@@ -160,7 +160,7 @@ public final class RawData {
 			this.bytes = data;
 			this.address = address;
 			this.senderIdentity = clientIdentity;
-			this.correlationContext = correlationContext;
+			this.endpointContext = endpointContext;
 			this.multicast = multicast;
 		}
 	}
@@ -200,7 +200,7 @@ public final class RawData {
 	 * @param address the IP address and port the data has been received from.
 	 * @param clientIdentity the identity of the authenticated sender of the message
 	 *     (or <code>null</code> if sender is not authenticated).
-	 * @param correlationContext additional information regarding the context the message has been
+	 * @param endpointContext additional information regarding the context the message has been
 	 *      received in. The information contained will usually come from the transport layer, e.g.
 	 *      the ID of the DTLS session the message has been received in, and can be used to correlate
 	 *      this message with another (previously sent) message.
@@ -209,8 +209,8 @@ public final class RawData {
 	 * @throws NullPointerException if data or address is <code>null</code>.
 	 */
 	public static RawData inbound(byte[] data, InetSocketAddress address, Principal clientIdentity,
-			CorrelationContext correlationContext, boolean isMulticast) {
-		return new RawData(data, address, clientIdentity, correlationContext, isMulticast);
+			EndpointContext endpointContext, boolean isMulticast) {
+		return new RawData(data, address, clientIdentity, endpointContext, isMulticast);
 	}
 
 	/**
@@ -229,15 +229,15 @@ public final class RawData {
 	 * 
 	 * @param data the data to send.
 	 * @param address the IP address and port the data is to be sent to.
-	 * @param correlationContext correlation context for sending data (may be <code>null</code>).
+	 * @param endpointContext endpoint context for sending data (may be <code>null</code>).
 	 * @param callback the handler to call when this message has been sent (may be <code>null</code>).
 	 * @param useMulticast indicates whether the data should be sent using a multicast message.
 	 * @return the raw data object containing the outbound message.
 	 * @throws NullPointerException if data or address is <code>null</code>.
 	 */
-	public static RawData outbound(byte[] data, InetSocketAddress address, CorrelationContext correlationContext, MessageCallback callback, boolean useMulticast) {
+	public static RawData outbound(byte[] data, InetSocketAddress address, EndpointContext endpointContext, MessageCallback callback, boolean useMulticast) {
 		RawData result = new RawData(data, address);
-		result.correlationContext = correlationContext;
+		result.endpointContext = endpointContext;
 		result.callback = callback;
 		result.multicast = useMulticast;
 		return result;
@@ -313,21 +313,21 @@ public final class RawData {
 	 * Gets additional information regarding the context this message has been
 	 * received in or should be sent in.
 	 * 
-	 * @return the messageContext the correlation information or <code>null</code> if
-	 *           no additional correlation information is available
+	 * @return the messageContext the endpoint information or <code>null</code> if
+	 *           no additional endpoint information is available
 	 */
-	public CorrelationContext getCorrelationContext() {
-		return correlationContext;
+	public EndpointContext getEndpointContext() {
+		return endpointContext;
 	}
 
 	/**
-	 * Determines if the correlation context of this object is secure.
+	 * Determines if the endpoint context of this object is secure.
 	 *
 	 * @return <code>true</code> if context is secure, <code>false</code>
 	 *         otherwise
 	 */
 	public boolean isSecure() {
-		return (correlationContext != null && correlationContext.get(DtlsCorrelationContext.KEY_SESSION_ID) != null);
+		return (endpointContext != null && endpointContext.get(DtlsEndpointContext.KEY_SESSION_ID) != null);
 	}
 
 	/**
@@ -335,7 +335,7 @@ public final class RawData {
 	 * 
 	 * @param context established context to be forwarded to the callback.
 	 */
-	public void onContextEstablished(CorrelationContext context) {
+	public void onContextEstablished(EndpointContext context) {
 		if (null != callback) {
 			callback.onContextEstablished(context);
 		}

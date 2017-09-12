@@ -21,7 +21,7 @@ package org.eclipse.californium.core.network;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
@@ -127,7 +127,7 @@ public interface Matcher {
 	 * @return the message exchange that the response is a part of or {@code null}
 	 *         if the response cannot be matched to an ongoing exchange.
 	 */
-	Exchange receiveResponse(Response response, CorrelationContext responseContext);
+	Exchange receiveResponse(Response response, EndpointContext responseContext);
 
 	/**
 	 * Determines the message exchange that an empty message received from a peer

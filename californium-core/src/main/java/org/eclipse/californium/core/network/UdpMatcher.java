@@ -56,8 +56,8 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
@@ -68,7 +68,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private final CorrelationContextMatcher correlationContextMatcher;
+	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over UDP.
@@ -79,15 +79,15 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 * @param matchingStrategy correlation context matcher to relate
+	 * @param matchingStrategy endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final CorrelationContextMatcher matchingStrategy) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
 		super(config, notificationListener, observationStore, exchangeStore);
-		this.correlationContextMatcher = matchingStrategy;
+		this.endpointContextMatcher = matchingStrategy;
 	}
 
 	@Override
@@ -196,7 +196,7 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response, final CorrelationContext responseContext) {
+	public Exchange receiveResponse(final Response response, final EndpointContext responseContext) {
 
 		/*
 		 * This response could be
@@ -241,7 +241,7 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 			// ignore response
 			return null;
-		} else if (correlationContextMatcher.isResponseRelatedToRequest(exchange.getCorrelationContext(), responseContext)) {
+		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), responseContext)) {
 
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
 				// The token matches but not the MID.
@@ -277,7 +277,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO, "Ignoring potentially forged response for token {0} with non-matching correlation context", idByToken);
+			LOGGER.log(Level.INFO, "Ignoring potentially forged response for token {0} with non-matching endpoint context", idByToken);
 			return null;
 		}
 	}
@@ -415,7 +415,7 @@ public final class UdpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getCorrelationContext());
+				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
 			}
 		}
 	}

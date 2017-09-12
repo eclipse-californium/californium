@@ -49,7 +49,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An exchange represents the complete state of an exchange of one request and
@@ -76,7 +76,7 @@ import org.eclipse.californium.elements.CorrelationContext;
  * concurrent collections in the matcher and therefore establish a "happens
  * before" order (as long as threads accessing the exchange via the matcher).
  * But some methods are out of scope of that and use Exchange directly (e.g.
- * {@link #setCorrelationContext(CorrelationContext) the "sender thread" or
+ * {@link #setEndpointContext(EndpointContext) the "sender thread" or
  * {@link #setFailedTransmissionCount(int)} the "retransmission thread
  * (executor)"). Therefore use at least volatile for the fields. This doesn't
  * ensure, that Exchange is thread safe, it only ensures the visibility of the
@@ -179,7 +179,7 @@ public class Exchange {
 	// protocol stage executor
 	private volatile boolean customExecutor = false;
 
-	private final AtomicReference<CorrelationContext> correlationContext = new AtomicReference<CorrelationContext>();
+	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
 	/**
 	 * Creates a new exchange with the specified request and origin.
@@ -197,13 +197,13 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param ctx the correlation context of this exchange
+	 * @param ctx the endpoint context of this exchange
 	 */
-	public Exchange(Request request, Origin origin, CorrelationContext ctx) {
+	public Exchange(Request request, Origin origin, EndpointContext ctx) {
 		// might only be the first block of the whole request
 		this.currentRequest = request;
 		this.origin = origin;
-		this.correlationContext.set(ctx);
+		this.endpointContext.set(ctx);
 		this.nanoTimestamp = System.nanoTime();
 	}
 
@@ -611,16 +611,16 @@ public class Exchange {
 	 * exchange's request.
 	 * </p>
 	 * 
-	 * @param ctx the correlation information
+	 * @param ctx the endpoint context information
 	 */
-	public void setCorrelationContext(final CorrelationContext ctx) {
-		if (correlationContext.compareAndSet(null, ctx)) {
+	public void setEndpointContext(final EndpointContext ctx) {
+		if (endpointContext.compareAndSet(null, ctx)) {
 			ExchangeObserver obs = this.observer;
 			if (obs != null) {
 				obs.contextEstablished(this);
 			}
 		} else {
-			correlationContext.set(ctx);
+			endpointContext.set(ctx);
 		}
 	}
 
@@ -628,11 +628,11 @@ public class Exchange {
 	 * Gets transport layer specific information that can be used to correlate a
 	 * response with this exchange's original request.
 	 * 
-	 * @return the correlation information or <code>null</code> if no
+	 * @return the endpoint context information or <code>null</code> if no
 	 *         information is available.
 	 */
-	public CorrelationContext getCorrelationContext() {
-		return correlationContext.get();
+	public EndpointContext getEndpointContext() {
+		return endpointContext.get();
 	}
 
 	/**

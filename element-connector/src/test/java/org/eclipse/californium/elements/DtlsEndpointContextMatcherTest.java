@@ -21,31 +21,31 @@ import static org.junit.Assert.assertThat;
 import org.junit.Before;
 import org.junit.Test;
 
-public class DtlsCorrelationContextMatcherTest {
+public class DtlsEndpointContextMatcherTest {
 
-	private CorrelationContext connectorContext;
-	private CorrelationContext relaxedMessageContext;
-	private CorrelationContext strictMessageContext;
-	private CorrelationContext differentMessageContext;
-	private CorrelationContext unsecureMessageContext;
-	private CorrelationContextMatcher relaxedMatcher;
-	private CorrelationContextMatcher strictMatcher;
+	private EndpointContext connectorContext;
+	private EndpointContext relaxedMessageContext;
+	private EndpointContext strictMessageContext;
+	private EndpointContext differentMessageContext;
+	private EndpointContext unsecureMessageContext;
+	private EndpointContextMatcher relaxedMatcher;
+	private EndpointContextMatcher strictMatcher;
 
 	@Before
 	public void setup() {
-		connectorContext = new DtlsCorrelationContext("session", "1", "CIPHER");
-		relaxedMessageContext = new DtlsCorrelationContext("session", "2", "CIPHER");
-		strictMessageContext = new DtlsCorrelationContext("session", "1", "CIPHER");
-		differentMessageContext = new DtlsCorrelationContext("new session", "1", "CIPHER");
-		MapBasedCorrelationContext mapBasedContext = new MapBasedCorrelationContext();
+		connectorContext = new DtlsEndpointContext("session", "1", "CIPHER");
+		relaxedMessageContext = new DtlsEndpointContext("session", "2", "CIPHER");
+		strictMessageContext = new DtlsEndpointContext("session", "1", "CIPHER");
+		differentMessageContext = new DtlsEndpointContext("new session", "1", "CIPHER");
+		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext();
 		mapBasedContext.put("ID", "session");
 		unsecureMessageContext = mapBasedContext;
-		relaxedMatcher = new RelaxedDtlsCorrelationContextMatcher();
-		strictMatcher = new StrictDtlsCorrelationContextMatcher();
+		relaxedMatcher = new RelaxedDtlsEndpointContextMatcher();
+		strictMatcher = new StrictDtlsEndpointContextMatcher();
 	}
 
 	@Test
-	public void testRelaxedWithConnectorCorrelationContext() {
+	public void testRelaxedWithConnectorEndpointContext() {
 		assertThat(relaxedMatcher.isToBeSent(null, connectorContext), is(true));
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(true));
 		assertThat(relaxedMatcher.isToBeSent(differentMessageContext, connectorContext), is(false));
@@ -53,7 +53,7 @@ public class DtlsCorrelationContextMatcherTest {
 	}
 
 	@Test
-	public void testStrictWithConnectorCorrelationContext() {
+	public void testStrictWithConnectorEndpointContext() {
 		assertThat(strictMatcher.isToBeSent(null, connectorContext), is(true));
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, connectorContext), is(true));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(false));
@@ -61,7 +61,7 @@ public class DtlsCorrelationContextMatcherTest {
 	}
 
 	@Test
-	public void testRelaxedWithoutConnectorCorrelationContext() {
+	public void testRelaxedWithoutConnectorEndpointContext() {
 		assertThat(relaxedMatcher.isToBeSent(null, null), is(true));
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, null), is(false));
 		assertThat(relaxedMatcher.isToBeSent(differentMessageContext, null), is(false));
@@ -69,7 +69,7 @@ public class DtlsCorrelationContextMatcherTest {
 	}
 
 	@Test
-	public void testStrictWithoutConnectorCorrelationContext() {
+	public void testStrictWithoutConnectorEndpointContext() {
 		assertThat(strictMatcher.isToBeSent(null, null), is(true));
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, null), is(false));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, null), is(false));

@@ -22,45 +22,45 @@ package org.eclipse.californium.core.network;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.RelaxedDtlsCorrelationContextMatcher;
-import org.eclipse.californium.elements.StrictDtlsCorrelationContextMatcher;
-import org.eclipse.californium.elements.TcpCorrelationContextMatcher;
-import org.eclipse.californium.elements.UdpCorrelationContextMatcher;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.RelaxedDtlsEndpointContextMatcher;
+import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
+import org.eclipse.californium.elements.TcpEndpointContextMatcher;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 
 /**
- * Factory for correlation context matcher.
+ * Factory for endpoint context matcher.
  */
-public class CorrelationContextMatcherFactory {
+public class EndpointContextMatcherFactory {
 
 	/**
-	 * Create correlation context matcher related to connector according the
+	 * Create endpoint context matcher related to connector according the
 	 * configuration. If connector supports "coaps:" and
 	 * USE_STRICT_RESPONSE_MATCHING is set, use
-	 * {@link StrictDtlsCorrelationContextMatcher}, otherwise
-	 * {@link RelaxedDtlsCorrelationContextMatcher}. For other protocol flavors
+	 * {@link StrictDtlsEndpointContextMatcher}, otherwise
+	 * {@link RelaxedDtlsEndpointContextMatcher}. For other protocol flavors
 	 * the corresponding matcher is used. Note: currently the TLS based
-	 * correlation context matcher is still missing and therefore for backwards
+	 * endpoint context matcher is still missing and therefore for backwards
 	 * compatibility the DTLS ones are used.
 	 * 
-	 * @param connector connector to create related correlation context matcher.
+	 * @param connector connector to create related endpoint context matcher.
 	 * @param config configuration.
-	 * @return correlation context matcher
+	 * @return endpoint context matcher
 	 */
-	public static CorrelationContextMatcher create(Connector connector, NetworkConfig config) {
+	public static EndpointContextMatcher create(Connector connector, NetworkConfig config) {
 		if (null != connector) {
 			if (connector.isSchemeSupported(CoAP.COAP_URI_SCHEME)) {
-				return new UdpCorrelationContextMatcher();
+				return new UdpEndpointContextMatcher();
 			} else if (connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
 				/*
 				 * To be implemented in a future PR, in the meanwhile use
 				 * default dtls matcher as default for backwards compatibility
 				 */
 			} else if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)) {
-				return new TcpCorrelationContextMatcher();
+				return new TcpEndpointContextMatcher();
 			}
 		}
-		return config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING) ? new StrictDtlsCorrelationContextMatcher()
-				: new RelaxedDtlsCorrelationContextMatcher();
+		return config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING) ? new StrictDtlsEndpointContextMatcher()
+				: new RelaxedDtlsEndpointContextMatcher();
 	}
 }

@@ -38,7 +38,7 @@ public interface ExchangeObserver {
 	void completed(Exchange exchange);
 
 	/**
-	 * Invoked when the first correlation context is set.
+	 * Invoked when the first endpoint context is set.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner, because
 	 * if it returns, the message is sent. Therefore take special care in methods called
