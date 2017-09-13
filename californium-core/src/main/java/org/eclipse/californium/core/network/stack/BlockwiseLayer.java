@@ -217,7 +217,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					// of the notify to be abandoned so that the client receives
 					// the requested response but lose the notify. 
 					clearBlock2Status(key);
-					status.completeTransfer(null);
+					status.completeOldTransfer(null);
 				}
 				
 				if (requiresBlockwise(request)) {
@@ -598,13 +598,13 @@ public class BlockwiseLayer extends AbstractLayer {
 								"discarding outdated block2 transfer {0}, current is [{1}]",
 								new Object[]{ status.getObserve(), response });
 						clearBlock2Status(key);
-						status.completeTransfer(exchange);
+						status.completeOldTransfer(exchange);
 					} else {
 						LOGGER.log(
 								Level.FINER,
 								"discarding old block2 transfer [{0}], received during ongoing block2 transfer {1}",
 								new Object[]{ response, status.getObserve() });
-						exchange.setComplete();
+						status.completeNewTranfer(exchange);
 						return;
 					}
 				}
@@ -613,7 +613,7 @@ public class BlockwiseLayer extends AbstractLayer {
 							Level.FINER,
 							"discarding outdate block2 response [{0}, {1}] received during ongoing block2 transfer {2}",
 							new Object[]{ exchange.getNotificationNumber(), response, status.getObserve() });
-					exchange.setComplete();
+					status.completeNewTranfer(exchange);
 					return;
 				}
 			}

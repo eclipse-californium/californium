@@ -345,7 +345,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * 
 	 * @param newExchange new exchange
 	 */
-	final void completeTransfer(Exchange newExchange) {
+	final void completeOldTransfer(Exchange newExchange) {
 		Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
@@ -365,6 +365,20 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 				// reset to origin request
 				exchange.setCurrentRequest(exchange.getRequest());
 			}
+		}
+	}
+	
+	/**
+	 * Complete given new exchange only if this is not the one using by this current block status
+	 */
+	final void completeNewTranfer(Exchange newExchange) {
+		Exchange exchange;
+		synchronized (this) {
+			exchange = this.exchange;
+		}
+		if (newExchange != exchange) {
+			// complete exchange
+			newExchange.setComplete();
 		}
 	}
 
