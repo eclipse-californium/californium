@@ -495,21 +495,10 @@ public class BlockwiseLayer extends AbstractLayer {
 				// included a block2 option with num = 0 (early negotiation of block size)
 
 				KeyUri key = getKey(exchange, response);
-				// There are potentially multiple blockwise transfers of the same
-				// resource representation going on with the same client.
-				// We cannot distinguish these because the status is scoped to the
-				// client's endpoint address only (which is the same in this case)
-				// thus these transfers all "share" the same status object on the
-				// server (this) side.
-				// This shared status will be cleaned up as soon as the last block
-				// is transferred for the first time. Any subsequent block2 requests
-				// with num > 0 will then be processed as "random block access" requests.
+				// We can not handle several block2 transfer for the same client/resource.
+				// So we clean previous transfer (priority to the new one)
+				clearBlock2Status(key);
 				Block2BlockwiseStatus status = getOutboundBlock2Status(key, exchange, response);
-
-				// Subsequent requests for the same resource from the same client for
-				// either block 0 or without a block2 option at all will result in
-				// the existing status being "re-used". We therefore need to make
-				// sure that we return the first block of the payload.
 				BlockOption block2 = requestBlock2 != null ? requestBlock2 : new BlockOption(preferredBlockSzx, false, 0);
 				responseToSend = status.getNextResponseBlock(block2);
 
