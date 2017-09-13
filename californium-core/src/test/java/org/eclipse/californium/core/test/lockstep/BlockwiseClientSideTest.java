@@ -363,6 +363,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(MAX_RESOURCE_BODY_SIZE).go();
 
 		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -397,6 +398,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, REQUEST_ENTITY_INCOMPLETE).loadBoth("A").go();
 
 		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_INCOMPLETE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -440,6 +442,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CHANGED).loadBoth("B").go();
 
 		Response response = concurrentRequest.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(CHANGED));
 		assertThat(response.getToken(), is(concurrentRequest.getToken()));
