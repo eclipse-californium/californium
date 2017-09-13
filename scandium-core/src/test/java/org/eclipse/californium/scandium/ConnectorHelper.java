@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -160,7 +161,8 @@ public class ConnectorHelper {
 	}
 
 	void givenAnEstablishedSession(final DTLSConnector client, boolean releaseSocket) throws Exception {
-		givenAnEstablishedSession(client, new RawData("Hello World".getBytes(), serverEndpoint), releaseSocket);
+		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+		givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
 	void givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
@@ -245,7 +247,7 @@ public class ConnectorHelper {
 		@Override
 		public RawData process(RawData request) {
 			inboundMessage.set(request);
-			return new RawData("ACK".getBytes(), request.getInetSocketAddress());
+			return RawData.outbound("ACK".getBytes(), request.getEndpointContext(), null, false);
 		}
 
 		@Override

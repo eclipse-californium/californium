@@ -95,7 +95,7 @@ public class TcpConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(server.getAddress(), messageSize, null, null);
+		RawData msg = createMessage(server.getAddress(), messageSize, null);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -103,7 +103,7 @@ public class TcpConnectorTest {
 
 		// Response message must go over the same connection client already
 		// opened
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), messageSize, null, null);
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), messageSize, null);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
@@ -128,7 +128,7 @@ public class TcpConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(server.getAddress(), messageSize, null, null);
+			RawData msg = createMessage(server.getAddress(), messageSize, null);
 			messages.add(msg);
 			client.send(msg);
 		}

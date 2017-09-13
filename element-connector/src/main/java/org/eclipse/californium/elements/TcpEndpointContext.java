@@ -14,8 +14,13 @@
  *    Bosch Software Innovations GmbH - initial support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages using TCP.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - extend endpoint context with
+ *                                                    inet socket address and principal
  ******************************************************************************/
 package org.eclipse.californium.elements;
+
+import java.net.InetSocketAddress;
+import java.security.Principal;
 
 /**
  * A endpoint context that explicitly supports TCP specific properties.
@@ -31,10 +36,26 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	/**
 	 * Creates a new endpoint context from TCP connection ID.
 	 * 
+	 * @param peerAddress peer address of endpoint context
 	 * @param connectionId the connectionn's ID.
-	 * @throws NullPointerException if connectionId is <code>null</code>.
+	 * @throws NullPointerException if connectionId or peer address is
+	 *             <code>null</code>.
 	 */
-	public TcpEndpointContext(String connectionId) {
+	public TcpEndpointContext(InetSocketAddress peerAddress, String connectionId) {
+		this(peerAddress, null, connectionId);
+	}
+
+	/**
+	 * Creates a new endpoint context from TCP connection ID.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param connectionId the connectionn's ID.
+	 * @throws NullPointerException if connectionId or peer address is
+	 *             <code>null</code>.
+	 */
+	public TcpEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String connectionId) {
+		super(peerAddress, peerIdentity);
 		if (connectionId == null) {
 			throw new NullPointerException("Connection ID must not be null");
 		} else {
@@ -48,7 +69,8 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("TCP(%s)", getConnectionId());
+		return String.format("TCP(%s:%d,ID:%s)", getPeerAddress().getHostString(), getPeerAddress().getPort(),
+				getConnectionId());
 	}
 
 }

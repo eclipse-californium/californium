@@ -14,18 +14,30 @@
  *    Bosch Software Innovations GmbH - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext and
+ *                                                    EndpointContextMatcher mocks
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MatcherTestUtils.newTcpMatcher;
-import static org.eclipse.californium.core.network.MatcherTestUtils.responseFor;
+import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
 import static org.eclipse.californium.core.network.MatcherTestUtils.sendRequest;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -37,14 +49,51 @@ import org.junit.experimental.categories.Category;
 public class TcpMatcherTest {
 
 	private static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
+	private EndpointContext exchangeEndpointContext;
+	private EndpointContext responseEndpointContext;
+	private EndpointContextMatcher endpointContextMatcher;
+
+	@Before
+	public void before() {
+		exchangeEndpointContext = mock(EndpointContext.class);
+		responseEndpointContext = mock(EndpointContext.class);
+		endpointContextMatcher = mock(EndpointContextMatcher.class);
+		when(exchangeEndpointContext.getPeerAddress()).thenReturn(dest);
+		when(responseEndpointContext.getPeerAddress()).thenReturn(dest);
+	}
 
 	@Test
 	public void testRequestMatchesResponse() {
-		TcpMatcher matcher = newTcpMatcher(false);
-		Exchange exchange = sendRequest(dest, matcher, null);
+		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
+				.thenReturn(true);
 
-		Exchange matched = matcher.receiveResponse(responseFor(exchange.getCurrentRequest()), null);
+		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
+		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+
+		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()),
+				responseEndpointContext);
+		
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
+				responseEndpointContext);
+		
 		assertSame(exchange, matched);
+	}
+
+	@Test
+	public void testRequestDoesntMatchesResponse() {
+		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
+				.thenReturn(false);
+
+		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
+		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+
+		Exchange matchedExchange = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()),
+				responseEndpointContext);
+		
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
+				responseEndpointContext);
+		
+		assertThat(matchedExchange, is(nullValue()));
 	}
 
 }

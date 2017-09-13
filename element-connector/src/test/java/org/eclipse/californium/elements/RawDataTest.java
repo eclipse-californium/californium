@@ -38,22 +38,19 @@ public class RawDataTest {
 	@Test
 	public void testIsSecure() {
 
-		RawData rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getSecureEndpointContext(), false);
+		RawData rawData = RawData.inbound(new byte[]{0x01, 0x02}, getSecureEndpointContext(), false);
 		assertTrue(rawData.isSecure());
 
-		rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, getNonSecureEndpointContext(), false);
-		assertFalse(rawData.isSecure());
-
-		rawData = RawData.inbound(new byte[]{0x01, 0x02}, SOURCE, null, null, false);
+		rawData = RawData.inbound(new byte[]{0x01, 0x02}, getNonSecureEndpointContext(), false);
 		assertFalse(rawData.isSecure());
 	}
 
 	private EndpointContext getSecureEndpointContext() {
-		return new DtlsEndpointContext("12345", "2", "PSK");
+		return new DtlsEndpointContext(SOURCE, null, "12345", "2", "PSK");
 	}
 
 	private EndpointContext getNonSecureEndpointContext() {
-		MapBasedEndpointContext ctx = new MapBasedEndpointContext();
+		MapBasedEndpointContext ctx = new MapBasedEndpointContext(SOURCE, null);
 		ctx.put("someKey", "someValue");
 		return ctx;
 	}

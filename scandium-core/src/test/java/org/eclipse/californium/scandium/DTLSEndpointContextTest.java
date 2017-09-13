@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
@@ -116,7 +117,7 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointContextMatcher = new TestEndpointContextMatcher(1);
 		client.setEndpointContextMatcher(endpointContextMatcher);
 		// GIVEN a message to send
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, callback,
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), callback,
 				false);
 
 		// WHEN sending the initial message, but being blocked by EndpointContextMatcher
@@ -168,7 +169,7 @@ public class DTLSEndpointContextTest {
 		EndpointContext endpointContext = endpointMatcher.getConnectionEndpointContext(1);
 
 		// GIVEN a message with endpoint context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, endpointContext,
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext,
 				null, false);
 
 		// WHEN sending a message
@@ -196,7 +197,7 @@ public class DTLSEndpointContextTest {
 		client.forceResumeAllSessions();
 
 		// GIVEN a message with endpoint context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -209,7 +210,7 @@ public class DTLSEndpointContextTest {
 	@Test
 	public void testConnectorAddsEndpointContextToReceivedApplicationMessage() throws Exception {
 		// GIVEN a message to be sent to the server
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, serverHelper.serverEndpoint, null, null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// WHEN a session has been established and the message has been sent to
 		// the server

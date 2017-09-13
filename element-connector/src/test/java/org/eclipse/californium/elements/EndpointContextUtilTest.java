@@ -18,12 +18,15 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetSocketAddress;
 import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
 
 public class EndpointContextUtilTest {
+
+	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 
 	private EndpointContext connectorContext;
 	private EndpointContext relaxedMessageContext;
@@ -34,15 +37,15 @@ public class EndpointContextUtilTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new DtlsEndpointContext("session", "1", "CIPHER");
-		relaxedMessageContext = new DtlsEndpointContext("session", "2", "CIPHER");
-		strictMessageContext = new DtlsEndpointContext("session", "1", "CIPHER");
-		differentMessageContext = new DtlsEndpointContext("new session", "1", "CIPHER");
-		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext();
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER");
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, "new session", "1", "CIPHER");
+		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null);
 		mapBasedContext.put("ID", "session");
 		mapBasedContext.put("UNKNOWN", "secret");
 		unsecureMessageContext = mapBasedContext;
-		mapBasedContext = new MapBasedEndpointContext();
+		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null);
 		mapBasedContext.put("ID", "session");
 		mapBasedContext.put("UNKNOWN", "topsecret");
 		unsecureMessageContext2 = mapBasedContext;

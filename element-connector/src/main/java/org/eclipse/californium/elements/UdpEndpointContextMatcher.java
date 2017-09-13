@@ -16,6 +16,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
  *                                                    outgoing messages
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
+ *                                                    to distinguish from 
+ *                                                    none plain UDP contexts.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -46,7 +49,7 @@ public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		return (null == requestedContext) || (null != availableContext);
+		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
 	}
 
 }

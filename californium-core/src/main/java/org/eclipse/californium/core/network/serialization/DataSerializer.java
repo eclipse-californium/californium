@@ -26,12 +26,12 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -76,9 +76,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 						request.getBytes(),
-						new InetSocketAddress(request.getDestination(),
-						request.getDestinationPort()),
-						null,
+						new AddressEndpointContext(request.getDestination(), request.getDestinationPort()),
 						outboundCallback,
 						false);
 	}
@@ -123,7 +121,7 @@ public abstract class DataSerializer {
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized response.
 	 */
-	public final RawData serializeResponse(final Response response, final EndpointContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeResponse(final Response response, EndpointContext context, final MessageCallback outboundCallback) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -136,10 +134,11 @@ public abstract class DataSerializer {
 			byte[] bytes = writer.toByteArray();
 			response.setBytes(bytes);
 		}
+		if (context == null) {
+			context = new AddressEndpointContext(response.getDestination(), response.getDestinationPort());
+		}
 		return RawData.outbound(
 				response.getBytes(),
-				new InetSocketAddress(response.getDestination(),
-						response.getDestinationPort()),
 				context,
 				outboundCallback,
 				false);
@@ -162,7 +161,7 @@ public abstract class DataSerializer {
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized message.
 	 */
-	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final EndpointContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, EndpointContext context, final MessageCallback outboundCallback) {
 		if (emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);
@@ -175,10 +174,11 @@ public abstract class DataSerializer {
 			byte[] bytes = writer.toByteArray();
 			emptyMessage.setBytes(bytes);
 		}
+		if (context == null) {
+			context = new AddressEndpointContext(emptyMessage.getDestination(), emptyMessage.getDestinationPort());
+		}
 		return RawData.outbound(
 				emptyMessage.getBytes(),
-				new InetSocketAddress(emptyMessage.getDestination(),
-						emptyMessage.getDestinationPort()),
 				context,
 				outboundCallback,
 				false);

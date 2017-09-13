@@ -16,6 +16,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
  *                                                    outgoing messages
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection 
+ *                                                    for isToBeSent.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -63,15 +65,16 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	@Override
-	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
-		return internalMatch(messageContext, connectorContext);
+	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext) {
+		if (null == connectionContext) {
+			return !messageContext.inhibitNewConnection();
+		}
+		return internalMatch(messageContext, connectionContext);
 	}
 
 	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		if (null == requestedContext) {
+		if (!requestedContext.inhibitNewConnection()) {
 			return true;
-		} else if (null == availableContext) {
-			return false;
 		}
 		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);
 	}
