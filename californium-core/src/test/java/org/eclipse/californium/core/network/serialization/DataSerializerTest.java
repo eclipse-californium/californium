@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -48,6 +49,8 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(Small.class)
 @RunWith(Parameterized.class)
 public class DataSerializerTest {
+
+	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 
 	/**
 	 * The concrete serializer to run the test cases with.
@@ -110,8 +113,10 @@ public class DataSerializerTest {
 	 */
 	@Test
 	public void testSerializeResponseWithEndpointContext() {
-		EndpointContext context = new DtlsEndpointContext("session", "1", "CIPHER");
+		EndpointContext context = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
 		Request request = Request.newGet();
+		request.setSource(ADDRESS.getAddress());
+		request.setSourcePort(ADDRESS.getPort());
 		request.setToken(new byte[] { 0x00 });
 		request.setMID(1);
 		Response response = Response.createResponse(request, ResponseCode.CONTENT);
@@ -129,8 +134,10 @@ public class DataSerializerTest {
 	 */
 	@Test
 	public void testSerializeEmptyMessageWithEndpointContext() {
-		EndpointContext context = new DtlsEndpointContext("session", "1", "CIPHER");
+		EndpointContext context = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
 		Request request = Request.newGet();
+		request.setSource(ADDRESS.getAddress());
+		request.setSourcePort(ADDRESS.getPort());
 		request.setMID(1);
 
 		EmptyMessage ack = EmptyMessage.newACK(request);

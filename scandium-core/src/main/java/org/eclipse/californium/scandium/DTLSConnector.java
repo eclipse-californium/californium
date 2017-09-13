@@ -735,10 +735,12 @@ public class DTLSConnector implements Connector {
 	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
 		if (messageHandler != null) {
 			DtlsEndpointContext context = new DtlsEndpointContext(
+					message.getPeer(),
+					session.getPeerIdentity(),
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getReadEpoch()),
 					session.getReadStateCipher());
-			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
+			messageHandler.receiveData(RawData.inbound(message.getData(), context, false));
 		}
 	}
 
@@ -1323,6 +1325,8 @@ public class DTLSConnector implements Connector {
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
 			final EndpointContext ctx = new DtlsEndpointContext(
+					message.getInetSocketAddress(),
+					session.getPeerIdentity(),
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getWriteEpoch()),
 					session.getWriteStateCipher());

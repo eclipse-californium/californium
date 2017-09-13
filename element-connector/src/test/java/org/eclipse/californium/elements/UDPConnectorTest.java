@@ -59,9 +59,9 @@ public class UDPConnectorTest {
 	public void testSendMessageWithEndpointContext() throws InterruptedException {
 		byte[] data = { 0, 1, 2 };
 		InetSocketAddress dest = new InetSocketAddress(0);
-		EndpointContext context = new DtlsEndpointContext("session", "1", "CIPHER");
+		EndpointContext context = new DtlsEndpointContext(dest, null, "session", "1", "CIPHER");
 		
-		RawData message = RawData.outbound(data, dest, context, null, false);
+		RawData message = RawData.outbound(data, context, null, false);
 		connector.setEndpointContextMatcher(matcher);
 		connector.send(message);
 		

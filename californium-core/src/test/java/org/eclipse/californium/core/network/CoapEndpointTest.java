@@ -43,6 +43,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -72,7 +73,7 @@ public class CoapEndpointTest {
 
 	@Before
 	public void setUp() throws Exception {
-		context = new MapBasedEndpointContext();
+		context = new MapBasedEndpointContext(CONNECTOR_ADDRESS, null);
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
@@ -137,8 +138,8 @@ public class CoapEndpointTest {
 			}
 		};
 
-		RawData inboundRequest = new RawData(getSerializedRequest(), new InetSocketAddress(CoAP.DEFAULT_COAP_PORT),
-				clientId);
+		
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getSenderIdentity(), is(clientId));
@@ -146,7 +147,7 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, null, false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_URI_SCHEME));
@@ -154,8 +155,8 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
-		EndpointContext secureCtx = new DtlsEndpointContext("session", "1", "CIPHER");
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, secureCtx, false);
+		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER");
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
@@ -170,7 +171,7 @@ public class CoapEndpointTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		RawData inboundMessage = RawData.inbound(malformedGetRequest, SOURCE_ADDRESS, null, null, false);
+		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false);
 
 		// WHEN the incoming message is processed by the Inbox
 		connector.receiveMessage(inboundMessage);

@@ -18,6 +18,7 @@ package org.eclipse.californium.elements.tcp;
 
 import io.netty.channel.Channel;
 
+import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,8 +41,9 @@ public class NettyContextUtils {
 	 * @return endpoint context
 	 */
 	public static EndpointContext buildEndpointContext(Channel channel) {
+		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
 		String id = channel.id().asShortText();
 		LOGGER.log(LEVEL, "TCP({0})", id);
-		return new TcpEndpointContext(id);
+		return new TcpEndpointContext(address, null, id);
 	}
 }

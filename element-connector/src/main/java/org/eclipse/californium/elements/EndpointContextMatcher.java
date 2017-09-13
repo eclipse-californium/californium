@@ -48,10 +48,10 @@ public interface EndpointContextMatcher {
 	 * context of the connector.
 	 * 
 	 * @param messageContext endpoint context of message
-	 * @param connectorContext endpoint context of connector
+	 * @param connectionContext endpoint context of connection
 	 * @return true, if message should be sent, false, if message should not be
 	 *         sent.
 	 */
-	boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext);
+	boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext);
 
 }

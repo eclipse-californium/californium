@@ -130,10 +130,10 @@ public class TcpClientConnector implements Connector {
 		if (null != endpointMatcher && !poolMap.contains(addressKey)
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
-				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
+				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to new {1}:{2}",
 						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			}
-			msg.onError(new EndpointMismatchException());
+			msg.onError(new EndpointMismatchException("no connection"));
 			return;
 		}
 		final ChannelPool channelPool = poolMap.get(addressKey);

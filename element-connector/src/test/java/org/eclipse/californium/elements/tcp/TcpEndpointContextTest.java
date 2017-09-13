@@ -90,7 +90,7 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -106,7 +106,7 @@ public class TcpEndpointContextTest {
 		// Response message must go over the same connection client already
 		// opened
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null,
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, 
 				serverCallback);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
@@ -126,7 +126,7 @@ public class TcpEndpointContextTest {
 
 		// send next message
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 
@@ -167,7 +167,7 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -179,7 +179,7 @@ public class TcpEndpointContextTest {
 		Thread.sleep(TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
@@ -233,7 +233,7 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -246,7 +246,7 @@ public class TcpEndpointContextTest {
 		server.start();
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
@@ -288,7 +288,6 @@ public class TcpEndpointContextTest {
 	@Test
 	public void testClientSendingEndpointContext() throws Exception {
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
-		TcpEndpointContext context = new TcpEndpointContext("n.a.");
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
@@ -306,14 +305,15 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, context, clientCallback);
+		TcpEndpointContext context = new TcpEndpointContext(getDestination(server.getAddress()), "n.a.");
+		RawData msg = createMessage(100, context, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1, 2000);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(0));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 
@@ -322,12 +322,12 @@ public class TcpEndpointContextTest {
 				is(instanceOf(TcpEndpointContext.class)));
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
-		msg = createMessage(server.getAddress(), 100, clientContext, clientCallback);
+		msg = createMessage(100, clientContext, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, context, clientCallback);
+		msg = createMessage(100, context, clientCallback);
 		client.send(msg);
 
 		serverCatcher.blockUntilSize(3, 2000);
@@ -352,7 +352,6 @@ public class TcpEndpointContextTest {
 	@Test
 	public void testServerSendingEndpointContext() throws Exception {
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
-		TcpEndpointContext context = new TcpEndpointContext("n.a.");
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
@@ -370,7 +369,7 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -382,19 +381,20 @@ public class TcpEndpointContextTest {
 		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverContext, serverCallback);
+		msg = createMessage(100, serverContext, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(1);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, null, serverCallback);
+		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(2);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, context, serverCallback);
+		TcpEndpointContext context = new TcpEndpointContext(receivedMsg.getInetSocketAddress(), "n.a.");
+		msg = createMessage(100, context, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(3, 2000);
@@ -442,7 +442,7 @@ public class TcpEndpointContextTest {
 		List<SimpleMessageCallback> callbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, callback);
 			callbacks.add(callback);
 			messages.add(message);
 			client.send(message);
@@ -460,7 +460,7 @@ public class TcpEndpointContextTest {
 		List<SimpleMessageCallback> followupCallbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, callback);
 			followupCallbacks.add(callback);
 			followupMessages.add(message);
 			client.send(message);

@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -130,7 +131,8 @@ public class ExampleDTLSClient {
 		if (0 < c) {
 			clientMessageCounter.incrementAndGet();
 			try {
-				dtlsConnector.send(new RawData(("HELLO WORLD " + c + ".").getBytes(), raw.getInetSocketAddress()));
+				RawData data = RawData.outbound(("HELLO WORLD " + c + ".").getBytes(), raw.getEndpointContext(), null, false);
+				dtlsConnector.send(data);
 			} catch (IllegalStateException e) {
 				LOG.log(Level.FINER, "send failed after " + (c - 1) + " messages!", e);
 			}
@@ -149,7 +151,8 @@ public class ExampleDTLSClient {
 	}
 
 	private void startTest(InetSocketAddress peer) {
-		dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), peer));
+		RawData data = RawData.outbound("HELLO WORLD".getBytes(), new AddressEndpointContext(peer), null, false);
+		dtlsConnector.send(data);
 	}
 
 	private int stop() {

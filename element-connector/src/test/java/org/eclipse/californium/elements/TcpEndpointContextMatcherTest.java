@@ -18,10 +18,13 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetSocketAddress;
+
 import org.junit.Before;
 import org.junit.Test;
 
 public class TcpEndpointContextMatcherTest {
+	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 
 	private EndpointContext connectorContext;
 	private EndpointContext messageContext;
@@ -30,22 +33,20 @@ public class TcpEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new TcpEndpointContext("ID1");
-		messageContext = new TcpEndpointContext("ID1");
-		differentMessageContext = new TcpEndpointContext("ID2");
+		connectorContext = new TcpEndpointContext(ADDRESS, "ID1");
+		messageContext = new TcpEndpointContext(ADDRESS, "ID1");
+		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2");
 		matcher = new TcpEndpointContextMatcher();
 	}
 
 	@Test
 	public void testWithConnectorEndpointContext() {
-		assertThat(matcher.isToBeSent(null, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(messageContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(differentMessageContext, connectorContext), is(false));
 	}
 
 	@Test
 	public void testWithoutConnectorEndpointContext() {
-		assertThat(matcher.isToBeSent(null, null), is(true));
 		assertThat(matcher.isToBeSent(messageContext, null), is(false));
 		assertThat(matcher.isToBeSent(differentMessageContext, null), is(false));
 	}
