@@ -678,6 +678,50 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, POST, tok, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(3, false, 64).go();
 		client.expectResponse(ACK, CHANGED, tok, mid).block2(3, false, 64).payload(respPayload.substring(192, 250)).go();
 	}
+	
+	/**
+	 * Check that new request block2 transfer is well interrupted by a new one.
+	 * 
+	 * <pre>
+	 * ####### First GET with block2 response ########## 
+	 * CON [MID=7001, T=0b], GET, /test    ----->
+	 * <-----   ACK [MID=7001, T=0b], 2.05, 2:0/1/128, size2(386)
+	 * CON [MID=7002, T=0c], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=7002, T=0c], 2.05, 2:1/1/128
+	 * ####### Interrupted by new  GET with block2 response ##########
+	 * CON [MID=7003, T=0d], GET, /test    ----->
+	 * <-----   ACK [MID=7003, T=0d], 2.05, 2:0/1/128, size2(256)
+	 * CON [MID=7004, T=0e], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=7004, T=0e], 2.05, 2:1/0/128
+	 * </pre>
+	 */
+	@Test
+	public void testInterruptBlock2WithNewBlock2GET() throws Exception {
+		System.out.println("Block2 interrupted by new block2:");
+		respPayload = generateRandomPayload(386);
+		byte[] tok = generateNextToken();
+		System.out.println("Begin block2 exchange on " + RESOURCE_PATH);
+
+		// begin block2 transfer
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+
+		tok = generateNextToken();
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+
+		// start a new one
+		respPayload = generateRandomPayload(256);
+		tok = generateNextToken();
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+
+		tok = generateNextToken();
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, false, 128).payload(respPayload.substring(128, 256))
+				.go();
+	}
 
 	/**
 	 * Verifies that a client cannot send a block with num &gt; 0 first in a blockwise PUT.
