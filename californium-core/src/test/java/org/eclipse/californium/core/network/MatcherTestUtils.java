@@ -29,6 +29,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 
@@ -67,8 +68,7 @@ public final class MatcherTestUtils {
 
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
+		request.setDestinationContext(new AddressEndpointContext(dest));
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
 		matcher.sendRequest(exchange, request);
@@ -78,8 +78,7 @@ public final class MatcherTestUtils {
 
 	static Exchange sendObserveRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
+		request.setDestinationContext(new AddressEndpointContext(dest));
 		request.setObserve();
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
@@ -88,13 +87,16 @@ public final class MatcherTestUtils {
 		return exchange;
 	}
 
-	static Response receiveResponseFor(final Request request) {
+	public static Response receiveResponseFor(final Request request) {
+		return receiveResponseFor(request, request.getDestinationContext());
+	}
+
+	public static Response receiveResponseFor(final Request request, final EndpointContext sourceContext) {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
 		response.setBytes(new byte[]{});
-		response.setSource(request.getDestination());
-		response.setSourcePort(request.getDestinationPort());
+		response.setSourceContext(sourceContext);
 		return response;
 	}
 }

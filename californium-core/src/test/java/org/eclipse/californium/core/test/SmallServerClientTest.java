@@ -38,6 +38,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -81,8 +82,7 @@ public class SmallServerClientTest {
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.setConfirmable(false);
-		request.setDestination(InetAddress.getLoopbackAddress());
-		request.setDestinationPort(serverPort);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), serverPort));
 		request.setPayload("client says hi");
 		request.send();
 		System.out.println("client sent request");

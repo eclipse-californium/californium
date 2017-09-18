@@ -31,6 +31,8 @@
  *                                                    race condition in block1wise
  *                                                    when the generated token was 
  *                                                    copied too late (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
+ *                                                    EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -50,6 +52,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.observe.ObserveManager;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -106,17 +109,17 @@ public abstract class Message {
 	/** The payload of this message. */
 	private byte[] payload;
 
-	/** The destination address of this message. */
-	private InetAddress destination;
+	/**
+	 * Destination endpoint context.
+	 * Used for outgoing messages.
+	 */
+	private volatile EndpointContext destinationContext;
 
-	/** The source address of this message. */
-	private InetAddress source;
-
-	/** The destination port of this message. */
-	private int destinationPort;
-
-	/** The source port of this message. */
-	private int sourcePort;
+	/**
+	 * Source endpoint context.
+	 * Used for incoming messages.
+	 */
+	private volatile EndpointContext sourceContext;
 
 	/** Indicates if the message has sent. */
 	private volatile boolean sent;
@@ -148,7 +151,7 @@ public abstract class Message {
 	 * (lazy-initialization). If a handler is added, the list will be created
 	 * and from then on must never again become null.
 	 */
-	private AtomicReference<List<MessageObserver>> messageObservers = new AtomicReference<List<MessageObserver>>();
+	private final AtomicReference<List<MessageObserver>> messageObservers = new AtomicReference<List<MessageObserver>>();
 	
 	/**
 	 * A unmodifiable facade for the list of all {@link ObserveManager}.
@@ -443,89 +446,107 @@ public abstract class Message {
 		this.payload = payload;
 		return this;
 	}
-
+	
 	/**
 	 * Gets the destination address.
 	 *
 	 * @return the destination
+	 * @deprecated use {@link #getDestinationContext()}
 	 */
 	public InetAddress getDestination() {
-		return destination;
-	}
-
-	/**
-	 * Sets the destination address.
-	 *
-	 * Provides a fluent API to chain setters.
-	 *
-	 * @param destination the new destination
-	 * @return this Message
-	 */
-	public Message setDestination(InetAddress destination) {
-		this.destination = destination;
-		return this;
+		EndpointContext destinationContext = this.destinationContext;
+		if (destinationContext == null) {
+			return null;
+		}
+		return destinationContext.getPeerAddress().getAddress();
 	}
 
 	/**
 	 * Gets the destination port.
 	 *
 	 * @return the destination port
+	 * @deprecated use {@link #getDestinationContext()}
 	 */
 	public int getDestinationPort() {
-		return destinationPort;
-	}
-
-	/**
-	 * Sets the destination port.
-	 *
-	 * Provides a fluent API to chain setters.
-	 *
-	 * @param destinationPort the new destination port
-	 * @return this Message
-	 */
-	public Message setDestinationPort(int destinationPort) {
-		this.destinationPort = destinationPort;
-		return this;
+		EndpointContext destinationContext = this.destinationContext;
+		if (destinationContext == null) {
+			return -1;
+		}
+		return destinationContext.getPeerAddress().getPort();
 	}
 
 	/**
 	 * Gets the source address.
 	 *
 	 * @return the source
+	 * @deprecated use {@link #getSourceContext()}
 	 */
 	public InetAddress getSource() {
-		return source;
-	}
-
-	/**
-	 * Sets the source address.
-	 *
-	 * Not part of the fluent API.
-	 *
-	 * @param source the new source
-	 */
-	public void setSource(InetAddress source) {
-		this.source = source;
+		EndpointContext sourceContext = this.sourceContext;
+		if (sourceContext == null) {
+			return null;
+		}
+		return sourceContext.getPeerAddress().getAddress();
 	}
 
 	/**
 	 * Gets the source port.
 	 *
 	 * @return the source port
+	 * @deprecated use {@link #getSourceContext()}
 	 */
 	public int getSourcePort() {
-		return sourcePort;
+		EndpointContext sourceContext = this.sourceContext;
+		if (sourceContext == null) {
+			return -1;
+		}
+		return sourceContext.getPeerAddress().getPort();
 	}
 
 	/**
-	 * Sets the source port.
-	 *
-	 * Not part of the fluent API.
-	 *
-	 * @param sourcePort the new source port
+	 * Get destination endpoint context.
+	 * 
+	 * May be {@code null} for {@link Request} during it's construction.
+	 * 
+	 * @return the destination endpoint context.
 	 */
-	public void setSourcePort(int sourcePort) {
-		this.sourcePort = sourcePort;
+	public EndpointContext getDestinationContext() {
+		return destinationContext;
+	}
+
+	/**
+	 * Get source endpoint context.
+	 * 
+	 * @return the source endpoint context.
+	 */
+	public EndpointContext getSourceContext() {
+		return sourceContext;
+	}
+
+	/**
+	 * Set destination endpoint context.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @return this Message
+	 */
+	public Message setDestinationContext(EndpointContext peerContext) {
+		this.destinationContext = peerContext;
+		return this;
+	}
+
+	/**
+	 * Set source endpoint context.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext source endpoint context
+	 * @return this Message
+	 */
+	public Message setSourceContext(EndpointContext peerContext) {
+		this.sourceContext = peerContext;
+		return this;
 	}
 
 	/**

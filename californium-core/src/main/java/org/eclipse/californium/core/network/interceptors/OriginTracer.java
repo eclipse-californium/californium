@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
@@ -73,7 +74,7 @@ public class OriginTracer implements MessageInterceptor {
 
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0}", request.getSource());
+		LOGGER.log(Level.INFO, "{0}", request.getSourceContext());
 	}
 
 	@Override
@@ -100,6 +101,6 @@ public class OriginTracer implements MessageInterceptor {
 	public void receiveEmptyMessage(EmptyMessage message) {
 		// only log pings
 		if (message.getType() == Type.CON)
-			LOGGER.log(Level.INFO, "{0}", message.getSource());
+			LOGGER.log(Level.INFO, "{0}", message.getSourceContext());
 	}
 }

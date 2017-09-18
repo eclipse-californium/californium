@@ -35,6 +35,7 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.junit.Before;
@@ -80,8 +81,8 @@ public class UdpMatcherTest {
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN a response arrives with arbitrary additional endpoint information
-		Response response = receiveResponseFor(exchange.getCurrentRequest());
-		Exchange matchedExchange = matcher.receiveResponse(response, responseEndpointContext);
+		Response response = receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext);
+		Exchange matchedExchange = matcher.receiveResponse(response);
 
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext);
 		
@@ -99,8 +100,8 @@ public class UdpMatcherTest {
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN a response arrives with arbitrary additional endpoint information
-		Response response = receiveResponseFor(exchange.getCurrentRequest());
-		Exchange matchedExchange = matcher.receiveResponse(response, responseEndpointContext);
+		Response response = receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext);
+		Exchange matchedExchange = matcher.receiveResponse(response);
 
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext);
 		
@@ -159,8 +160,7 @@ public class UdpMatcherTest {
 
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
-		request.setDestination(dest.getAddress());
-		request.setDestinationPort(dest.getPort());
+		request.setDestinationContext(new AddressEndpointContext(dest));
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
 

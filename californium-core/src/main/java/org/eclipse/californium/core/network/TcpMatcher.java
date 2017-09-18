@@ -33,6 +33,8 @@
  *                                                 starting observe requests
  * Achim Kraus (Bosch Software Innovations GmbH) - optimize correlation context
  *                                                 processing. issue #311
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
+ *                                                 by EndpointContext of response.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -46,7 +48,6 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
@@ -122,7 +123,7 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response, final EndpointContext responseContext) {
+	public Exchange receiveResponse(final Response response) {
 
 		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = exchangeStore.get(idByToken);
@@ -135,13 +136,13 @@ public final class TcpMatcher extends BaseMatcher {
 			// because we do not check that the notification's sender is
 			// the same as the receiver of the original observe request
 			// TODO: assert that notification's source endpoint is correct
-			exchange = matchNotifyResponse(response, responseContext);
+			exchange = matchNotifyResponse(response);
 		}
 
 		if (exchange == null) {
 			// There is no exchange with the given token - ignore response
 			return null;
-		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), responseContext)) {
+		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
 			return exchange;
 		} else {
 			LOGGER.log(Level.INFO,

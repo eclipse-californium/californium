@@ -22,7 +22,13 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public final class Observation {
 
+	/**
+	 * Initiate request for observation. 
+	 */
 	private final Request request;
+	/**
+	 * Endpoint context the request was sent in.
+	 */
 	private final EndpointContext context;
 
 	/**
@@ -52,6 +58,8 @@ public final class Observation {
 	}
 
 	/**
+	 * Gets the endpoint context the requeste was sent in.
+	 * 
 	 * @return the endpoint context for this observation
 	 */
 	public EndpointContext getContext() {

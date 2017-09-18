@@ -69,11 +69,11 @@ public class CoapEndpointTest {
 	List<Request> receivedRequests;
 	CountDownLatch latch;
 	CountDownLatch sentLatch;
-	EndpointContext context;
+	EndpointContext establishedContext;
 
 	@Before
 	public void setUp() throws Exception {
-		context = new MapBasedEndpointContext(CONNECTOR_ADDRESS, null);
+		establishedContext = new MapBasedEndpointContext(CONNECTOR_ADDRESS, null);
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
@@ -111,8 +111,7 @@ public class CoapEndpointTest {
 
 		// GIVEN an outbound request
 		Request request = Request.newGet();
-		request.setDestination(InetAddress.getLoopbackAddress());
-		request.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 		request.addMessageObserver(new MessageObserverAdapter() {
 			@Override
 			public void onSent() {
@@ -142,7 +141,7 @@ public class CoapEndpointTest {
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
-		assertThat(receivedRequests.get(0).getSenderIdentity(), is(clientId));
+		assertThat(receivedRequests.get(0).getSourceContext().getPeerIdentity(), is(clientId));
 	}
 
 	@Test
@@ -216,7 +215,7 @@ public class CoapEndpointTest {
 
 		@Override
 		public void send(RawData msg) {
-			msg.onContextEstablished(context);
+			msg.onContextEstablished(establishedContext);
 			msg.onSent();
 			sentLatch.countDown();
 		}

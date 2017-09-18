@@ -40,6 +40,8 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -52,6 +54,7 @@ import org.junit.runners.Parameterized;
  */
 @Category(Small.class) @RunWith(Parameterized.class) public class DataParserTest {
 
+	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
 	private final DataSerializer serializer;
 	private final DataParser parser;
 	private final int expectedMid;
@@ -71,8 +74,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testRequestParsing() {
 		Request request = new Request(Code.POST);
-		request.setDestination(InetAddress.getLoopbackAddress());
-		request.setDestinationPort(1000);
+		request.setDestinationContext(ENDPOINT_CONTEXT);
 		request.setType(Type.NON);
 		request.setMID(expectedMid);
 		request.setToken(new byte[] { 11, 82, -91, 77, 3 });
@@ -171,8 +173,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testResponseParsing() {
 		Response response = new Response(ResponseCode.CONTENT);
-		response.setDestination(InetAddress.getLoopbackAddress());
-		response.setDestinationPort(1000);
+		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
@@ -191,8 +192,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testUTF8Encoding() {
 		Response response = new Response(ResponseCode.CONTENT);
-		response.setDestination(InetAddress.getLoopbackAddress());
-		response.setDestinationPort(1000);
+		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] {});

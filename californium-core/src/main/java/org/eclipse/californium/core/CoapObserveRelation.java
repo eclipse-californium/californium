@@ -43,6 +43,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 /**
@@ -125,8 +126,9 @@ public class CoapObserveRelation {
 		}
 		if (registrationPending.compareAndSet(false, true)) {
 			Request refresh = Request.newGet();
-			refresh.setDestination(request.getDestination());
-			refresh.setDestinationPort(request.getDestinationPort());
+			EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
+					: request.getDestinationContext();
+			refresh.setDestinationContext(destinationContext);
 			// use same Token
 			refresh.setToken(request.getToken());
 			// copy options, but set Observe to zero
@@ -155,10 +157,13 @@ public class CoapObserveRelation {
 	 * Send request with option "cancel observe" (GET with Observe=1).
 	 */
 	private void sendCancelObserve() {
+		CoapResponse response = current;
 		Request request = this.request;
+		EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
+				: request.getDestinationContext();
+		
 		Request cancel = Request.newGet();
-		cancel.setDestination(request.getDestination());
-		cancel.setDestinationPort(request.getDestinationPort());
+		cancel.setDestinationContext(destinationContext);
 		// use same Token
 		cancel.setToken(request.getToken());
 		// copy options
