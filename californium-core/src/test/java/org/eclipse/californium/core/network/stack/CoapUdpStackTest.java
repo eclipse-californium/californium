@@ -9,6 +9,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,8 +52,7 @@ public class CoapUdpStackTest {
 
 	@Test public void sendRequestExpectSent() {
 		Request message = new Request(CoAP.Code.GET);
-		message.setDestination(InetAddress.getLoopbackAddress());
-		message.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
+		message.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 		stack.sendRequest(message);
 
 		verify(outbox).sendRequest(any(Exchange.class), eq(message));

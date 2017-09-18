@@ -20,6 +20,8 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add CoAP detail information 
  *                                                 to MessageFormatException
+ * Achim Kraus (Bosch Software Innovations GmbH) - add EndpointContext when parsing
+ *                                                 RawData. 
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -42,8 +44,9 @@ public abstract class DataParser {
 	 * @throws MessageFormatException if the array cannot be parsed into a message.
 	 */
 	public final Message parseMessage(final RawData raw) {
-
-		return parseMessage(raw.getBytes());
+		Message message = parseMessage(raw.getBytes());
+		message.setSourceContext(raw.getEndpointContext());
+		return message;
 	}
 
 	/**

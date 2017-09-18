@@ -38,6 +38,8 @@
  *                                                    would terminate the observation
  *                                                    and therefore doesn't contain a
  *                                                    observe option.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
+ *                                                    by EndpointContext of response.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -54,7 +56,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -166,11 +167,10 @@ public abstract class BaseMatcher implements Matcher {
 	 * {@link #observationStore} and if found, recreate a exchange.
 	 * 
 	 * @param response notify response
-	 * @param responseContext endpoint context of response
 	 * @return exchange, if a new one is create of the stored observe
 	 *         informations, null, otherwise.
 	 */
-	protected final Exchange matchNotifyResponse(final Response response, final EndpointContext responseContext) {
+	protected final Exchange matchNotifyResponse(final Response response) {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
@@ -184,8 +184,6 @@ public abstract class BaseMatcher implements Matcher {
 				// notification
 				// response
 				final Request request = obs.getRequest();
-				request.setDestination(response.getSource());
-				request.setDestinationPort(response.getSourcePort());
 				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
 				exchange.setRequest(request);
 				LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);

@@ -30,9 +30,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - stop retransmission on complete.
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust javadoc for 
  *                                                    completeCurrentRequest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext to
+ *                                                    EndpointContext.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -239,8 +242,7 @@ public class Exchange {
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
+		response.setDestinationContext(request.getSourceContext());
 		setResponse(response);
 		endpoint.sendResponse(this, response);
 	}
@@ -720,7 +722,8 @@ public class Exchange {
 		 *         scoped to the message's source address and port.
 		 */
 		public static KeyMID fromInboundMessage(Message message) {
-			return new KeyMID(message.getMID(), message.getSource().getAddress(), message.getSourcePort());
+			InetSocketAddress address = message.getSourceContext().getPeerAddress();
+			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**
@@ -731,7 +734,8 @@ public class Exchange {
 		 *         scoped to the message's destination address and port.
 		 */
 		public static KeyMID fromOutboundMessage(Message message) {
-			return new KeyMID(message.getMID(), message.getDestination().getAddress(), message.getDestinationPort());
+			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
+			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -768,11 +772,12 @@ public class Exchange {
 		 * <p>
 		 * The key will be scoped to the message's source endpoint.
 		 * 
-		 * @param msg the message.
+		 * @param message the message.
 		 * @return the key.
 		 */
-		public static KeyToken fromInboundMessage(final Message msg) {
-			return new KeyToken(msg.getToken(), msg.getSource().getAddress(), msg.getSourcePort());
+		public static KeyToken fromInboundMessage(final Message message) {
+			InetSocketAddress address = message.getSourceContext().getPeerAddress();
+			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**
@@ -780,11 +785,12 @@ public class Exchange {
 		 * <p>
 		 * The key will be scoped to the message's destination endpoint.
 		 * 
-		 * @param msg the message.
+		 * @param message the message.
 		 * @return the key.
 		 */
-		public static KeyToken fromOutboundMessage(final Message msg) {
-			return new KeyToken(msg.getToken(), msg.getDestination().getAddress(), msg.getDestinationPort());
+		public static KeyToken fromOutboundMessage(final Message message) {
+			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
+			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
 		}
 
 		/**

@@ -29,10 +29,12 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
@@ -50,7 +52,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class DataSerializerTest {
 
-	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
+	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, "session", "1", "CIPHER");
 
 	/**
 	 * The concrete serializer to run the test cases with.
@@ -78,7 +80,6 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[]{0x00});
 		req.getOptions().setObserve(0);
-		req.setDestination(InetAddress.getLoopbackAddress());
 
 		// WHEN serializing the request to a byte array
 		serializer.getByteArray(req);
@@ -97,7 +98,7 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[]{0x00});
 		req.getOptions().setObserve(0);
-		req.setDestination(InetAddress.getLoopbackAddress());
+		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 
 		// WHEN serializing the request to a RawData object
 		RawData raw = serializer.serializeRequest(req);
@@ -105,6 +106,7 @@ public class DataSerializerTest {
 		// THEN the serialized byte array is stored in the request's bytes property
 		assertNotNull(req.getBytes());
 		assertThat(raw.getBytes(), is(req.getBytes()));
+		assertThat(raw.getEndpointContext(), is(req.getDestinationContext()));
 	}
 
 	/**
@@ -113,19 +115,17 @@ public class DataSerializerTest {
 	 */
 	@Test
 	public void testSerializeResponseWithEndpointContext() {
-		EndpointContext context = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
 		Request request = Request.newGet();
-		request.setSource(ADDRESS.getAddress());
-		request.setSourcePort(ADDRESS.getPort());
+		request.setSourceContext(ENDPOINT_CONTEXT);
 		request.setToken(new byte[] { 0x00 });
 		request.setMID(1);
 		Response response = Response.createResponse(request, ResponseCode.CONTENT);
 		response.setType(Type.ACK);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
-		RawData data = serializer.serializeResponse(response, context, null);
+		RawData data = serializer.serializeResponse(response, null);
 
-		assertThat(data.getEndpointContext(), is(equalTo(context)));
+		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));
 	}
 
 	/**
@@ -134,16 +134,14 @@ public class DataSerializerTest {
 	 */
 	@Test
 	public void testSerializeEmptyMessageWithEndpointContext() {
-		EndpointContext context = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
 		Request request = Request.newGet();
-		request.setSource(ADDRESS.getAddress());
-		request.setSourcePort(ADDRESS.getPort());
+		request.setSourceContext(ENDPOINT_CONTEXT);
 		request.setMID(1);
 
 		EmptyMessage ack = EmptyMessage.newACK(request);
 		ack.setToken(new byte[0]);
-		RawData data = serializer.serializeEmptyMessage(ack, context, null);
+		RawData data = serializer.serializeEmptyMessage(ack, null);
 
-		assertThat(data.getEndpointContext(), is(equalTo(context)));
+		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));
 	}
 }

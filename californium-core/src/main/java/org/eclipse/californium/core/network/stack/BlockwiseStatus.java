@@ -84,7 +84,7 @@ abstract class BlockwiseStatus {
 	 * containing the re-assembled body.
 	 * 
 	 * @param first The message.
-	 * @see #assembleMessage(Message)
+	 * @see #assembleReceivedMessage(Message)
 	 */
 	final synchronized void setFirst(final Message first) {
 		this.first = first;
@@ -248,17 +248,22 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @param message The message.
 	 * @throws NullPointerException if the message is {@code null}.
+	 * @throws IllegalStateException if the first message is {@code null} or the
+	 *             source is not defined.
 	 */
-	final synchronized void assembleMessage(final Message message) {
+	final synchronized void assembleReceivedMessage(final Message message) {
 
 		if (message == null) {
 			throw new NullPointerException("message must not be null");
 		} else if (first == null) {
 			throw new IllegalStateException("first message is not set");
+		} else if (first.getSourceContext() == null) {
+			throw new IllegalStateException("first message has no peer context");
+		} else if (first.getSourceContext().getPeerAddress() == null) {
+			throw new IllegalStateException("first message has no peer address");
 		}
 		// The assembled request will contain the options of the first block
-		message.setSource(first.getSource());
-		message.setSourcePort(first.getSourcePort());
+		message.setSourceContext(first.getSourceContext());
 		message.setType(first.getType());
 		message.setMID(first.getMID());
 		message.setToken(first.getToken());

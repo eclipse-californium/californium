@@ -171,7 +171,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public int assignMessageId(final Message message) {
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
-			InetSocketAddress dest = new InetSocketAddress(message.getDestination(), message.getDestinationPort());
+			InetSocketAddress dest = message.getDestinationContext().getPeerAddress();
 			mid = messageIdProvider.getNextMessageId(dest);
 			if (Message.NONE == mid) {
 				LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);

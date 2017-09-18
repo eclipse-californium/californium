@@ -70,8 +70,7 @@ public class TcpMatcherTest {
 		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 
-		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()),
-				responseEndpointContext);
+		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext));
 		
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
 				responseEndpointContext);
@@ -87,8 +86,7 @@ public class TcpMatcherTest {
 		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 
-		Exchange matchedExchange = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest()),
-				responseEndpointContext);
+		Exchange matchedExchange = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext));
 		
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
 				responseEndpointContext);

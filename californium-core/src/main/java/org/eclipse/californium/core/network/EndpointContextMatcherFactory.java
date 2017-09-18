@@ -16,6 +16,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - create CorrelationContextMatcher
  *                                      related to connector
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP support
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContextMatcherFactory
+ *                                                    to EndpointContextMatcherFactroy.
+ *                                                    Add PRINCIPAL mode.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -23,6 +26,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.RelaxedDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
@@ -32,14 +36,18 @@ import org.eclipse.californium.elements.UdpEndpointContextMatcher;
  * Factory for endpoint context matcher.
  */
 public class EndpointContextMatcherFactory {
+	
+	public enum DtlsMode {
+		STRICT, RELAXED, PRINCIPAL
+	}
 
 	/**
 	 * Create endpoint context matcher related to connector according the
-	 * configuration. If connector supports "coaps:" and
-	 * USE_STRICT_RESPONSE_MATCHING is set, use
-	 * {@link StrictDtlsEndpointContextMatcher}, otherwise
-	 * {@link RelaxedDtlsEndpointContextMatcher}. For other protocol flavors
-	 * the corresponding matcher is used. Note: currently the TLS based
+	 * configuration. If connector supports "coaps:", DTLS_RESPONSE_MATCHING is
+	 * used to determine, if {@link StrictDtlsEndpointContextMatcher},
+	 * {@link RelaxedDtlsEndpointContextMatcher}, or
+	 * {@link PrincipalEndpointContextMatcher} is used. For other protocol
+	 * flavors the corresponding matcher is used. Note: currently the TLS based
 	 * endpoint context matcher is still missing and therefore for backwards
 	 * compatibility the DTLS ones are used.
 	 * 
@@ -60,7 +68,24 @@ public class EndpointContextMatcherFactory {
 				return new TcpEndpointContextMatcher();
 			}
 		}
-		return config.getBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING) ? new StrictDtlsEndpointContextMatcher()
-				: new RelaxedDtlsEndpointContextMatcher();
+		String textualMode = "???";
+		DtlsMode mode = DtlsMode.STRICT;
+		try {
+			textualMode = config.getString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING);
+			mode = DtlsMode.valueOf(textualMode);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException("DTLS response matching mode '" + textualMode + "' not supported!");
+		} catch (NullPointerException e) {
+			throw new IllegalArgumentException("DTLS response matching mode not provided/configured!");
+		}
+		switch(mode) {
+		case STRICT: 
+			break;
+		case RELAXED:
+			return new RelaxedDtlsEndpointContextMatcher();
+		case PRINCIPAL:
+			return new PrincipalEndpointContextMatcher();
+		}
+		return new StrictDtlsEndpointContextMatcher();
 	}
 }
