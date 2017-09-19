@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add logging of test description
  ******************************************************************************/
 package org.eclipse.californium.elements.runner;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
@@ -39,11 +41,16 @@ import org.junit.runners.model.InitializationError;
  * 0 := disabled. Default: 1000
  * </pre>
  * 
- * For execution with maven {@code -Dtest="XyzAbcTest" -DfailIfNoTests=false} may be used.
+ * For execution with maven {@code -Dtest="XyzAbcTest" -DfailIfNoTests=false}
+ * may be used.
+ * 
+ * Note:
+ * If used with "maven-surefire-plugin", parallel testing can not be used!
  */
 public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
 	public static final Logger LOGGER = Logger.getLogger(RepeatingTestRunner.class.getName());
+	private static final Level LOG_LEVEL = Level.INFO;
 
 	/**
 	 * Final for logging mega bytes.
@@ -114,25 +121,40 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 		// start alife logging
 		Thread alife = startAlifeLogging();
 		// setup failure detection
+		final AtomicInteger loop = new AtomicInteger(1);
 		final AtomicInteger failureCounter = new AtomicInteger();
 		notifier.addListener(new RunListener() {
 
+			@Override
+			public void testStarted(Description description) throws Exception {
+				log("test [loop=" + loop +"] " + description + " started.");
+			}
+
+			@Override
+			public void testFinished(Description description) throws Exception {
+				log("test [loop=" + loop +"] " + description + " finished.");
+			}
+
+			@Override
 			public void testFailure(Failure failure) throws Exception {
 				failureCounter.incrementAndGet();
 			}
 
+			@Override
 			public void testAssumptionFailure(Failure failure) {
 				failureCounter.incrementAndGet();
 			}
 
 		});
 
-		for (int loop = 1; 0 == maximumRepeats || loop <= maximumRepeats; ++loop) {
+		while ((loop.incrementAndGet() <= maximumRepeats) || (0 == maximumRepeats)) {
 			log("loop: " + loop);
 			super.run(notifier);
 			if (0 < failureCounter.get()) {
+				log("failed at loop: " + loop);
 				break;
 			}
+			log("ready with loop: " + loop);
 		}
 
 		if (null != alife) {
@@ -150,10 +172,10 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	 * @param message message to be logged
 	 */
 	private void log(String message) {
-		if (LOGGER.isLoggable(Level.INFO)) {
+		if (LOGGER.isLoggable(LOG_LEVEL)) {
 			Runtime runtime = Runtime.getRuntime();
-			LOGGER.log(Level.INFO, message);
-			LOGGER.log(Level.INFO, "mem: free {0} MByte, total {1} MByte, max {2} MByte",
+			LOGGER.log(LOG_LEVEL, message);
+			LOGGER.log(LOG_LEVEL, "mem: free {0} MByte, total {1} MByte, max {2} MByte",
 					new Object[] { runtime.freeMemory() / MEGA_BYTE, runtime.totalMemory() / MEGA_BYTE,
 							runtime.maxMemory() / MEGA_BYTE });
 		}
