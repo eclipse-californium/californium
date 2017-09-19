@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add size() for test-logging
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -52,5 +53,10 @@ public class NoDeduplicator implements Deduplicator {
 	@Override
 	public boolean isEmpty() {
 		return true;
+	}
+
+	@Override
+	public int size() {
+		return 0;
 	}
 }

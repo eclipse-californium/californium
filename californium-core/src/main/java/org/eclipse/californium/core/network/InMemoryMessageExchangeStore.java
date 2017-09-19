@@ -124,6 +124,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
+		b.append(deduplicator.size()).append(" MIDs, ");
 		return b.toString();
 	}
 
@@ -163,8 +164,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public boolean isEmpty() {
-		LOGGER.finer(dumpCurrentLoadLevels());
 		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
+	}
+
+	@Override
+	public String toString() {
+		return dumpCurrentLoadLevels();
 	}
 
 	@Override
@@ -374,5 +379,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public void releaseToken(KeyToken keyToken) {
 		tokenProvider.releaseToken(keyToken);
+	}
+
+	public ConcurrentMap<KeyToken, Exchange> getExchangesByToken() {
+		return exchangesByToken;
+	}
+
+	public ConcurrentMap<KeyMID, Exchange> getExchangesByMID() {
+		return exchangesByMID;
+	}
+
+	public Deduplicator getDeduplicator() {
+		return deduplicator;
 	}
 }

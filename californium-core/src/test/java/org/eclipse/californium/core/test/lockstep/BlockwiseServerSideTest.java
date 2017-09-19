@@ -24,6 +24,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - split responseType in
  *                                                    type(Type... types) and
  *                                                    storeType(String var)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isEmptyWithDump() for
+ *                                                    more information on failure
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -47,7 +49,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -87,7 +88,7 @@ public class BlockwiseServerSideTest {
 	private Integer expectedMid;
 	private byte[] expectedToken;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
-	private MessageExchangeStore exchangeStore;
+	private InMemoryMessageExchangeStore exchangeStore;
 
 	@BeforeClass
 	public static void init() {
@@ -342,8 +343,8 @@ public class BlockwiseServerSideTest {
 			}
 		});
 		assertTrue(
-				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
-				exchangeStore.isEmpty());
+				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store: " + exchangeStore,
+				isEmptyWithDump(exchangeStore));
 	}
 
 	/**
@@ -388,8 +389,8 @@ public class BlockwiseServerSideTest {
 			}
 		});
 		assertTrue(
-				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
-				exchangeStore.isEmpty());
+				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store: " + exchangeStore,
+				isEmptyWithDump(exchangeStore));
 	}
 
 	/**

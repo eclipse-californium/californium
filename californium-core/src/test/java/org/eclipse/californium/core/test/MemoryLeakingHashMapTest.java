@@ -26,9 +26,12 @@
  *                                                    preparing it for each test
  *                                                    by using setResponse() or 
  *                                                    setNotifies().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isEmptyWithDump() for
+ *                                                    more information on failure
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.eclipse.californium.TestTools.isEmptyWithDump;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -65,7 +68,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -113,8 +115,8 @@ public class MemoryLeakingHashMapTest {
 	// The server endpoint that we test
 	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
-	private static MessageExchangeStore clientExchangeStore;
-	private static MessageExchangeStore serverExchangeStore;
+	private static InMemoryMessageExchangeStore clientExchangeStore;
+	private static InMemoryMessageExchangeStore serverExchangeStore;
 
 	private static volatile String currentRequestText;
 	private static TestResource resource;
@@ -149,8 +151,8 @@ public class MemoryLeakingHashMapTest {
 					return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
 				}
 			});
-			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
-			assertTrue("Server side message exchange store still contains exchanges", serverExchangeStore.isEmpty());
+			assertTrue("Client side message exchange store still contains exchanges", isEmptyWithDump(clientExchangeStore));
+			assertTrue("Server side message exchange store still contains exchanges", isEmptyWithDump(serverExchangeStore));
 		} finally {
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();

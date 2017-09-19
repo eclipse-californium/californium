@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - make first and second
  *                                                    volatile
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add size() for test-logging
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -127,6 +128,13 @@ public class CropRotation implements Deduplicator {
 			maps[0].clear();
 			maps[1].clear();
 			maps[2].clear();
+		}
+	}
+
+	@Override
+	public int size() {
+		synchronized (maps) {
+			return maps[0].size() + maps[1].size() + maps[2].size();
 		}
 	}
 
