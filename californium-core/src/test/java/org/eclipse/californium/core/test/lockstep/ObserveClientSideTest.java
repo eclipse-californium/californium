@@ -33,6 +33,7 @@ import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -42,8 +43,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
@@ -113,16 +112,9 @@ public class ObserveClientSideTest {
 	}
 
 	@After
-	public void shutdownEndpoints() throws InterruptedException {
+	public void shutdownEndpoints() {
 		try {
-			int timeToWait = TEST_EXCHANGE_LIFETIME +TEST_SWEEP_DEDUPLICATOR_INTERVAL + 300; // milliseconds
-			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, new CheckCondition() {
-				@Override
-				public boolean isFulFilled() throws IllegalStateException {
-					return clientExchangeStore.isEmpty();
-				}
-			});
-			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
+			assertAllExchangesAreCompleted(CONFIG, clientExchangeStore);
 		} finally {
 			printServerLog(clientInterceptor);
 			

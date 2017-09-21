@@ -125,10 +125,15 @@ public class BlockwiseServerSideTest {
 
 	@After
 	public void shutdownEndpoints() {
-		printServerLog(serverInterceptor);
-		System.out.println();
-		client.destroy();
-		server.destroy();
+		try {
+			assertAllExchangesAreCompleted(CONFIG, exchangeStore);
+		} finally {
+			printServerLog(serverInterceptor);
+
+			System.out.println();
+			client.destroy();
+			server.destroy();
+		}
 	}
 
 	@AfterClass
@@ -335,8 +340,6 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
-
-		assertAllExchangesAreCompleted(CONFIG, exchangeStore);
 	}
 
 	/**
@@ -373,8 +376,6 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
 
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last PUT ////////");
-
-		assertAllExchangesAreCompleted(CONFIG, exchangeStore);
 	}
 
 	/**
@@ -798,6 +799,8 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(2, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 290)).go();
+
+		testResource.clearObserveRelations();
 	}
 
 	@Test
@@ -847,6 +850,8 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(2, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 145)).go();
+
+		testResource.clearObserveRelations();
 	}
 
 	// All tests are made with this resource
