@@ -1361,6 +1361,11 @@ public class LockstepEndpoint {
 			this.mid = mid;
 			return this;
 		}
+		
+		public MessageProperty token(final byte[] token) {
+			this.token = token;
+			return this;
+		}
 
 		public MessageProperty block1(final int num, final boolean m, final int size) {
 			properties.add(new Property<Message>() {
@@ -1600,6 +1605,12 @@ public class LockstepEndpoint {
 		@Override
 		public ResponseProperty mid(final int mid) {
 			super.mid(mid);
+			return this;
+		}
+		
+		@Override
+		public ResponseProperty token(final byte[] token) {
+			super.token(token);
 			return this;
 		}
 
