@@ -879,4 +879,56 @@ public class ObserveClientSideTest {
 		// Check the GET request is canceled.
 		assertTrue(getRequest.isCanceled());
 	}
+	
+	
+	/**
+	 * Verifies observe with block2 and server changing IP address/port
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwiseObserveChangedServerAddress() throws Exception {
+
+		System.out.println("Blockwise Observe with changing IP address/port:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+		
+		// create new server with new port
+		server = createChangedLockstepEndpoint(server);
+		
+		// Send new block2 notification
+		respPayload = generateRandomPayload(42);
+		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 42)).go();
+		
+		// check we get the new notification
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+
+	}
 }
