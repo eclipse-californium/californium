@@ -106,7 +106,7 @@ public class LockstepEndpoint {
 	private MultiMessageExpectation multi;
 
 	public LockstepEndpoint() {
-		this(null);
+		this((InetSocketAddress)null);
 	}
 
 	public LockstepEndpoint(final InetSocketAddress destination) {
@@ -131,7 +131,12 @@ public class LockstepEndpoint {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
+	public LockstepEndpoint(final LockstepEndpoint previousEndpoint) {
+		this(previousEndpoint.destination);
+		storage.putAll(previousEndpoint.storage);
+	}
+	
 	public void destroy() {
 		if (connector != null) {
 			connector.destroy();
