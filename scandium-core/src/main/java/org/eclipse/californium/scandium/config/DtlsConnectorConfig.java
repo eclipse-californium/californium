@@ -834,7 +834,7 @@ public final class DtlsConnectorConfig {
 				config.address = new InetSocketAddress(0);
 			}
 			if (config.enableReuseAddress == null) {
-				config.enableReuseAddress = true;
+				config.enableReuseAddress = false;
 			}
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];

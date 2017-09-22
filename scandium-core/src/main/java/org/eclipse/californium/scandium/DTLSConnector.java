@@ -57,6 +57,8 @@
  *                                                    and add error callback in
  *                                                    newDeferredMessageSender.
  *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
+ *                                                    if bindAddress determines a port
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -349,8 +351,8 @@ public class DTLSConnector implements Connector {
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
-		// make it easier to stop/start a server consecutively without delays
-		if (config.isAddressReuseEnabled()) {
+		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
+			// make it easier to stop/start a server consecutively without delays
 			LOGGER.config("Enable address reuse for socket!");
 			socket.setReuseAddress(true);
 			if (!socket.getReuseAddress()) {
