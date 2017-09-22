@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -63,6 +64,9 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	private static final String EC_ALGORITHM_NAME = "EC";
+
+	private boolean enableReuseAddress;
+	
 	private InetSocketAddress address;
 	private X509Certificate[] trustStore = new X509Certificate[0];
 
@@ -282,6 +286,13 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * @return true, if address reuse should be enabled for the socket. 
+	 */
+	public boolean isAddressReuseEnabled() {
+		return enableReuseAddress;
+	}
+	
+	/**
 	 * Gets the maximum number of (active) connections the connector will support.
 	 * <p>
 	 * Once this limit is reached, new connections will only be accepted if <em>stale</em>
@@ -375,6 +386,16 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setClientOnly() {
 			clientOnly = true;
+			return this;
+		}
+
+		/**
+		 * Enables address reuse for the socket.
+		 * 
+		 * @return this builder for command chaining
+		 */
+		public Builder setEnableAddressReuse(boolean enable) {
+			config.enableReuseAddress = enable;
 			return this;
 		}
 
