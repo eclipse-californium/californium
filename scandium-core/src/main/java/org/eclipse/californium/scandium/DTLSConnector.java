@@ -34,6 +34,8 @@
  *                                                    anymore.
  *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
  *                                                    out of synchronized block
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
+ *                                                    if bindAddress determines a port
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -292,8 +294,15 @@ public class DTLSConnector implements Connector {
 		}
 		timer = new Timer(true); // run as daemon
 		socket = new DatagramSocket(null);
-		// make it easier to stop/start a server consecutively without delays
-		socket.setReuseAddress(true);
+		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
+			// make it easier to stop/start a server consecutively without delays
+			LOGGER.config("Enable address reuse for socket!");
+			socket.setReuseAddress(true);
+			if (!socket.getReuseAddress()) {
+				LOGGER.warning("Enable address reuse for socket failed!");
+			}
+		}
+		
 		socket.bind(bindAddress);
 		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
 				connectionStore.clear();
