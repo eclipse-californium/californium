@@ -364,7 +364,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param config the configuration
 	 * @return the connector
 	 */
-	private static Connector createUDPConnector(final InetSocketAddress address, final NetworkConfig config) {
+	public static Connector createUDPConnector(final InetSocketAddress address, final NetworkConfig config) {
 		UDPConnector c = new UDPConnector(address);
 
 		c.setReceiverThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT));
