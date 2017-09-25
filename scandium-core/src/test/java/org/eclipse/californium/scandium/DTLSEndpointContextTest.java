@@ -43,10 +43,12 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -58,6 +60,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class DTLSEndpointContextTest {
+	@ClassRule
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
