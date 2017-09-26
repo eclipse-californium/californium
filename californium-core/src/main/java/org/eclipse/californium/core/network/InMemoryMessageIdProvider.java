@@ -114,7 +114,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 
 	private synchronized MessageIdTracker getTracker(final InetSocketAddress destination) {
 		MessageIdTracker tracker = trackers.get(destination);
-		if (tracker == null && 0 < trackers.remainingCapacity()) {
+		if (tracker == null) {
 			// create new tracker for destination lazily
 			int mid = null == random ? 0 : random.nextInt(MessageIdTracker.TOTAL_NO_OF_MIDS);
 			switch (mode) {
@@ -129,7 +129,11 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 				tracker = new GroupedMessageIdTracker(mid, config);
 				break;
 			}
-			trackers.put(destination, tracker);
+			if (trackers.put(destination, tracker)) {
+				return tracker;
+			} else {
+				return null;
+			}
 		}
 		return tracker;
 	}
