@@ -19,6 +19,8 @@
  *    Bosch Software Innovations GmbH - improve readability
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getDefaultPort
  *                                                    add CodeClass
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocols
+ *                                                    with mapping to schemes
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -43,6 +45,18 @@ public final class CoAP {
 
 	/** RFC 7252 CoAP version */
 	public static final int VERSION = 0x01;
+
+	/** The UDP protocol */
+	public static final String PROTOCOL_UDP = "UDP";
+
+	/** The DTLS protocol */
+	public static final String PROTOCOL_DTLS = "DTLS";
+	
+	/** The TCP protocol */
+	public static final String PROTOCOL_TCP = "TCP";
+
+	/** The TLS protocol */
+	public static final String PROTOCOL_TLS = "TLS";
 
 	/** The CoAP URI scheme */
 	public static final String COAP_URI_SCHEME = "coap";
@@ -104,6 +118,48 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
+	 * 
+	 * @param protocol protocol to be checked
+	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 */
+	public static boolean isTcpProtocol(final String protocol) {
+		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
+				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
+	}
+
+	/**
+	 * Get scheme for protocol.
+	 * 
+	 * @param protocol protocol
+	 * @return scheme
+	 * @throws IllegalArgumentException if protocol is not supported
+	 */
+	public static String getSchemeForProtocol(final String protocol) {
+		if (PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+			return COAP_URI_SCHEME;
+		} else if (PROTOCOL_DTLS.equalsIgnoreCase(protocol)) {
+			return COAP_SECURE_URI_SCHEME;
+		} else if (PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
+			return COAP_TCP_URI_SCHEME;
+		} else if (PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
+			return COAP_SECURE_TCP_URI_SCHEME;
+		}
+		throw new IllegalArgumentException("Protocol " + protocol + " not supported!");
+	}
+
+	/**
+	 * Checks, if provided protocol is {@link #PROTOCOL_DTLS} or {@link #PROTOCOL_TLS}.
+	 * 
+	 * @param protocol protocol to be checked
+	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 */
+	public static boolean isSecureProtocol(final String protocol) {
+		return PROTOCOL_DTLS.equalsIgnoreCase(protocol)
+				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
+	}
+
+	/**
 	 * Checks, if provided scheme is {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
@@ -117,7 +173,7 @@ public final class CoAP {
 	/**
 	 * Checks, if provided scheme is {@link #COAP_SECURE_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
-	 * @param scheme scheme to be checked
+	 * @param uriScheme scheme to be checked
 	 * @return true, if the provided scheme match one of the list above, false, otherwise.
 	 */
 	public static boolean isSecureScheme(final String uriScheme) {

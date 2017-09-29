@@ -13,6 +13,8 @@
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - create "remote aware" SSLEngine
+ * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                 remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -69,8 +71,8 @@ public class TlsServerConnector extends TcpServerConnector {
 	}
 
 	@Override
-	protected String getSupportedScheme() {
-		return "coaps+tcp";
+	public String getProtocol() {
+		return "TLS";
 	}
 
 	/**

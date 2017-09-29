@@ -59,6 +59,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet. 
  *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
  *                                                    if bindAddress determines a port
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                    remove scheme
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -67,7 +69,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.URI;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -145,7 +146,6 @@ public class DTLSConnector implements Connector {
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
 	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
-	private static final String SUPPORTED_SCHEME = "coaps";
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION =
 			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getMaxCiphertextExpansion(); // CBC cipher has largest expansion
@@ -1369,7 +1369,7 @@ public class DTLSConnector implements Connector {
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}:{3}",
-						new Object[] {getUri(), message.getSize(), message.getAddress(),
+						new Object[] {this, message.getSize(), message.getAddress(),
 						message.getPort() });
 			}
 			message.onError(new EndpointMismatchException());
@@ -1793,12 +1793,12 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public boolean isSchemeSupported(String scheme) {
-		return SUPPORTED_SCHEME.contentEquals(scheme);
+	public String getProtocol() {
+		return "DTLS";
 	}
 
 	@Override
-	public URI getUri() {
-		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
-	}
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
+	}	
 }

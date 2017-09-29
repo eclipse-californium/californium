@@ -241,16 +241,6 @@ public class DTLSConnectorTest {
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
 
-	/**
-	 * Verifies that the connector's endpoint URI corresponds to the configuration.
-	 */
-	@Test
-	public void testGetUriContainsCorrectSchemeAndAddress() {
-		assertThat(server.getUri().getScheme(), is("coaps"));
-		assertThat(server.getUri().getHost(), is(serverEndpoint.getHostString()));
-		assertThat(server.getUri().getPort(), is(serverEndpoint.getPort()));
-	}
-
 	@Test
 	public void testSendInvokesMessageCallbackOnSent() throws Exception {
 

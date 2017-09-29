@@ -23,6 +23,8 @@
  *                                                 implementation
  * Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
  *                                                 issue #305
+ * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                 remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -49,7 +51,6 @@ import org.eclipse.californium.elements.RawDataChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -63,7 +64,6 @@ public class TcpClientConnector implements Connector {
 
 	private static final Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
 
-	private final URI listenUri;
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
@@ -83,8 +83,6 @@ public class TcpClientConnector implements Connector {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.connectTimeoutMillis = connectTimeoutMillis;
-		this.listenUri = URI.create(String.format("%s://%s:%d", getSupportedScheme(),
-				localSocketAddress.getHostString(), localSocketAddress.getPort()));
 	}
 
 	@Override public synchronized void start() throws IOException {
@@ -213,19 +211,15 @@ public class TcpClientConnector implements Connector {
 	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 	}
 
-	protected String getSupportedScheme() {
-		return "coap+tcp";
+	@Override
+	public String getProtocol() {
+		return "TCP";
 	}
 
 	@Override
-	public final boolean isSchemeSupported(String scheme) {
-		return getSupportedScheme().equals(scheme);
-	}
-
-	@Override
-	public final URI getUri() {
-		return listenUri;
-	}
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
+	}	
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
 

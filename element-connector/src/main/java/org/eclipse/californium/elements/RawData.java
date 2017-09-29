@@ -25,6 +25,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move address and principal to
  *                                                    EndpointContext and cleanup
  *                                                    constructors.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace isSecure by 
+ *                                                    connector's protocol
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -217,16 +219,6 @@ public final class RawData {
 	 */
 	public EndpointContext getEndpointContext() {
 		return peerEndpointContext;
-	}
-
-	/**
-	 * Determines if the endpoint context of this object is secure.
-	 *
-	 * @return <code>true</code> if context is secure, <code>false</code>
-	 *         otherwise
-	 */
-	public boolean isSecure() {
-		return (peerEndpointContext != null && peerEndpointContext.get(DtlsEndpointContext.KEY_SESSION_ID) != null);
 	}
 
 	/**

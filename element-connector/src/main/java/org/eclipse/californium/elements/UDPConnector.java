@@ -23,6 +23,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix error stopping an connector,
  *                                                    when socket failed to open.
  *                                                    issue #345
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                    remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -30,7 +32,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -56,8 +57,6 @@ import java.util.logging.Logger;
  * and {@link #setSenderThreadCount(int)} before the connector is started.
  */
 public class UDPConnector implements Connector {
-
-	private static final String SUPPORTED_SCHEME = "coap";
 
 	public static final Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
 
@@ -342,7 +341,7 @@ public class UDPConnector implements Connector {
 				datagram.setPort(raw.getPort());
 				if (LOGGER.isLoggable(Level.FINER)) {
 					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-							new Object[] { getUri(), datagram.getLength(), datagram.getAddress(), datagram.getPort() });
+							new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
 				}
 				socket.send(datagram);
 				raw.onSent();
@@ -393,12 +392,12 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public boolean isSchemeSupported(String scheme) {
-		return SUPPORTED_SCHEME.equals(scheme);
+	public String getProtocol() {
+		return "UDP";
 	}
 
 	@Override
-	public URI getUri() {
-		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
 	}
 }

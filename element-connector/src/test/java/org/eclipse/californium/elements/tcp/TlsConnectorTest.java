@@ -142,7 +142,7 @@ public class TlsConnectorTest {
 	public void singleServerManyClients() throws Exception {
 		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
-		assertThat(server.getUri().getScheme(), is("coaps+tcp"));
+		assertThat(server.getProtocol(), is("TLS"));
 		cleanup.add(server);
 
 		Catcher serverCatcher = new Catcher();
