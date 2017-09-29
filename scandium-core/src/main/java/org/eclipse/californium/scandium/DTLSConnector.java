@@ -32,6 +32,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - cancel flight only, if they
  *                                                    should not be retransmitted
  *                                                    anymore.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
+ *                                                    out of synchronized block
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -42,7 +44,6 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
-import java.security.Principal;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -52,7 +53,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -561,9 +561,10 @@ public class DTLSConnector implements Connector {
 
 	private void processApplicationDataRecord(Record record) {
 
+		DTLSSession session = null;
 		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasEstablishedSession()) {
-			DTLSSession session = connection.getEstablishedSession();
+		if (connection != null && (session = connection.getEstablishedSession()) != null) {
+			RawData receivedApplicationMessage = null;
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 				// before MAC validation based on the record's sequence numbers
@@ -578,8 +579,8 @@ public class DTLSConnector implements Connector {
 						// thus, the handshake seems to have been completed successfully
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-						// finally, forward de-crypted message to application layer
-						handleApplicationMessage(message, session.getPeerIdentity());
+						// create application message from de-crypted message
+						receivedApplicationMessage = new RawData(message.getData(), message.getPeer(), session.getPeerIdentity());
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -589,16 +590,15 @@ public class DTLSConnector implements Connector {
 							record.getPeerAddress());
 				}
 			}
+			// finally, forward de-crypted message to application layer
+			RawDataChannel messageHandler = this.messageHandler;
+			if (messageHandler != null && receivedApplicationMessage != null) {
+				messageHandler.receiveData(receivedApplicationMessage);
+			}
 		} else {
 			LOGGER.log(Level.FINER,
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
 					new Object[]{record.getPeerAddress()});
-		}
-	}
-
-	private void handleApplicationMessage(ApplicationMessage message, Principal peerIdentity) {
-		if (messageHandler != null) {
-			messageHandler.receiveData(new RawData(message.getData(), message.getPeer(), peerIdentity));
 		}
 	}
 
