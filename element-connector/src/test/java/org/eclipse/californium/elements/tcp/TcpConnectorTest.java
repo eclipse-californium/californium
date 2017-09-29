@@ -113,7 +113,7 @@ public class TcpConnectorTest {
 	public void singleServerManyClients() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
 				IDLE_TIMEOUT);
-		assertThat(server.getUri().getScheme(), is("coap+tcp"));
+		assertThat(server.getProtocol(), is("TCP"));
 		cleanup.add(server);
 
 		Catcher serverCatcher = new Catcher();

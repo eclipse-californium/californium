@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
@@ -102,8 +103,9 @@ public class CoapEndpointTest {
 	}
 
 	@Test
-	public void testGetUriReturnsConnectorUri() {
-		assertThat(endpoint.getUri(), is(connector.getUri()));
+	public void testGetUriReturnsConnectorUri() throws URISyntaxException {
+		URI uri = new URI("coap://" + connector.getAddress().getHostString() + ":" + connector.getAddress().getPort());
+		assertThat(endpoint.getUri(), is(uri));
 	}
 
 	@Test
@@ -154,6 +156,23 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
+		SimpleConnector connector = new SimpleSecureConnector();
+		Endpoint endpoint = new CoapEndpoint(connector, CONFIG);
+		MessageDeliverer deliverer = new MessageDeliverer() {
+
+			@Override
+			public void deliverResponse(Exchange exchange, Response response) {
+			}
+
+			@Override
+			public void deliverRequest(Exchange exchange) {
+				receivedRequests.add(exchange.getRequest());
+				latch.countDown();
+			}
+		};
+		endpoint.setMessageDeliverer(deliverer);
+		endpoint.start();
+		
 		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
 		connector.receiveMessage(inboundRequest);
@@ -235,13 +254,21 @@ public class CoapEndpointTest {
 		}
 
 		@Override
-		public boolean isSchemeSupported(String scheme) {
-			return CoAP.COAP_URI_SCHEME.equals(scheme);
+		public String getProtocol() {
+			return CoAP.PROTOCOL_UDP;
 		}
 
 		@Override
-		public URI getUri() {
-			return URI.create(String.format("%s://%s:%d", CoAP.COAP_URI_SCHEME, CONNECTOR_ADDRESS.getHostString(), CONNECTOR_ADDRESS.getPort()));
+		public String toString() {
+			return getProtocol() + "-" + getAddress();
+		}
+	}
+
+	private class SimpleSecureConnector extends SimpleConnector {
+
+		@Override
+		public String getProtocol() {
+			return CoAP.PROTOCOL_DTLS;
 		}
 	}
 }

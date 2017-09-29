@@ -153,7 +153,38 @@ public class CoapTest {
 	}
 
 	@Test
-	public void testIsTcPScheme() {
+	public void testIsTcpProtocol() {
+		assertTrue(CoAP.isTcpProtocol(CoAP.PROTOCOL_TLS));
+		assertTrue(CoAP.isTcpProtocol(CoAP.PROTOCOL_TCP));
+		assertFalse(CoAP.isTcpProtocol(CoAP.PROTOCOL_UDP));
+		assertFalse(CoAP.isTcpProtocol(CoAP.PROTOCOL_DTLS));
+		assertFalse(CoAP.isTcpProtocol("http:"));
+	}
+
+	@Test
+	public void testIsSecureProtocol() {
+		assertTrue(CoAP.isSecureProtocol(CoAP.PROTOCOL_TLS));
+		assertFalse(CoAP.isSecureProtocol(CoAP.PROTOCOL_TCP));
+		assertFalse(CoAP.isSecureProtocol(CoAP.PROTOCOL_UDP));
+		assertTrue(CoAP.isSecureProtocol(CoAP.PROTOCOL_DTLS));
+		assertFalse(CoAP.isSecureProtocol("https:"));
+	}
+
+	@Test
+	public void testGetSchemeForProtocol() {
+		assertThat(CoAP.getSchemeForProtocol(CoAP.PROTOCOL_TLS), is(CoAP.COAP_SECURE_TCP_URI_SCHEME));
+		assertThat(CoAP.getSchemeForProtocol(CoAP.PROTOCOL_TCP), is(CoAP.COAP_TCP_URI_SCHEME));
+		assertThat(CoAP.getSchemeForProtocol(CoAP.PROTOCOL_DTLS), is(CoAP.COAP_SECURE_URI_SCHEME));
+		assertThat(CoAP.getSchemeForProtocol(CoAP.PROTOCOL_UDP), is(CoAP.COAP_URI_SCHEME));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testInvalidGetSchemeForProtocol() {
+		CoAP.getSchemeForProtocol("https:");
+	}
+
+	@Test
+	public void testIsTcpScheme() {
 		assertTrue(CoAP.isTcpScheme(CoAP.COAP_SECURE_TCP_URI_SCHEME));
 		assertTrue(CoAP.isTcpScheme(CoAP.COAP_TCP_URI_SCHEME));
 		assertFalse(CoAP.isTcpScheme(CoAP.COAP_URI_SCHEME));

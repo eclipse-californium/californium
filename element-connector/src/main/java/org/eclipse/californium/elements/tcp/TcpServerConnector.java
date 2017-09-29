@@ -21,6 +21,8 @@
  *                                                 implementation
  * Achim Kraus (Bosch Software Innovations GmbH) - add onSent() and onError(). 
  *                                                 issue #305
+ * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                 remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -43,7 +45,6 @@ import org.eclipse.californium.elements.RawDataChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -58,7 +59,6 @@ import java.util.logging.Logger;
 public class TcpServerConnector implements Connector {
 
 	private static final Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
-	private final String SUPPORTED_SCHEME = "coap+tcp";
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -75,14 +75,12 @@ public class TcpServerConnector implements Connector {
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
-	private URI listenUri;
 	private InetSocketAddress localAddress;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.localAddress = localAddress;
-		this.listenUri = getListenUri(localAddress);
 	}
 
 	@Override
@@ -112,7 +110,6 @@ public class TcpServerConnector implements Connector {
 			// replace port with the assigned one
 			InetSocketAddress listenAddress = (InetSocketAddress) channelFuture.channel().localAddress();
 			localAddress = new InetSocketAddress(localAddress.getAddress(), listenAddress.getPort());
-			listenUri = getListenUri(localAddress);
 		}
 	}
 
@@ -202,15 +199,16 @@ public class TcpServerConnector implements Connector {
 	protected void onNewChannelCreated(Channel ch) {
 	}
 
+
 	@Override
-	public final boolean isSchemeSupported(String scheme) {
-		return getSupportedScheme().equals(scheme);
+	public String getProtocol() {
+		return "TCP";
 	}
 
 	@Override
-	public final synchronized URI getUri() {
-		return listenUri;
-	}
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
+	}	
 
 	private class ChannelRegistry extends ChannelInitializer<SocketChannel> {
 
@@ -246,13 +244,5 @@ public class TcpServerConnector implements Connector {
 		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.remove(ctx.channel().remoteAddress());
 		}
-	}
-
-	protected String getSupportedScheme() {
-		return SUPPORTED_SCHEME;
-	}
-
-	private URI getListenUri(final InetSocketAddress listenAddress) {
-		return URI.create(String.format("%s://%s:%d", getSupportedScheme(), listenAddress.getHostString(), listenAddress.getPort()));
 	}
 }

@@ -57,15 +57,18 @@ public class EndpointContextMatcherFactory {
 	 */
 	public static EndpointContextMatcher create(Connector connector, NetworkConfig config) {
 		if (null != connector) {
-			if (connector.isSchemeSupported(CoAP.COAP_URI_SCHEME)) {
+			String protocol = connector.getProtocol();
+			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
 				return new UdpEndpointContextMatcher();
-			} else if (connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+			}
+			else if (CoAP.PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
+				return new TcpEndpointContextMatcher();
+			}
+			else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
 				/*
 				 * To be implemented in a future PR, in the meanwhile use
 				 * default dtls matcher as default for backwards compatibility
 				 */
-			} else if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)) {
-				return new TcpEndpointContextMatcher();
 			}
 		}
 		String textualMode = "???";

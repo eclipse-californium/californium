@@ -27,7 +27,6 @@ import static org.hamcrest.core.IsSame.sameInstance;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
@@ -82,19 +81,10 @@ public class EndpointManagerTest {
 
 	@Test
 	public void testSetDefaultEndpointSchemeFailure() throws Exception {
-		// GIVEN an new endpoint with http:
-		Endpoint endpoint = new CoapEndpoint(new DummyHttpConnector(), network.getStandardTestConfig());
-
-		// THEN set with null or unsupported scheme fails
 		try {
 			EndpointManager.getEndpointManager().setDefaultEndpoint(null);
 			assertThat("null should fail", false);
 		} catch (NullPointerException ex) {
-		}
-		try {
-			EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
-			assertThat("http should not be supported", false);
-		} catch (IllegalArgumentException ex) {
 		}
 	}
 
@@ -174,14 +164,13 @@ public class EndpointManagerTest {
 		}
 
 		@Override
-		public boolean isSchemeSupported(String scheme) {
-			return false;
+		public String getProtocol() {
+			return "HTTP";
 		}
 
 		@Override
-		public URI getUri() {
-			return URI.create("http://localhost");
+		public String toString() {
+			return getProtocol() + "-" + getAddress();
 		}
-		
 	}
 }

@@ -49,13 +49,6 @@ public class UDPConnectorTest {
 	}
 
 	@Test
-	public void testGetUriContainsCorrectSchemeAndAddress() {
-		assertThat(connector.getUri().getScheme(), is("coap"));
-		assertThat(connector.getUri().getHost(), is(connector.getAddress().getHostString()));
-		assertThat(connector.getUri().getPort(), is(connector.getAddress().getPort()));
-	}
-
-	@Test
 	public void testSendMessageWithEndpointContext() throws InterruptedException {
 		byte[] data = { 0, 1, 2 };
 		InetSocketAddress dest = new InetSocketAddress(0);

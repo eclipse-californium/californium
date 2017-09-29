@@ -43,12 +43,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
  *                                                    canceled messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use connectors protocol
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -163,8 +165,6 @@ public class CoapEndpoint implements Endpoint {
 	private final Connector connector;
 	
 	private final String scheme;
-	
-	private final String secureScheme;
 	
 	/** The configuration of this endpoint */
 	private final NetworkConfig config;
@@ -328,6 +328,7 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
+		this.scheme =  CoAP.getSchemeForProtocol(connector.getProtocol());
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore : new InMemoryMessageExchangeStore(config);
 		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
 		if (null == endpointContextMatcher) {
@@ -337,23 +338,18 @@ public class CoapEndpoint implements Endpoint {
 		LOGGER.log(Level.CONFIG, "{0} uses {1}",
 				new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
 
-		if (connector.isSchemeSupported(CoAP.COAP_TCP_URI_SCHEME)
-				|| connector.isSchemeSupported(CoAP.COAP_SECURE_TCP_URI_SCHEME)) {
+		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					endpointContextMatcher);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
-			this.scheme = CoAP.COAP_TCP_URI_SCHEME;
-			this.secureScheme = CoAP.COAP_SECURE_TCP_URI_SCHEME;
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					endpointContextMatcher);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
-			this.scheme = CoAP.COAP_URI_SCHEME;
-			this.secureScheme = CoAP.COAP_SECURE_URI_SCHEME;
 		}
 	}
 
@@ -394,7 +390,7 @@ public class CoapEndpoint implements Endpoint {
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
 			setExecutor(Executors.newSingleThreadScheduledExecutor(
-					new DaemonThreadFactory("CoapEndpoint-" + connector.getUri() + '#'))); //$NON-NLS-1$
+					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
 				public void started(final Endpoint endpoint) {
@@ -585,7 +581,17 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public URI getUri() {
-		return connector.getUri();
+		URI uri = null;
+		try {
+			InetSocketAddress address = getAddress();
+			String scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
+			uri = new URI(scheme, null, address.getHostString(), address.getPort(), null, null, null);
+		} catch (URISyntaxException e) {
+			LOGGER.log(Level.WARNING, "URI", e);
+		} catch (IllegalArgumentException e) {
+			LOGGER.log(Level.WARNING, "URI", e);
+		}
+		return uri;
 	}
 
 	@Override
@@ -809,7 +815,7 @@ public class CoapEndpoint implements Endpoint {
 		private void receiveRequest(final Request request, final RawData raw) {
 
 			// set request attributes from raw data
-			request.setScheme(raw.isSecure() ? secureScheme : scheme);
+			request.setScheme(scheme);
 
 			/* 
 			 * Logging here causes significant performance loss.
