@@ -21,6 +21,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - make access to retransmission task
  *                                                    thread safe. Deprecate constructor
  *                                                    with InetSocketAddress
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isRetransmissionCancelled
+ *                                                    to stop retransmission when already
+ *                                                    hand over to other executor
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -276,7 +279,16 @@ public class DTLSFlight {
 			this.retransmitTask = retransmitTask;
 		}
 	}
-
+	
+	/**
+	 * Check, if retransmission was cancelled.
+	 * 
+	 * @return {@code true}, if retransmission was cancelled, {@code false}, otherwise.
+	 */
+	public synchronized boolean isRetransmissionCancelled() {
+		return cancelled;
+	}
+	
 	/**
 	 * Sets new sequence numbers on the records contained in this flight.
 	 * 

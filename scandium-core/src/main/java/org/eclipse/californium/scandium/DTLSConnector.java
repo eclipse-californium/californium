@@ -61,6 +61,8 @@
  *                                                    if bindAddress determines a port
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                    remove scheme
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for cancelled retransmission
+ *                                                    before sending.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1686,7 +1688,9 @@ public class DTLSConnector implements Connector {
 
 				@Override
 				public void run() {
-					handleTimeout(flight);
+					if (!flight.isRetransmissionCancelled()) {
+						handleTimeout(flight);
+					}
 				}
 			});
 		}
