@@ -47,6 +47,8 @@
  *                                                    anymore.
  *    Achim Kraus (Bosch Software Innovations GmbH) - check for cancelled retransmission
  *                                                    before sending.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
+ *                                                    out of synchronized block
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -659,10 +661,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void processApplicationDataRecord(final Record record) {
-
+		DTLSSession session = null;
 		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasEstablishedSession()) {
-			DTLSSession session = connection.getEstablishedSession();
+		if (connection != null && (session = connection.getEstablishedSession()) != null) {
+			RawData receivedApplicationMessage = null;
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 				// before MAC validation based on the record's sequence numbers
@@ -677,8 +679,8 @@ public class DTLSConnector implements Connector {
 						// thus, the handshake seems to have been completed successfully
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-						// finally, forward de-crypted message to application layer
-						handleApplicationMessage(message, session);
+						// create application message.
+						receivedApplicationMessage = createApplicationMessage(message, session);
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -688,6 +690,11 @@ public class DTLSConnector implements Connector {
 							record.getPeerAddress());
 				}
 			}
+			RawDataChannel channel = messageHandler;
+			// finally, forward de-crypted message to application layer outside the synchronized block
+			if (channel != null && receivedApplicationMessage != null) {
+				channel.receiveData(receivedApplicationMessage);
+			}
 		} else {
 			LOGGER.log(Level.FINER,
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
@@ -695,14 +702,10 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
-		if (messageHandler != null) {
-			DtlsCorrelationContext context = new DtlsCorrelationContext(
-					session.getSessionIdentifier().toString(),
-					String.valueOf(session.getReadEpoch()),
-					session.getReadStateCipher());
-			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
-		}
+	private RawData createApplicationMessage(ApplicationMessage message, DTLSSession session) {
+		DtlsCorrelationContext context = new DtlsCorrelationContext(session.getSessionIdentifier().toString(),
+				String.valueOf(session.getReadEpoch()), session.getReadStateCipher());
+		return RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false);
 	}
 
 	/**
