@@ -789,6 +789,15 @@ public class Record {
 	}
 
 	/**
+	 * Get fragment payload as byte array.
+	 * 
+	 * @return fragments byte array.
+	 */
+	public byte[] getFragmentBytes() {
+		return fragmentBytes;
+	}
+
+	/**
 	 * Gets the object representation of this record's <em>DTLSPlaintext.fragment</em>.
 	 *  
 	 * If this record only contains the fragment's ciphertext representation, it is
