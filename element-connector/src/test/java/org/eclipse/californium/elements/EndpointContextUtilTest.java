@@ -41,13 +41,9 @@ public class EndpointContextUtilTest {
 		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER");
 		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
 		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, "new session", "1", "CIPHER");
-		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null);
-		mapBasedContext.put("ID", "session");
-		mapBasedContext.put("UNKNOWN", "secret");
+		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "secret");
 		unsecureMessageContext = mapBasedContext;
-		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null);
-		mapBasedContext.put("ID", "session");
-		mapBasedContext.put("UNKNOWN", "topsecret");
+		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "topsecret");
 		unsecureMessageContext2 = mapBasedContext;
 	}
 

@@ -16,11 +16,13 @@
  *                                      matching messages (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - extend endpoint context with
  *                                                    inet socket address and principal
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make entries map unmodifiable
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +32,7 @@ import java.util.Set;
  */
 public class MapBasedEndpointContext extends AddressEndpointContext {
 
-	private final Map<String, String> entries = new HashMap<>();
+	private final Map<String, String> entries;
 
 	/**
 	 * Creates a new endpoint context with correlation context support.
@@ -41,18 +43,43 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity) {
 		super(peerAddress, peerIdentity);
+		entries = Collections.emptyMap();
 	}
 
 	/**
-	 * Puts a value to the context.
+	 * Creates a new endpoint context with correlation context support.
 	 * 
-	 * @param key the key to put the value under.
-	 * @param value the value to put to the context.
-	 * @return the previous value for the given key or <code>null</code> if the
-	 *         context did not contain any value for the key yet.
+	 * @param peerAddress peer address of endpoint context
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param attributes list of attributes (name-value pairs, e.g. k1, v1, k2,
+	 *            v2 ...)
+	 * @throws NullPointerException if provided peer address is {@code null}, or
+	 *             one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd
+	 *             size, or a key in the attributes list is reused.
 	 */
-	public final Object put(String key, String value) {
-		return entries.put(key, value);
+	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
+		super(peerAddress, peerIdentity);
+		if ((attributes.length & 1) == 0) {
+			Map<String, String> entries = new HashMap<>();
+			for (int index = 0; index < attributes.length; ++index) {
+				String key = attributes[index];
+				String value = attributes[++index];
+				if (null == key) {
+					throw new NullPointerException((index / 2) + ". key is null");
+				}
+				if (null == value) {
+					throw new NullPointerException((index / 2) + ". value is null");
+				}
+				String old = entries.put(key, value);
+				if (null != old) {
+					throw new IllegalArgumentException((index / 2) + ". key '" + key + "' is provided twice");
+				}
+			}
+			this.entries = Collections.unmodifiableMap(entries);
+		} else {
+			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
+		}
 	}
 
 	@Override

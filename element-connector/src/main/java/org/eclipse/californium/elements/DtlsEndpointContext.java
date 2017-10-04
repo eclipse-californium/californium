@@ -44,18 +44,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String sessionId, String epoch,
 			String cipher) {
-		super(peerAddress, peerIdentity);
-		if (sessionId == null) {
-			throw new NullPointerException("Session ID must not be null");
-		} else if (epoch == null) {
-			throw new NullPointerException("Epoch must not be null");
-		} else if (cipher == null) {
-			throw new NullPointerException("Cipher must not be null");
-		} else {
-			put(KEY_SESSION_ID, sessionId);
-			put(KEY_EPOCH, epoch);
-			put(KEY_CIPHER, cipher);
-		}
+		super(peerAddress, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch);
 	}
 
 	public String getSessionId() {

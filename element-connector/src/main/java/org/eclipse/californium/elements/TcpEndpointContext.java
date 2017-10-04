@@ -55,12 +55,7 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	 *             <code>null</code>.
 	 */
 	public TcpEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String connectionId) {
-		super(peerAddress, peerIdentity);
-		if (connectionId == null) {
-			throw new NullPointerException("Connection ID must not be null");
-		} else {
-			put(KEY_CONNECTION_ID, connectionId);
-		}
+		super(peerAddress, peerIdentity, KEY_CONNECTION_ID, connectionId);
 	}
 
 	public String getConnectionId() {
