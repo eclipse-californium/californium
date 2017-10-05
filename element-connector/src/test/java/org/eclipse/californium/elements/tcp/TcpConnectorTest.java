@@ -17,6 +17,8 @@
  *                                                    (LoopbackAddress)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add NUMBER_OF_CONNECTIONS
  *                                                    and reduce it to 50
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use connection parameters 
+ *                                                    from ConnectorTestUtil
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -42,8 +44,6 @@ import org.junit.runners.Parameterized;
 public class TcpConnectorTest {
 
 	private static final int NUMBER_OF_CONNECTIONS = 50;
-	private static final int NUMBER_OF_THREADS = 1;
-	private static final int IDLE_TIMEOUT = 100;
 
 	@Rule
 	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
@@ -82,8 +82,9 @@ public class TcpConnectorTest {
 	@Test
 	public void serverClientPingPong() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT);
-		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
+				IDLE_TIMEOUT_IN_S);
+		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
+				IDLE_TIMEOUT_IN_S);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -112,7 +113,7 @@ public class TcpConnectorTest {
 	@Test
 	public void singleServerManyClients() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT);
+				IDLE_TIMEOUT_IN_S);
 		assertThat(server.getProtocol(), is("TCP"));
 		cleanup.add(server);
 
@@ -122,7 +123,8 @@ public class TcpConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
-			TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
+			TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
+					IDLE_TIMEOUT_IN_S);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
 			client.setRawDataReceiver(clientCatcher);

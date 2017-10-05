@@ -18,6 +18,9 @@
  *                                                    (LoopbackAddress)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timeout when get the 
  *                                                    correlation context
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove type checks for
+ *                                                    EndpointContext. Functionality
+ *                                                    should not depend on that.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -95,12 +98,9 @@ public class TcpEndpointContextTest {
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 		EndpointContext receivingServerContext = serverCatcher.getMessage(0).getEndpointContext();
-		assertThat("Serverside received no TCP Endpoint Context", receivingServerContext,
-				is(instanceOf(TcpEndpointContext.class)));
 		assertThat(receivingServerContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Endpoint Context", clientContext, is(instanceOf(TcpEndpointContext.class)));
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		// Response message must go over the same connection client already
@@ -185,8 +185,6 @@ public class TcpEndpointContextTest {
 		serverCatcher.blockUntilSize(2);
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Endpoint Context after reconnect", clientContextAfterReconnect,
-				is(instanceOf(TcpEndpointContext.class)));
 		// new (different) client side connection id
 		assertThat(clientContextAfterReconnect, is(not(clientContext)));
 		assertThat(clientContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
@@ -194,8 +192,6 @@ public class TcpEndpointContextTest {
 
 		// new (different) server side connection id
 		EndpointContext serverContextAfterReconnect = serverCatcher.getMessage(1).getEndpointContext();
-		assertThat("Serverside no TCP Endpoint Context after reconnect", serverContextAfterReconnect,
-				is(instanceOf(TcpEndpointContext.class)));
 		// new (different) server side connection id
 		assertThat(serverContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
 				is(not(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
@@ -252,8 +248,6 @@ public class TcpEndpointContextTest {
 		serverCatcher.blockUntilSize(2);
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Endpoint Context after reconnect", clientContextAfterReconnect,
-				is(instanceOf(TcpEndpointContext.class)));
 		// new (different) client side connection id
 		assertThat(clientContextAfterReconnect, is(not(clientContext)));
 		assertThat(clientContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
@@ -262,8 +256,6 @@ public class TcpEndpointContextTest {
 		// Response message must go over the reconnected connection
 
 		EndpointContext serverContextAfterReconnect = serverCatcher.getMessage(1).getEndpointContext();
-		assertThat("Serverside no TCP Endpoint Context after reconnect", serverContextAfterReconnect,
-				is(instanceOf(TcpEndpointContext.class)));
 		// new (different) server side connection id
 		assertThat(serverContextAfterReconnect, is(not(serverContext)));
 		assertThat(serverContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
@@ -318,8 +310,6 @@ public class TcpEndpointContextTest {
 		serverCatcher.blockUntilSize(1);
 
 		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("client side missing TCP Endpoint Context", clientContext,
-				is(instanceOf(TcpEndpointContext.class)));
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		msg = createMessage(100, clientContext, clientCallback);
@@ -376,8 +366,6 @@ public class TcpEndpointContextTest {
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
 		EndpointContext serverContext = receivedMsg.getEndpointContext();
-		assertThat("server side missing TCP Endpoint Context", serverContext,
-				is(instanceOf(TcpEndpointContext.class)));
 		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
