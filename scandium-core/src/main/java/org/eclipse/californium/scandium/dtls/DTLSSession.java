@@ -28,6 +28,8 @@
  *                                                    value provided by peer and current write state
  *    Bosch Software Innovations GmbH - add accessors for current read/write state cipher names
  *                                      (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
+ *                                                    from DTLSConnector to DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -39,6 +41,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 
@@ -74,12 +77,12 @@ public final class DTLSSession {
 	/**
 	 * This session's peer's IP address and port.
 	 */
-	private InetSocketAddress peer = null;
+	private final InetSocketAddress peer;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
 	 */
-	private SessionId sessionIdentifier = null;
+	private SessionId sessionIdentifier;
 
 	private Principal peerIdentity;
 
@@ -236,6 +239,16 @@ public final class DTLSSession {
 
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		this.sessionIdentifier = sessionIdentifier;
+	}
+
+	public DtlsEndpointContext getConnectionWriteContext() {
+		return new DtlsEndpointContext(peer, peerIdentity, sessionIdentifier.toString(),
+					String.valueOf(writeEpoch), cipherSuite.name());
+	}
+
+	public DtlsEndpointContext getConnectionReadContext() {
+		return new DtlsEndpointContext(peer, peerIdentity, sessionIdentifier.toString(),
+					String.valueOf(readEpoch), cipherSuite.name());
 	}
 
 	/**

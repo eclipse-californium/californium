@@ -65,6 +65,8 @@
  *                                                    before sending.
  *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
  *                                                    out of synchronized block
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
+ *                                                    to DTLSSession
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -93,7 +95,6 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
-import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -721,7 +722,7 @@ public class DTLSConnector implements Connector {
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 						// create application message.
-						receivedApplicationMessage = createApplicationMessage(message, session);
+						receivedApplicationMessage = RawData.inbound(message.getData(), session.getConnectionReadContext(), false);
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -741,16 +742,6 @@ public class DTLSConnector implements Connector {
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
 					new Object[]{record.getPeerAddress()});
 		}
-	}
-
-	private RawData createApplicationMessage(ApplicationMessage message, DTLSSession session) {
-		DtlsEndpointContext context = new DtlsEndpointContext(
-				message.getPeer(),
-				session.getPeerIdentity(),
-				session.getSessionIdentifier().toString(),
-				String.valueOf(session.getReadEpoch()),
-				session.getReadStateCipher());
-		return RawData.inbound(message.getData(), context, false);
 	}
 
 	/**
@@ -1333,12 +1324,7 @@ public class DTLSConnector implements Connector {
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
-			final EndpointContext ctx = new DtlsEndpointContext(
-					message.getInetSocketAddress(),
-					session.getPeerIdentity(),
-					session.getSessionIdentifier().toString(),
-					String.valueOf(session.getWriteEpoch()),
-					session.getWriteStateCipher());
+			final EndpointContext ctx = session.getConnectionWriteContext();
 			if (!checkOutboundEndpointContext(message, ctx)) {
 				return;
 			}
