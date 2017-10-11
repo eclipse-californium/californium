@@ -44,6 +44,7 @@
 		<module>cf-simplefile-server</module>
 		<module>cf-cocoa</module>
 		<module>cf-secure</module>
+		<module>cf-nat</module>
 		<module>cf-proxy</module>
 		<module>cf-benchmark</module>
 		<module>cf-benchmark-observe</module>

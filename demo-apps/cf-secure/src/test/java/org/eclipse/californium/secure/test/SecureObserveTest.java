@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use more general NatUtil
+ *                                                    l
  ******************************************************************************/
 package org.eclipse.californium.secure.test;
 
@@ -40,6 +42,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -63,7 +66,7 @@ public class SecureObserveTest {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
-	private TestUtilNat nat;
+	private NatUtil nat;
 	private CoapServer server;
 	private TestUtilPskStore pskStore;
 	private DTLSConnector serverConnector;
@@ -128,7 +131,7 @@ public class SecureObserveTest {
 
 		createSecureServer(DtlsMode.STRICT);
 
-		createNat();
+		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -151,7 +154,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.setChangeServerAddress(true);
+		nat.reassignLocalAddresses();
 		serverConnector.forceResumeAllSessions();
 
 		for (int i = 0; i < REPEATS; ++i) {
@@ -171,7 +174,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionRelaxedMatching() throws Exception {
 		createSecureServer(DtlsMode.RELAXED);
-		createNat();
+		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -194,7 +197,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.setChangeServerAddress(true);
+		nat.reassignLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -218,7 +221,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionPrincipalMatching() throws Exception {
 		createSecureServer(DtlsMode.PRINCIPAL);
-		createNat();
+		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -241,7 +244,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.setChangeServerAddress(true);
+		nat.reassignLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -258,12 +261,13 @@ public class SecureObserveTest {
 
 	/**
 	 * Test observe using a DTLS connection when the observed server changed the
-	 * address and a new DTLS session is established using a different PRINCIPAL.
+	 * address and a new DTLS session is established using a different
+	 * PRINCIPAL.
 	 */
 	@Test
 	public void testObserveServerAddressChangedWithNewSessionAndPrincipal() throws Exception {
 		createSecureServer(DtlsMode.PRINCIPAL);
-		createNat();
+		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -286,7 +290,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.setChangeServerAddress(true);
+		nat.reassignLocalAddresses();
 		serverConnector.clearConnectionState();
 		// change principal
 		pskStore.set("stranger", "danger".getBytes());
@@ -321,7 +325,7 @@ public class SecureObserveTest {
 		server.add(resource);
 		server.start();
 
-		uri = serverEndpoint.getUri().toString() + "/" + TARGET;
+		uri = serverEndpoint.getUri() + "/" + TARGET;
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
@@ -330,10 +334,12 @@ public class SecureObserveTest {
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 	}
 
-	private void createNat() throws Exception {
-		nat = new TestUtilNat(InetAddress.getLoopbackAddress(), clientEndpoint.getAddress().getPort(),
-				serverEndpoint.getAddress().getPort());
-		uri = uri.replace(Integer.toString(serverEndpoint.getAddress().getPort()), Integer.toString(nat.getPort1()));
+	private void createInverseNat() throws Exception {
+		nat = new NatUtil(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), clientEndpoint.getAddress());
+		int port = nat.assignLocalAddress(serverEndpoint.getAddress());
+		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
+		System.out.println("URI: change " + uri + " to " + natURI);
+		uri = natURI;
 	}
 
 	private static class MyResource extends CoapResource {
