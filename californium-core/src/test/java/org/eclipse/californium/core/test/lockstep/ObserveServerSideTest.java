@@ -36,6 +36,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
@@ -55,6 +56,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.UDPConnector;
@@ -87,6 +89,8 @@ public class ObserveServerSideTest {
 
 	private static CoapServer server;
 	private static InetSocketAddress serverAddress;
+	private static InMemoryMessageExchangeStore serverExchangeStore;
+	
 	private LockstepEndpoint client;
 	private int mid = 7000;
 
@@ -95,6 +99,7 @@ public class ObserveServerSideTest {
 	private volatile static Type respType;
 
 	private static ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
+
 
 	@BeforeClass
 	public static void start() {
@@ -108,12 +113,17 @@ public class ObserveServerSideTest {
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 200)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247);
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);
 
 		server = new CoapServer();
-		server.addEndpoint(new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG));
+		serverExchangeStore = new InMemoryMessageExchangeStore(CONFIG);
+		server.addEndpoint(new CoapEndpoint(
+				CoapEndpoint.createUDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG),
+				CONFIG, null, serverExchangeStore));
 		server.add(testObsResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		server.start();
@@ -126,15 +136,19 @@ public class ObserveServerSideTest {
 	public void setupClient() throws Exception {
 
 		client = createLockstepEndpoint(serverAddress);
+		testObsResource.clearObserveRelations();
 	}
 
 	@After
 	public void stopClient() {
-
-		printServerLog(serverInterceptor);
-
-		System.out.println();
-		client.destroy();
+		try {
+			assertAllExchangesAreCompleted(CONFIG, serverExchangeStore);
+		} finally {
+			printServerLog(serverInterceptor);
+			
+			System.out.println();
+			client.destroy();
+		}
 	}
 
 	@AfterClass
@@ -436,6 +450,40 @@ public class ObserveServerSideTest {
 
 		Thread.sleep(ACK_TIMEOUT + 100);
 		assertThat("Resource has not removed observe relation", testObsResource.getObserverCount(), is(0));
+	}
+	
+	/**
+	 * Test incomplete block2 notification (missing request)
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testIncompleteBlock2Notification() throws Exception {
+		System.out.println("Observe with blockwise");
+		respPayload = generateRandomPayload(32);
+		byte[] tok = generateNextToken();
+
+		// Establish observe relation
+		respType = null; // first type is normal ACK
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").storeETag("tag").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
+
+		// First notification
+		respType = CON;
+		testObsResource.change(generateRandomPayload(80));
+		serverInterceptor.log(System.lineSeparator() + "   === changed ===");
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").storeETag("tag")
+				.block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
+		client.sendEmpty(ACK).loadMID("MID").go();
+
+		// Get remaining blocks
+		byte[] tok3 = generateNextToken();
+		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
+		// we don't send last request, @after should check is there is
+		// no leak.
 	}
 
 	// All tests are made with this resource
