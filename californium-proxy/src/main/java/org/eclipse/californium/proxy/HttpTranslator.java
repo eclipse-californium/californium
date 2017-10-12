@@ -92,7 +92,8 @@ public final class HttpTranslator {
 	 * Property file containing the mappings between coap messages and http
 	 * messages.
 	 */
-	public static final Properties HTTP_TRANSLATION_PROPERTIES = new MappingProperties("Proxy.properties");
+	public static final MappingProperties DEFAULT_HTTP_TRANSLATION_PROPERTIES = new MappingProperties("Proxy.properties");
+	private Properties httpTranslationProperties;
 
 	// Error constants
 	public static final int STATUS_TIMEOUT = HttpStatus.SC_GATEWAY_TIMEOUT;
@@ -102,6 +103,14 @@ public final class HttpTranslator {
 	public static final int STATUS_WRONG_METHOD = HttpStatus.SC_NOT_IMPLEMENTED;
 
 	protected static final Logger LOGGER = Logger.getLogger(HttpTranslator.class.getName());
+	
+	public HttpTranslator(String mappingPropertiesFileName) {
+		httpTranslationProperties = new MappingProperties(mappingPropertiesFileName);
+	}
+	
+	public HttpTranslator() {
+		httpTranslationProperties = DEFAULT_HTTP_TRANSLATION_PROPERTIES;
+	}
 
 	/**
 	 * Gets the coap media type associated to the http entity. Firstly, it looks
@@ -116,7 +125,7 @@ public final class HttpTranslator {
 	 * @return the coap media code associated to the http message entity. * @see
 	 *         HttpHeader, ContentType, MediaTypeRegistry
 	 */
-	public static int getCoapMediaType(HttpMessage httpMessage) {
+	public int getCoapMediaType(HttpMessage httpMessage) {
 		if (httpMessage == null) {
 			throw new IllegalArgumentException("httpMessage == null");
 		}
@@ -157,7 +166,7 @@ public final class HttpTranslator {
 			httpContentTypeString = httpContentTypeString.split(";")[0];
 
 			// retrieve the mapping from the property file
-			String coapContentTypeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_CONTENT_TYPE + httpContentTypeString);
+			String coapContentTypeString = httpTranslationProperties.getProperty(KEY_HTTP_CONTENT_TYPE + httpContentTypeString);
 
 			if (coapContentTypeString != null) {
 				coapContentType = Integer.parseInt(coapContentTypeString);
@@ -191,7 +200,7 @@ public final class HttpTranslator {
 	 * @param headers
 	 * 
 	 */
-	public static List<Option> getCoapOptions(Header[] headers) {
+	public List<Option> getCoapOptions(Header[] headers) {
 		if (headers == null) {
 			throw new IllegalArgumentException("httpMessage == null");
 		}
@@ -210,7 +219,7 @@ public final class HttpTranslator {
 						continue;
 	
 				// get the mapping from the property file
-				String optionCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_HEADER + headerName);
+				String optionCodeString = httpTranslationProperties.getProperty(KEY_HTTP_HEADER + headerName);
 	
 				// ignore the header if not found in the properties file
 				if (optionCodeString == null || optionCodeString.isEmpty()) {
@@ -325,7 +334,7 @@ public final class HttpTranslator {
 	 * @throws TranslationException
 	 *             the translation exception
 	 */
-	public static byte[] getCoapPayload(HttpEntity httpEntity) throws TranslationException {
+	public byte[] getCoapPayload(HttpEntity httpEntity) throws TranslationException {
 		if (httpEntity == null) {
 			throw new IllegalArgumentException("httpEntity == null");
 		}
@@ -390,7 +399,7 @@ public final class HttpTranslator {
 	 * @return the coap request * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
+	public Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
 		if (httpRequest == null) {
 			throw new IllegalArgumentException("httpRequest == null");
 		}
@@ -402,7 +411,7 @@ public final class HttpTranslator {
 		String httpMethod = httpRequest.getRequestLine().getMethod().toLowerCase();
 
 		// get the coap method
-		String coapMethodString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_METHOD + httpMethod);
+		String coapMethodString = httpTranslationProperties.getProperty(KEY_HTTP_METHOD + httpMethod);
 		if (coapMethodString == null || coapMethodString.contains("error")) {
 			throw new InvalidMethodException(httpMethod + " method not mapped");
 		}
@@ -521,7 +530,7 @@ public final class HttpTranslator {
 	 * @return the coap response * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Response getCoapResponse(HttpResponse httpResponse, Request coapRequest) throws TranslationException {
+	public Response getCoapResponse(HttpResponse httpResponse, Request coapRequest) throws TranslationException {
 		if (httpResponse == null) {
 			throw new IllegalArgumentException("httpResponse == null");
 		}
@@ -545,7 +554,7 @@ public final class HttpTranslator {
 			}
 		} else {
 			// get the translation from the property file
-			String coapCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_CODE + httpCode);
+			String coapCodeString = httpTranslationProperties.getProperty(KEY_HTTP_CODE + httpCode);
 
 			if (coapCodeString == null || coapCodeString.isEmpty()) {
 				LOGGER.warning("coapCodeString == null");
@@ -615,7 +624,7 @@ public final class HttpTranslator {
 	 * @return null if the request has no payload * @throws TranslationException
 	 *         the translation exception
 	 */
-	public static HttpEntity getHttpEntity(Message coapMessage) throws TranslationException {
+	public HttpEntity getHttpEntity(Message coapMessage) throws TranslationException {
 		if (coapMessage == null) {
 			throw new IllegalArgumentException("coapMessage == null");
 		}
@@ -635,7 +644,7 @@ public final class HttpTranslator {
 			} else {
 				int coapContentType = coapMessage.getOptions().getContentFormat();
 				// search for the media type inside the property file
-				String coapContentTypeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_MEDIA + coapContentType);
+				String coapContentTypeString = httpTranslationProperties.getProperty(KEY_COAP_MEDIA + coapContentType);
 
 				// if the content-type has not been found in the property file,
 				// try to get its string value (expressed in mime type)
@@ -715,7 +724,7 @@ public final class HttpTranslator {
 	 * 
 	 * @return Header[]
 	 */
-	public static Header[] getHttpHeaders(List<Option> optionList) {
+	public Header[] getHttpHeaders(List<Option> optionList) {
 		if (optionList == null) {
 			throw new IllegalArgumentException("coapMessage == null");
 		}
@@ -730,7 +739,7 @@ public final class HttpTranslator {
 			int optionNumber = option.getNumber();
 			if (optionNumber != OptionNumberRegistry.CONTENT_FORMAT && optionNumber != OptionNumberRegistry.PROXY_URI) {
 				// get the mapping from the property file
-				String headerName = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_OPTION + optionNumber);
+				String headerName = httpTranslationProperties.getProperty(KEY_COAP_OPTION + optionNumber);
 
 				// set the header
 				if (headerName != null && !headerName.isEmpty()) {
@@ -778,7 +787,7 @@ public final class HttpTranslator {
 	 * @return the http request * @throws TranslationException the translation
 	 *         exception * @throws URISyntaxException the uRI syntax exception
 	 */
-	public static HttpRequest getHttpRequest(Request coapRequest) throws TranslationException {
+	public HttpRequest getHttpRequest(Request coapRequest) throws TranslationException {
 		if (coapRequest == null) {
 			throw new IllegalArgumentException("coapRequest == null");
 		}
@@ -858,7 +867,7 @@ public final class HttpTranslator {
 	 * @throws TranslationException
 	 *             the translation exception
 	 */
-	public static void getHttpResponse(HttpRequest httpRequest, Response coapResponse, HttpResponse httpResponse) throws TranslationException {
+	public void getHttpResponse(HttpRequest httpRequest, Response coapResponse, HttpResponse httpResponse) throws TranslationException {
 		if (httpRequest == null) {
 			throw new IllegalArgumentException("httpRequest == null");
 		}
@@ -871,7 +880,7 @@ public final class HttpTranslator {
 
 		// get/set the response code
 		ResponseCode coapCode = coapResponse.getCode();
-		String httpCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_CODE + coapCode.value);
+		String httpCodeString = httpTranslationProperties.getProperty(KEY_COAP_CODE + coapCode.value);
 
 		if (httpCodeString == null || httpCodeString.isEmpty()) {
 			LOGGER.warning("httpCodeString == null");
@@ -923,6 +932,10 @@ public final class HttpTranslator {
 			}
 		}
 	}
+	
+	public Properties getHttpTranslationProperties() {
+		return httpTranslationProperties;
+	}
 
 	/**
 	 * Change charset.
@@ -938,7 +951,7 @@ public final class HttpTranslator {
 	 * @return the byte[] * @throws TranslationException the translation
 	 *         exception
 	 */
-	private static byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) throws TranslationException {
+	private byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) throws TranslationException {
 		try {
 			// decode with the source charset
 			CharsetDecoder decoder = fromCharset.newDecoder();
@@ -965,13 +978,4 @@ public final class HttpTranslator {
 
 		return payload;
 	}
-
-	/**
-	 * The Constructor is private because the class is an helper class and
-	 * cannot be instantiated.
-	 */
-	private HttpTranslator() {
-
-	}
-
 }

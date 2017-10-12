@@ -313,7 +313,7 @@ public class HttpStack {
 
 			try {
 				// translate the coap response in an http response
-				HttpTranslator.getHttpResponse(httpRequest, coapResponse, httpResponse);
+				new HttpTranslator().getHttpResponse(httpRequest, coapResponse, httpResponse);
 
 //				if (Bench_Help.DO_LOG) 
 					LOGGER.finer("Outgoing http response: " + httpResponse.getStatusLine());
@@ -460,7 +460,7 @@ public class HttpStack {
 
 				try {
 					// translate the request in a valid coap request
-					Request coapRequest = HttpTranslator.getCoapRequest(httpRequest, localResource, proxyingEnabled);
+					Request coapRequest = new HttpTranslator().getCoapRequest(httpRequest, localResource, proxyingEnabled);
 //					if (Bench_Help.DO_LOG) 
 						LOGGER.info("Received HTTP request and translate to "+coapRequest);
 
