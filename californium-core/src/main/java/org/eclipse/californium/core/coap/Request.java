@@ -137,6 +137,9 @@ public class Request extends Message {
 	/** Contextual information about this request */
 	private Map<String, String> userContext;
 
+	/** maximum time to wait for a response to this request */
+	private long responseTimeout;
+
 	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
 	 * 
@@ -729,6 +732,36 @@ public class Request extends Message {
 				notifyAll();
 			}
 		}
+	}
+
+	/**
+	 * <p>
+	 * Define a timeout value to wait the response. Zero or negative value means
+	 * no timeout.
+	 * </p>
+	 * <p>
+	 * By default no timeout is used, which means user should cancel request
+	 * manually when it will not expect response anymore. (not doing this may
+	 * cause memory leak)
+	 * </p>
+	 * <p>
+	 * The time is measured before the request is sent. So you should set a time
+	 * large enough to allow DTLS handshake or CoAP retransmission or
+	 * transparent block-wise transfer.
+	 * </p>
+	 * 
+	 * @param time maximum time to wait in milliseconds (zero or negative value
+	 *            means no timeout)
+	 */
+	public void setResponseTimeout(long time) {
+		responseTimeout = Math.max(0, time);
+	}
+	
+	/**
+	 * The maximum time to wait for a response in milliseconds (Zero means no timeout)
+	 */
+	public long getResponseTimeout() {
+		return responseTimeout;
 	}
 
 	/**

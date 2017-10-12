@@ -99,6 +99,7 @@ public class CoapUdpStack extends BaseCoapStack {
 				new ExchangeCleanupLayer(),
 				new ObserveLayer(config),
 				new BlockwiseLayer(config),
+				new ResponseTimeoutLayer(),
 				reliabilityLayer };
 
 		setLayers(layers);
