@@ -134,7 +134,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		HttpRequest httpRequest = null;
 		try {
 			// get the mapping to http for the incoming coap request
-			httpRequest = HttpTranslator.getHttpRequest(incomingCoapRequest);
+			httpRequest = new HttpTranslator().getHttpRequest(incomingCoapRequest);
 			LOGGER.finer("Outgoing http request: " + httpRequest.getRequestLine());
 		} catch (InvalidFieldException e) {
 			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
@@ -155,7 +155,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 
 				// translate the received http response in a coap response
 				try {
-					Response coapResponse = HttpTranslator.getCoapResponse(httpResponse, incomingCoapRequest);
+					Response coapResponse = new HttpTranslator().getCoapResponse(httpResponse, incomingCoapRequest);
 					coapResponse.setTimestamp(timestamp);
 					return coapResponse;
 				} catch (InvalidFieldException e) {

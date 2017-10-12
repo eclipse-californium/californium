@@ -52,7 +52,7 @@ public class HttpTranslatorTest {
 	}
 
 	private void validateCharset(Message request, Charset charset) throws TranslationException {
-		HttpEntity httpEntity = HttpTranslator.getHttpEntity(request);
+		HttpEntity httpEntity = new HttpTranslator().getHttpEntity(request);
 		Charset httpEntityCharset = ContentType.parse(httpEntity.getContentType().getValue()).getCharset();
 
 		assertThat(httpEntityCharset, equalTo(charset));
