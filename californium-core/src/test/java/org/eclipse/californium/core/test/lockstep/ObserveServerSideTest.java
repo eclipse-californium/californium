@@ -126,6 +126,7 @@ public class ObserveServerSideTest {
 	public void setupClient() throws Exception {
 
 		client = createLockstepEndpoint(serverAddress);
+		testObsResource.clearObserveRelations();
 	}
 
 	@After
@@ -436,6 +437,40 @@ public class ObserveServerSideTest {
 
 		Thread.sleep(ACK_TIMEOUT + 100);
 		assertThat("Resource has not removed observe relation", testObsResource.getObserverCount(), is(0));
+	}
+	
+	/**
+	 * Test incomplete block2 notification (missing request)
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testIncompleteBlock2Notification() throws Exception {
+		System.out.println("Observe with blockwise");
+		respPayload = generateRandomPayload(32);
+		byte[] tok = generateNextToken();
+
+		// Establish observe relation
+		respType = null; // first type is normal ACK
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").storeETag("tag").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
+
+		// First notification
+		respType = CON;
+		testObsResource.change(generateRandomPayload(80));
+		serverInterceptor.log(System.lineSeparator() + "   === changed ===");
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").storeETag("tag")
+				.block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
+		client.sendEmpty(ACK).loadMID("MID").go();
+
+		// Get remaining blocks
+		byte[] tok3 = generateNextToken();
+		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
+		// we don't send last request, @after should check is there is
+		// no leak.
 	}
 
 	// All tests are made with this resource
