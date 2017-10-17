@@ -48,6 +48,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat());
 		status.request = request;
+		status.exchange = exchange;
 		status.setCurrentSzx(BlockOption.size2Szx(preferredBlockSize));
 		return status;
 	}

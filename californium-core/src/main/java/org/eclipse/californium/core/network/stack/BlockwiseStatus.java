@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.network.Exchange;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -43,6 +44,7 @@ abstract class BlockwiseStatus {
 
 	protected boolean randomAccess;
 	protected final ByteBuffer buf;
+	protected Exchange exchange;
 
 	private ScheduledFuture<?> cleanUpTask;
 	private Message first;
@@ -287,5 +289,12 @@ abstract class BlockwiseStatus {
 			this.cleanUpTask.cancel(false);
 		}
 		this.cleanUpTask = blockCleanupHandle;
+	}
+
+	/**
+	 * Complete current transfert
+	 */
+	public void timeoutCurrentTranfer() {
+		this.exchange.setTimedOut(this.exchange.getCurrentRequest());
 	}
 }

@@ -56,7 +56,6 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Starting exchange to stop deprecated transfers. 
 	 */
-	private Exchange exchange;
 	private Response response;
 	private byte[] etag;
 
@@ -367,7 +366,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			}
 		}
 	}
-	
+
 	/**
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */

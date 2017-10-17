@@ -272,6 +272,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			});
 
+			prepareBlock1Cleanup(status, key);
 			return block;
 		}
 	}
@@ -740,6 +741,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		addBlock1CleanUpObserver(nextBlock, key);
 
 		exchange.setCurrentRequest(nextBlock);
+		prepareBlock1Cleanup(status, key);
 		lower().sendRequest(exchange, nextBlock);
 	}
 
@@ -854,6 +856,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 						LOGGER.log(Level.FINER, "requesting next Block2 [num={0}]: {1}", new Object[]{ nextNum, block });
 						exchange.setCurrentRequest(block);
+						prepareBlock2Cleanup(status, key);
 						lower().sendRequest(exchange, block);
 
 					} else {
@@ -1092,6 +1095,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			public void run() {
 				if (!status.isComplete()) {
 					LOGGER.log(Level.FINE, "block1 transfer timed out: {0}", key);
+					status.timeoutCurrentTranfer();
 				}
 				clearBlock1Status(key);
 			}
@@ -1150,6 +1154,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			public void run() {
 				if (!status.isComplete()) {
 					LOGGER.log(Level.FINE, "block2 transfer timed out: {0}", key);
+					status.timeoutCurrentTranfer();
 				}
 				clearBlock2Status(key);
 			}
