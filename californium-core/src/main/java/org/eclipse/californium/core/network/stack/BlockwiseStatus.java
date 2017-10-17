@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Move isNotification and getObserve
+ *                                                    to Block2BlockwiseStatus
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -36,19 +38,10 @@ import org.eclipse.californium.core.coap.OptionSet;
 abstract class BlockwiseStatus {
 
 	private static final Logger LOGGER = Logger.getLogger(BlockwiseStatus.class.getName());
-	private static final int NO_OBSERVE = -1;
 
 	private final int contentFormat;
 
 	protected boolean randomAccess;
-	/*
-	 * It would be nice if we could get rid of this. Currently, the Cf client
-	 * needs it to mark a blockwise transferred notification as such. The
-	 * problem is, that the server includes the observe option only in the first
-	 * block of the notification and we still need to remember it, when the
-	 * last block arrives (block-14).
-	 */
-	protected int observe = NO_OBSERVE;
 	protected final ByteBuffer buf;
 
 	private ScheduledFuture<?> cleanUpTask;
@@ -91,7 +84,7 @@ abstract class BlockwiseStatus {
 	 * containing the re-assembled body.
 	 * 
 	 * @param first The message.
-	 * @see #assembleMessage(Message)
+	 * @see #assembleReceivedMessage(Message)
 	 */
 	final synchronized void setFirst(final Message first) {
 		this.first = first;
@@ -234,29 +227,10 @@ abstract class BlockwiseStatus {
 		return body;
 	}
 
-	/**
-	 * Checks if this tracker tracks a notification.
-	 * 
-	 * @return {@code true} if this tracker has been created for a transferring
-	 *                      the body of a notification.
-	 */
-	final synchronized boolean isNotification() {
-		return observe != NO_OBSERVE;
-	}
-
-	/**
-	 * Gets the observe option value.
-	 * 
-	 * @return The value.
-	 */
-	final synchronized int getObserve() {
-		return observe;
-	}
-
 	@Override
 	public synchronized String toString() {
-		return String.format("[currentNum=%d, currentSzx=%d, observe=%d, bufferSize=%d, complete=%b, random access=%b]",
-				currentNum, currentSzx, observe, getBufferSize(), complete, randomAccess);
+		return String.format("[currentNum=%d, currentSzx=%d, bufferSize=%d, complete=%b, random access=%b]",
+				currentNum, currentSzx, getBufferSize(), complete, randomAccess);
 	}
 
 	/**
@@ -274,17 +248,22 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @param message The message.
 	 * @throws NullPointerException if the message is {@code null}.
+	 * @throws IllegalStateException if the first message is {@code null} or the
+	 *             source is not defined.
 	 */
-	final synchronized void assembleMessage(final Message message) {
+	final synchronized void assembleReceivedMessage(final Message message) {
 
 		if (message == null) {
 			throw new NullPointerException("message must not be null");
 		} else if (first == null) {
 			throw new IllegalStateException("first message is not set");
+		} else if (first.getSourceContext() == null) {
+			throw new IllegalStateException("first message has no peer context");
+		} else if (first.getSourceContext().getPeerAddress() == null) {
+			throw new IllegalStateException("first message has no peer address");
 		}
 		// The assembled request will contain the options of the first block
-		message.setSource(first.getSource());
-		message.setSourcePort(first.getSourcePort());
+		message.setSourceContext(first.getSourceContext());
 		message.setType(first.getType());
 		message.setMID(first.getMID());
 		message.setToken(first.getToken());

@@ -31,6 +31,17 @@
  *                                                    to accept multiple types (Type... types).
  *                                                    Changed reponseType in type(Type... types)
  *                                                    and storeType().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add getToken(String) to access
+ *                                                    both stored representations 
+ *                                                    ("token" and "both").
+ *                                                    Adjust usage to getMID(String) and
+ *                                                    getToken(String) and add some methods
+ *                                                    to use them.
+ *                                                    Split receiveNextMessage into 
+ *                                                    receiveNextMessage and 
+ *                                                    receiveNextExpectedMessage
+ *                                                    to check, if still messages
+ *                                                    arrive.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -65,6 +76,8 @@ import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -81,7 +94,7 @@ public class LockstepEndpoint {
 	 * 
 	 * Deduplication is based on that last received message.
 	 * 
-	 * @see #receiveNextMessage(MidExpectation)
+	 * @see #receiveNextExpectedMessage(MidExpectation)
 	 */
 	private Message lastIncomingMessage;
 
@@ -93,7 +106,7 @@ public class LockstepEndpoint {
 	private MultiMessageExpectation multi;
 
 	public LockstepEndpoint() {
-		this(null);
+		this((InetSocketAddress)null);
 	}
 
 	public LockstepEndpoint(final InetSocketAddress destination) {
@@ -118,7 +131,12 @@ public class LockstepEndpoint {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
+	public LockstepEndpoint(final LockstepEndpoint previousEndpoint) {
+		this(previousEndpoint.destination);
+		storage.putAll(previousEndpoint.storage);
+	}
+	
 	public void destroy() {
 		if (connector != null) {
 			connector.destroy();
@@ -176,6 +194,35 @@ public class LockstepEndpoint {
 				return (Integer) items[0];
 			}
 			throw new NoSuchElementException("Variable '" + var + "' is no MID (" + item.getClass() + ")");
+		}
+		throw new NoSuchElementException("No variable '" + var + "'");
+	}
+
+	/**
+	 * Get token from stored values.
+	 * 
+	 * The token may be stored either by
+	 * {@link MessageExpectation#storeToken(String)} or
+	 * {@link MessageExpectation#storeBoth(String)}.
+	 * 
+	 * @param var name of variable
+	 * @return token
+	 * @throws NoSuchElementException, if nothing so stored under the name, or
+	 *             the item doesn't contain a token.
+	 */
+	public byte[] getToken(String var) {
+		Object item = storage.get(var);
+		if (null != item) {
+			if (item instanceof byte[]) {
+				// saveToken
+				return (byte[]) item;
+			}
+			if (item instanceof Object[]) {
+				// saveBoth
+				Object[] items = (Object[]) item;
+				return (byte[]) items[1];
+			}
+			throw new NoSuchElementException("Variable '" + var + "' is no token (" + item.getClass() + ")");
 		}
 		throw new NoSuchElementException("No variable '" + var + "'");
 	}
@@ -249,7 +296,8 @@ public class LockstepEndpoint {
 	}
 
 	public void send(RawData raw) {
-		if (raw.getAddress() == null || raw.getPort() == 0) {
+		InetSocketAddress address = raw.getEndpointContext().getPeerAddress();
+		if (address.getAddress() == null || address.getPort() == 0) {
 			throw new RuntimeException("Message has no destination address/port");
 		}
 		connector.send(raw);
@@ -260,7 +308,7 @@ public class LockstepEndpoint {
 	}
 
 	/**
-	 * Receive next message.
+	 * Receive next expected message.
 	 * 
 	 * Apply smart deduplication based on {@link #lastIncomingMessage} and the
 	 * MID, if the repeated MID is not expected. If no next message arrives,
@@ -287,24 +335,37 @@ public class LockstepEndpoint {
 	 * @return next received message
 	 * @throws InterruptedException if waiting for message is interrupted.
 	 */
-	public Message receiveNextMessage(MidExpectation midExpectation) throws InterruptedException {
+	public Message receiveNextExpectedMessage(MidExpectation midExpectation) throws InterruptedException {
 		while (true) {
-			RawData raw = incoming.poll(2, TimeUnit.SECONDS); // or take()?
-			assertNotNull("did not receive message within expected time frame (2 secs)", raw);
-
-			Message msg = parser.parseMessage(raw);
+			Message msg = receiveNextMessage(2, TimeUnit.SECONDS);
+			assertNotNull("did not receive message within expected time frame (2 secs)", msg);
+			
 			if (null != midExpectation && null != lastIncomingMessage && lastIncomingMessage.getMID() == msg.getMID()
 					&& lastIncomingMessage.getType() == msg.getType() && !midExpectation.expectMID(msg)) {
 				// received message with same MID but not expected
 				// => discard message!
 				print("discarding duplicate message: " + msg);
 			} else {
-				msg.setSource(raw.getAddress());
-				msg.setSourcePort(raw.getPort());
 				lastIncomingMessage = msg;
 				return msg;
 			}
 		}
+	}
+
+	/**
+	 * Receive next message.
+	 * 
+	 * @param timeout timeout for waiting for a message
+	 * @param unit timeunit for waiting for a message
+	 * @return received Message, or {@code null}, if no message arrived in time.
+	 * @throws InterruptedException if waiting for message is interrupted.
+	 */
+	public Message receiveNextMessage(int timeout, TimeUnit unit) throws InterruptedException {
+		RawData raw = incoming.poll(timeout, unit); // or take()?
+		if (raw != null) {
+			return parser.parseMessage(raw);
+		}
+		return null;
 	}
 
 	public abstract class MessageExpectation implements Action {
@@ -340,7 +401,7 @@ public class LockstepEndpoint {
 
 		/**
 		 * Check, if the MID stored under var is the same as the MID of the
-		 * message. The MID may be stored either by {@link #sameMID(String)} or
+		 * message. The MID may be stored either by {@link #storeMID(String)} or
 		 * {@link #storeBoth(String)}.
 		 * 
 		 * Provides a fluent API to chain expectations.
@@ -359,7 +420,7 @@ public class LockstepEndpoint {
 				}
 
 				public String toString() {
-					int expected = (Integer) storage.get(var);
+					int expected = getMID(var);
 					return "Expected MID: " + expected;
 				}
 			});
@@ -442,6 +503,34 @@ public class LockstepEndpoint {
 
 				public String toString() {
 					return "Expected token: " + Utils.toHexString(token);
+				}
+			});
+			return this;
+		}
+
+		/**
+		 * Check, if the token stored under var is the same as the token of the
+		 * message. The token may be stored either by {@link #storeToken(String)} or
+		 * {@link #storeBoth(String)}.
+		 * 
+		 * Provides a fluent API to chain expectations.
+		 * 
+		 * @param var variable name with the stored token
+		 * @return this for fluent API
+		 */
+		public MessageExpectation sameToken(final String var) {
+			expectations.add(new Expectation<Message>() {
+
+				@Override
+				public void check(Message message) {
+					byte[] expected = getToken(var);
+					assertEquals("Wrong token:", expected, message.getToken());
+					print("Correct token: " + Utils.toHexString(expected));
+				}
+
+				public String toString() {
+					byte[] expected = getToken(var);
+					return "Expected token: " + Utils.toHexString(expected);
 				}
 			});
 			return this;
@@ -690,7 +779,7 @@ public class LockstepEndpoint {
 				return;
 			}
 
-			Message msg = receiveNextMessage(new MidExpectation() {
+			Message msg = receiveNextExpectedMessage(new MidExpectation() {
 
 				@Override
 				public boolean expectMID(Message message) {
@@ -801,6 +890,12 @@ public class LockstepEndpoint {
 		@Override
 		public RequestExpectation storeToken(final String var) {
 			super.storeToken(var);
+			return this;
+		}
+
+		@Override
+		public RequestExpectation sameToken(final String var) {
+			super.sameToken(var);
 			return this;
 		}
 
@@ -1098,6 +1193,11 @@ public class LockstepEndpoint {
 			type(type).mid(mid);
 		}
 
+		public EmptyMessageExpectation(Type type, String midVar) {
+			super();
+			type(type).sameMID(midVar);
+		}
+
 		@Override
 		public void go(Message msg) throws Exception {
 			if (CoAP.isEmptyMessage(msg.getRawCode())) {
@@ -1178,7 +1278,7 @@ public class LockstepEndpoint {
 		public void go() throws Exception {
 			assertTrue("No expectations added!)", 0 < counter);
 			while (0 < counter) {
-				Message msg = receiveNextMessage(new MidExpectation() {
+				Message msg = receiveNextExpectedMessage(new MidExpectation() {
 
 					@Override
 					public boolean expectMID(Message message) {
@@ -1266,6 +1366,11 @@ public class LockstepEndpoint {
 			this.mid = mid;
 			return this;
 		}
+		
+		public MessageProperty token(final byte[] token) {
+			this.token = token;
+			return this;
+		}
 
 		public MessageProperty block1(final int num, final boolean m, final int size) {
 			properties.add(new Property<Message>() {
@@ -1334,7 +1439,7 @@ public class LockstepEndpoint {
 			properties.add(new Property<Message>() {
 
 				public void set(Message message) {
-					int mid = (Integer) storage.get(var);
+					int mid = getMID(var);
 					message.setMID(mid);
 				}
 			});
@@ -1345,7 +1450,7 @@ public class LockstepEndpoint {
 			properties.add(new Property<Message>() {
 
 				public void set(Message message) {
-					byte[] tok = (byte[]) storage.get(var);
+					byte[] tok = getToken(var);
 					message.setToken(tok);
 				}
 			});
@@ -1359,16 +1464,18 @@ public class LockstepEndpoint {
 			super(type, new byte[0], mid);
 		}
 
+		public EmptyMessageProperty(Type type, String midVar) {
+			super(type);
+			super.loadMID(midVar);
+		}
+
 		@Override
 		public void go() {
 			EmptyMessage message = new EmptyMessage(null);
-			if (destination != null) {
-				message.setDestination(destination.getAddress());
-				message.setDestinationPort(destination.getPort());
-			}
 			setProperties(message);
-
-			RawData raw = serializer.serializeEmptyMessage(message);
+			EndpointContext context = new AddressEndpointContext(destination);
+			message.setDestinationContext(context);
+			RawData raw = serializer.serializeEmptyMessage(message, null);
 			send(raw);
 		}
 	}
@@ -1382,12 +1489,6 @@ public class LockstepEndpoint {
 		public RequestProperty(Type type, Code code, byte[] token, int mid) {
 			super(type, token, mid);
 			this.code = code;
-		}
-
-		@Override
-		public RequestProperty mid(final int mid) {
-			super.mid(mid);
-			return this;
 		}
 
 		@Override
@@ -1475,12 +1576,9 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			Request request = new Request(code);
-			if (destination != null) {
-				request.setDestination(destination.getAddress());
-				request.setDestinationPort(destination.getPort());
-			}
 			setProperties(request);
-
+			EndpointContext context = new AddressEndpointContext(destination);
+			request.setDestinationContext(context);
 			RawData raw = serializer.serializeRequest(request);
 			send(raw);
 		}
@@ -1512,6 +1610,12 @@ public class LockstepEndpoint {
 		@Override
 		public ResponseProperty mid(final int mid) {
 			super.mid(mid);
+			return this;
+		}
+		
+		@Override
+		public ResponseProperty token(final byte[] token) {
+			super.token(token);
 			return this;
 		}
 
@@ -1603,13 +1707,10 @@ public class LockstepEndpoint {
 		@Override
 		public void go() {
 			Response response = new Response(code);
-			if (destination != null) {
-				response.setDestination(destination.getAddress());
-				response.setDestinationPort(destination.getPort());
-			}
 			setProperties(response);
-
-			RawData raw = serializer.serializeResponse(response);
+			EndpointContext context = new AddressEndpointContext(destination);
+			response.setDestinationContext(context);
+			RawData raw = serializer.serializeResponse(response, null);
 			send(raw);
 		}
 	}

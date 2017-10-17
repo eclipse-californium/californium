@@ -45,7 +45,7 @@ public class X509CertPath implements Principal {
 	 *                                  X.509 certificates only.
 	 */
 	public X509CertPath(final CertPath certPath) {
-		if (certPath.getType() != TYPE_X509) {
+		if (!TYPE_X509.equals(certPath.getType())) {
 			throw new IllegalArgumentException("Cert path must contain X.509 certificates only");
 		} else if (certPath.getCertificates().isEmpty()) {
 			throw new IllegalArgumentException("Cert path must not be empty");
@@ -96,5 +96,23 @@ public class X509CertPath implements Principal {
 	@Override
 	public String getName() {
 		return target.getSubjectX500Principal().getName();
+	}
+
+	/**
+	 * Gets this certificate path.
+	 *
+	 * @return The path.
+	 */
+	public CertPath getPath() {
+		return path;
+	}
+
+	/**
+	 * Gets the asserted identity of this certificate path.
+	 *
+	 * @return The target certificate.
+	 */
+	public X509Certificate getTarget() {
+		return target;
 	}
 }

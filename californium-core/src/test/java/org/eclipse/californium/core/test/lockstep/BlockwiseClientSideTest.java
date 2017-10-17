@@ -38,6 +38,8 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
@@ -55,6 +57,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -74,6 +77,9 @@ import org.junit.experimental.categories.Category;
 public class BlockwiseClientSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	
+	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final int RESPONSE_TIMEOUT_IN_MS = 1000;
@@ -89,6 +95,7 @@ public class BlockwiseClientSideTest {
 	private String respPayload;
 	private String reqtPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
+	private InMemoryMessageExchangeStore clientExchangeStore;
 
 	@BeforeClass
 	public static void init() {
@@ -98,6 +105,8 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS)
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2);
@@ -106,7 +115,8 @@ public class BlockwiseClientSideTest {
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		clientExchangeStore = new InMemoryMessageExchangeStore(config);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, clientExchangeStore);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
@@ -115,9 +125,13 @@ public class BlockwiseClientSideTest {
 
 	@After
 	public void shutdownEndpoints() {
-		printServerLog(clientInterceptor);
-		client.destroy();
-		server.destroy();
+		try {
+			assertAllExchangesAreCompleted(config, clientExchangeStore);
+		} finally {
+			printServerLog(clientInterceptor);
+			client.destroy();
+			server.destroy();
+		}
 	}
 
 	@AfterClass
@@ -363,6 +377,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(MAX_RESOURCE_BODY_SIZE).go();
 
 		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -397,6 +412,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, REQUEST_ENTITY_INCOMPLETE).loadBoth("A").go();
 
 		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(REQUEST_ENTITY_INCOMPLETE));
 		assertThat(response.getToken(), is(request.getToken()));
@@ -440,6 +456,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CHANGED).loadBoth("B").go();
 
 		Response response = concurrentRequest.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
 		assertThat(response.getCode(), is(CHANGED));
 		assertThat(response.getToken(), is(concurrentRequest.getToken()));
@@ -850,5 +867,71 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
 		assertTrue(latch.await(3, TimeUnit.SECONDS));
+	}
+	
+	/**
+	 * Verifies, If a blockwise GET is interrupted by a new blockwise GET then we cancel the first one and handle the second one.
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * ####### send a GET request, the response uses block2  #############
+	 * CON [MID=29825, T=8609f30de68aa280], GET, /test    ----->
+	 * <-----   ACK [MID=29825, T=8609f30de68aa280], 2.05, 2:0/1/128
+	 * CON [MID=29826, T=8609f30de68aa280], GET, /test, 2:1/0/128    ---->
+	 * ####### the blockwise transfer is not finished  #############
+     * ####### send a second GET request, the response uses block2 too  #############
+	 * CON [MID=29827, T=2cf017b44e032b29], GET, /test    ----->
+     * <-----   ACK [MID=29827, T=2cf017b44e032b29], 2.05, 2:0/1/128
+     * CON [MID=29828, T=2cf017b44e032b29], GET, /test, 2:1/0/128    ----->
+     * ####### send 2nd block of the 1st blockwise transfert (should be ignored) ########
+     * <-----   ACK [MID=29826, T=8609f30de68aa280], 2.05, 2:1/0/128
+     * ####### send the last block of the 2nd blockwise transfert  ########
+	 * <-----   ACK [MID=29828, T=2cf017b44e032b29], 2.05, 2:1/0/128
+     * ####### ensure we get the response of the second one and the first one is canceled ##########
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseGetInterruptedByBlockwiseGet() throws Exception {
+		System.out.println("Blockwise Observe:");
+		String path = "test";
+		
+		// Send first GET request
+		Request firstRequest = createRequest(GET, path, server);
+		client.sendRequest(firstRequest);
+		server.expectRequest(CON, GET, path).storeBoth("FIRST_GET").go();
+		// Send blockwise response
+		respPayload = generateRandomPayload(256);
+		server.sendResponse(ACK, CONTENT).loadBoth("FIRST_GET").block2(0, true, 128)
+				.payload(respPayload.substring(0, 128)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("FIRST_GET_BLOCK").block2(1, false, 128).go();
+		// Block transfert not completed.....
+		
+		// Send second GET Request
+		Request secondRequest = createRequest(GET, path, server);
+		client.sendRequest(secondRequest);
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_GET").go();
+		// Send blockwise response
+		String secondPayload = generateRandomPayload(256);
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_GET").block2(0, true, 128)
+				.payload(secondPayload.substring(0, 128)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_GET_BLOCK").block2(1, false, 128).go();
+		
+		// Send 2nd block from the first blockwise transfer
+		server.sendResponse(ACK, CONTENT).loadBoth("FIRST_GET_BLOCK").block2(1, false, 128)
+		.payload(respPayload.substring(128, 256)).go();
+		// Send 2nd block (last) from the second blockwise transfer
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_GET_BLOCK").block2(1, false, 128).payload(secondPayload.substring(128, 256))
+				.go();
+				
+		// Check that we get the response of the second request
+		Response response = secondRequest.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, secondPayload);
+		
+		// Check the first request is canceled.
+		assertTrue(firstRequest.isCanceled());
 	}
 }

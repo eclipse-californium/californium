@@ -22,16 +22,16 @@
  *                                                 (fix GitHub issue #104)
  * Achim Kraus (Bosch Software Innovations GmbH) - add outboundCallback for responses
  *                                                 and empty messages. issue #305
+ * Achim Kraus (Bosch Software Innovations GmbH) - use Destination EndpointContext 
+ *                                                 for RawData
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
-import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -76,9 +76,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 						request.getBytes(),
-						new InetSocketAddress(request.getDestination(),
-						request.getDestinationPort()),
-						null,
+						request.getDestinationContext(),
 						outboundCallback,
 						false);
 	}
@@ -112,18 +110,17 @@ public abstract class DataSerializer {
 	 * @return The object containing the serialized response.
 	 */
 	public final RawData serializeResponse(final Response response) {
-		return serializeResponse(response, null, null);
+		return serializeResponse(response, null);
 	}
 	
 	/**
 	 * Serializes response and caches bytes on the request object to skip future serializations.
 	 * 
 	 * @param response The response to serialize.
-	 * @param context correlation context for response. Maybe null.
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized response.
 	 */
-	public final RawData serializeResponse(final Response response, final CorrelationContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeResponse(final Response response, final MessageCallback outboundCallback) {
 		if (response.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(response);
@@ -138,9 +135,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 				response.getBytes(),
-				new InetSocketAddress(response.getDestination(),
-						response.getDestinationPort()),
-				context,
+				response.getDestinationContext(),
 				outboundCallback,
 				false);
 	}
@@ -152,17 +147,16 @@ public abstract class DataSerializer {
 	 * @return The object containing the serialized message.
 	 */
 	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage) {
-		return serializeEmptyMessage(emptyMessage, null, null);
+		return serializeEmptyMessage(emptyMessage, null);
 	}
 	/**
 	 * Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations.
 	 * 
 	 * @param emptyMessage The message to serialize.
-	 * @param context correlation context for response. Maybe null.
 	 * @param outboundCallback The callback to invoke once the message is sent. 
 	 * @return The object containing the serialized message.
 	 */
-	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final CorrelationContext context, final MessageCallback outboundCallback) {
+	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final MessageCallback outboundCallback) {
 		if (emptyMessage.getBytes() == null) {
 			DatagramWriter writer = new DatagramWriter();
 			byte[] body = serializeOptionsAndPayload(emptyMessage);
@@ -177,9 +171,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 				emptyMessage.getBytes(),
-				new InetSocketAddress(emptyMessage.getDestination(),
-						emptyMessage.getDestinationPort()),
-				context,
+				emptyMessage.getDestinationContext(),
 				outboundCallback,
 				false);
 	}

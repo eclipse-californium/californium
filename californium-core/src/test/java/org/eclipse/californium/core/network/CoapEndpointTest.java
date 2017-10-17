@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,11 +44,12 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
-import org.eclipse.californium.elements.MapBasedCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.junit.After;
@@ -68,11 +70,11 @@ public class CoapEndpointTest {
 	List<Request> receivedRequests;
 	CountDownLatch latch;
 	CountDownLatch sentLatch;
-	CorrelationContext context;
+	EndpointContext establishedContext;
 
 	@Before
 	public void setUp() throws Exception {
-		context = new MapBasedCorrelationContext();
+		establishedContext = new MapBasedEndpointContext(CONNECTOR_ADDRESS, null);
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
 		endpoint = new CoapEndpoint(connector, CONFIG);
@@ -101,8 +103,9 @@ public class CoapEndpointTest {
 	}
 
 	@Test
-	public void testGetUriReturnsConnectorUri() {
-		assertThat(endpoint.getUri(), is(connector.getUri()));
+	public void testGetUriReturnsConnectorUri() throws URISyntaxException {
+		URI uri = new URI("coap://" + connector.getAddress().getHostString() + ":" + connector.getAddress().getPort());
+		assertThat(endpoint.getUri(), is(uri));
 	}
 
 	@Test
@@ -110,8 +113,7 @@ public class CoapEndpointTest {
 
 		// GIVEN an outbound request
 		Request request = Request.newGet();
-		request.setDestination(InetAddress.getLoopbackAddress());
-		request.setDestinationPort(CoAP.DEFAULT_COAP_PORT);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 		request.addMessageObserver(new MessageObserverAdapter() {
 			@Override
 			public void onSent() {
@@ -137,16 +139,16 @@ public class CoapEndpointTest {
 			}
 		};
 
-		RawData inboundRequest = new RawData(getSerializedRequest(), new InetSocketAddress(CoAP.DEFAULT_COAP_PORT),
-				clientId);
+		
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
-		assertThat(receivedRequests.get(0).getSenderIdentity(), is(clientId));
+		assertThat(receivedRequests.get(0).getSourceContext().getPeerIdentity(), is(clientId));
 	}
 
 	@Test
 	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, null, false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_URI_SCHEME));
@@ -154,8 +156,25 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
-		CorrelationContext secureCtx = new DtlsCorrelationContext("session", "1", "CIPHER");
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), SOURCE_ADDRESS, null, secureCtx, false);
+		SimpleConnector connector = new SimpleSecureConnector();
+		Endpoint endpoint = new CoapEndpoint(connector, CONFIG);
+		MessageDeliverer deliverer = new MessageDeliverer() {
+
+			@Override
+			public void deliverResponse(Exchange exchange, Response response) {
+			}
+
+			@Override
+			public void deliverRequest(Exchange exchange) {
+				receivedRequests.add(exchange.getRequest());
+				latch.countDown();
+			}
+		};
+		endpoint.setMessageDeliverer(deliverer);
+		endpoint.start();
+		
+		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER");
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
@@ -170,7 +189,7 @@ public class CoapEndpointTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		RawData inboundMessage = RawData.inbound(malformedGetRequest, SOURCE_ADDRESS, null, null, false);
+		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false);
 
 		// WHEN the incoming message is processed by the Inbox
 		connector.receiveMessage(inboundMessage);
@@ -215,7 +234,7 @@ public class CoapEndpointTest {
 
 		@Override
 		public void send(RawData msg) {
-			msg.onContextEstablished(context);
+			msg.onContextEstablished(establishedContext);
 			msg.onSent();
 			sentLatch.countDown();
 		}
@@ -226,7 +245,7 @@ public class CoapEndpointTest {
 		}
 
 		@Override
-		public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher strategy) {
+		public synchronized void setEndpointContextMatcher(EndpointContextMatcher strategy) {
 		}
 
 		@Override
@@ -235,13 +254,21 @@ public class CoapEndpointTest {
 		}
 
 		@Override
-		public boolean isSchemeSupported(String scheme) {
-			return CoAP.COAP_URI_SCHEME.equals(scheme);
+		public String getProtocol() {
+			return CoAP.PROTOCOL_UDP;
 		}
 
 		@Override
-		public URI getUri() {
-			return URI.create(String.format("%s://%s:%d", CoAP.COAP_URI_SCHEME, CONNECTOR_ADDRESS.getHostString(), CONNECTOR_ADDRESS.getPort()));
+		public String toString() {
+			return getProtocol() + "-" + getAddress();
+		}
+	}
+
+	private class SimpleSecureConnector extends SimpleConnector {
+
+		@Override
+		public String getProtocol() {
+			return CoAP.PROTOCOL_DTLS;
 		}
 	}
 }

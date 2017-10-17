@@ -21,11 +21,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 
 import java.math.BigInteger;
-import java.net.InetSocketAddress;
 import java.util.List;
 
 /**
@@ -72,9 +71,8 @@ public class DatagramFramer extends ByteToMessageDecoder {
 			in.readBytes(data);
 			// This is TCP connector, so we know remote address is InetSocketAddress.
 			Channel channel = ctx.channel();
-			InetSocketAddress socketAddress = (InetSocketAddress) channel.remoteAddress();
-			CorrelationContext correlationContext = NettyContextUtils.buildCorrelationContext(channel);
-			RawData rawData = RawData.inbound(data, socketAddress, null, correlationContext, false);
+			EndpointContext endpointContext = NettyContextUtils.buildEndpointContext(channel);
+			RawData rawData = RawData.inbound(data, endpointContext, false);
 			out.add(rawData);
 		}
 	}

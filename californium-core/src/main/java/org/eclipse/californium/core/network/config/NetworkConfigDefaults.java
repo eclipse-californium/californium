@@ -21,6 +21,10 @@
  *                                                    DEFAULT_MID_TRACKER,
  *                                                    DEFAULT_MID_TRACKER_GROUPS, and
  *                                                    DEFAULT_EXCHANGE_LIFETIME
+ *    Achim Kraus (Bosch Software Innovations GmbH) - increase DEFAULT_MAX_RESOURCE_BODY_SIZE
+ *                                                    to 8192.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
+ *                                                    by DTLS_RESPONSE_MATCHING
  *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
@@ -50,7 +54,7 @@ public class NetworkConfigDefaults {
 	 * The default maximum resource body size that can be transparently transferred
 	 * in a blockwise transfer.
 	 */
-	public static final int DEFAULT_MAX_RESOURCE_BODY_SIZE = 2048; // bytes
+	public static final int DEFAULT_MAX_RESOURCE_BODY_SIZE = 8192; // bytes
 
 	/**
 	 * The default maximum amount of time (in milliseconds) between transfers of individual
@@ -83,6 +87,15 @@ public class NetworkConfigDefaults {
 	 * The default value is 247s.
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
+
+	/**
+	 * The default DTLS response matcher.
+	 * 
+	 * Supported values are {@code STRICT}, {@code RELAXED}, or {@code PRINCIPAL}.
+	 * <p>
+	 * The default value is {@code STRICT}.
+	 */
+	public static final String DEFAULT_DTLS_RESPONSE_MATCHING = "STRICT";
 
 	/*
 	 * Accept other message versions than 1
@@ -142,7 +155,7 @@ public class NetworkConfigDefaults {
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
 		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
-		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, false);
+		config.setString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING, DEFAULT_DTLS_RESPONSE_MATCHING);
 
 		config.setInt(NetworkConfig.Keys.HTTP_PORT, 8080);
 		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);

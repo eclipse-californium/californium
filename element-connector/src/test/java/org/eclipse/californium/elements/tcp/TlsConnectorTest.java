@@ -61,7 +61,7 @@ public class TlsConnectorTest {
 
 	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
 
-	private static final int NUMBER_OF_CONNECTIONS = 50;
+	private static final int NUMBER_OF_CONNECTIONS = 20;
 	private static final int NUMBER_OF_THREADS = 1;
 	private static final int IDLE_TIMEOUT = 100;
 	private static KeyManager[] keyManagers;
@@ -124,7 +124,7 @@ public class TlsConnectorTest {
 		server.start();
 		client.start();
 
-		RawData msg = createMessage(server.getAddress(), 100, null, null);
+		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
@@ -132,7 +132,7 @@ public class TlsConnectorTest {
 
 		// Response message must go over the same connection client already
 		// opened
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null, null);
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
@@ -142,7 +142,7 @@ public class TlsConnectorTest {
 	public void singleServerManyClients() throws Exception {
 		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
 				NUMBER_OF_THREADS, IDLE_TIMEOUT);
-		assertThat(server.getUri().getScheme(), is("coaps+tcp"));
+		assertThat(server.getProtocol(), is("TLS"));
 		cleanup.add(server);
 
 		Catcher serverCatcher = new Catcher();
@@ -157,7 +157,7 @@ public class TlsConnectorTest {
 			client.setRawDataReceiver(clientCatcher);
 			client.start();
 
-			RawData msg = createMessage(server.getAddress(), 100, null, null);
+			RawData msg = createMessage(server.getAddress(), 100, null);
 			messages.add(msg);
 			client.send(msg);
 		}
@@ -201,7 +201,7 @@ public class TlsConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (InetSocketAddress address : servers.keySet()) {
-			RawData message = createMessage(address, 100, null, null);
+			RawData message = createMessage(address, 100, null);
 			messages.add(message);
 			client.send(message);
 		}

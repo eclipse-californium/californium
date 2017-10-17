@@ -18,34 +18,35 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetSocketAddress;
+
 import org.junit.Before;
 import org.junit.Test;
 
-public class TcpCorrelationContextMatcherTest {
+public class TcpEndpointContextMatcherTest {
+	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 
-	private CorrelationContext connectorContext;
-	private CorrelationContext messageContext;
-	private CorrelationContext differentMessageContext;
-	private CorrelationContextMatcher matcher;
+	private EndpointContext connectorContext;
+	private EndpointContext messageContext;
+	private EndpointContext differentMessageContext;
+	private EndpointContextMatcher matcher;
 
 	@Before
 	public void setup() {
-		connectorContext = new TcpCorrelationContext("ID1");
-		messageContext = new TcpCorrelationContext("ID1");
-		differentMessageContext = new TcpCorrelationContext("ID2");
-		matcher = new TcpCorrelationContextMatcher();
+		connectorContext = new TcpEndpointContext(ADDRESS, "ID1");
+		messageContext = new TcpEndpointContext(ADDRESS, "ID1");
+		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2");
+		matcher = new TcpEndpointContextMatcher();
 	}
 
 	@Test
-	public void testWithConnectorCorrelationContext() {
-		assertThat(matcher.isToBeSent(null, connectorContext), is(true));
+	public void testWithConnectorEndpointContext() {
 		assertThat(matcher.isToBeSent(messageContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(differentMessageContext, connectorContext), is(false));
 	}
 
 	@Test
-	public void testWithoutConnectorCorrelationContext() {
-		assertThat(matcher.isToBeSent(null, null), is(true));
+	public void testWithoutConnectorEndpointContext() {
 		assertThat(matcher.isToBeSent(messageContext, null), is(false));
 		assertThat(matcher.isToBeSent(differentMessageContext, null), is(false));
 	}

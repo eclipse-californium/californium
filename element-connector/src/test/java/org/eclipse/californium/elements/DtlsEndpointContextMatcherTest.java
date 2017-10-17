@@ -18,59 +18,58 @@ package org.eclipse.californium.elements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetSocketAddress;
+
 import org.junit.Before;
 import org.junit.Test;
 
-public class DtlsCorrelationContextMatcherTest {
+public class DtlsEndpointContextMatcherTest {
 
-	private CorrelationContext connectorContext;
-	private CorrelationContext relaxedMessageContext;
-	private CorrelationContext strictMessageContext;
-	private CorrelationContext differentMessageContext;
-	private CorrelationContext unsecureMessageContext;
-	private CorrelationContextMatcher relaxedMatcher;
-	private CorrelationContextMatcher strictMatcher;
+	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
+	
+	private EndpointContext connectorContext;
+	private EndpointContext relaxedMessageContext;
+	private EndpointContext strictMessageContext;
+	private EndpointContext differentMessageContext;
+	private EndpointContext unsecureMessageContext;
+	private EndpointContextMatcher relaxedMatcher;
+	private EndpointContextMatcher strictMatcher;
 
 	@Before
 	public void setup() {
-		connectorContext = new DtlsCorrelationContext("session", "1", "CIPHER");
-		relaxedMessageContext = new DtlsCorrelationContext("session", "2", "CIPHER");
-		strictMessageContext = new DtlsCorrelationContext("session", "1", "CIPHER");
-		differentMessageContext = new DtlsCorrelationContext("new session", "1", "CIPHER");
-		MapBasedCorrelationContext mapBasedContext = new MapBasedCorrelationContext();
-		mapBasedContext.put("ID", "session");
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null,"session", "2", "CIPHER");
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null,"session", "1", "CIPHER");
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null,"new session", "1", "CIPHER");
+		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null,"ID", "session");
 		unsecureMessageContext = mapBasedContext;
-		relaxedMatcher = new RelaxedDtlsCorrelationContextMatcher();
-		strictMatcher = new StrictDtlsCorrelationContextMatcher();
+		relaxedMatcher = new RelaxedDtlsEndpointContextMatcher();
+		strictMatcher = new StrictDtlsEndpointContextMatcher();
 	}
 
 	@Test
-	public void testRelaxedWithConnectorCorrelationContext() {
-		assertThat(relaxedMatcher.isToBeSent(null, connectorContext), is(true));
+	public void testRelaxedWithConnectionEndpointContext() {
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(true));
 		assertThat(relaxedMatcher.isToBeSent(differentMessageContext, connectorContext), is(false));
 		assertThat(relaxedMatcher.isToBeSent(unsecureMessageContext, connectorContext), is(false));
 	}
 
 	@Test
-	public void testStrictWithConnectorCorrelationContext() {
-		assertThat(strictMatcher.isToBeSent(null, connectorContext), is(true));
+	public void testStrictWithConnectionEndpointContext() {
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, connectorContext), is(true));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(false));
 		assertThat(strictMatcher.isToBeSent(unsecureMessageContext, connectorContext), is(false));
 	}
 
 	@Test
-	public void testRelaxedWithoutConnectorCorrelationContext() {
-		assertThat(relaxedMatcher.isToBeSent(null, null), is(true));
+	public void testRelaxedWithoutConnectionEndpointContext() {
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, null), is(false));
 		assertThat(relaxedMatcher.isToBeSent(differentMessageContext, null), is(false));
 		assertThat(relaxedMatcher.isToBeSent(unsecureMessageContext, null), is(false));
 	}
 
 	@Test
-	public void testStrictWithoutConnectorCorrelationContext() {
-		assertThat(strictMatcher.isToBeSent(null, null), is(true));
+	public void testStrictWithoutConnectionEndpointContext() {
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, null), is(false));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, null), is(false));
 		assertThat(strictMatcher.isToBeSent(unsecureMessageContext, null), is(false));

@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -73,6 +74,11 @@ public final class DtlsConnectorConfig {
 	private Boolean earlyStopRetransmission;
 
 	/**
+	 * Enable to reuse the address.
+	 */
+	private Boolean enableReuseAddress;
+
+	/**
 	 * The maximum fragment length this connector can process at once.
 	 */
 	private Integer maxFragmentLengthCode;
@@ -113,6 +119,8 @@ public final class DtlsConnectorConfig {
 	private Long staleConnectionThreshold;
 
 	private ServerNameResolver serverNameResolver;
+
+	private Integer connectionThreadCount;;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -165,6 +173,13 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean isEarlyStopRetransmission() {
 		return earlyStopRetransmission;
+	}
+
+	/**
+	 * @return true, if address reuse should be enabled for the socket. 
+	 */
+	public Boolean isAddressReuseEnabled() {
+		return enableReuseAddress;
 	}
 
 	/**
@@ -323,6 +338,17 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the number of threads which should be use to handle DTLS connection.
+	 * <p>
+	 * The default value is 6 * <em>#(CPU cores)</em>.
+	 * 
+	 * @return the number of threads.
+	 */
+	public Integer getConnectionThreadCount() {
+		return connectionThreadCount;
+	}
+
+	/**
 	 * A helper for creating instances of <code>DtlsConnectorConfig</code>
 	 * based on the builder pattern.
 	 *
@@ -383,6 +409,15 @@ public final class DtlsConnectorConfig {
 			return this;
 		}
 
+		/**
+		 * Enables address reuse for the socket.
+		 * 
+		 * @return this builder for command chaining
+		 */
+		public Builder setEnableAddressReuse(boolean enable) {
+			config.enableReuseAddress = enable;
+			return this;
+		}
 
 		/**
 		 * Indicates that the <em>DTLSConnector</em> will only be used as a
@@ -744,6 +779,19 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		/**
+		 * Set the number of thread which should be used to handle DTLS
+		 * connection.
+		 * <p>
+		 * The default value is 6 * <em>#(CPU cores)</em>.
+		 * 
+		 * @return this builder for command chaining.
+		 */
+		public Builder setConnectionThreadCount(int threadCount) {
+			config.connectionThreadCount = threadCount;
+			return this;
+		}
+
 		private boolean isConfiguredWithKeyPair() {
 			return config.privateKey != null && config.publicKey != null;
 		}
@@ -784,6 +832,9 @@ public final class DtlsConnectorConfig {
 			// set default values
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
+			}
+			if (config.enableReuseAddress == null) {
+				config.enableReuseAddress = false;
 			}
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];

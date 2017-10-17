@@ -16,18 +16,40 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
  *                                                    outgoing messages
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
+ *                                                    to distinguish from 
+ *                                                    none plain UDP contexts.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
- * Relaxed correlation context matcher. Matches DTLS without epoch.
+ * Endpoint context matcher for UDP.
  */
-public class RelaxedDtlsCorrelationContextMatcher extends KeySetCorrelationContextMatcher {
+public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 
-	private static final String KEYS[] = { DtlsCorrelationContext.KEY_SESSION_ID, DtlsCorrelationContext.KEY_CIPHER };
+	/**
+	 * Create new instance of udp endpoint context matcher.
+	 */
+	public UdpEndpointContextMatcher() {
+	}
 
-	public RelaxedDtlsCorrelationContextMatcher() {
-		super("relaxed correlation", KEYS);
+	@Override
+	public String getName() {
+		return "udp plain";
+	}
+
+	@Override
+	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
+		return internalMatch(requestContext, responseContext);
+	}
+
+	@Override
+	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
+		return internalMatch(messageContext, connectorContext);
+	}
+
+	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
 	}
 
 }

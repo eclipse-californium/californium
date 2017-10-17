@@ -10,6 +10,9 @@
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
+ * Contributors:
+ *    initial implementation please refer gitlog
+ *    Achim Kraus (Bosch Software Innovations GmbH) - precalculated hashCode
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -20,7 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An observation store that keeps all observations in-memory.
@@ -92,7 +95,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 	}
 
 	@Override
-	public void setContext(final byte[] token, final CorrelationContext ctx) {
+	public void setContext(final byte[] token, final EndpointContext ctx) {
 
 		if (token != null && ctx != null) {
 			Key key = Key.fromToken(token);
@@ -106,9 +109,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 	private static class Key {
 
 		private final byte[] token;
+		private final int hashCode;
 
 		private Key(final byte[] token) {
 			this.token = token;
+			hashCode = Arrays.hashCode(token);
 		}
 
 		private static Key fromToken(byte[] token) {
@@ -122,10 +127,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + Arrays.hashCode(token);
-			return result;
+			return hashCode;
 		}
 
 		@Override

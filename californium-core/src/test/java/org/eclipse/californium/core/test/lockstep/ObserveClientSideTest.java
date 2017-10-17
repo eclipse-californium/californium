@@ -20,6 +20,11 @@
  *                                      separate test cases, remove wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add testBlockwiseNotifyAndGet
+ *                                                    and testBlockwiseGetAndNotify.
+ *                                                    Add printServerLog after
+ *                                                    tests.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for empty exchange store
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -28,17 +33,24 @@ import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Large;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
+import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -56,11 +68,15 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
+	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static NetworkConfig CONFIG;
 
+	private MessageExchangeStore clientExchangeStore;
 	private LockstepEndpoint server;
 	private Endpoint client;
 	private int mid = 8000;
@@ -75,7 +91,9 @@ public class ObserveClientSideTest {
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
 	}
 
 	@Before
@@ -84,7 +102,8 @@ public class ObserveClientSideTest {
 		// bind to loopback address using an ephemeral port
 	//	CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
 
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		clientExchangeStore = new InMemoryMessageExchangeStore(CONFIG);
+		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, clientExchangeStore);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
@@ -94,8 +113,14 @@ public class ObserveClientSideTest {
 
 	@After
 	public void shutdownEndpoints() {
-		client.destroy();
-		server.destroy();
+		try {
+			assertAllExchangesAreCompleted(CONFIG, clientExchangeStore);
+		} finally {
+			printServerLog(clientInterceptor);
+			
+			client.destroy();
+			server.destroy();
+		}
 	}
 
 	@AfterClass
@@ -141,9 +166,8 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 
 		Response notification1 = notificationListener.waitForResponse(1000);
-		printServerLog(clientInterceptor);
-
 		assertResponseContainsExpectedPayload(notification1, respPayload);
+		notificationListener.log();
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 	}
 
@@ -165,7 +189,7 @@ public class ObserveClientSideTest {
 		client.addNotificationListener(notificationListener);
 		client.sendRequest(request);
 
-		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").go();
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").storeToken("T").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
@@ -306,14 +330,35 @@ public class ObserveClientSideTest {
 
 		// notification must not be delivered
 		notification = notificationListener.waitForResponse(400);
-		printServerLog(clientInterceptor);
-
 		assertThat("Client received notification although canceled", notification, is(nullValue()));
 	}
 
 	/**
 	 * Verifies behavior of observing a resource which start a blockwise
-	 * transfer and receiving a notification without blockwise at the same time.
+	 * transfer and receiving a more recent none-blockwise notification before previous
+	 * blockwise transfer finished.
+	 * 
+	 * <pre>
+	 *    (actual used MIDs and Tokens my vary!)
+	 *    ####### establish observe an start blockwise tranfer #############
+	 *    CON [MID=37434, T=cbeb45abdb65aba2], GET, /test, observe(0)    ----->
+	 *    <-----   ACK [MID=37434, T=cbeb45abdb65aba2], 2.05, 2:0/1/16, observe(1)
+	 *    CON [MID=37435, T=d2b1c9e97df24976], GET, /test, 2:1/0/16    ----->
+	 *    ####### receive none blockwise notification #############
+	 *    <-----   CON [MID=222, T=cbeb45abdb65aba2], 2.05, observe(2)
+	 *    ACK [MID=222]   ----->
+	 *    ####### ensure previous blockwise tranfer is stopped #############
+	 *    <-----   ACK [MID=37435, T=d2b1c9e97df24976], 2.05, 2:1/1/16
+	 *    ... No more messages
+	 *    ####### ensure next none-blockwise notification is received #############
+	 *    <-----   CON [MID=223, T=cbeb45abdb65aba2], 2.05, observe(3)
+	 *    ACK [MID=223]   ----->
+	 *    ####### ensure next blockwise notification is received #############
+	 *    <-----   CON [MID=224, T=cbeb45abdb65aba2], 2.05, 2:0/1/16, observe(4)
+	 *    ACK [MID=224]   ----->
+	 *    CON [MID=21291, T=61c34585da9003e7], GET, /test, 2:1/0/16    ----->
+	 *    <-----   ACK [MID=21291, T=61c34585da9003e7], 2.05, 2:1/0/16
+	 * </pre>
 	 * 
 	 * @throws Exception
 	 */
@@ -323,8 +368,190 @@ public class ObserveClientSideTest {
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(25 * 16);
 		// notification payload sended without blockwise
-		String notifpayload = generateRandomPayload(8);
+		String notifyPayload = generateRandomPayload(8);
 		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+
+		// send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").block2(0, true, 16).observe(1)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+
+		// During block transfer send a complete (none blockwise) response
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+		// Check that we get the most recent response (with the higher observe
+		// option value)
+		Response response = request.waitForResponse();
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		// Send next block
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, true, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		// ensure client don't ask for block anymore
+		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
+		assertNull("No block2 message expected anymore", message);
+		// TODO ensure that blockdata buffer is cleared in blockwiselayer...
+
+		// Send new notif without block
+		notifyPayload = generateRandomPayload(8);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		// Send new notif without block
+		notifyPayload = generateRandomPayload(16 * 2);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		// expect ACK and GET for next block
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK_NOTIF").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		// send next BLOCK
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK_NOTIF").block2(1, false, 16)
+				.payload(notifyPayload.substring(16, 32)).go();
+
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+	}
+	
+	
+	/**
+	 * Verifies behavior of observing a resource which start a blockwise
+	 * transfer and receiving an older none-blockwise notification before previous
+	 * blockwise transfer finished.
+	 * 
+	 * <pre>
+	 *    (actual used MIDs and Tokens my vary!)
+	 *    ####### establish observe an start blockwise tranfer #############
+	 *    CON [MID=37434, T=cbeb45abdb65aba2], GET, /test, observe(2)    ----->
+	 *    <-----   ACK [MID=37434, T=cbeb45abdb65aba2], 2.05, 2:0/1/16, observe(2)
+	 *    CON [MID=37435, T=d2b1c9e97df24976], GET, /test, 2:1/0/16    ----->
+	 *    ####### receive "older" none blockwise notification #############
+	 *    <-----   CON [MID=222, T=cbeb45abdb65aba2], 2.05, observe(0)
+	 *    ACK [MID=222]   ----->
+	 *    ####### ensure previous blockwise tranfer continue #############
+	 *    <-----   ACK [MID=37435, T=d2b1c9e97df24976], 2.05, 2:1/1/16
+	 *    ... response received
+	 *    ####### ensure next none-blockwise notification is received #############
+	 *    <-----   CON [MID=223, T=cbeb45abdb65aba2], 2.05, observe(3)
+	 *    ACK [MID=223]   ----->
+	 *    ####### ensure next blockwise notification is received #############
+	 *    <-----   CON [MID=224, T=cbeb45abdb65aba2], 2.05, 2:0/1/16, observe(4)
+	 *    ACK [MID=224]   ----->
+	 *    CON [MID=21291, T=61c34585da9003e7], GET, /test, 2:1/0/16    ----->
+	 *    <-----   ACK [MID=21291, T=61c34585da9003e7], 2.05, 2:1/0/16
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseObserveNotInterruptedByOdlerNotificationWithoutBlockwise() throws Exception {
+		System.out.println("Blockwise Observe:");
+		// observer request response will be sent using blockwise
+		respPayload = generateRandomPayload(2 * 16);
+		// notification payload sended without blockwise
+		String notifyPayload = generateRandomPayload(8);
+		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+
+		// send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").block2(0, true, 16).observe(2)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+
+		// During block transfer send a complete (none blockwise) older response
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(0).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+		// Check this one is discard.
+		Response response = request.waitForResponse(1000);
+		assertNull("Older notification must be discard", response);
+
+		// Send next block
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send new notif without block
+		notifyPayload = generateRandomPayload(8);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		// Send new notif without block
+		notifyPayload = generateRandomPayload(16 * 2);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		// expect ACK and GET for next block
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK_NOTIF").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		// send next BLOCK
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK_NOTIF").block2(1, false, 16)
+				.payload(notifyPayload.substring(16, 32)).go();
+
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+	}
+
+	/**
+	 * Verifies, that a GET is processed, while a notify is received in
+	 * "transparent" blockwise mode.
+	 * 
+	 * <pre>
+	 * (actual used MIDs may vary!)
+	 * ####### establish observe #############
+	 * CON [MID=8640, T=49e6fdcc16ab9ab7], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=8640, T=49e6fdcc16ab9ab7], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=8641, T=027256aace12e241], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8641, T=027256aace12e241], 2.05, 2:1/0/16
+	 * ####### partial notify #############
+	 * <-----   CON [MID=8001, T=49e6fdcc16ab9ab7], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * ####### get request #############
+	 * CON [MID=8642, T=56d582eba534fb38], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8642]
+	 * CON [MID=8643, T=77bfb899c0e679fb], GET, /test    ----->
+	 * <-----   ACK [MID=8643, T=77bfb899c0e679fb], 2.05, 2:0/1/16
+	 * CON [MID=8644, T=77bfb899c0e679fb], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=8644, T=77bfb899c0e679fb], 2.05, 2:1/1/16
+	 * CON [MID=8645, T=77bfb899c0e679fb], GET, /test, 2:2/0/16    ----->
+	 * <-----   ACK [MID=8645, T=77bfb899c0e679fb], 2.05, 2:2/0/16	 * 
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseNotifyAndGet() throws Exception {
+		System.out.println("Blockwise Observe:");
+		// observer request response will be sent using blockwise
+		String path = "test";
+		respPayload = generateRandomPayload(32);
 
 		Request request = createRequest(GET, path, server);
 		request.setObserve();
@@ -335,45 +562,373 @@ public class ObserveClientSideTest {
 		client.sendRequest(request);
 
 		// Expect observe request
-		server.expectRequest(CON, GET, path).storeMID("OBS_REQ").storeToken("OBS_TOK").go();
-		// Send complete response and blockwise response at the same time \o/ !!
-		server.sendEmpty(ACK).loadMID("OBS_REQ").go();
-		int mid_block = 111;
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(1).mid(mid_block).block2(0, true, 16)
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
 				.payload(respPayload.substring(0, 16)).go();
-		int mid_notif = 222;
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(2).mid(mid_notif)
-				.payload(notifpayload)
+
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+
+		// Send next (last) block response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(respPayload.substring(16, 32))
 				.go();
 
-		// Expect for block request and ACKs
-		server.expectEmpty(ACK, mid_block).go();
-		server.expectRequest(CON, GET, path).storeMID("BLOCK_TOK").storeToken("SECOND_BLOCK").block2(1, false, 16)
-				.go();
-		server.expectEmpty(ACK, mid_notif).go();
+		// Check that we get the response
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
 
-		// Send next block
-		server.sendResponse(ACK, CONTENT).loadMID("BLOCK_TOK").loadToken("SECOND_BLOCK").block2(1, true, 16)
+		// generate new notify payload
+		respPayload = generateRandomPayload(64);
+
+		// Send new notify response
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+
+		server.startMultiExpectation();
+		// Expect ACKs
+		server.expectEmpty(ACK, mid).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// stale blockwise notify
+
+		// generate new response payload
+		respPayload = generateRandomPayload(48);
+		// Now try to send a GET on the same resource using block2.
+		Request getRequest = createRequest(GET, path, server);
+		client.sendRequest(getRequest);
+
+		// Expect get request
+		server.expectRequest(CON, GET, path).storeBoth("GET").go();
+
+		// Send response with block2
+		server.sendResponse(ACK, CONTENT).loadBoth("GET").block2(0, true, 16).payload(respPayload.substring(0, 16))
+				.go();
+
+		// check we receive the next block request.
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+
+		// Send next response block
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(respPayload.substring(16, 32))
+				.go();
+
+		// check we receive the next block request.
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(2, false, 16).go();
+
+		// Send final response block
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(2, false, 16).payload(respPayload.substring(32, 48))
+				.go();
+
+		// Check that we get the response
+		response = getRequest.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// ensure, that not transfer is still ongoing
+		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
+		assertThat("still receiving messages", message, is(nullValue()));
+	}
+
+	/**
+	 * Verifies, that if the initial blockwise response to a observe is interrupted by a 
+	 * new blockwise notification, the observe is still established.
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * CON [MID=36689, T=3c84748c10616d90], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=36689, T=3c84748c10616d90], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=36690, T=49cdde1e29f9cf2b], GET, /test, 2:1/0/16    ----->
+	 * <-----   CON [MID=8001, T=3c84748c10616d90], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * CON [MID=36691, T=ce59e89d8f6dd6f9], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=36690, T=49cdde1e29f9cf2b], 2.05, 2:1/0/16
+	 * <-----   ACK [MID=36691, T=ce59e89d8f6dd6f9], 2.05, 2:1/0/16
+	 * <-----   CON [MID=8002, T=3c84748c10616d90], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8002]   ----->
+	 * CON [MID=5441, T=d5d3f4286a4a6c3e], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=5441, T=d5d3f4286a4a6c3e], 2.05, 2:1/0/16
+	 * <pre>
+	 */
+	@Test
+	public void testBlockwiseObserverInterruptedByNewBlockwiseNotification() throws Exception {
+		String path = "test";
+
+		// Send observe request
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(32);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("OBS_BLOCK").block2(1, false, 16).go();
+
+		// notification replacing initial response 
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+
+		// Send next (last) block of first response, intended to be ignored
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS_BLOCK").block2(1, false, 16)
 				.payload(respPayload.substring(16, 32)).go();
 
-		// Check that we get the most recent response (with the higher observe
-		// option value)
-		Response response = request.waitForResponse();
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
 
+		// Send 2nd block of notification
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(notifyPayload.substring(16, 32))
+				.go();
 
-		// Send new notif without block
-		notifpayload = generateRandomPayload(8);
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(3).mid(++mid_notif)
-				.payload(notifpayload).go();
+		// Check that we get the response
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		// now check, if observe is also established by sending a notification
+		String notifyPayload2 = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload2.substring(0, 16)).go();
+		
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send 2nd block of notification
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(notifyPayload2.substring(16, 32))
+				.go();
+
 		response = notificationListener.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		assertResponseContainsExpectedPayload(response, notifyPayload2);
+	}
+	
+	/**
+	 * Verifies, that if the initial blockwise response to a observe is not interrupted by an older notification, the observe is still established.
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * ####### establish observe #############
+     * CON [MID=13198, T=1213218678da4ff1], GET, /test, observe(0)    ----->
+     * <-----   ACK [MID=13198, T=1213218678da4ff1], 2.05, observe(1)
+     * ####### start new block2 notification #############
+     * <-----   CON [MID=8001, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(3)
+     * ACK [MID=8001]   ----->
+     * CON [MID=13199, T=250c57dae9c9e01d], GET, /test, 2:1/0/16    ----->
+     * ####### older notification received #############
+     * <-----   CON [MID=8002, T=1213218678da4ff1], 2.05, observe(2)
+     * ACK [MID=8002]   ----->
+     * ####### continue 1srt block2 notification #############
+     * <-----   ACK [MID=13199, T=250c57dae9c9e01d], 2.05, 2:1/0/16
+     * ####### test observe relation is still established #############
+     * <-----   CON [MID=8003, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(4)
+     * ACK [MID=8003]   ----->
+     * CON [MID=13200, T=80f6115e5699b906], GET, /test, 2:1/0/16    ----->
+     * <-----   ACK [MID=13200, T=80f6115e5699b906], 2.05, 2:1/0/16
+	 * <pre>
+	 */
+	@Test
+	public void testBlockwiseObserverNotInterruptedByOlderNotification() throws Exception {
+		String path = "test";
 
-		// Send new notif without block
-		server.sendResponse(CON, CONTENT).loadToken("OBS_TOK").observe(4).mid(++mid_notif).payload(notifpayload).go();
+		// establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+
+		// New notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send new older notification 
+		String olderNotifyPayload = generateRandomPayload(8);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).payload(olderNotifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Check that we get the response
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16)
+		.payload(notifyPayload.substring(16,32)).go();
+		
 		response = notificationListener.waitForResponse(1000);
-		assertResponseContainsExpectedPayload(response, notifpayload);
+		assertResponseContainsExpectedPayload(response, notifyPayload);
 
+		// now check, if observe is also established by sending a notification
+		String notifyPayload2 = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload2.substring(0, 16)).go();
+		
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK2").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send 2nd block of notification
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK2").block2(1, false, 16).payload(notifyPayload2.substring(16, 32))
+				.go();
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, notifyPayload2);
+	}
+
+	/**
+	 * Verifies, If a blockwise GET is correctly interrupted by a new
+	 * notification. The GET request is cancelled and the notification is taken
+	 * into account.
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * ####### establish observe #############
+	 * CON [MID=30668, T=a42c610c7697704e], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=30668, T=a42c610c7697704e], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=30669, T=17970efc30d3db36], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=30669, T=17970efc30d3db36], 2.05, 2:1/0/16
+	 * ###### Send a GET, response use block2 #########
+	 * CON [MID=30670, T=535e41280d7c5d6b], GET, /test    ----->
+	 * <-----   ACK [MID=30670, T=535e41280d7c5d6b], 2.05, 2:0/1/16
+	 * CON [MID=30671, T=535e41280d7c5d6b], GET, /test, 2:1/0/16    ----->
+	 * ###### block transfer interrupted by a notificaiton ########
+	 * <-----   CON [MID=8001, T=a42c610c7697704e], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * CON [MID=30672, T=fe773e4dc91e1930], GET, /test, 2:1/0/16    ----->
+	 * ##### Send 2nd block of the GET request, should be ignored #####
+	 * <-----   ACK [MID=30671, T=535e41280d7c5d6b], 2.05, 2:1/1/16
+	 * ##### Send 2nd block (last) of the notification #####
+	 * <-----   ACK [MID=30672, T=fe773e4dc91e1930], 2.05, 2:1/0/16
+	 * ##### ensure we get the notification and GET request is canceled #####
+	 * </pre>
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testBlockwiseGetInterruptedByBlockwiseNotification() throws Exception {
+		String path = "test";
+
+		// Send observe request
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(32);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).block2(0, true, 16)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("OBS_BLOCK").block2(1, false, 16).go();
+		// Send next (last) block response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS_BLOCK").block2(1, false, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		// Check that we get the response
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		// Observation is established.
+
+		// Send a GET Request
+		Request getRequest = createRequest(GET, path, server);
+		client.sendRequest(getRequest);
+		String getPayload = generateRandomPayload(32);
+		server.expectRequest(CON, GET, path).storeBoth("GET").go();
+		// Send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("GET").block2(0, true, 16).payload(getPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("GET_BLOCK").block2(1, false, 16).go();
+		// Block transfer not completed.....
+
+		// ... interrupted by a new notification
+		String notifPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifPayload.substring(0, 16)).go();
+		// Expect ACK and Next Block request
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		// Send 2nd block of GET request (should be ignored)
+		server.sendResponse(ACK, CONTENT).loadBoth("GET_BLOCK").block2(1, false, 16)
+				.payload(getPayload.substring(16, 32)).go();
+
+		// Send 2nd block of notification
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16).payload(notifPayload.substring(16, 32))
+				.go();
+		Response notification = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification, notifPayload);
+
+		// Check the GET request is canceled.
+		assertTrue(getRequest.isCanceled());
+	}
+	
+	
+	/**
+	 * Verifies observe with block2 and server changing IP address/port
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwiseObserveChangedServerAddress() throws Exception {
+
+		System.out.println("Blockwise Observe with changing IP address/port:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
 		printServerLog(clientInterceptor);
+		
+		// create new server with new port
+		server = createChangedLockstepEndpoint(server);
+		
+		// Send new block2 notification
+		respPayload = generateRandomPayload(42);
+		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 42)).go();
+		
+		// check we get the new notification
+		response = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+
 	}
 }

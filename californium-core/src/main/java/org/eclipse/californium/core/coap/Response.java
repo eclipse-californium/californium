@@ -17,9 +17,11 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - move payload string conversion
- *    												  from toString() to
+ *                                                    from toString() to
  *                                                    Message.getPayloadTracingString(). 
  *                                                    (for message tracing)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
+ *                                                    EndpointContext
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -47,22 +49,24 @@ public class Response extends Message {
 	private boolean last = true;
 
 	/**
-	 * Creates a response to the specified request with the specified response
-	 * code. The destination address of the response is the source address of
-	 * the request.
-	 * Type and MID are usually set automatically by the {@link ReliabilityLayer}.
-	 * The token is set automatically by the {@link Matcher}.
+	 * Creates a response to the provided received request with the specified
+	 * response code. The destination endpoint context of the response will be
+	 * the source endpoint context of the request. Type and MID are usually set
+	 * automatically by the {@link ReliabilityLayer}. The token is set
+	 * automatically by the {@link Matcher}.
 	 *
-	 * @param request
-	 *            the request
-	 * @param code
-	 *            the code
+	 * @param receivedRequest the request
+	 * @param code the code
 	 * @return the response
+	 * @throws IllegalArgumentException if request has no source endpoint
+	 *             context.
 	 */
-	public static Response createResponse(Request request, ResponseCode code) {
+	public static Response createResponse(Request receivedRequest, ResponseCode code) {
+		if (receivedRequest.getSourceContext() == null) {
+			throw new IllegalArgumentException("received request must contain a source context.");
+		}
 		Response response = new Response(code);
-		response.setDestination(request.getSource());
-		response.setDestinationPort(request.getSourcePort());
+		response.setDestinationContext(receivedRequest.getSourceContext());
 		return response;
 	}
 

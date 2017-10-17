@@ -22,12 +22,31 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
  *                                                    instead of onReject() and
  *                                                    onTimeout().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't cleanup on cancel
+ *                                                    for received notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup on cancel again :-).
+ *                                                    complete exchange on 
+ *                                                    cancelObserve.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for observe option
+ *                                                    in response, before lookup
+ *                                                    for observes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for observe option only
+ *                                                    in success response, before
+ *                                                    lookup for observes.
+ *                                                    According RFC7641, 4.2, page 15, 
+ *                                                    none success notify-responses
+ *                                                    would terminate the observation
+ *                                                    and therefore doesn't contain a
+ *                                                    observe option.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
+ *                                                    by EndpointContext of response.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -37,7 +56,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -149,62 +167,61 @@ public abstract class BaseMatcher implements Matcher {
 	 * {@link #observationStore} and if found, recreate a exchange.
 	 * 
 	 * @param response notify response
-	 * @param responseContext correlation context of response
 	 * @return exchange, if a new one is create of the stored observe
 	 *         informations, null, otherwise.
 	 */
-	protected final Exchange matchNotifyResponse(final Response response, final CorrelationContext responseContext) {
+	protected final Exchange matchNotifyResponse(final Response response) {
 
-		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 		Exchange exchange = null;
+		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
+			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
 
-		final Observation obs = observationStore.get(response.getToken());
-		if (obs != null) {
-			// there is an observation for the token from the response
-			// re-create a corresponding Exchange object for it so
-			// that the "upper" layers can correctly process the notification
-			// response
-			final Request request = obs.getRequest();
-			request.setDestination(response.getSource());
-			request.setDestinationPort(response.getSourcePort());
-			exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
-			exchange.setRequest(request);
-			LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
-			request.addMessageObserver(new MessageObserverAdapter() {
+			final Observation obs = observationStore.get(response.getToken());
+			if (obs != null) {
+				// there is an observation for the token from the response
+				// re-create a corresponding Exchange object for it so
+				// that the "upper" layers can correctly process the
+				// notification
+				// response
+				final Request request = obs.getRequest();
+				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
+				exchange.setRequest(request);
+				LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
+				request.addMessageObserver(new MessageObserverAdapter() {
 
-				@Override
-				public void onResponse(Response resp) {
-					// check whether the client has established the observe
-					// requested
-					if (!resp.getOptions().hasObserve()) {
-						// Observe response received with no observe option
-						// set. It could be that the Client was not able to
-						// establish the observe. So remove the observe
-						// relation from observation store, which was stored
-						// earlier when the request was sent.
-						LOG.log(Level.FINE,
-								"Response to observe request with token {0} does not contain observe option, removing request from observation store",
-								idByToken);
+					@Override
+					public void onResponse(Response resp) {
+						// check whether the client has established the observe
+						// requested
+						if (!resp.getOptions().hasObserve()) {
+							// Observe response received with no observe option
+							// set. It could be that the Client was not able to
+							// establish the observe. So remove the observe
+							// relation from observation store, which was stored
+							// earlier when the request was sent.
+							LOG.log(Level.FINE,
+									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
+									idByToken);
+							observationStore.remove(request.getToken());
+							exchangeStore.releaseToken(idByToken);
+						} else {
+							notificationListener.onNotification(request, resp);
+						}
+					}
+
+					@Override
+					public void onCancel() {
+						failed();
+					}
+
+					@Override
+					protected void failed() {
 						observationStore.remove(request.getToken());
 						exchangeStore.releaseToken(idByToken);
-					} else {
-						notificationListener.onNotification(request, resp);
 					}
-				}
-
-				@Override
-				public void onCancel() {
-					failed();
-				}
-
-				@Override
-				protected void failed() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
-				}
-			});
+				});
+			}
 		}
-
 		return exchange;
 	}
 
@@ -219,7 +236,8 @@ public abstract class BaseMatcher implements Matcher {
 	public void cancelObserve(final byte[] token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
-		// Note: observe exchanges are not longer stored, so this may be in vain.
+		// Note: observe exchanges are not longer stored, so this almost in vain,
+		// except, when a blockwise notify is pending.
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
@@ -227,6 +245,7 @@ public abstract class BaseMatcher implements Matcher {
 				// not "token" related proactive cancel observe request!
 				// Message.cancel() releases the token in the MessageObserver
 				request.cancel();
+				exchange.setComplete();
 			}
 		}
 		observationStore.remove(token);

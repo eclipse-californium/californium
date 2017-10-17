@@ -18,14 +18,15 @@ package org.eclipse.californium.elements.tcp;
 
 import io.netty.channel.Channel;
 
+import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.TcpCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.TcpEndpointContext;
 
 /**
- * Utils for building for TCP correlation context and principal from
+ * Utils for building for TCP endpoint context and principal from
  * channel. To be extended in the future to support TLS also.
  */
 public class NettyContextUtils {
@@ -34,14 +35,15 @@ public class NettyContextUtils {
 	private static final Level LEVEL = Level.FINER;
 
 	/**
-	 * Build correlation context related to the provided channel.
+	 * Build endpoint context related to the provided channel.
 	 * 
-	 * @param channel channel of correlation context
-	 * @return correlation context
+	 * @param channel channel of endpoint context
+	 * @return endpoint context
 	 */
-	public static CorrelationContext buildCorrelationContext(Channel channel) {
+	public static EndpointContext buildEndpointContext(Channel channel) {
+		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
 		String id = channel.id().asShortText();
 		LOGGER.log(LEVEL, "TCP({0})", id);
-		return new TcpCorrelationContext(id);
+		return new TcpEndpointContext(address, null, id);
 	}
 }

@@ -540,10 +540,9 @@ public final class CertificateRequest extends HandshakeMessage {
 		} else if (chain.length > 1) {
 			int i = 1;
 			for ( ; i < chain.length; i++) {
-				if (certificateAuthorities.contains(chain[i].getIssuerX500Principal())) {
+				if (certificateAuthorities.contains(chain[i].getSubjectX500Principal())) {
 					break;
 				}
-				i++;
 			}
 			return Arrays.copyOf(chain, i);
 		} else {

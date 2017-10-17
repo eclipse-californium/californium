@@ -38,10 +38,10 @@ public class ExampleDTLSServer {
 
 	static {
 		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.FINE);
+		ScandiumLogger.setLevel(Level.WARNING);
 	}
 
-	private static final int DEFAULT_PORT = 5684; 
+	private static final int DEFAULT_PORT = 5684;
 	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private static final String KEY_STORE_PASSWORD = "endPass";
@@ -74,7 +74,7 @@ public class ExampleDTLSServer {
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
 			builder.setPskStore(pskStore);
-			builder.setIdentity((PrivateKey)keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+			builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
 			builder.setTrustStore(trustedCertificates);
 			dtlsConnector = new DTLSConnector(builder.build());
@@ -97,8 +97,9 @@ public class ExampleDTLSServer {
 	public void start() {
 		try {
 			dtlsConnector.start();
+			System.out.println("DTLS example server started");
 		} catch (IOException e) {
-			throw new IllegalStateException("Unexpected error starting the DTLS UDP server",e);
+			throw new IllegalStateException("Unexpected error starting the DTLS UDP server", e);
 		}
 	}
 
@@ -113,12 +114,18 @@ public class ExampleDTLSServer {
 		@Override
 		public void receiveData(final RawData raw) {
 			LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
-			connector.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
+			RawData response = RawData.outbound("ACK".getBytes(), raw.getEndpointContext(), null, false);
+			connector.send(response);
 		}
 	}
 
 	public static void main(String[] args) {
 
+		if (0 < args.length) {
+			if (args[0].equals("-v")) {
+				ScandiumLogger.setLevel(Level.INFO);
+			}
+		}
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
 	}

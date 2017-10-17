@@ -19,12 +19,14 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
 			<classifier>tests</classifier>
 			<type>jar</type>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -53,6 +55,7 @@
 						   by means of the Scandium-logging.properties file
 						-->
 						<java.util.logging.config.file>${project.build.testOutputDirectory}/Scandium-logging.properties</java.util.logging.config.file>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
 					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>
@@ -61,8 +64,8 @@
 						Running the tests in parallel may cause problems with rebinding to a an address within a test,
 						e.g. if another test running in parallel binds to that address in between.
 					-->
-					<parallel>classes</parallel>
-					<threadCount>8</threadCount>
+					<!-- parallel>classes</parallel>
+					<threadCount>8</threadCount-->
 					<groups>org.eclipse.californium.scandium.category.Small</groups>
 					<excludedGroups>org.eclipse.californium.scandium.category.Medium,org.eclipse.californium.scandium.category.Large</excludedGroups>
 				</configuration>
@@ -78,8 +81,8 @@
 								Running the tests in parallel may cause problems with rebinding to a an address within a test,
 								e.g. if another test running in parallel binds to that address in between.
 							-->
-							<parallel>classes</parallel>
-							<threadCount>1</threadCount>
+							<!--parallel>classes</parallel>
+							<threadCount>1</threadCount-->
 							<groups>org.eclipse.californium.scandium.category.Medium</groups>
 							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Large</excludedGroups>
 						</configuration>
@@ -95,8 +98,8 @@
 								Running the tests in parallel may cause problems with rebinding to a an address within a test,
 								e.g. if another test running in parallel binds to that address in between.
 							-->
-							<parallel>classes</parallel>
-							<threadCount>1</threadCount>
+							<!-- parallel>classes</parallel>
+							<threadCount>1</threadCount-->
 							<groups>org.eclipse.californium.scandium.category.Large</groups>
 							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
 						</configuration>

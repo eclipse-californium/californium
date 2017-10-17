@@ -22,9 +22,33 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>tests</classifier>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+			<classifier>tests</classifier>
+		</dependency>
+		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<classifier>tests</classifier>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -37,10 +61,40 @@
 			<artifactId>demo-certs</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>cf-nat</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<!--
+						   configures the JDK Logging to use the CaliforniumFormatter
+						   by means of the Californium-logging.properties file
+						-->
+						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*$*</exclude>
+					</excludes>
+					<!-- 
+						Parallel test execution fails on OpenJDK 8 on linux :-(
+						For now, execute tests sequentially one by one.
+						We'll have to investigate this further ...
+					 -->
+					<!-- parallel>classes</parallel>
+					<threadCountClasses>8</threadCountClasses-->
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>

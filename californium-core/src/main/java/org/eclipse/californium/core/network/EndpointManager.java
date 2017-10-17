@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.LinkedList;
@@ -143,7 +144,11 @@ public class EndpointManager {
 		if (null == newEndpoint) {
 			throw new NullPointerException("endpoint required!");
 		}
-		String uriScheme = newEndpoint.getUri().getScheme();
+		URI uri = newEndpoint.getUri();
+		if (null == uri) {
+			throw new IllegalArgumentException("Endpoint protocol not supported!");
+		}
+		String uriScheme = uri.getScheme();
 		if (!CoAP.isSupportedScheme(uriScheme)) {
 			throw new IllegalArgumentException("URI scheme " + uriScheme + " not supported!");
 		}

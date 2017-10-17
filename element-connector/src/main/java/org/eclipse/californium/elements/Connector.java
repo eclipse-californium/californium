@@ -15,12 +15,13 @@
  *    Martin Lanter - architect and initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CorrelationContextMatcher
  *                                                    (fix GitHub issue #104)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                    remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
 
 /**
  * A managed interface for exchanging messages between networked clients and a
@@ -94,12 +95,12 @@ public interface Connector {
 	void setRawDataReceiver(RawDataChannel messageHandler);
 
 	/**
-	 * Set correlation context matcher to be used for sending messages.
+	 * Set endpoint context matcher to be used for sending messages.
 	 * 
-	 * @param matcher correlation context matcher
-	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 * @param matcher endpoint context matcher
+	 * @see EndpointContextMatcher#isToBeSent(EndpointContext, EndpointContext)
 	 */
-	void setCorrelationContextMatcher(CorrelationContextMatcher matcher);
+	void setEndpointContextMatcher(EndpointContextMatcher matcher);
 	
 	/**
 	 * Gets the address of the socket this connector is bound to.
@@ -120,24 +121,10 @@ public interface Connector {
 	InetSocketAddress getAddress();
 
 	/**
-	 * Returns true if this connector supports specified scheme (e.g. coap for CoAP over UDP, coaps for coap over DTLS,
-	 * coap+tcp for coap over TCP).
+	 * Returns the protocol of the connector.
 	 * 
-	 * @param scheme The scheme to check support of.
-	 * @return {@code true} if this connector supports the scheme.
-     */
-	boolean isSchemeSupported(String scheme);
-
-	/**
-	 * Gets the URI this connector is accepting messages at.
-	 * <p>
-	 * Possible schemes include <em>coap</em> for CoAP over UDP, <em>coaps</em> for CoAP over DTLS or
-	 * <em>coap+tcp</em> for CoAP over TCP.
-	 * 
-	 * @return The URI this connector is accessible at. Note that the host name or IP address and port of the
-	 *         returned URI may not reflect the real IP address and port this connector will be listening on
-	 *         if the connector has not been started already.
-	 * @see #getAddress()
+	 * @return protocol e.g. {@code "UDP"}, {@code "DTLS"}, {@code "TCP"}, or {@code "TLS"}
 	 */
-	URI getUri();
+	String getProtocol();
+
 }

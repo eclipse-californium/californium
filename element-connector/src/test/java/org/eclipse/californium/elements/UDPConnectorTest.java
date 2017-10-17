@@ -33,13 +33,13 @@ import org.junit.Test;
 public class UDPConnectorTest {
 
 	UDPConnector connector;
-	TestCorrelationContextMatcher matcher;
+	TestEndpointContextMatcher matcher;
 
 	@Before
 	public void setup() throws IOException {
-		matcher = new TestCorrelationContextMatcher(1);
+		matcher = new TestEndpointContextMatcher(1);
 		connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		connector.setCorrelationContextMatcher(matcher);
+		connector.setEndpointContextMatcher(matcher);
 		connector.start();
 	}
 
@@ -49,37 +49,30 @@ public class UDPConnectorTest {
 	}
 
 	@Test
-	public void testGetUriContainsCorrectSchemeAndAddress() {
-		assertThat(connector.getUri().getScheme(), is("coap"));
-		assertThat(connector.getUri().getHost(), is(connector.getAddress().getHostString()));
-		assertThat(connector.getUri().getPort(), is(connector.getAddress().getPort()));
-	}
-
-	@Test
-	public void testSendMessageWithCorrelationContext() throws InterruptedException {
+	public void testSendMessageWithEndpointContext() throws InterruptedException {
 		byte[] data = { 0, 1, 2 };
 		InetSocketAddress dest = new InetSocketAddress(0);
-		CorrelationContext context = new DtlsCorrelationContext("session", "1", "CIPHER");
+		EndpointContext context = new DtlsEndpointContext(dest, null, "session", "1", "CIPHER");
 		
-		RawData message = RawData.outbound(data, dest, context, null, false);
-		connector.setCorrelationContextMatcher(matcher);
+		RawData message = RawData.outbound(data, context, null, false);
+		connector.setEndpointContextMatcher(matcher);
 		connector.send(message);
 		
 		matcher.await();
 		
-		assertThat(matcher.getMessageCorrelationContext(), is(sameInstance(context)));
+		assertThat(matcher.getMessageEndpointContext(), is(sameInstance(context)));
 	}
 
-	private static class TestCorrelationContextMatcher implements CorrelationContextMatcher {
+	private static class TestEndpointContextMatcher implements EndpointContextMatcher {
 
 		private final CountDownLatch latchSendMatcher;
-		private CorrelationContext messageContext;
+		private EndpointContext messageContext;
 
-		public TestCorrelationContextMatcher(int count) {
+		public TestEndpointContextMatcher(int count) {
 			this.latchSendMatcher = new CountDownLatch(count);
 		}
 
-		public synchronized CorrelationContext getMessageCorrelationContext() {
+		public synchronized EndpointContext getMessageEndpointContext() {
 			return messageContext;
 		}
 
@@ -89,12 +82,12 @@ public class UDPConnectorTest {
 		}
 
 		@Override
-		public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
+		public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 			return false;
 		}
 
 		@Override
-		public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
+		public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
 			synchronized (this) {
 				this.messageContext = messageContext;
 			}

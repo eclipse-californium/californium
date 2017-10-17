@@ -19,6 +19,7 @@
  * Bosch Software Innovations GmbH - add test cases
  * Achim Kraus (Bosch Software Innovations GmbH) - add test for CoAP specific 
  *                                                 exception information
+ * Achim Kraus (Bosch Software Innovations GmbH) - parse byte[] instead of RawData
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -26,7 +27,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +37,11 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -52,6 +54,7 @@ import org.junit.runners.Parameterized;
  */
 @Category(Small.class) @RunWith(Parameterized.class) public class DataParserTest {
 
+	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
 	private final DataSerializer serializer;
 	private final DataParser parser;
 	private final int expectedMid;
@@ -71,6 +74,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testRequestParsing() {
 		Request request = new Request(Code.POST);
+		request.setDestinationContext(ENDPOINT_CONTEXT);
 		request.setType(Type.NON);
 		request.setMID(expectedMid);
 		request.setToken(new byte[] { 11, 82, -91, 77, 3 });
@@ -90,16 +94,15 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testParseMessageDetectsIllegalCodeClass() {
 		// GIVEN a message with a class code of 1, i.e. not a request
-		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
 				0b00100001, // code: 1.01 -> class 1 is reserved
 				0x00, 0x10 // message ID
 		};
 
-		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
-
 		// WHEN parsing the request
 		try {
-			parser.parseMessage(rawData);
+			parser.parseMessage(malformedRequest);
 			fail("Parser should have detected that message is not a request");
 		} catch (CoAPMessageFormatException e) {
 			assertEquals(0b00100001, e.getCode());
@@ -110,16 +113,15 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testParseMessageDetectsIllegalCode() {
 		// GIVEN a message with a class code of 0.07, i.e. not a request
-		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
 				0b00000111, // code: 0.07 -> class 1 is reserved
 				0x00, 0x10 // message ID
 		};
 
-		RawData rawData = new RawData(malformedRequest, new InetSocketAddress(0));
-
 		// WHEN parsing the request
 		try {
-			parser.parseMessage(rawData);
+			parser.parseMessage(malformedRequest);
 			fail("Parser should have detected that message is not a request");
 		} catch (CoAPMessageFormatException e) {
 			assertEquals(0b00000111, e.getCode());
@@ -130,18 +132,17 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testParseMessageDetectsMalformedOption() {
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x24, // option number 2, length: 4
 				0x01, 0x02, 0x03 // token value is one byte short
 		};
 
-		RawData rawData = new RawData(malformedGetRequest, new InetSocketAddress(0));
-
 		// WHEN parsing the request
 		try {
-			parser.parseMessage(rawData);
+			parser.parseMessage(malformedGetRequest);
 			fail("Parser should have detected malformed options");
 		} catch (CoAPMessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -152,16 +153,16 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testParseMessageDetectsMissingPayload() {
 		// GIVEN a request with a payload delimiter but empty payload
-		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		RawData rawData = new RawData(malformedGetRequest, new InetSocketAddress(0));
 
 		// WHEN parsing the request
 		try {
-			parser.parseMessage(rawData);
+			parser.parseMessage(malformedGetRequest);
 			fail("Parser should have detected missing payload");
 		} catch (CoAPMessageFormatException e) {
 			// THEN an exception is thrown by the parser
@@ -172,6 +173,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testResponseParsing() {
 		Response response = new Response(ResponseCode.CONTENT);
+		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
@@ -190,6 +192,7 @@ import org.junit.runners.Parameterized;
 
 	@Test public void testUTF8Encoding() {
 		Response response = new Response(ResponseCode.CONTENT);
+		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] {});

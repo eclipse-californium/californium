@@ -20,9 +20,10 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use onResponse of CoapObserveRelation
  *                                                    to order notifies and responses.
- *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed() 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new introduced failed()
  *                                                    instead of onReject() and
  *                                                    onTimeout().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use effective endpoint for ping()
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -302,7 +303,7 @@ public class CoapClient {
 			Request request = new Request(null, Type.CON);
 			request.setToken(new byte[0]);
 			request.setURI(uri);
-			request.send().waitForResponse(timeout);
+			send(request).waitForResponse(timeout);
 			return request.isRejected();
 		} catch (InterruptedException e) {
 			// waiting was interrupted, which is fine
@@ -1115,6 +1116,7 @@ public class CoapClient {
 		/**
 		 * Invokes the handler's method failed() on the executor.
 		 */
+		@Override
 		protected void failed() {
 			// use thread from the protocol stage
 			if (executor == null) handler.onError();

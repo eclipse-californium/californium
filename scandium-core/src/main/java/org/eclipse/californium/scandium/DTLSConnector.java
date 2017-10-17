@@ -56,6 +56,15 @@
  *                                                    handleTimeout,
  *                                                    and add error callback in
  *                                                    newDeferredMessageSender.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reuse receive buffer and packet. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
+ *                                                    if bindAddress determines a port
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                    remove scheme
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for cancelled retransmission
+ *                                                    before sending.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
+ *                                                    out of synchronized block
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -64,14 +73,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.URI;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -81,15 +89,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
-import org.eclipse.californium.elements.CorrelationContextMatcher;
-import org.eclipse.californium.elements.CorrelationMismatchException;
-import org.eclipse.californium.elements.DtlsCorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -101,7 +105,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
-import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
@@ -141,13 +144,12 @@ import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedRunnable;
 public class DTLSConnector implements Connector {
 
 	/**
-	 * The {@code CorrelationContext} key used to store the host name indicated by a
+	 * The {@code EndpointContext} key used to store the host name indicated by a
 	 * client in an SNI hello extension.
 	 */
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
 	private static final Logger LOGGER = Logger.getLogger(DTLSConnector.class.getCanonicalName());
-	private static final String SUPPORTED_SCHEME = "coaps";
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION =
 			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getMaxCiphertextExpansion(); // CBC cipher has largest expansion
@@ -174,11 +176,8 @@ public class DTLSConnector implements Connector {
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
-	// guard access to cookieMacKey
-	private Object cookieMacKeyLock = new Object();
-	// last time when the master key was generated
-	private long lastGenerationDate = System.currentTimeMillis();
-	private SecretKey cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
+	private CookieGenerator cookieGenerator = new CookieGenerator();
+	private Object errorHandleLock= new Object();
 
 	private DatagramSocket socket;
 
@@ -196,19 +195,19 @@ public class DTLSConnector implements Connector {
 	private AtomicBoolean running = new AtomicBoolean(false);
 
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
+	 * @see #getEndpointContextMatcher()
 	 * @see #sendMessage(RawData)
 	 * @see #sendMessage(RawData, DTLSSession)
 	 */
-	private CorrelationContextMatcher correlationContextMatcher;
+	private EndpointContextMatcher endpointContextMatcher;
 
 	private RawDataChannel messageHandler;
 	private ErrorHandler errorHandler;
 	private SessionListener sessionCacheSynchronization;
-	private StripedExecutorService executor;
+	private ExecutorService executor;
 	private boolean hasInternalExecutor;
 
 	/**
@@ -337,16 +336,34 @@ public class DTLSConnector implements Connector {
 		}
 
 		timer = Executors.newSingleThreadScheduledExecutor(
-				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+				new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
 		if (executor == null) {
-			// use a decently sized thread pool
-			executor = new StripedExecutorService(DEFAULT_EXECUTOR_THREAD_POOL_SIZE);
+			int threadCount; 
+			if (config.getConnectionThreadCount() == null) {
+				threadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
+			} else {
+				threadCount = config.getConnectionThreadCount();
+			}
+			if (threadCount == 1) {
+				// Scheduling Striped task is costly so if user require only 1 Thread, we use a simple SingleThreadExecutor
+				executor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+			} else {
+				executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));	
+			}
+			
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
-		// make it easier to stop/start a server consecutively without delays
-		socket.setReuseAddress(true);
+		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
+			// make it easier to stop/start a server consecutively without delays
+			LOGGER.config("Enable address reuse for socket!");
+			socket.setReuseAddress(true);
+			if (!socket.getReuseAddress()) {
+				LOGGER.warning("Enable address reuse for socket failed!");
+			}
+		}
+		
 		socket.bind(bindAddress);
 		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
 			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
@@ -383,11 +400,16 @@ public class DTLSConnector implements Connector {
 			};
 
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
-				@Override
-				public void doWork() throws Exception {
-					receiveNextDatagramFromNetwork();
-				}
-			};
+
+			private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
+			private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
+
+			@Override
+			public void doWork() throws Exception {
+				packet.setData(receiverBuffer);
+				receiveNextDatagramFromNetwork(packet);
+			}
+		};
 
 		receiver.start();
 		sender.start();
@@ -479,19 +501,15 @@ public class DTLSConnector implements Connector {
 		connectionStore.clear();
 	}
 
-	private void receiveNextDatagramFromNetwork() throws IOException {
+	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
-		byte[] buffer = new byte[inboundDatagramBufferSize];
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 		DatagramSocket socket = getSocket();
 		if (socket == null) {
 			// very unlikely race condition.
 			return;
 		}
 		
-		synchronized(socket) {
-			socket.receive(packet);
-		}
+		socket.receive(packet);
 		
 		if (packet.getLength() == 0) {
 			// nothing to do
@@ -684,10 +702,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void processApplicationDataRecord(final Record record) {
-
+		DTLSSession session = null;
 		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasEstablishedSession()) {
-			DTLSSession session = connection.getEstablishedSession();
+		if (connection != null && (session = connection.getEstablishedSession()) != null) {
+			RawData receivedApplicationMessage = null;
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 				// before MAC validation based on the record's sequence numbers
@@ -702,8 +720,8 @@ public class DTLSConnector implements Connector {
 						// thus, the handshake seems to have been completed successfully
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-						// finally, forward de-crypted message to application layer
-						handleApplicationMessage(message, session);
+						// create application message.
+						receivedApplicationMessage = createApplicationMessage(message, session);
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -713,6 +731,11 @@ public class DTLSConnector implements Connector {
 							record.getPeerAddress());
 				}
 			}
+			RawDataChannel channel = messageHandler;
+			// finally, forward de-crypted message to application layer outside the synchronized block
+			if (channel != null && receivedApplicationMessage != null) {
+				channel.receiveData(receivedApplicationMessage);
+			}
 		} else {
 			LOGGER.log(Level.FINER,
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
@@ -720,14 +743,14 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
-		if (messageHandler != null) {
-			DtlsCorrelationContext context = new DtlsCorrelationContext(
-					session.getSessionIdentifier().toString(),
-					String.valueOf(session.getReadEpoch()),
-					session.getReadStateCipher());
-			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
-		}
+	private RawData createApplicationMessage(ApplicationMessage message, DTLSSession session) {
+		DtlsEndpointContext context = new DtlsEndpointContext(
+				message.getPeer(),
+				session.getPeerIdentity(),
+				session.getSessionIdentifier().toString(),
+				String.valueOf(session.getReadEpoch()),
+				session.getReadStateCipher());
+		return RawData.inbound(message.getData(), context, false);
 	}
 
 	/**
@@ -799,7 +822,7 @@ public class DTLSConnector implements Connector {
 				// non-fatal alerts do not require any special handling
 			}
 
-			synchronized (cookieMacKeyLock) {
+			synchronized (errorHandleLock) {
 				if (errorHandler != null) {
 					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
 				}
@@ -1068,12 +1091,17 @@ public class DTLSConnector implements Connector {
 		// verify client's ability to respond on given IP address
 		// by exchanging a cookie as described in section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-		byte[] expectedCookie = generateCookie(clientHello);
-		if (Arrays.equals(expectedCookie, clientHello.getCookie())) {
-			return true;
-		} else {
-			sendHelloVerify(clientHello, record, expectedCookie);
-			return false;
+		try {
+			byte[] expectedCookie = cookieGenerator.generateCookie(clientHello);
+			if (Arrays.equals(expectedCookie, clientHello.getCookie())) {
+				return true;
+			} else {
+				sendHelloVerify(clientHello, record, expectedCookie);
+				return false;
+			}
+		} catch (GeneralSecurityException | CloneNotSupportedException e) {
+			throw new DtlsHandshakeException("Cannot compute cookie for peer", AlertDescription.INTERNAL_ERROR,
+					AlertLevel.FATAL, clientHello.getPeer(), e);
 		}
 	}
 
@@ -1192,60 +1220,6 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private SecretKey getMacKeyForCookies() {
-		synchronized (cookieMacKeyLock) {
-			// if the last generation was more than 5 minute ago, let's generate
-			// a new key
-			if (System.currentTimeMillis() - lastGenerationDate > TimeUnit.MINUTES.toMillis(5)) {
-				cookieMacKey = new SecretKeySpec(randomBytes(), "MAC");
-				lastGenerationDate = System.currentTimeMillis();
-			}
-			return cookieMacKey;
-		}
-
-	}
-
-	/**
-	 * Generates a cookie in such a way that they can be verified without
-	 * retaining any per-client state on the server.
-	 * 
-	 * <pre>
-	 * Cookie = HMAC(Secret, Client - IP, Client - Parameters)
-	 * </pre>
-	 * 
-	 * as suggested <a
-	 * href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
-	 * 
-	 * @return the cookie generated from the client's parameters
-	 * @throws DtlsHandshakeException if the cookie cannot be computed
-	 */
-	private byte[] generateCookie(ClientHello clientHello) {
-
-		try {
-			// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-			Mac hmac = Mac.getInstance("HmacSHA256");
-			hmac.init(getMacKeyForCookies());
-			// Client-IP
-			hmac.update(clientHello.getPeer().toString().getBytes());
-
-			// Client-Parameters
-			hmac.update((byte) clientHello.getClientVersion().getMajor());
-			hmac.update((byte) clientHello.getClientVersion().getMinor());
-			hmac.update(clientHello.getRandom().getRandomBytes());
-			hmac.update(clientHello.getSessionId().getId());
-			hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-			hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-			return hmac.doFinal();
-		} catch (GeneralSecurityException e) {
-			throw new DtlsHandshakeException(
-					"Cannot compute cookie for peer",
-					AlertDescription.INTERNAL_ERROR,
-					AlertLevel.FATAL,
-					clientHello.getPeer(),
-					e);
-		}
-	}
-
 	void send(AlertMessage alert, DTLSSession session) {
 		if (alert == null) {
 			throw new IllegalArgumentException("Alert must not be NULL");
@@ -1326,7 +1300,7 @@ public class DTLSConnector implements Connector {
 
 		DTLSSession session = connection.getEstablishedSession();
 		if (session == null) {
-			if (!checkOutboundCorrelationContext(message, null)) {
+			if (!checkOutboundEndpointContext(message, null)) {
 				return;
 			}
 			// no session with peer established yet, create new empty session &
@@ -1359,11 +1333,13 @@ public class DTLSConnector implements Connector {
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
 		try {
-			final CorrelationContext ctx = new DtlsCorrelationContext(
+			final EndpointContext ctx = new DtlsEndpointContext(
+					message.getInetSocketAddress(),
+					session.getPeerIdentity(),
 					session.getSessionIdentifier().toString(),
 					String.valueOf(session.getWriteEpoch()),
 					session.getWriteStateCipher());
-			if (!checkOutboundCorrelationContext(message, ctx)) {
+			if (!checkOutboundEndpointContext(message, ctx)) {
 				return;
 			}
 			
@@ -1385,25 +1361,25 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
-	 * Check, if the correlation context match for outgoing messages using
-	 * {@link #correlationContextMatcher}.
+	 * Check, if the endpoint context match for outgoing messages using
+	 * {@link #endpointContextMatcher}.
 	 * 
 	 * @param message message to be checked
-	 * @param connectionContext correlation context of the connection. May be
+	 * @param connectionContext endpoint context of the connection. May be
 	 *            null, if not established.
 	 * @return true, if outgoing message matches, false, if not and should NOT
 	 *         be send.
-	 * @see CorrelationContextMatcher#isToBeSent(CorrelationContext, CorrelationContext)
+	 * @see EndpointContextMatcher#isToBeSent(EndpointContext, EndpointContext)
 	 */
-	private boolean checkOutboundCorrelationContext(final RawData message, final CorrelationContext connectionContext) {
-		final CorrelationContextMatcher correlationMatcher = getCorrelationContextMatcher();
-		if (null != correlationMatcher && !correlationMatcher.isToBeSent(message.getCorrelationContext(), connectionContext)) {
+	private boolean checkOutboundEndpointContext(final RawData message, final EndpointContext connectionContext) {
+		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
+		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "DTLSConnector ({0}) drops {1} bytes to {2}:{3}",
-						new Object[] {getUri(), message.getSize(), message.getAddress(),
+						new Object[] {this, message.getSize(), message.getAddress(),
 						message.getPort() });
 			}
-			message.onError(new CorrelationMismatchException());
+			message.onError(new EndpointMismatchException());
 			return false;
 		}
 		return true;
@@ -1717,7 +1693,9 @@ public class DTLSConnector implements Connector {
 
 				@Override
 				public void run() {
-					handleTimeout(flight);
+					if (!flight.isRetransmissionCancelled()) {
+						handleTimeout(flight);
+					}
 				}
 			});
 		}
@@ -1776,12 +1754,12 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setCorrelationContextMatcher(CorrelationContextMatcher correlationContextMatcher) {
-		this.correlationContextMatcher = correlationContextMatcher;
+	public synchronized void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
-	private synchronized CorrelationContextMatcher getCorrelationContextMatcher() {
-		return correlationContextMatcher;
+	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+		return endpointContextMatcher;
 	}
 
 	/**
@@ -1790,7 +1768,7 @@ public class DTLSConnector implements Connector {
 	 * @param errorHandler the handler to invoke
 	 */
 	public final void setErrorHandler(final ErrorHandler errorHandler) {
-		synchronized (cookieMacKeyLock) {
+		synchronized (errorHandleLock) {
 			this.errorHandler = errorHandler;
 		}
 	}
@@ -1799,14 +1777,6 @@ public class DTLSConnector implements Connector {
 		if (peerAddress != null) {
 			connectionStore.remove(peerAddress);
 		}
-	}
-
-	/** generate a random byte[] of length 32 **/
-	private static byte[] randomBytes() {
-		SecureRandom rng = new SecureRandom();
-		byte[] result = new byte[32];
-		rng.nextBytes(result);
-		return result;
 	}
 
 	private void handleExceptionDuringHandshake(Throwable cause, AlertLevel level, AlertDescription description, Record record) {
@@ -1832,12 +1802,12 @@ public class DTLSConnector implements Connector {
 	}
 
 	@Override
-	public boolean isSchemeSupported(String scheme) {
-		return SUPPORTED_SCHEME.contentEquals(scheme);
+	public String getProtocol() {
+		return "DTLS";
 	}
 
 	@Override
-	public URI getUri() {
-		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
-	}
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
+	}	
 }

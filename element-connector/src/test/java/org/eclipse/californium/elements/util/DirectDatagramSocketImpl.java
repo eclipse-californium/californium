@@ -16,6 +16,9 @@
  *                                                    redirect this to logging.properties
  *                                                    (handler must be adjusted anyway).
  *                                                    Set InterruptedException as cause.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move "peekData" in to prevent the
+ *                                                    DatagramSocket to use the erroneous
+ *                                                    internal "old implementation mode".
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -264,6 +267,18 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		} else if (LOGGER.isLoggable(Level.FINER)) {
 			LOGGER.log(Level.FINER, "outgoing {0}", exchange.format(currentSetup));
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * This method must be declared in this actual implementation of
+	 * {@link DatagramSocketImpl} to ensure, that {@code DatagramSocket} doesn't
+	 * use the erroneous internal "old implementation mode".
+	 */
+	@Override
+	protected int peekData(DatagramPacket p) throws IOException {
+		throw new IOException("peekData(DatagramPacket) not supported!");
 	}
 
 	/**

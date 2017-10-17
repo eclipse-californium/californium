@@ -23,6 +23,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix error stopping an connector,
  *                                                    when socket failed to open.
  *                                                    issue #345
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
+ *                                                    remove scheme
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -30,7 +32,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -57,8 +58,6 @@ import java.util.logging.Logger;
  */
 public class UDPConnector implements Connector {
 
-	private static final String SUPPORTED_SCHEME = "coap";
-
 	public static final Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
 
 	public static final int UNDEFINED = 0;
@@ -79,12 +78,11 @@ public class UDPConnector implements Connector {
 	private final BlockingQueue<RawData> outgoing;
 
 	/**
-	 * Correlation context matcher for outgoing messages.
+	 * Endpoint context matcher for outgoing messages.
 	 * 
-	 * @see #setCorrelationContextMatcher(CorrelationContextMatcher)
-	 * @see #getCorrelationContextMatcher()
+	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 */
-	private volatile CorrelationContextMatcher correlationContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 
 	/** The receiver of incoming messages. */
 	private RawDataChannel receiver;
@@ -237,8 +235,8 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public void setCorrelationContextMatcher(CorrelationContextMatcher matcher) {
-		this.correlationContextMatcher = matcher;
+	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+		this.endpointContextMatcher = matcher;
 	}
 
 	public InetSocketAddress getAddress() {
@@ -305,7 +303,7 @@ public class UDPConnector implements Connector {
 							datagram.getAddress(), datagram.getPort()});
 			}
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-			RawData msg = new RawData(bytes, datagram.getAddress(), datagram.getPort());
+			RawData msg = RawData.inbound(bytes, new AddressEndpointContext(datagram.getAddress(), datagram.getPort()), false);
 
 			receiver.receiveData(msg);
 		}
@@ -326,16 +324,16 @@ public class UDPConnector implements Connector {
 			try {
 				/*
 				 * check, if message should be sent with the
-				 * "none correlation context" of UDP connector
+				 * "none endpoint context" of UDP connector
 				 */
-				CorrelationContextMatcher correlationMatcher = UDPConnector.this.correlationContextMatcher;
-				if (correlationMatcher != null && !correlationMatcher.isToBeSent(raw.getCorrelationContext(), null)) {
+				EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
+				if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
 					if (LOGGER.isLoggable(Level.WARNING)) {
 						LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
 								new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
 										datagram.getAddress(), datagram.getPort() });
 					}
-					raw.onError(new CorrelationMismatchException());
+					raw.onError(new EndpointMismatchException());
 					return;
 				}
 				datagram.setData(raw.getBytes());
@@ -343,7 +341,7 @@ public class UDPConnector implements Connector {
 				datagram.setPort(raw.getPort());
 				if (LOGGER.isLoggable(Level.FINER)) {
 					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-							new Object[] { getUri(), datagram.getLength(), datagram.getAddress(), datagram.getPort() });
+							new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
 				}
 				socket.send(datagram);
 				raw.onSent();
@@ -394,12 +392,12 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public boolean isSchemeSupported(String scheme) {
-		return SUPPORTED_SCHEME.equals(scheme);
+	public String getProtocol() {
+		return "UDP";
 	}
 
 	@Override
-	public URI getUri() {
-		return URI.create(String.format("%s://%s:%d", SUPPORTED_SCHEME, getAddress().getHostString(), getAddress().getPort()));
+	public String toString() {
+		return getProtocol() + "-" + getAddress();
 	}
 }

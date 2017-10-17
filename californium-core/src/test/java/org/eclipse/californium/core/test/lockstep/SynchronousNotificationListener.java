@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - collect notifies for log.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -24,12 +26,13 @@ import org.eclipse.californium.core.observe.NotificationListener;
 
 public class SynchronousNotificationListener implements NotificationListener {
 
-	private Request request; // request to listen
+	private final Request request; // request to listen
 	private Response response;
+	private List<Response> notifies = new LinkedList<Response>();
 	private Object lock = new Object();
-	private AtomicInteger notificationCount = new AtomicInteger();
 
 	public SynchronousNotificationListener() {
+		request = null;
 	}
 
 	public SynchronousNotificationListener(final Request req) {
@@ -60,18 +63,54 @@ public class SynchronousNotificationListener implements NotificationListener {
 	public void onNotification(final Request req, final Response resp) {
 		if (request == null || Arrays.equals(request.getToken(), req.getToken())) {
 			synchronized (lock) {
+				notifies.add(resp);
 				response = resp;
-				notificationCount.incrementAndGet();
 				lock.notifyAll();
 			}
 		}
 	}
 
 	public int getNotificationCount() {
-		return notificationCount.get();
+		synchronized (lock) {
+			return notifies.size();
+		}
 	}
 
 	public void resetNotificationCount() {
-		notificationCount.set(0);
+		synchronized (lock) {
+			notifies.clear();
+		}
+	}
+
+	public void log() {
+		synchronized (lock) {
+			if (notifies.isEmpty()) {
+				if (request == null) {
+					System.out.println("No notify received.");
+				} else {
+					System.out.println("No notify received for " + request);
+				}
+				return;
+			}
+			if (notifies.size() == 1) {
+				if (request == null) {
+					System.out.println("Notify received. " + notifies.get(0));
+				} else {
+					System.out.println("Notify received for " + request);
+					System.out.println("   " + notifies.get(0));
+				}
+				return;
+			}
+			int counter = 1;
+			if (request == null) {
+				System.out.println(notifies.size() + " Notifies received.");
+			} else {
+				System.out.println(notifies.size() + " Notifies received for " + request);
+			}
+			for (Response resp : notifies) {
+				System.out.println("[" + counter + "]: " + resp);
+				++counter;
+			}
+		}
 	}
 }

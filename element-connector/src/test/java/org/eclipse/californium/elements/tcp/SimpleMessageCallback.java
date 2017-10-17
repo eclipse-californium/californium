@@ -18,19 +18,19 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 
 /**
- * A simple message callback to access the correlation context when sending a
+ * A simple message callback to access the endpoint context when sending a
  * message.
  */
 public class SimpleMessageCallback implements MessageCallback {
 
 	/**
-	 * Correlation context of sent message.
+	 * endpoint context of sent message.
 	 */
-	private CorrelationContext context;
+	private EndpointContext context;
 	/**
 	 * Error of sending message.
 	 */
@@ -41,7 +41,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	private boolean sent;
 
 	@Override
-	public synchronized void onContextEstablished(CorrelationContext context) {
+	public synchronized void onContextEstablished(EndpointContext context) {
 		this.context = context;
 		notifyAll();
 	}
@@ -59,13 +59,13 @@ public class SimpleMessageCallback implements MessageCallback {
 	}
 
 	/**
-	 * Get correlation context of sent message.
+	 * Get endpoint context of sent message.
 	 * 
-	 * @return correlation context of sent message, or null, if not jet sent or
-	 *         no correlation context is available.
-	 * @see #getCorrelationContext(long)
+	 * @return endpoint context of sent message, or null, if not jet sent or
+	 *         no endpoint context is available.
+	 * @see #getEndpointContext(long)
 	 */
-	public synchronized CorrelationContext getCorrelationContext() {
+	public synchronized EndpointContext getEndpointContext() {
 		return context;
 	}
 
@@ -91,14 +91,14 @@ public class SimpleMessageCallback implements MessageCallback {
 	}
 
 	/**
-	 * Get correlation context of sent message waiting with timeout.
+	 * Get endpoint context of sent message waiting with timeout.
 	 * 
 	 * @param timeout timeout in milliseconds
-	 * @return correlation context of sent message, or null, if not sent within
-	 *         provided timeout or no correlation context is available.
-	 * @see #getCorrelationContext()
+	 * @return endpoint context of sent message, or null, if not sent within
+	 *         provided timeout or no endpoint context is available.
+	 * @see #getEndpointContext()
 	 */
-	public synchronized CorrelationContext getCorrelationContext(long timeout) throws InterruptedException {
+	public synchronized EndpointContext getEndpointContext(long timeout) throws InterruptedException {
 		if (null == context && null == sendError) {
 			wait(timeout);
 		}

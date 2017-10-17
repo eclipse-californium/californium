@@ -26,10 +26,11 @@
  *                                                    preparing it for each test
  *                                                    by using setResponse() or 
  *                                                    setNotifies().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageExchangeStoreTool
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertFalse;
@@ -50,7 +51,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -141,16 +141,9 @@ public class MemoryLeakingHashMapTest {
 	}
 
 	@After
-	public void assertAllExchangesAreCompleted() {
+	public void stopExchangeStores() {
 		try {
-			waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
-				@Override
-				public boolean isFulFilled() throws IllegalStateException {
-					return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
-				}
-			});
-			assertTrue("Client side message exchange store still contains exchanges", clientExchangeStore.isEmpty());
-			assertTrue("Server side message exchange store still contains exchanges", serverExchangeStore.isEmpty());
+			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore);
 		} finally {
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();

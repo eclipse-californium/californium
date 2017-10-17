@@ -607,7 +607,7 @@ public class Record {
 		byte[] explicitNonce = generateExplicitNonce();
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
 		byte[] explicitNonceUsed = reader.readBytes(8);
-		if (!Arrays.equals(explicitNonce, explicitNonceUsed) && LOGGER.isLoggable(Level.FINE)) {
+		if (LOGGER.isLoggable(Level.FINE) && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
 			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
 			b.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
@@ -786,6 +786,15 @@ public class Record {
 		} else {
 			throw new IllegalStateException("Record does not have a peer address");
 		}
+	}
+
+	/**
+	 * Get fragment payload as byte array.
+	 * 
+	 * @return fragments byte array.
+	 */
+	public byte[] getFragmentBytes() {
+		return fragmentBytes;
 	}
 
 	/**

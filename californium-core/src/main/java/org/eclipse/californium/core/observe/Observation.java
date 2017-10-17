@@ -14,26 +14,32 @@
 package org.eclipse.californium.core.observe;
 
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
- * An observation initiated by a given request, for a particular correlation
+ * An observation initiated by a given request, for a particular endpoint
  * context.
  */
 public final class Observation {
 
+	/**
+	 * Initiate request for observation. 
+	 */
 	private final Request request;
-	private final CorrelationContext context;
+	/**
+	 * Endpoint context the request was sent in.
+	 */
+	private final EndpointContext context;
 
 	/**
-	 * Creates a new observation for a request and a correlation context.
+	 * Creates a new observation for a request and a endpoint context.
 	 * 
 	 * @param request The request that initiated the observation.
-	 * @param context The correlation context of the request.
+	 * @param context The endpoint context of the request.
 	 * @throws NullPointerException if the request is {@code null}.
 	 * @throws IllegalArgumentException if the request doesn't have its observe option set to 0.
 	 */
-	public Observation(final Request request, final CorrelationContext context) {
+	public Observation(final Request request, final EndpointContext context) {
 
 		if (request == null) {
 			throw new NullPointerException("request must not be null");
@@ -52,9 +58,11 @@ public final class Observation {
 	}
 
 	/**
-	 * @return the correlation context for this observation
+	 * Gets the endpoint context the requeste was sent in.
+	 * 
+	 * @return the endpoint context for this observation
 	 */
-	public CorrelationContext getContext() {
+	public EndpointContext getContext() {
 		return context;
 	}
 }

@@ -127,6 +127,21 @@ public class InMemoryMessageIdProviderTest {
 				is(-1));
 	}
 
+	@Test
+	public void testGetNextMessageIdIfMaxPeersIsReachedWithStaleEntry() throws InterruptedException {
+
+		int MAX_PEERS = 2;
+		int MAX_PEER_INACTIVITY_PERIOD = 1; // seconds
+		config.setLong(NetworkConfig.Keys.MAX_ACTIVE_PEERS, MAX_PEERS);
+		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, MAX_PEER_INACTIVITY_PERIOD);
+		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
+		addPeers(provider, MAX_PEERS);
+
+		Thread.sleep(MAX_PEER_INACTIVITY_PERIOD * 1000);
+
+		assertThat(provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1)), is(not(-1)));
+	}
+
 	private static void addPeers(final MessageIdProvider provider, final int peerCount) {
 		for (int i = 0; i < peerCount; i++) {
 			provider.getNextMessageId(getPeerAddress(i));

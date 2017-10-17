@@ -15,13 +15,14 @@
  *    (a lot of changes from different authors, please refer to gitlog).
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  *                                                    remove setMessageExchangeStore
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
+ *                                                    by EndpointContext of response.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
@@ -122,12 +123,10 @@ public interface Matcher {
 	 * accordingly ({@link Response#setDuplicate(boolean)}.
 	 * 
 	 * @param response the response message received from the peer.
-	 * @param responseContext contains additional information from the transport layer
-	 *        which can be used to correlate the message with a request.
 	 * @return the message exchange that the response is a part of or {@code null}
 	 *         if the response cannot be matched to an ongoing exchange.
 	 */
-	Exchange receiveResponse(Response response, CorrelationContext responseContext);
+	Exchange receiveResponse(Response response);
 
 	/**
 	 * Determines the message exchange that an empty message received from a peer

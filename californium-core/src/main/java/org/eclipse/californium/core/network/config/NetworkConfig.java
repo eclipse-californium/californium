@@ -21,6 +21,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add InputStream support for environments
  *                                                    without file access.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add new keys for MID tracker
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
+ *                                                    by DTLS_RESPONSE_MATCHING
  *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
@@ -180,7 +182,7 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
-		public static final String USE_STRICT_RESPONSE_MATCHING = "USE_STRICT_RESPONSE_MATCHING";
+		public static final String DTLS_RESPONSE_MATCHING = "DTLS_RESPONSE_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
 		public static final String HTTP_SERVER_SOCKET_TIMEOUT = "HTTP_SERVER_SOCKET_TIMEOUT";

@@ -56,6 +56,12 @@ public final class IntegrationTestTools {
 		return endpoint;
 	}
 
+	public static LockstepEndpoint createChangedLockstepEndpoint(final LockstepEndpoint previous) {
+		LockstepEndpoint endpoint = new LockstepEndpoint(previous);
+		previous.destroy();
+		return endpoint;
+	}
+
 	public static Request createRequest(Code code, String path, LockstepEndpoint server) throws Exception {
 		Request request = new Request(code);
 		String uri = String.format("coap://%s:%d/%s", server.getAddress().getHostAddress(), server.getPort(), path);

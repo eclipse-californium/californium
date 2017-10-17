@@ -20,33 +20,14 @@
 package org.eclipse.californium.elements;
 
 /**
- * Correlation context matcher for UDP.
+ * Relaxed endpoint context matcher. Matches DTLS without epoch.
  */
-public class UdpCorrelationContextMatcher implements CorrelationContextMatcher {
+public class RelaxedDtlsEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	/**
-	 * Create new instance of udp correlation context matcher.
-	 */
-	public UdpCorrelationContextMatcher() {
-	}
+	private static final String KEYS[] = { DtlsEndpointContext.KEY_SESSION_ID, DtlsEndpointContext.KEY_CIPHER };
 
-	@Override
-	public String getName() {
-		return "udp correlation";
-	}
-
-	@Override
-	public boolean isResponseRelatedToRequest(CorrelationContext requestContext, CorrelationContext responseContext) {
-		return internalMatch(requestContext, responseContext);
-	}
-
-	@Override
-	public boolean isToBeSent(CorrelationContext messageContext, CorrelationContext connectorContext) {
-		return internalMatch(messageContext, connectorContext);
-	}
-
-	private final boolean internalMatch(CorrelationContext requestedContext, CorrelationContext availableContext) {
-		return (null == requestedContext) || (null != availableContext);
+	public RelaxedDtlsEndpointContextMatcher() {
+		super("relaxed context", KEYS);
 	}
 
 }

@@ -19,20 +19,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.regex.Pattern;
-
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.regex.Pattern;
 
 
 public class LinkFormat {
@@ -162,66 +155,80 @@ public class LinkFormat {
 		
 		return linkFormat;
 	}
-	
+
+	/**
+	 * Check whether the given resource matches the given list of queries.
+	 *
+	 * Queries are interpreted according to <a href="https://tools.ietf.org/html/rfc6690#section-4.1">RFC 6690</a>,
+	 * section 4.1, with the important difference that more than one query can be passed to the function. The
+	 * resource only matches the list of queries if the resource matches every query in the list. This functionality
+	 * is required to implement resource directory filtering according to the
+	 * <a href="https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7">Resource directory</a>
+	 * draft, which requires support for matching multiple attributes.
+	 *
+	 * @param resource The resource to match.
+	 * @param queries The list of queries to match the resource with.
+	 * @return True if the resource matches all queries, false otherwise.
+	 */
 	public static boolean matches(Resource resource, List<String> queries) {
-		
-		if (resource==null) return false;
-		if (queries==null || queries.size()==0) return true;
-		
+
+		if (resource == null)
+			return false;
+		if (queries == null || queries.size() == 0)
+			return true;
+
 		ResourceAttributes attributes = resource.getAttributes();
-		String path = resource.getPath()+resource.getName();
-		
+		String path = resource.getPath() + resource.getName();
+
 		for (String s : queries) {
 			int delim = s.indexOf("=");
 			if (delim != -1) {
-				
 				// split name-value-pair
 				String attrName = s.substring(0, delim);
-				String expected = s.substring(delim+1);
-
+				String expected = s.substring(delim + 1);
 				if (attrName.equals(LinkFormat.LINK)) {
 					if (expected.endsWith("*")) {
-						return path.startsWith(expected.substring(0, expected.length()-1));
+						if (!path.startsWith(expected.substring(0, expected.length() - 1)))
+							return false;
 					} else {
-						return path.equals(expected);
+						if (!path.equals(expected))
+							return false;
 					}
 				} else if (attributes.containsAttribute(attrName)) {
 					// lookup attribute value
+					boolean matched = false;
 					for (String actual : attributes.getAttributeValues(attrName)) {
-					
 						// get prefix length according to "*"
 						int prefixLength = expected.indexOf('*');
 						if (prefixLength >= 0 && prefixLength < actual.length()) {
-					
 							// reduce to prefixes
-							expected = expected.substring(0, prefixLength);
+							String shortened = expected.substring(0, prefixLength);
 							actual = actual.substring(0, prefixLength);
-						}
-						
-						// handle case like rt=[Type1 Type2]
-						if (actual.indexOf(" ") > -1) { // if contains white space
-							String[] parts = actual.split(" ");
-							for (String part : parts) { // check each part for match
-								if (part.equals(expected)) {
-									return true;
-								}
+							// Wildcard query
+							if (actual.equals(shortened)) {
+								matched = true;
+								break;
 							}
-						}
-						
-						// compare strings
-						if (expected.equals(actual)) {
-							return true;
+						} else if (actual.equals(expected)) {
+							// Regular query
+							matched = true;
+							break;
 						}
 					}
+					if (!matched) {
+						return false;
+					}
+				} else if (!attributes.containsAttribute(attrName)) {
+					return false;
 				}
 			} else {
 				// flag attribute
-				if (attributes.getAttributeValues(s).size()>0) {
-					return true;
+				if (attributes.getAttributeValues(s).size() == 0) {
+					return false;
 				}
 			}
 		}
-		return false;
+		return true;
 	}
 	
 	public static Set<WebLink> parse(String linkFormat) {

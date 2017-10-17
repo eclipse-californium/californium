@@ -146,8 +146,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 					// Assemble and deliver
 					Request assembled = new Request(request.getCode());
-					assembled.setSenderIdentity(request.getSenderIdentity());
-					status.assembleMessage(assembled);
+					status.assembleReceivedMessage(assembled);
 
 					assembled.setMID(request.getMID());
 					assembled.setToken(request.getToken());
@@ -439,8 +438,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 			// do not enforce CON, since NON could make sense over SMS or
 			// similar transports
 			block.setType(request.getType());
-			block.setDestination(request.getDestination());
-			block.setDestinationPort(request.getDestinationPort());
+			block.setDestinationContext(response.getSourceContext());
 
 			/*
 			 * WARNING:

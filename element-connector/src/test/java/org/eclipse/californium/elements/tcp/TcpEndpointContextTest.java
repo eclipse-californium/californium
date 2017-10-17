@@ -18,6 +18,9 @@
  *                                                    (LoopbackAddress)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timeout when get the 
  *                                                    correlation context
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove type checks for
+ *                                                    EndpointContext. Functionality
+ *                                                    should not depend on that.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -37,16 +40,16 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.CorrelationContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.TcpCorrelationContext;
-import org.eclipse.californium.elements.TcpCorrelationContextMatcher;
+import org.eclipse.californium.elements.TcpEndpointContext;
+import org.eclipse.californium.elements.TcpEndpointContextMatcher;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-public class TcpCorrelationTest {
+public class TcpEndpointContextTest {
 
 	@Rule
 	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
@@ -61,19 +64,19 @@ public class TcpCorrelationTest {
 	}
 
 	/**
-	 * Test, if the correlation context is determined proper.
+	 * Test, if the endpoint context is determined proper.
 	 *
 	 * <pre>
-	 * 1. Send a request and check, if the response has the same correlation
+	 * 1. Send a request and check, if the response has the same endpoint
 	 *    context on the client side.
-	 * 2. Send a second request and check, if this has the same correlation
+	 * 2. Send a second request and check, if this has the same endpoint
 	 *    context on the client side.
 	 * 3. Also check, if the server response is sent with the same context
 	 *    as the request was received.
 	 * </pre>
 	 */
 	@Test
-	public void testCorrelationContext() throws Exception {
+	public void testEndpointContext() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
@@ -90,67 +93,64 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
-		CorrelationContext receivingServerContext = serverCatcher.getMessage(0).getCorrelationContext();
-		assertThat("Serverside received no TCP Correlation Context", receivingServerContext,
-				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(receivingServerContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		EndpointContext receivingServerContext = serverCatcher.getMessage(0).getEndpointContext();
+		assertThat(receivingServerContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Correlation Context", clientContext, is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
+		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		// Response message must go over the same connection client already
 		// opened
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null,
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, 
 				serverCallback);
 		server.send(msg);
 		clientCatcher.blockUntilSize(1);
 
-		CorrelationContext serverContext = serverCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("Serverside no TCP Correlation Context", serverContext, is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext serverContext = serverCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
+		assertThat("Serverside no TCP Endpoint Context", serverContext, is(instanceOf(TcpEndpointContext.class)));
 		assertThat(serverContext, is(receivingServerContext));
-		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(receivingServerContext.get(TcpCorrelationContext.KEY_CONNECTION_ID)));
+		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(receivingServerContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 
-		// check response correlation context
-		CorrelationContext responseContext = clientCatcher.getMessage(0).getCorrelationContext();
-		assertThat("no response TCP Correlation Context", responseContext, is(instanceOf(TcpCorrelationContext.class)));
+		// check response endpoint context
+		EndpointContext responseContext = clientCatcher.getMessage(0).getEndpointContext();
+		assertThat("no response TCP Endpoint Context", responseContext, is(instanceOf(TcpEndpointContext.class)));
 		assertThat(responseContext, is(clientContext));
-		assertThat(responseContext.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID)));
+		assertThat(responseContext.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 
 		// send next message
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 
-		CorrelationContext context2 = clientCallback.getCorrelationContext(ConnectorTestUtil.CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Correlation Context", context2, is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext context2 = clientCallback.getEndpointContext(ConnectorTestUtil.CONTEXT_TIMEOUT_IN_MS);
+		assertThat("no TCP Endpoint Context", context2, is(instanceOf(TcpEndpointContext.class)));
 		assertThat(context2, is(clientContext));
-		assertThat(context2.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID)));
+		assertThat(context2.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 	}
 
 	/**
-	 * Test, if the correlation context is different when reconnect after
+	 * Test, if the endpoint context is different when reconnect after
 	 * timeout.
 	 *
 	 * <pre>
-	 * 1. Send a request and fetch the correlation context on client and
+	 * 1. Send a request and fetch the endpoint context on client and
 	 *    server side.
 	 * 2. Wait for connection timeout.
-	 * 3. Send a new request and fetch the correlation context on client and
-	 *    server side. The correlation contexts must be different.
+	 * 3. Send a new request and fetch the endpoint context on client and
+	 *    server side. The endpoint contexts must be different.
 	 * </pre>
 	 */
 	@Test
-	public void testCorrelationContextWhenReconnectAfterTimeout() throws Exception {
+	public void testEndpointContextWhenReconnectAfterTimeout() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
@@ -167,56 +167,52 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
-		CorrelationContext serverContext = serverCatcher.getMessage(0).getCorrelationContext();
+		EndpointContext serverContext = serverCatcher.getMessage(0).getEndpointContext();
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
+		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 
 		// timeout connection, hopefully this triggers a reconnect
 		Thread.sleep(TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
-		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Correlation Context after reconnect", clientContextAfterReconnect,
-				is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		// new (different) client side connection id
 		assertThat(clientContextAfterReconnect, is(not(clientContext)));
-		assertThat(clientContextAfterReconnect.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(not(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID))));
+		assertThat(clientContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(not(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
 
 		// new (different) server side connection id
-		CorrelationContext serverContextAfterReconnect = serverCatcher.getMessage(1).getCorrelationContext();
-		assertThat("Serverside no TCP Correlation Context after reconnect", serverContextAfterReconnect,
-				is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext serverContextAfterReconnect = serverCatcher.getMessage(1).getEndpointContext();
 		// new (different) server side connection id
-		assertThat(serverContextAfterReconnect.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(not(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID))));
+		assertThat(serverContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(not(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
 		assertThat(serverContextAfterReconnect, is(not(serverContext)));
 
 	}
 
 	/**
-	 * Test, if the correlation context is different when reconnect after server
+	 * Test, if the endpoint context is different when reconnect after server
 	 * stop/start.
 	 *
 	 * <pre>
-	 * 1. Send a request and fetch the correlation context on client and
+	 * 1. Send a request and fetch the endpoint context on client and
 	 *    server side.
 	 * 2. Stop/start the server.
-	 * 3. Send a new request and fetch the correlation context on client and
-	 *    server side. The correlation contexts must be different.
+	 * 3. Send a new request and fetch the endpoint context on client and
+	 *    server side. The endpoint contexts must be different.
 	 * </pre>
 	 */
 	@Test
-	public void testCorrelationContextWhenReconnectAfterStopStart() throws Exception {
+	public void testEndpointContextWhenReconnectAfterStopStart() throws Exception {
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
@@ -233,67 +229,62 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
-		CorrelationContext serverContext = serverCatcher.getMessage(0).getCorrelationContext();
+		EndpointContext serverContext = serverCatcher.getMessage(0).getEndpointContext();
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
+		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 
 		/* stop / start the server */
 		server.stop();
 		server.start();
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
-		CorrelationContext clientContextAfterReconnect = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("no TCP Correlation Context after reconnect", clientContextAfterReconnect,
-				is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		// new (different) client side connection id
 		assertThat(clientContextAfterReconnect, is(not(clientContext)));
-		assertThat(clientContextAfterReconnect.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(not(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID))));
+		assertThat(clientContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(not(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
 
 		// Response message must go over the reconnected connection
 
-		CorrelationContext serverContextAfterReconnect = serverCatcher.getMessage(1).getCorrelationContext();
-		assertThat("Serverside no TCP Correlation Context after reconnect", serverContextAfterReconnect,
-				is(instanceOf(TcpCorrelationContext.class)));
+		EndpointContext serverContextAfterReconnect = serverCatcher.getMessage(1).getEndpointContext();
 		// new (different) server side connection id
 		assertThat(serverContextAfterReconnect, is(not(serverContext)));
-		assertThat(serverContextAfterReconnect.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-				is(not(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID))));
+		assertThat(serverContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID),
+				is(not(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
 	}
 
 	/**
-	 * Test, if the correlation context provided for sending is handled proper
+	 * Test, if the endpoint context provided for sending is handled proper
 	 * on the client side. 
 	 * 
 	 * <pre>
-	 * 1. Send a request with correlation context and check, that the message
+	 * 1. Send a request with endpoint context and check, that the message
 	 *    is dropped (server doesn't receive a message).
-	 * 2. Send a request without correlation context and check, that the
+	 * 2. Send a request without endpoint context and check, that the
 	 *    message is sent (server receives the message).
-	 * 3. Send a 2. request with retrieved correlation context and check,
+	 * 3. Send a 2. request with retrieved endpoint context and check,
 	 *    that the message is sent (server receives a 2. message).
-	 * 4. Send a 3. request with different correlation context and check,
+	 * 4. Send a 3. request with different endpoint context and check,
 	 *    that the message is dropped (server doesn't receive a 3. message).
 	 * </pre>
 	 */
 	@Test
-	public void testClientSendingCorrelationContext() throws Exception {
-		TcpCorrelationContextMatcher matcher = new TcpCorrelationContextMatcher();
-		TcpCorrelationContext context = new TcpCorrelationContext("n.a.");
+	public void testClientSendingEndpointContext() throws Exception {
+		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
-		client.setCorrelationContextMatcher(matcher);
+		client.setEndpointContextMatcher(matcher);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -306,28 +297,27 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, context, clientCallback);
+		TcpEndpointContext context = new TcpEndpointContext(getDestination(server.getAddress()), "n.a.");
+		RawData msg = createMessage(100, context, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1, 2000);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(0));
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 
-		CorrelationContext clientContext = clientCallback.getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-		assertThat("client side missing TCP Correlation Context", clientContext,
-				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(clientContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
+		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
-		msg = createMessage(server.getAddress(), 100, clientContext, clientCallback);
+		msg = createMessage(100, clientContext, clientCallback);
 		client.send(msg);
 		serverCatcher.blockUntilSize(2);
 
 		clientCallback = new SimpleMessageCallback();
-		msg = createMessage(server.getAddress(), 100, context, clientCallback);
+		msg = createMessage(100, context, clientCallback);
 		client.send(msg);
 
 		serverCatcher.blockUntilSize(3, 2000);
@@ -335,29 +325,28 @@ public class TcpCorrelationTest {
 	}
 
 	/**
-	 * Test, if the correlation context provided for sending is handled proper
+	 * Test, if the endpoint context provided for sending is handled proper
 	 * on the server side.
 	 *
 	 * <pre>
-	 * 1. Send a request without correlation context and check, that the
+	 * 1. Send a request without endpoint context and check, that the
 	 *    message is received by the server.
-	 * 2. Send a response with the received correlation context, and check,
+	 * 2. Send a response with the received endpoint context, and check,
 	 *    if the client receives the response.
-	 * 3. Send a 2. response without a correlation context, and check,
+	 * 3. Send a 2. response without a endpoint context, and check,
 	 *    if the client received the 2. response.
-	 * 4. Send a 3. response with a different correlation context, and check,
+	 * 4. Send a 3. response with a different endpoint context, and check,
 	 *    if the client doesn't receive the 3. response.
 	 * </pre>
 	 */
 	@Test
-	public void testServerSendingCorrelationContext() throws Exception {
-		TcpCorrelationContextMatcher matcher = new TcpCorrelationContextMatcher();
-		TcpCorrelationContext context = new TcpCorrelationContext("n.a.");
+	public void testServerSendingEndpointContext() throws Exception {
+		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
 				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
-		server.setCorrelationContextMatcher(matcher);
+		server.setEndpointContextMatcher(matcher);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -370,31 +359,30 @@ public class TcpCorrelationTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		RawData msg = createMessage(server.getAddress(), 100, null, clientCallback);
+		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1);
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
-		CorrelationContext serverContext = receivedMsg.getCorrelationContext();
-		assertThat("server side missing TCP Correlation Context", serverContext,
-				is(instanceOf(TcpCorrelationContext.class)));
-		assertThat(serverContext.get(TcpCorrelationContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		EndpointContext serverContext = receivedMsg.getEndpointContext();
+		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverContext, serverCallback);
+		msg = createMessage(100, serverContext, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(1);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, null, serverCallback);
+		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(2);
 
 		serverCallback = new SimpleMessageCallback();
-		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, context, serverCallback);
+		TcpEndpointContext context = new TcpEndpointContext(receivedMsg.getInetSocketAddress(), "n.a.");
+		msg = createMessage(100, context, serverCallback);
 		server.send(msg);
 
 		clientCatcher.blockUntilSize(3, 2000);
@@ -403,19 +391,19 @@ public class TcpCorrelationTest {
 	}
 
 	/**
-	 * Test, if the correlation context is determined proper when connecting to
+	 * Test, if the endpoint context is determined proper when connecting to
 	 * different servers. 
 	 * 
 	 * <pre>
 	 * 1. Send a message to different servers and determine the used 
-	 *    correlation context on the client side.
+	 *    endpoint context on the client side.
 	 * 2. Send a second message to different servers and determine the 
-	 *    correlation context used then on the client side. 
-	 * 3. Compare the correlation contexts, they must be the same per server.
+	 *    endpoint context used then on the client side. 
+	 * 3. Compare the endpoint contexts, they must be the same per server.
 	 * </pre>
 	 */
 	@Test
-	public void testSingleClientManyServersCorrelationContext() throws Exception {
+	public void testSingleClientManyServersEndpointContext() throws Exception {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
@@ -442,7 +430,7 @@ public class TcpCorrelationTest {
 		List<SimpleMessageCallback> callbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, callback);
 			callbacks.add(callback);
 			messages.add(message);
 			client.send(message);
@@ -460,7 +448,7 @@ public class TcpCorrelationTest {
 		List<SimpleMessageCallback> followupCallbacks = new ArrayList<>();
 		for (InetSocketAddress address : serverAddresses) {
 			SimpleMessageCallback callback = new SimpleMessageCallback();
-			RawData message = createMessage(address, 100, null, callback);
+			RawData message = createMessage(address, 100, callback);
 			followupCallbacks.add(callback);
 			followupMessages.add(message);
 			client.send(message);
@@ -474,16 +462,16 @@ public class TcpCorrelationTest {
 		}
 
 		/*
-		 * check matching correlation contexts for both messages sent to all
+		 * check matching endpoint contexts for both messages sent to all
 		 * servers
 		 */
 		for (int index = 0; index < messages.size(); ++index) {
-			CorrelationContext context1 = callbacks.get(index).getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
-			CorrelationContext context2 = followupCallbacks.get(index).getCorrelationContext(CONTEXT_TIMEOUT_IN_MS);
+			EndpointContext context1 = callbacks.get(index).getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
+			EndpointContext context2 = followupCallbacks.get(index).getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 			// same connection id used for follow up message
 			assertThat(context1, is(context2));
-			assertThat(context1.get(TcpCorrelationContext.KEY_CONNECTION_ID),
-					is(context2.get(TcpCorrelationContext.KEY_CONNECTION_ID)));
+			assertThat(context1.get(TcpEndpointContext.KEY_CONNECTION_ID),
+					is(context2.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 		}
 	}
 
