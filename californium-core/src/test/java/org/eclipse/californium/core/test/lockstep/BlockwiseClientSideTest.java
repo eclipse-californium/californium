@@ -110,7 +110,8 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS)
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1);
+				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
+				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME,300);
 	}
 
 	@Before
@@ -345,7 +346,7 @@ public class BlockwiseClientSideTest {
 		//server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
 		// give client a chance to repeat
 		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS);
-		Thread.sleep(timeout * 2);
+		Thread.sleep((long) (timeout*1.25));
 		// repeat GET 1
 		server.expectRequest(CON, GET, path).sameBoth("B").block2(1, false, 64).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();

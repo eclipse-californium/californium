@@ -70,8 +70,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
-	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
-	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_EXCHANGE_LIFETIME = 2470; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 1000; // milliseconds
 	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
@@ -97,7 +97,8 @@ public class ObserveClientSideTest {
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setFloat(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 1500);
 	}
 
 	@Before
@@ -406,7 +407,7 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, true, 16)
 				.payload(respPayload.substring(16, 32)).go();
 		// ensure client don't ask for block anymore
-		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
+		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("No block2 message expected anymore", message);
 		// TODO ensure that blockdata buffer is cleared in blockwiselayer...
 
