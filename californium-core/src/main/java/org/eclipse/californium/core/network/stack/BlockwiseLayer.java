@@ -58,6 +58,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 /**
@@ -169,12 +170,15 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	public BlockwiseLayer(final NetworkConfig config) {
 
-		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 4096);
-		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
+		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
+		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
 		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
-		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 30 * 1000); // 30 secs
-		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 8192);
-		int maxActivePeers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS);
+		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME,
+				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_LIFETIME);
+		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE,
+				NetworkConfigDefaults.DEFAULT_MAX_RESOURCE_BODY_SIZE);
+		int maxActivePeers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS,
+				NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
 		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
 
