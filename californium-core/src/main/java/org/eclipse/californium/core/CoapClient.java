@@ -24,6 +24,7 @@
  *                                                    instead of onReject() and
  *                                                    onTimeout().
  *    Achim Kraus (Bosch Software Innovations GmbH) - use effective endpoint for ping()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - destroy endpoint on shutdown
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -752,6 +753,7 @@ public class CoapClient {
 	 */
 	public void shutdown() {
 		if (this.executor!=null) this.executor.shutdownNow();
+		if (this.endpoint!=null) this.endpoint.destroy();
 	}
 	
 	// Implementation
