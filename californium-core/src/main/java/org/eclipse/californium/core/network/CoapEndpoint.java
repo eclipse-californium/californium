@@ -341,13 +341,13 @@ public class CoapEndpoint implements Endpoint {
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					endpointContextMatcher);
-			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
+			this.coapstack = createTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
 					endpointContextMatcher);
-			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
+			this.coapstack = createUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
@@ -981,5 +981,13 @@ public class CoapEndpoint implements Endpoint {
 				}
 			}
 		});
+	}
+
+	protected CoapStack createUdpStack(NetworkConfig config, Outbox outbox) {
+		return new CoapUdpStack(config, outbox);
+	}
+
+	protected CoapStack createTcpStack(NetworkConfig config, Outbox outbox) {
+		return new CoapTcpStack(config, outbox);
 	}
 }
