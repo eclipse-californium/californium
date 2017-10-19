@@ -12,16 +12,18 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reduce external dependency
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.CheckCondition;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -92,6 +94,16 @@ public class MessageExchangeStoreTool {
 			assertTrue("message exchange store still contains exchanges", exchangeStore.isEmpty());
 		} finally {
 			STORE_LOGGER.setLevel(level);
+		}
+	}
+	
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
+		try {
+			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
+			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
+			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 		}
 	}
 

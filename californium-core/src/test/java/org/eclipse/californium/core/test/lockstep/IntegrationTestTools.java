@@ -14,6 +14,8 @@
  *    Bosch Software Innovations GmbH - refactor common functionality for integration
  *                                      tests into separate utility class
  *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move waitUntilDeduplicatorShouldBeEmpty
+ *                                                    to MessageExchangeStoreTool
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -22,14 +24,11 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.TestTools;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 
 /**
  * Common functionality for integration tests.
@@ -66,7 +65,7 @@ public final class IntegrationTestTools {
 		Request request = new Request(code);
 		String uri = String.format("coap://%s:%d/%s", server.getAddress().getHostAddress(), server.getPort(), path);
 		request.setURI(uri);
-		return request; 
+		return request;
 	}
 
 	public static void assertNumberOfReceivedNotifications(final SynchronousNotificationListener listener,
@@ -104,20 +103,10 @@ public final class IntegrationTestTools {
 
 	private static byte[] b(int... is) {
 		byte[] bytes = new byte[is.length];
-		for (int i=0; i < bytes.length; i++) {
+		for (int i = 0; i < bytes.length; i++) {
 			bytes[i] = (byte) is[i];
 		}
 		return bytes;
-	}
-
-	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
-		try {
-			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
-			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
-			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
 	}
 
 }
