@@ -62,7 +62,6 @@ public class ExampleDTLSClient {
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-	private static int maxMessages = 0;
 	private static CountDownLatch messageCounter;
 
 	private DTLSConnector dtlsConnector;
@@ -171,7 +170,7 @@ public class ExampleDTLSClient {
 				messages = Integer.parseInt(args[1]);
 			}
 		}
-		maxMessages = (messages * clients);
+		int maxMessages = (messages * clients);
 		messageCounter = new CountDownLatch(maxMessages);
 		List<ExampleDTLSClient> clientList = new ArrayList<>(clients);
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
