@@ -37,7 +37,7 @@ import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -52,13 +52,8 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -82,13 +77,11 @@ public class ObserveClientSideTest {
 
 	private static NetworkConfig CONFIG;
 
-	private MessageExchangeStore clientExchangeStore;
 	private LockstepEndpoint server;
-	private Endpoint client;
+	private CoapTestEndpoint client;
 	private int mid = 8000;
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
-	private InMemoryObservationStore observationStore;
 	
 	@BeforeClass
 	public static void init() {
@@ -110,12 +103,7 @@ public class ObserveClientSideTest {
 		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
 		// bind to loopback address using an ephemeral port
 	    //CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-
-		clientExchangeStore = new InMemoryMessageExchangeStore(CONFIG);
-		observationStore = new InMemoryObservationStore();
-		client = new CoapEndpoint(
-				CoapEndpoint.createUDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG),
-				CONFIG, observationStore, clientExchangeStore);
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
@@ -126,7 +114,7 @@ public class ObserveClientSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(CONFIG, clientExchangeStore);
+			assertAllExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
 			
@@ -1041,7 +1029,7 @@ public class ObserveClientSideTest {
 		client.cancelObservation(server.getToken("A"));
 		System.out.println("Cancel observation " + Utils.toHexString(server.getToken("A")));
 
-		assertTrue("ObservationStore must be empty", observationStore.isEmpty());
+		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
 
 		// TODO we want to check is ExchangeStore is empty but currently
 		// Deduplicator is not empty after cancel.

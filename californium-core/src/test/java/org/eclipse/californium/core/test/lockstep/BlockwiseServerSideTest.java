@@ -34,7 +34,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
@@ -46,11 +46,9 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -79,6 +77,7 @@ public class BlockwiseServerSideTest {
 	private static NetworkConfig CONFIG;
 
 	private CoapServer server;
+	private CoapTestEndpoint serverEndpoint;
 	private LockstepEndpoint client;
 	private int mid = 7000;
 	private TestResource testResource;
@@ -88,7 +87,6 @@ public class BlockwiseServerSideTest {
 	private Integer expectedMid;
 	private byte[] expectedToken;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
-	private MessageExchangeStore exchangeStore;
 
 	@BeforeClass
 	public static void init() {
@@ -110,15 +108,14 @@ public class BlockwiseServerSideTest {
 		expectedToken = null;
 		testResource = new TestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
-		exchangeStore = new InMemoryMessageExchangeStore(CONFIG);
 		// bind to loopback address using an ephemeral port
-		CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-		udpEndpoint.addInterceptor(serverInterceptor);
+		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		serverEndpoint.addInterceptor(serverInterceptor);
 		server = new CoapServer();
-		server.addEndpoint(udpEndpoint);
+		server.addEndpoint(serverEndpoint);
 		server.add(testResource);
 		server.start();
-		InetSocketAddress serverAddress = udpEndpoint.getAddress();
+		InetSocketAddress serverAddress = serverEndpoint.getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
 		client = createLockstepEndpoint(serverAddress);
 	}
@@ -126,7 +123,7 @@ public class BlockwiseServerSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(CONFIG, exchangeStore);
+			assertAllExchangesAreCompleted(serverEndpoint);
 		} finally {
 			printServerLog(serverInterceptor);
 
