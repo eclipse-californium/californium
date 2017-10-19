@@ -17,7 +17,6 @@
 package org.eclipse.californium.plugtests;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -166,40 +165,36 @@ public class PlugtestServer extends CoapServer {
 			}
 		}
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			// only binds to IPv4 addresses
-			if (addr instanceof Inet4Address) {
-				if (plain) {
-					InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
-					if (udp) {
-						addEndpoint(new CoapEndpoint(bindToAddress, CONFIG));
-					}
-					if (tcp) {
-						TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads,
-								tcpIdleTimeout);
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
+			if (plain) {
+				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
+				if (udp) {
+					addEndpoint(new CoapEndpoint(bindToAddress, CONFIG));
 				}
-				if (secure) {
-					InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
-					if (udp) {
-						DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-						dtlsConfig.setAddress(bindToAddress);
-						dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 });
-						dtlsConfig.setPskStore(new PlugPskStore());
-						dtlsConfig.setIdentity(serverCredentials.getPrivateKey(),
-								serverCredentials.getCertificateChain(), true);
-						dtlsConfig.setTrustStore(trustedCertificates);
+				if (tcp) {
+					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
+				}
+			}
+			if (secure) {
+				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
+				if (udp) {
+					DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+					dtlsConfig.setAddress(bindToAddress);
+					dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 });
+					dtlsConfig.setPskStore(new PlugPskStore());
+					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+							true);
+					dtlsConfig.setTrustStore(trustedCertificates);
 
-						DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
 
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
-					if (tcp) {
-						TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress,
-								tcpThreads, tcpIdleTimeout);
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
+				}
+				if (tcp) {
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
+							tcpIdleTimeout);
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
 				}
 			}
 		}
