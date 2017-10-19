@@ -1171,4 +1171,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			return executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
 		}
 	}
+
+	public boolean isEmpty() {
+		return block1Transfers.size() == 0 && block2Transfers.size() == 0;
+	}
 }
