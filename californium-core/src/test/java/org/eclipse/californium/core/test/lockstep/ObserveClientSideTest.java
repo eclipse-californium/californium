@@ -35,9 +35,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -400,7 +398,7 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		// Check that we get the most recent response (with the higher observe
 		// option value)
-		Response response = request.waitForResponse();
+		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		// Send next block
@@ -937,7 +935,191 @@ public class ObserveClientSideTest {
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak : no last response
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserve() throws Exception {
 
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// we never answer to the last request, @after should check is there is no leak.
+
+		printServerLog(clientInterceptor);
+	}
+	
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with unknown token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithUnknownBadToken() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with new bad token
+		server.sendResponse(ACK, CONTENT).loadMID("C").token(new byte[] {1,2,3}).block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with unknown token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithUnknownBadToken2() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with new bad token
+		server.sendResponse(ACK, CONTENT).loadMID("C").token(new byte[] {1,2,3}).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with first token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithFisrtToken() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with first token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("A").payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with first token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithFisrtToken2() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with first token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("A").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with second token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithSecondToken() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with Second token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("B").payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
 	}
 
 	/**
@@ -1093,6 +1275,95 @@ public class ObserveClientSideTest {
 		server.sendEmpty(ACK).loadMID("C").go();
 		// we acknowledge but never send the response, @after should check is
 		// there is no leak.
+	}
+	/**
+	 * Verifies incomplete exchange does not leak: last response with second token
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithSecondToken2() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with Second token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("B").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		// not null because B token and C token is equals so the last response if finally correct ...
+		assertNotNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with good token but no block option
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithGoodTokenButNoBlockOption() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with Second token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("C").payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertNull(response);
+		printServerLog(clientInterceptor);
+	}
+	
+	/**
+	 * Verifies incomplete exchange does not leak: last response with good token but no block option
+	 * 
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlockwiseObserveLastResponseWithGoodTokenButNoBlockOption2() throws Exception {
+
+		System.out.println("Blockwise Observe with unexpected answer:");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// Send last response with Second token
+		server.sendResponse(ACK, CONTENT).loadMID("C").loadToken("C").payload(respPayload.substring(32)).go();
 
 		printServerLog(clientInterceptor);
 	}
