@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -101,11 +100,8 @@ public class SimpleFileServer extends CoapServer {
 	 */
 	private void addEndpoints() {
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			// only binds to IPv4 addresses and localhost
-			if (addr instanceof Inet4Address || addr.isLoopbackAddress()) {
-				InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
-				addEndpoint(new CoapEndpoint(bindToAddress));
-			}
+			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
+			addEndpoint(new CoapEndpoint(bindToAddress));
 		}
 	}
 

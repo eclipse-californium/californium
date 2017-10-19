@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -69,17 +68,15 @@ public class HelloWorldServer extends CoapServer {
     private void addEndpoints(boolean udp, boolean tcp) {
         NetworkConfig config = NetworkConfig.getStandard();
         for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-            // only binds to IPv4 addresses and localhost
-            if (addr instanceof Inet4Address || addr.isLoopbackAddress()) {
-                InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
-                if (udp) {
-                    addEndpoint(new CoapEndpoint(bindToAddress, config));
-                }
-                if (tcp) {
-                    TcpServerConnector connector = new TcpServerConnector(bindToAddress, TCP_THREADS, TCP_IDLE_TIMEOUT);
-                    addEndpoint(new CoapEndpoint(connector, config));
-                }
-            }
+			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
+			if (udp) {
+				addEndpoint(new CoapEndpoint(bindToAddress, config));
+			}
+			if (tcp) {
+				TcpServerConnector connector = new TcpServerConnector(bindToAddress, TCP_THREADS, TCP_IDLE_TIMEOUT);
+				addEndpoint(new CoapEndpoint(connector, config));
+			}
+            
         }
     }
 
