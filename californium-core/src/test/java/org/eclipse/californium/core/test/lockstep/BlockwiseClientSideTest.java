@@ -78,6 +78,7 @@ public class BlockwiseClientSideTest {
 	
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final int RESPONSE_TIMEOUT_IN_MS = 1000;
@@ -108,7 +109,7 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
-				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME,300);
+				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
 	}
 
 	@Before
@@ -949,14 +950,19 @@ public class BlockwiseClientSideTest {
 		// Send GET request
 		Request request = createRequest(GET, path, server);
 		client.sendRequest(request);
-
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
 				.go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
 				.go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
 		// we don't answer to the last request, @after should check is there is
 		// no leak.
 
@@ -973,17 +979,24 @@ public class BlockwiseClientSideTest {
 	public void testIncompleteBlock1NoAckNoResponse() throws Exception {
 
 		System.out.println("Incomplete  block1 transfer:");
-		reqtPayload = generateRandomPayload(300);
+		reqtPayload = generateRandomPayload(400);
 		String path = "test";
 
 		// Send PUT request
 		Request request = createRequest(PUT, path, server);
 		request.setPayload(reqtPayload);
 		client.sendRequest(request);
-
 		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload, 0, 128).go();
+
 		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(1, false, 128).go();
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(2, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, true, 128).payload(reqtPayload, 256, 384).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		
+		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
 		// we don't answer to the last request, @after should check is there is
 		// no leak.
 
