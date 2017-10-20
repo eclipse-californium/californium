@@ -33,6 +33,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
  *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
  *                                                    supportedClientCertificateTypes
+ *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring                                                   
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -172,6 +173,9 @@ public class ServerHandshaker extends Handshaker {
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @param trustedRPKs  the set of raw public key identities that have been verified out of 
+	 *     bound and are trusted. Can be null           
+	 *            
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws IllegalArgumentException
@@ -181,7 +185,8 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit,
+		        config.getRpkTrustStore());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -342,7 +347,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		clientCertificate = message;
-		clientCertificate.verifyCertificate(rootCertificates);
+		verifyCertificate(clientCertificate);
 		clientPublicKey = clientCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 		// TODO why don't we also update the MessageDigest at this point?

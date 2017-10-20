@@ -28,6 +28,7 @@
  *                                                    APPLICATION messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
  *                                                    supportedServerCertificateTypes
+ *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -120,8 +121,7 @@ public class ClientHandshaker extends Handshaker {
 	protected final ServerNameResolver serverNameResolver;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
-
-
+    
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -144,7 +144,8 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit, 
+		        config.getRpkTrustStore());
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
@@ -389,7 +390,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		serverCertificate = message;
-		serverCertificate.verifyCertificate(rootCertificates);
+		verifyCertificate(serverCertificate);
 		serverPublicKey = serverCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 	}
