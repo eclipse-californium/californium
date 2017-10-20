@@ -78,8 +78,7 @@ public class CredentialsUtil {
 	 *         {@link #DEFAULT_MODES} is returned.
 	 */
 	public static List<Mode> parse(String[] args) {
-		int len = args.length;
-		if (0 == len) {
+		if (args.length == 0) {
 			return DEFAULT_MODES;
 		}
 		List<Mode> modes = new ArrayList<>(args.length);
