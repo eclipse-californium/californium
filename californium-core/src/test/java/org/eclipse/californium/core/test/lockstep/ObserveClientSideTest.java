@@ -401,7 +401,7 @@ public class ObserveClientSideTest {
 		// ensure client don't ask for block anymore
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("No block2 message expected anymore", message);
-		// TODO ensure that blockdata buffer is cleared in blockwiselayer...
+		assertTrue("Blockwise layer must be empty", client.getStack().getBlockwiseLayer().isEmpty());
 
 		// Send new notif without block
 		notifyPayload = generateRandomPayload(8);
@@ -1035,7 +1035,6 @@ public class ObserveClientSideTest {
 		// Deduplicator is not empty after cancel.
 		// assertTrue("ExchangeStore must be empty",
 		// clientExchangeStore.isEmpty());
-
 	}
 
 	/**
