@@ -431,6 +431,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				LOGGER.debug("peer has requested last block of blockwise transfer: {}", status);
 				clearBlock2Status(key);
 			} else {
+				prepareBlock2Cleanup(status, key);
 				LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
 			}
 
