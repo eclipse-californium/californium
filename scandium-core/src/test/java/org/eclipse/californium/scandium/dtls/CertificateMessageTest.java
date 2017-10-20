@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 477074 (erroneous encoding of RPK)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
+ *    Ludwig Seitz (RISE SICS) - Moved verifyCertificate() tests to HandshakerTest
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -152,42 +153,6 @@ public class CertificateMessageTest {
 		message = (CertificateMessage) HandshakeMessage.fromByteArray(
 				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false, peerAddress);
 		assertThat(message.getPublicKey(), is(pk));
-		assertThatCertificateVerificationSucceeds();
-	}
-
-	@Test
-	public void testVerifyCertificateSucceedsForExampleCertificates() throws IOException, GeneralSecurityException {
-
-		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
-		assertThatCertificateVerificationSucceeds();
-
-		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
-		assertThatCertificateVerificationSucceeds();
-	}
-
-	@Test
-	public void testVerifyCertificateFailsIfTrustAnchorIsEmpty() throws IOException, GeneralSecurityException {
-
-		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
-		assertThatCertificateValidationFailsForEmptyTrustAnchor();
-	}
-
-	private void assertThatCertificateVerificationSucceeds() {
-		try {
-			message.verifyCertificate(trustAnchor);
-			// all is well
-		} catch (HandshakeException e) {
-			fail("Verification of certificate should have succeeded");
-		}
-	}
-
-	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
-		try {
-			message.verifyCertificate(null);
-			fail("Verification of certificate should have failed");
-		} catch (HandshakeException e) {
-			// all is well
-		}
 	}
 
 	private void assertSerializedMessageLength(int length) {

@@ -18,6 +18,7 @@
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
+ *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -31,6 +32,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.scandium.auth.TrustAllRpks;
+import org.eclipse.californium.scandium.auth.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -112,6 +115,9 @@ public final class DtlsConnectorConfig {
 
 	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites;
+
+	/** default is trust all RPKs **/
+	private TrustedRpkStore trustedRPKs;
 
 	private Integer outboundMessageBufferSize;
 
@@ -346,6 +352,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getConnectionThreadCount() {
 		return connectionThreadCount;
+	}
+
+	/**
+	 * @return The trust store for raw public keys verified out-of-band for
+	 *         DTLS-RPK handshakes
+	 */
+	public TrustedRpkStore getRpkTrustStore() {
+		return trustedRPKs;
 	}
 
 	/**
@@ -717,6 +731,18 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		/**
+		 * Sets the store for trusted raw public keys.
+		 * 
+		 * @param store the rpk trust store
+		 */
+		public void setRpkTrustStore(TrustedRpkStore store) {
+			if (store == null) {
+				throw new IllegalStateException("Must provide a non-null rpk trust store");
+			}
+			config.trustedRPKs = store;
+		}
+
 		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
 			List<X509Certificate> result = new ArrayList<>(certs.length);
 			for (Certificate cert : certs) {
@@ -838,6 +864,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];
+			}
+			if (config.trustedRPKs == null) {
+				config.trustedRPKs = new TrustAllRpks();
 			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = true;
