@@ -1091,11 +1091,15 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			@Override
 			public void run() {
-				if (!status.isComplete()) {
-					LOGGER.debug("block1 transfer timed out: {}", key);
-					status.timeoutCurrentTranfer();
+				try {
+					if (!status.isComplete()) {
+						LOGGER.debug("block1 transfer timed out: {}", key);
+						status.timeoutCurrentTranfer();
+					}
+					clearBlock1Status(key);
+				} catch (Exception e) {
+					LOGGER.debug("Unexcepted error while block1 cleaning", e);
 				}
-				clearBlock1Status(key);
 			}
 		});
 		status.setBlockCleanupHandle(taskHandle);
@@ -1150,11 +1154,15 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			@Override
 			public void run() {
-				if (!status.isComplete()) {
-					LOGGER.debug("block2 transfer timed out: {}", key);
-					status.timeoutCurrentTranfer();
+				try {
+					if (!status.isComplete()) {
+						LOGGER.debug("block2 transfer timed out: {}", key);
+						status.timeoutCurrentTranfer();
+					}
+					clearBlock2Status(key);
+				} catch (Exception e) {
+					LOGGER.debug("Unexcepted error while block2 cleaning", e);
 				}
-				clearBlock2Status(key);
 			}
 		});
 		status.setBlockCleanupHandle(taskHandle);
