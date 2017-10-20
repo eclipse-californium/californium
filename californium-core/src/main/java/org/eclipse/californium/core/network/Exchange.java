@@ -408,7 +408,7 @@ public class Exchange {
 		// forward timeout to message
 		message.setTimedOut(true);
 		Request request = this.request;
-		if (currentRequest == message && request != message) {
+		if (request != null && currentRequest == message && request != message  ) {
 			// forward timeout to request
 			request.setTimedOut(true);
 		}
