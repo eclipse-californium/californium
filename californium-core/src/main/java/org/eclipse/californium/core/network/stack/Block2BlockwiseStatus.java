@@ -77,6 +77,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
 		status.response = response;
+		status.exchange = exchange;
 		status.buf.put(response.getPayload());
 		status.buf.flip();
 		status.setCurrentSzx(determineResponseBlock2Szx(exchange, preferredBlockSize));
@@ -131,6 +132,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		int contentFormat = request.getOptions().getContentFormat();
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(0, contentFormat);
 		status.randomAccess = true;
+		status.exchange = exchange;
 		status.setCurrentNum(block2.getNum());
 		status.setCurrentSzx(block2.getSzx());
 		return status;
@@ -349,6 +351,8 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
+			// stop old cleanup task
+			setBlockCleanupHandle(null);
 			this.exchange = null;
 		}
 		if (exchange != null) {

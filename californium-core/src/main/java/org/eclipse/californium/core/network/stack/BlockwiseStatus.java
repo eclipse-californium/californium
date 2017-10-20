@@ -293,6 +293,8 @@ abstract class BlockwiseStatus {
 	 * Complete current transfert
 	 */
 	public void timeoutCurrentTranfer() {
-		this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+		if (exchange != null) {
+			this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+		}
 	}
 }

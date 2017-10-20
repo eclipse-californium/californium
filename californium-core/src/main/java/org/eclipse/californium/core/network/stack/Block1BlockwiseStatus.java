@@ -68,6 +68,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 			bufferSize = block.getOptions().getSize1();
 		}
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(bufferSize, contentFormat);
+		status.exchange = exchange;
 		status.setFirst(block);
 		return status;
 	}
