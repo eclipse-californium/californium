@@ -29,7 +29,6 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
-			<version>${project.version}</version>
 			<scope>test</scope>
 			<classifier>tests</classifier>
 		</dependency>
