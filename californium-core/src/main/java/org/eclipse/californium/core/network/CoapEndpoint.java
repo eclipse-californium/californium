@@ -241,7 +241,7 @@ public class CoapEndpoint implements Endpoint {
 		if (!this.coapstack.hasDeliverer())
 			this.coapstack.setDeliverer(new ClientMessageDeliverer());
 		
-		if (this.executor == null) {
+		if (this.executor == null || this.executor.isShutdown()) {
 			LOGGER.config("Endpoint "+toString()+" requires an executor to start. Using default single-threaded daemon executor.");
 			
 			final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory());
