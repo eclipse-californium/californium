@@ -25,6 +25,10 @@
  *                                                    Add printServerLog after
  *                                                    tests.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add check for empty exchange store
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for timedout blockwise
+ *                                                    notify. Issue #451
+ *                                                    Correct type of MAX_RETRANSMIT
+ *                                                    from float to int.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -93,9 +97,9 @@ public class ObserveClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setFloat(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 1500);
@@ -1096,4 +1100,100 @@ public class ObserveClientSideTest {
 
 		printServerLog(clientInterceptor);
 	}
+
+	/**
+	 * Test that notifies are still received, even if a blockwise notify 
+	 * times out.
+
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * CON [MID=48684, T=55dca046fd7555c1], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=48684, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=48685, T=7309fa61ceba5915], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=48685, T=7309fa61ceba5915], 2.05, 2:1/0/16
+	 * (response finished)
+	 * (notification received)
+	 * <-----   CON [MID=8001, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * (GET rest of blockwise notify)
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * (blockwise GET of the rest of the notfiy times out)
+	 * (next notification received)
+	 * <-----   CON [MID=8002, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(3)
+	 * ACK [MID=8002]   ----->
+	 * CON [MID=48687, T=ceeee83a176a5c1b], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=48687, T=ceeee83a176a5c1b], 2.05, 2:1/0/16
+	 * (notification received)
+	 * </pre>
+	 */
+	@Test
+	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
+		System.out.println("Blockwise Observe:");
+		int timeoutMillis = CONFIG.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		
+		// observer request response will be sent using blockwise
+		respPayload = generateRandomPayload(2 * 16);
+		// notification payload sended without blockwise
+		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+
+		// send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").block2(0, true, 16).observe(1)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		// send last blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		// Check that we get the response
+		Response response = request.waitForResponse();
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		String notifyPayload = generateRandomPayload(2 * 16);
+
+		// send notify
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		// timeout, retransmission
+		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		// timeout, retransmission
+		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		
+		assertNull("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS));
+
+		// next notify
+		notifyPayload = generateRandomPayload(2 * 16);
+
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
+				.payload(notifyPayload.substring(16, 32)).go();
+
+		Response notification1 = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification1, notifyPayload);
+		
+	}
+
 }
