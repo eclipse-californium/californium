@@ -40,6 +40,8 @@
  *                                                    observe option.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                    by EndpointContext of response.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - ignore timeout on blockwise notify
+ *                                                    issue 451
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -207,6 +209,15 @@ public abstract class BaseMatcher implements Matcher {
 						} else {
 							notificationListener.onNotification(request, resp);
 						}
+					}
+					
+					@Override
+					public void onTimeout() {
+						// Ignore timeout, don't remove observation!
+						// The notify is already received for this exchange. 
+						// This should only occur, if the notify triggers 
+						// a blockwise get of the rest, where a timeout
+						// should be ignored and not remove the observe.
 					}
 
 					@Override
