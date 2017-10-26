@@ -24,23 +24,23 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector</artifactId>
-			<scope>test</scope>
-			<classifier>tests</classifier>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
 			<classifier>tests</classifier>
+            <type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>element-connector</artifactId>
+            <type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 			<version>${project.version}</version>
+            <type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -48,6 +48,7 @@
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<classifier>tests</classifier>
+            <type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -65,6 +66,7 @@
 			<artifactId>cf-nat</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+            <type>jar</type>
 		</dependency>
 	</dependencies>
 
