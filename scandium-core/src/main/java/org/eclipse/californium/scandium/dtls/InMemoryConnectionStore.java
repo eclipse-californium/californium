@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use final for collections
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -62,8 +63,8 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	private static final Logger LOG = Logger.getLogger(InMemoryConnectionStore.class.getName());
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
-	private LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
-	private SessionCache sessionCache;
+	private final LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
+	private final SessionCache sessionCache;
 
 	/**
 	 * Creates a store with a capacity of 500000 connections and
