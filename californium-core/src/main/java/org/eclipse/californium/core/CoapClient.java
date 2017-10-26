@@ -26,6 +26,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use effective endpoint for ping()
  *    Achim Kraus (Bosch Software Innovations GmbH) - destroy endpoint on shutdown
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source code formatter
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup executor, endpoint
+ *                                                    usage and javadoc. Forward
+ *                                                    send error encapsulated as
+ *                                                    RuntimeException.
+ *                                                    (don't destroy endpoint on shutdown)
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -36,6 +41,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -74,6 +80,12 @@ public class CoapClient {
 
 	/** The client-specific executor service. */
 	private ExecutorService executor;
+
+	/**
+	 * Indicate, it the client-specific executor service is detached, or
+	 * shutdown with this client.
+	 */
+	private boolean detachExecutor;
 
 	/** The endpoint. */
 	private Endpoint endpoint;
@@ -182,36 +194,84 @@ public class CoapClient {
 	}
 
 	/**
-	 * Sets a single-threaded executor to this client. All handlers will be
-	 * invoked by this executor. Note that the client executor uses a user
-	 * thread (not a daemon thread) that needs to be stopped to exit the
-	 * program.
+	 * Sets a single-threaded executor to this client.
+	 * 
+	 * All handlers will be invoked by this executor. Note that the client
+	 * executor uses a user thread (not a daemon thread) that needs to be
+	 * stopped to exit the program by calling {@link #shutdown()}.
 	 *
 	 * @return the CoAP client
+	 * @throws IllegalStateException if executor is already set or used.
 	 */
 	public CoapClient useExecutor() {
-		this.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		boolean failed = true;
+		ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		synchronized (this) {
+			if (this.executor == null) {
+				this.executor = executor;
+				this.detachExecutor = false;
+				failed = false;
+			}
+		}
+		if (failed) {
+			executor.shutdownNow();
+			throw new IllegalStateException("Executor already set or used!");
+		}
 
-		// activates the executor so that this user thread starts deterministically
+		// activates the executor so that this user thread starts
+		// deterministically
 		executor.execute(new Runnable() {
 
 			public void run() {
 				LOGGER.config("Using a SingleThreadExecutor for the CoapClient");
 			};
 		});
-
 		return this;
 	}
 
 	/**
-	 * Sets the executor service for this client. All handlers will be invoked
-	 * by this executor.
-	 *
+	 * Sets the executor service for this client.
+	 * 
+	 * All handlers will be invoked by this executor. The executor will shutdown
+	 * on {@link #shutdown()}.
+	 * 
 	 * @param executor the executor service
 	 * @return the CoAP client
+	 * @throws IllegalStateException if executor is already set or used.
+	 * @throws NullPointerException if provided executor is null
 	 */
 	public CoapClient setExecutor(ExecutorService executor) {
-		this.executor = executor;
+		return setExecutor(executor, false);
+	}
+
+	/**
+	 * Sets the executor service for this client.
+	 * 
+	 * All handlers will be invoked by this executor. The executor will shutdown
+	 * on {@link #shutdown()}, if not detached.
+	 * 
+	 * @param executor the executor service
+	 * @param detach {@code true}, if the executor is not shutdown on
+	 *            {@link #shutdown()}, {@code false}, otherwise.
+	 * @return the CoAP client
+	 * @throws IllegalStateException if executor is already set or used.
+	 * @throws NullPointerException if provided executor is null
+	 */
+	public CoapClient setExecutor(ExecutorService executor, boolean detach) {
+		if (executor == null) {
+			throw new NullPointerException("Executor must not be null!");
+		}
+		boolean failed = true;
+		synchronized (this) {
+			if (this.executor == null) {
+				this.executor = executor;
+				this.detachExecutor = detach;
+				failed = false;
+			}
+		}
+		if (failed) {
+			throw new IllegalStateException("Executor already set or used!");
+		}
 		return this;
 	}
 
@@ -220,20 +280,23 @@ public class CoapClient {
 	 *
 	 * @return the endpoint
 	 */
-	public Endpoint getEndpoint() {
+	public synchronized Endpoint getEndpoint() {
 		return endpoint;
 	}
 
 	/**
 	 * Sets the endpoint this client is supposed to use.
+	 * 
+	 * The endpoint maybe shared among clients. Therefore {@link #shutdown()}
+	 * doesn't close nor destroy it.
 	 *
 	 * @param endpoint the endpoint
 	 * @return the CoAP client
 	 */
 	public CoapClient setEndpoint(Endpoint endpoint) {
-
-		this.endpoint = endpoint;
-
+		synchronized (this) {
+			this.endpoint = endpoint;
+		}
 		if (!endpoint.isStarted()) {
 			try {
 				endpoint.start();
@@ -745,16 +808,20 @@ public class CoapClient {
 	}
 
 	/**
-	 * Stops the client-specific executor service to cleanly exit programs. Only
+	 * Shutdown the client-specific executor service, when not detached. Only
 	 * needed if {@link #useExecutor()} or {@link #setExecutor(ExecutorService)}
 	 * are used (i.e., a client-specific executor service was set).
 	 */
 	public void shutdown() {
-		if (this.executor != null) {
-			this.executor.shutdownNow();
+		ExecutorService executor;
+		boolean shutdown;
+		synchronized (this) {
+			executor = this.executor;
+			shutdown = !this.detachExecutor;
+			this.executor = null;
 		}
-		if (this.endpoint != null) {
-			this.endpoint.destroy();
+		if (shutdown && executor != null) {
+			executor.shutdownNow();
 		}
 	}
 
@@ -797,6 +864,10 @@ public class CoapClient {
 			if (response == null) {
 				// Cancel request so appropriate clean up can happen.
 				request.cancel();
+				Throwable sendError = request.getSendError();
+				if (sendError != null) {
+					throw new RuntimeException(sendError);
+				}
 				return null;
 			} else {
 				return new CoapResponse(response);
@@ -987,6 +1058,25 @@ public class CoapClient {
 		return EndpointManager.getEndpointManager().getDefaultEndpoint(request.getScheme());
 	}
 
+	protected void execute(Runnable job) {
+		ExecutorService executor;
+		synchronized (this) {
+			executor = this.executor;
+		}
+		if (executor == null) {
+			job.run();
+		} else {
+			try {
+				// use thread from the client executer
+				executor.execute(job);
+			} catch (RejectedExecutionException ex) {
+				if (!executor.isShutdown()) {
+					LOGGER.log(Level.WARNING, "failed to execute job!");
+				}
+			}
+		}
+	}
+
 	/*
 	 * Create a GET request with a type specified in the client
 	 *
@@ -1108,23 +1198,16 @@ public class CoapClient {
 		 * @param response the response
 		 */
 		protected void succeeded(final CoapResponse response) {
-			if (executor == null) {
-				// use thread from the protocol stage
-				deliver(response);
-			}
-			else {
-				// use thread from the client executer
-				executor.execute(new Runnable() {
+			execute(new Runnable() {
 
-					public void run() {
-						try {
-							deliver(response);
-						} catch (Throwable t) {
-							LOGGER.log(Level.WARNING, "Exception while handling response", t);
-						}
+				public void run() {
+					try {
+						deliver(response);
+					} catch (Throwable t) {
+						LOGGER.log(Level.WARNING, "Exception while handling response", t);
 					}
-				});
-			}
+				}
+			});
 		}
 
 		/**
@@ -1145,23 +1228,16 @@ public class CoapClient {
 		 */
 		@Override
 		protected void failed() {
-			if (executor == null) {
-				// use thread from the protocol stage
-				handler.onError();
-			}
-			else {
-				// use thread from the client executer
-				executor.execute(new Runnable() {
+			execute(new Runnable() {
 
-					public void run() {
-						try {
-							handler.onError();
-						} catch (Throwable t) {
-							LOGGER.log(Level.WARNING, "Exception while handling failure", t);
-						}
+				public void run() {
+					try {
+						handler.onError();
+					} catch (Throwable t) {
+						LOGGER.log(Level.WARNING, "Exception while handling failure", t);
 					}
-				});
-			}
+				}
+			});
 		}
 	}
 
