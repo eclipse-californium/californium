@@ -1099,7 +1099,7 @@ public class DTLSConnector implements Connector {
 				sendHelloVerify(clientHello, record, expectedCookie);
 				return false;
 			}
-		} catch (GeneralSecurityException | CloneNotSupportedException e) {
+		} catch (GeneralSecurityException e) {
 			throw new DtlsHandshakeException("Cannot compute cookie for peer", AlertDescription.INTERNAL_ERROR,
 					AlertLevel.FATAL, clientHello.getPeer(), e);
 		}
