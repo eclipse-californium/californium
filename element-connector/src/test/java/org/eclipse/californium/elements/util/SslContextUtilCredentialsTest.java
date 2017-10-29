@@ -35,7 +35,7 @@ public class SslContextUtilCredentialsTest {
 
 	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";
-	public static final String KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_PROTOCOL + "certs/keyStore.jks";
+	public static final String KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/keyStore.jks";
 
 	public static final String ALIAS_SERVER = "server";
 	public static final String ALIAS_CLIENT = "client";
