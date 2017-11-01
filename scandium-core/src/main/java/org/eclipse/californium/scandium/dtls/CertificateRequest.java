@@ -15,6 +15,10 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix matching of signature algorithm
+ *                                                    for android using characters with
+ *                                                    different case "SHA256WITHECDSA"
+ *                                                    instead of "SHA256withECDSA"
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -495,10 +499,13 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	boolean isSignedWithSupportedAlgorithm(X509Certificate[] chain) {
 
-		for (X509Certificate cert : chain) {
+		for (int index=0; index < chain.length; ++index) {
+			X509Certificate cert = chain[index];
 			boolean certSignatureAlgorithmSupported = false;
 			for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
-				if (supportedAlgorithm.jcaName().equals(cert.getSigAlgName())) {
+				// android's certificate returns a upper case SigAlgName, e.g. "SHA256WITHECDSA"
+				// But the jcaName returns a mixed case name, e.g. "SHA256withECDSA"
+				if (supportedAlgorithm.jcaName().equalsIgnoreCase(cert.getSigAlgName())) {
 					certSignatureAlgorithmSupported = true;
 					break;
 				}
