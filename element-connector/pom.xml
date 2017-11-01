@@ -69,6 +69,7 @@
 				<executions>
 					<execution>
 						<goals>
+							<!-- export NetworkRule and RepeatingTestRunner for tests -->
 							<goal>test-jar</goal>
 						</goals>
 					</execution>
