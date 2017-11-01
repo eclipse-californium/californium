@@ -141,8 +141,9 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
 				<version>${project.version}</version>
-				<scope>test</scope>
 				<classifier>tests</classifier>
+				<scope>test</scope>
+				<type>test-jar</type>
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
@@ -239,6 +240,11 @@
 							</goals>
 						</execution>
 					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.0.2</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>
