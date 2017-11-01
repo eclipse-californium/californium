@@ -65,10 +65,10 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.0.2</version>
 				<executions>
 					<execution>
 						<goals>
+							<!-- export NetworkRule and RepeatingTestRunner for tests -->
 							<goal>test-jar</goal>
 						</goals>
 					</execution>
