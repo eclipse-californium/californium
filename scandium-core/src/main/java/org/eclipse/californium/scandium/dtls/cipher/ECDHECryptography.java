@@ -17,6 +17,8 @@
  *                                                    add SupportedGroup enum also holding
  *                                                    curve params, add brainpool curve params
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - include only usable groups into the
+ *                                                    preferred groups.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -499,7 +501,7 @@ public final class ECDHECryptography {
 					result.add(group);
 				}
 			}
-			return result.toArray(new SupportedGroup[]{});
+			return result.toArray(new SupportedGroup[result.size()]);
 		}
 
 		/**
@@ -508,16 +510,26 @@ public final class ECDHECryptography {
 		 * @return the groups in order of preference
 		 */
 		public static List<SupportedGroup> getPreferredGroups() {
+			SupportedGroup usableGroup = null;
 			List<SupportedGroup> result = new ArrayList<>();
 			for (SupportedGroup group : SupportedGroup.values()) {
 				switch(group) {
 				case secp256r1:
 				case secp384r1:
 				case secp521r1:
-					result.add(group);
+					if (group.isUsable()) {
+						result.add(group);
+					}
+					break;
 				default:
+					if (usableGroup == null && group.isUsable()) {
+						usableGroup = group;
+					}
 					// skip
 				}
+			}
+			if (result.isEmpty() && usableGroup != null) {
+				result.add(usableGroup);
 			}
 			return result;
 		}
