@@ -355,6 +355,7 @@ public abstract class Handshaker {
 						return fragment;
 					} else {
 						// store message for later processing
+						LOGGER.debug("Change Cipher Spec is not expected and therefore kept for later processing!");
 						changeCipherSpec = (ChangeCipherSpecMessage) fragment;
 						return null;
 					}
