@@ -26,6 +26,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 
 /**
  * Credentials utility for setup DTLS credentials.
@@ -37,17 +38,29 @@ public class CredentialsUtil {
 	 */
 	public enum Mode {
 		/**
-		 * Preshared secret keys
+		 * Preshared secret keys.
 		 */
 		PSK,
 		/**
-		 * Raw public key certificates
+		 * Raw public key certificates.
 		 */
 		RPK,
 		/**
-		 * X.509 certificates
+		 * X.509 certificates.
 		 */
-		X509
+		X509,
+		/**
+		 * raw public key certificates just trusted (client only).
+		 */
+		RPK_TRUST,
+		/**
+		 * X.509 certificates just trusted (client only).
+		 */
+		X509_TRUST,
+		/**
+		 * No client authentication (server only).
+		 */
+		NO_AUTH,
 	}
 
 	/**
@@ -74,19 +87,38 @@ public class CredentialsUtil {
 	 * Parse arguments to modes.
 	 * 
 	 * @param args arguments
-	 * @return array of modes. if the arguments are empty,
-	 *         {@link #DEFAULT_MODES} is returned.
+	 * @param defaults default modes to use, if argument is empty or only
+	 *            contains {@link Mode#NO_AUTH}.
+	 * @param supported supported modes
+	 * @return array of modes.
 	 */
-	public static List<Mode> parse(String[] args) {
+	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
+		List<Mode> modes;
 		if (args.length == 0) {
-			return DEFAULT_MODES;
-		}
-		List<Mode> modes = new ArrayList<>(args.length);
-		for (String mode : args) {
-			try {
-				modes.add(Mode.valueOf(mode));
-			} catch (IllegalArgumentException ex) {
+			modes = new ArrayList<>();
+			if (defaults != null) {
+				modes.addAll(defaults);
 			}
+		} else {
+			modes = new ArrayList<>(args.length);
+			for (String mode : args) {
+				try {
+					modes.add(Mode.valueOf(mode));
+				} catch (IllegalArgumentException ex) {
+					throw new IllegalArgumentException("Argument '" + mode + "' unkown!");
+				}
+			}
+		}
+		if (supported != null) {
+			for (Mode mode : modes) {
+				if (!supported.contains(mode)) {
+					throw new IllegalArgumentException("Mode '" + mode + "' not supported!");
+				}
+			}
+		}
+		// adjust default for "NO_AUTH"
+		if (defaults != null && modes.size() == 1 && modes.contains(Mode.NO_AUTH)) {
+			modes.addAll(defaults);
 		}
 		return modes;
 	}
@@ -135,23 +167,25 @@ public class CredentialsUtil {
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
 			config.setPskStore(pskStore);
 		}
+		boolean x509Trust = modes.contains(Mode.X509_TRUST);
 		int x509 = modes.indexOf(Mode.X509);
 		int rpk = modes.indexOf(Mode.RPK);
 
-		if (x509 >= 0 || rpk >= 0) {
+		if (x509 >= 0 || rpk >= 0 || x509Trust) {
 			SslContextUtil.Credentials serverCredentials = null;
 			Certificate[] trustedCertificates = null;
 
 			try {
 				// try to read certificates
-				serverCredentials = SslContextUtil.loadCredentials(
-						SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION, certificateAlias, KEY_STORE_PASSWORD,
-						KEY_STORE_PASSWORD);
-				if (x509 >= 0) {
+				serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+						certificateAlias, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+				if (x509 >= 0 || x509Trust) {
 					trustedCertificates = SslContextUtil.loadTrustedCertificates(
-							SslContextUtil.CLASSPATH_PROTOCOL + TRUST_STORE_LOCATION, TRUST_NAME, TRUST_STORE_PASSWORD);
-					config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-							rpk >= 0 && rpk < x509);
+							SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME, TRUST_STORE_PASSWORD);
+					if (x509 >= 0) {
+						config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+								rpk >= 0 && rpk < x509);
+					}
 					config.setTrustStore(trustedCertificates);
 				} else {
 					config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
@@ -174,6 +208,12 @@ public class CredentialsUtil {
 					throw new IllegalArgumentException(e.getMessage());
 				}
 			}
+		}
+		if (modes.contains(Mode.RPK_TRUST)) {
+			config.setRpkTrustStore(new TrustAllRpks());
+		}
+		if (modes.contains(Mode.NO_AUTH)) {
+			config.setClientAuthenticationRequired(false);
 		}
 	}
 }

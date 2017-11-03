@@ -21,6 +21,10 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for checking if suite requires
  *               sending of a CERTIFICATE message to the client
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add containsEccBasedCipherSuite
+ *                                                    support for certificate-based,
+ *                                                    none ECC-based cipher suites is
+ *                                                    still missing!
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -291,6 +295,26 @@ public enum CipherSuite {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Check, if a ECC based cipher is used.
+	 * 
+	 * @param cipherSuites list of ciper suite to be checked
+	 * 
+	 * @return {@code true}, if such a cipher suite is configured,
+	 *         {@code false}, otherwise.
+	 * 
+	 */
+	public static boolean containsEccBasedCipherSuite(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.isEccBased()) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	// Serialization //////////////////////////////////////////////////

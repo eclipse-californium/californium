@@ -264,7 +264,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		clientRandom = message.getRandom();
 
-		message.addCipherSuite(session.getCipherSuite());
 		message.addCompressionMethod(session.getCompressionMethod());
 		if (maxFragmentLengthCode != null) {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
