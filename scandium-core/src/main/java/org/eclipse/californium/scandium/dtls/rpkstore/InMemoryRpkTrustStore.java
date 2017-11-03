@@ -13,10 +13,12 @@
  * Contributors:
  *    Ludwig Seitz (RISE SICS) - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.scandium.dtls.rpkstore;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 
 /**
  * A raw public key store that stores the trusted keys in memory.

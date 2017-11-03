@@ -32,11 +32,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.scandium.auth.TrustAllRpks;
-import org.eclipse.californium.scandium.auth.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
