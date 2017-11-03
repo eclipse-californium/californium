@@ -43,6 +43,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - ignore timeout on blockwise notify
  *                                                    issue 451
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
+ *                                                    issue 465
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -194,21 +196,22 @@ public abstract class BaseMatcher implements Matcher {
 
 					@Override
 					public void onResponse(Response resp) {
-						// check whether the client has established the observe
-						// requested
-						if (!resp.getOptions().hasObserve()) {
-							// Observe response received with no observe option
-							// set. It could be that the Client was not able to
-							// establish the observe. So remove the observe
-							// relation from observation store, which was stored
-							// earlier when the request was sent.
-							LOG.debug(
-									"response to observe request with token {} does not contain observe option, removing request from observation store",
-									idByToken);
-							observationStore.remove(request.getToken());
-							exchangeStore.releaseToken(idByToken);
-						} else {
+						// check whether the client has established the observe requested
+						try {
 							notificationListener.onNotification(request, resp);
+						} finally {
+							if (!resp.getOptions().hasObserve()) {
+								// Observe response received with no observe option
+								// set. It could be that the Client was not able to
+								// establish the observe. So remove the observe
+								// relation from observation store, which was stored
+								// earlier when the request was sent.
+								LOG.debug(
+										"response to observe request with token {} does not contain observe option, removing request from observation store",
+										idByToken);
+								observationStore.remove(request.getToken());
+								exchangeStore.releaseToken(idByToken);
+							}
 						}
 					}
 					
