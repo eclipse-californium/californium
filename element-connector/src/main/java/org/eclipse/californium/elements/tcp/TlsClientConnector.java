@@ -15,14 +15,23 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - create "remote aware" SSLEngine
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
+ * Achim Kraus (Bosch Software Innovations GmbH) - delay sending message after complete
+ *                                                 TLS handshake.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.TlsEndpointContext;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -32,7 +41,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A TCP client connector that establishes outbound TLS connections.
+ * A TLS client connector that establishes outbound TLS connections.
  */
 public class TlsClientConnector extends TcpClientConnector {
 
@@ -60,6 +69,36 @@ public class TlsClientConnector extends TcpClientConnector {
 			this.sslContext.init(null, null, null);
 		} catch (NoSuchAlgorithmException | KeyManagementException e) {
 			throw new RuntimeException("Unable to initialize SSL context", e);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Delay message sending after TLS handshake is completed.
+	 */
+	@Override
+	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg)
+	{
+		SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
+		if (sslHandler == null) {
+			throw new RuntimeException("Missing SslHandler");
+		} else {
+			Future<Channel> handshakeFuture = sslHandler.handshakeFuture();
+			handshakeFuture.addListener(new GenericFutureListener<Future<Channel>>() {
+
+				@Override
+				public void operationComplete(Future<Channel> future) throws Exception {
+					if (future.isSuccess()) {
+						EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+						if (context == null || context.get(TlsEndpointContext.KEY_SESSION_ID) == null) {
+							throw new RuntimeException("Missing TlsEndpointContext " + context);
+						}
+						/* success, call super.send() to actually send the message */ 
+						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
+					}
+				}
+			});
 		}
 	}
 

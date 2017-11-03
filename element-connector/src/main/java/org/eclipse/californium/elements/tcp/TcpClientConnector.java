@@ -25,6 +25,10 @@
  *                                                 issue #305
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
+ * Achim Kraus (Bosch Software Innovations GmbH) - add method send(), which is called after
+ *                                                 acquire future, to delay sending the message
+ *                                                 after TLS handshake completes overwriting
+ *                                                 this method in a sub-class.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -57,8 +61,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * TCP client connection is used by CoapEndpoint when instantiated by the CoapClient. Per RFC the client can both
- * send and receive messages, but cannot accept new incoming connections.
+ * TCP client connection is used by CoapEndpoint when instantiated by the
+ * CoapClient. Per RFC the client can both send and receive messages, but cannot
+ * accept new incoming connections.
  */
 public class TcpClientConnector implements Connector {
 
@@ -85,7 +90,8 @@ public class TcpClientConnector implements Connector {
 		this.connectTimeoutMillis = connectTimeoutMillis;
 	}
 
-	@Override public synchronized void start() throws IOException {
+	@Override
+	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
@@ -97,26 +103,30 @@ public class TcpClientConnector implements Connector {
 		workerGroup = new NioEventLoopGroup(numberOfThreads);
 		poolMap = new AbstractChannelPoolMap<SocketAddress, ChannelPool>() {
 
-			@Override protected ChannelPool newPool(SocketAddress key) {
+			@Override
+			protected ChannelPool newPool(SocketAddress key) {
 				Bootstrap bootstrap = new Bootstrap().group(workerGroup).channel(NioSocketChannel.class)
 						.option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.AUTO_READ, true)
 						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis).remoteAddress(key);
 
-				// We multiplex over the same TCP connection, so don't acquire more than one connection per endpoint.
+				// We multiplex over the same TCP connection, so don't acquire
+				// more than one connection per endpoint.
 				// TODO: But perhaps we could make it a configurable property.
 				return new FixedChannelPool(bootstrap, new MyChannelPoolHandler(key), 1);
 			}
 		};
 	}
 
-	@Override public synchronized void stop() {
-		if (null != workerGroup) {
+	@Override
+	public synchronized void stop() {
+		if (workerGroup != null) {
 			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
 
-	@Override public void destroy() {
+	@Override
+	public void destroy() {
 		stop();
 	}
 
@@ -125,7 +135,7 @@ public class TcpClientConnector implements Connector {
 		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
-		if (null != endpointMatcher && !poolMap.contains(addressKey)
+		if (endpointMatcher != null && !poolMap.contains(addressKey)
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
 			if (LOGGER.isLoggable(Level.WARNING)) {
 				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to new {1}:{2}",
@@ -142,33 +152,8 @@ public class TcpClientConnector implements Connector {
 			public void operationComplete(Future<Channel> future) throws Exception {
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
-					EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
 					try {
-						/* check, if the message should be sent with the established connection */
-						if (null != endpointMatcher
-								&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-							if (LOGGER.isLoggable(Level.WARNING)) {
-								LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
-										new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
-							}
-							msg.onError(new EndpointMismatchException());
-							return;
-						}
-						msg.onContextEstablished(context);
-						ChannelFuture channelFuture = channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
-						channelFuture.addListener(new GenericFutureListener<ChannelFuture>() {
-
-							@Override
-							public void operationComplete(ChannelFuture future) throws Exception {
-								if (future.isSuccess()) {
-									msg.onSent();
-								} else if (future.isCancelled()) {
-									msg.onError(new CancellationException());
-								} else {
-									msg.onError(future.cause());
-								}
-							}
-						});
+						send(channel, endpointMatcher, msg);
 					} finally {
 						channelPool.release(channel);
 					}
@@ -179,7 +164,48 @@ public class TcpClientConnector implements Connector {
 		});
 	}
 
-	@Override public void setRawDataReceiver(RawDataChannel messageHandler) {
+	/**
+	 * Send message with acquired channel.
+	 * 
+	 * Intended to be overridden, if message sending should be delayed to
+	 * complete a TLS handshake.
+	 * 
+	 * @param channel acquired channel
+	 * @param endpointMatcher endpoint matcher
+	 * @param msg message to be send
+	 */
+	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg) {
+		EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+		/*
+		 * check, if the message should be sent with the established connection
+		 */
+		if (endpointMatcher != null && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
+			if (LOGGER.isLoggable(Level.WARNING)) {
+				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
+						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			}
+			msg.onError(new EndpointMismatchException());
+			return;
+		}
+		msg.onContextEstablished(context);
+		ChannelFuture channelFuture = channel.writeAndFlush(Unpooled.wrappedBuffer(msg.getBytes()));
+		channelFuture.addListener(new GenericFutureListener<ChannelFuture>() {
+
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				if (future.isSuccess()) {
+					msg.onSent();
+				} else if (future.isCancelled()) {
+					msg.onError(new CancellationException());
+				} else {
+					msg.onError(future.cause());
+				}
+			}
+		});
+	}
+
+	@Override
+	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		if (rawDataChannel != null) {
 			throw new IllegalStateException("Raw data channel already set.");
 		}
@@ -196,15 +222,19 @@ public class TcpClientConnector implements Connector {
 		return endpointContextMatcher;
 	}
 
-	@Override public InetSocketAddress getAddress() {
+	@Override
+	public InetSocketAddress getAddress() {
 		// Client TCP connector doesn't really have an address it binds to.
 		return localSocketAddress;
 	}
 
 	/**
-	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
-	 * At this stage the channel is not connected, and therefore the {@link Channel#remoteAddress()} is null. To create
-	 * a "remote peer" aware SSLEngine, provide the remote address as additional parameter.
+	 * Called when a new channel is created, Allows subclasses to add their own
+	 * handlers first, like an SSL handler. At this stage the channel is not
+	 * connected, and therefore the {@link Channel#remoteAddress()} is null. To
+	 * create a "remote peer" aware SSLEngine, provide the remote address as
+	 * additional parameter.
+	 * 
 	 * @param remote remote address the channel will be connected to.
 	 * @param ch new created channel
 	 */
@@ -219,7 +249,7 @@ public class TcpClientConnector implements Connector {
 	@Override
 	public String toString() {
 		return getProtocol() + "-" + getAddress();
-	}	
+	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
 
@@ -257,8 +287,10 @@ public class TcpClientConnector implements Connector {
 			this.key = key;
 		}
 
-		@Override public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-			// TODO: This only works with fixed sized pool with connection one. Otherwise it's not save to remove and
+		@Override
+		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+			// TODO: This only works with fixed sized pool with connection one.
+			// Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
 			poolMap.remove(key);
 		}

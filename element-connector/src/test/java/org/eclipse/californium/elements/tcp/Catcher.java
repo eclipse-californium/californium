@@ -14,17 +14,23 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add "blockUntilSize" with
  *                                                 timeout and "hasMessage". 
+ * Achim Kraus (Bosch Software Innovations GmbH) - make methods public
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-class Catcher implements RawDataChannel {
+public class Catcher implements RawDataChannel {
 
 	private final List<RawData> messages = new ArrayList<>();
 	private final Object lock = new Object();
@@ -37,7 +43,7 @@ class Catcher implements RawDataChannel {
 		}
 	}
 
-	void blockUntilSize(int expectedSize) throws InterruptedException {
+	public void blockUntilSize(int expectedSize) throws InterruptedException {
 		synchronized (lock) {
 			while (messages.size() < expectedSize) {
 				lock.wait();
@@ -45,7 +51,7 @@ class Catcher implements RawDataChannel {
 		}
 	}
 
-	void blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
+	public void blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
 		synchronized (lock) {
 			timeout += TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 			while (messages.size() < expectedSize) {
@@ -57,13 +63,29 @@ class Catcher implements RawDataChannel {
 		}
 	}
 
-	RawData getMessage(int index) {
+	public RawData getMessage(int index) {
 		synchronized (lock) {
 			return messages.get(index);
 		}
 	}
 
-	boolean hasMessage(int index) {
+	/**
+	 * Get endpoint context of message with provided index.
+	 * 
+	 * @param index index o f message
+	 * @return endpoint context
+	 * @throws IndexOutOfBoundsException, if index is greater than the number of
+	 *             received messages
+	 */
+	public EndpointContext getEndpointContext(int index) {
+		RawData msg = getMessage(index);
+		assertThat(msg, is(notNullValue()));
+		EndpointContext context = msg.getEndpointContext();
+		assertThat(context, is(notNullValue()));
+		return context;
+	}
+
+	public boolean hasMessage(int index) {
 		synchronized (lock) {
 			return index < messages.size();
 		}
