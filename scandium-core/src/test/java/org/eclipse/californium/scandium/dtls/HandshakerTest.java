@@ -42,10 +42,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.californium.scandium.auth.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.scandium.auth.TrustedRpkStore;
 import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

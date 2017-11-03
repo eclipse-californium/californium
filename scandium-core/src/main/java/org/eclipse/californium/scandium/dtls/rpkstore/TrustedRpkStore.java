@@ -13,19 +13,26 @@
  * Contributors:
  *    Ludwig Seitz (RISE SICS) - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.scandium.dtls.rpkstore;
+
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 
 /**
- * A basic raw public key trust store that trusts all raw public keys.
+ * An interface for trust stores that provide trusted raw public keys to the
+ * handshaker.
  * 
  * @author Ludwig Seitz
  *
  */
-public class TrustAllRpks implements TrustedRpkStore {
+public interface TrustedRpkStore {
 
-	@Override
-	public boolean isTrusted(RawPublicKeyIdentity id) {
-		return true;
-	}
+	/**
+	 * Is the given raw public key trusted?
+	 * 
+	 * @param id  the identity of the public key
+	 * 
+	 * @return true if trusted, false otherwise
+	 */
+	public boolean isTrusted(RawPublicKeyIdentity id);
 
 }
