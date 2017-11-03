@@ -30,6 +30,8 @@
  *                                                    supportedServerCertificateTypes
  *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add certificate types only,
+ *                                                    if certificates are used
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -41,6 +43,7 @@ import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,18 +87,18 @@ public class ClientHandshaker extends Handshaker {
 	protected ClientHello clientHello = null;
 
 	/** the preferred cipher suites ordered by preference */
-	private final CipherSuite[] preferredCipherSuites;
+	private final List<CipherSuite> preferredCipherSuites;
 
 	protected Integer maxFragmentLengthCode;
 
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
-	protected List<CertificateType> supportedClientCertificateTypes;
+	protected final List<CertificateType> supportedClientCertificateTypes;
 	/**
 	 * The certificate types this server supports for server authentication.
 	 */
-	protected List<CertificateType> supportedServerCertificateTypes;
+	protected final List<CertificateType> supportedServerCertificateTypes;
 
 	/*
 	 * Store all the message which can possibly be sent by the server. We need
@@ -152,25 +155,31 @@ public class ClientHandshaker extends Handshaker {
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
 		this.serverNameResolver = config.getServerNameResolver();
-		this.preferredCipherSuites = config.getSupportedCipherSuites();
+		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		if (rootCertificates != null && rootCertificates.length > 0) {
-			int index = config.isSendRawKey() ? 1 : 0;
-			this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
-		}
-
 		this.supportedClientCertificateTypes = new ArrayList<>();
-		if (privateKey != null && publicKey != null) {
-			if (certificateChain == null || certificateChain.length == 0) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			} else if (config.isSendRawKey()) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				this.supportedClientCertificateTypes.add(CertificateType.X_509);
-			} else {
-				this.supportedClientCertificateTypes.add(CertificateType.X_509);
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+
+		// Currently scandium offers only ECC-based cipher suite, 
+		// but no other certificate-based CiperSuites.
+		// Correct this check, if other certificates are supported
+		if (CipherSuite.containsEccBasedCipherSuite(preferredCipherSuites)) {
+			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			if (rootCertificates != null && rootCertificates.length > 0) {
+				int index = config.isSendRawKey() ? 1 : 0;
+				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
+			}
+
+			if (privateKey != null && publicKey != null) {
+				if (certificateChain == null || certificateChain.length == 0) {
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				} else if (config.isSendRawKey()) {
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+				} else {
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				}
 			}
 		}
 	}
@@ -653,16 +662,13 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(),
+		
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
+				preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
 		clientRandom = startMessage.getRandom();
-
-		// the preferred cipher suites in order of preference
-		for (CipherSuite supportedSuite : preferredCipherSuites) {
-			startMessage.addCipherSuite(supportedSuite);
-		}
 
 		startMessage.addCompressionMethod(CompressionMethod.NULL);
 		if (maxFragmentLengthCode != null) {

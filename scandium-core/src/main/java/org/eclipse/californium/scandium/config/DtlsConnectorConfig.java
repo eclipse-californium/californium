@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - include trustedRPKs in
+ *                                                    determineCipherSuitesFromConfig
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -865,9 +867,6 @@ public final class DtlsConnectorConfig {
 			if (config.trustStore == null) {
 				config.trustStore = new X509Certificate[0];
 			}
-			if (config.trustedRPKs == null) {
-				config.trustedRPKs = new TrustAllRpks();
-			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = true;
 			}
@@ -892,16 +891,22 @@ public final class DtlsConnectorConfig {
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
-			if (config.getSupportedCipherSuites().length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
+			}
+			if (config.trustedRPKs == null) {
+				// must be set after determineCipherSuitesFromConfig(),
+				// otherwise this would be interpreted for client only
+				// as ECDHE_ECDSA support!
+				config.trustedRPKs = new TrustAllRpks();
 			}
 
 			// check cipher consistency
-			if (config.getSupportedCipherSuites().length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
 			}
-			for (CipherSuite suite : config.getSupportedCipherSuites()) {
+			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 				case TLS_PSK_WITH_AES_128_CBC_SHA256:
@@ -943,7 +948,13 @@ public final class DtlsConnectorConfig {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
-			if (isConfiguredWithKeyPair()) {
+			boolean certificates = isConfiguredWithKeyPair();
+			if (!certificates && clientOnly) {
+				certificates = config.trustedRPKs != null
+						|| (config.trustStore != null && config.trustStore.length > 0);
+			}
+
+			if (certificates) {
 				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 			}

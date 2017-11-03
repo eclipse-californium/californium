@@ -16,6 +16,10 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - make sure that sessionId is always
  *                                                    initialized properly
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add EC extensions only, 
+ *                                                    if ECC-based cipher suites are used.
+ *                                                    replace add cipher suite with
+ *                                                    list in constructor parameters
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -98,46 +102,48 @@ public final class ClientHello extends HandshakeMessage {
 	/**
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
 	 * 
-	 * @param version
-	 *            the protocol version to use
-	 * @param secureRandom
-	 *            a function to use for creating random values included in the
-	 *            message
-	 * @param supportedClientCertificateTypes
-	 *            the list of certificate types supported by the client
-	 * @param supportedServerCertificateTypes
-	 *            the list of certificate types supported by the server
-	 * @param peerAddress
-	 *            the IP address and port of the peer this message has been
-	 *            received from or should be sent to
+	 * @param version the protocol version to use
+	 * @param secureRandom a function to use for creating random values included
+	 *            in the message
+	 * @param cipherSuites the list of the supported cipher suites
+	 * @param supportedClientCertificateTypes the list of certificate types
+	 *            supported by the client
+	 * @param supportedServerCertificateTypes the list of certificate types
+	 *            supported by the server
+	 * @param peerAddress the IP address and port of the peer this message has
+	 *            been received from or should be sent to
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom,
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, List<CipherSuite> cipherSuites,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
-		this(version, secureRandom, null, supportedClientCertificateTypes, supportedServerCertificateTypes, peerAddress);
+		this(version, secureRandom, null, cipherSuites, supportedClientCertificateTypes,
+				supportedServerCertificateTypes, peerAddress);
 	}
 
 	/**
-	 * Creates a <em>Client Hello</em> message to be used for resuming an existing
-	 * DTLS session.
+	 * Creates a <em>Client Hello</em> message to be used for resuming an
+	 * existing DTLS session.
 	 * 
-	 * @param version
-	 *            the protocol version to use
-	 * @param secureRandom
-	 *            a function to use for creating random values included in the message
-	 * @param session
-	 *            the (already existing) DTLS session to resume
-	 * @param supportedClientCertificateTypes the list of certificate types supported by the client
-	 * @param supportedServerCertificateTypes the list of certificate types supported by the server
+	 * @param version the protocol version to use
+	 * @param secureRandom a function to use for creating random values included
+	 *            in the message
+	 * @param session the (already existing) DTLS session to resume
+	 * @param supportedClientCertificateTypes the list of certificate types
+	 *            supported by the client
+	 * @param supportedServerCertificateTypes the list of certificate types
+	 *            supported by the server
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session, List<CertificateType> supportedClientCertificateTypes,
+	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session,
+			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes) {
-		this(version, secureRandom, session.getSessionIdentifier(), supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
-		addCipherSuite(session.getWriteState().getCipherSuite());
+		this(version, secureRandom, session.getSessionIdentifier(),
+				Arrays.asList(session.getCipherSuite()), supportedClientCertificateTypes,
+				supportedServerCertificateTypes, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
-	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId, List<CertificateType> supportedClientCertificateTypes,
+	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId,
+			List<CipherSuite> cipherSuites, List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
 		this(peerAddress);
 		this.clientVersion = version;
@@ -148,16 +154,20 @@ public final class ClientHello extends HandshakeMessage {
 		} else {
 			this.sessionId = SessionId.emptySessionId();
 		}
+		if (cipherSuites != null) {
+			this.cipherSuites.addAll(cipherSuites);
+		}
 
-		// the supported groups
-		// TODO make list of supported groups configurable
-		SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[]{});
-		this.extensions.addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
+		if (CipherSuite.containsEccBasedCipherSuite(cipherSuites)) {
+			// the supported groups
+			// TODO make list of supported groups configurable
+			SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[] {});
+			this.extensions.addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
 
-		// the supported point formats
-		List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-		this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
-
+			// the supported point formats
+			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
+			this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
+		}
 		// the certificate types the client is able to provide to the server
 		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
@@ -349,13 +359,6 @@ public final class ClientHello extends HandshakeMessage {
 
 	public List<CipherSuite> getCipherSuites() {
 		return Collections.unmodifiableList(cipherSuites);
-	}
-
-	public void addCipherSuite(CipherSuite cipherSuite) {
-		if (cipherSuites == null) {
-			cipherSuites = new ArrayList<CipherSuite>();
-		}
-		cipherSuites.add(cipherSuite);
 	}
 
 	public List<CompressionMethod> getCompressionMethods() {
