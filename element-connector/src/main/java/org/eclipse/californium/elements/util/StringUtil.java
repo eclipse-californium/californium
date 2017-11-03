@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add byteArray2HexString
+ *                                                    and trunc
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -31,7 +33,7 @@ public class StringUtil {
 	 *             contains non hexadecimal characters.
 	 */
 	public static char[] hex2CharArray(String hex) {
-		if (null == hex) {
+		if (hex == null) {
 			return null;
 		}
 		int length = hex.length();
@@ -42,19 +44,61 @@ public class StringUtil {
 		char[] result = new char[length];
 		for (int indexDest = 0, indexSrc = 0; indexDest < length; ++indexDest) {
 			int digit = Character.digit(hex.charAt(indexSrc), 16);
-			if (0 > digit) {
+			if (digit < 0) {
 				throw new IllegalArgumentException("'" + hex + "' digit " + indexSrc + " is not hexadecimal!");
 			}
 			result[indexDest] = (char) (digit << 4);
 			++indexSrc;
 			digit = Character.digit(hex.charAt(indexSrc), 16);
-			if (0 > digit) {
+			if (digit < 0) {
 				throw new IllegalArgumentException("'" + hex + "' digit " + indexSrc + " is not hexadecimal!");
 			}
 			result[indexDest] |= (char) digit;
 			++indexSrc;
 		}
 		return result;
+	}
+
+	/**
+	 * Byte array to hexadecimal string.
+	 * 
+	 * @param byteArray byte array to be converted to string
+	 * @param max maximum bytes to be converted.
+	 * @return hexadecimal string
+	 */
+	public static String byteArray2HexString(byte[] byteArray, int max) {
+
+		if (byteArray != null && byteArray.length != 0) {
+			if (max == 0 || max > byteArray.length) {
+				max = byteArray.length;
+			}
+			StringBuilder builder = new StringBuilder(max * 3);
+			for (int i = 0; i < max; i++) {
+				builder.append(String.format("%02X", 0xFF & byteArray[i]));
+
+				if (i < max - 1) {
+					builder.append(' ');
+				}
+			}
+			return builder.toString();
+		} else {
+			return "--";
+		}
+	}
+
+	/**
+	 * Truncate provided string.
+	 * 
+	 * @param text string to be truncated, if length is over the provided
+	 *            maxLength
+	 * @param maxLength maximum length of string. (0 doesn't truncate)
+	 * @return truncated or original string
+	 */
+	public static String trunc(String text, int maxLength) {
+		if (text != null && maxLength > 0 && maxLength < text.length()) {
+			return text.substring(0, maxLength - 1);
+		}
+		return text;
 	}
 
 }

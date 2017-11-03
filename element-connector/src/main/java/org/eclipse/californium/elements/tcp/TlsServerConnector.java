@@ -15,6 +15,7 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - create "remote aware" SSLEngine
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
+ * Achim Kraus (Bosch Software Innovations GmbH) - add client authentication mode.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -32,13 +33,29 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A TCP client connector that establishes outbound TLS connections.
+ * A TLS server connector that accepts inbound TLS connections.
  */
 public class TlsServerConnector extends TcpServerConnector {
 
 	private static final Logger LOGGER = Logger.getLogger(TlsServerConnector.class.getName());
 
+	public static enum ClientAuthMode {
+		NONE, WANTED, NEEDED
+	}
+
 	private final SSLContext sslContext;
+	private final ClientAuthMode clientAuthMode;
+
+	/**
+	 * Initializes SSLEngine with specified SSL engine and client authentication
+	 * mode.
+	 */
+	public TlsServerConnector(SSLContext sslContext, ClientAuthMode clientAuthMode, InetSocketAddress socketAddress,
+			int numberOfThreads, int idleTimeout) {
+		super(socketAddress, numberOfThreads, idleTimeout);
+		this.sslContext = sslContext;
+		this.clientAuthMode = clientAuthMode;
+	}
 
 	/**
 	 * Initializes SSLEngine with specified SSL engine.
@@ -47,6 +64,7 @@ public class TlsServerConnector extends TcpServerConnector {
 			int idleTimeout) {
 		super(socketAddress, numberOfThreads, idleTimeout);
 		this.sslContext = sslContext;
+		this.clientAuthMode = ClientAuthMode.NONE;
 	}
 
 	/**
@@ -55,6 +73,7 @@ public class TlsServerConnector extends TcpServerConnector {
 	public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress, int numberOfThreads,
 			int idleTimeout) {
 		super(socketAddress, numberOfThreads, idleTimeout);
+		this.clientAuthMode = ClientAuthMode.NONE;
 
 		try {
 			this.sslContext = SSLContext.getInstance("TLS");
@@ -64,8 +83,19 @@ public class TlsServerConnector extends TcpServerConnector {
 		}
 	}
 
-	@Override protected void onNewChannelCreated(Channel ch) {
+	@Override
+	protected void onNewChannelCreated(Channel ch) {
 		SSLEngine sslEngine = createSllEngineForChannel(ch);
+		switch (clientAuthMode) {
+		case NONE:
+			break;
+		case WANTED:
+			sslEngine.setWantClientAuth(true);
+			break;
+		case NEEDED:
+			sslEngine.setNeedClientAuth(true);
+			break;
+		}
 		sslEngine.setUseClientMode(false);
 		ch.pipeline().addFirst(new SslHandler(sslEngine));
 	}

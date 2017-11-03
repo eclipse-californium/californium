@@ -51,8 +51,8 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 * 
 	 * @param peerAddress peer address of endpoint context
 	 * @param peerIdentity peer identity of endpoint context
-	 * @param attributes list of attributes (name-value pairs, e.g. k1, v1, k2,
-	 *            v2 ...)
+	 * @param attributes list of attributes (name-value pairs, e.g. key_1,
+	 *            value_1, key_2, value_2 ...)
 	 * @throws NullPointerException if provided peer address is {@code null}, or
 	 *             one of the attributes is {@code null}.
 	 * @throws IllegalArgumentException if provided attributes list has odd

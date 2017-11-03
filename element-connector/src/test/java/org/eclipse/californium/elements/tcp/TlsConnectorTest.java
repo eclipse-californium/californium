@@ -20,34 +20,24 @@
  *                                                 (LoopbackAddress)
  * Achim Kraus (Bosch Software Innovations GmbH) - add NUMBER_OF_CONNECTIONS
  *                                                 and reduce it to 50
+ * Achim Kraus (Bosch Software Innovations GmbH) - use demo-cert (credentials and trust)
+ *                                                 and move initializeSsl to 
+ *                                                 TlsConnectorTestUtil
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
+import static org.eclipse.californium.elements.tcp.TlsConnectorTestUtil.*;
 
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.security.KeyStore;
-import java.security.Security;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
@@ -59,15 +49,7 @@ import org.junit.rules.Timeout;
 
 public class TlsConnectorTest {
 
-	private static final Logger LOGGER = Logger.getLogger(TlsConnectorTest.class.getName());
-
-	private static final int NUMBER_OF_CONNECTIONS = 20;
-	private static final int NUMBER_OF_THREADS = 1;
-	private static final int IDLE_TIMEOUT = 100;
-	private static KeyManager[] keyManagers;
-	private static TrustManager[] trustManager;
-	private static SSLContext serverContext;
-	private static SSLContext clientContext;
+	private static final int NUMBER_OF_CONNECTIONS = 10;
 
 	@Rule
 	public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
@@ -75,31 +57,7 @@ public class TlsConnectorTest {
 
 	@BeforeClass
 	public static void initializeSsl() throws Exception {
-		String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
-		InputStream stream = TlsConnectorTest.class.getResourceAsStream("/certs/keyStore.jks");
-		if (null == stream) {
-			throw new IllegalStateException("missing demo-certs keystore!");
-		}
-
-		KeyStore keyStore = KeyStore.getInstance("JKS");
-		keyStore.load(stream, "endPass".toCharArray());
-		int counter = 0;
-		Enumeration<String> aliases = keyStore.aliases();
-		while (aliases.hasMoreElements()) {
-			++counter;
-			LOGGER.log(Level.INFO, "{0}. KeyStore Alias: {1}", new Object[] { counter, aliases.nextElement() });
-		}
-		// Set up key manager factory to use our key store
-		KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-		kmf.init(keyStore, "endPass".toCharArray());
-		keyManagers = kmf.getKeyManagers();
-		trustManager = new TrustManager[] { new TrustEveryoneTrustManager() };
-		// Initialize the SSLContext to work with our key managers.
-		serverContext = SSLContext.getInstance("TLS");
-		serverContext.init(keyManagers, null, null);
-
-		clientContext = SSLContext.getInstance("TLS");
-		clientContext.init(null, trustManager, null);
+		TlsConnectorTestUtil.initializeSsl();
 	}
 
 	@After
@@ -111,9 +69,10 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-				NUMBER_OF_THREADS, IDLE_TIMEOUT);
-		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, 10);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
+				IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -140,8 +99,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-				NUMBER_OF_THREADS, IDLE_TIMEOUT);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
+				IDLE_TIMEOUT_IN_S);
 		assertThat(server.getProtocol(), is("TLS"));
 		cleanup.add(server);
 
@@ -151,7 +110,8 @@ public class TlsConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
-			TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
+			TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
+					CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
 			client.setRawDataReceiver(clientCatcher);
@@ -183,8 +143,8 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			TlsServerConnector server = new TlsServerConnector(serverContext, createServerAddress(0),
-					NUMBER_OF_THREADS, IDLE_TIMEOUT);
+			TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0),
+					NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
 			server.setRawDataReceiver(serverCatcher);
@@ -193,7 +153,8 @@ public class TlsConnectorTest {
 			servers.put(getDestination(server.getAddress()), serverCatcher);
 		}
 
-		TlsClientConnector client = new TlsClientConnector(clientContext, NUMBER_OF_THREADS, 100, IDLE_TIMEOUT);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
 		cleanup.add(client);
 		Catcher clientCatcher = new Catcher();
 		client.setRawDataReceiver(clientCatcher);
@@ -210,39 +171,6 @@ public class TlsConnectorTest {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
 			catcher.blockUntilSize(1);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
-		}
-	}
-
-	private static class TrustEveryoneTrustManager implements X509TrustManager {
-
-		@Override
-		public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-		}
-
-		@Override
-		public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-			for (X509Certificate cert : x509Certificates) {
-				cert.checkValidity();
-				/* only check, if the subject DN starts with the expected name */
-				if (cert.getSubjectDN().getName()
-						.startsWith("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-")) {
-					return;
-				}
-			}
-			for (X509Certificate cert : x509Certificates) {
-				LOGGER.log(Level.WARNING, "Untrusted certificate from {0}", cert.getSubjectDN().getName());
-			}
-			if (0 < x509Certificates.length) {
-				throw new CertificateException("Unexpected domain name: "
-						+ x509Certificates[0].getSubjectDN().getName());
-			} else {
-				throw new CertificateException("Certificates missing!");
-			}
-		}
-
-		@Override
-		public X509Certificate[] getAcceptedIssuers() {
-			return new X509Certificate[0];
 		}
 	}
 }
