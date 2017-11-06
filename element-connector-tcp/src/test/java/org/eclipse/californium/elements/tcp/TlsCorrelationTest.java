@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.TlsConnectorTestUtil.SSLTestContext;
 import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;

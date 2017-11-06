@@ -16,7 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add javadoc for parameter
  *                                                    timeout
  ******************************************************************************/
-package org.eclipse.californium.elements.tcp;
+package org.eclipse.californium.elements.util;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;

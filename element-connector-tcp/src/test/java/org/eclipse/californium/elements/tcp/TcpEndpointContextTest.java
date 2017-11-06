@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;

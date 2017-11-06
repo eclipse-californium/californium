@@ -66,7 +66,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
