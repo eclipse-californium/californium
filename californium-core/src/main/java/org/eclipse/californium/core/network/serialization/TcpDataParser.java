@@ -24,7 +24,6 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.elements.tcp.DatagramFramer;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -40,8 +39,17 @@ public final class TcpDataParser extends DataParser {
 
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
+		int lengthSize = 0;
 		assertValidTokenLength(tokenLength);
-		reader.readBytes(DatagramFramer.getLengthFieldSize(len));
+
+		if (len == 13) {
+			lengthSize = 1;
+		} else if (len == 14) {
+			lengthSize = 2;
+		} else if (len == 15) {
+			lengthSize = 4;
+		}
+		reader.readBytes(lengthSize);
 		int code = reader.read(CODE_BITS);
 		byte token[] = reader.readBytes(tokenLength);
 

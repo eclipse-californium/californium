@@ -43,9 +43,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.elements.tcp.TcpClientConnector;
 
 /**
  * A factory for {@link Endpoint}s that can be used by clients for sending
@@ -174,18 +172,15 @@ public class EndpointManager {
 	 */
 	private Endpoint createDefaultEndpoint(String uriScheme) {
 		Endpoint endpoint;
-		NetworkConfig config = NetworkConfig.getStandard();
 
 		if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.config("Secure endpoint must be injected via setDefaultEndpoint(Scheme, Endpoint) to use the proper credentials");
+			LOGGER.config("Secure endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
 			return null;
 		} else if (CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			TcpClientConnector connector = new TcpClientConnector(config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS),
-					config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT),
-					config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT));
-			endpoint = new CoapEndpoint(connector, config);
+			LOGGER.config("tcp endpoint must be injected via setDefaultEndpoint(Endpoint)");
+			return null;
 		} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.config("Secure tcp endpoint must be injected via setDefaultEndpoint(Scheme, Endpoint) to use the proper credentials");
+			LOGGER.config("Secure tcp endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
 			return null;
 		} else {
 			endpoint = new CoapEndpoint();
