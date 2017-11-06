@@ -87,7 +87,28 @@ public class CoapUdpStack extends BaseCoapStack {
 	 */
 	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
+		Layer layers[] = new Layer[] {
+				createExchangeCleanupLayer(config),
+				createObserveLayer(config),
+				createBlockwiseLayer(config),
+				createReliabilityLayer(config)};
 
+		setLayers(layers);
+	}
+
+	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
+		return new ExchangeCleanupLayer();
+	}
+
+	protected Layer createObserveLayer(NetworkConfig config) {
+		return new ObserveLayer(config);
+	}
+
+	protected Layer createBlockwiseLayer(NetworkConfig config) {
+		return new BlockwiseLayer(config);
+	}
+
+	protected Layer createReliabilityLayer(NetworkConfig config) {
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
 			reliabilityLayer = CongestionControlLayer.newImplementation(config);
@@ -95,15 +116,6 @@ public class CoapUdpStack extends BaseCoapStack {
 		} else {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
-
-		Layer layers[] = new Layer[] {
-				new ExchangeCleanupLayer(),
-				new ObserveLayer(config),
-				new BlockwiseLayer(config),
-				reliabilityLayer };
-
-		setLayers(layers);
-
-		// make sure the endpoint sets a MessageDeliverer
+		return reliabilityLayer;
 	}
 }
