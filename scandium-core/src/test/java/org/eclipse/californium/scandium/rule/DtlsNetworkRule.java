@@ -17,7 +17,8 @@ package org.eclipse.californium.scandium.rule;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.DatagramFormatter;
@@ -42,7 +43,7 @@ import org.eclipse.californium.scandium.dtls.Record;
  */
 public class DtlsNetworkRule extends NetworkRule {
 
-	public static final Logger LOGGER = Logger.getLogger(DtlsNetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class.getName());
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0) {
 

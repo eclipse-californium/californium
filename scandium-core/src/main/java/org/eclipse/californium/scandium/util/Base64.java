@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Robert Harder and others
+ * Copyright (c) 2015, 2017 Robert Harder and others
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,12 +15,13 @@
  *                    Rob has provided explicit consent to re-distribute the code under EPL/EDL
  *                    (documented in CQ 9648 - http://dev.eclipse.org/ipzilla/show_bug.cgi?id=9648)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add option for preventing padding
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Encodes and decodes to and from Base64 notation.</p>
@@ -220,7 +221,7 @@ public class Base64
 	
 	/* ********  P R I V A T E   F I E L D S  ******** */  
 
-	private final static Logger LOG = Logger.getLogger(Base64.class.getName());
+	private final static Logger LOG = LoggerFactory.getLogger(Base64.class.getName());
 
 	/** Maximum line length (76) of Base64 output. */
 	private final static int MAX_LINE_LENGTH = 76;
@@ -1318,7 +1319,7 @@ public class Base64
 
 				}   // end try
 				catch( java.io.IOException e ) {
-					LOG.log(Level.INFO, e.getMessage(), e);
+					LOG.info(e.getMessage(), e);
 					// Just return originally-decoded bytes
 				}   // end catch
 				finally {

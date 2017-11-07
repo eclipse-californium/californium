@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - use credentials util to setup
  *                                                    DtlsConnectorConfig.Builder.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
@@ -32,7 +33,6 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.ScandiumLogger;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class SecureServer {
@@ -40,8 +40,6 @@ public class SecureServer {
 	static {
 		CaliforniumLogger.initialize();
 		CaliforniumLogger.setLevel(Level.CONFIG);
-		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.FINER);
 	}
 
 	// allows configuration via Californium.properties

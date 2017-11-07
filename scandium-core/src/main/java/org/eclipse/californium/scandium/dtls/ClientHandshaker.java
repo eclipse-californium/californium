@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
  *                                                    supportedServerCertificateTypes
  *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -41,8 +42,8 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -64,7 +65,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public class ClientHandshaker extends Handshaker {
 
-	private static final Logger LOGGER = Logger.getLogger(ClientHandshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -185,15 +186,15 @@ public class ClientHandshaker extends Handshaker {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
-		if (LOGGER.isLoggable(Level.FINE)) {
+		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
-			if (LOGGER.isLoggable(Level.FINEST)) {
+			if (LOGGER.isTraceEnabled()) {
 				msg.append(":").append(System.lineSeparator()).append(message);
 			}
-			LOGGER.fine(msg.toString());
+			LOGGER.debug(msg.toString());
 		}
 		
 		switch (message.getContentType()) {
@@ -203,8 +204,8 @@ public class ClientHandshaker extends Handshaker {
 		case CHANGE_CIPHER_SPEC:
 			// TODO check, if all expected messages already received
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{message.getPeer(), message.getContentType()});
+			LOGGER.debug("Processed {} message from peer [{}]",
+					message.getContentType(), message.getPeer());
 			break;
 
 		case HANDSHAKE:
@@ -271,8 +272,8 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			incrementNextReceiveSeq();
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
-					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
+			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
 			break;
 
 		default:
@@ -478,7 +479,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
+			LOGGER.debug("Using PSK identity: {}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
@@ -587,15 +588,15 @@ public class ClientHandshaker extends Handshaker {
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
 				}
-				if (LOGGER.isLoggable(Level.FINE)) {
-					LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
 				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
 				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client certificate chain [length: {0}] to server", truncatedChain.length);
+				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.length);
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
@@ -667,9 +668,8 @@ public class ClientHandshaker extends Handshaker {
 		if (maxFragmentLengthCode != null) {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
 			startMessage.addExtension(ext);
-			LOGGER.log(
-					Level.FINE,
-					"Indicating max. fragment length [{0}] to server [{1}]",
+			LOGGER.debug(
+					"Indicating max. fragment length [{}] to server [{}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
 

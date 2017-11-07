@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -30,6 +30,7 @@
  *                                      (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
  *                                                    from DTLSConnector to DTLSSession
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -38,8 +39,8 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -67,7 +68,7 @@ public final class DTLSSession {
 								+ 13 // bytes DTLS record headers
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
-	private static final Logger LOGGER = Logger.getLogger(DTLSSession.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class.getName());
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
@@ -443,7 +444,7 @@ public final class DTLSSession {
 		}
 		this.readState = readState;
 		incrementReadEpoch();
-		LOGGER.log(Level.FINEST, "Setting current read state to\n{0}", readState);
+		LOGGER.trace("Setting current read state to{}{}", System.lineSeparator(), readState);
 	}
 
 	/**
@@ -498,7 +499,7 @@ public final class DTLSSession {
 		incrementWriteEpoch();
 		// re-calculate maximum fragment length based on cipher suite from updated write state
 		determineMaxFragmentLength(maxFragmentLength);
-		LOGGER.log(Level.FINEST, "Setting current write state to\n{0}", writeState);
+		LOGGER.trace("Setting current write state to{}{}", System.lineSeparator(), writeState);
 	}
 
 	/**
@@ -605,7 +606,7 @@ public final class DTLSSession {
 		if (mtu < 60) {
 			throw new IllegalArgumentException("MTU must be at least 60 bytes");
 		} else {
-			LOGGER.log(Level.FINER, "Setting MTU for peer [{0}] to {1} bytes",
+			LOGGER.debug("Setting MTU for peer [{}] to {} bytes",
 					new Object[]{peer, mtu});
 			this.maxTransmissionUnit = mtu;
 			determineMaxFragmentLength(mtu);
@@ -619,7 +620,7 @@ public final class DTLSSession {
 		} else {
 			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
 		}
-		LOGGER.log(Level.FINER, "Setting maximum fragment length for peer [{0}] to {1} bytes",
+		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes",
 				new Object[]{peer, this.maxFragmentLength});
 	}
 
@@ -745,9 +746,9 @@ public final class DTLSSession {
 			long idx = sequenceNo - receiveWindowLowerBoundary;
 			// create bit mask for probing the bit representing position "idx" 
 			long bitMask = 1L << idx;
-			if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(Level.FINER,
-						"Checking sequence no [{0}] using bit mask [{1}] against received records [{2}] with lower boundary [{3}]",
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug(
+						"Checking sequence no [{}] using bit mask [{}] against received records [{}] with lower boundary [{}]",
 						new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
 						receiveWindowLowerBoundary});
 			}
@@ -779,7 +780,7 @@ public final class DTLSSession {
 			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
-			LOGGER.log(Level.FINER, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
+			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
 					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
 		}
 	}

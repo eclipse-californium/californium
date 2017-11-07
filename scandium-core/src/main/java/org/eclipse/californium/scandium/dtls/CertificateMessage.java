@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,7 +18,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 477074 (erroneous encoding of RPK)
- *    Ludwig Seitz (RISE SICS) - Moved certificate validation to Handhaker
+ *    Ludwig Seitz (RISE SICS) - Moved certificate validation to Handshaker
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -38,8 +39,8 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -60,7 +61,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	private static final String CERTIFICATE_TYPE_X509 = "X.509";
 
-	private static final Logger LOGGER = Logger.getLogger(CertificateMessage.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateMessage.class.getCanonicalName());
 
 	// DTLS-specific constants ///////////////////////////////////////////
 	
@@ -170,23 +171,22 @@ public final class CertificateMessage extends HandshakeMessage {
 		try {
 			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
 			for (X509Certificate cert : chain) {
-				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
+				LOGGER.debug("Current Subject DN: {}", cert.getSubjectX500Principal().getName());
 				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-					LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
-							cert.getSubjectX500Principal().getName());
+					LOGGER.debug("Actual Issuer DN: {}", cert.getSubjectX500Principal().getName());
 					throw new IllegalArgumentException("Given certificates do not form a chain");
 				}
 				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
 					// not a self-signed certificate
 					certificates.add(cert);
 					issuer = cert.getIssuerX500Principal();
-					LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
+					LOGGER.debug("Expected Issuer DN: {}", issuer.getName());
 				}
 			}
 			this.certPath = factory.generateCertPath(certificates);
 		} catch (CertificateException e) {
 			// should not happen because all Java 7 implementation MUST support X.509 certificates
-			LOGGER.log(Level.SEVERE, "could not create X.509 certificate factory", e);
+			LOGGER.error("could not create X.509 certificate factory", e);
 		}
 	}
 
@@ -213,7 +213,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				}
 			} catch (CertificateEncodingException e) {
 				encodedChain = null;
-				LOGGER.log(Level.SEVERE, "Could not encode certificate chain", e);
+				LOGGER.error("Could not encode certificate chain", e);
 			}
 		}
 	}
@@ -299,7 +299,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		if (useRawPublicKey) {
-			LOGGER.log(Level.FINER, "Parsing RawPublicKey CERTIFICATE message");
+			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");
 			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
 			byte[] rawPublicKey = reader.readBytes(certificateLength);
 			return new CertificateMessage(rawPublicKey, peerAddress);
@@ -310,7 +310,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
 
-		LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
+		LOGGER.debug("Parsing X.509 CERTIFICATE message");
 		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
 		List<Certificate> certs = new ArrayList<>();
 
@@ -361,7 +361,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				// TODO dynamically determine algorithm for KeyFactory creation
 				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.SEVERE, "Could not reconstruct the peer's public key", e);
+				LOGGER.error("Could not reconstruct the peer's public key", e);
 			}
 		}
 		return publicKey;

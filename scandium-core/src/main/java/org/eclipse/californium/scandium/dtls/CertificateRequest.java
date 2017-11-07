@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -27,8 +28,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -49,7 +50,7 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.Signature
  */
 public final class CertificateRequest extends HandshakeMessage {
 
-	private static final Logger LOGGER = Logger.getLogger(CertificateRequest.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class.getName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -368,7 +369,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		int authoritiesAdded = 0;
 		for (X500Principal authority : authorities) {
 			if (!addCertificateAuthority(authority)) {
-				LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+				LOGGER.debug("could add only {} of {} certificate authorities, max length exceeded",
 						new Object[]{ authoritiesAdded, authorities.size() });
 				return false;
 			} else {
@@ -393,7 +394,7 @@ public final class CertificateRequest extends HandshakeMessage {
 			int authoritiesAdded = 0;
 			for (X509Certificate certificate : trustedCas) {
 				if (!addCertificateAuthority(certificate.getSubjectX500Principal())) {
-					LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+					LOGGER.debug("could add only {} of {} certificate authorities, max length exceeded",
 							new Object[]{ authoritiesAdded, trustedCas.length });
 					return false;
 				} else {
@@ -440,13 +441,13 @@ public final class CertificateRequest extends HandshakeMessage {
 			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
 			boolean meetsSigningRequirements = !type.requiresSigningCapability() ||
 					(type.requiresSigningCapability() && cert.getKeyUsage() != null && cert.getKeyUsage()[0]);
-			LOGGER.log(Level.FINER, "type: {0}, isCompatibleWithKeyAlgorithm[{1}]: {2}, meetsSigningRequirements: {3}", 
+			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", 
 					new Object[]{ type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements});
 			if (isCompatibleType && meetsSigningRequirements) {
 				return true;
 			}
 		}
-		LOGGER.log(Level.FINER, "certificate [{0}] is not of any supported type", cert);
+		LOGGER.debug("certificate [{}] is not of any supported type", cert);
 		return false;
 	}
 
@@ -503,11 +504,11 @@ public final class CertificateRequest extends HandshakeMessage {
 				}
 			}
 			if (!certSignatureAlgorithmSupported) {
-				LOGGER.log(Level.FINE, "certificate chain is NOT signed with supported algorithm(s)");
+				LOGGER.debug("certificate chain is NOT signed with supported algorithm(s)");
 				return false;
 			}
 		}
-		LOGGER.log(Level.FINE, "certificate chain is signed with supported algorithm(s)");
+		LOGGER.debug("certificate chain is signed with supported algorithm(s)");
 		return true;
 	}
 

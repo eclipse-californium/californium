@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -34,6 +34,7 @@
  *                                                    see issue #406
  *    Ludwig Seitz (RISE SICS) - Moved certificate validation here from CertificateMessage
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -57,8 +58,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -83,7 +84,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 public abstract class Handshaker {
 
 	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
-	private static final Logger LOGGER = Logger.getLogger(Handshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Handshaker.class.getName());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
@@ -329,8 +330,8 @@ public abstract class Handshaker {
 			int epoch = candidate.getEpoch();
 			if (epoch < session.getReadEpoch()) {
 				// discard old message
-				LOGGER.log(Level.FINER,
-						"Discarding message from peer [{0}] from past epoch [{1}] < current epoch [{2}]",
+				LOGGER.debug(
+						"Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
 						new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
 				return null;
 			} else if (epoch == session.getReadEpoch()) {
@@ -363,27 +364,27 @@ public abstract class Handshaker {
 					if (messageSeq == nextReceiveSeq) {
 						return handshakeMessage;
 					} else if (messageSeq > nextReceiveSeq) {
-						LOGGER.log(Level.FINER,
-								"Queued newer message from current epoch, message_seq [{0}] > next_receive_seq [{1}]",
+						LOGGER.debug(
+								"Queued newer message from current epoch, message_seq [{}] > next_receive_seq [{}]",
 								new Object[]{messageSeq, nextReceiveSeq});
 						queue.add(candidate);
 						return null;
 					} else {
-						LOGGER.log(Level.FINER,
-								"Discarding old message, message_seq [{0}] < next_receive_seq [{1}]",
+						LOGGER.debug(
+								"Discarding old message, message_seq [{}] < next_receive_seq [{}]",
 								new Object[]{messageSeq, nextReceiveSeq});
 						return null;
 					}
 				default:
-					LOGGER.log(Level.FINER, "Cannot process message of type [{0}], discarding...",
+					LOGGER.debug("Cannot process message of type [{}], discarding...",
 							fragment.getContentType());
 					return null;
 				}
 			} else {
 				// newer epoch, queue message
 				queue.add(candidate);
-				LOGGER.log(Level.FINER,
-						"Queueing HANDSHAKE message from future epoch [{0}] > current epoch [{1}]",
+				LOGGER.debug(
+						"Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]",
 						new Object[]{epoch, getSession().getReadEpoch()});
 				return null;
 			}
@@ -430,17 +431,14 @@ public abstract class Handshaker {
 				}
 				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.WARNING,
-						String.format(
-								"Cannot process handshake message from peer [%s] due to [%s]",
-								getSession().getPeer(), e.getMessage()),
-						e);
+				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]",
+						getSession().getPeer(), e.getMessage(), e);
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
 		} else {
-			LOGGER.log(Level.FINEST, "Discarding duplicate HANDSHAKE message received from peer [{0}]:\n{1}",
-					new Object[]{record.getPeerAddress(), record});
+			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}",
+					new Object[]{record.getPeerAddress(), System.lineSeparator(), record});
 		}
 	}
 
@@ -641,9 +639,8 @@ public abstract class Handshaker {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
 			// message needs to be fragmented
-			LOGGER.log(
-					Level.FINER,
-					"Splitting up {0} message for [{1}] into multiple fragments of max {2} bytes",
+			LOGGER.debug(
+					"Splitting up {} message for [{}] into multiple fragments of max {} bytes",
 					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength()});
 			// create N handshake messages, all with the
 			// same message_seq value as the original handshake message
@@ -691,7 +688,7 @@ public abstract class Handshaker {
 	 */
 	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 
-		LOGGER.log(Level.FINER, "Processing {0} message fragment ...", fragment.getMessageType());
+		LOGGER.debug("Processing {} message fragment ...", fragment.getMessageType());
 		HandshakeMessage reassembledMessage = null;
 		int messageSeq = fragment.getMessageSeq();
 		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
@@ -717,7 +714,7 @@ public abstract class Handshaker {
 		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
 				fragment.getMessageLength(), fragment.getMessageType(), session);
 		if (reassembledMessage != null) {
-			LOGGER.log(Level.FINER, "Successfully re-assembled {0} message", reassembledMessage.getMessageType());
+			LOGGER.debug("Successfully re-assembled {} message", reassembledMessage.getMessageType());
 			fragmentedMessages.remove(messageSeq);
 		}
 		
@@ -977,10 +974,10 @@ public abstract class Handshaker {
 				validator.validate(message.getCertificateChain(), params);
 
 			} catch (GeneralSecurityException e) {
-				if (LOGGER.isLoggable(Level.FINEST)) {
-					LOGGER.log(Level.FINEST, "Certificate validation failed", e);
-				} else if (LOGGER.isLoggable(Level.FINE)) {
-					LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("Certificate validation failed", e);
+				} else if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
 				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
 						session.getPeer());
@@ -989,7 +986,7 @@ public abstract class Handshaker {
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
 			if (!rpkStore.isTrusted(rpk)) {
-				LOGGER.fine("Certificate validation failed: Raw public key is not trusted");
+				LOGGER.debug("Certificate validation failed: Raw public key is not trusted");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
 						session.getPeer());
 				throw new HandshakeException("Raw public key is not trusted", alert);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,6 +15,7 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - move EC curve params to SupportedGroup enum
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -30,8 +31,8 @@ import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -52,8 +53,8 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedG
  */
 public final class ECDHServerKeyExchange extends ServerKeyExchange {
 
-	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{0}]";
-	private static final Logger LOGGER = Logger.getLogger(ECDHServerKeyExchange.class.getCanonicalName());
+	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{}]";
+	private static final Logger LOGGER = LoggerFactory.getLogger(ECDHServerKeyExchange.class.getCanonicalName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -180,7 +181,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 				KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_INSTANCE);
 				publicKey = (ECPublicKey) keyFactory.generatePublic(new ECPublicKeySpec(point, group.getEcParams()));
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.FINE, "Cannot re-create server's public key from params", e);
+				LOGGER.debug("Cannot re-create server's public key from params", e);
 				throw new HandshakeException(
 					String.format("Cannot re-create server's public key from params: %s", e.getMessage()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, peerAddress));
@@ -212,7 +213,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
+			LOGGER.warn(MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
 
@@ -294,7 +295,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
+			LOGGER.warn(MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
 		
@@ -329,7 +330,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			verified = signature.verify(signatureEncoded);
 
 		} catch (GeneralSecurityException e) {
-			LOGGER.log(Level.SEVERE,"Could not verify the server's signature.",e);
+			LOGGER.error("Could not verify the server's signature.",e);
 		}
 		
 		if (!verified) {
@@ -369,7 +370,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 			break;
 
 		default:
-			LOGGER.log(Level.WARNING, MSG_UNKNOWN_CURVE_TYPE, curveType);
+			LOGGER.warn(MSG_UNKNOWN_CURVE_TYPE, curveType);
 			break;
 		}
 	}

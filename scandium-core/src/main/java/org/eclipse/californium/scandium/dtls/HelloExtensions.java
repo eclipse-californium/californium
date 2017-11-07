@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
  *                                                    of a particular type
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use peer address when parsing
  *                                                    from byte array
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,8 +26,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -41,7 +42,7 @@ import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 public final class HelloExtensions {
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(HelloExtensions.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HelloExtensions.class.getCanonicalName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -133,9 +134,8 @@ public final class HelloExtensions {
 			if (extension != null) {
 				extensions.add(extension);
 			} else {
-				LOGGER.log(
-						Level.FINER,
-						"Peer included an unknown extension type code [{0}] in its Hello message",
+				LOGGER.debug(
+						"Peer included an unknown extension type code [{}] in its Hello message",
 						typeId);
 			}
 			// reduce by (type field length + length field length +

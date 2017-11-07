@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,13 +20,14 @@
  *               cipher suites mandatory for LW M2M servers
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for checking if suite requires
  *               sending of a CERTIFICATE message to the client
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -58,7 +59,7 @@ public enum CipherSuite {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(CipherSuite.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CipherSuite.class.getCanonicalName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -267,9 +268,9 @@ public enum CipherSuite {
 				return cipher;
 			}
 		}
-		if (LOGGER.isLoggable(Level.FINEST)) {
-			LOGGER.log(Level.FINEST,
-					"Cannot resolve cipher suite code [{0}]",
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace(
+					"Cannot resolve cipher suite code [{}]",
 					Integer.toHexString(code));
 		}
 		return null;
@@ -328,7 +329,7 @@ public enum CipherSuite {
 	}
 
 	// Algorithm Enums ////////////////////////////////////////////////
-	
+
 	/**
 	 * See http://tools.ietf.org/html/rfc5246#appendix-A.6
 	 */

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,13 +14,14 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - small improvements to serialization
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -33,7 +34,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  */
 public abstract class CertificateTypeExtension extends HelloExtension {
 
-	private static final Logger LOG = Logger.getLogger(CertificateTypeExtension.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class.getName());
 	
 	// DTLS-specific constants ////////////////////////////////////////
 	
@@ -202,10 +203,9 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 				} else {
 					// client indicates a preference for an unknown certificate
 					// type
-					LOG.log(Level.FINER, String.format(
-							"Client indicated preference for unknown %s certificate type code [%d]",
+					LOG.debug("Client indicated preference for unknown {} certificate type code [{}]",
 							getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
-							typeCode));
+							typeCode);
 				}
 			}
 		} else {
@@ -217,10 +217,9 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			} else {
 				// server selected a certificate type that is unknown to this
 				// client
-				LOG.log(Level.FINER, String.format(
-						"Server selected an unknown %s certificate type code [%d]",
+				LOG.debug("Server selected an unknown {} certificate type code [{0]",
 						getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
-						typeCode));
+						typeCode);
 			}
 		}
 	}
