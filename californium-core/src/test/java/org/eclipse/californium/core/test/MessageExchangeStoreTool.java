@@ -19,10 +19,16 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.TestTools;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.MessageExchangeStore;
@@ -98,10 +104,13 @@ public class MessageExchangeStoreTool {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
-				return endpoint.isEmpty();
+				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
 		assertTrue("endpoint still contains states", endpoint.isEmpty());
+		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests()+ " not terminated with an event",
+				endpoint.getRequestChecker().allRequestsTerminated());
+		
 	}
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
@@ -142,12 +151,14 @@ public class MessageExchangeStoreTool {
 		private final MessageExchangeStore exchangeStore;
 		private final InMemoryObservationStore observationStore;
 		private CoapUdpTestStack stack;
+		private RequestEventChecker requestChecker;
 
-		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, InMemoryObservationStore observationStore,
-				MessageExchangeStore exchangeStore) {
+		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
+				InMemoryObservationStore observationStore, MessageExchangeStore exchangeStore) {
 			super(CoapEndpoint.createUDPConnector(bind, config), config, observationStore, exchangeStore);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
+			this.requestChecker = new RequestEventChecker();
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
@@ -174,6 +185,61 @@ public class MessageExchangeStoreTool {
 
 		public boolean isEmpty() {
 			return exchangeStore.isEmpty() && (stack == null || stack.isEmpty());
+		}
+
+		@Override
+		public void sendRequest(Request request) {
+			requestChecker.registerRequest(request);
+			super.sendRequest(request);
+		}
+
+		public RequestEventChecker getRequestChecker() {
+			return requestChecker;
+		}
+	}
+
+	public static class RequestEventChecker {
+
+		private Collection<Request> requests = Collections.synchronizedSet(new HashSet<Request>());
+
+		public void registerRequest(final Request request) {
+			requests.add(request);
+
+			request.addMessageObserver(new MessageObserverAdapter() {
+
+				@Override
+				public void onCancel() {
+					requests.remove(request);
+				}
+
+				@Override
+				public void onReject() {
+					requests.remove(request);
+				}
+
+				@Override
+				public void onResponse(Response response) {
+					requests.remove(request);
+				}
+
+				@Override
+				public void onSendError(Throwable error) {
+					requests.remove(request);
+				}
+
+				@Override
+				public void onTimeout() {
+					requests.remove(request);
+				}
+			});
+		}
+
+		public boolean allRequestsTerminated() {
+			return requests.isEmpty();
+		}
+		
+		public Collection<Request> getUnterminatedRequests(){
+			return requests;
 		}
 	}
 }
