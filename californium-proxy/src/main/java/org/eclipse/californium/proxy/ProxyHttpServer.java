@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -21,8 +22,8 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -43,7 +44,7 @@ import org.eclipse.californium.proxy.resources.StatsResource;
  */
 public class ProxyHttpServer {
 
-	private final static Logger LOGGER = Logger.getLogger(ProxyHttpServer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class.getCanonicalName());
 	
 	private static final String PROXY_COAP_CLIENT = "proxy/coapClient";
 	private static final String PROXY_HTTP_CLIENT = "proxy/httpClient";
@@ -106,8 +107,8 @@ public class ProxyHttpServer {
 					request.setResponse(response);
 					responseProduced(request, response);
 					httpStack.doSendResponse(request, response);
-				} catch (Exception e) {
-					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);
+				} catch (IOException e) {
+					LOGGER.warn("Exception while responding to Http request", e);
 				}
 			}
 		};
@@ -143,7 +144,7 @@ public class ProxyHttpServer {
 					LOGGER.info("after manageProxyUriRequest: "+request);
 
 				} catch (URISyntaxException e) {
-					LOGGER.warning(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
+					LOGGER.warn(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
 
 					exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
 				}

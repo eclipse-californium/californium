@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -24,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Exchanger;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
@@ -80,7 +81,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public class HttpStack {
 	
-	private static final Logger LOGGER = Logger.getLogger(HttpStack.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HttpStack.class.getCanonicalName());
 	
 	private static final Response Response_NULL = new Response(null); // instead of Response.NULL // TODO
 	
@@ -183,7 +184,7 @@ public class HttpStack {
 
 		// retrieve the request linked to the response
 //		if (Bench_Help.DO_LOG) 
-			LOGGER.fine("Handling response for request: " + request);
+			LOGGER.debug("Handling response for request: {}", request);
 
 		// fill the exchanger with the incoming response
 		Exchanger<Response> exchanger = exchangeMap.get(request);
@@ -193,14 +194,14 @@ public class HttpStack {
 //				if (Bench_Help.DO_LOG) 
 					LOGGER.info("Exchanged correctly");
 			} catch (InterruptedException e) {
-				LOGGER.log(Level.WARNING, "Exchange interrupted", e);
+				LOGGER.warn("Exchange interrupted", e);
 
 				// remove the entry from the map
 				exchangeMap.remove(request);
 				return;
 			}
 		} else {
-			LOGGER.warning("exchanger was null for request "+request+" with hash "+request.hashCode());
+			LOGGER.warn("exchanger was null for request "+request+" with hash "+request.hashCode());
 		}
 	}
         /**
@@ -272,7 +273,7 @@ public class HttpStack {
 
 			// if the map does not contain the key, send an error response
 			if (exchanger == null) {
-				LOGGER.warning("exchanger == null");
+				LOGGER.warn("exchanger == null");
 				sendSimpleHttpResponse(httpExchange, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 				return;
 			}
@@ -282,14 +283,14 @@ public class HttpStack {
 			try {
 				coapResponse = exchanger.exchange(Response_NULL, GATEWAY_TIMEOUT, TimeUnit.MILLISECONDS);
 			} catch (TimeoutException e) {
-				LOGGER.warning("Timeout occurred");
+				LOGGER.warn("Timeout occurred");
 				// send the timeout error message
 				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TIMEOUT);
 				return;
 			} catch (InterruptedException e) {
 				// if the thread is interrupted, terminate
 				if (isInterrupted()) {
-					LOGGER.warning("Thread interrupted");
+					LOGGER.warn("Thread interrupted");
 					sendSimpleHttpResponse(httpExchange, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 					return;
 				}
@@ -299,11 +300,11 @@ public class HttpStack {
                                 // the producer thread was unable to deliver a response at time, so we kill it.
                                 responseWorker.interrupt();
 //				if (Bench_Help.DO_LOG) 
-					LOGGER.finer("Entry removed from map");
+					LOGGER.debug("Entry removed from map");
 			}
 
 			if (coapResponse == null) {
-				LOGGER.warning("No coap response");
+				LOGGER.warn("No coap response");
 				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_NOT_FOUND);
 				return;
 			}
@@ -316,9 +317,9 @@ public class HttpStack {
 				new HttpTranslator().getHttpResponse(httpRequest, coapResponse, httpResponse);
 
 //				if (Bench_Help.DO_LOG) 
-					LOGGER.finer("Outgoing http response: " + httpResponse.getStatusLine());
+					LOGGER.debug("Outgoing http response: {}", httpResponse.getStatusLine());
 			} catch (TranslationException e) {
-				LOGGER.warning("Failed to translate coap response to http response: " + e.getMessage());
+				LOGGER.warn("Failed to translate coap response to http response: {}", e.getMessage());
 				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR);
 				return;
 			}
@@ -381,7 +382,7 @@ public class HttpStack {
 
 							ioReactor.execute(ioEventDispatch);
 						} catch (IOException e) {
-							LOGGER.severe("I/O Exception in HttpStack: " + e.getMessage());
+							LOGGER.error("I/O Exception in HttpStack: " + e.getMessage());
 						}
 
 						LOGGER.info("Shutdown HttpStack");
@@ -392,7 +393,7 @@ public class HttpStack {
 				listener.start();
 				LOGGER.info("HttpStack started");
 			} catch (IOException e) {
-				LOGGER.severe("I/O error: " + e.getMessage());
+				LOGGER.error("I/O error: " + e.getMessage());
 			}
 		}
 
@@ -415,7 +416,7 @@ public class HttpStack {
 				httpResponse.setEntity(new StringEntity("Californium Proxy server"));
 
 //				if (Bench_Help.DO_LOG) 
-					LOGGER.finer("Root request handled");
+					LOGGER.debug("Root request handled");
 			}
 		}
 
@@ -456,7 +457,7 @@ public class HttpStack {
 			@Override
 			public void handle(HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext httpContext) throws HttpException, IOException {
 //				if (Bench_Help.DO_LOG) 
-					LOGGER.finer("Incoming http request: " + httpRequest.getRequestLine());
+					LOGGER.debug("Incoming http request: {}", httpRequest.getRequestLine());
 
 				try {
 					// translate the request in a valid coap request
@@ -467,34 +468,37 @@ public class HttpStack {
 					// fill the maps
 					exchangeMap.put(coapRequest, new Exchanger<Response>());
 //					if (Bench_Help.DO_LOG) 
-						LOGGER.finer("Fill exchange with: " + coapRequest+" with hash="+coapRequest.hashCode());
+						LOGGER.debug("Fill exchange with: {} with hash={}", coapRequest, coapRequest.hashCode());
 
 					// We create two threads
-                                        // The responseWorker will be in charge of producing a CoapResponse (producer)
-                                        // The requestWorker will be in charge of using this response to return it to the client
-                                        Thread requestWorker = new CoapRequestWorker("HttpStart Worker: consummer", coapRequest);
-                                        Thread responseWorker = new CoapResponseWorker("HttpStack Worker: producer", coapRequest, httpExchange, httpRequest, requestWorker);
+					// The responseWorker will be in charge of producing a
+					// CoapResponse (producer)
+					// The requestWorker will be in charge of using this
+					// response to return it to the client
+					Thread requestWorker = new CoapRequestWorker("HttpStart Worker: consummer", coapRequest);
+					Thread responseWorker = new CoapResponseWorker("HttpStack Worker: producer", coapRequest,
+							httpExchange, httpRequest, requestWorker);
 
 					// starting the producer and consummer thread
 					requestWorker.start();
 					responseWorker.start();
 
 //					if (Bench_Help.DO_LOG) 
-						LOGGER.finer("Started thread 'httpStack worker' to wait the response");
+						LOGGER.debug("Started thread 'httpStack worker' to wait the response");
 
 				} catch (InvalidMethodException e) {
-					LOGGER.warning("Method not implemented" + e.getMessage());
+					LOGGER.warn("Method not implemented" + e.getMessage());
 					sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_WRONG_METHOD);
 					return;
 				} catch (InvalidFieldException e) {
-					LOGGER.warning("Request malformed" + e.getMessage());
+					LOGGER.warn("Request malformed" + e.getMessage());
 					sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_URI_MALFORMED);
 					return;
 				} catch (TranslationException e) {
-					LOGGER.warning("Failed to translate the http request in a valid coap request: " + e.getMessage());
+					LOGGER.warn("Failed to translate the http request in a valid coap request: " + e.getMessage());
 					sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR);
 					return;
-                                }
+				}
 			}
 
 			/*

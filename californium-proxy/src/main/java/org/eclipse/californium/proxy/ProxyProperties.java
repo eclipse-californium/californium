@@ -22,7 +22,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class implements Californium's property registry.
@@ -35,7 +36,7 @@ import java.util.logging.Logger;
  */
 public class ProxyProperties extends java.util.Properties {
 
-	private static final Logger LOGGER = Logger.getLogger(ProxyProperties.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProperties.class.getCanonicalName());
 
 	/**
 	 * auto-generated to eliminate warning
@@ -64,10 +65,10 @@ public class ProxyProperties extends java.util.Properties {
 			try {
 				return Double.parseDouble(value);
 			} catch (NumberFormatException e) {
-				LOGGER.severe(String.format("Invalid double property: %s=%s", key, value));
+				LOGGER.error(String.format("Invalid double property: %s=%s", key, value));
 			}
 		} else {
-			LOGGER.severe(String.format("Undefined double property: %s", key));
+			LOGGER.error(String.format("Undefined double property: %s", key));
 		}
 		return 0.0;
 	}
@@ -78,10 +79,10 @@ public class ProxyProperties extends java.util.Properties {
 			try {
 				return Integer.parseInt(value.trim());
 			} catch (NumberFormatException e) {
-				LOGGER.severe(String.format("Invalid integer property: %s=%s", key, value));
+				LOGGER.error(String.format("Invalid integer property: %s=%s", key, value));
 			}
 		} else {
-			LOGGER.severe(String.format("Undefined integer property: %s", key));
+			LOGGER.error(String.format("Undefined integer property: %s", key));
 		}
 		return 0;
 	}
@@ -89,7 +90,7 @@ public class ProxyProperties extends java.util.Properties {
 	public String getStr(String key) {
 		String value = getProperty(key);
 		if (value == null) {
-			LOGGER.severe(String.format("Undefined string property: %s", key));
+			LOGGER.error(String.format("Undefined string property: %s", key));
 		}
 		return value;
 	}
@@ -100,10 +101,10 @@ public class ProxyProperties extends java.util.Properties {
 			try {
 				return Boolean.parseBoolean(value);
 			} catch (NumberFormatException e) {
-				LOGGER.severe(String.format("Invalid boolean property: %s=%s", key, value));
+				LOGGER.error(String.format("Invalid boolean property: %s=%s", key, value));
 			}
 		} else {
-			LOGGER.severe(String.format("Undefined boolean property: %s", key));
+			LOGGER.error(String.format("Undefined boolean property: %s", key));
 		}
 		return false;
 	}
@@ -248,7 +249,7 @@ public class ProxyProperties extends java.util.Properties {
 			try {
 				store(fileName);
 			} catch (IOException e1) {
-				LOGGER.warning(String.format("Failed to create configuration file: %s", e1.getMessage()));
+				LOGGER.warn(String.format("Failed to create configuration file: %s", e1.getMessage()));
 			}
 		}
 	}

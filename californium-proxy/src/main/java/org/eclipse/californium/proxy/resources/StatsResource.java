@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
@@ -32,6 +33,8 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.cache.CacheStats;
 import com.google.common.collect.HashBasedTable;
@@ -42,7 +45,9 @@ import com.google.common.collect.Table;
  * Resource that encapsulate the proxy statistics.
  */
 public class StatsResource extends CoapResource {
-	
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(StatsResource.class);
+
 	private final Table<String, String, StatHelper> statsTable = HashBasedTable.create();
 
 	private static String CACHE_LOG_NAME = "_cache_log.log";
@@ -66,8 +71,7 @@ public class StatsResource extends CoapResource {
 		try {
 			proxyUri = new URI(request.getOptions().getProxyUri());
 		} catch (URISyntaxException e) {
-			LOGGER.warning(String.format("Proxy-uri malformed: %s", 
-					request.getOptions().getProxyUri()));
+			LOGGER.warn("Proxy-uri malformed: {}", request.getOptions().getProxyUri());
 		}
 
 		if (proxyUri == null) {

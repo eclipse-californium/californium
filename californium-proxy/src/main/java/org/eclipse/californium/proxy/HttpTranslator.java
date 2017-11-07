@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,6 +15,7 @@
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
  *    Paul LeMarquand - fix content type returned from getHttpEntity(), cleanup
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -39,7 +40,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -102,7 +104,7 @@ public final class HttpTranslator {
 	public static final int STATUS_URI_MALFORMED = HttpStatus.SC_BAD_REQUEST;
 	public static final int STATUS_WRONG_METHOD = HttpStatus.SC_NOT_IMPLEMENTED;
 
-	protected static final Logger LOGGER = Logger.getLogger(HttpTranslator.class.getName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class.getName());
 	
 	public HttpTranslator(String mappingPropertiesFileName) {
 		httpTranslationProperties = new MappingProperties(mappingPropertiesFileName);
@@ -231,7 +233,7 @@ public final class HttpTranslator {
 				try {
 					optionNumber = Integer.parseInt(optionCodeString.trim());
 				} catch (Exception e) {
-					LOGGER.warning("Problems in the parsing: " + e.getMessage());
+					LOGGER.warn("Problems in the parsing: " + e.getMessage());
 					// ignore the option if not recognized
 					continue;
 				}
@@ -281,7 +283,7 @@ public final class HttpTranslator {
 							try {
 								maxAge = Integer.parseInt(headerValue.substring(index + 1).trim());
 							} catch (NumberFormatException e) {
-								LOGGER.warning("Cannot convert cache control in max-age option");
+								LOGGER.warn("Cannot convert cache control in max-age option");
 								continue;
 							}
 						}
@@ -315,7 +317,7 @@ public final class HttpTranslator {
 				// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 				// This cannot be parsed into a single CoAP Option and yields a
 				// NumberFormatException
-				LOGGER.warning("Could not parse header line "+header);
+				LOGGER.warn("Could not parse header line "+header);
 			}
 		} // while (headerIterator.hasNext())
 
@@ -359,7 +361,7 @@ public final class HttpTranslator {
 				}
 			}
 		} catch (IOException e) {
-			LOGGER.warning("Cannot get the content of the http entity: " + e.getMessage());
+			LOGGER.warn("Cannot get the content of the http entity: " + e.getMessage());
 			throw new TranslationException("Cannot get the content of the http entity", e);
 		} finally {
 			try {
@@ -420,7 +422,7 @@ public final class HttpTranslator {
 		try {
 			coapMethod = Integer.parseInt(coapMethodString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the http method in coap method: " + e);
+			LOGGER.warn("Cannot convert the http method in coap method: " + e);
 			throw new TranslationException("Cannot convert the http method in coap method", e);
 		}
 
@@ -437,10 +439,10 @@ public final class HttpTranslator {
 		try {
 			uriString = URLDecoder.decode(uriString, "UTF-8");
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("Failed to decode the uri: " + e.getMessage());
+			LOGGER.warn("Failed to decode the uri: " + e.getMessage());
 			throw new TranslationException("Failed decoding the uri: " + e.getMessage());
 		} catch (Throwable e) {
-			LOGGER.warning("Malformed uri: " + e.getMessage());
+			LOGGER.warn("Malformed uri: " + e.getMessage());
 			throw new InvalidFieldException("Malformed uri: " + e.getMessage());
 		}
 
@@ -479,7 +481,7 @@ public final class HttpTranslator {
 				coapRequest.setDestination(localHostAddress);
 				// TODO: setDestinationPort???
 			} catch (UnknownHostException e) {
-				LOGGER.warning("Cannot get the localhost address: " + e.getMessage());
+				LOGGER.warn("Cannot get the localhost address: " + e.getMessage());
 				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
 			}
 		} else {
@@ -557,14 +559,14 @@ public final class HttpTranslator {
 			String coapCodeString = httpTranslationProperties.getProperty(KEY_HTTP_CODE + httpCode);
 
 			if (coapCodeString == null || coapCodeString.isEmpty()) {
-				LOGGER.warning("coapCodeString == null");
+				LOGGER.warn("coapCodeString == null");
 				throw new TranslationException("coapCodeString == null");
 			}
 
 			try {
 				coapCode = ResponseCode.valueOf(Integer.parseInt(coapCodeString.trim()));
 			} catch (NumberFormatException e) {
-				LOGGER.warning("Cannot convert the status code in number: " + e.getMessage());
+				LOGGER.warn("Cannot convert the status code in number: " + e.getMessage());
 				throw new TranslationException("Cannot convert the status code in number", e);
 			}
 		}
@@ -662,7 +664,7 @@ public final class HttpTranslator {
 				try {
 					contentType = ContentType.parse(coapContentTypeString);
 				} catch (UnsupportedCharsetException e) {
-					LOGGER.finer("Cannot convert string to ContentType: " + e.getMessage());
+					LOGGER.debug("Cannot convert string to ContentType: {}", e.getMessage());
 					contentType = ContentType.APPLICATION_OCTET_STREAM;
 				}
 			}
@@ -813,10 +815,10 @@ public final class HttpTranslator {
 					coapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("UTF-8 do not support this encoding: " + e);
+			LOGGER.warn("UTF-8 do not support this encoding: " + e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Cannot translate the server uri" + e);
+			LOGGER.warn("Cannot translate the server uri" + e);
 			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
 		}
 
@@ -883,7 +885,7 @@ public final class HttpTranslator {
 		String httpCodeString = httpTranslationProperties.getProperty(KEY_COAP_CODE + coapCode.value);
 
 		if (httpCodeString == null || httpCodeString.isEmpty()) {
-			LOGGER.warning("httpCodeString == null");
+			LOGGER.warn("httpCodeString == null");
 			throw new TranslationException("httpCodeString == null");
 		}
 
@@ -891,7 +893,7 @@ public final class HttpTranslator {
 		try {
 			httpCode = Integer.parseInt(httpCodeString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the coap code in http status code" + e);
+			LOGGER.warn("Cannot convert the coap code in http status code" + e);
 			throw new TranslationException("Cannot convert the coap code in http status code", e);
 		}
 
@@ -969,10 +971,10 @@ public final class HttpTranslator {
 			// If the character sequence starting at the input buffer's current
 			// position cannot be mapped to an equivalent byte sequence and the
 			// current unmappable-character
-			LOGGER.finer("Charset translation: cannot mapped to an output char byte: " + e.getMessage());
+			LOGGER.debug("Charset translation: cannot mapped to an output char byte: {}", e.getMessage());
 			return null;
 		} catch (CharacterCodingException e) {
-			LOGGER.warning("Problem in the decoding/encoding charset: " + e.getMessage());
+			LOGGER.warn("Problem in the decoding/encoding charset: " + e.getMessage());
 			throw new TranslationException("Problem in the decoding/encoding charset", e);
 		}
 
