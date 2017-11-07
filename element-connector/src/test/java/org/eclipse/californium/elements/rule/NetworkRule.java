@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial implementation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.rule;
 
@@ -21,8 +22,8 @@ import java.net.DatagramSocketImpl;
 import java.net.SocketException;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.util.DatagramFormatter;
@@ -79,7 +80,7 @@ import org.junit.runners.model.Statement;
  */
 public class NetworkRule implements TestRule {
 
-	public static final Logger LOGGER = Logger.getLogger(NetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(NetworkRule.class.getName());
 	/**
 	 * Name of configuration property. Supported values of property "NATIVE" and
 	 * "DIRECT".
@@ -111,7 +112,7 @@ public class NetworkRule implements TestRule {
 			try {
 				mode = Mode.valueOf(envMode);
 			} catch (IllegalArgumentException ex) {
-				LOGGER.log(Level.SEVERE, "Value {0} for property {1} not supported!",
+				LOGGER.error("Value {} for property {} not supported!",
 						new Object[] { envMode, PROPERTY_NAME });
 			}
 		}
@@ -123,7 +124,7 @@ public class NetworkRule implements TestRule {
 				public DatagramSocketImpl createDatagramSocketImpl() {
 					if (!isActive()) {
 						String message = "Use " + NetworkRule.class.getName() + " to define DatagramSocket behaviour!";
-						LOGGER.log(Level.SEVERE, message);
+						LOGGER.error(message);
 						/*
 						 * check, if datagram socket is created in the scope of
 						 * a NetworkRule.
@@ -274,7 +275,7 @@ public class NetworkRule implements TestRule {
 			RULES_STACK.push(this);
 			size = RULES_STACK.size();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.info("{} rules active.", size);
 		initNetwork(first);
 	}
 
@@ -296,7 +297,7 @@ public class NetworkRule implements TestRule {
 			activeRule = RULES_STACK.peek();
 			size = RULES_STACK.size();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.info("{} rules active.", size);
 		if (this != closedRule) {
 			throw new IllegalStateException("closed rule differs!");
 		}
@@ -323,7 +324,7 @@ public class NetworkRule implements TestRule {
 				}
 			};
 		} else {
-			LOGGER.log(Level.WARNING, "Skip {0} not applicable with socket mode {1}",
+			LOGGER.warn("Skip {} not applicable with socket mode {}",
 					new Object[] { description, usedMode });
 			return SKIP;
 		}
@@ -402,7 +403,7 @@ public class NetworkRule implements TestRule {
 				message += " Instead " + activeRule + " is active!";
 
 			}
-			LOGGER.log(Level.SEVERE, message);
+			LOGGER.error(message);
 			throw new IllegalStateException(message);
 		}
 	}
@@ -422,7 +423,7 @@ public class NetworkRule implements TestRule {
 			size = RULES_STACK.size();
 			active = !RULES_STACK.isEmpty();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.info("{} rules active.", size);
 		return active;
 	}
 }

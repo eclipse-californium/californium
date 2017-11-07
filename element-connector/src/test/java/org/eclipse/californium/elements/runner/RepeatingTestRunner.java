@@ -13,13 +13,14 @@
  * Contributors:
  *    Bosch Software Innovations - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add logging of test description
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.runner;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -49,8 +50,7 @@ import org.junit.runners.model.InitializationError;
  */
 public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
-	public static final Logger LOGGER = Logger.getLogger(RepeatingTestRunner.class.getName());
-	private static final Level LOG_LEVEL = Level.INFO;
+	private static final Logger LOGGER = LoggerFactory.getLogger(RepeatingTestRunner.class.getName());
 
 	/**
 	 * Final for logging mega bytes.
@@ -105,7 +105,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 			try {
 				return Integer.valueOf(value);
 			} catch (NumberFormatException ex) {
-				LOGGER.log(Level.SEVERE, "value for ''{0}'' := ''{1}'' is no number!", new Object[] { name, value });
+				LOGGER.error("value for ''{}'' := ''{}'' is no number!", new Object[] { name, value });
 			}
 		}
 		return null;
@@ -114,12 +114,12 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	@Override
 	public void run(final RunNotifier notifier) {
 		if (0 == maximumRepeats) {
-			LOGGER.log(Level.CONFIG, "repeat until error!");
+			LOGGER.info("repeat until error!");
 		} else {
-			LOGGER.log(Level.CONFIG, "maximum repeats: {0}", maximumRepeats);
+			LOGGER.info("maximum repeats: {}", maximumRepeats);
 		}
 		// start alife logging
-		Thread alife = startAlifeLogging();
+		Thread alife = startAliveLogging();
 		// setup failure detection
 		final AtomicInteger loop = new AtomicInteger(1);
 		final AtomicInteger failureCounter = new AtomicInteger();
@@ -172,25 +172,25 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	 * @param message message to be logged
 	 */
 	private void log(String message) {
-		if (LOGGER.isLoggable(LOG_LEVEL)) {
+		if (LOGGER.isInfoEnabled()) {
 			Runtime runtime = Runtime.getRuntime();
-			LOGGER.log(LOG_LEVEL, message);
-			LOGGER.log(LOG_LEVEL, "mem: free {0} MByte, total {1} MByte, max {2} MByte",
+			LOGGER.info(message);
+			LOGGER.info("mem: free {} MByte, total {} MByte, max {} MByte",
 					new Object[] { runtime.freeMemory() / MEGA_BYTE, runtime.totalMemory() / MEGA_BYTE,
 							runtime.maxMemory() / MEGA_BYTE });
 		}
 	}
 
 	/**
-	 * Start alife logging.
+	 * Start alive logging.
 	 * 
-	 * @return thread, or null, if alife logging is not started.
+	 * @return thread, or null, if alive logging is not started.
 	 * @see #alifeIntervalInMilliseconds
 	 */
-	private Thread startAlifeLogging() {
+	private Thread startAliveLogging() {
 		Thread life = null;
-		if (0 < alifeIntervalInMilliseconds && LOGGER.isLoggable(Level.INFO)) {
-			LOGGER.log(Level.CONFIG, "start alife logging every {0}ms!", alifeIntervalInMilliseconds);
+		if (0 < alifeIntervalInMilliseconds && LOGGER.isInfoEnabled()) {
+			LOGGER.info("start alife logging every {}ms!", alifeIntervalInMilliseconds);
 			life = new Thread(new Runnable() {
 
 				@Override

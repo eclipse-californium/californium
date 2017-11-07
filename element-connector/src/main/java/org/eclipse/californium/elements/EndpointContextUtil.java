@@ -13,19 +13,20 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  *                                      (fix GitHub issue #104)
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * EndpointContext utility.
  */
 public class EndpointContextUtil {
 
-	private static final Logger LOGGER = Logger.getLogger(EndpointContextUtil.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointContextUtil.class.getName());
 
 	/**
 	 * Match endpoint contexts based on a set of keys.
@@ -38,8 +39,8 @@ public class EndpointContextUtil {
 	 *         keys are equal, false, if not.
 	 */
 	public static boolean match(String name, Set<String> keys, EndpointContext context1, EndpointContext context2) {
-		boolean warn = LOGGER.isLoggable(Level.WARNING);
-		boolean info = LOGGER.isLoggable(Level.FINEST);
+		boolean warn = LOGGER.isWarnEnabled();
+		boolean trace = LOGGER.isTraceEnabled();
 		boolean matchAll = true;
 		for (String key : keys) {
 			String value1 = context1.get(key);
@@ -51,10 +52,10 @@ public class EndpointContextUtil {
 			}
 			if (!match) {
 				/* logging differences with warning level */
-				LOGGER.log(Level.WARNING, "{0}, {1}: \"{2}\" != \"{3}\"", new Object[] { name, key, value1, value2 });
-			} else if (info) {
+				LOGGER.warn("{}, {}: \"{}\" != \"{}\"", new Object[] { name, key, value1, value2 });
+			} else if (trace) {
 				/* logging matches with finest level */
-				LOGGER.log(Level.FINEST, "{0}, {1}: \"{2}\" == \"{3}\"", new Object[] { name, key, value1, value2 });
+				LOGGER.trace("{}, {}: \"{}\" == \"{}\"", new Object[] { name, key, value1, value2 });
 			}
 			matchAll = matchAll && match;
 		}
