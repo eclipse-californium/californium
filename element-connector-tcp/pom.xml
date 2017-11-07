@@ -90,9 +90,7 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.elements,
-							org.eclipse.californium.elements.tcp,
-							org.eclipse.californium.elements.util
+							org.eclipse.californium.elements.tcp
 						</Export-Package>
 						<Import-Package>
 							io.netty*; version="[${netty.version.lowerbound},${netty.version.upperbound})",
