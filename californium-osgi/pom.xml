@@ -13,8 +13,8 @@
 	<artifactId>californium-osgi</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>Californium (Cf) OSGi Bundle</name>
-	<description>OSGi wrapper</description>
+	<name>Californium (Cf) OSGi</name>
+	<description>Basic support for running a Californium server as an OSGi ManagedService</description>
 
 	<properties>
 		<osgi.version>4.3.1</osgi.version>
@@ -75,28 +75,12 @@
 					<niceManifest>true</niceManifest>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.core,
-							org.eclipse.californium.core.coap,
-							org.eclipse.californium.core.network,
-							org.eclipse.californium.core.network.config,
-							org.eclipse.californium.core.network.interceptors,
-							org.eclipse.californium.core.network.stack,
-							org.eclipse.californium.core.observe,
-							org.eclipse.californium.core.server,
-							org.eclipse.californium.core.server.resources,
-							org.eclipse.californium.elements,
 							org.eclipse.californium.osgi
 						</Export-Package>
-						<Private-Package>
-							org.eclipse.californium.core.network.deduplication,
-							org.eclipse.californium.core.network.serialization,
-							org.eclipse.californium.core.network.stack.*
-						</Private-Package>
 						<Import-Package>
 							*
 						</Import-Package>
-						<Embed-Dependency>californium-core;inline=true,element-connector;inline=!about.html</Embed-Dependency>
-						<Bundle-SymbolicName>californium-osgi</Bundle-SymbolicName>
+						<Bundle-SymbolicName>${project.groupId}.osgi</Bundle-SymbolicName>
 					</instructions>
 				</configuration>
 			</plugin>
