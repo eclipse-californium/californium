@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,13 +16,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add principal and 
  *                                                    add TLS information to
  *                                                    correlation context
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -41,8 +42,7 @@ import io.netty.handler.ssl.SslHandler;
  */
 public class NettyContextUtils {
 
-	private static final Logger LOGGER = Logger.getLogger(NettyContextUtils.class.getName());
-	private static final Level LEVEL = Level.FINER;
+	private static final Logger LOGGER = LoggerFactory.getLogger(NettyContextUtils.class.getName());
 
 	/**
 	 * Build endpoint context related to the provided channel.
@@ -62,12 +62,12 @@ public class NettyContextUtils {
 				try {
 					principal = sslSession.getPeerPrincipal();
 					if (principal == null) {
-						LOGGER.log(Level.WARNING, "Principal missing");
+						LOGGER.warn("Principal missing");
 					} else {
-						LOGGER.log(LEVEL, "Principal {0}", principal.getName());
+						LOGGER.debug("Principal {}", principal.getName());
 					}
 				} catch (SSLPeerUnverifiedException e) {
-					LOGGER.log(Level.WARNING, "Principal {0}", e.getMessage());
+					LOGGER.warn("Principal {}", e.getMessage());
 					/* ignore it */
 				}
 
@@ -75,7 +75,7 @@ public class NettyContextUtils {
 				if (sessionId != null && sessionId.length > 0) {
 					String sslId = StringUtil.byteArray2HexString(sessionId, 0);
 					String cipherSuite = sslSession.getCipherSuite();
-					LOGGER.log(LEVEL, "TLS({0},{1},{2})",
+					LOGGER.debug("TLS({},{},{})",
 							new Object[] { id, StringUtil.trunc(sslId, 14), cipherSuite });
 					return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
 				}
@@ -84,7 +84,7 @@ public class NettyContextUtils {
 			throw new IllegalStateException("TLS handshake " + id + " not ready!");
 		}
 
-		LOGGER.log(LEVEL, "TCP({0})", id);
+		LOGGER.debug("TCP({})", id);
 		return new TcpEndpointContext(address, id);
 	}
 }

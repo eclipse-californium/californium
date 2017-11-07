@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Amazon Web Services.
+ * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@
  *                                                 issue #305
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -49,8 +50,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TCP server connection is used by CoapEndpoint when instantiated by the CoapServer. Per RFC the server can both
@@ -58,7 +59,7 @@ import java.util.logging.Logger;
  */
 public class TcpServerConnector implements Connector {
 
-	private static final Logger LOGGER = Logger.getLogger(TcpServerConnector.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpServerConnector.class.getName());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -135,7 +136,7 @@ public class TcpServerConnector implements Connector {
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
-			LOGGER.log(Level.WARNING, "Attempting to send message to an address without an active connection {0}",
+			LOGGER.warn("Attempting to send message to an address without an active connection {}",
 					msg.getAddress());
 			msg.onError(new EndpointMismatchException());
 			return;
@@ -145,10 +146,8 @@ public class TcpServerConnector implements Connector {
 		/* check, if the message should be sent with the established connection */
 		if (null != endpointMatcher
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			if (LOGGER.isLoggable(Level.WARNING)) {
-				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
-						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
-			}
+			LOGGER.warn("TcpConnector drops {} bytes to {}:{}",
+					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			msg.onError(new EndpointMismatchException());
 			return;
 		}

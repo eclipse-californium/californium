@@ -43,6 +43,14 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk14</artifactId>
+		</dependency>
 	</dependencies>
 
 	<profiles>

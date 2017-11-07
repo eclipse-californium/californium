@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Amazon Web Services.
+ * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,7 @@
  *                                                 remove scheme
  * Achim Kraus (Bosch Software Innovations GmbH) - delay sending message after complete
  *                                                 TLS handshake.
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -37,15 +38,15 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A TLS client connector that establishes outbound TLS connections.
  */
 public class TlsClientConnector extends TcpClientConnector {
 
-	private static final Logger LOGGER = Logger.getLogger(TlsClientConnector.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TlsClientConnector.class.getName());
 
 	private final SSLContext sslContext;
 
@@ -123,10 +124,10 @@ public class TlsClientConnector extends TcpClientConnector {
 	private SSLEngine createSllEngine(SocketAddress remoteAddress) {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
-			LOGGER.log(Level.INFO, "Connection to inet {0}", remote);
+			LOGGER.info("Connection to inet {}", remote);
 			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
 		} else {
-			LOGGER.log(Level.INFO, "Connection to {0}", remoteAddress);
+			LOGGER.info("Connection to {}", remoteAddress);
 			return sslContext.createSSLEngine();
 		}
 	}

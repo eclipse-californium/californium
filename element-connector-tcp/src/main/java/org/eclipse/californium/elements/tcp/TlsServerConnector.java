@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Amazon Web Services.
+ * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,7 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
  * Achim Kraus (Bosch Software Innovations GmbH) - add client authentication mode.
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -29,15 +30,15 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A TLS server connector that accepts inbound TLS connections.
  */
 public class TlsServerConnector extends TcpServerConnector {
 
-	private static final Logger LOGGER = Logger.getLogger(TlsServerConnector.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TlsServerConnector.class.getName());
 
 	public static enum ClientAuthMode {
 		NONE, WANTED, NEEDED
@@ -115,10 +116,10 @@ public class TlsServerConnector extends TcpServerConnector {
 		SocketAddress remoteAddress = ch.remoteAddress();
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
-			LOGGER.log(Level.INFO, "Connection from inet {0}", remote);
+			LOGGER.info("Connection from inet {}", remote);
 			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
 		} else {
-			LOGGER.log(Level.INFO, "Connection from {0}", remoteAddress);
+			LOGGER.info("Connection from {}", remoteAddress);
 			return sslContext.createSSLEngine();
 		}
 	}

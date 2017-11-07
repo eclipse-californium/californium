@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Amazon Web Services.
+ * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,6 +29,7 @@
  *                                                 acquire future, to delay sending the message
  *                                                 after TLS handshake completes overwriting
  *                                                 this method in a sub-class.
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -57,8 +58,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TCP client connection is used by CoapEndpoint when instantiated by the
@@ -67,7 +68,7 @@ import java.util.logging.Logger;
  */
 public class TcpClientConnector implements Connector {
 
-	private static final Logger LOGGER = Logger.getLogger(TcpClientConnector.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpClientConnector.class.getName());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -137,10 +138,8 @@ public class TcpClientConnector implements Connector {
 		/* check, if a new connection should be established */
 		if (endpointMatcher != null && !poolMap.contains(addressKey)
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
-			if (LOGGER.isLoggable(Level.WARNING)) {
-				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to new {1}:{2}",
-						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
-			}
+			LOGGER.warn("TcpConnector drops {} bytes to new {}:{}",
+					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			msg.onError(new EndpointMismatchException("no connection"));
 			return;
 		}
@@ -158,7 +157,7 @@ public class TcpClientConnector implements Connector {
 						channelPool.release(channel);
 					}
 				} else {
-					LOGGER.log(Level.WARNING, "Unable to open connection to " + msg.getAddress(), future.cause());
+					LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
 				}
 			}
 		});
@@ -180,10 +179,8 @@ public class TcpClientConnector implements Connector {
 		 * check, if the message should be sent with the established connection
 		 */
 		if (endpointMatcher != null && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			if (LOGGER.isLoggable(Level.WARNING)) {
-				LOGGER.log(Level.WARNING, "TcpConnector (drops {0} bytes to {1}:{2}",
-						new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
-			}
+			LOGGER.warn("TcpConnector drops {} bytes to {}:{}",
+					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
 			msg.onError(new EndpointMismatchException());
 			return;
 		}

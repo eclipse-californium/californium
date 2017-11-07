@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Amazon Web Services.
+ * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - use comprehensive message
  *                                                 for security errors.
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -21,8 +22,8 @@ import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.security.GeneralSecurityException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 
@@ -37,7 +38,7 @@ import javax.net.ssl.SSLException;
  */
 class CloseOnErrorHandler extends ChannelHandlerAdapter {
 
-	private final static Logger LOGGER = Logger.getLogger(CloseOnErrorHandler.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class.getName());
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -49,19 +50,19 @@ class CloseOnErrorHandler extends ChannelHandlerAdapter {
 			while (null != rootCause.getCause()) {
 				rootCause = rootCause.getCause();
 			}
-			if (!LOGGER.isLoggable(Level.FINER)
+			if (!LOGGER.isDebugEnabled()
 					&& (rootCause instanceof SSLException || rootCause instanceof GeneralSecurityException)) {
 				/* comprehensive message for security exceptions */
-				if (LOGGER.isLoggable(Level.WARNING)) {
-					LOGGER.log(Level.SEVERE, "Security Exception in channel handler chain for endpoint "
-							+ ctx.channel().remoteAddress() + ". Closing connection.", rootCause);
+				if (LOGGER.isWarnEnabled()) {
+					LOGGER.error("Security Exception in channel handler chain for endpoint {}. Closing connection.",
+							ctx.channel().remoteAddress(), rootCause);
 				} else {
-					LOGGER.log(Level.SEVERE, "{0} in channel handler chain for endpoint {1}. Closing connection.",
+					LOGGER.error("{} in channel handler chain for endpoint {}. Closing connection.",
 							new Object[] { rootCause, ctx.channel().remoteAddress() });
 				}
 			} else {
-				LOGGER.log(Level.SEVERE, "Exception in channel handler chain for endpoint "
-						+ ctx.channel().remoteAddress() + ". Closing connection.", cause);
+				LOGGER.error("Exception in channel handler chain for endpoint {}. Closing connection.",
+						ctx.channel().remoteAddress(), cause);
 			}
 		} finally {
 			ctx.close();
