@@ -200,7 +200,9 @@ public class Option implements Comparable<Option> {
 	}
 	
 	/**
-	 * Gets the option value as long.
+	 * Gets the option value as long. Handles cases where {@code value}
+	 * contains leading 0's or a case where {@code value} is empty which
+	 * returns 0.
 	 *
 	 * @return the long value
 	 */
