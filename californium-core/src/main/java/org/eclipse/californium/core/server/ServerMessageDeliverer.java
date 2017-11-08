@@ -26,8 +26,6 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -38,6 +36,8 @@ import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.observe.ObservingEndpoint;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The ServerMessageDeliverer delivers requests to corresponding resources and
@@ -45,7 +45,7 @@ import org.eclipse.californium.core.server.resources.Resource;
  */
 public class ServerMessageDeliverer implements MessageDeliverer {
 
-	private static final Logger LOGGER = Logger.getLogger(ServerMessageDeliverer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class.getCanonicalName());
 
 	/* The root of all resources */
 	private final Resource root;
@@ -105,7 +105,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 					resource.handleRequest(exchange);
 				}
 			} else {
-				LOGGER.log(Level.INFO, "Did not find resource {0} requested by {1}:{2}",
+				LOGGER.info("did not find resource {} requested by {}:{}",
 						new Object[]{path, request.getSource(), request.getSourcePort()});
 				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 			}
@@ -151,8 +151,8 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 			if (request.getOptions().getObserve() == 0) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.log(Level.FINER,
-						"Initiate an observe relation between {0}:{1} and resource {2}",
+				LOGGER.debug(
+						"initiating an observe relation between {}:{} and resource {}",
 						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);

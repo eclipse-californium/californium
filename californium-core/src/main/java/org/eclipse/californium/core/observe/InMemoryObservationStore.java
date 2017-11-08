@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Sierra Wireless and others.
+ * Copyright (c) 2016, 2017 Sierra Wireless and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,14 +13,15 @@
  * Contributors:
  *    initial implementation please refer gitlog
  *    Achim Kraus (Bosch Software Innovations GmbH) - precalculated hashCode
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.elements.EndpointContext;
@@ -31,7 +32,7 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public final class InMemoryObservationStore implements ObservationStore {
 
-	private static final Logger LOG = Logger.getLogger(InMemoryObservationStore.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryObservationStore.class.getName());
 	private Map<Key, Observation> map = new ConcurrentHashMap<>();
 
 	@Override
@@ -41,7 +42,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 			throw new NullPointerException("observation must not be null");
 		} else {
 			Key key = Key.fromToken(obs.getRequest().getToken());
-			LOG.log(Level.FINER, "adding observation for token {0}", key);
+			LOG.debug("adding observation for token {}", key);
 			map.put(key, obs);
 		}
 	}
@@ -52,7 +53,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 			return null;
 		} else {
 			Key key = Key.fromToken(token);
-			LOG.log(Level.FINER, "looking up observation for token {0}", key);
+			LOG.debug("looking up observation for token {}", key);
 			Observation obs = map.get(key);
 			// clone request in order to prevent accumulation of message observers
 			// on original request
@@ -65,7 +66,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 		if (token != null) {
 			Key key = Key.fromToken(token);
 			map.remove(key);
-			LOG.log(Level.FINER, "removed observation for token {0}", key);
+			LOG.debug("removed observation for token {}", key);
 		}
 	}
 
