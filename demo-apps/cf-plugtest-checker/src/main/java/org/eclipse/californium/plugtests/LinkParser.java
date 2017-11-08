@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
 import java.util.Scanner;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.CoapResource;
@@ -28,7 +30,7 @@ import org.eclipse.californium.core.server.resources.Resource;
  */
 public class LinkParser {
 
-	protected static final Logger LOG = Logger.getLogger(LinkParser.class.getName());
+	protected static final Logger LOG = LoggerFactory.getLogger(LinkParser.class.getName());
 	
 	public static Resource parseTree(String linkFormat) {
 		Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
@@ -44,7 +46,7 @@ public class LinkParser {
 				// Trim </...>
 				path = path.substring(2, path.length() - 1);
 				
-				LOG.finer(String.format("Parsing link resource: %s", path));
+				LOG.debug("Parsing link resource: {}", path);
 	
 				// Retrieve specified resource, create if necessary
 				Resource resource = new CoapResource(path);
