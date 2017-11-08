@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,11 +18,12 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -34,36 +35,36 @@ import org.eclipse.californium.core.coap.Response;
  * or goes through a connector is logged.
  */
 public class MessageTracer implements MessageInterceptor {
-	
-	private final static Logger LOGGER = Logger.getLogger(MessageTracer.class.getCanonicalName());
-	
+
+	private final static Logger LOGGER = LoggerFactory.getLogger(MessageTracer.class.getCanonicalName());
+
 	@Override
 	public void sendRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0} <== req {1}", new Object[]{request.getDestinationContext(), request});
+		LOGGER.info("{} <== req {}", new Object[]{request.getDestinationContext(), request});
 	}
-	
+
 	@Override
 	public void sendResponse(Response response) {
-		LOGGER.log(Level.INFO, "{0} <== res {1}", new Object[]{response.getDestinationContext(), response});
+		LOGGER.info("{} <== res {}", new Object[]{response.getDestinationContext(), response});
 	}
-	
+
 	@Override
 	public void sendEmptyMessage(EmptyMessage message) {
-		LOGGER.log(Level.INFO, "{0} <== emp {1}", new Object[]{message.getDestinationContext(), message});
+		LOGGER.info("{} <== emp {}", new Object[]{message.getDestinationContext(), message});
 	}
-	
+
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0} ==> req {1}", new Object[]{request.getSourceContext(), request});
+		LOGGER.info("{} ==> req {}", new Object[]{request.getSourceContext(), request});
 	}
-	
+
 	@Override
 	public void receiveResponse(Response response) {
-		LOGGER.log(Level.INFO, "{0} ==> res {1}", new Object[]{response.getSourceContext(), response});
-	}	
+		LOGGER.info("{} ==> res {}", new Object[]{response.getSourceContext(), response});
+	}
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
-		LOGGER.log(Level.INFO, "{0} ==> emp {1}", new Object[]{message.getSourceContext(), message});
+		LOGGER.info("{} ==> emp {}", new Object[]{message.getSourceContext(), message});
 	}
 }

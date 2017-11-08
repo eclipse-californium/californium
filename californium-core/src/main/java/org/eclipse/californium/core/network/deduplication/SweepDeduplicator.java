@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timestamp of add for deduplication 
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging for empty deduplicator.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -33,8 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
@@ -50,7 +51,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
  */
 public final class SweepDeduplicator implements Deduplicator {
 
-	private final static Logger LOGGER = Logger.getLogger(SweepDeduplicator.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(SweepDeduplicator.class.getName());
 
 	/**
 	 * Add timestamp for deduplication to Exchange.
@@ -177,17 +178,17 @@ public final class SweepDeduplicator implements Deduplicator {
 		@Override
 		public void run() {
 			try {
-				LOGGER.log(Level.FINEST, "Start Mark-And-Sweep with {0} entries", incomingMessages.size());
+				LOGGER.trace("Start Mark-And-Sweep with {} entries", incomingMessages.size());
 				sweep();
 
 			} catch (Throwable t) {
-				LOGGER.log(Level.WARNING, "Exception in Mark-and-Sweep algorithm", t);
+				LOGGER.warn("Exception in Mark-and-Sweep algorithm", t);
 
 			} finally {
 				try {
 					schedule();
 				} catch (Throwable t) {
-					LOGGER.log(Level.WARNING, "Exception while scheduling Mark-and-Sweep algorithm", t);
+					LOGGER.warn("Exception while scheduling Mark-and-Sweep algorithm", t);
 				}
 			}
 		}
@@ -206,11 +207,11 @@ public final class SweepDeduplicator implements Deduplicator {
 					DedupExchange exchange = entry.getValue();
 					if (exchange.nanoTimestamp < oldestAllowed) {
 						//TODO check if exchange of observe relationship is periodically created and sweeped
-						LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
+						LOGGER.debug("Mark-And-Sweep removes {}", entry.getKey());
 						incomingMessages.remove(entry.getKey());
 					}
 				}
-				LOGGER.log(Level.FINE, "Sweep run took {0}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+				LOGGER.debug("Sweep run took {}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
 			}
 		}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - make first and second
  *                                                    volatile
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -26,8 +27,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
@@ -46,7 +47,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
  */
 public class CropRotation implements Deduplicator {
 
-	private final static Logger LOGGER = Logger.getLogger(CropRotation.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CropRotation.class.getCanonicalName());
 	private boolean running = false;
 	private ScheduledExecutorService executor;
 
@@ -148,12 +149,12 @@ public class CropRotation implements Deduplicator {
 			try {
 				rotation();
 			} catch (Throwable t) {
-				LOGGER.log(Level.WARNING, "Exception in Crop-Rotation algorithm", t);
+				LOGGER.warn("Exception in Crop-Rotation algorithm", t);
 			} finally {
 				try {
 					schedule();
 				} catch (Throwable t) {
-					LOGGER.log(Level.WARNING, "Exception while scheduling Crop-Rotation algorithm", t);
+					LOGGER.warn("Exception while scheduling Crop-Rotation algorithm", t);
 				}
 			}
 		}
@@ -169,7 +170,7 @@ public class CropRotation implements Deduplicator {
 
 		private void schedule() {
 			if (!executor.isShutdown()) {
-				LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
+				LOGGER.debug("CR schedules in {} ms", period);
 				future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
 			}
 		}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,10 +16,12 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -34,7 +36,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class DeduplicatorFactory {
 
 	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(DeduplicatorFactory.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DeduplicatorFactory.class.getCanonicalName());
 
 	/** The factory. */
 	private static DeduplicatorFactory factory;
@@ -77,7 +79,7 @@ public class DeduplicatorFactory {
 		case NetworkConfig.Keys.NO_DEDUPLICATOR:
 			return new NoDeduplicator();
 		default:
-			LOGGER.warning("configuration contains unsupported deduplicator type, duplicate detection will be turned off");
+			LOGGER.warn("configuration contains unsupported deduplicator type, duplicate detection will be turned off");
 			return new NoDeduplicator();
 		}
 	}

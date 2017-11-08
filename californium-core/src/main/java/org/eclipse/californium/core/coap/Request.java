@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -31,6 +31,7 @@
  *                                                    setUserContext()
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -43,7 +44,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -251,7 +253,7 @@ public class Request extends Message {
 			String coapUri = uri;
 			if (!uri.contains("://")) {
 				coapUri = "coap://" + uri;
-				LOGGER.log(Level.WARNING, "update your code to supply an RFC 7252 compliant URI including a scheme");
+				LOGGER.warn("update your code to supply an RFC 7252 compliant URI including a scheme");
 			}
 			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {
@@ -293,7 +295,7 @@ public class Request extends Message {
 		} catch (URISyntaxException e) {
 			// should not happen because we are creating the URI from an
 			// existing URI object
-			LOGGER.log(Level.WARNING, "cannot set URI on request", e);
+			LOGGER.warn("cannot set URI on request", e);
 			throw new IllegalArgumentException(e);
 		}
 	}
@@ -343,7 +345,7 @@ public class Request extends Message {
 				} catch (UnknownHostException e) {
 					// this should not happen because we do not need to resolve
 					// a host name
-					LOGGER.warning("could not parse IP address of URI despite successful IP address pattern matching");
+					LOGGER.warn("could not parse IP address of URI despite successful IP address pattern matching");
 				}
 			} else {
 				// host contains a host name, put it into Uri-Host option to
