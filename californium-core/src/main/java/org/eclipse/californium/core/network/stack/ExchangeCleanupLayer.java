@@ -1,7 +1,23 @@
+/*******************************************************************************
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch Software Innovations GmbH - initial creation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
+ ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -12,7 +28,7 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public class ExchangeCleanupLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = Logger.getLogger(ExchangeCleanupLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class.getName());
 
 	/**
 	 * Adds a message observer to the request to be sent which
@@ -40,7 +56,7 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 		public void onCancel() {
 
 			if (!exchange.isComplete()) {
-				LOGGER.log(Level.FINE, "completing canceled request [MID={0}, token={1}]",
+				LOGGER.debug("completing canceled request [MID={}, token={}]",
 						new Object[]{ exchange.getRequest().getMID(), exchange.getRequest().getTokenString() });
 				exchange.setComplete();
 			}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,12 +18,13 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -49,7 +50,7 @@ import org.eclipse.californium.core.network.Exchange;
 public abstract class AbstractLayer implements Layer {
 
 	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(AbstractLayer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLayer.class.getCanonicalName());
 
 	/** The upper layer. */
 	private Layer upperLayer = LogOnlyLayer.getInstance();
@@ -182,33 +183,32 @@ public abstract class AbstractLayer implements Layer {
 
 		@Override
 		public void sendRequest(final Exchange exchange, final Request request) {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending request [{0}]", request);
+			LOGGER.error("No lower layer set for sending request [{}]", request);
 		}
 
 		@Override
 		public void sendResponse(final Exchange exchange, final Response response) {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending response [{0}]", response);
+			LOGGER.error("No lower layer set for sending response [{}]", response);
 		}
 
 		@Override
 		public void sendEmptyMessage(Exchange exchange, EmptyMessage emptyMessage) {
-			LOGGER.log(Level.SEVERE, "No lower layer set for sending empty message [{0}]", emptyMessage);
+			LOGGER.error("No lower layer set for sending empty message [{}]", emptyMessage);
 		}
 
 		@Override
 		public void receiveRequest(final Exchange exchange, final Request request) {
-			LOGGER.log(Level.SEVERE, "No upper layer set for receiving request [{0}]", request);
-			
+			LOGGER.error("No upper layer set for receiving request [{}]", request);
 		}
 
 		@Override
 		public void receiveResponse(final Exchange exchange, final Response response) {
-			LOGGER.log(Level.SEVERE, "No lower layer set for receiving response [{0}]", response);
+			LOGGER.error("No lower layer set for receiving response [{}]", response);
 		}
 
 		@Override
 		public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage emptyMessage) {
-			LOGGER.log(Level.SEVERE, "No lower layer set for receiving empty message [{0}]", emptyMessage);
+			LOGGER.error("No lower layer set for receiving empty message [{}]", emptyMessage);
 		}
 
 		@Override

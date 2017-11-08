@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Wireless Networks Group, UPC Barcelona and i2CAT.
+ * Copyright (c) 2015, 2017 Wireless Networks Group, UPC Barcelona, i2CAT and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,12 +18,14 @@
  *                                                    is processed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce updateRetransmissionTimeout()
  *                                                    issue #305
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
  
 package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -479,9 +481,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		case "PeakhopperRto":
 			return new PeakhopperRto(config);
 		default:
-			LOGGER.log(
-				Level.CONFIG,
-				"configuration contains unsupported {0}, using Cocoa",
+			LOGGER.info(
+				"configuration contains unsupported {}, using Cocoa",
 				NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM);
 			return new Cocoa(config);
 		}

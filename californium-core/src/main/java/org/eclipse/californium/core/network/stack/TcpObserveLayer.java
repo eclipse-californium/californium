@@ -1,6 +1,6 @@
 /*******************************************************************************
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,10 +14,12 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - Initial implementation,
  *                                                    Derived from ObserveLayer
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -31,7 +33,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
  */
 public class TcpObserveLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = Logger.getLogger(TcpObserveLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpObserveLayer.class.getName());
 
 	private static final Integer CANCEL = 1;
 
@@ -71,7 +73,7 @@ public class TcpObserveLayer extends AbstractLayer {
 	public void receiveResponse(final Exchange exchange, final Response response) {
 		if (response.getOptions().hasObserve() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
-			LOGGER.finer("Ignore notification for canceled TCP Exchange");
+			LOGGER.debug("ignoring notification for canceled TCP Exchange");
 		} else {
 			// No observe option in response => always deliver
 			upper().receiveResponse(exchange, response);
