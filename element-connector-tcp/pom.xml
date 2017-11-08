@@ -43,10 +43,6 @@
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-jdk14</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-handler</artifactId>
 			<version>${netty.version}</version>
@@ -55,6 +51,10 @@
 			<groupId>io.netty</groupId>
 			<artifactId>netty-transport</artifactId>
 			<version>${netty.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
 		</dependency>
 	</dependencies>
 

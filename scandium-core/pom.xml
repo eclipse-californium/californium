@@ -37,8 +37,8 @@
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-jdk14</artifactId>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -71,9 +71,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<excludes>
-						<exclude>**/*$*</exclude>
-					</excludes>
 					<!--
 						Running the tests in parallel may cause problems with rebinding to a an address within a test,
 						e.g. if another test running in parallel binds to that address in between.

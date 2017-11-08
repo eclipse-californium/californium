@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,12 +12,12 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
@@ -25,18 +25,12 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_OBS_06: Server detection of deregistration (explicit RST).
  */
 public class CO06 extends TestClientAbstract {
-	
-
-	static {
-		CaliforniumLogger.setLevel(Level.FINER);
-	}
 
 	public static final String RESOURCE_URI = "/obs";
 	public final ResponseCode EXPECTED_RESPONSE_CODE = ResponseCode.CONTENT;
@@ -64,102 +58,101 @@ public class CO06 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
 
-        // for observing
-        int observeLoop = 2;
+		// for observing
+		int observeLoop = 2;
 
-        // print request info
-        if (verbose) {
-            System.out.println("Request for test " + this.testName + " sent");
+		// print request info
+		if (verbose) {
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
-        }
+		}
 
-        // execute the request
-        try {
-            Response response = null;
-            boolean success = true;
-            long time = 5000;
+		// execute the request
+		try {
+			Response response = null;
+			boolean success = true;
+			long time = 5000;
 
 			request.send();
-            
-            System.out.println();
-            System.out.println("**** TEST: " + testName + " ****");
-            System.out.println("**** BEGIN CHECK ****");
+
+			System.out.println();
+			System.out.println("**** TEST: " + testName + " ****");
+			System.out.println("**** BEGIN CHECK ****");
 
 			response = request.waitForResponse(time);
-            if (response != null) {
+			if (response != null) {
 				success &= checkType(Type.ACK, response.getType());
 				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasContentType(response);
 				success &= hasNonEmptyPalyoad(response);
 				success &= hasObserve(response);
-                
-                if (success) {
 
-                	time = response.getOptions().getMaxAge() * 1000;
-    				System.out.println("+++++ Max-Age: "+time+" +++++");
-    				if (time==0) time = 5000;
-	            
-		            for (int l = 0; success && (l < observeLoop); ++l) {
-		
+				if (success) {
+
+					time = response.getOptions().getMaxAge() * 1000;
+					System.out.println("+++++ Max-Age: " + time + " +++++");
+					if (time == 0)
+						time = 5000;
+
+					for (int l = 0; success && (l < observeLoop); ++l) {
+
 						response = request.waitForResponse(time + 1000);
-		                
+
 						// checking the response
 						if (response != null) {
 							System.out.println("Received notification " + l);
-		                	
-		                    // print response info
-		                    if (verbose) {
-		                        System.out.println("Response received");
-		                        System.out.println("Time elapsed (ms): " + response.getRTT());
-		                        Utils.prettyPrint(response);
-		                    }
-		
-		                    success &= checkResponse(request, response);
+
+							// print response info
+							if (verbose) {
+								System.out.println("Response received");
+								System.out.println("Time elapsed (ms): " + response.getRTT());
+								Utils.prettyPrint(response);
+							}
+
+							success &= checkResponse(request, response);
 
 						} else {
-			            	System.out.println("FAIL: Notifications stopped");
+							System.out.println("FAIL: Notifications stopped");
 							success = false;
 							break;
 						} // response != null
 					} // observeLoop
-					
-					if (response!=null) {
-						
-			            System.out.println("+++++++ Canceling +++++++");
-			            request.cancel(); // stack should send RST
-	
-			            Thread.sleep(time + time/2);
-						
+
+					if (response != null) {
+
+						System.out.println("+++++++ Canceling +++++++");
+						request.cancel(); // stack should send RST
+
+						Thread.sleep(time + time / 2);
+
 					} else {
-	                    System.out.println("FAIL: Notifications stopped");
+						System.out.println("FAIL: Notifications stopped");
 						success = false;
 					}
-                }
-            } else {
-            	System.out.println("FAIL: No notification after registration");
+				}
+			} else {
+				System.out.println("FAIL: No notification after registration");
 				success = false;
-            }
-			
-            if (success) {
-                System.out.println("**** TEST PASSED ****");
-                addSummaryEntry(testName + ": PASSED (conditionally)");
-            } else {
-                System.out.println("**** TEST FAILED ****");
-                addSummaryEntry(testName + ": --FAILED--");
-            }
+			}
 
-            tickOffTest();
-			
+			if (success) {
+				System.out.println("**** TEST PASSED ****");
+				addSummaryEntry(testName + ": PASSED (conditionally)");
+			} else {
+				System.out.println("**** TEST FAILED ****");
+				addSummaryEntry(testName + ": --FAILED--");
+			}
+
+			tickOffTest();
+
 		} catch (InterruptedException e) {
-			System.err.println("Interupted during receive: "
-					+ e.getMessage());
+			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
 		}
 	}

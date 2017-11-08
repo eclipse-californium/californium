@@ -19,16 +19,12 @@ package org.eclipse.californium.benchmark;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.elements.UDPConnector;
 
 
 /**
@@ -64,7 +60,6 @@ public class BenchmarkServer {
 		int udp_sender = DEFAULT_SENDER_COUNT;
 		int udp_receiver = DEFAULT_RECEIVER_COUNT;
 		int protocol_threads = DEFAULT_PROTOCOL_STAGE_THREAD_COUNT;
-		boolean verbose = false;
 		boolean use_workers = false;
 		
 		// Parse input
@@ -84,8 +79,6 @@ public class BenchmarkServer {
 					port = Integer.parseInt(args[index+1]);
 				} else if ("-a".equals(arg)) {
 					address = args[index+1];
-				} else if ("-v".equals(arg)) {
-					verbose = true;
 				} else if ("-use-workers".equals(arg)) {
 					use_workers = true;
 				} else {
@@ -100,7 +93,7 @@ public class BenchmarkServer {
 		InetAddress addr = address!=null ? InetAddress.getByName(address) : null;
 		InetSocketAddress sockAddr = new InetSocketAddress((InetAddress) addr, port);
 		
-		setBenchmarkConfiguration(udp_sender, udp_receiver, verbose);
+		setBenchmarkConfiguration(udp_sender, udp_receiver);
 		
 		// Create server
 		CoapServer server = new CoapServer();
@@ -123,18 +116,7 @@ public class BenchmarkServer {
 		System.out.println("Benchmark server listening on " + sockAddr);
 	}
 	
-	private static void setBenchmarkConfiguration(int udp_sender, int udp_receiver, boolean verbose) {
-
-		if (verbose) {
-			Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).setLevel(Level.ALL);
-			for (Handler h:Logger.getLogger("").getHandlers())
-				h.setLevel(Level.ALL);
-			Logger.getLogger(UDPConnector.class.toString()).setLevel(Level.ALL);
-			
-		} else {
-			Logger.getLogger(Logger.GLOBAL_LOGGER_NAME).setLevel(Level.SEVERE);
-			Logger.getLogger("").setLevel(Level.SEVERE);
-		}
+	private static void setBenchmarkConfiguration(int udp_sender, int udp_receiver) {
 
 		// Network configuration optimal for performance benchmarks
 		NetworkConfig.createStandardWithoutFile()
@@ -168,8 +150,8 @@ public class BenchmarkServer {
 		System.out.println("	-r RECEIVERS");
 		System.out.println("		Use RECEIVERS threads to copy messages from the UDP socket.");
 		System.out.println("		The default is number of cores on Windows and 1 otherwise.");
-		System.out.println("    -use-workers");
-		System.out.println("        Use a specialized queue for incoming requests that reduces synchronization of threads.");
+		System.out.println("	-use-workers");
+		System.out.println("		Use a specialized queue for incoming requests that reduces synchronization of threads.");
 		System.out.println("OPTIMIZATIONS");
 		System.out.println("	-Xms4096m -Xmx4096m");
 		System.out.println("		Set the Java heap size to 4 GiB.");

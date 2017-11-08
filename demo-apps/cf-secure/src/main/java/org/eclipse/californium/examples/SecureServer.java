@@ -20,7 +20,6 @@ package org.eclipse.californium.examples;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.logging.Level;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -30,17 +29,11 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class SecureServer {
-
-	static {
-		CaliforniumLogger.initialize();
-		CaliforniumLogger.setLevel(Level.CONFIG);
-	}
 
 	// allows configuration via Californium.properties
 	public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);

@@ -24,26 +24,20 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExampleDTLSServer {
 
-	static {
-		CaliforniumLogger.initialize();
-		CaliforniumLogger.setLevel(Level.WARNING);
-	}
-
 	private static final int DEFAULT_PORT = 5684;
-	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSServer.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private static final String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -82,13 +76,13 @@ public class ExampleDTLSServer {
 			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
 		} catch (GeneralSecurityException | IOException e) {
-			LOG.log(Level.SEVERE, "Could not load the keystore", e);
+			LOG.error("Could not load the keystore", e);
 		} finally {
 			if (in != null) {
 				try {
 					in.close();
 				} catch (IOException e) {
-					LOG.log(Level.SEVERE, "Cannot close key store file", e);
+					LOG.error("Cannot close key store file", e);
 				}
 			}
 		}
@@ -114,7 +108,9 @@ public class ExampleDTLSServer {
 
 		@Override
 		public void receiveData(final RawData raw) {
-			LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Received request: {}", new String(raw.getBytes()));
+			}
 			RawData response = RawData.outbound("ACK".getBytes(), raw.getEndpointContext(), null, false);
 			connector.send(response);
 		}
@@ -122,11 +118,6 @@ public class ExampleDTLSServer {
 
 	public static void main(String[] args) {
 
-		if (0 < args.length) {
-			if (args[0].equals("-v")) {
-				CaliforniumLogger.setLevel(Level.INFO);
-			}
-		}
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
 	}
