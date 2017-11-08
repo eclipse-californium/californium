@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,6 +26,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check MIDs of notifies
  *    Achim Kraus (Bosch Software Innovations GmbH) - use renamed sameMID instead
  *                                                    of loadMID
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -47,8 +48,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
@@ -104,9 +103,6 @@ public class ObserveServerSideTest {
 	@BeforeClass
 	public static void start() {
 		System.out.println(System.lineSeparator() + "Start " + ObserveServerSideTest.class.getSimpleName());
-
-		Logger ul = Logger.getLogger(UDPConnector.class.getName());
-		ul.setLevel(Level.OFF);
 
 		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)

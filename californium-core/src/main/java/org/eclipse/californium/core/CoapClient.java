@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -31,6 +31,7 @@
  *                                                    send error encapsulated as
  *                                                    RuntimeException.
  *                                                    (don't destroy endpoint on shutdown)
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -42,8 +43,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -65,7 +66,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 public class CoapClient {
 
 	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(CoapClient.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapClient.class.getCanonicalName());
 
 	/** The timeout. */
 	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
@@ -223,7 +224,7 @@ public class CoapClient {
 		executor.execute(new Runnable() {
 
 			public void run() {
-				LOGGER.config("Using a SingleThreadExecutor for the CoapClient");
+				LOGGER.info("using a SingleThreadExecutor for the CoapClient");
 			};
 		});
 		return this;
@@ -300,9 +301,9 @@ public class CoapClient {
 		if (!endpoint.isStarted()) {
 			try {
 				endpoint.start();
-				LOGGER.log(Level.INFO, "Started set client endpoint {0}", endpoint.getAddress());
+				LOGGER.info("started set client endpoint {}", endpoint.getAddress());
 			} catch (IOException e) {
-				LOGGER.log(Level.SEVERE, "Could not set and start client endpoint", e);
+				LOGGER.error("could not set and start client endpoint", e);
 			}
 
 		}
@@ -1071,7 +1072,7 @@ public class CoapClient {
 				executor.execute(job);
 			} catch (RejectedExecutionException ex) {
 				if (!executor.isShutdown()) {
-					LOGGER.log(Level.WARNING, "failed to execute job!");
+					LOGGER.warn("failed to execute job!");
 				}
 			}
 		}
@@ -1204,7 +1205,7 @@ public class CoapClient {
 					try {
 						deliver(response);
 					} catch (Throwable t) {
-						LOGGER.log(Level.WARNING, "Exception while handling response", t);
+						LOGGER.warn("exception while handling response", t);
 					}
 				}
 			});
@@ -1234,7 +1235,7 @@ public class CoapClient {
 					try {
 						handler.onError();
 					} catch (Throwable t) {
-						LOGGER.log(Level.WARNING, "Exception while handling failure", t);
+						LOGGER.warn("exception while handling failure", t);
 					}
 				}
 			});
@@ -1275,7 +1276,7 @@ public class CoapClient {
 				if (relation.onResponse(response)) {
 					handler.onLoad(response);
 				} else {
-					LOGGER.log(Level.FINER, "Dropping old notification: {0}", response.advanced());
+					LOGGER.debug("dropping old notification: {}", response.advanced());
 					return;
 				}
 			}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -87,7 +88,7 @@ public class PlugtestServer extends CoapServer {
 	private static final int MAX_RESOURCE_SIZE = 8192;
 
 	private static final NetworkConfig CONFIG = NetworkConfig.getStandard();
-	
+
 	// allows port configuration in Californium.properties
 
 	public static void main(String[] args) {
@@ -95,8 +96,7 @@ public class PlugtestServer extends CoapServer {
 		.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000)
-		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300)
-		.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "INFO");
+		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300);
 
 		if (CONFIG.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
 			CONFIG.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@
  *                                                    (for use by subclasses)
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -35,8 +36,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -131,7 +132,7 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
 public  class CoapResource implements Resource {
 
 	/** The logger. */
-	protected final static Logger LOGGER = Logger.getLogger(CoapResource.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class.getCanonicalName());
 	
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;
@@ -686,9 +687,9 @@ public  class CoapResource implements Resource {
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
 		if (observeRelations.add(relation)) {
-			LOGGER.log(Level.INFO, "Replacing observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("replacing observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
 		} else {
-			LOGGER.log(Level.INFO, "Successfully established observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("successfully established observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
 		}
 		for (ResourceObserver obs:observers)
 			obs.addedObserveRelation(relation);
