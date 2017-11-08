@@ -37,8 +37,8 @@
 		<url>https://bugs.eclipse.org/bugs/buglist.cgi?product=Californium</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Hudson</system>
-		<url>https://hudson.eclipse.org/californium/</url>
+		<system>Jenkins</system>
+		<url>https://ci.eclipse.org/californium/</url>
 	</ciManagement>
 	<developers>
 		<developer>
