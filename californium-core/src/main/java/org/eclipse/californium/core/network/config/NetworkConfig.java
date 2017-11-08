@@ -190,7 +190,6 @@ public final class NetworkConfig {
 		public static final String HTTP_CACHE_RESPONSE_MAX_AGE = "HTTP_CACHE_RESPONSE_MAX_AGE";
 		public static final String HTTP_CACHE_SIZE = "HTTP_CACHE_SIZE";
 
-		public static final String HEALTH_STATUS_PRINT_LEVEL = "HEALTH_STATUS_PRINT_LEVEL";
 		public static final String HEALTH_STATUS_INTERVAL = "HEALTH_STATUS_INTERVAL";
 
 		/** Properties for TCP connector. */

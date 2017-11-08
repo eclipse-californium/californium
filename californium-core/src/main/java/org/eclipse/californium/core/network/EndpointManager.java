@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@
  *                                                    explicit String concatenation
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getDefaultEndpoint(String scheme)
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -36,8 +37,8 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -79,7 +80,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 public class EndpointManager {
 
 	/** The logger */
-	private static final Logger LOGGER = Logger.getLogger(EndpointManager.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class.getCanonicalName());
 
 	/** The singleton manager instance */
 	private static final EndpointManager manager = new EndpointManager();
@@ -158,7 +159,7 @@ public class EndpointManager {
 			try {
 				newEndpoint.start();
 			} catch (IOException e) {
-				LOGGER.log(Level.SEVERE, "Could not start new " + uriScheme + " endpoint", e);
+				LOGGER.error("could not start new {} endpoint", uriScheme, e);
 			}
 		}
 	}
@@ -174,23 +175,22 @@ public class EndpointManager {
 		Endpoint endpoint;
 
 		if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.config("Secure endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
+			LOGGER.info("secure endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
 			return null;
 		} else if (CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.config("tcp endpoint must be injected via setDefaultEndpoint(Endpoint)");
+			LOGGER.info("tcp endpoint must be injected via setDefaultEndpoint(Endpoint)");
 			return null;
 		} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.config("Secure tcp endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
+			LOGGER.info("secure tcp endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
 			return null;
 		} else {
 			endpoint = new CoapEndpoint();
 		}
 		try {
 			endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit endpoint {0} for {1}",
-					new Object[] { endpoint.getUri(), uriScheme });
+			LOGGER.info("created implicit endpoint {} for {}", new Object[] { endpoint.getUri(), uriScheme });
 		} catch (IOException e) {
-			LOGGER.log(Level.SEVERE, "Could not create " + uriScheme + " endpoint", e);
+			LOGGER.error("could not create {} endpoint", uriScheme, e);
 		}
 		endpoints.put(uriScheme, endpoint);
 
@@ -227,7 +227,7 @@ public class EndpointManager {
 				}
 			}
 		} catch (SocketException e) {
-			LOGGER.log(Level.SEVERE, "Could not fetch all interface addresses", e);
+			LOGGER.error("could not fetch all interface addresses", e);
 		}
 		return interfaces;
 	}
@@ -266,7 +266,7 @@ public class EndpointManager {
 
 		@Override
 		public void deliverRequest(Exchange exchange) {
-			LOGGER.severe("Default endpoint without CoapServer has received a request.");
+			LOGGER.error("Default endpoint without CoapServer has received a request.");
 			exchange.sendReject();
 		}
 

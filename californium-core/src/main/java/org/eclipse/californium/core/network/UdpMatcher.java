@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -39,13 +39,14 @@
  *                                                    created notifies (before the MID is assigned).
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                    by EndpointContext of response.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -65,7 +66,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
  */
 public final class UdpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = Logger.getLogger(UdpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class.getName());
 
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
@@ -103,14 +104,13 @@ public final class UdpMatcher extends BaseMatcher {
 				registerObserve(request);
 			}
 
-			if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(
-						Level.FINER,
-						"Tracking open request [MID: {0}, Token: {1}]",
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug(
+						"tracking open request [MID: {}, Token: {}]",
 						new Object[] { request.getMID(), request.getTokenString() });
 			}
 		} else {
-			LOGGER.log(Level.WARNING, "Could not register outbound request for tracking");
+			LOGGER.warn("could not register outbound request for tracking");
 			// TODO signal failure to register exchange to stack
 		}
 	}
@@ -190,7 +190,7 @@ public final class UdpMatcher extends BaseMatcher {
 			return exchange;
 
 		} else {
-			LOGGER.log(Level.FINER, "Duplicate request: {0}", request);
+			LOGGER.debug("duplicate request: {}", request);
 			request.setDuplicate(true);
 			return previous;
 		}
@@ -208,7 +208,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
 		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
-		LOGGER.log(Level.FINER, "received response {0}", response);
+		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
 
@@ -232,12 +232,12 @@ public final class UdpMatcher extends BaseMatcher {
 				// deduplication is only relevant for CON/NON messages
 				Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
-					LOGGER.log(Level.FINER, "Received response for already completed exchange: {0}", response);
+					LOGGER.trace("received response for already completed exchange: {}", response);
 					response.setDuplicate(true);
 					return prev;
 				}
 			} else {
-				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}]: {1}",
+				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}",
 						new Object[]{response.getSourceContext(), response});
 			}
 			// ignore response
@@ -246,8 +246,8 @@ public final class UdpMatcher extends BaseMatcher {
 
 			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
 				// The token matches but not the MID.
-				LOGGER.log(Level.WARNING,
-						"Possible MID reuse before lifetime end for token [{0}], expected MID {1} but received {2}",
+				LOGGER.warn(
+						"possible MID reuse before lifetime end for token [{}], expected MID {} but received {}",
 						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
 								response.getMID() });
 				// when nested blockwise request/responses occurs (e.g. caused
@@ -266,19 +266,19 @@ public final class UdpMatcher extends BaseMatcher {
 
 			if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
 					exchangeStore.findPrevious(idByMID, exchange) != null) {
-				LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
+				LOGGER.trace("received duplicate response for open exchange: {}", response);
 				response.setDuplicate(true);
 			} else if (!isNotify) {
 				// we have received the expected response for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
 				if (exchangeStore.remove(idByMID, exchange) != null) {
-					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
+					LOGGER.debug("closed open request [{}]", idByMID);
 				}
 			}
 
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO, "Ignoring potentially forged response for token {0} with non-matching endpoint context", idByToken);
+			LOGGER.info("ignoring potentially forged response for token {} with non-matching endpoint context", idByToken);
 			return null;
 		}
 	}
@@ -293,21 +293,21 @@ public final class UdpMatcher extends BaseMatcher {
 		Exchange exchange = exchangeStore.remove(idByMID, null);
 
 		if (exchange != null) {
-			LOGGER.log(Level.FINE, "Received expected reply for message exchange {0}", idByMID);
+			LOGGER.debug("received expected reply for message exchange {}", idByMID);
 		} else {
-			LOGGER.log(Level.FINE,
-					"Ignoring unmatchable empty message from {0}: {1}",
+			LOGGER.debug(
+					"ignoring unmatchable empty message from {}: {}",
 					new Object[]{message.getSourceContext(), message});
 		}
 		return exchange;
 	}
 
 	private void removeNotificationsOf(final ObserveRelation relation, final Exchange exchange) {
-		LOGGER.log(Level.FINE, "Removing all remaining NON-notifications of observe relation with {0}",
+		LOGGER.debug("removing all remaining NON-notifications of observe relation with {}",
 				relation.getSource());
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
 			Response previous = iterator.next();
-			LOGGER.log(Level.FINER, "removing NON notification: {0}", previous);
+			LOGGER.trace("removing NON notification: {}", previous);
 			// notifications are local MID namespace
 			if (previous.hasMID()) {
 				KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
@@ -350,9 +350,8 @@ public final class UdpMatcher extends BaseMatcher {
 				if (originRequest.getToken() == null) {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
-					LOGGER.log(
-							Level.WARNING,
-							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+					LOGGER.warn(
+							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
 							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
 									exchange.getOrigin()});
 				} else {
@@ -378,7 +377,7 @@ public final class UdpMatcher extends BaseMatcher {
 							}
 						}
 					}
-					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.debug("Exchange [{}, origin: {}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 
 			} else { // Origin.REMOTE
@@ -396,7 +395,7 @@ public final class UdpMatcher extends BaseMatcher {
 						KeyMID midKey = KeyMID.fromOutboundMessage(response);
 						exchangeStore.remove(midKey, exchange);
 
-						LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+						LOGGER.debug("Exchange [{}, {}] completed", new Object[]{midKey, exchange.getOrigin()});
 					}
 					else {
 						// sometime proactive cancel requests and notifies are overlapping

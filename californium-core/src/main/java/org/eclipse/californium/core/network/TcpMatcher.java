@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -35,11 +35,12 @@
  *                                                 processing. issue #311
  * Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                 by EndpointContext of response.
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -56,7 +57,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
  */
 public final class TcpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = Logger.getLogger(TcpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class.getName());
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
@@ -85,7 +86,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
-		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { request.getTokenString() });
+		LOGGER.debug("tracking open request using {}", request.getTokenString());
 
 		if (request.isObserve()) {
 			registerObserve(request);
@@ -145,8 +146,8 @@ public final class TcpMatcher extends BaseMatcher {
 		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO,
-					"Ignoring potentially forged response for token {0} with non-matching endpoint context",
+			LOGGER.info(
+					"ignoring potentially forged response for token {} with non-matching endpoint context",
 					idByToken);
 			return null;
 		}
@@ -168,9 +169,8 @@ public final class TcpMatcher extends BaseMatcher {
 				if (originRequest.getToken() == null) {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
-					LOGGER.log(
-							Level.WARNING,
-							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+					LOGGER.warn(
+							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
 							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
 									exchange.getOrigin()});
 				} else {
@@ -179,7 +179,7 @@ public final class TcpMatcher extends BaseMatcher {
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
 					}
-					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.debug("Exchange [{}, origin: {}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 
 			} else { // Origin.REMOTE

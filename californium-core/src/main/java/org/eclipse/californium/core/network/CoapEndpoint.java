@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -44,6 +44,7 @@
  *                                                    canceled messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Achim Kraus (Bosch Software Innovations GmbH) - use connectors protocol
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -56,8 +57,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -156,7 +157,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 public class CoapEndpoint implements Endpoint {
 	
 	/** the logger. */
-	private static final Logger LOGGER = Logger.getLogger(CoapEndpoint.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
 	
 	/** The stack of layers that make up the CoAP protocol */
 	private final CoapStack coapstack;
@@ -335,8 +336,7 @@ public class CoapEndpoint implements Endpoint {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 		}
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
-		LOGGER.log(Level.CONFIG, "{0} uses {1}",
-				new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
+		LOGGER.info("{} uses {}", new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
@@ -376,7 +376,7 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
-			LOGGER.log(Level.FINE, "Endpoint at {0} is already started", getUri());
+			LOGGER.debug("Endpoint at {} is already started", getUri());
 			return;
 		}
 
@@ -385,7 +385,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		if (this.executor == null) {
-			LOGGER.log(Level.CONFIG, "Endpoint [{0}] requires an executor to start, using default single-threaded daemon executor", getUri());
+			LOGGER.info("Endpoint [{}] requires an executor to start, using default single-threaded daemon executor", getUri());
 
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
@@ -408,7 +408,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		try {
-			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getUri());
+			LOGGER.debug("Starting endpoint at {}", getUri());
 
 			started = true;
 			matcher.start();
@@ -417,7 +417,7 @@ public class CoapEndpoint implements Endpoint {
 				obs.started(this);
 			}
 			startExecutor();
-			LOGGER.log(Level.INFO, "Started endpoint at {0}", getUri());
+			LOGGER.info("Started endpoint at {}", getUri());
 		} catch (IOException e) {
 			// free partially acquired resources
 			stop();
@@ -445,9 +445,9 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void stop() {
 		if (!started) {
-			LOGGER.log(Level.INFO, "Endpoint at {0} is already stopped", getUri());
+			LOGGER.info("Endpoint at {} is already stopped", getUri());
 		} else {
-			LOGGER.log(Level.INFO, "Stopping endpoint at address {0}", getUri());
+			LOGGER.info("Stopping endpoint at {}", getUri());
 			started = false;
 			connector.stop();
 			matcher.stop();
@@ -460,7 +460,7 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void destroy() {
-		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getUri());
+		LOGGER.info("Destroying endpoint at {}", getUri());
 		if (started) {
 			stop();
 		}
@@ -587,9 +587,9 @@ public class CoapEndpoint implements Endpoint {
 			String scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 			uri = new URI(scheme, null, address.getHostString(), address.getPort(), null, null, null);
 		} catch (URISyntaxException e) {
-			LOGGER.log(Level.WARNING, "URI", e);
+			LOGGER.warn("URI", e);
 		} catch (IllegalArgumentException e) {
-			LOGGER.log(Level.WARNING, "URI", e);
+			LOGGER.warn("URI", e);
 		}
 		return uri;
 	}
@@ -773,7 +773,7 @@ public class CoapEndpoint implements Endpoint {
 					receiveEmptyMessage((EmptyMessage) msg, raw);
 
 				} else {
-					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getEndpointContext());
+					LOGGER.debug("silently ignoring non-CoAP message from {}", raw.getEndpointContext());
 				}
 
 			} catch (CoAPMessageFormatException e) {
@@ -782,18 +782,17 @@ public class CoapEndpoint implements Endpoint {
 					// reject erroneous reliably transmitted message as mandated by CoAP spec
 					// https://tools.ietf.org/html/rfc7252#section-4.2
 					reject(raw, e);
-					LOGGER.log(
-							Level.FINE,
-							"rejected malformed message from [{0}], reason: {1}",
+					LOGGER.debug(
+							"rejected malformed message from [{}], reason: {}",
 							new Object[]{raw.getEndpointContext(), e.getMessage()});
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
-					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getEndpointContext());
+					LOGGER.debug("discarding malformed message from [{}]", raw.getEndpointContext());
 				}
 			} catch (MessageFormatException e) {
 
 				// ignore erroneous messages that are not transmitted reliably
-				LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getEndpointContext());
+				LOGGER.debug("discarding malformed message from [{}]", raw.getEndpointContext());
 			}
 		}
 
@@ -855,7 +854,7 @@ public class CoapEndpoint implements Endpoint {
 					response.setRTT(exchange.calculateRTT());
 					coapstack.receiveResponse(exchange, response);
 				} else if (response.getType() != Type.ACK) {
-					LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getEndpointContext());
+					LOGGER.debug("rejecting unmatchable response from {}", raw.getEndpointContext());
 					reject(response);
 				}
 			}
@@ -876,7 +875,7 @@ public class CoapEndpoint implements Endpoint {
 			if (!message.isCanceled()) {
 				// CoAP Ping
 				if (message.getType() == Type.CON || message.getType() == Type.NON) {
-					LOGGER.log(Level.FINER, "responding to ping from {0}", raw.getEndpointContext());
+					LOGGER.debug("responding to ping from {}", raw.getEndpointContext());
 					reject(message);
 				} else {
 					Exchange exchange = matcher.receiveEmptyMessage(message);
@@ -977,7 +976,7 @@ public class CoapEndpoint implements Endpoint {
 				try {
 					task.run();
 				} catch (final Throwable t) {
-					LOGGER.log(Level.SEVERE, String.format("Exception in protocol stage thread: %s", t.getMessage()), t);
+					LOGGER.error("exception in protocol stage thread: {}", t.getMessage(), t);
 				}
 			}
 		});

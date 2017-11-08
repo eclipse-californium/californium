@@ -173,7 +173,6 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_SIZE, 32);
 
-		config.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "FINEST");
 		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
 
 		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s

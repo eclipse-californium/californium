@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -42,11 +42,12 @@
  *                                                    by EndpointContext of response.
  *    Achim Kraus (Bosch Software Innovations GmbH) - ignore timeout on blockwise notify
  *                                                    issue 451
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -65,7 +66,7 @@ import org.eclipse.californium.core.observe.ObservationStore;
  */
 public abstract class BaseMatcher implements Matcher {
 
-	private static final Logger LOG = Logger.getLogger(BaseMatcher.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class.getName());
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
@@ -146,7 +147,7 @@ public abstract class BaseMatcher implements Matcher {
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
 			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
-			LOG.log(Level.FINER, "registering observe request {0}", request);
+			LOG.debug("registering observe request {}", request);
 			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
 			request.addMessageObserver(new MessageObserverAdapter() {
@@ -188,7 +189,7 @@ public abstract class BaseMatcher implements Matcher {
 				final Request request = obs.getRequest();
 				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
 				exchange.setRequest(request);
-				LOG.log(Level.FINER, "re-created exchange from original observe request: {0}", request);
+				LOG.debug("re-created exchange from original observe request: {}", request);
 				request.addMessageObserver(new MessageObserverAdapter() {
 
 					@Override
@@ -201,8 +202,8 @@ public abstract class BaseMatcher implements Matcher {
 							// establish the observe. So remove the observe
 							// relation from observation store, which was stored
 							// earlier when the request was sent.
-							LOG.log(Level.FINE,
-									"Response to observe request with token {0} does not contain observe option, removing request from observation store",
+							LOG.debug(
+									"response to observe request with token {} does not contain observe option, removing request from observation store",
 									idByToken);
 							observationStore.remove(request.getToken());
 							exchangeStore.releaseToken(idByToken);
