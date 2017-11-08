@@ -19,14 +19,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
 
-import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
+import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**

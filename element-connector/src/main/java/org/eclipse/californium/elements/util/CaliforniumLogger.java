@@ -17,15 +17,15 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core;
+package org.eclipse.californium.elements.util;
 
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.StreamHandler;
 
-import org.eclipse.californium.core.CaliforniumFormatter;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.util.CaliforniumFormatter;
 
 /**
  * CalifonriumLogger is a helper class for logging in Californium when

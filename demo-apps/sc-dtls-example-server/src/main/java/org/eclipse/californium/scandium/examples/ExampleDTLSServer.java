@@ -30,11 +30,17 @@ import java.util.logging.Logger;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 public class ExampleDTLSServer {
+
+	static {
+		CaliforniumLogger.initialize();
+		CaliforniumLogger.setLevel(Level.WARNING);
+	}
 
 	private static final int DEFAULT_PORT = 5684;
 	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
@@ -116,6 +122,11 @@ public class ExampleDTLSServer {
 
 	public static void main(String[] args) {
 
+		if (0 < args.length) {
+			if (args[0].equals("-v")) {
+				CaliforniumLogger.setLevel(Level.INFO);
+			}
+		}
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
 	}

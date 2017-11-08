@@ -71,14 +71,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<systemPropertyVariables>
-						<!--
-						   configures the JDK Logging to use the ScandiumFormatter
-						   by means of the Scandium-logging.properties file
-						-->
-						<java.util.logging.config.file>${project.build.testOutputDirectory}/Scandium-logging.properties</java.util.logging.config.file>
-						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
-					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>

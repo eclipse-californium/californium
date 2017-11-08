@@ -42,12 +42,18 @@ import java.util.logging.Logger;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.CaliforniumLogger;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 public class ExampleDTLSClient {
+
+	static {
+		CaliforniumLogger.initialize();
+		CaliforniumLogger.setLevel(Level.WARNING);
+	}
 
 	private static final int DEFAULT_PORT = 5684;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);

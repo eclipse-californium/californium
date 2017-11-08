@@ -20,7 +20,6 @@ import java.net.URISyntaxException;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 
-import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -28,6 +27,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
+import org.eclipse.californium.elements.util.CaliforniumLogger;
 
 public class CocoaClient {
 	

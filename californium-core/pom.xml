@@ -89,17 +89,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<systemPropertyVariables>
-						<!--
-						   configures the JDK Logging to use the CaliforniumFormatter
-						   by means of the Californium-logging.properties file
-						-->
-						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
-						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
-					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*$*</exclude>
-					</excludes>
 					<!-- 
 						Parallel test execution fails on OpenJDK 8 on linux :-(
 						For now, execute tests sequentially one by one.

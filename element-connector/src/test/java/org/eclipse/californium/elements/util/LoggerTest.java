@@ -13,7 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial implementation
  ******************************************************************************/
-package org.eclipse.californium.core.test;
+package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
@@ -27,14 +27,11 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.StreamHandler;
 
-import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.CaliforniumFormatter;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 /**
  * Test for meta information in the logging line.
@@ -47,7 +44,6 @@ import org.junit.experimental.categories.Category;
  * may changed to an implementation using Throwable and getStackTrace() to
  * automatically adjust the tested lines.)
  */
-@Category(Small.class)
 public class LoggerTest {
 
 	/**
@@ -97,7 +93,7 @@ public class LoggerTest {
 		LOGGER.info("message");
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogInfo() "));
-		assertThat(result, containsString(".LoggerTest.java:97)"));
+		assertThat(result, containsString(".LoggerTest.java:93)"));
 	}
 
 	@Test
@@ -105,7 +101,7 @@ public class LoggerTest {
 		LOGGER.log(Level.INFO, "message");
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogLevelInfo() "));
-		assertThat(result, containsString(".LoggerTest.java:105)"));
+		assertThat(result, containsString(".LoggerTest.java:101)"));
 	}
 
 	@Test
@@ -114,7 +110,7 @@ public class LoggerTest {
 		LOGGER.log(Level.INFO, "message", throwable);
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogLevelInfoThrowing() "));
-		assertThat(result, containsString(".LoggerTest.java:114)"));
+		assertThat(result, containsString(".LoggerTest.java:110)"));
 	}
 
 	@Test
@@ -129,7 +125,7 @@ public class LoggerTest {
 		inner.run();
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" run() "));
-		assertThat(result, containsString(".LoggerTest$1.java:126)"));
+		assertThat(result, containsString(".LoggerTest$1.java:122)"));
 	}
 
 	@Test
@@ -144,7 +140,7 @@ public class LoggerTest {
 		inner.run();
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" run() "));
-		assertThat(result, containsString(".LoggerTest$2.java:141)"));
+		assertThat(result, containsString(".LoggerTest$2.java:137)"));
 	}
 
 	@Test
@@ -160,7 +156,7 @@ public class LoggerTest {
 		inner.run();
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" run() "));
-		assertThat(result, containsString(".LoggerTest$3.java:157)"));
+		assertThat(result, containsString(".LoggerTest$3.java:153)"));
 	}
 
 	/**

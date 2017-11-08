@@ -21,7 +21,7 @@
  *                                                    stacktrace line
  *    Achim Kraus (Bosch Software Innovations GmbH) - search for line number of caller
  ******************************************************************************/
-package org.eclipse.californium.core;
+package org.eclipse.californium.elements.util;
 
 import java.text.Format;
 import java.text.SimpleDateFormat;
