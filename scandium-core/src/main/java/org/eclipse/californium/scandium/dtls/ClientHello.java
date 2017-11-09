@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -83,7 +83,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * This is a list of the cryptographic options supported by the client, with
 	 * the client's first preference first.
 	 */
-	private List<CipherSuite> cipherSuites = new ArrayList<>();
+	private List<CipherSuite> supportedCipherSuites = new ArrayList<>();
 
 	/**
 	 * This is a list of the compression methods supported by the client, sorted
@@ -105,7 +105,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * @param version the protocol version to use
 	 * @param secureRandom a function to use for creating random values included
 	 *            in the message
-	 * @param cipherSuites the list of the supported cipher suites in order of
+	 * @param supportedCipherSuites the list of the supported cipher suites in order of
 	 *            the client’s preference (favorite choice first)
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
@@ -114,10 +114,15 @@ public final class ClientHello extends HandshakeMessage {
 	 * @param peerAddress the IP address and port of the peer this message has
 	 *            been received from or should be sent to
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, List<CipherSuite> cipherSuites,
+	public ClientHello(
+			ProtocolVersion version,
+			SecureRandom secureRandom,
+			List<CipherSuite> supportedCipherSuites,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
-		this(version, secureRandom, null, cipherSuites, supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes,
+			InetSocketAddress peerAddress) {
+
+		this(version, secureRandom, null, supportedCipherSuites, supportedClientCertificateTypes,
 				supportedServerCertificateTypes, peerAddress);
 	}
 
@@ -134,18 +139,28 @@ public final class ClientHello extends HandshakeMessage {
 	 * @param supportedServerCertificateTypes the list of certificate types
 	 *            supported by the server
 	 */
-	public ClientHello(ProtocolVersion version, SecureRandom secureRandom, DTLSSession session,
+	public ClientHello(
+			ProtocolVersion version,
+			SecureRandom secureRandom,
+			DTLSSession session,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes) {
+
 		this(version, secureRandom, session.getSessionIdentifier(),
 				Arrays.asList(session.getCipherSuite()), supportedClientCertificateTypes,
 				supportedServerCertificateTypes, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
-	private ClientHello(ProtocolVersion version, SecureRandom secureRandom, SessionId sessionId,
-			List<CipherSuite> cipherSuites, List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes, InetSocketAddress peerAddress) {
+	private ClientHello(
+			ProtocolVersion version,
+			SecureRandom secureRandom,
+			SessionId sessionId,
+			List<CipherSuite> supportedCipherSuites,
+			List<CertificateType> supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes,
+			InetSocketAddress peerAddress) {
+
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random(secureRandom);
@@ -155,11 +170,13 @@ public final class ClientHello extends HandshakeMessage {
 		} else {
 			this.sessionId = SessionId.emptySessionId();
 		}
-		if (cipherSuites != null) {
-			this.cipherSuites.addAll(cipherSuites);
+		if (supportedCipherSuites != null) {
+			this.supportedCipherSuites.addAll(supportedCipherSuites);
 		}
 
-		if (CipherSuite.containsEccBasedCipherSuite(cipherSuites)) {
+		// we only need to include elliptic_curves and point_format extensions
+		// if the client supports at least one ECC based cipher suite
+		if (CipherSuite.containsEccBasedCipherSuite(supportedCipherSuites)) {
 			// the supported groups
 			// TODO make list of supported groups configurable
 			SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[] {});
@@ -169,6 +186,7 @@ public final class ClientHello extends HandshakeMessage {
 			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
 			this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
 		}
+
 		// the certificate types the client is able to provide to the server
 		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
@@ -211,8 +229,8 @@ public final class ClientHello extends HandshakeMessage {
 		writer.write(cookie.length, COOKIE_LENGTH);
 		writer.writeBytes(cookie);
 
-		writer.write(cipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
-		writer.writeBytes(CipherSuite.listToByteArray(cipherSuites));
+		writer.write(supportedCipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
+		writer.writeBytes(CipherSuite.listToByteArray(supportedCipherSuites));
 
 		writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
 		writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
@@ -255,7 +273,7 @@ public final class ClientHello extends HandshakeMessage {
 		result.cookie = reader.readBytes(cookieLength);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		result.cipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
+		result.supportedCipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
 				cipherSuitesLength / 2); // 2
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
@@ -288,7 +306,7 @@ public final class ClientHello extends HandshakeMessage {
 		// fixed sizes: version (2) + random (32) + session ID length (1) +
 		// cookie length (1) + cipher suites length (2) + compression methods
 		// length (1) = 39
-		return 39 + sessionId.length() + cookie.length + cipherSuites.size() * 2 + compressionMethods.size()
+		return 39 + sessionId.length() + cookie.length + supportedCipherSuites.size() * 2 + compressionMethods.size()
 				+ extensionsLength;
 	}
 
@@ -306,9 +324,9 @@ public final class ClientHello extends HandshakeMessage {
 		if (cookie.length > 0) {
 			sb.append(System.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
 		}
-		sb.append(System.lineSeparator()).append("\t\tCipher Suites Length: ").append(cipherSuites.size() * 2);
-		sb.append(System.lineSeparator()).append("\t\tCipher Suites (").append(cipherSuites.size()).append(" suites)");
-		for (CipherSuite cipher : cipherSuites) {
+		sb.append(System.lineSeparator()).append("\t\tCipher Suites Length: ").append(supportedCipherSuites.size() * 2);
+		sb.append(System.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size()).append(" suites)");
+		for (CipherSuite cipher : supportedCipherSuites) {
 			sb.append(System.lineSeparator()).append("\t\t\tCipher Suite: ").append(cipher);
 		}
 		sb.append(System.lineSeparator()).append("\t\tCompression Methods Length: ").append(compressionMethods.size());
@@ -359,7 +377,7 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	public List<CipherSuite> getCipherSuites() {
-		return Collections.unmodifiableList(cipherSuites);
+		return Collections.unmodifiableList(supportedCipherSuites);
 	}
 
 	public List<CompressionMethod> getCompressionMethods() {
@@ -392,6 +410,20 @@ public final class ClientHello extends HandshakeMessage {
 	public SupportedEllipticCurvesExtension getSupportedEllipticCurvesExtension() {
 		if (extensions != null) {
 			return (SupportedEllipticCurvesExtension) extensions.getExtension(ExtensionType.ELLIPTIC_CURVES);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the supported point formats.
+	 * 
+	 * @return the client's supported point formats extension if available,
+	 *         otherwise <code>null</code>.
+	 */
+	public SupportedPointFormatsExtension getSupportedPointFormatsExtension() {
+		if (extensions != null) {
+			return (SupportedPointFormatsExtension) extensions.getExtension(ExtensionType.EC_POINT_FORMATS);
 		} else {
 			return null;
 		}

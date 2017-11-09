@@ -160,10 +160,11 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedServerCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes = new ArrayList<>();
 
-		// Currently scandium offers only ECC-based cipher suite, 
-		// but no other certificate-based CiperSuites.
-		// Correct this check, if other certificates are supported
-		if (CipherSuite.containsEccBasedCipherSuite(preferredCipherSuites)) {
+		// we only need to include certificate_type extensions in the CLIENT_HELLO
+		// if we support a cipher suite that requires a certificate exchange
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(preferredCipherSuites)) {
+
+			// we always support receiving a RawPublicKey from the server
 			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			if (rootCertificates != null && rootCertificates.length > 0) {
 				int index = config.isSendRawKey() ? 1 : 0;

@@ -48,9 +48,9 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * suites.
  */
 public enum CipherSuite {
-	
+
 	// Cipher suites //////////////////////////////////////////////////
-	
+
 	TLS_NULL_WITH_NULL_NULL(0x0000, KeyExchangeAlgorithm.NULL, Cipher.NULL, MACAlgorithm.NULL),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
@@ -298,18 +298,37 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Check, if a ECC based cipher is used.
+	 * Checks if a list of cipher suite contains an ECC based cipher.
 	 * 
-	 * @param cipherSuites list of ciper suite to be checked
-	 * 
-	 * @return {@code true}, if such a cipher suite is configured,
-	 *         {@code false}, otherwise.
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true} if the list contains an ECC based cipher suite,
+	 *         {@code false} otherwise.
 	 * 
 	 */
 	public static boolean containsEccBasedCipherSuite(List<CipherSuite> cipherSuites) {
 		if (cipherSuites != null) {
 			for (CipherSuite cipherSuite : cipherSuites) {
 				if (cipherSuite.isEccBased()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if a list of cipher suite contains a cipher suite that requires
+	 * the exchange of certificates.
+	 * 
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true} if any of the cipher suites requires the exchange of certificates,
+	 *         {@code false} otherwise.
+	 * 
+	 */
+	public static boolean containsCipherSuiteRequiringCertExchange(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.requiresServerCertificateMessage()) {
 					return true;
 				}
 			}
@@ -491,14 +510,22 @@ public enum CipherSuite {
 		}
 	}
 
+	/**
+	 * Known key exchange algorithm names.
+	 *
+	 */
 	public enum KeyExchangeAlgorithm {
 		NULL, DHE_DSS, DHE_RSA, DH_ANON, RSA, DH_DSS, DH_RSA, PSK, EC_DIFFIE_HELLMAN;
 	}
-	
+
 	private enum PRFAlgorithm {
 		TLS_PRF_SHA256;
 	}
 
+	/**
+	 * Known cipher types.
+	 *
+	 */
 	public enum CipherType {
 		NULL, STREAM, BLOCK, AEAD;
 	}
