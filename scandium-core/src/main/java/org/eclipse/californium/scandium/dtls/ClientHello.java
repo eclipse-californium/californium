@@ -105,7 +105,8 @@ public final class ClientHello extends HandshakeMessage {
 	 * @param version the protocol version to use
 	 * @param secureRandom a function to use for creating random values included
 	 *            in the message
-	 * @param cipherSuites the list of the supported cipher suites
+	 * @param cipherSuites the list of the supported cipher suites in order of
+	 *            the client’s preference (favorite choice first)
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
 	 * @param supportedServerCertificateTypes the list of certificate types
