@@ -64,10 +64,45 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			// create the new request from the original
 			outgoingRequest = CoapTranslator.getRequest(incomingRequest);
 
+			// receive the response
+			outgoingRequest.addMessageObserver(new MessageObserver() {
+				@Override
+				public void onRetransmission() {
+				}
+
+				@Override
+				public void onResponse(Response incomingResponse) {
+					LOGGER.log(Level.INFO, "ProxyCoapClientResource received {0}", incomingResponse);
+					future.complete(CoapTranslator.getResponse(incomingResponse));
+				}
+
+				@Override
+				public void onAcknowledgement() {
+				}
+
+				@Override
+				public void onReject() {
+					LOGGER.warning("Request rejected");
+					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+				}
+
+				@Override
+				public void onTimeout() {
+					LOGGER.warning("Request timed out.");
+					future.complete(new Response(ResponseCode.GATEWAY_TIMEOUT));
+				}
+
+				@Override
+				public void onCancel() {
+					LOGGER.warning("Request canceled");
+					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+				}
+			});
+
 			// execute the request
 			LOGGER.finer("Sending proxied CoAP request.");
 			outgoingRequest.send();
-			
+
 		} catch (TranslationException e) {
 			LOGGER.log(Level.WARNING, "Proxy-uri option malformed: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
@@ -77,41 +112,6 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 			return future;
 		}
-
-		// receive the response
-		outgoingRequest.addMessageObserver(new MessageObserver() {
-			@Override
-			public void onRetransmission() {
-			}
-
-			@Override
-			public void onResponse(Response incomingResponse) {
-				LOGGER.log(Level.INFO, "ProxyCoapClientResource received {0}", incomingResponse);
-				future.complete(CoapTranslator.getResponse(incomingResponse));
-			}
-
-			@Override
-			public void onAcknowledgement() {
-			}
-
-			@Override
-			public void onReject() {
-				LOGGER.warning("Request rejected");
-				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
-			}
-
-			@Override
-			public void onTimeout() {
-				LOGGER.warning("Request timed out.");
-				future.complete(new Response(ResponseCode.GATEWAY_TIMEOUT));
-			}
-
-			@Override
-			public void onCancel() {
-				LOGGER.warning("Request canceled");
-				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
-			}
-		});
 
 		return future;
 	}
