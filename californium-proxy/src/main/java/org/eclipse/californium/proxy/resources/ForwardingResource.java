@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
+import org.eclipse.californium.compat.CompletableFuture;
+import org.eclipse.californium.compat.Consumer;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -34,11 +36,15 @@ public abstract class ForwardingResource extends CoapResource {
 	}
 
 	@Override
-	public void handleRequest(Exchange exchange) {
+	public void handleRequest(final Exchange exchange) {
 		exchange.sendAccept();
-		Response response = forwardRequest(exchange.getRequest());
-		exchange.sendResponse(response);
+		forwardRequest(exchange.getRequest()).thenAccept(new Consumer<Response>() {
+			@Override
+			public void accept(Response response) {
+				exchange.sendResponse(response);
+			}
+		});
 	}
 
-	public abstract Response forwardRequest(Request request);
+	public abstract CompletableFuture<Response> forwardRequest(Request request);
 }

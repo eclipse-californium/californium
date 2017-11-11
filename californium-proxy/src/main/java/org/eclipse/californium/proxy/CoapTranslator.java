@@ -99,10 +99,10 @@ public final class CoapTranslator {
 					incomingRequest.getOptions().getProxyUri(), "UTF-8");
 			serverUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warn("UTF-8 do not support this encoding: " + e);
+			LOGGER.warn("UTF-8 do not support this encoding", e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warn("Cannot translate the server uri" + e);
+			LOGGER.warn("Cannot translate the server uri", e);
 			throw new TranslationException("Cannot translate the server uri", e);
 		}
 
