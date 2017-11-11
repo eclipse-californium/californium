@@ -195,7 +195,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				}
 			} else {
 				// this code should not be reached
-				LOGGER.error("Code not recognized: " + code);
+				LOGGER.error("Code not recognized: {}", code);
 			}
 		}
 	}
@@ -376,7 +376,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				// TODO why not UTF-8?
 				proxyUri = URLEncoder.encode(proxyUri, "ISO-8859-1");
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.error("ISO-8859-1 encoding not supported: " + e.getMessage());
+				LOGGER.error("ISO-8859-1 encoding not supported: {}", e.getMessage());
 			}
 			byte[] payload = request.getPayload();
 

@@ -77,15 +77,15 @@ public class ProxyHttpServer {
 	
 		this.httpStack = new HttpStack(httpPort);
 		this.httpStack.setRequestHandler(new RequestHandler() {
-			public void handleRequest(Request request) {
-				ProxyHttpServer.this.handleRequest(request);
+			public void handleRequest(Request request, HttpRequestContext context) {
+				ProxyHttpServer.this.handleRequest(request, context);
 			}
 		});
 	}
 
-	public void handleRequest(final Request request) {
+	public void handleRequest(final Request request, final HttpRequestContext context) {
 		
-		LOGGER.info("ProxyEndpoint handles request "+request);
+		LOGGER.info("ProxyEndpoint handles request {}", request);
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
 
@@ -103,13 +103,10 @@ public class ProxyHttpServer {
 				// CoAP endpoint.
 				// TODO: When we change endpoint to be an interface, we can
 				// redirect the responses a little more elegantly.
-				try {
-					request.setResponse(response);
-					responseProduced(request, response);
-					httpStack.doSendResponse(request, response);
-				} catch (IOException e) {
-					LOGGER.warn("Exception while responding to Http request", e);
-				}
+				request.setResponse(response);
+				responseProduced(request, response);
+				context.handleRequestForwarding(response);
+				LOGGER.info("HTTP returned {}", response);
 			}
 		};
 		exchange.setRequest(request);
@@ -122,7 +119,7 @@ public class ProxyHttpServer {
 			// get the response from the cache
 			response = cacheResource.getResponse(request);
 
-				LOGGER.info("Cache returned "+response);
+				LOGGER.info("Cache returned {}", response);
 
 			// update statistics
 			statsResource.updateStatistics(request, response != null);
@@ -141,7 +138,7 @@ public class ProxyHttpServer {
 			if (request.getOptions().hasProxyUri()) {
 				try {
 					manageProxyUriRequest(request);
-					LOGGER.info("after manageProxyUriRequest: "+request);
+					LOGGER.info("after manageProxyUriRequest: {}", request);
 
 				} catch (URISyntaxException e) {
 					LOGGER.warn(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
@@ -187,7 +184,7 @@ public class ProxyHttpServer {
 			clientPath = PROXY_COAP_CLIENT;
 		}
 
-		LOGGER.info("Chose "+clientPath+" as clientPath");
+		LOGGER.info("Chose {} as clientPath", clientPath);
 
 		// set the path in the request to be forwarded correctly
 		request.getOptions().setUriPath(clientPath);
