@@ -71,14 +71,14 @@ public class ProxyHttpServer {
 	
 		this.httpStack = new HttpStack(httpPort);
 		this.httpStack.setRequestHandler(new RequestHandler() {
-			public void handleRequest(Request request) {
-				ProxyHttpServer.this.handleRequest(request);
+			public void handleRequest(Request request, RequestContext context) {
+				ProxyHttpServer.this.handleRequest(request, context);
 			}
 		});
 		this.coap2coap = coap;
 	}
 
-	public void handleRequest(final Request request) {
+	public void handleRequest(final Request request, final RequestContext context) {
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
 
@@ -99,7 +99,7 @@ public class ProxyHttpServer {
 				try {
 					request.setResponse(response);
 					responseProduced(request, response);
-					httpStack.doSendResponse(request, response);
+					context.handleRequestForwarding(response);
 					LOGGER.info("HTTP returned " + response);
 				} catch (Exception e) {
 					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);

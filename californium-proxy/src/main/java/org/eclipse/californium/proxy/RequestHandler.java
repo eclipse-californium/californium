@@ -22,6 +22,6 @@ import org.eclipse.californium.core.coap.Request;
 
 public interface RequestHandler {
 
-	public void handleRequest(Request request);
+	public void handleRequest(Request request, RequestContext context);
 	
 }
