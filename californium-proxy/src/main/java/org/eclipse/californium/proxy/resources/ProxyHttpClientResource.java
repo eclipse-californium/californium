@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -68,11 +69,11 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			String proxyUriString = URLDecoder.decode(incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Proxy-uri option malformed: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 			return future;
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Proxy-uri option malformed: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 			return future;
 		}
@@ -85,13 +86,13 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		try {
 			// get the mapping to http for the incoming coap request
 			httpRequest = HttpTranslator.getHttpRequest(incomingCoapRequest);
-			LOGGER.finer("Outgoing http request: " + httpRequest.getRequestLine());
+			LOGGER.log(Level.FINER, "Outgoing http request: {0}", httpRequest.getRequestLine());
 		} catch (InvalidFieldException e) {
-			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Problems during the http/coap translation: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 			return future;
 		} catch (TranslationException e) {
-			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Problems during the http/coap translation: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
 			return future;
 		}
@@ -100,7 +101,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			@Override
 			public void completed(HttpResponse result) {
 				long timestamp = System.nanoTime();
-				LOGGER.info("Incoming http response: " + result.getStatusLine());
+				LOGGER.log(Level.INFO, "Incoming http response: {0}", result.getStatusLine());
 				// the entity of the response, if non repeatable, could be
 				// consumed only one time, so do not debug it!
 				// System.out.println(EntityUtils.toString(httpResponse.getEntity()));
@@ -112,17 +113,17 @@ public class ProxyHttpClientResource extends ForwardingResource {
 
 					future.complete(coapResponse);
 				} catch (InvalidFieldException e) {
-					LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+					LOGGER.log(Level.WARNING, "Problems during the http/coap translation: {0}", e.getMessage());
 					future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 				} catch (TranslationException e) {
-					LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+					LOGGER.log(Level.WARNING, "Problems during the http/coap translation: {0}", e.getMessage());
 					future.complete(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
 				}
 			}
 
 			@Override
 			public void failed(Exception ex) {
-				LOGGER.warning("Failed to get the http response: " + ex.getMessage());
+				LOGGER.log(Level.WARNING, "Failed to get the http response: {0}", ex.getMessage());
 				future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 			}
 

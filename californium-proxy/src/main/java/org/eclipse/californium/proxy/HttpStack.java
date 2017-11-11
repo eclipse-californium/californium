@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Exchanger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.http.HttpException;
@@ -171,7 +172,7 @@ public class HttpStack {
 				// Create server-side I/O reactor
 				ioReactor = new DefaultListeningIOReactor();
 				// Listen of the given port
-				LOGGER.info("HttpStack listening on port " + httpPort);
+				LOGGER.log(Level.INFO, "HttpStack listening on port {0}", httpPort);
 				ioReactor.listen(new InetSocketAddress(httpPort));
 
 				// create the listener thread
@@ -186,7 +187,7 @@ public class HttpStack {
 
 							ioReactor.execute(ioEventDispatch);
 						} catch (IOException e) {
-							LOGGER.severe("I/O Exception in HttpStack: " + e.getMessage());
+							LOGGER.log(Level.SEVERE, "I/O Exception in HttpStack: {0}", e.getMessage());
 						}
 
 						LOGGER.info("Shutdown HttpStack");
@@ -197,7 +198,7 @@ public class HttpStack {
 				listener.start();
 				LOGGER.info("HttpStack started");
 			} catch (IOException e) {
-				LOGGER.severe("I/O error: " + e.getMessage());
+				LOGGER.log(Level.SEVERE, "I/O error: {0}", e.getMessage());
 			}
 		}
 
@@ -262,7 +263,7 @@ public class HttpStack {
 			public void handle(HttpRequest httpRequest, HttpAsyncExchange httpExchange, HttpContext httpContext)
 					throws HttpException, IOException {
 
-				LOGGER.finer("Incoming http request: " + httpRequest.getRequestLine());
+				LOGGER.log(Level.FINER, "Incoming http request: {0}", httpRequest.getRequestLine());
 
 				final RequestContext requestContext = new RequestContext(httpExchange, httpRequest);
 				try {
@@ -272,13 +273,13 @@ public class HttpStack {
 					// handle the requset
 					requestHandler.handleRequest(coapRequest, requestContext);
 				} catch (InvalidMethodException e) {
-					LOGGER.warning("Method not implemented" + e.getMessage());
+					LOGGER.log(Level.WARNING, "Method not implemented {0}", e.getMessage());
 					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_WRONG_METHOD);
 				} catch (InvalidFieldException e) {
-					LOGGER.warning("Request malformed" + e.getMessage());
+					LOGGER.log(Level.WARNING, "Request malformed {0}", e.getMessage());
 					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_URI_MALFORMED);
 				} catch (TranslationException e) {
-					LOGGER.warning("Failed to translate the http request in a valid coap request: " + e.getMessage());
+					LOGGER.log(Level.WARNING, "Failed to translate the http request in a valid coap request: {0}", e.getMessage());
 					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR);
 				}
 			}

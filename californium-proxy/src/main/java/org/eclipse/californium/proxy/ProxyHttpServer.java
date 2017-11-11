@@ -100,9 +100,9 @@ public class ProxyHttpServer {
 					request.setResponse(response);
 					responseProduced(request, response);
 					context.handleRequestForwarding(response);
-					LOGGER.info("HTTP returned " + response);
+					LOGGER.log(Level.INFO, "HTTP returned {0}", response);
 				} catch (Exception e) {
-					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);
+					LOGGER.log(Level.WARNING, "Exception while responding to Http request {0}", e);
 				}
 			}
 		};
@@ -116,7 +116,7 @@ public class ProxyHttpServer {
 			// get the response from the cache
 			response = cacheResource.getResponse(request);
 
-				LOGGER.info("Cache returned "+response);
+				LOGGER.log(Level.INFO, "Cache returned {0}", response);
 
 			// update statistics
 			statsResource.updateStatistics(request, response != null);

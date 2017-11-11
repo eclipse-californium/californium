@@ -25,6 +25,7 @@ import java.nio.charset.Charset;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -66,8 +67,8 @@ public class StatsResource extends CoapResource {
 		try {
 			proxyUri = new URI(request.getOptions().getProxyUri());
 		} catch (URISyntaxException e) {
-			LOGGER.warning(String.format("Proxy-uri malformed: %s", 
-					request.getOptions().getProxyUri()));
+			LOGGER.log(Level.WARNING, "Proxy-uri malformed: {0}",
+					request.getOptions().getProxyUri());
 		}
 
 		if (proxyUri == null) {

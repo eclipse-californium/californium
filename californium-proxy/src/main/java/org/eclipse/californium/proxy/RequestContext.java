@@ -27,6 +27,7 @@ import org.apache.http.nio.protocol.HttpAsyncExchange;
 import org.eclipse.californium.core.coap.Response;
 
 import java.util.Locale;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -65,9 +66,9 @@ public final class RequestContext {
 			// translate the coap response in an http response
 			HttpTranslator.getHttpResponse(httpRequest, coapResponse, httpResponse);
 
-			LOGGER.finer("Outgoing http response: " + httpResponse.getStatusLine());
+			LOGGER.log(Level.FINER, "Outgoing http response: {0}", httpResponse.getStatusLine());
 		} catch (TranslationException e) {
-			LOGGER.warning("Failed to translate coap response to http response: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Failed to translate coap response to http response: {0}", e.getMessage());
 			sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR);
 			return;
 		}

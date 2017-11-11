@@ -21,6 +21,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -91,10 +92,10 @@ public final class CoapTranslator {
 			serverUri = new URI(proxyUriString);
 			// set after options have been copied from incomingRequest
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("UTF-8 do not support this encoding: " + e);
+			LOGGER.log(Level.WARNING, "UTF-8 do not support this encoding: {0}", e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Cannot translate the server uri" + e);
+			LOGGER.log(Level.WARNING, "Cannot translate the server uri {0}", e);
 			throw new TranslationException("Cannot translate the server uri", e);
 		}
 

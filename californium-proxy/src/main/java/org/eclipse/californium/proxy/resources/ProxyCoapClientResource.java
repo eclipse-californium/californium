@@ -25,6 +25,7 @@ import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.TranslationException;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 
 /**
@@ -48,7 +49,7 @@ public class ProxyCoapClientResource extends ForwardingResource {
 	public CompletableFuture<Response> forwardRequest(Request incomingRequest) {
 		final CompletableFuture<Response> future = new CompletableFuture<>();
 
-		LOGGER.info("ProxyCoapClientResource forwards " + incomingRequest);
+		LOGGER.log(Level.INFO, "ProxyCoapClientResource forwards {0}", incomingRequest);
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
@@ -68,11 +69,11 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			outgoingRequest.send();
 			
 		} catch (TranslationException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Proxy-uri option malformed: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 			return future;
 		} catch (Exception e) {
-			LOGGER.warning("Failed to execute request: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Failed to execute request: {0}", e.getMessage());
 			future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 			return future;
 		}
@@ -85,7 +86,7 @@ public class ProxyCoapClientResource extends ForwardingResource {
 
 			@Override
 			public void onResponse(Response incomingResponse) {
-				LOGGER.info("ProxyCoapClientResource received " + incomingResponse);
+				LOGGER.log(Level.INFO, "ProxyCoapClientResource received {0}", incomingResponse);
 				future.complete(CoapTranslator.getResponse(incomingResponse));
 			}
 
