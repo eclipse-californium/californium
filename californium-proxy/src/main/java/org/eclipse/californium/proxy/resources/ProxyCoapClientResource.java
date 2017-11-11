@@ -21,7 +21,9 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.proxy.CoapTranslator;
+import org.eclipse.californium.proxy.EndPointManagerPool;
 import org.eclipse.californium.proxy.TranslationException;
 
 import java.util.concurrent.CompletableFuture;
@@ -58,6 +60,8 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			return future;
 		}
 
+		final EndpointManager endpointManager = EndPointManagerPool.getManager();
+
 		// create a new request to forward to the requested coap server
 		Request outgoingRequest = null;
 		try {
@@ -74,6 +78,7 @@ public class ProxyCoapClientResource extends ForwardingResource {
 				public void onResponse(Response incomingResponse) {
 					LOGGER.log(Level.INFO, "ProxyCoapClientResource received {0}", incomingResponse);
 					future.complete(CoapTranslator.getResponse(incomingResponse));
+					EndPointManagerPool.putClient(endpointManager);
 				}
 
 				@Override
@@ -84,25 +89,33 @@ public class ProxyCoapClientResource extends ForwardingResource {
 				public void onReject() {
 					LOGGER.warning("Request rejected");
 					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+					EndPointManagerPool.putClient(endpointManager);
 				}
 
 				@Override
 				public void onTimeout() {
 					LOGGER.warning("Request timed out.");
 					future.complete(new Response(ResponseCode.GATEWAY_TIMEOUT));
+					EndPointManagerPool.putClient(endpointManager);
 				}
 
 				@Override
 				public void onCancel() {
 					LOGGER.warning("Request canceled");
 					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+					EndPointManagerPool.putClient(endpointManager);
 				}
 			});
 
 			// execute the request
 			LOGGER.finer("Sending proxied CoAP request.");
-			outgoingRequest.send();
 
+			if (outgoingRequest.getDestination() == null)
+					throw new NullPointerException("Destination is null");
+			if (outgoingRequest.getDestinationPort() == 0)
+				throw new NullPointerException("Destination port is 0");
+
+			endpointManager.getDefaultEndpoint().sendRequest(outgoingRequest);
 		} catch (TranslationException e) {
 			LOGGER.log(Level.WARNING, "Proxy-uri option malformed: {0}", e.getMessage());
 			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
