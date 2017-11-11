@@ -18,10 +18,13 @@
 package org.eclipse.californium.proxy.resources;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.TranslationException;
+
+import java.util.concurrent.CompletableFuture;
 
 
 /**
@@ -42,13 +45,16 @@ public class ProxyCoapClientResource extends ForwardingResource {
 	}
 
 	@Override
-	public Response forwardRequest(Request incomingRequest) {
+	public CompletableFuture<Response> forwardRequest(Request incomingRequest) {
+		final CompletableFuture<Response> future = new CompletableFuture<>();
+
 		LOGGER.info("ProxyCoapClientResource forwards " + incomingRequest);
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
 			LOGGER.warning("Proxy-uri option not set.");
-			return new Response(ResponseCode.BAD_OPTION);
+			future.complete(new Response(ResponseCode.BAD_OPTION));
+			return future;
 		}
 
 		// create a new request to forward to the requested coap server
@@ -63,26 +69,49 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			
 		} catch (TranslationException e) {
 			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
-			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
+			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+			return future;
 		} catch (Exception e) {
 			LOGGER.warning("Failed to execute request: " + e.getMessage());
-			return new Response(ResponseCode.INTERNAL_SERVER_ERROR);
+			future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
+			return future;
 		}
 
-		try {
-			// receive the response
-			Response incomingResponse = outgoingRequest.waitForResponse(timeout);
-
-			if (incomingResponse != null) {
-				LOGGER.info("ProxyCoapClientResource received " + incomingResponse);
-				return CoapTranslator.getResponse(incomingResponse);
-			} else {
-				LOGGER.warning("No response received.");
-				return new Response(CoapTranslator.STATUS_TIMEOUT);
+		// receive the response
+		outgoingRequest.addMessageObserver(new MessageObserver() {
+			@Override
+			public void onRetransmission() {
 			}
-		} catch (InterruptedException e) {
-			LOGGER.warning("Receiving of response interrupted: " + e.getMessage());
-			return new Response(ResponseCode.INTERNAL_SERVER_ERROR);
-		}
+
+			@Override
+			public void onResponse(Response incomingResponse) {
+				LOGGER.info("ProxyCoapClientResource received " + incomingResponse);
+				future.complete(CoapTranslator.getResponse(incomingResponse));
+			}
+
+			@Override
+			public void onAcknowledgement() {
+			}
+
+			@Override
+			public void onReject() {
+				LOGGER.warning("Request rejected");
+				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+			}
+
+			@Override
+			public void onTimeout() {
+				LOGGER.warning("Request timed out.");
+				future.complete(new Response(ResponseCode.GATEWAY_TIMEOUT));
+			}
+
+			@Override
+			public void onCancel() {
+				LOGGER.warning("Request canceled");
+				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+			}
+		});
+
+		return future;
 	}
 }
