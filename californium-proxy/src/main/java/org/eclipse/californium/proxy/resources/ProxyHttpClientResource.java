@@ -41,7 +41,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 	 * DefaultHttpClient is thread safe. It is recommended that the same
 	 * instance of this class is reused for multiple request executions.
 	 */
-	private static final CloseableHttpAsyncClient asyncClient = HttpClientPool.createClient();
+	private static final CloseableHttpAsyncClient asyncClient = HttpClientFactory.createClient();
 
 	public ProxyHttpClientResource() {
 		this(100000);

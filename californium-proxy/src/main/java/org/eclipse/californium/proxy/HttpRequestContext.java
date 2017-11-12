@@ -31,14 +31,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * The Class RequestContext. This thread waits a response from the lower
- * layers. It is the consumer of the producer/consumer pattern.
+ * The Class HttpRequestContext. This class deals encapsulates members related
+ * to a HTTP request in order to send a response to the original HTTP request.
  */
-public final class RequestContext {
+public final class HttpRequestContext {
 	private final HttpAsyncExchange httpExchange;
 	private final HttpRequest httpRequest;
 
-	private static final Logger LOGGER = Logger.getLogger(RequestContext.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(HttpRequestContext.class.getName());
 
 	/**
 	 * Instantiates a new coap response worker.
@@ -46,7 +46,7 @@ public final class RequestContext {
 	 * @param httpExchange   the http exchange
 	 * @param httpRequest    the http request
 	 */
-	public RequestContext(HttpAsyncExchange httpExchange, HttpRequest httpRequest) {
+	public HttpRequestContext(HttpAsyncExchange httpExchange, HttpRequest httpRequest) {
 		// super(name);
 		this.httpExchange = httpExchange;
 		this.httpRequest = httpRequest;

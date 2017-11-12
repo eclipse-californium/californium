@@ -265,22 +265,22 @@ public class HttpStack {
 
 				LOGGER.log(Level.FINER, "Incoming http request: {0}", httpRequest.getRequestLine());
 
-				final RequestContext requestContext = new RequestContext(httpExchange, httpRequest);
+				final HttpRequestContext httpRequestContext = new HttpRequestContext(httpExchange, httpRequest);
 				try {
 					// translate the request in a valid coap request
 					Request coapRequest = HttpTranslator.getCoapRequest(httpRequest, localResource);
 
 					// handle the requset
-					requestHandler.handleRequest(coapRequest, requestContext);
+					requestHandler.handleRequest(coapRequest, httpRequestContext);
 				} catch (InvalidMethodException e) {
 					LOGGER.log(Level.WARNING, "Method not implemented {0}", e.getMessage());
-					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_WRONG_METHOD);
+					httpRequestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_WRONG_METHOD);
 				} catch (InvalidFieldException e) {
 					LOGGER.log(Level.WARNING, "Request malformed {0}", e.getMessage());
-					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_URI_MALFORMED);
+					httpRequestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_URI_MALFORMED);
 				} catch (TranslationException e) {
 					LOGGER.log(Level.WARNING, "Failed to translate the http request in a valid coap request: {0}", e.getMessage());
-					requestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR);
+					httpRequestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR);
 				}
 			}
 
@@ -301,7 +301,7 @@ public class HttpStack {
 
 	}
 
-	public void doReceiveMessage(Request request, RequestContext context) {
+	public void doReceiveMessage(Request request, HttpRequestContext context) {
 		requestHandler.handleRequest(request, context);
 	}
 

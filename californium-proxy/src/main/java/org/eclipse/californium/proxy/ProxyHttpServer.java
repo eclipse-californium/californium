@@ -71,14 +71,14 @@ public class ProxyHttpServer {
 	
 		this.httpStack = new HttpStack(httpPort);
 		this.httpStack.setRequestHandler(new RequestHandler() {
-			public void handleRequest(Request request, RequestContext context) {
+			public void handleRequest(Request request, HttpRequestContext context) {
 				ProxyHttpServer.this.handleRequest(request, context);
 			}
 		});
 		this.coap2coap = coap;
 	}
 
-	public void handleRequest(final Request request, final RequestContext context) {
+	public void handleRequest(final Request request, final HttpRequestContext context) {
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
 

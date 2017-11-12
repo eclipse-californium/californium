@@ -33,11 +33,11 @@ import org.apache.http.protocol.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class HttpClientPool {
+public class HttpClientFactory {
 	private static final int KEEP_ALIVE = 5000;
-	private static final Logger LOGGER = Logger.getLogger(HttpClientPool.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(HttpClientFactory.class.getName());
 
-	private HttpClientPool() {
+	private HttpClientFactory() {
 	}
 
 	public static CloseableHttpAsyncClient createClient() {
