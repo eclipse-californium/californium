@@ -131,7 +131,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			try {
 				cacheKey = CacheKey.fromContentTypeOption(request);
 			} catch (URISyntaxException e) {
-				LOGGER.warning("Cannot create the cache key: " + e.getMessage());
+				LOGGER.log(Level.WARNING, "Cannot create the cache key: {0}", e.getMessage());
 			}
 
 			if (code == ResponseCode.CREATED || code == ResponseCode.DELETED || code == ResponseCode.CHANGED) {
@@ -156,7 +156,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 					LOGGER.finer("Updated cached response");
 				} else {
-					LOGGER.warning("No max-age option set in response: " + response);
+					LOGGER.log(Level.WARNING, "No max-age option set in response: {0}", response);
 				}
 			} else if (code == ResponseCode.CONTENT) {
 				// set max-age if not set
@@ -181,7 +181,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 						}
 					} catch (Exception e) {
 						// swallow
-						LOGGER.log(Level.WARNING, "Exception while inserting the response in the cache", e);
+						LOGGER.log(Level.WARNING, "Exception while inserting the response in the cache {0}", e);
 					}
 				} else {
 					// if the max-age option is set to 0, then the response
@@ -190,7 +190,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				}
 			} else {
 				// this code should not be reached
-				LOGGER.severe("Code not recognized: " + code);
+				LOGGER.log(Level.SEVERE, "Code not recognized: {0}", code);
 			}
 		}
 	}
@@ -371,7 +371,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				// TODO why not UTF-8?
 				proxyUri = URLEncoder.encode(proxyUri, "ISO-8859-1");
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.severe("ISO-8859-1 encoding not supported: " + e.getMessage());
+				LOGGER.log(Level.SEVERE, "ISO-8859-1 encoding not supported: {0}", e.getMessage());
 			}
 			byte[] payload = request.getPayload();
 

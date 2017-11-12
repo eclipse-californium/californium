@@ -1,0 +1,102 @@
+/*******************************************************************************
+ * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
+ * Contributors:
+ *    Matthias Kovatsch - creator and main architect
+ *    Martin Lanter - architect and re-implementation
+ *    Francesco Corazza - HTTP cross-proxy
+ ******************************************************************************/
+package org.eclipse.californium.proxy;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.protocol.RequestAcceptEncoding;
+import org.apache.http.client.protocol.ResponseContentEncoding;
+import org.apache.http.impl.client.DefaultConnectionKeepAliveStrategy;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
+import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
+import org.apache.http.nio.reactor.ConnectingIOReactor;
+import org.apache.http.nio.reactor.IOReactorException;
+import org.apache.http.protocol.*;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class HttpClientFactory {
+	private static final int KEEP_ALIVE = 5000;
+	private static final Logger LOGGER = Logger.getLogger(HttpClientFactory.class.getName());
+
+	private HttpClientFactory() {
+	}
+
+	public static CloseableHttpAsyncClient createClient() {
+		try {
+			final CloseableHttpAsyncClient client = HttpAsyncClientBuilder.create()
+					.disableCookieManagement()
+					.setDefaultRequestConfig(createCustomRequestConfig())
+					.setConnectionManager(createPoolingConnManager())
+					.addInterceptorFirst(new RequestAcceptEncoding())
+					.addInterceptorFirst(new RequestConnControl())
+					// .addInterceptorFirst(new RequestContent())
+					.addInterceptorFirst(new RequestDate())
+					.addInterceptorFirst(new RequestExpectContinue())
+					.addInterceptorFirst(new RequestTargetHost())
+					.addInterceptorFirst(new RequestUserAgent())
+					.addInterceptorFirst(new ResponseContentEncoding())
+					.setKeepAliveStrategy(new DefaultConnectionKeepAliveStrategy() {
+						@Override
+						public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+							long keepAlive = super.getKeepAliveDuration(response, context);
+							if (keepAlive == -1) {
+								// Keep connections alive if a keep-alive value
+								// has not be explicitly set by the server
+								keepAlive = KEEP_ALIVE;
+							}
+							return keepAlive;
+						}
+
+					})
+					.build();
+			client.start();
+			return client;
+		} catch (IOReactorException e) {
+			LOGGER.log(Level.SEVERE, e.getMessage(), e);
+			return null;
+		}
+	}
+
+	private static RequestConfig createCustomRequestConfig() {
+		return RequestConfig.custom()
+				.setConnectionRequestTimeout(5000)
+				.setConnectTimeout(1000)
+				.setSocketTimeout(500).build();
+	}
+
+	/**
+	 * Optional function to pre-initialize the manager instead of lazy-loading.
+	 */
+	public static void init() {
+		LOGGER.info("http client pool ready");
+	}
+
+	private static PoolingNHttpClientConnectionManager createPoolingConnManager() throws IOReactorException {
+		ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor();
+
+		PoolingNHttpClientConnectionManager cm = new PoolingNHttpClientConnectionManager(ioReactor);
+		cm.setMaxTotal(50);
+		cm.setDefaultMaxPerRoute(50);
+
+		return cm;
+	}
+}

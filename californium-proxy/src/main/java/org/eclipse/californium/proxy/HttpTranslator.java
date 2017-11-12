@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.http.Header;
@@ -214,7 +215,7 @@ public final class HttpTranslator {
 				try {
 					optionNumber = Integer.parseInt(optionCodeString.trim());
 				} catch (Exception e) {
-					LOGGER.warning("Problems in the parsing: " + e.getMessage());
+					LOGGER.log(Level.WARNING, e.getMessage(), e);
 					// ignore the option if not recognized
 					continue;
 				}
@@ -300,7 +301,7 @@ public final class HttpTranslator {
 				// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 				// This cannot be parsed into a single CoAP Option and yields a
 				// NumberFormatException
-				LOGGER.warning("Could not parse header line "+header);
+				LOGGER.log(Level.WARNING, "Could not parse header line {0}", header);
 			}
 		} // while (headerIterator.hasNext())
 
@@ -341,7 +342,7 @@ public final class HttpTranslator {
 				}
 			}
 		} catch (IOException e) {
-			LOGGER.warning("Cannot get the content of the http entity: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Cannot get the content of the http entity: {0}", e.getMessage());
 			throw new TranslationException("Cannot get the content of the http entity", e);
 		} finally {
 			try {
@@ -394,7 +395,7 @@ public final class HttpTranslator {
 		try {
 			coapMethod = Integer.parseInt(coapMethodString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the http method in coap method: " + e);
+			LOGGER.log(Level.WARNING, "Cannot convert the http method in coap method: {0}", e);
 			throw new TranslationException("Cannot convert the http method in coap method", e);
 		}
 
@@ -409,10 +410,10 @@ public final class HttpTranslator {
 		try {
 			uriString = URLDecoder.decode(uriString, "UTF-8");
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("Failed to decode the uri: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Failed to decode the uri: {0}", e.getMessage());
 			throw new TranslationException("Failed decoding the uri: " + e.getMessage());
 		} catch (Throwable e) {
-			LOGGER.warning("Malformed uri: " + e.getMessage());
+			LOGGER.log(Level.WARNING, "Malformed uri: {0}", e.getMessage());
 			throw new InvalidFieldException("Malformed uri: " + e.getMessage());
 		}
 
@@ -438,7 +439,7 @@ public final class HttpTranslator {
 			coapRequest.getOptions().setProxyUri(uriString);
 
 		} else {
-			LOGGER.warning("Malrouted request: " + httpRequest.getRequestLine());
+			LOGGER.log(Level.WARNING, "Malrouted request: {0}", httpRequest.getRequestLine());
 			return null;
 		}
 
@@ -516,7 +517,7 @@ public final class HttpTranslator {
 			try {
 				coapCode = ResponseCode.valueOf(Integer.parseInt(coapCodeString.trim()));
 			} catch (NumberFormatException e) {
-				LOGGER.warning("Cannot convert the status code in number: " + e.getMessage());
+				LOGGER.log(Level.WARNING, "Cannot convert the status code in number: {0}", e.getMessage());
 				throw new TranslationException("Cannot convert the status code in number", e);
 			}
 		}
@@ -614,7 +615,7 @@ public final class HttpTranslator {
 				try {
 					contentType = ContentType.parse(coapContentTypeString);
 				} catch (UnsupportedCharsetException e) {
-					LOGGER.finer("Cannot convert string to ContentType: " + e.getMessage());
+					LOGGER.log(Level.FINER, "Cannot convert string to ContentType: {0}", e.getMessage());
 					contentType = ContentType.APPLICATION_OCTET_STREAM;
 				}
 			}
@@ -767,10 +768,10 @@ public final class HttpTranslator {
 					coapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("UTF-8 do not support this encoding: " + e);
+			LOGGER.log(Level.WARNING, "UTF-8 do not support this encoding: {0}", e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Cannot translate the server uri" + e);
+			LOGGER.log(Level.WARNING, "Cannot translate the server uri {0}", e);
 			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
 		}
 
@@ -846,7 +847,7 @@ public final class HttpTranslator {
 		try {
 			httpCode = Integer.parseInt(httpCodeString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the coap code in http status code" + e);
+			LOGGER.log(Level.WARNING, "Cannot convert the coap code in http status code {0}", e);
 			throw new TranslationException("Cannot convert the coap code in http status code", e);
 		}
 
@@ -886,8 +887,7 @@ public final class HttpTranslator {
 				httpResponse.setHeader("content-type", contentType.toString());
 			}
 		}
-		LOGGER.info("Translated " + coapResponse);
-		LOGGER.info("To " + httpResponse);
+		LOGGER.log(Level.INFO, "Translated {0} to {1}", new Object[] {coapResponse, httpResponse});
 	}
 
 	/**

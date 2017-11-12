@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
 import org.eclipse.californium.core.coap.Request;
@@ -38,9 +39,8 @@ public abstract class ForwardingResource extends ConcurrentCoapResource {
 	@Override
 	public void handleRequest(Exchange exchange) {
 		exchange.sendAccept();
-		Response response = forwardRequest(exchange.getRequest());
-		exchange.sendResponse(response);
+		forwardRequest(exchange.getRequest()).thenAccept(exchange::sendResponse);
 	}
 
-	public abstract Response forwardRequest(Request request);
+	public abstract CompletableFuture<Response> forwardRequest(Request request);
 }
