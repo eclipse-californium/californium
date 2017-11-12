@@ -38,6 +38,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.CancellationException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +99,10 @@ public class TlsClientConnector extends TcpClientConnector {
 						}
 						/* success, call super.send() to actually send the message */ 
 						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
+					} else if (future.isCancelled()) {
+						msg.onError(new CancellationException());
+					} else {
+						msg.onError(future.cause());
 					}
 				}
 			});

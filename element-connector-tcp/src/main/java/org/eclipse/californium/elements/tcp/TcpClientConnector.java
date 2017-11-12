@@ -156,7 +156,10 @@ public class TcpClientConnector implements Connector {
 					} finally {
 						channelPool.release(channel);
 					}
+				} else if (future.isCancelled()) {
+					msg.onError(new CancellationException());
 				} else {
+					msg.onError(future.cause());
 					LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
 				}
 			}
