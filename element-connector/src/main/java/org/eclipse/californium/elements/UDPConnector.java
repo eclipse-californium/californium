@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,6 +25,7 @@
  *                                                    issue #345
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                    remove scheme
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -37,8 +38,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Connector} employing UDP as the transport protocol for exchanging
@@ -58,7 +59,7 @@ import java.util.logging.Logger;
  */
 public class UDPConnector implements Connector {
 
-	public static final Logger LOGGER = Logger.getLogger(UDPConnector.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class.getName());
 
 	public static final int UNDEFINED = 0;
 
@@ -147,7 +148,7 @@ public class UDPConnector implements Connector {
 		sendBufferSize = socket.getSendBufferSize();
 
 		// start receiver and sender threads
-		LOGGER.log(Level.CONFIG, "UDPConnector starts up {0} sender threads and {1} receiver threads",
+		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads",
 				new Object[]{senderCount, receiverCount});
 
 		receiverThreads = new LinkedList<Thread>();
@@ -174,12 +175,12 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 		
-		if (LOGGER.isLoggable(Level.CONFIG)) {
+		if (LOGGER.isInfoEnabled()) {
 			String startupMsg = new StringBuilder("UDPConnector listening on ")
 				.append(socket.getLocalSocketAddress()).append(", recv buf = ")
 				.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
 				.append(", recv packet size = ").append(receiverPacketSize).toString();
-			LOGGER.log(Level.CONFIG, startupMsg);
+			LOGGER.info(startupMsg);
 		}
 	}
 
@@ -212,7 +213,7 @@ public class UDPConnector implements Connector {
 			socket.close();
 			socket = null;
 		}
-		LOGGER.log(Level.CONFIG, "UDPConnector on [{0}] has stopped.", address);
+		LOGGER.info("UDPConnector on [{}] has stopped.", address);
 	}
 
 	@Override
@@ -257,20 +258,19 @@ public class UDPConnector implements Connector {
 		}
 
 		public void run() {
-			LOGGER.log(Level.FINE, "Starting network stage thread [{0}]", getName());
+			LOGGER.debug("Starting network stage thread [{}]", getName());
 			while (true) {
 				try {
 					work();
 					if (!running) {
-						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						LOGGER.debug("Network stage thread [{}] was stopped successfully", getName());
 						break;
 					}
 				} catch (Throwable t) {
 					if (running) {
-						LOGGER.log(Level.SEVERE, "Exception in network stage thread [" + getName() + "]:", t);
+						LOGGER.error("Exception in network stage thread [{}]:", getName(), t);
 					} else {
-						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
-						LOGGER.log(Level.FINER, "   stopped at:", t);
+						LOGGER.debug("Network stage thread [{}] was stopped successfully at:", getName(), t);
 						break;
 					}
 				}
@@ -297,11 +297,9 @@ public class UDPConnector implements Connector {
 		protected void work() throws IOException {
 			datagram.setLength(size);
 			socket.receive(datagram);
-			if (LOGGER.isLoggable(Level.FINER)) {
-				LOGGER.log(Level.FINER, "UDPConnector ({0}) received {1} bytes from {2}:{3}",
-						new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
-							datagram.getAddress(), datagram.getPort()});
-			}
+			LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}",
+					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
+						datagram.getAddress(), datagram.getPort()});
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 			RawData msg = RawData.inbound(bytes, new AddressEndpointContext(datagram.getAddress(), datagram.getPort()), false);
 
@@ -328,21 +326,17 @@ public class UDPConnector implements Connector {
 				 */
 				EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
 				if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
-					if (LOGGER.isLoggable(Level.WARNING)) {
-						LOGGER.log(Level.WARNING, "UDPConnector ({0}) drops {1} bytes to {2}:{3}",
-								new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
-										datagram.getAddress(), datagram.getPort() });
-					}
+					LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}",
+							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
+									datagram.getAddress(), datagram.getPort() });
 					raw.onError(new EndpointMismatchException());
 					return;
 				}
 				datagram.setData(raw.getBytes());
 				datagram.setAddress(raw.getAddress());
 				datagram.setPort(raw.getPort());
-				if (LOGGER.isLoggable(Level.FINER)) {
-					LOGGER.log(Level.FINER, "UDPConnector ({0}) sends {1} bytes to {2}:{3}",
-							new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
-				}
+				LOGGER.debug("UDPConnector ({}) sends {} bytes to {}:{}",
+						new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
 				socket.send(datagram);
 				raw.onSent();
 			} catch (IOException ex) {

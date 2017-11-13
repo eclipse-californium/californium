@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,6 +20,7 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove duplicated
  *                                                    endpoints destroy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -30,8 +31,8 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -95,7 +96,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(CoapServer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class.getName());
 
 	/** The root resource. */
 	private final Resource root;
@@ -205,7 +206,7 @@ public class CoapServer implements ServerInterface {
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
-			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
+			LOGGER.info("no endpoints have been defined for server, setting up server endpoint on default port {}", port);
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 
@@ -216,7 +217,7 @@ public class CoapServer implements ServerInterface {
 				// only reached on success
 				++started;
 			} catch (IOException e) {
-				LOGGER.log(Level.SEVERE, "Cannot start server endpoint [" + ep.getAddress() + "]", e);
+				LOGGER.error("cannot start server endpoint [{}]", ep.getAddress(), e);
 			}
 		}
 		if (started == 0) {
@@ -260,7 +261,7 @@ public class CoapServer implements ServerInterface {
 				if (runningTasks.size() > 0) {
 					// this is e.g. the case if we have performed an incomplete blockwise transfer
 					// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-					LOGGER.log(Level.FINE, "Ignoring remaining {0} scheduled task(s)", runningTasks.size());
+					LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
 				}
 				// wait for executing tasks to respond to being cancelled
 				executor.awaitTermination(1, TimeUnit.SECONDS);
@@ -272,7 +273,7 @@ public class CoapServer implements ServerInterface {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
 			}
-			LOGGER.log(Level.INFO, "CoAP server has been destroyed");
+			LOGGER.info("CoAP server has been destroyed");
 			running = false;
 		}
 	}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,13 +16,14 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - log failure to verify FINISHED message
  *    Bosch Software Innovations GmbH - remove dependency on Handshaker class
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -45,7 +46,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public final class Finished extends HandshakeMessage {
 
-	private static final Logger LOG = Logger.getLogger(Finished.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(Finished.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -109,11 +110,11 @@ public final class Finished extends HandshakeMessage {
 		if (!Arrays.equals(myVerifyData, verifyData)) {
 			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
 					.append("] FINISHED message failed");
-			if (LOG.isLoggable(Level.FINEST)) {
+			if (LOG.isTraceEnabled()) {
 				msg.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
 				msg.append(System.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
 			}
-			LOG.log(Level.FINE, msg.toString());
+			LOG.debug(msg.toString());
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 			throw new HandshakeException("Verification of FINISHED message failed", alert);
 		}

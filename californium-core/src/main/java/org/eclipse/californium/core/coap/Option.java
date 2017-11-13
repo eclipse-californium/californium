@@ -44,8 +44,24 @@ import java.util.Arrays;
  * UnSafe = (onum &amp; 2);
  * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
  * </pre></blockquote><hr>
- * 
- * CoAP defines several option numbers {@link OptionNumberRegistry}.
+ *
+ * {@code CoAP} defines several option numbers detailed in {@link OptionNumberRegistry}.
+ * <p>
+ * Class variables {@code number} and {@code value} directly maps to {@code CoAP} request
+ * and response options as is. In {@code CoAP} specification {@code number} is
+ * an option header key as {@code int} and {@code value} is represented as
+ * a raw byte array {@code byte[]}. User must be careful when using {@code value} directly
+ * as depending on actual option, {@code value} may be {@code empty}, {@code opaque},
+ * {@code uint} or {@code string}. For example, for {@code uint} the number 0 is represented
+ * with an empty option value (a zero-length sequence of bytes) and the number 1 by a single
+ * byte with the numerical value of 1 (bit combination 00000001 in most significant bit first
+ * notation). A recipient MUST be prepared to process values with leading zero bytes.
+ * <p>
+ * {@code Option} has helper methods, namely {@link #getIntegerValue()} and
+ * {@link #toValueString()} taking into account actual option type and how it
+ * may be represented in a native {@code value}.
+ *
+ * @see OptionSet
  */
 public class Option implements Comparable<Option> {
 
@@ -169,7 +185,9 @@ public class Option implements Comparable<Option> {
 	}
 	
 	/**
-	 * Gets the option value as integer.
+	 * Gets the option value as integer. Handles cases where {@code value}
+	 * contains leading 0's or a case where {@code value} is empty which
+	 * returns 0.
 	 *
 	 * @return the integer value
 	 */
@@ -182,7 +200,9 @@ public class Option implements Comparable<Option> {
 	}
 	
 	/**
-	 * Gets the option value as long.
+	 * Gets the option value as long. Handles cases where {@code value}
+	 * contains leading 0's or a case where {@code value} is empty which
+	 * returns 0.
 	 *
 	 * @return the long value
 	 */
@@ -319,8 +339,12 @@ public class Option implements Comparable<Option> {
 	}
 	
 	/**
-	 * Renders the option value as string.
-	 * 
+	 * Renders the option value as string. Takes into account of option type,
+	 * thus giving more accurate representation of an option {@code value}.
+	 * Formats {@code value} as integer or string if so defined in
+	 * {@link OptionNumberRegistry}. In case of option {@code value} is just
+	 * an opaque byte array, formats this value as hex string.
+	 *
 	 * @return the option value as string
 	 */
 	public String toValueString() {

@@ -18,6 +18,9 @@
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
+ *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - include trustedRPKs in
+ *                                                    determineCipherSuitesFromConfig
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -34,6 +37,8 @@ import java.util.List;
 import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
@@ -112,6 +117,9 @@ public final class DtlsConnectorConfig {
 
 	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites;
+
+	/** default is trust all RPKs **/
+	private TrustedRpkStore trustedRPKs;
 
 	private Integer outboundMessageBufferSize;
 
@@ -346,6 +354,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getConnectionThreadCount() {
 		return connectionThreadCount;
+	}
+
+	/**
+	 * @return The trust store for raw public keys verified out-of-band for
+	 *         DTLS-RPK handshakes
+	 */
+	public TrustedRpkStore getRpkTrustStore() {
+		return trustedRPKs;
 	}
 
 	/**
@@ -717,6 +733,18 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		/**
+		 * Sets the store for trusted raw public keys.
+		 * 
+		 * @param store the rpk trust store
+		 */
+		public void setRpkTrustStore(TrustedRpkStore store) {
+			if (store == null) {
+				throw new IllegalStateException("Must provide a non-null rpk trust store");
+			}
+			config.trustedRPKs = store;
+		}
+
 		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
 			List<X509Certificate> result = new ArrayList<>(certs.length);
 			for (Certificate cert : certs) {
@@ -863,16 +891,22 @@ public final class DtlsConnectorConfig {
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
-			if (config.getSupportedCipherSuites().length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
+			}
+			if (config.trustedRPKs == null) {
+				// must be set after determineCipherSuitesFromConfig(),
+				// otherwise this would be interpreted for client only
+				// as ECDHE_ECDSA support!
+				config.trustedRPKs = new TrustAllRpks();
 			}
 
 			// check cipher consistency
-			if (config.getSupportedCipherSuites().length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
 			}
-			for (CipherSuite suite : config.getSupportedCipherSuites()) {
+			for (CipherSuite suite : config.supportedCipherSuites) {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 				case TLS_PSK_WITH_AES_128_CBC_SHA256:
@@ -914,7 +948,13 @@ public final class DtlsConnectorConfig {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
-			if (isConfiguredWithKeyPair()) {
+			boolean certificates = isConfiguredWithKeyPair();
+			if (!certificates && clientOnly) {
+				certificates = config.trustedRPKs != null
+						|| (config.trustStore != null && config.trustStore.length > 0);
+			}
+
+			if (certificates) {
 				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 			}

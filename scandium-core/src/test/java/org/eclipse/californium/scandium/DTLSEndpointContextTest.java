@@ -13,6 +13,7 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests from
  *                                                    DTLSConnectorTest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use timeout for await
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -36,7 +37,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -63,6 +64,7 @@ public class DTLSEndpointContextTest {
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
+	private static final long TIMEOUT_IN_MILLIS = 2000;
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
 	static ConnectorHelper serverHelper;
@@ -180,7 +182,7 @@ public class DTLSEndpointContextTest {
 		client.send(outboundMessage);
 
 		// THEN assert that the EndpointContextMatcher is invoked
-		endpointMatcher.await();
+		assertThat(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS), is(true));
 		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(endpointContext));
 		assertThat(endpointMatcher.getMessageEndpointContext(2), is(endpointContext));
 	}
@@ -207,7 +209,7 @@ public class DTLSEndpointContextTest {
 		client.send(outboundMessage);
 
 		// THEN assert that the EndpointContextMatcher is invoked
-		endpointMatcher.await();
+		assertThat(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS), is(true));
 		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(notNullValue()));
 	}
 
@@ -298,8 +300,8 @@ public class DTLSEndpointContextTest {
 			return current < count;
 		}
 
-		public void await() throws InterruptedException {
-			latchSendMatcher.await();
+		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+			return latchSendMatcher.await(timeout, unit);
 		}
 
 	};

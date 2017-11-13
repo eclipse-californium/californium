@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
@@ -23,8 +24,10 @@ import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -46,7 +49,9 @@ import com.google.common.primitives.Ints;
  * Resource to handle the caching in the proxy.
  */
 public class ProxyCacheResource extends CoapResource implements CacheResource {
-	
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyCacheResource.class);
+
 	/**
 	 * The time after which an entry is removed. Since it is not possible to set
 	 * the expiration for the single instances, this constant represent the
@@ -131,7 +136,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			try {
 				cacheKey = CacheKey.fromContentTypeOption(request);
 			} catch (URISyntaxException e) {
-				LOGGER.warning("Cannot create the cache key: " + e.getMessage());
+				LOGGER.warn("Cannot create the cache key: {}", e.getMessage());
 			}
 
 			if (code == ResponseCode.CREATED || code == ResponseCode.DELETED || code == ResponseCode.CHANGED) {
@@ -154,9 +159,9 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 					cachedResponse.getOptions().setMaxAge(newMaxAge);
 					cachedResponse.setTimestamp(newCurrentTime);
 
-					LOGGER.finer("Updated cached response");
+					LOGGER.debug("Updated cached response");
 				} else {
-					LOGGER.warning("No max-age option set in response: " + response);
+					LOGGER.warn("No max-age option set in response: {}", response);
 				}
 			} else if (code == ResponseCode.CONTENT) {
 				// set max-age if not set
@@ -175,13 +180,13 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 						Response responseInserted = responseCache.get(cacheKey);
 						if (responseInserted != null) {
 //							if (Bench_Help.DO_LOG) 
-								LOGGER.finer("Cached response");
+								LOGGER.debug("Cached response");
 						} else {
-							LOGGER.warning("Failed to insert the response in the cache");
+							LOGGER.warn("Failed to insert the response in the cache");
 						}
-					} catch (Exception e) {
+					} catch (ExecutionException e) {
 						// swallow
-						LOGGER.log(Level.WARNING, "Exception while inserting the response in the cache", e);
+						LOGGER.warn("Exception while inserting the response in the cache", e);
 					}
 				} else {
 					// if the max-age option is set to 0, then the response
@@ -190,7 +195,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				}
 			} else {
 				// this code should not be reached
-				LOGGER.severe("Code not recognized: " + code);
+				LOGGER.error("Code not recognized: " + code);
 			}
 		}
 	}
@@ -230,7 +235,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 		// if the response is not null, manage the cached response
 		if (response != null) {
-			LOGGER.finer("Cache hit");
+			LOGGER.debug("Cache hit");
 
 			// check if the response is expired
 			long currentTime = System.nanoTime();
@@ -242,12 +247,12 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				// set the current time as the response timestamp
 				response.setTimestamp(currentTime);
 			} else {
-				LOGGER.finer("Expired response");
+				LOGGER.debug("Expired response");
 
 				// try to validate the response
 				response = validate(cacheKey);
 				if (response != null) {
-					LOGGER.finer("Validation successful");
+					LOGGER.debug("Validation successful");
 				} else {
 					invalidateRequest(cacheKey);
 				}
@@ -260,7 +265,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	@Override
 	public void invalidateRequest(Request request) {
 		invalidateRequest(CacheKey.fromAcceptOptions(request));
-		LOGGER.finer("Invalidated request");
+		LOGGER.debug("Invalidated request");
 	}
 
 	@Override
@@ -371,7 +376,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				// TODO why not UTF-8?
 				proxyUri = URLEncoder.encode(proxyUri, "ISO-8859-1");
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.severe("ISO-8859-1 encoding not supported: " + e.getMessage());
+				LOGGER.error("ISO-8859-1 encoding not supported: " + e.getMessage());
 			}
 			byte[] payload = request.getPayload();
 

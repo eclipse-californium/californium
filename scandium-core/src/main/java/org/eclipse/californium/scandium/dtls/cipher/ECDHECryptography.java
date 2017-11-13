@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add latest curves from IANA registry,
  *                                                    add SupportedGroup enum also holding
  *                                                    curve params, add brainpool curve params
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - include only usable groups into the
+ *                                                    preferred groups.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -40,8 +43,8 @@ import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
@@ -55,7 +58,7 @@ public final class ECDHECryptography {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	protected static final Logger LOGGER = Logger.getLogger(ECDHECryptography.class.getCanonicalName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(ECDHECryptography.class.getCanonicalName());
 
 	// Static members /////////////////////////////////////////////////
 
@@ -135,9 +138,8 @@ public final class ECDHECryptography {
 			try {
 				return new ECDHECryptography(group.name());
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(
-					Level.WARNING,
-					"Cannot create ephemeral keys for group [{0}]: {1}",
+				LOGGER.warn(
+					"Cannot create ephemeral keys for group [{}]: {}",
 					new Object[]{group.name(), e.getMessage()});
 				return null;
 			}
@@ -183,8 +185,8 @@ public final class ECDHECryptography {
 
 			secretKey = getSecret(peerPublicKey);
 
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not generate the premaster secret.",e);
+		} catch (GeneralSecurityException e) {
+			LOGGER.error("Could not generate the premaster secret", e);
 		}
 		return secretKey;
 	}
@@ -205,8 +207,8 @@ public final class ECDHECryptography {
 			keyAgreement.doPhase(peerPublicKey, true);
 			
 			secretKey = keyAgreement.generateSecret("TlsPremasterSecret");
-		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not generate the premaster secret.",e);
+		} catch (GeneralSecurityException e) {
+			LOGGER.error("Could not generate the premaster secret", e);
 		}
 		return secretKey;
 	}
@@ -224,13 +226,13 @@ public final class ECDHECryptography {
 	 */
 	public static ECPoint decodePoint(byte[] encoded, EllipticCurve curve) {
 		if ((encoded.length == 0) || (encoded[0] != 0x04)) {
-			LOGGER.severe("Only uncompressed point format supported.");
+			LOGGER.error("Only uncompressed point format supported.");
 			return null;
 		}
 		
 		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
 		if (encoded.length != (fieldSize * 2) + 1) {
-			LOGGER.severe("Point does not match field size.");
+			LOGGER.error("Point does not match field size.");
 			return null;
 		}
 		byte[] xb = new byte[fieldSize];
@@ -259,7 +261,7 @@ public final class ECDHECryptography {
 		byte[] yb = ByteArrayUtils.trimZeroes(point.getAffineY().toByteArray());
 		
 		if ((xb.length > fieldSize) || (yb.length > fieldSize)) {
-			LOGGER.severe("Point coordinates do not match field size.");
+			LOGGER.error("Point coordinates do not match field size.");
 			return null;
 		}
 		
@@ -433,7 +435,7 @@ public final class ECDHECryptography {
 				gen.initialize(new ECGenParameterSpec(name()));
 				usable = true;
 			} catch (GeneralSecurityException e) {
-				LOGGER.log(Level.FINE, "Group [{0}] is not supported by JRE", name());
+				LOGGER.debug("Group [{}] is not supported by JRE", name());
 			}
 		}
 
@@ -499,7 +501,7 @@ public final class ECDHECryptography {
 					result.add(group);
 				}
 			}
-			return result.toArray(new SupportedGroup[]{});
+			return result.toArray(new SupportedGroup[result.size()]);
 		}
 
 		/**
@@ -508,16 +510,26 @@ public final class ECDHECryptography {
 		 * @return the groups in order of preference
 		 */
 		public static List<SupportedGroup> getPreferredGroups() {
+			SupportedGroup usableGroup = null;
 			List<SupportedGroup> result = new ArrayList<>();
 			for (SupportedGroup group : SupportedGroup.values()) {
 				switch(group) {
 				case secp256r1:
 				case secp384r1:
 				case secp521r1:
-					result.add(group);
+					if (group.isUsable()) {
+						result.add(group);
+					}
+					break;
 				default:
+					if (usableGroup == null && group.isUsable()) {
+						usableGroup = group;
+					}
 					// skip
 				}
+			}
+			if (result.isEmpty() && usableGroup != null) {
+				result.add(usableGroup);
 			}
 			return result;
 		}

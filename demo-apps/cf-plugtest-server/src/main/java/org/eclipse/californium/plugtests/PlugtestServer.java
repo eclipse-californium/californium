@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,11 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -88,7 +88,7 @@ public class PlugtestServer extends CoapServer {
 	private static final int MAX_RESOURCE_SIZE = 8192;
 
 	private static final NetworkConfig CONFIG = NetworkConfig.getStandard();
-	
+
 	// allows port configuration in Californium.properties
 
 	public static void main(String[] args) {
@@ -96,8 +96,7 @@ public class PlugtestServer extends CoapServer {
 		.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000)
-		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300)
-		.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "INFO");
+		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300);
 
 		if (CONFIG.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
 			CONFIG.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
@@ -166,40 +165,36 @@ public class PlugtestServer extends CoapServer {
 			}
 		}
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			// only binds to IPv4 addresses
-			if (addr instanceof Inet4Address) {
-				if (plain) {
-					InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
-					if (udp) {
-						addEndpoint(new CoapEndpoint(bindToAddress, CONFIG));
-					}
-					if (tcp) {
-						TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads,
-								tcpIdleTimeout);
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
+			if (plain) {
+				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
+				if (udp) {
+					addEndpoint(new CoapEndpoint(bindToAddress, CONFIG));
 				}
-				if (secure) {
-					InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
-					if (udp) {
-						DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-						dtlsConfig.setAddress(bindToAddress);
-						dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-								CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 });
-						dtlsConfig.setPskStore(new PlugPskStore());
-						dtlsConfig.setIdentity(serverCredentials.getPrivateKey(),
-								serverCredentials.getCertificateChain(), true);
-						dtlsConfig.setTrustStore(trustedCertificates);
+				if (tcp) {
+					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
+				}
+			}
+			if (secure) {
+				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
+				if (udp) {
+					DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+					dtlsConfig.setAddress(bindToAddress);
+					dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 });
+					dtlsConfig.setPskStore(new PlugPskStore());
+					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+							true);
+					dtlsConfig.setTrustStore(trustedCertificates);
 
-						DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
 
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
-					if (tcp) {
-						TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress,
-								tcpThreads, tcpIdleTimeout);
-						addEndpoint(new CoapEndpoint(connector, CONFIG));
-					}
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
+				}
+				if (tcp) {
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
+							tcpIdleTimeout);
+					addEndpoint(new CoapEndpoint(connector, CONFIG));
 				}
 			}
 		}

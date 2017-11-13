@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,13 +14,14 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging improvements
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -47,7 +48,7 @@ public enum CompressionMethod {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(CompressionMethod.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CompressionMethod.class.getCanonicalName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -73,7 +74,7 @@ public enum CompressionMethod {
 			return CompressionMethod.DEFLATE;
 
 		default:
-			LOGGER.log(Level.FINER, "Unknown compression method code: {0}", code);
+			LOGGER.debug("Unknown compression method code: {}", code);
 			return null;
 		}
 	}

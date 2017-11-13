@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,6 +26,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check MIDs of notifies
  *    Achim Kraus (Bosch Software Innovations GmbH) - use renamed sameMID instead
  *                                                    of loadMID
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -36,6 +37,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
@@ -46,15 +48,12 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.UDPConnector;
@@ -87,6 +86,8 @@ public class ObserveServerSideTest {
 
 	private static CoapServer server;
 	private static InetSocketAddress serverAddress;
+	private static CoapTestEndpoint serverEndpoint;
+
 	private LockstepEndpoint client;
 	private int mid = 7000;
 
@@ -100,20 +101,21 @@ public class ObserveServerSideTest {
 	public static void start() {
 		System.out.println(System.lineSeparator() + "Start " + ObserveServerSideTest.class.getSimpleName());
 
-		Logger ul = Logger.getLogger(UDPConnector.class.getName());
-		ul.setLevel(Level.OFF);
-
 		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 200)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 300);
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);
 
 		server = new CoapServer();
-		server.addEndpoint(new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG));
+		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		server.addEndpoint(serverEndpoint);
 		server.add(testObsResource);
 		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
 		server.start();
@@ -126,15 +128,19 @@ public class ObserveServerSideTest {
 	public void setupClient() throws Exception {
 
 		client = createLockstepEndpoint(serverAddress);
+		testObsResource.clearObserveRelations();
 	}
 
 	@After
 	public void stopClient() {
-
-		printServerLog(serverInterceptor);
-
-		System.out.println();
-		client.destroy();
+		try {
+			assertAllExchangesAreCompleted(serverEndpoint);
+		} finally {
+			printServerLog(serverInterceptor);
+			
+			System.out.println();
+			client.destroy();
+		}
 	}
 
 	@AfterClass
@@ -436,6 +442,40 @@ public class ObserveServerSideTest {
 
 		Thread.sleep(ACK_TIMEOUT + 100);
 		assertThat("Resource has not removed observe relation", testObsResource.getObserverCount(), is(0));
+	}
+	
+	/**
+	 * Test incomplete block2 notification (missing request)
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testIncompleteBlock2Notification() throws Exception {
+		System.out.println("Observe with blockwise");
+		respPayload = generateRandomPayload(32);
+		byte[] tok = generateNextToken();
+
+		// Establish observe relation
+		respType = null; // first type is normal ACK
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).storeObserve("A").storeETag("tag").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
+
+		// First notification
+		respType = CON;
+		testObsResource.change(generateRandomPayload(80));
+		serverInterceptor.log(System.lineSeparator() + "   === changed ===");
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").storeETag("tag")
+				.block2(0, true, 32).size2(respPayload.length()).payload(respPayload, 0, 32).go();
+		client.sendEmpty(ACK).loadMID("MID").go();
+
+		// Get remaining blocks
+		byte[] tok3 = generateNextToken();
+		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
+		// we don't send last request, @after should check is there is
+		// no leak.
 	}
 
 	// All tests are made with this resource

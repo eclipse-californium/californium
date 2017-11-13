@@ -30,12 +30,25 @@ import java.util.List;
 import org.eclipse.californium.core.Utils;
 
 /**
- * OptionSet is a collection of all options of a request or a response.
- * OptionSet provides methods to add, remove and modify all options defined in
+ * {@code OptionSet} is a collection of all options of a request or a response.
+ * {@code OptionSet} provides methods to add, remove and modify all options defined in
  * the CoAP, blockwise CoAP, observing CoAP and supports arbitrary defined
  * options.
  * <p>
+ * Native format of a {@code CoAP} options include its number and value. More detailed
+ * format documentation of number and value format, see {@link Option}.
+ * <p>
+ * <b>NOTE:</b> {@code CoAP} defines {@code If-None-Match} option as empty, thus using
+ * {@link Option} to inspect its {@code value} is meaningless. Either use {@link Option}
+ * to check if this particular option exists or use method {@link #hasIfNoneMatch()} in
+ * this class. Other option relationships between {@code OptionSet} and {@link Option} may
+ * have little differences like {@code Content-Format} and {@code Accept} whose methods
+ * {@link #getContentFormat()} and {@link #getAccept()} will return
+ * {@link MediaTypeRegistry#UNDEFINED} if option is not present. This generally means that
+ * user may want to check if option actually exists before naively trying to use these values.
+ * <p>
  * Notice that this class is not entirely thread-safe: hasObserve =&gt; (int) getObserve()
+ * @see Option
  */
 public final class OptionSet {
 

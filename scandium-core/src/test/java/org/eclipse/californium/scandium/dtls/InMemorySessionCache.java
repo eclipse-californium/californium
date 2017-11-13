@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ConcurrentHashMap for
+ *                                                    thread-safe implementation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -27,7 +29,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  */
 public class InMemorySessionCache implements SessionCache {
 
-	private final Map<SessionId, byte[]> cache = new HashMap<>();
+	private final Map<SessionId, byte[]> cache = new ConcurrentHashMap<>();
 
 	/**
 	 * Puts a ticket to the cache.

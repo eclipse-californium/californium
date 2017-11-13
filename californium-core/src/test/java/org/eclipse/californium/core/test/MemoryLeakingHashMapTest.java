@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2014, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -27,6 +27,7 @@
  *                                                    by using setResponse() or 
  *                                                    setNotifies().
  *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageExchangeStoreTool
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -48,8 +49,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
@@ -105,7 +106,7 @@ public class MemoryLeakingHashMapTest {
 	// The name of the resource of the server
 	private static final String URI = "test";
 
-	private static final Logger LOGGER = Logger.getLogger(MemoryLeakingHashMapTest.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class.getName());
 	private static ScheduledExecutorService timer;
 	private static CoapServer server;
 	private static int serverPort;
@@ -121,7 +122,7 @@ public class MemoryLeakingHashMapTest {
 
 	@BeforeClass
 	public static void startupServer() throws Exception {
-		LOGGER.log(Level.FINE, "Start {0}", MemoryLeakingHashMapTest.class.getSimpleName());
+		LOGGER.debug("start {}", MemoryLeakingHashMapTest.class.getSimpleName());
 		timer = Executors.newSingleThreadScheduledExecutor();
 		createServerAndClientEndpoints();
 	}
@@ -131,7 +132,7 @@ public class MemoryLeakingHashMapTest {
 		timer.shutdown();
 		clientEndpoint.stop();
 		server.destroy();
-		LOGGER.log(Level.FINE, "End {0}", MemoryLeakingHashMapTest.class.getSimpleName());
+		LOGGER.debug("end {}", MemoryLeakingHashMapTest.class.getSimpleName());
 	}
 
 	@Before
@@ -159,7 +160,7 @@ public class MemoryLeakingHashMapTest {
 	public void testSimpleNONGet() throws Exception {
 
 		String uri = uriOf(URI);
-		LOGGER.log(Level.FINE, "Test simple NON GET to {0}", uri);
+		LOGGER.debug("Test simple NON GET to {}", uri);
 
 		String currentResponseText = "simple NON GET";
 		resource.setResponse(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
@@ -169,7 +170,7 @@ public class MemoryLeakingHashMapTest {
 		request.setType(Type.NON);
 		Response response = request.send(clientEndpoint).waitForResponse(ACK_TIMEOUT);
 		assertThat("Client did not receive response to NON request in time", response, is(notNullValue()));
-		LOGGER.log(Level.FINE, "Client received response [{0}] with msg type [{1}]", new Object[]{response.getPayloadString(), response.getType()});
+		LOGGER.debug("Client received response [{}] with msg type [{}]", new Object[]{response.getPayloadString(), response.getType()});
 		assertThat(response.getPayloadString(), is(currentResponseText));
 		assertThat(response.getType(), is(Type.NON));
 	}
@@ -199,7 +200,7 @@ public class MemoryLeakingHashMapTest {
 	private static void testSimpleGet(final Mode mode) throws Exception {
 
 		String uri = uriOf(URI);
-		LOGGER.log(Level.FINE, "Test simple GET to {0}", uri);
+		LOGGER.debug("Test simple GET to {}", uri);
 
 		String currentResponseText = "simple GET";
 		resource.setResponse(currentResponseText, mode);
@@ -254,7 +255,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static void testBlockwise(final CoapClient client, final Mode mode) {
 
-		LOGGER.log(Level.FINE, "Test blockwise POST to {0}", client.getURI());
+		LOGGER.debug("Test blockwise POST to {}", client.getURI());
 
 		currentRequestText = LONG_REQUEST;
 		String currentResponseText = LONG_RESPONSE;
@@ -266,7 +267,7 @@ public class MemoryLeakingHashMapTest {
 
 	private static void assertThatResponseContainsValue(CoapResponse response, String expectedValue) {
 		assertThat(response, is(notNullValue()));
-		LOGGER.log(Level.FINE, "Client received response [{0}]", response.getResponseText());
+		LOGGER.debug("Client received response [{}]", response.getResponseText());
 		assertThat(response.getResponseText(), is(expectedValue));
 	}
 
@@ -279,7 +280,7 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testObserveProactive() throws Exception {
-		LOGGER.log(Level.FINE, "Test observe relation with a proactive cancelation");
+		LOGGER.debug("Test observe relation with a proactive cancelation");
 		testObserveProactive("Hello observer");
 	}
 
@@ -292,7 +293,7 @@ public class MemoryLeakingHashMapTest {
 	 */
 	@Test
 	public void testObserveProactiveBlockwise() throws Exception {
-		LOGGER.log(Level.FINE, "Test observe relation with blockwise notifications and proactive cancelation");
+		LOGGER.debug("Test observe relation with blockwise notifications and proactive cancelation");
 		// We need a long response text (>16)
 		testObserveProactive(LONG_RESPONSE);
 	}
@@ -460,7 +461,7 @@ public class MemoryLeakingHashMapTest {
 				exchange.accept();
 			}
 
-			LOGGER.log(Level.FINE, "TestResource [{0}] received POST message: {1}", new Object[]{getName(), exchange.getRequestText()});
+			LOGGER.debug("TestResource [{}] received POST message: {}", new Object[]{getName(), exchange.getRequestText()});
 
 			exchange.respond(ResponseCode.CREATED, currentResponseText);
 		}
@@ -508,7 +509,7 @@ public class MemoryLeakingHashMapTest {
 			int counter = this.counter.incrementAndGet();
 
 			if (null == relation) {
-				LOGGER.log(Level.INFO, "Client ignore notification {0}: [{1}]",
+				LOGGER.info("Client ignore notification {}: [{}]",
 						new Object[] { counter, response.getResponseText() });
 				return;
 			}
@@ -518,17 +519,17 @@ public class MemoryLeakingHashMapTest {
 				latch.countDown();
 				countDown = latch.getCount();
 			}
-			LOGGER.log(Level.FINE, "Client received notification {0}: [{1}]",
+			LOGGER.debug("Client received notification {}: [{}]",
 					new Object[] { counter, response.getResponseText() });
 
 			if (cancelProactively) {
 				if (countDown == 1) {
-					LOGGER.log(Level.FINE, "Client proactively cancels observe relation");
+					LOGGER.debug("Client proactively cancels observe relation");
 					relation.proactiveCancel();
 				}
 			} else {
 				if (countDown == 0) {
-					LOGGER.log(Level.FINE, "Client forgets observe relation");
+					LOGGER.debug("Client forgets observe relation");
 					relation.reactiveCancel();
 				}
 			}

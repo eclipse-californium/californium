@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -27,11 +27,12 @@
  *                                                    onAcknowledgement()
  *    Achim Kraus (Bosch Software Innovations GmbH) - complete old notification
  *                                                    exchange
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -48,7 +49,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
  */
 public class ObserveLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = Logger.getLogger(ObserveLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveLayer.class.getName());
 
 	/**
 	 * Creates a new observe layer for a configuration.
@@ -68,13 +69,13 @@ public class ObserveLayer extends AbstractLayer {
 			if (exchange.getRequest().isAcknowledged() || exchange.getRequest().getType() == Type.NON) {
 				// Transmit errors as CON
 				if (!ResponseCode.isSuccess(response.getCode())) {
-					LOGGER.log(Level.FINE, "Response has error code {0} and must be sent as CON", response.getCode());
+					LOGGER.debug("response has error code {} and must be sent as CON", response.getCode());
 					response.setType(Type.CON);
 					relation.cancel();
 				} else {
 					// Make sure that every now and than a CON is mixed within
 					if (relation.check()) {
-						LOGGER.fine("The observe relation check requires the notification to be sent as CON");
+						LOGGER.debug("observe relation check requires the notification to be sent as CON");
 						response.setType(Type.CON);
 					} else {
 						// By default use NON, but do not override resource
@@ -108,7 +109,7 @@ public class ObserveLayer extends AbstractLayer {
 			synchronized (exchange) {
 				Response current = relation.getCurrentControlNotification();
 				if (current != null && isInTransit(current)) {
-					LOGGER.log(Level.FINE, "A former notification is still in transit. Postpone {0}", response);
+					LOGGER.debug("a former notification is still in transit. Postponing {}", response);
 					relation.setNextControlNotification(response);
 					// do not send now
 					return;
@@ -148,7 +149,7 @@ public class ObserveLayer extends AbstractLayer {
 
 		if (response.isNotification() && exchange.getRequest().isCanceled()) {
 			// The request was canceled and we no longer want notifications
-			LOGGER.finer("Rejecting notification for canceled Exchange");
+			LOGGER.debug("rejecting notification for canceled Exchange");
 			EmptyMessage rst = EmptyMessage.newRST(response);
 			sendEmptyMessage(exchange, rst);
 			// Matcher sets exchange as complete when RST is sent
@@ -199,7 +200,7 @@ public class ObserveLayer extends AbstractLayer {
 				 // next may be null
 				relation.setNextControlNotification(null);
 				if (next != null) {
-					LOGGER.fine("Notification has been acknowledged, send the next one");
+					LOGGER.debug("notification has been acknowledged, send the next one");
 					/*
 					 * The matcher must be able to find the NON notifications to remove
 					 * them from the exchangesByMID hashmap
@@ -225,7 +226,7 @@ public class ObserveLayer extends AbstractLayer {
 				ObserveRelation relation = exchange.getRelation();
 				final Response next = relation.getNextControlNotification();
 				if (next != null) {
-					LOGGER.fine("The notification has timed out and there is a fresher notification for the retransmission");
+					LOGGER.debug("notification has timed out and there is a fresher notification for the retransmission");
 					// Cancel the original retransmission and send the fresh
 					// notification here
 					response.cancel();
@@ -253,9 +254,8 @@ public class ObserveLayer extends AbstractLayer {
 		@Override
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
-			LOGGER.log(
-					Level.INFO,
-					"Notification for token [{0}] timed out. Canceling all relations with source [{1}]",
+			LOGGER.info(
+					"notification for token [{}] timed out. Canceling all relations with source [{}]",
 					new Object[]{ relation.getExchange().getRequest().getTokenString(), relation.getSource() });
 			relation.cancelAll();
 		}

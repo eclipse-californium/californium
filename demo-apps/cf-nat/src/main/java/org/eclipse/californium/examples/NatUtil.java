@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 
 package org.eclipse.californium.examples;
@@ -28,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test util to emulate a NAT.
@@ -41,7 +42,7 @@ import java.util.logging.Logger;
  */
 public class NatUtil implements Runnable {
 
-	private static final Logger LOGGER = Logger.getLogger(NatUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NatUtil.class.getCanonicalName());
 
 	/**
 	 * Supported maximum message size.
@@ -112,7 +113,7 @@ public class NatUtil implements Runnable {
 
 	@Override
 	public void run() {
-		LOGGER.log(Level.INFO, "Starting NAT {0} to {1}.", new Object[] { proxyName, destinationName });
+		LOGGER.info("starting NAT {} to {}.", new Object[] { proxyName, destinationName });
 		while (running) {
 			try {
 				proxyPacket.setLength(DATAGRAM_SIZE);
@@ -128,7 +129,7 @@ public class NatUtil implements Runnable {
 				}
 			} catch (SocketTimeoutException e) {
 				if (running) {
-					LOGGER.log(Level.INFO, "Listen NAT {0} to {1} ...", new Object[] { proxyName, destinationName });
+					LOGGER.info("listen NAT {} to {} ...", new Object[] { proxyName, destinationName });
 				}
 			} catch (SocketException e) {
 				if (running) {
@@ -185,11 +186,11 @@ public class NatUtil implements Runnable {
 		NatEntry entry = new NatEntry(incoming);
 		NatEntry old = nats.put(incoming, entry);
 		if (null != old) {
-			LOGGER.log(Level.INFO, "Changed NAT for {0} from {1} to {2}.",
+			LOGGER.info("changed NAT for {} from {} to {}.",
 					new Object[] { incoming, old.getPort(), entry.getPort() });
 			old.stop();
 		} else {
-			LOGGER.log(Level.INFO, "Add NAT for {0} to {1}.", new Object[] { incoming, entry.getPort() });
+			LOGGER.info("add NAT for {} to {}.", new Object[] { incoming, entry.getPort() });
 		}
 		return entry.getPort();
 	}
@@ -206,7 +207,7 @@ public class NatUtil implements Runnable {
 		if (null != entry) {
 			entry.stop();
 		} else {
-			LOGGER.log(Level.WARNING, "No mappigng found for {0}!", incoming);
+			LOGGER.warn("no mapping found for {}!", incoming);
 		}
 		return null != entry;
 	}
@@ -251,7 +252,7 @@ public class NatUtil implements Runnable {
 
 		@Override
 		public void run() {
-			LOGGER.log(Level.INFO, "Start listen on {0} for incoming {1}", new Object[] { natName, incomingName });
+			LOGGER.info("start listening on {} for incoming {}", new Object[] { natName, incomingName });
 			try {
 				while (running) {
 					try {
@@ -259,17 +260,17 @@ public class NatUtil implements Runnable {
 						outgoingSocket.receive(packet);
 						lastUsage.set(System.nanoTime());
 						packet.setSocketAddress(incoming);
-						LOGGER.log(Level.INFO, "Backward {0} bytes from {1} to {2} via {3}",
+						LOGGER.info("backward {} bytes from {} to {} via {}",
 								new Object[] { packet.getLength(), destinationName, incomingName, natName });
 						proxySocket.send(packet);
 					} catch (SocketTimeoutException e) {
 						if (running) {
 							if (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastUsage.get()) > NAT_TIMEOUT_MS) {
 								running = false;
-								LOGGER.log(Level.INFO, "Expired listen on {0} for incoming {1}",
+								LOGGER.info("expired listen on {} for incoming {}",
 										new Object[] { natName, incomingName });
 							} else {
-								LOGGER.log(Level.FINE, "Listen on {0} for incoming {1}",
+								LOGGER.debug("listen on {} for incoming {}",
 										new Object[] { natName, incomingName });
 							}
 						}
@@ -280,7 +281,7 @@ public class NatUtil implements Runnable {
 					}
 				}
 			} finally {
-				LOGGER.log(Level.INFO, "Stop listen on {0} for incoming {1}", new Object[] { natName, incomingName });
+				LOGGER.info("stop listen on {} for incoming {}", new Object[] { natName, incomingName });
 				outgoingSocket.close();
 				if (!stop) {
 					nats.remove(incoming, this);
@@ -299,7 +300,7 @@ public class NatUtil implements Runnable {
 		}
 
 		public void forward(DatagramPacket packet) throws IOException {
-			LOGGER.log(Level.INFO, "Forward {0} bytes from {1} to {2} via {3}",
+			LOGGER.info("forward {} bytes from {} to {} via {}",
 					new Object[] { packet.getLength(), incomingName, destinationName, natName });
 			packet.setSocketAddress(destination);
 			lastUsage.set(System.nanoTime());

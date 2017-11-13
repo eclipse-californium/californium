@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -24,6 +24,7 @@
  *                                                    integrate clear() into stop()
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -38,8 +39,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
@@ -56,7 +57,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
  */
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
-	private static final Logger LOGGER = Logger.getLogger(InMemoryMessageExchangeStore.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class.getName());
 	// for all
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
 	// for outgoing
@@ -78,7 +79,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 */
 	public InMemoryMessageExchangeStore(final NetworkConfig config) {
 		this(config, new InMemoryRandomTokenProvider(config));
-		LOGGER.log(Level.CONFIG, "using default TokenProvider {0}", InMemoryRandomTokenProvider.class.getName());
+		LOGGER.info("using default TokenProvider {}", InMemoryRandomTokenProvider.class.getName());
 	}
 
 	/**
@@ -102,19 +103,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void startStatusLogging() {
 
-		final Level healthStatusLevel = Level
-				.parse(config.getString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, Level.FINEST.getName()));
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (LOGGER.isLoggable(healthStatusLevel)) {
+		if (LOGGER.isTraceEnabled()) {
 			this.scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
 			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
-					LOGGER.log(healthStatusLevel, dumpCurrentLoadLevels());
+					LOGGER.trace(dumpCurrentLoadLevels());
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 		}
@@ -163,7 +162,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public boolean isEmpty() {
-		LOGGER.finer(dumpCurrentLoadLevels());
+		if (LOGGER.isDebugEnabled()) {
+			LOGGER.debug(dumpCurrentLoadLevels());
+		}
 		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
 	}
 
@@ -174,7 +175,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			InetSocketAddress dest = message.getDestinationContext().getPeerAddress();
 			mid = messageIdProvider.getNextMessageId(dest);
 			if (Message.NONE == mid) {
-				LOGGER.log(Level.WARNING, "Cannot send message to {0}, all MIDs are in use", dest);
+				LOGGER.warn("cannot send message to {}, all MIDs are in use", dest);
 			} else {
 				message.setMID(mid);
 			}
@@ -190,8 +191,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (Message.NONE != mid) {
 				KeyMID key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-					LOGGER.log(Level.WARNING,
-							"newly generated MID [{0}] already in use, overwriting already registered exchange", mid);
+					LOGGER.warn("newly generated MID [{}] already in use, overwriting already registered exchange", mid);
 				}
 			}
 		} else {
@@ -222,7 +222,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
 					&& tokenProvider.isTokenInUse(idByToken)) {
-				LOGGER.log(Level.WARNING, "Manual token overrides existing open request: {0}", idByToken);
+				LOGGER.warn("manual token overrides existing open request: {}", idByToken);
 			}
 		}
 		exchangesByToken.put(idByToken, exchange);
@@ -262,7 +262,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final KeyToken token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.log(Level.FINE, "removing exchange for token {0}", new Object[] { token });
+			LOGGER.debug("removing exchange for token {}", token);
 		}
 	}
 
@@ -277,7 +277,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.log(Level.FINE, "removing exchange for MID {0}", new Object[] { messageId });
+			LOGGER.debug("removing exchange for MID {}", messageId);
 		}
 		return removedExchange;
 	}
@@ -321,7 +321,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			}
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
-				LOGGER.log(Level.CONFIG, "no MessageIdProvider set, using default {0}",
+				LOGGER.info("no MessageIdProvider set, using default {}",
 						InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}

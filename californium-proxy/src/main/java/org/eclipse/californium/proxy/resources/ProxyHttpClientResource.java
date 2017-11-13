@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
@@ -46,10 +47,14 @@ import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.HttpTranslator;
 import org.eclipse.californium.proxy.InvalidFieldException;
 import org.eclipse.californium.proxy.TranslationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class ProxyHttpClientResource extends ForwardingResource {
-	
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyHttpClientResource.class);
+
 	private static final int KEEP_ALIVE = 5000;
 	// TODO: Properties.std.getInt("HTTP_CLIENT_KEEP_ALIVE");
 	
@@ -106,7 +111,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingCoapRequest.getOptions().hasProxyUri()) {
-			LOGGER.warning("Proxy-uri option not set.");
+			LOGGER.warn("Proxy-uri option not set.");
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
@@ -120,10 +125,10 @@ public class ProxyHttpClientResource extends ForwardingResource {
 					incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
 		}
 
@@ -134,13 +139,13 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		HttpRequest httpRequest = null;
 		try {
 			// get the mapping to http for the incoming coap request
-			httpRequest = HttpTranslator.getHttpRequest(incomingCoapRequest);
-			LOGGER.finer("Outgoing http request: " + httpRequest.getRequestLine());
+			httpRequest = new HttpTranslator().getHttpRequest(incomingCoapRequest);
+			LOGGER.debug("Outgoing http request: {}", httpRequest.getRequestLine());
 		} catch (InvalidFieldException e) {
-			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+			LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
 		} catch (TranslationException e) {
-			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+			LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
 			return new Response(CoapTranslator.STATUS_TRANSLATION_ERROR);
 		}
 
@@ -148,21 +153,21 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			@Override
 			public Response handleResponse(HttpResponse httpResponse) throws ClientProtocolException, IOException {
 				long timestamp = System.nanoTime();
-				LOGGER.finer("Incoming http response: " + httpResponse.getStatusLine());
+				LOGGER.debug("Incoming http response: {}", httpResponse.getStatusLine());
 				// the entity of the response, if non repeatable, could be
 				// consumed only one time, so do not debug it!
 				// System.out.println(EntityUtils.toString(httpResponse.getEntity()));
 
 				// translate the received http response in a coap response
 				try {
-					Response coapResponse = HttpTranslator.getCoapResponse(httpResponse, incomingCoapRequest);
+					Response coapResponse = new HttpTranslator().getCoapResponse(httpResponse, incomingCoapRequest);
 					coapResponse.setTimestamp(timestamp);
 					return coapResponse;
 				} catch (InvalidFieldException e) {
-					LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+					LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
 					return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
 				} catch (TranslationException e) {
-					LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
+					LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
 					return new Response(CoapTranslator.STATUS_TRANSLATION_ERROR);
 				}
 			}
@@ -170,14 +175,14 @@ public class ProxyHttpClientResource extends ForwardingResource {
 
 		// accept the request sending a separate response to avoid the timeout
 		// in the requesting client
-		LOGGER.finer("Acknowledge message sent");
+		LOGGER.debug("Acknowledge message sent");
 
 		Response coapResponse = null;
 		try {
 			// execute the request
 			coapResponse = HTTP_CLIENT.execute(httpHost, httpRequest, httpResponseHandler, null);
 		} catch (IOException e) {
-			LOGGER.warning("Failed to get the http response: " + e.getMessage());
+			LOGGER.warn("Failed to get the http response: {}", e.getMessage());
 			return new Response(ResponseCode.INTERNAL_SERVER_ERROR);
 		}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Kai Hudalla - OSGi support
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.osgi;
 
 import java.net.InetSocketAddress;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -34,10 +36,10 @@ import org.osgi.service.io.ConnectionFactory;
  */
 public class SimpleServerEndpointFactory implements EndpointFactory {
 
-	private final Logger log = Logger.getLogger(SimpleServerEndpointFactory.class.getName());
-	
+	private final Logger log = LoggerFactory.getLogger(SimpleServerEndpointFactory.class.getName());
+
 	private ConnectorFactory secureConnectorFactory;
-	
+
 	/**
 	 * Initializes the factory with collaborators.
 	 * 
@@ -48,7 +50,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 	public SimpleServerEndpointFactory(ConnectorFactory secureConnectorFactory) {
 		this.secureConnectorFactory = secureConnectorFactory;
 	}
-	
+
 	@Override
 	public final Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
 		
@@ -65,7 +67,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 					secureConnectorFactory.newConnector(address),
 					config);
 		} else {
-			log.fine("A secure ConnectorFactory is required to create secure Endpoints.");
+			log.debug("A secure ConnectorFactory is required to create secure Endpoints.");
 		}
 		return endpoint;
 	}

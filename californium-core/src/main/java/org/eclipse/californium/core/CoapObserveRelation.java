@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,6 +25,7 @@
  *                                                    may release the token, which is then
  *                                                    reused by the cancel request. Therefore
  *                                                    rely on the cleanup of the cancel request.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -34,8 +35,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -55,7 +56,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 public class CoapObserveRelation {
 
 	/** The logger. */
-	private static final Logger LOGGER = Logger.getLogger(CoapObserveRelation.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
 
 	/** A executor service to schedule re-registrations */
 	private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
@@ -203,7 +204,7 @@ public class CoapObserveRelation {
 	public void reactiveCancel() {
 		Request request = this.request;
 		if (CoAP.isTcpScheme(request.getScheme())) {
-			LOGGER.log(Level.INFO, "Change to cancel the observe {0} proactive over TCP.", request.getTokenString());
+			LOGGER.info("change to cancel the observe {} proactive over TCP.", request.getTokenString());
 			proactiveCancel();
 		} else {
 			// cancel old ongoing request

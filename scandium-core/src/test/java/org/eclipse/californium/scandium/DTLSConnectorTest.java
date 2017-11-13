@@ -66,7 +66,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.tcp.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.auth.X509CertPath;
@@ -1564,13 +1564,15 @@ public class DTLSConnectorTest {
 
 	private ClientHello createClientHello(DTLSSession sessionToResume) {
 		ClientHello hello = null;
+		
 		if (sessionToResume == null) {
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(),clientEndpoint);
+			List<CipherSuite> ciperSuites = new ArrayList<>();
+			ciperSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+			ciperSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), ciperSuites, Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(),clientEndpoint);
 		} else {
 			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume, null, null);
 		}
-		hello.addCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-		hello.addCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		hello.addCompressionMethod(CompressionMethod.NULL);
 		hello.setMessageSeq(0);
 		return hello;

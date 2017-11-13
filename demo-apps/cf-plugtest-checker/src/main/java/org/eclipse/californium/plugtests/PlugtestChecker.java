@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,10 +12,9 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
-/**
- * 
- */
+
 package org.eclipse.californium.plugtests;
 
 import java.lang.reflect.Constructor;
@@ -29,9 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
-import java.util.logging.Level;
 
-import org.eclipse.californium.core.CaliforniumLogger;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
@@ -51,11 +48,6 @@ import org.eclipse.californium.core.server.resources.Resource;
  * It uses Cf's internal API for "deep message inspection."
  */
 public class PlugtestChecker {
-	
-	static {
-		CaliforniumLogger.initialize();
-		CaliforniumLogger.setLevel(Level.INFO);
-	}
 
 	public static final int PLUGTEST_BLOCK_SZX = 2; // 64 bytes
 

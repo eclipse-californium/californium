@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,6 +33,7 @@
  *                                                    copied too late (after sending). 
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -46,8 +47,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -76,7 +77,7 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public abstract class Message {
 
-	protected final static Logger LOGGER = Logger.getLogger(Message.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class.getCanonicalName());
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
@@ -803,7 +804,7 @@ public abstract class Message {
 				// guard against faulty MessageObservers
 				observer.onRetransmission();
 			} catch (Exception e) {
-				LOGGER.log(Level.SEVERE, "Faulty MessageObserver for retransmitting events.", e);
+				LOGGER.error("Faulty MessageObserver for retransmitting events", e);
 			}
 		}
 	}

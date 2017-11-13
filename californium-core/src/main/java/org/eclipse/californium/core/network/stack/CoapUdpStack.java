@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -19,11 +19,12 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -76,7 +77,7 @@ import org.eclipse.californium.elements.Connector;
 public class CoapUdpStack extends BaseCoapStack {
 
 	/** The LOGGER. */
-	private final static Logger LOGGER = Logger.getLogger(CoapStack.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CoapStack.class.getCanonicalName());
 
 	/**
 	 * Creates a new stack for UDP as the transport.
@@ -86,23 +87,35 @@ public class CoapUdpStack extends BaseCoapStack {
 	 */
 	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
+		Layer layers[] = new Layer[] {
+				createExchangeCleanupLayer(config),
+				createObserveLayer(config),
+				createBlockwiseLayer(config),
+				createReliabilityLayer(config)};
 
+		setLayers(layers);
+	}
+
+	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
+		return new ExchangeCleanupLayer();
+	}
+
+	protected Layer createObserveLayer(NetworkConfig config) {
+		return new ObserveLayer(config);
+	}
+
+	protected Layer createBlockwiseLayer(NetworkConfig config) {
+		return new BlockwiseLayer(config);
+	}
+
+	protected Layer createReliabilityLayer(NetworkConfig config) {
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
 			reliabilityLayer = CongestionControlLayer.newImplementation(config);
-			LOGGER.log(Level.CONFIG, "Enabling congestion control: {0}", reliabilityLayer.getClass().getSimpleName());
+			LOGGER.info("Enabling congestion control: {}", reliabilityLayer.getClass().getSimpleName());
 		} else {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
-
-		Layer layers[] = new Layer[] {
-				new ExchangeCleanupLayer(),
-				new ObserveLayer(config),
-				new BlockwiseLayer(config),
-				reliabilityLayer };
-
-		setLayers(layers);
-
-		// make sure the endpoint sets a MessageDeliverer
+		return reliabilityLayer;
 	}
 }

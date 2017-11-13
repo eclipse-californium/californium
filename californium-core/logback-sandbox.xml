@@ -1,0 +1,40 @@
+<configuration>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
+			by default -->
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %level [%logger{0}]: %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- An appender for logging remote IP addresses accessing the CoAP server. 
+		This appender creates files rolling over per month. -->
+	<appender name="ACCESS_LOGS"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<!-- monthly rollover -->
+			<fileNamePattern>origin-trace/origin-trace-%d{yyyy-MM}.txt</fileNamePattern>
+
+			<!-- keep 3 months' worth of history capped at 3MB total size -->
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>3MB</totalSizeCap>
+
+		</rollingPolicy>
+
+		<encoder>
+			<pattern>[%date{yyyy-MM-dd HH:mm:ss}] %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- Strictly speaking, the level attribute is not necessary since -->
+	<!-- the level of the root level is set to DEBUG by default. -->
+	<root level="WARN">
+		<appender-ref ref="STDOUT" />
+	</root>
+
+	<logger name="org.eclipse.californium.core.network.interceptors.OriginTracer" additivity="false" level="TRACE">
+		<appender-ref ref="ACCESS_LOGS" />
+	</logger>
+
+</configuration>

@@ -20,25 +20,47 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
-			<classifier>tests</classifier>
-			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector</artifactId>
-			<type>jar</type>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
+			<activation>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>element-connector</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
@@ -75,17 +97,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<systemPropertyVariables>
-						<!--
-						   configures the JDK Logging to use the CaliforniumFormatter
-						   by means of the Californium-logging.properties file
-						-->
-						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
-						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
-					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*$*</exclude>
-					</excludes>
 					<!-- 
 						Parallel test execution fails on OpenJDK 8 on linux :-(
 						For now, execute tests sequentially one by one.
@@ -138,10 +149,10 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.0.2</version>
 				<executions>
 					<execution>
 						<goals>
+							<!-- export CoapNetworkRule for tests -->
 							<goal>test-jar</goal>
 						</goals>
 					</execution>

@@ -31,6 +31,7 @@ package org.eclipse.californium.core.network.config;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.GroupedMessageIdTracker;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.UDPConnector;
 
 /**
@@ -64,6 +65,16 @@ public class NetworkConfigDefaults {
 	 * EXCHANGE_LIFETIME of 247s.
 	 */
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins
+	
+	/**
+	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
+	 */
+	public static final int DEFAULT_PREFERRED_BLOCK_SIZE = 512;
+	
+	/**
+	 * The default value for {@link Keys#MAX_MESSAGE_SIZE}
+	 */
+	public static final int DEFAULT_MAX_MESSAGE_SIZE = 1024;
 
 	/**
 	 * The default MID tracker.
@@ -131,8 +142,8 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
 		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
 
-		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
+		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, DEFAULT_PREFERRED_BLOCK_SIZE);
+		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
 		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // ms
 
@@ -163,7 +174,6 @@ public class NetworkConfigDefaults {
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(NetworkConfig.Keys.HTTP_CACHE_SIZE, 32);
 
-		config.setString(NetworkConfig.Keys.HEALTH_STATUS_PRINT_LEVEL, "FINEST");
 		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
 
 		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s

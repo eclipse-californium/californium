@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,13 +18,14 @@
  *                                                    access thread safe.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use volatile for establishedSession.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Information about the DTLS connection to a peer.
@@ -38,7 +39,7 @@ import java.util.logging.Logger;
  */
 public final class Connection implements SessionListener {
 
-	private static final Logger LOGGER = Logger.getLogger(Connection.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 	private final InetSocketAddress peerAddress;
 	private volatile DTLSSession establishedSession;
 	private final SessionTicket ticket;
@@ -237,13 +238,13 @@ public final class Connection implements SessionListener {
 	@Override
 	public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
 		this.ongoingHandshake.set(handshaker);
-		LOGGER.log(Level.FINE, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
+		LOGGER.debug("Handshake with [{}] has been started", handshaker.getPeerAddress());
 	}
 
 	@Override
 	public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
 		this.establishedSession = session;
-		LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
+		LOGGER.debug("Session with [{}] has been established", session.getPeer());
 	}
 
 	@Override
@@ -251,7 +252,7 @@ public final class Connection implements SessionListener {
 		Handshaker handshaker = ongoingHandshake.getAndSet(null);
 		if (handshaker != null) {
 			cancelPendingFlight();
-			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
+			LOGGER.debug("Handshake with [{}] has been completed", peer);
 		}
 	}
 
@@ -260,7 +261,7 @@ public final class Connection implements SessionListener {
 		Handshaker handshaker = ongoingHandshake.getAndSet(null);
 		if (handshaker != null) {
 			cancelPendingFlight();
-			LOGGER.log(Level.FINE, "Handshake with [{0}] has failed", peer);
+			LOGGER.debug("Handshake with [{}] has failed", peer);
 		}
 	}
 	

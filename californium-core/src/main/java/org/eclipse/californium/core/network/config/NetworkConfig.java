@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add new keys for MID tracker
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
  *                                                    by DTLS_RESPONSE_MATCHING
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
@@ -35,15 +36,15 @@ import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  */
 public final class NetworkConfig {
 
-	private static final Logger LOGGER = Logger.getLogger(NetworkConfig.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
 
 	/** The default name for the configuration. */
 	public static final String DEFAULT_FILE_NAME = "Californium.properties";
@@ -190,7 +191,6 @@ public final class NetworkConfig {
 		public static final String HTTP_CACHE_RESPONSE_MAX_AGE = "HTTP_CACHE_RESPONSE_MAX_AGE";
 		public static final String HTTP_CACHE_SIZE = "HTTP_CACHE_SIZE";
 
-		public static final String HEALTH_STATUS_PRINT_LEVEL = "HEALTH_STATUS_PRINT_LEVEL";
 		public static final String HEALTH_STATUS_INTERVAL = "HEALTH_STATUS_INTERVAL";
 
 		/** Properties for TCP connector. */
@@ -236,7 +236,7 @@ public final class NetworkConfig {
 	 * @return the configuration
 	 */
 	public static NetworkConfig createStandardWithoutFile() {
-		LOGGER.config("Creating standard network configuration properties without a file");
+		LOGGER.info("Creating standard network configuration properties without a file");
 		return standard = new NetworkConfig();
 	}
 
@@ -249,12 +249,12 @@ public final class NetworkConfig {
 	 * @return the configuration
 	 */
 	public static NetworkConfig createStandardFromStream(InputStream inStream) {
-		LOGGER.config("Creating standard network configuration properties from stream");
+		LOGGER.info("Creating standard network configuration properties from stream");
 		standard = new NetworkConfig();
 		try {
 			standard.load(inStream);
 		} catch (IOException e) {
-			LOGGER.log(Level.WARNING, "cannot load properties from stream: {0}", e.getMessage());
+			LOGGER.warn("cannot load properties from stream: {}", e.getMessage());
 		}
 		return standard;
 	}
@@ -296,11 +296,11 @@ public final class NetworkConfig {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
 		} else {
-			LOGGER.log(Level.INFO, "loading properties from file {0}", file.getAbsolutePath());
+			LOGGER.info("loading properties from file {}", file.getAbsolutePath());
 			try (InputStream inStream = new FileInputStream(file)) {
 				load(inStream);
 			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "cannot load properties from file {0}: {1}",
+				LOGGER.warn("cannot load properties from file {}: {}",
 						new Object[] { file.getAbsolutePath(), e.getMessage() });
 			}
 		}
@@ -340,11 +340,11 @@ public final class NetworkConfig {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
 		} else {
-			LOGGER.log(Level.INFO, "writing properties to file {0}", file.getAbsolutePath());
+			LOGGER.info("writing properties to file {}", file.getAbsolutePath());
 			try (FileWriter writer = new FileWriter(file)) {
 				properties.store(writer, header);
 			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "cannot write properties to file {0}: {1}",
+				LOGGER.warn("cannot write properties to file {}: {}",
 						new Object[] { file.getAbsolutePath(), e.getMessage() });
 			}
 		}
@@ -503,11 +503,11 @@ public final class NetworkConfig {
 			try {
 				result = parser.parseValue(value);
 			} catch (NumberFormatException e) {
-				LOGGER.log(Level.WARNING, "value for key [{0}] is not a {1}, returning default value",
+				LOGGER.warn("value for key [{}] is not a {0}, returning default value",
 						new Object[] { key, defaultValue.getClass() });
 			}
 		} else {
-			LOGGER.log(Level.WARNING, "key [{0}] is undefined, returning default value", key);
+			LOGGER.warn("key [{}] is undefined, returning default value", key);
 		}
 		return result;
 	}
@@ -523,7 +523,7 @@ public final class NetworkConfig {
 		if (value != null) {
 			return Boolean.parseBoolean(value);
 		} else {
-			LOGGER.log(Level.WARNING, "Key [{0}] is undefined", key);
+			LOGGER.warn("Key [{}] is undefined", key);
 			return false;
 		}
 	}

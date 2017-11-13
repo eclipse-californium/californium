@@ -19,14 +19,6 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
-			<type>jar</type>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector</artifactId>
-			<classifier>tests</classifier>
-			<type>jar</type>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -39,9 +31,39 @@
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-library</artifactId>
-			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
+			<activation>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>element-connector</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
@@ -49,17 +71,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<systemPropertyVariables>
-						<!--
-						   configures the JDK Logging to use the ScandiumFormatter
-						   by means of the Scandium-logging.properties file
-						-->
-						<java.util.logging.config.file>${project.build.testOutputDirectory}/Scandium-logging.properties</java.util.logging.config.file>
-						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
-					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*$*</exclude>
-					</excludes>
 					<!--
 						Running the tests in parallel may cause problems with rebinding to a an address within a test,
 						e.g. if another test running in parallel binds to that address in between.
@@ -118,7 +129,8 @@
 							org.eclipse.californium.scandium.config,
 							org.eclipse.californium.scandium.dtls,
 							org.eclipse.californium.scandium.dtls.cipher,
-							org.eclipse.californium.scandium.dtls.pskstore
+							org.eclipse.californium.scandium.dtls.pskstore,
+							org.eclipse.californium.scandium.dtls.rpkstore
 						</Export-Package>
 						<Private-Package>
 							org.eclipse.californium.scandium.util

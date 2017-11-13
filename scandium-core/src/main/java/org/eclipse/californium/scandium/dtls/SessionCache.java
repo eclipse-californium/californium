@@ -12,14 +12,17 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - Initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add javadoc about required
+ *                                                    thread-safe implementation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 /**
  * A second level cache for current connection state of DTLS sessions.
  * <p>
- * Connection state can be put to the cache and later retrieved by the
- * DTLS session's ID.
+ * Connection state can be put to the cache and later retrieved by the DTLS
+ * session's ID. The provided cache is required to be thread-safe because it
+ * will be accessed concurrently.
  * </p>
  */
 public interface SessionCache {

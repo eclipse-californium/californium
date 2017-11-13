@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -28,6 +28,10 @@
  *                                                    APPLICATION messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
  *                                                    supportedServerCertificateTypes
+ *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add certificate types only,
+ *                                                    if certificates are used
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -39,9 +43,10 @@ import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -63,7 +68,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public class ClientHandshaker extends Handshaker {
 
-	private static final Logger LOGGER = Logger.getLogger(ClientHandshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -82,18 +87,18 @@ public class ClientHandshaker extends Handshaker {
 	protected ClientHello clientHello = null;
 
 	/** the preferred cipher suites ordered by preference */
-	private final CipherSuite[] preferredCipherSuites;
+	private final List<CipherSuite> preferredCipherSuites;
 
 	protected Integer maxFragmentLengthCode;
 
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
-	protected List<CertificateType> supportedClientCertificateTypes;
+	protected final List<CertificateType> supportedClientCertificateTypes;
 	/**
 	 * The certificate types this server supports for server authentication.
 	 */
-	protected List<CertificateType> supportedServerCertificateTypes;
+	protected final List<CertificateType> supportedServerCertificateTypes;
 
 	/*
 	 * Store all the message which can possibly be sent by the server. We need
@@ -120,8 +125,7 @@ public class ClientHandshaker extends Handshaker {
 	protected final ServerNameResolver serverNameResolver;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
-
-
+    
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -144,31 +148,39 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit, 
+		        config.getRpkTrustStore());
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
 		this.serverNameResolver = config.getServerNameResolver();
-		this.preferredCipherSuites = config.getSupportedCipherSuites();
+		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		if (rootCertificates != null && rootCertificates.length > 0) {
-			int index = config.isSendRawKey() ? 1 : 0;
-			this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
-		}
-
 		this.supportedClientCertificateTypes = new ArrayList<>();
-		if (privateKey != null && publicKey != null) {
-			if (certificateChain == null || certificateChain.length == 0) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			} else if (config.isSendRawKey()) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				this.supportedClientCertificateTypes.add(CertificateType.X_509);
-			} else {
-				this.supportedClientCertificateTypes.add(CertificateType.X_509);
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+
+		// we only need to include certificate_type extensions in the CLIENT_HELLO
+		// if we support a cipher suite that requires a certificate exchange
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(preferredCipherSuites)) {
+
+			// we always support receiving a RawPublicKey from the server
+			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			if (rootCertificates != null && rootCertificates.length > 0) {
+				int index = config.isSendRawKey() ? 1 : 0;
+				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
+			}
+
+			if (privateKey != null && publicKey != null) {
+				if (certificateChain == null || certificateChain.length == 0) {
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				} else if (config.isSendRawKey()) {
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+				} else {
+					this.supportedClientCertificateTypes.add(CertificateType.X_509);
+					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				}
 			}
 		}
 	}
@@ -184,15 +196,15 @@ public class ClientHandshaker extends Handshaker {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
-		if (LOGGER.isLoggable(Level.FINE)) {
+		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
-			if (LOGGER.isLoggable(Level.FINEST)) {
+			if (LOGGER.isTraceEnabled()) {
 				msg.append(":").append(System.lineSeparator()).append(message);
 			}
-			LOGGER.fine(msg.toString());
+			LOGGER.debug(msg.toString());
 		}
 		
 		switch (message.getContentType()) {
@@ -202,8 +214,8 @@ public class ClientHandshaker extends Handshaker {
 		case CHANGE_CIPHER_SPEC:
 			// TODO check, if all expected messages already received
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{message.getPeer(), message.getContentType()});
+			LOGGER.debug("Processed {} message from peer [{}]",
+					message.getContentType(), message.getPeer());
 			break;
 
 		case HANDSHAKE:
@@ -270,8 +282,8 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			incrementNextReceiveSeq();
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
-					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
+			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
 			break;
 
 		default:
@@ -390,7 +402,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		serverCertificate = message;
-		serverCertificate.verifyCertificate(rootCertificates);
+		verifyCertificate(serverCertificate);
 		serverPublicKey = serverCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 	}
@@ -477,7 +489,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
+			LOGGER.debug("Using PSK identity: {}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
@@ -586,15 +598,15 @@ public class ClientHandshaker extends Handshaker {
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
 				}
-				if (LOGGER.isLoggable(Level.FINE)) {
-					LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
 				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
 				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client certificate chain [length: {0}] to server", truncatedChain.length);
+				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.length);
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
@@ -651,24 +663,20 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(),
+		
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
+				preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
 		clientRandom = startMessage.getRandom();
 
-		// the preferred cipher suites in order of preference
-		for (CipherSuite supportedSuite : preferredCipherSuites) {
-			startMessage.addCipherSuite(supportedSuite);
-		}
-
 		startMessage.addCompressionMethod(CompressionMethod.NULL);
 		if (maxFragmentLengthCode != null) {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
 			startMessage.addExtension(ext);
-			LOGGER.log(
-					Level.FINE,
-					"Indicating max. fragment length [{0}] to server [{1}]",
+			LOGGER.debug(
+					"Indicating max. fragment length [{}] to server [{}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
 

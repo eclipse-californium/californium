@@ -38,7 +38,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
@@ -55,10 +55,8 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -80,6 +78,7 @@ public class BlockwiseClientSideTest {
 	
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final int RESPONSE_TIMEOUT_IN_MS = 1000;
@@ -90,12 +89,11 @@ public class BlockwiseClientSideTest {
 	private static NetworkConfig config;
 
 	private LockstepEndpoint server;
-	private Endpoint client;
+	private CoapTestEndpoint client;
 	private int mid = 8000;
 	private String respPayload;
 	private String reqtPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
-	private InMemoryMessageExchangeStore clientExchangeStore;
 
 	@BeforeClass
 	public static void init() {
@@ -109,14 +107,15 @@ public class BlockwiseClientSideTest {
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS)
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
-				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2);
+				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
+				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
+				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
 	}
 
 	@Before
 	public void setupEndpoints() throws Exception {
 
-		clientExchangeStore = new InMemoryMessageExchangeStore(config);
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, clientExchangeStore);
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
@@ -126,7 +125,7 @@ public class BlockwiseClientSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(config, clientExchangeStore);
+			assertAllExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
 			client.destroy();
@@ -344,7 +343,7 @@ public class BlockwiseClientSideTest {
 		//server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
 		// give client a chance to repeat
 		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS);
-		Thread.sleep(timeout * 2);
+		Thread.sleep((long) (timeout*1.25));
 		// repeat GET 1
 		server.expectRequest(CON, GET, path).sameBoth("B").block2(1, false, 64).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
@@ -933,5 +932,190 @@ public class BlockwiseClientSideTest {
 		
 		// Check the first request is canceled.
 		assertTrue(firstRequest.isCanceled());
+	}
+	
+	/**
+	 * Verifies incomplete block2 exchange (missing last piggyback response)
+	 * does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock2NoAckNoResponse() throws Exception {
+
+		System.out.println("Incomplete  block2 transfer:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send GET request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
+		// we don't answer to the last request, @after should check is there is
+		// no leak.
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verifies incomplete block1 exchange (missing piggyback response) does not
+	 * leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock1NoAckNoResponse() throws Exception {
+
+		System.out.println("Incomplete  block1 transfer:");
+		reqtPayload = generateRandomPayload(400);
+		String path = "test";
+
+		// Send PUT request
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload, 0, 128).go();
+
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(1, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(2, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, true, 128).payload(reqtPayload, 256, 384).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		
+		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
+		// we don't answer to the last request, @after should check is there is
+		// no leak.
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verifies cancelled block2 exchange does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testCancelledBlock2() throws Exception {
+
+		System.out.println("cancelled block2 transfer:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send GET request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		printServerLog(clientInterceptor);
+
+		System.out.println("Cancel request " + request);
+		request.cancel();
+		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
+
+	}
+
+	/**
+	 * Verifies cancelled block1 exchange does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testCancelledBlock1() throws Exception {
+
+		System.out.println("Cancelled  block1 transfer:");
+		reqtPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send PUT request
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(1, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		printServerLog(clientInterceptor);
+
+		System.out.println("Cancel request " + request);
+		request.cancel();
+		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
+
+	}
+
+	/**
+	 * Verifies acknowledged incomplete block 2 exchange does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock2AckNoResponse() throws Exception {
+
+		System.out.println("Incomplete Acknowledged block2 transfer:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send GET request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		server.sendEmpty(ACK).loadMID("C").go();
+		// we acknowledge but never send the response, @after should check is
+		// there is no leak.
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verifies acknowledged incomplete block 2 exchange does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock1AckNoResponse() throws Exception {
+
+		System.out.println("Incomplete Acknowledged block1 transfer:");
+		reqtPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send PUT request
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(1, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		server.sendEmpty(ACK).loadMID("B").go();
+		// we acknowledge but never send the response, @after should check is
+		// there is no leak.
+
+		printServerLog(clientInterceptor);
 	}
 }

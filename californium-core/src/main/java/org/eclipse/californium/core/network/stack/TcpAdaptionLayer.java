@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,11 +12,12 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - Initial implementation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -28,7 +29,7 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public class TcpAdaptionLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = Logger.getLogger(TcpAdaptionLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class.getName());
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
@@ -39,7 +40,7 @@ public class TcpAdaptionLayer extends AbstractLayer {
 			lower().sendEmptyMessage(exchange, message);
 		} else {
 			// Empty messages don't make sense when running over TCP connector.
-			LOGGER.log(Level.WARNING, "Attempting to send empty message (ACK/RST) in TCP mode {0}", message);
+			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {}", message);
 		}
 	}
 
@@ -58,7 +59,7 @@ public class TcpAdaptionLayer extends AbstractLayer {
 	@Override
 	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
 		// Empty messages are ignored when running over TCP connector.
-		LOGGER.log(Level.INFO, "Received empty message in TCP mode {0}", message);
+		LOGGER.info("discarding empty message received in TCP mode: {}", message);
 	}
 
 }

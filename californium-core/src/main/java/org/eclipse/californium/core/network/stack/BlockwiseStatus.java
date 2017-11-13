@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,17 +18,19 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - Move isNotification and getObserve
  *                                                    to Block2BlockwiseStatus
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ScheduledFuture;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.network.Exchange;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -37,12 +39,13 @@ import org.eclipse.californium.core.coap.OptionSet;
  */
 abstract class BlockwiseStatus {
 
-	private static final Logger LOGGER = Logger.getLogger(BlockwiseStatus.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class.getName());
 
 	private final int contentFormat;
 
 	protected boolean randomAccess;
 	protected final ByteBuffer buf;
+	protected Exchange exchange;
 
 	private ScheduledFuture<?> cleanUpTask;
 	private Message first;
@@ -185,10 +188,7 @@ abstract class BlockwiseStatus {
 			result = true;
 			buf.put(block);
 		} else {
-			LOGGER.log(
-				Level.FINE,
-				"resource body exceeds buffer size [{0}]",
-				getBufferSize());
+			LOGGER.debug("resource body exceeds buffer size [{}]", getBufferSize());
 		}
 		blockCount++;
 		return result;
@@ -287,5 +287,14 @@ abstract class BlockwiseStatus {
 			this.cleanUpTask.cancel(false);
 		}
 		this.cleanUpTask = blockCleanupHandle;
+	}
+
+	/**
+	 * Complete current transfert
+	 */
+	public void timeoutCurrentTranfer() {
+		if (exchange != null) {
+			this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+		}
 	}
 }

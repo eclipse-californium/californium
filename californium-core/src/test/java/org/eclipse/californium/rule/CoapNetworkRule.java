@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial implementation
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.EndpointManager;
@@ -83,7 +85,7 @@ import org.eclipse.californium.elements.util.DatagramFormatter;
  */
 public class CoapNetworkRule extends NetworkRule {
 
-	public static final Logger LOGGER = Logger.getLogger(CoapNetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(CoapNetworkRule.class.getName());
 	private static final int DEFAULT_MESSAGE_THREADS = 1;
 	/**
 	 * CoAP datagram formatter. Used for logging.

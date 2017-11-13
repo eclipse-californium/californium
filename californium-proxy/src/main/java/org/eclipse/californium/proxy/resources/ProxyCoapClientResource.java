@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
@@ -22,6 +23,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.TranslationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -29,7 +32,9 @@ import org.eclipse.californium.proxy.TranslationException;
  * desired coap server.
  */
 public class ProxyCoapClientResource extends ForwardingResource {
-	
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyCoapClientResource.class);
+
 	public ProxyCoapClientResource() {
 		this("coapClient");
 	} 
@@ -42,12 +47,12 @@ public class ProxyCoapClientResource extends ForwardingResource {
 
 	@Override
 	public Response forwardRequest(Request request) {
-		LOGGER.info("ProxyCoAP2CoAP forwards "+request);
+		LOGGER.info("ProxyCoAP2CoAP forwards {}", request);
 		Request incomingRequest = request;
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
-			LOGGER.warning("Proxy-uri option not set.");
+			LOGGER.warn("Proxy-uri option not set.");
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
@@ -68,19 +73,19 @@ public class ProxyCoapClientResource extends ForwardingResource {
 //			outgoingRequest.setToken(TokenManager.getInstance().acquireToken());
 
 			// execute the request
-			LOGGER.finer("Sending coap request.");
+			LOGGER.debug("Sending coap request.");
 //			outgoingRequest.execute();
 			LOGGER.info("ProxyCoapClient received CoAP request and sends a copy to CoAP target");
 			outgoingRequest.send();
 
 			// accept the request sending a separate response to avoid the
 			// timeout in the requesting client
-			LOGGER.finer("Acknowledge message sent");
+			LOGGER.debug("Acknowledge message sent");
 		} catch (TranslationException e) {
-			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
+			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
 		} catch (Exception e) {
-			LOGGER.warning("Failed to execute request: " + e.getMessage());
+			LOGGER.warn("Failed to execute request: {}", e.getMessage());
 			return new Response(ResponseCode.INTERNAL_SERVER_ERROR);
 		}
 
@@ -89,18 +94,18 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			Response receivedResponse = outgoingRequest.waitForResponse();
 
 			if (receivedResponse != null) {
-				LOGGER.finer("Coap response received.");
+				LOGGER.debug("Coap response received.");
 
 				// create the real response for the original request
 				Response outgoingResponse = CoapTranslator.getResponse(receivedResponse);
 
 				return outgoingResponse;
 			} else {
-				LOGGER.warning("No response received.");
+				LOGGER.warn("No response received.");
 				return new Response(CoapTranslator.STATUS_TIMEOUT);
 			}
 		} catch (InterruptedException e) {
-			LOGGER.warning("Receiving of response interrupted: " + e.getMessage());
+			LOGGER.warn("Receiving of response interrupted: {}", e.getMessage());
 			return new Response(ResponseCode.INTERNAL_SERVER_ERROR);
 		}
 	}

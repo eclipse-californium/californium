@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,14 +23,15 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -46,7 +47,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  */
 public class ResumingClientHandshaker extends ClientHandshaker {
 	
-	private static final Logger LOGGER = Logger.getLogger(ResumingClientHandshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingClientHandshaker.class.getName());
 
 	// flag to indicate if we must do a full handshake or an abbreviated one
 	private boolean fullHandshake = false;
@@ -102,9 +103,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		if (lastFlight != null) {
 			// we already sent the last flight, but the server does not seem to have received
 			// it since it sent its FINISHED message again, so we simply retransmit our last flight
-			LOGGER.log(
-				Level.FINER,
-				"Received server's [{0}] FINISHED message again, retransmitting last flight...",
+			LOGGER.debug(
+				"Received server's [{}] FINISHED message again, retransmitting last flight...",
 				message.getPeer());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
@@ -114,15 +114,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
-		if (LOGGER.isLoggable(Level.FINE)) {
+		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder();
-			msg.append(String.format(
-					"Processing %s message from peer [%s]",
-					message.getContentType(), message.getPeer()));
-			if (LOGGER.isLoggable(Level.FINEST)) {
-				msg.append(":\n").append(message);
+			msg.append("Processing {} message from peer [{}]");
+			if (LOGGER.isTraceEnabled()) {
+				msg.append(":").append(System.lineSeparator()).append(message);
 			}
-			LOGGER.fine(msg.toString());
+			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
 		
 		switch (message.getContentType()) {
@@ -130,8 +128,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		case CHANGE_CIPHER_SPEC:
 			calculateKeys(session.getMasterSecret());
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{message.getPeer(), message.getContentType()});
+			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
+					message.getPeer());
 			break;
 
 		case HANDSHAKE:
@@ -147,9 +145,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				ServerHello serverHello = (ServerHello) message;
 				if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
 				{
-					LOGGER.log(
-							Level.FINER,
-							"Server [{0}] refuses to resume session [{1}], performing full handshake instead...",
+					LOGGER.debug(
+							"Server [{}] refuses to resume session [{}], performing full handshake instead...",
 							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
@@ -189,8 +186,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				// not ignore a server FINISHED retransmission caused by lost client FINISHED
 				incrementNextReceiveSeq();
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
-					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
+			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
 			break;
 
 		default:
@@ -267,14 +264,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		clientRandom = message.getRandom();
 
-		message.addCipherSuite(session.getCipherSuite());
 		message.addCompressionMethod(session.getCompressionMethod());
 		if (maxFragmentLengthCode != null) {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
 			message.addExtension(ext);
-			LOGGER.log(
-					Level.FINE,
-					"Indicating max. fragment length [{0}] to server [{1}]",
+			LOGGER.debug(
+					"Indicating max. fragment length [{}] to server [{}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}
 

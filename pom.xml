@@ -37,8 +37,8 @@
 		<url>https://bugs.eclipse.org/bugs/buglist.cgi?product=Californium</url>
 	</issueManagement>
 	<ciManagement>
-		<system>Hudson</system>
-		<url>https://hudson.eclipse.org/californium/</url>
+		<system>Jenkins</system>
+		<url>https://ci.eclipse.org/californium/</url>
 	</ciManagement>
 	<developers>
 		<developer>
@@ -106,6 +106,11 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
+		<hamcrest.version>1.3</hamcrest.version>
+		<junit.version>4.12</junit.version>
+		<logback.version>1.2.3</logback.version>
+		<mockito.version>1.9.5</mockito.version>
+		<slf4j.version>1.7.25</slf4j.version>
 	</properties>
 
 	<distributionManagement>
@@ -134,7 +139,7 @@
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
-				<version>4.12</version>
+				<version>${junit.version}</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
@@ -146,26 +151,43 @@
 			<dependency>
 				<groupId>org.hamcrest</groupId>
 				<artifactId>hamcrest-library</artifactId>
-				<version>1.3</version>
+				<version>${hamcrest.version}</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
 				<version>${project.version}</version>
-				<scope>test</scope>
 				<classifier>tests</classifier>
+				<scope>test</scope>
+				<type>test-jar</type>
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>element-connector-tcp</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.mockito</groupId>
 				<artifactId>mockito-all</artifactId>
-				<version>1.9.5</version>
+				<version>${mockito.version}</version>
 				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>${slf4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>${logback.version}</version>
+				<scope>provided</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -173,6 +195,7 @@
 	<modules>
 		<module>element-connector</module>
 		<module>scandium-core</module>
+		<module>element-connector-tcp</module>
 		<module>californium-core</module>
 		<module>californium-proxy</module>
 		<module>californium-osgi</module>
@@ -211,6 +234,18 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>2.18.1</version>
+					<configuration>
+						<systemPropertyVariables>
+							<!--
+								configures the logback logging framework to use a config file
+							-->
+							<logback.configurationFile>${project.basedir}/logback-test.xml</logback.configurationFile>
+							<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
+						</systemPropertyVariables>
+						<excludes>
+							<exclude>**/*$*</exclude>
+						</excludes>
+					</configuration>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.felix</groupId>
@@ -257,6 +292,11 @@
 							</goals>
 						</execution>
 					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.0.2</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>

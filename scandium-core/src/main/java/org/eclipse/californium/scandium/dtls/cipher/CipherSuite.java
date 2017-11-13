@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,13 +20,18 @@
  *               cipher suites mandatory for LW M2M servers
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for checking if suite requires
  *               sending of a CERTIFICATE message to the client
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add containsEccBasedCipherSuite
+ *                                                    support for certificate-based,
+ *                                                    none ECC-based cipher suites is
+ *                                                    still missing!
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -43,9 +48,9 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * suites.
  */
 public enum CipherSuite {
-	
+
 	// Cipher suites //////////////////////////////////////////////////
-	
+
 	TLS_NULL_WITH_NULL_NULL(0x0000, KeyExchangeAlgorithm.NULL, Cipher.NULL, MACAlgorithm.NULL),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
@@ -58,7 +63,7 @@ public enum CipherSuite {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(CipherSuite.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CipherSuite.class.getCanonicalName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -267,9 +272,9 @@ public enum CipherSuite {
 				return cipher;
 			}
 		}
-		if (LOGGER.isLoggable(Level.FINEST)) {
-			LOGGER.log(Level.FINEST,
-					"Cannot resolve cipher suite code [{0}]",
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace(
+					"Cannot resolve cipher suite code [{}]",
 					Integer.toHexString(code));
 		}
 		return null;
@@ -290,6 +295,45 @@ public enum CipherSuite {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Checks if a list of cipher suite contains an ECC based cipher.
+	 * 
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true} if the list contains an ECC based cipher suite,
+	 *         {@code false} otherwise.
+	 * 
+	 */
+	public static boolean containsEccBasedCipherSuite(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.isEccBased()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if a list of cipher suite contains a cipher suite that requires
+	 * the exchange of certificates.
+	 * 
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true} if any of the cipher suites requires the exchange of certificates,
+	 *         {@code false} otherwise.
+	 * 
+	 */
+	public static boolean containsCipherSuiteRequiringCertExchange(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.requiresServerCertificateMessage()) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -328,7 +372,7 @@ public enum CipherSuite {
 	}
 
 	// Algorithm Enums ////////////////////////////////////////////////
-	
+
 	/**
 	 * See http://tools.ietf.org/html/rfc5246#appendix-A.6
 	 */
@@ -466,14 +510,22 @@ public enum CipherSuite {
 		}
 	}
 
+	/**
+	 * Known key exchange algorithm names.
+	 *
+	 */
 	public enum KeyExchangeAlgorithm {
 		NULL, DHE_DSS, DHE_RSA, DH_ANON, RSA, DH_DSS, DH_RSA, PSK, EC_DIFFIE_HELLMAN;
 	}
-	
+
 	private enum PRFAlgorithm {
 		TLS_PRF_SHA256;
 	}
 
+	/**
+	 * Known cipher types.
+	 *
+	 */
 	public enum CipherType {
 		NULL, STREAM, BLOCK, AEAD;
 	}

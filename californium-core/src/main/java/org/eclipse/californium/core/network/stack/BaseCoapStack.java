@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,12 +20,14 @@
  *                                                 explicit String concatenation
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - derived from UDP and TCP CoAP stack
+ * Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -42,7 +44,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  */
 public abstract class BaseCoapStack implements CoapStack {
 
-	private static final Logger LOGGER = Logger.getLogger(BaseCoapStack.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class.getCanonicalName());
 
 	private List<Layer> layers;
 	private final Outbox outbox;
@@ -161,7 +163,7 @@ public abstract class BaseCoapStack implements CoapStack {
 			if (hasDeliverer()) {
 				deliverer.deliverRequest(exchange);
 			} else {
-				LOGGER.severe("Top of CoAP stack has no deliverer to deliver request");
+				LOGGER.error("Top of CoAP stack has no deliverer to deliver request");
 			}
 		}
 
@@ -172,7 +174,7 @@ public abstract class BaseCoapStack implements CoapStack {
 				// notify request that response has arrived
 				deliverer.deliverResponse(exchange, response);
 			} else {
-				LOGGER.severe("Top of CoAP stack has no deliverer to deliver response");
+				LOGGER.error("Top of CoAP stack has no deliverer to deliver response");
 			}
 		}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,13 +15,14 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -55,7 +56,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(HandshakeMessage.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HandshakeMessage.class.getCanonicalName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -182,7 +183,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			boolean useRawPublicKey, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		HandshakeType type = HandshakeType.getTypeByCode(reader.read(MESSAGE_TYPE_BITS));
-		LOGGER.log(Level.FINEST, "Parsing HANDSHAKE message of type [{0}]", type);
+		LOGGER.trace("Parsing HANDSHAKE message of type [{}]", type);
 
 		int length = reader.read(MESSAGE_LENGTH_BITS);
 

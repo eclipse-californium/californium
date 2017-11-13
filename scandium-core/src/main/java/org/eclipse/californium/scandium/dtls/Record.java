@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
  *                   in client code
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -26,8 +27,8 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -55,7 +56,7 @@ public class Record {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(Record.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Record.class.getCanonicalName());
 
 	// DTLS specific constants/////////////////////////////////////////
 
@@ -190,7 +191,7 @@ public class Record {
 			setFragment(fragment);
 		} catch (GeneralSecurityException e) {
 			// cannot happen because we do not have a session
-			LOGGER.log(Level.WARNING, "Unexpected attempt to encrypt outbound record payload", e);
+			LOGGER.warn("Unexpected attempt to encrypt outbound record payload", e);
 		}
 	}
 
@@ -255,7 +256,7 @@ public class Record {
 		while (reader.bytesAvailable()) {
 
 			if (reader.bitsLeft() < RECORD_HEADER_BITS) {
-				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				LOGGER.debug("Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
 
@@ -270,7 +271,7 @@ public class Record {
 			int length = reader.read(LENGTH_BITS);
 
 			if (reader.bitsLeft() < length) {
-				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				LOGGER.debug("Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
 
@@ -279,7 +280,7 @@ public class Record {
 
 			ContentType contentType = ContentType.getTypeByValue(type);
 			if (contentType == null) {
-				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
+				LOGGER.debug("Received DTLS record of unsupported type [{}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes, peerAddress));
 			}
@@ -308,7 +309,7 @@ public class Record {
 		byte[] encryptedFragment = plaintextFragment;
 
 		CipherSuite cipherSuite = session.getWriteState().getCipherSuite();
-		LOGGER.log(Level.FINEST, "Encrypting record fragment using current write state\n{0}", session.getWriteState());
+		LOGGER.trace("Encrypting record fragment using current write state{}{}", System.lineSeparator(), session.getWriteState());
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -357,7 +358,7 @@ public class Record {
 		byte[] result = ciphertextFragment;
 
 		CipherSuite cipherSuite = currentReadState.getCipherSuite();
-		LOGGER.log(Level.FINEST, "Decrypting record fragment using current read state\n{0}", currentReadState);
+		LOGGER.trace("Decrypting record fragment using current read state{}{}", System.lineSeparator(), currentReadState);
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -607,11 +608,11 @@ public class Record {
 		byte[] explicitNonce = generateExplicitNonce();
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
 		byte[] explicitNonceUsed = reader.readBytes(8);
-		if (LOGGER.isLoggable(Level.FINE) && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
+		if (LOGGER.isDebugEnabled() && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
 			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
 			b.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
-			LOGGER.log(Level.FINE, b.toString());
+			LOGGER.debug(b.toString());
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
@@ -856,7 +857,7 @@ public class Record {
 				break;
 
 			default:
-				LOGGER.log(Level.WARNING, "Cannot decrypt message of unsupported type [{0}]", type);
+				LOGGER.warn("Cannot decrypt message of unsupported type [{}]", type);
 			}
 		}
 
@@ -894,8 +895,8 @@ public class Record {
 		// "Handshake messages are supplied to the TLS record layer, where they
 		//  are encapsulated within one or more TLSPlaintext structures, which
 		//  are processed and transmitted as specified by the current active session state."
-		if (LOGGER.isLoggable(Level.FINEST)) {
-			LOGGER.log(Level.FINEST, "Decrypting HANDSHAKE message ciphertext\n{0}",
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", System.lineSeparator(),
 				ByteArrayUtils.toHexString(fragmentBytes));
 		}
 		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
@@ -906,17 +907,16 @@ public class Record {
 			keyExchangeAlgorithm = session.getKeyExchange();
 			receiveRawPublicKey = session.receiveRawPublicKey();
 		} else {
-			LOGGER.log(Level.FINE, "Parsing message without a session");
+			LOGGER.debug("Parsing message without a session");
 		}
-		if (LOGGER.isLoggable(Level.FINER)) {
+		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder(
-					"Parsing HANDSHAKE message plaintext using KeyExchange [{0}] and receiveRawPublicKey [{1}]");
+					"Parsing HANDSHAKE message plaintext using KeyExchange [{}] and receiveRawPublicKey [{}]");
 			Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
-			if (LOGGER.isLoggable(Level.FINEST)) {
-				params[2] = ByteArrayUtils.toHexString(decryptedMessage);
-				msg.append(":\n{2}");
+			if (LOGGER.isTraceEnabled()) {
+				msg.append(":").append(System.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
 			}
-			LOGGER.log(Level.FINER, msg.toString(), params);
+			LOGGER.debug(msg.toString(), params);
 		}
 		return HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 	}
@@ -949,7 +949,7 @@ public class Record {
 				break;
 
 			default:
-				LOGGER.severe("Unknown content type: " + type.toString());
+				LOGGER.error("Unknown content type: " + type.toString());
 				break;
 			}
 			this.fragmentBytes = byteArray;

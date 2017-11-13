@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,86 +12,47 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use credentials util to setup
+ *                                                    DtlsConnectorConfig.Builder.
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.util.logging.Level;
+import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.ScandiumLogger;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 public class SecureClient {
 
-	static {
-		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.FINE);
-	}
-
-	private static final String TRUST_STORE_PASSWORD = "rootPass";
-	private static final String KEY_STORE_PASSWORD = "endPass";
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+	public static final List<Mode> SUPPORTED_MODES = Arrays
+			.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509, Mode.RPK_TRUST, Mode.X509_TRUST });
 	private static final String SERVER_URI = "coaps://localhost/secure";
 
-	private DTLSConnector dtlsConnector;
+	private final DTLSConnector dtlsConnector;
 
-	public SecureClient() {
-		try {
-			// load key store
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
-			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-			in.close();
-
-			// load trust store
-			KeyStore trustStore = KeyStore.getInstance("JKS");
-			in = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
-			trustStore.load(in, TRUST_STORE_PASSWORD.toCharArray());
-			in.close();
-
-			// You can load multiple certificates if needed
-			Certificate[] trustedCertificates = new Certificate[1];
-			trustedCertificates[0] = trustStore.getCertificate("root");
-
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-			builder.setIdentity((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
-					keyStore.getCertificateChain("client"), true);
-			builder.setTrustStore(trustedCertificates);
-			dtlsConnector = new DTLSConnector(builder.build());
-
-		} catch (GeneralSecurityException | IOException e) {
-			System.err.println("Could not load the keystore");
-			e.printStackTrace();
-		}
+	public SecureClient(DTLSConnector dtlsConnector) {
+		this.dtlsConnector = dtlsConnector;
 	}
 
 	public void test() {
-
 		CoapResponse response = null;
 		try {
 			URI uri = new URI(SERVER_URI);
-
 			CoapClient client = new CoapClient(uri);
 			client.setEndpoint(new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard()));
 			response = client.get();
-
+			client.shutdown();
 		} catch (URISyntaxException e) {
 			System.err.println("Invalid URI: " + e.getMessage());
 			System.exit(-1);
@@ -112,12 +73,19 @@ public class SecureClient {
 	}
 
 	public static void main(String[] args) throws InterruptedException {
+		System.out.println("Usage: java -cp ... org.eclipse.californium.examples.SecureClient [PSK] [RPK|RPK_TRUST] [X509|X509_TRUST]");
+		System.out.println("Default:            [PSK] [RPK] [X509]");
 
-		SecureClient client = new SecureClient();
-		client.test();
-
-		synchronized (SecureClient.class) {
-			SecureClient.class.wait();
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		builder.setClientOnly();
+		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_MODES, SUPPORTED_MODES);
+		if (modes.contains(CredentialsUtil.Mode.PSK)) {
+			builder.setPskStore(new StaticPskStore(CredentialsUtil.PSK_IDENTITY, CredentialsUtil.PSK_SECRET));
 		}
+		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);
+		DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+
+		SecureClient client = new SecureClient(dtlsConnector);
+		client.test();
 	}
 }

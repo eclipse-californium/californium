@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -16,6 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multiple clients
  *                                                    exchange multiple messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - add client statistics
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
@@ -35,34 +36,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.ScandiumLogger;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExampleDTLSClient {
 
-	static {
-		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.WARNING);
-	}
-
 	private static final int DEFAULT_PORT = 5684;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);
-	private static final Logger LOG = Logger.getLogger(ExampleDTLSClient.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSClient.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private static final String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-	private static int maxMessages = 0;
 	private static CountDownLatch messageCounter;
 
 	private DTLSConnector dtlsConnector;
@@ -106,7 +100,7 @@ public class ExampleDTLSClient {
 			});
 
 		} catch (GeneralSecurityException | IOException e) {
-			LOG.log(Level.SEVERE, "Could not load the keystore", e);
+			LOG.error("Could not load the keystore", e);
 		} finally {
 			try {
 				if (inTrust != null) {
@@ -116,7 +110,7 @@ public class ExampleDTLSClient {
 					in.close();
 				}
 			} catch (IOException e) {
-				LOG.log(Level.SEVERE, "Cannot close key store file", e);
+				LOG.error("Cannot close key store file", e);
 			}
 		}
 	}
@@ -125,8 +119,8 @@ public class ExampleDTLSClient {
 
 		messageCounter.countDown();
 		long c = messageCounter.getCount();
-		if (LOG.isLoggable(Level.INFO)) {
-			LOG.log(Level.INFO, "Received response: {0} {1}", new Object[] { new String(raw.getBytes()), c });
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Received response: {} {}", new Object[] { new String(raw.getBytes()), c });
 		}
 		if (0 < c) {
 			clientMessageCounter.incrementAndGet();
@@ -134,7 +128,7 @@ public class ExampleDTLSClient {
 				RawData data = RawData.outbound(("HELLO WORLD " + c + ".").getBytes(), raw.getEndpointContext(), null, false);
 				dtlsConnector.send(data);
 			} catch (IllegalStateException e) {
-				LOG.log(Level.FINER, "send failed after " + (c - 1) + " messages!", e);
+				LOG.debug("send failed after {} messages", (c - 1), e);
 			}
 		} else {
 			dtlsConnector.destroy();
@@ -146,7 +140,7 @@ public class ExampleDTLSClient {
 		try {
 			dtlsConnector.start();
 		} catch (IOException e) {
-			LOG.log(Level.SEVERE, "Cannot start connector", e);
+			LOG.error("Cannot start connector", e);
 		}
 	}
 
@@ -171,7 +165,7 @@ public class ExampleDTLSClient {
 				messages = Integer.parseInt(args[1]);
 			}
 		}
-		maxMessages = (messages * clients);
+		int maxMessages = (messages * clients);
 		messageCounter = new CountDownLatch(maxMessages);
 		List<ExampleDTLSClient> clientList = new ArrayList<>(clients);
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),

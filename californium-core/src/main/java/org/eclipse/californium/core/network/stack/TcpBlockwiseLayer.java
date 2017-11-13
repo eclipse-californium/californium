@@ -17,8 +17,8 @@
 package org.eclipse.californium.core.network.stack;
 
 import java.nio.ByteBuffer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -41,13 +41,13 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 	/**
 	 * logger.
 	 */
-	private static final Logger LOGGER = Logger.getLogger(TcpBlockwiseLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpBlockwiseLayer.class.getName());
 
 	/**
 	 * BERT SZX constant.
 	 */
 	private final static int BERT_SZX = 7;
-	
+
 	/**
 	 * Internal block size for BERT. i.e internally BERT is handled similar to
 	 * SZX = 6.
@@ -67,7 +67,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 	private boolean isBertEnabled;
 
 	/**
-	 * Constructor 
+	 * Constructor
+	 * 
 	 * @param config - network configuration.
 	 */
 	public TcpBlockwiseLayer(NetworkConfig config) {
@@ -94,15 +95,15 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 			if ((block1 != null) && (block1.getSzx() == BERT_SZX)) {
 				KeyUri key = getKey(exchange, request);
 				Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request);
-				
+
 				if (block1.getNum() == 0 && status.getCurrentNum() > 0) {
 					status = resetInboundBlock1Status(key, exchange, request);
 				}
 
 				if (block1.getNum() != status.getCurrentNum()) {
 					// ERROR, wrong number, Incomplete
-					LOGGER.log(Level.WARNING,
-							"peer sent wrong block, expected no. {0} but got {1}. Responding with 4.08 (Request Entity Incomplete)",
+					LOGGER.warn(
+							"peer sent wrong block, expected no. {} but got {}. Responding with 4.08 (Request Entity Incomplete)",
 							new Object[] { status.getCurrentNum(), block1.getNum() });
 
 					sendBlock1ErrorResponse(key, exchange, request, ResponseCode.REQUEST_ENTITY_INCOMPLETE,
@@ -123,7 +124,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 					// Message has more blocks.
 
-					LOGGER.log(Level.FINE, "acknowledging incoming block1 [num={0}], expecting more blocks to come",
+					LOGGER.debug("acknowledging incoming block1 [num={}], expecting more blocks to come",
 							block1.getNum());
 
 					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
@@ -135,13 +136,11 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 				} else {
 
-					LOGGER.log(Level.FINE,
-							"peer has sent last block1 [num={0}], delivering request to application layer",
+					LOGGER.debug("peer has sent last block1 [num={}], delivering request to application layer",
 							block1.getNum());
 
-					// Remember block to acknowledge. TODO: We might make
-					// this a
-					// boolean flag in status.
+					// Remember block to acknowledge.
+					// TODO: We might make this a boolean flag in status.
 					exchange.setBlock1ToAck(block1);
 
 					// Assemble and deliver
@@ -193,10 +192,10 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 				if (status.isComplete()) {
 					// clean up blockwise status
-					LOGGER.log(Level.FINE, "peer has requested last block of blockwise transfer: {0}", status);
+					LOGGER.debug("peer has requested last block of blockwise transfer: {}", status);
 					clearBlock2Status(key);
 				} else {
-					LOGGER.log(Level.FINE, "peer has requested intermediary block of blockwise transfer: {0}", status);
+					LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
 				}
 
 				block.setPayload(getBody(responseBlockBuilder));
@@ -223,16 +222,13 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null && block2.getNum() > 0) {
 					// This is the case if the user has explicitly added a block
-					// option
-					// for random access.
+					// option for random access.
 					// Note: We do not regard it as random access when the block
-					// number is 0.
-					// This is because the user might just want to do early
-					// block
-					// size negotiation but actually want to retrieve the whole
-					// body by means of
-					// a transparent blockwise transfer.
-					LOGGER.fine("outbound request contains block2 option, creating random-access blockwise status");
+					// number is 0. This is because the user might just want to
+					// do early block size negotiation but actually want to
+					// retrieve the whole body by means of a transparent
+					// blockwise transfer.
+					LOGGER.debug("outbound request contains block2 option, creating random-access blockwise status");
 					addRandomAccessBlock2Status(exchange, request);
 					handleRandomBlockAccess(exchange, request, block2.getNum());
 				} else if (requiresBlockwise(request)) {
@@ -268,8 +264,6 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 		}
 	}
 
-	
-
 	/**
 	 * Send response to peers. Handling is done here only when BERT option is
 	 * enabled otherwise handling is done in the BlockwikseLayer.
@@ -285,24 +279,27 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					// peer has issued a random block access request
 					if (responseBlock2 != null) {
 
-						// the resource implementation supports blockwise retrieval (indicated by the
-						// presence of the block2 option in the response)
+						// the resource implementation supports blockwise
+						// retrieval (indicated by the presence of the
+						// block2 option in the response)
 
 						if (requestBlock2.getNum() != responseBlock2.getNum()) {
-							LOGGER.log(
-								Level.WARNING,
-								"resource [{0}] implementation error, peer requested block {1} but resource returned block {2}",
-								new Object[]{exchange.getRequest().getURI(), requestBlock2.getNum(), responseBlock2.getNum()});
-							responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
+							LOGGER.warn(
+									"resource [{}] implementation error, peer requested block {} but resource returned block {}",
+									new Object[] { exchange.getRequest().getURI(), requestBlock2.getNum(),
+											responseBlock2.getNum() });
+							responseToSend = Response.createResponse(exchange.getRequest(),
+									ResponseCode.INTERNAL_SERVER_ERROR);
 							responseToSend.setType(response.getType());
 							responseToSend.setMID(response.getMID());
 						}
 
 					} else if (response.hasBlock(requestBlock2)) {
 
-						// the resource implementation does not support blockwise retrieval
-						// but instead has responded with the full response body
-						// crop the response down to the requested block.
+						// the resource implementation does not support
+						// blockwise retrieval but instead has responded
+						// with the full response body crop the response
+						// down to the requested block.
 						BlockOption nextBlockOption = requestBlock2;
 						boolean hasNextBlock = true;
 						ByteBuffer responseBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
@@ -330,11 +327,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 				} else if (requiresBlockwise(exchange, response, requestBlock2)) {
 
 					// the client either has not included a block2 option at all
-					// or
-					// has
-					// included a block2 option with num = 0 (early negotiation
-					// of
-					// block size)
+					// or has included a block2 option with num = 0 
+					// (early negotiation of block size)
 
 					KeyUri key = getKey(exchange, response);
 					Block2BlockwiseStatus status = getOutboundBlock2Status(key, exchange, response);
@@ -355,10 +349,10 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					firstResponse.getOptions().setBlock2(BERT_SZX, responseToSend.getOptions().getBlock2().isM(), 0);
 					if (status.isComplete()) {
 						// clean up blockwise status
-						LOGGER.log(Level.FINE, "block2 transfer of response finished after first block: {0}", status);
+						LOGGER.debug("block2 transfer of response finished after first block: {}", status);
 						clearBlock2Status(key);
 					} else {
-						LOGGER.log(Level.FINE, "block2 transfer of response started: {0}", status);
+						LOGGER.debug("block2 transfer of response started: {}", status);
 						addBlock2CleanUpObserver(responseToSend, key);
 					}
 					responseToSend = firstResponse;
@@ -392,7 +386,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 		if (isBertEnabled) {
 			int blockNum = status.getCurrentNum() + 1;
 			int nextNum = blockNum;
-			LOGGER.log(Level.FINE, "sending next Block1 num={0}", nextNum);
+			LOGGER.debug("sending next Block1 num={}", nextNum);
 
 			Request nextBlock = null;
 			ByteBuffer nextRequestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
@@ -463,9 +457,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 			block.getOptions().removeObserve();
 
 			// copy message observers from original request so that they will be
-			// notified
-			// if something goes wrong with this blockwise request, e.g. if it
-			// times out
+			// notified, if something goes wrong with this blockwise request, 
+			// e.g. if it times out
 			block.addMessageObservers(request.getMessageObservers());
 			// add an observer that cleans up the block2 transfer tracker if the
 			// block request fails
@@ -473,7 +466,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 			status.setCurrentNum(blockNum);
 
-			LOGGER.log(Level.FINER, "requesting next Block2 [num={0}]: {1}", new Object[] { blockNum, block });
+			LOGGER.debug("requesting next Block2 [num={}]: {}", new Object[] { blockNum, block });
 			exchange.setCurrentRequest(block);
 			lower().sendRequest(exchange, block);
 
@@ -482,9 +475,10 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 		}
 
 	}
-	
+
 	/**
 	 * Handle random access of blocks while sending request.
+	 * 
 	 * @param exchange - exchange state.
 	 * @param request - request message.
 	 * @param blockNum - Block number to be accessed.
@@ -496,8 +490,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 		Block1BlockwiseStatus status = getBlock1Status(key);
 		if (status == null) {
 			// request has not been sent blockwise
-			LOGGER.log(Level.FINE,
-					"request is not initiated with blockwise transfer. Hence random block access is not possible",
+			LOGGER.debug(
+					"request {} is not initiated with blockwise transfer. Hence random block access is not possible",
 					request);
 		} else {
 			ByteBuffer requestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
@@ -518,8 +512,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 	}
 
 	/**
-	 * Truncates the buffer and returns only the filled part. Call this
-	 * method only when all the data is added to the buffer.
+	 * Truncates the buffer and returns only the filled part. Call this method
+	 * only when all the data is added to the buffer.
 	 * 
 	 * @param buf
 	 * @return Returns only the filled part of the buffer.

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -21,7 +22,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -38,7 +40,7 @@ import org.eclipse.californium.core.coap.Response;
 public final class CoapTranslator {
 
 	/** The Constant LOG. */
-	private static final Logger LOGGER = Logger.getLogger(CoapTranslator.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapTranslator.class.getName());
 
 	/**
 	 * Property file containing the mappings between coap messages and http
@@ -97,10 +99,10 @@ public final class CoapTranslator {
 					incomingRequest.getOptions().getProxyUri(), "UTF-8");
 			serverUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("UTF-8 do not support this encoding: " + e);
+			LOGGER.warn("UTF-8 do not support this encoding: " + e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Cannot translate the server uri" + e);
+			LOGGER.warn("Cannot translate the server uri" + e);
 			throw new TranslationException("Cannot translate the server uri", e);
 		}
 
@@ -126,7 +128,7 @@ public final class CoapTranslator {
 			outgoingRequest.setURI(serverUri);
 		}
 
-		LOGGER.finer("Incoming request translated correctly");
+		LOGGER.debug("Incoming request translated correctly");
 		return outgoingRequest;
 	}
 	
@@ -164,7 +166,7 @@ public final class CoapTranslator {
 		outgoingResponse.setOptions(new OptionSet(
 				incomingResponse.getOptions()));
 		
-		LOGGER.finer("Incoming response translated correctly");
+		LOGGER.debug("Incoming response translated correctly");
 		return outgoingResponse;
 	}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Bosch Software Innovations GmbH - migrate to SLF4j
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,8 +26,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -46,7 +47,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	
 	// Logging ///////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = Logger.getLogger(CertificateVerify.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class.getCanonicalName());
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -175,7 +176,7 @@ public final class CertificateVerify extends HandshakeMessage {
 
 			signatureBytes = signature.sign();
 		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE,"Could not create signature.",e);
+			LOGGER.error("Could not create signature.", e);
 		}
 
 		return signatureBytes;
@@ -202,7 +203,7 @@ public final class CertificateVerify extends HandshakeMessage {
 			verified = signature.verify(signatureBytes);
 
 		} catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException e) {
-			LOGGER.log(Level.SEVERE,"Could not verify the client's signature.", e);
+			LOGGER.error("Could not verify the client's signature.", e);
 		}
 		
 		if (!verified) {

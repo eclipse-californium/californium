@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla - OSGi support
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.osgi;
 
@@ -22,7 +23,8 @@ import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -60,7 +62,7 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
  */
 public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<Resource, Resource>, ServerEndpointRegistry {
 
-	private final static Logger LOGGER = Logger.getLogger(ManagedServer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ManagedServer.class.getCanonicalName());
 	
 	private ServerInterface managedServer;
 	private boolean running = false;
@@ -140,12 +142,12 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	public void updated(Dictionary<String, ?> properties)
 			throws ConfigurationException {
 
-		LOGGER.fine("Updating configuration of managed server instance");
-		
+		LOGGER.debug("Updating configuration of managed server instance");
+
 		if (isRunning()) {
 			stop();
 		}
-		
+
 		NetworkConfig networkConfig = NetworkConfig.createStandardWithoutFile();
 		if (properties != null) {
 			for (Enumeration<String> allKeys = properties.keys(); allKeys.hasMoreElements(); ) {
@@ -153,24 +155,24 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 				networkConfig.set(key, properties.get(key));
 			}
 		}
-		
+
 		// create server instance with CoAP endpoint on configured port
 		managedServer = serverFactory.newServer(networkConfig);
-		
+
 		// add secure endpoint if configured
 		int securePort = networkConfig.getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
 		if ( securePort > 0 ) {
 			Endpoint secureEndpoint = endpointFactory.getSecureEndpoint(
 					networkConfig, new InetSocketAddress((InetAddress) null, securePort));
 			if (secureEndpoint != null) {
-				LOGGER.fine("Adding secure endpoint on address " + secureEndpoint.getAddress());
+				LOGGER.debug("Adding secure endpoint on address {}", secureEndpoint.getAddress());
 				managedServer.addEndpoint(secureEndpoint);
 			} else {
-				LOGGER.warning("Secure endpoint has been configured in server properties but EndpointFactory does not support creation of secure Endpoints");
+				LOGGER.warn("Secure endpoint has been configured in server properties but EndpointFactory does not support creation of secure Endpoints");
 			}
 
 		}
-		
+
 		managedServer.start();
 		running = true;
 
@@ -178,11 +180,11 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 		resourceTracker = new ServiceTracker<Resource, Resource>(context, Resource.class.getName(), this);
 		resourceTracker.open();
 	}
-	
+
 	private boolean isRunning() {
 		return running;
 	}
-	
+
 	/**
 	 * Stops and destroys the managed server instance.
 	 * 
@@ -191,7 +193,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 */
 	public void stop() {
 		if (managedServer != null) {
-			LOGGER.fine("Destroying managed server instance");
+			LOGGER.debug("Destroying managed server instance");
 			if (resourceTracker != null) {
 				// stop tracking Resources
 				resourceTracker.close();
@@ -214,13 +216,13 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	@Override
 	public Resource addingService(ServiceReference<Resource> reference) {
 		Resource resource = context.getService(reference);
-		LOGGER.fine(String.format("Adding resource [%s]", resource.getName()));
+		LOGGER.debug("Adding resource [{}]", resource.getName());
 		if (resource != null) {
 			managedServer.add(resource);
 		}
 		return resource;
 	}
-	
+
 	/**
 	 * Removes a Californium {@code Resource} from the managed Californium {@code Server}.
 	 * 
@@ -233,11 +235,11 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	@Override
 	public void removedService(ServiceReference<Resource> reference,
 			Resource service) {
-		LOGGER.fine(String.format("Removing resource [%s]", service.getName()));
+		LOGGER.debug("Removing resource [{}]", service.getName());
 		managedServer.remove(service);
 		context.ungetService(reference);
 	}
-	
+
 	/**
 	 * Does nothing as the Californium server does not need to be informed about
 	 * updated service registration properties of a {@code Resource}.
@@ -261,9 +263,9 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 		return managedServer.getEndpoint(port);
 	}
 
-    @Override
-    public Set<Endpoint> getAllEndpoints() {
+	@Override
+	public Set<Endpoint> getAllEndpoints() {
 
-        return Collections.unmodifiableSet(new HashSet<Endpoint>(managedServer.getEndpoints()));
-    }
+		return Collections.unmodifiableSet(new HashSet<Endpoint>(managedServer.getEndpoints()));
+	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -33,6 +33,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
  *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
  *                                                    supportedClientCertificateTypes
+ *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -43,8 +45,8 @@ import java.security.cert.CertPath;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -69,7 +71,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public class ServerHandshaker extends Handshaker {
 
-	private static final Logger LOGGER = Logger.getLogger(ServerHandshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -172,6 +174,9 @@ public class ServerHandshaker extends Handshaker {
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @param trustedRPKs  the set of raw public key identities that have been verified out of 
+	 *     bound and are trusted. Can be null           
+	 *            
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws IllegalArgumentException
@@ -181,7 +186,8 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit,
+		        config.getRpkTrustStore());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -223,7 +229,7 @@ public class ServerHandshaker extends Handshaker {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
 			// its finished message again, so we simply retransmit our last flight
-			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
+			LOGGER.debug("Received client's ({}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
@@ -233,23 +239,21 @@ public class ServerHandshaker extends Handshaker {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
-		if (LOGGER.isLoggable(Level.FINE)) {
+		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder();
-			msg.append(String.format(
-					"Processing %s message from peer [%s]",
-					message.getContentType(), message.getPeer()));
-			if (LOGGER.isLoggable(Level.FINEST)) {
+			msg.append("Processing {} message from peer [{}]");
+			if (LOGGER.isTraceEnabled()) {
 				msg.append(":").append(System.lineSeparator()).append(message);
 			}
-			LOGGER.fine(msg.toString());
+			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
 
 
 		switch (message.getContentType()) {
 		case CHANGE_CIPHER_SPEC:
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
-					new Object[]{message.getPeer(), message.getContentType()});
+			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
+					message.getPeer());
 			break;
 
 		case HANDSHAKE:
@@ -315,8 +319,8 @@ public class ServerHandshaker extends Handshaker {
 				// not ignore a client FINISHED retransmission caused by lost server FINISHED
 				incrementNextReceiveSeq();
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
-					new Object[]{message.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
+			LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
+					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), message.getPeer()});
 			break;
 
 		default:
@@ -343,7 +347,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		clientCertificate = message;
-		clientCertificate.verifyCertificate(rootCertificates);
+		verifyCertificate(clientCertificate);
 		clientPublicKey = clientCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 		// TODO why don't we also update the MessageDigest at this point?
@@ -422,7 +426,7 @@ public class ServerHandshaker extends Handshaker {
 			mdWithClientFinished = (MessageDigest) md.clone();
 			mdWithClientFinished.update(message.toByteArray());
 		} catch (CloneNotSupportedException e) {
-			LOGGER.log(Level.SEVERE, "Cannot compute digest for server's Finish handshake message", e);
+			LOGGER.error("Cannot compute digest for server's Finish handshake message", e);
 		}
 
 		// Verify client's data
@@ -525,9 +529,8 @@ public class ServerHandshaker extends Handshaker {
 		if (maxFragmentLengthExt != null) {
 			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
 			serverHelloExtensions.addExtension(maxFragmentLengthExt);
-			LOGGER.log(
-					Level.FINE,
-					"Negotiated max. fragment length [{0} bytes] with peer [{1}]",
+			LOGGER.debug(
+					"Negotiated max. fragment length [{} bytes] with peer [{}]",
 					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer()});
 		}
 
@@ -536,9 +539,8 @@ public class ServerHandshaker extends Handshaker {
 			// store the names indicated by peer for later reference during key exchange
 			indicatedServerNames = serverNameExt.getServerNames();
 			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
-			LOGGER.log(
-					Level.FINE,
-					"Using server name indication received from peer [{1}]",
+			LOGGER.debug(
+					"Using server name indication received from peer [{}]",
 					clientHello.getPeer());
 		}
 
@@ -661,7 +663,7 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to get right preshared key
 		String identity = message.getIdentity();
 
-		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
+		LOGGER.debug("Client [{}] uses PSK identity [{}]",
 				new Object[]{getPeerAddress(), identity});
 
 		if (getIndicatedServerNames() == null) {
@@ -777,7 +779,7 @@ public class ServerHandshaker extends Handshaker {
 					negotiatedSupportedGroup = group;
 					session.setCipherSuite(cipherSuite);
 					addServerHelloExtensions(cipherSuite, serverHelloExtensions);
-					LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
+					LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]",
 							new Object[]{cipherSuite.name(), getPeerAddress()});
 					return;
 				}

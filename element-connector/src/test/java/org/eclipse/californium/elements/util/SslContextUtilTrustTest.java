@@ -35,7 +35,7 @@ public class SslContextUtilTrustTest {
 
 	public static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	public static final String TRUST_STORE_PASSWORD_HEX = "726F6F7450617373";
-	public static final String TRUST_STORE_LOCATION = SslContextUtil.CLASSPATH_PROTOCOL + "certs/trustStore.jks";
+	public static final String TRUST_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/trustStore.jks";
 
 	public static final char[] TRUST_STORE_WRONG_PASSWORD = "wrongPass".toCharArray();
 

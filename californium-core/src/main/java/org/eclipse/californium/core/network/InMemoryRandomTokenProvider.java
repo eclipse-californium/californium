@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *     Daniel Maier (Bosch Software Innovations GmbH)
  *                                - initial API and implementation
  *     Achim Kraus (Bosch Software Innovations GmbH) - cleanup
+ *     Bosch Software Innovations GmbH - migrate to SLF4J
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -22,8 +23,8 @@ import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
@@ -38,7 +39,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public class InMemoryRandomTokenProvider implements TokenProvider {
 
-	private static final Logger LOGGER = Logger.getLogger(InMemoryRandomTokenProvider.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryRandomTokenProvider.class.getName());
 	private static final int MAX_TOKEN_LENGTH = 8; // bytes
 	
 	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
@@ -58,7 +59,7 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 		this.rng = new SecureRandom();
 		this.rng.nextInt(10);  // trigger self-seeding of the PRNG, may "take a while"
 		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
-		LOGGER.log(Level.CONFIG, "using tokens of {0} bytes in length", this.tokenSizeLimit);
+		LOGGER.info("using tokens of {} bytes in length", this.tokenSizeLimit);
 	}
 
 	@Override

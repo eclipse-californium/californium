@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,12 +20,13 @@
  *                                                    Move isNotification and getObserve
  *                                                    from BlockwiseStatus
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -41,7 +42,7 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
  */
 final class Block2BlockwiseStatus extends BlockwiseStatus {
 
-	private static final Logger LOGGER = Logger.getLogger(Block2BlockwiseStatus.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Block2BlockwiseStatus.class.getName());
 
 	/**
 	 * Order for notifications according RFC 7641, 4-4.
@@ -56,7 +57,6 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Starting exchange to stop deprecated transfers. 
 	 */
-	private Exchange exchange;
 	private Response response;
 	private byte[] etag;
 
@@ -77,6 +77,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
 		status.response = response;
+		status.exchange = exchange;
 		status.buf.put(response.getPayload());
 		status.buf.flip();
 		status.setCurrentSzx(determineResponseBlock2Szx(exchange, preferredBlockSize));
@@ -131,6 +132,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		int contentFormat = request.getOptions().getContentFormat();
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(0, contentFormat);
 		status.randomAccess = true;
+		status.exchange = exchange;
 		status.setCurrentNum(block2.getNum());
 		status.setCurrentSzx(block2.getSzx());
 		return status;
@@ -140,11 +142,11 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		if (exchange.getRequest() != null) {
 			BlockOption block2 = exchange.getRequest().getOptions().getBlock2();
 			if (block2 != null) {
-				LOGGER.log(Level.FINE, "using block2 szx from early negotiation in request: {0}", block2.getSize());
+				LOGGER.debug("using block2 szx from early negotiation in request: {}", block2.getSize());
 				return block2.getSzx();
 			}
 		}
-		LOGGER.log(Level.FINE, "using default preferred block size for response: {0}", preferredBlockSize);
+		LOGGER.debug("using default preferred block size for response: {}", preferredBlockSize);
 		return BlockOption.size2Szx(preferredBlockSize);
 	}
 
@@ -228,10 +230,10 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 				if (etag != null) {
 					// response must contain the same ETag
 					if (responseBlock.getOptions().getETagCount() != 1) {
-						LOGGER.log(Level.FINE, "response does not contain a single ETag");
+						LOGGER.debug("response does not contain a single ETag");
 						return false;
 					} else if (!Arrays.equals(etag, responseBlock.getOptions().getETags().get(0))) {
-						LOGGER.log(Level.FINE, "response does not contain expected ETag");
+						LOGGER.debug("response does not contain expected ETag");
 						return false;
 					}
 				}
@@ -349,6 +351,8 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
+			// stop old cleanup task
+			setBlockCleanupHandle(null);
 			this.exchange = null;
 		}
 		if (exchange != null) {
@@ -367,7 +371,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			}
 		}
 	}
-	
+
 	/**
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */
@@ -419,7 +423,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			int to = Math.min((requestedBlock.getNum() + 1) * requestedBlock.getSize(), bodySize);
 			int length = to - from;
 
-			LOGGER.log(Level.FINE, "cropping response body [size={0}] to block {1}", new Object[]{ bodySize, requestedBlock });
+			LOGGER.debug("cropping response body [size={}] to block {}", new Object[]{ bodySize, requestedBlock });
 
 			byte[] blockPayload = new byte[length];
 			boolean m = to < bodySize;

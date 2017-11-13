@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -15,6 +15,7 @@
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
  *    Paul LeMarquand - fix content type returned from getHttpEntity(), cleanup
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -39,7 +40,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -92,7 +94,8 @@ public final class HttpTranslator {
 	 * Property file containing the mappings between coap messages and http
 	 * messages.
 	 */
-	public static final Properties HTTP_TRANSLATION_PROPERTIES = new MappingProperties("Proxy.properties");
+	public static final MappingProperties DEFAULT_HTTP_TRANSLATION_PROPERTIES = new MappingProperties("Proxy.properties");
+	private Properties httpTranslationProperties;
 
 	// Error constants
 	public static final int STATUS_TIMEOUT = HttpStatus.SC_GATEWAY_TIMEOUT;
@@ -101,7 +104,15 @@ public final class HttpTranslator {
 	public static final int STATUS_URI_MALFORMED = HttpStatus.SC_BAD_REQUEST;
 	public static final int STATUS_WRONG_METHOD = HttpStatus.SC_NOT_IMPLEMENTED;
 
-	protected static final Logger LOGGER = Logger.getLogger(HttpTranslator.class.getName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class.getName());
+	
+	public HttpTranslator(String mappingPropertiesFileName) {
+		httpTranslationProperties = new MappingProperties(mappingPropertiesFileName);
+	}
+	
+	public HttpTranslator() {
+		httpTranslationProperties = DEFAULT_HTTP_TRANSLATION_PROPERTIES;
+	}
 
 	/**
 	 * Gets the coap media type associated to the http entity. Firstly, it looks
@@ -116,7 +127,7 @@ public final class HttpTranslator {
 	 * @return the coap media code associated to the http message entity. * @see
 	 *         HttpHeader, ContentType, MediaTypeRegistry
 	 */
-	public static int getCoapMediaType(HttpMessage httpMessage) {
+	public int getCoapMediaType(HttpMessage httpMessage) {
 		if (httpMessage == null) {
 			throw new IllegalArgumentException("httpMessage == null");
 		}
@@ -157,7 +168,7 @@ public final class HttpTranslator {
 			httpContentTypeString = httpContentTypeString.split(";")[0];
 
 			// retrieve the mapping from the property file
-			String coapContentTypeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_CONTENT_TYPE + httpContentTypeString);
+			String coapContentTypeString = httpTranslationProperties.getProperty(KEY_HTTP_CONTENT_TYPE + httpContentTypeString);
 
 			if (coapContentTypeString != null) {
 				coapContentType = Integer.parseInt(coapContentTypeString);
@@ -191,7 +202,7 @@ public final class HttpTranslator {
 	 * @param headers
 	 * 
 	 */
-	public static List<Option> getCoapOptions(Header[] headers) {
+	public List<Option> getCoapOptions(Header[] headers) {
 		if (headers == null) {
 			throw new IllegalArgumentException("httpMessage == null");
 		}
@@ -210,7 +221,7 @@ public final class HttpTranslator {
 						continue;
 	
 				// get the mapping from the property file
-				String optionCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_HEADER + headerName);
+				String optionCodeString = httpTranslationProperties.getProperty(KEY_HTTP_HEADER + headerName);
 	
 				// ignore the header if not found in the properties file
 				if (optionCodeString == null || optionCodeString.isEmpty()) {
@@ -222,7 +233,7 @@ public final class HttpTranslator {
 				try {
 					optionNumber = Integer.parseInt(optionCodeString.trim());
 				} catch (Exception e) {
-					LOGGER.warning("Problems in the parsing: " + e.getMessage());
+					LOGGER.warn("Problems in the parsing: " + e.getMessage());
 					// ignore the option if not recognized
 					continue;
 				}
@@ -272,7 +283,7 @@ public final class HttpTranslator {
 							try {
 								maxAge = Integer.parseInt(headerValue.substring(index + 1).trim());
 							} catch (NumberFormatException e) {
-								LOGGER.warning("Cannot convert cache control in max-age option");
+								LOGGER.warn("Cannot convert cache control in max-age option");
 								continue;
 							}
 						}
@@ -306,7 +317,7 @@ public final class HttpTranslator {
 				// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 				// This cannot be parsed into a single CoAP Option and yields a
 				// NumberFormatException
-				LOGGER.warning("Could not parse header line "+header);
+				LOGGER.warn("Could not parse header line "+header);
 			}
 		} // while (headerIterator.hasNext())
 
@@ -325,7 +336,7 @@ public final class HttpTranslator {
 	 * @throws TranslationException
 	 *             the translation exception
 	 */
-	public static byte[] getCoapPayload(HttpEntity httpEntity) throws TranslationException {
+	public byte[] getCoapPayload(HttpEntity httpEntity) throws TranslationException {
 		if (httpEntity == null) {
 			throw new IllegalArgumentException("httpEntity == null");
 		}
@@ -350,7 +361,7 @@ public final class HttpTranslator {
 				}
 			}
 		} catch (IOException e) {
-			LOGGER.warning("Cannot get the content of the http entity: " + e.getMessage());
+			LOGGER.warn("Cannot get the content of the http entity: " + e.getMessage());
 			throw new TranslationException("Cannot get the content of the http entity", e);
 		} finally {
 			try {
@@ -390,7 +401,7 @@ public final class HttpTranslator {
 	 * @return the coap request * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
+	public Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
 		if (httpRequest == null) {
 			throw new IllegalArgumentException("httpRequest == null");
 		}
@@ -402,7 +413,7 @@ public final class HttpTranslator {
 		String httpMethod = httpRequest.getRequestLine().getMethod().toLowerCase();
 
 		// get the coap method
-		String coapMethodString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_METHOD + httpMethod);
+		String coapMethodString = httpTranslationProperties.getProperty(KEY_HTTP_METHOD + httpMethod);
 		if (coapMethodString == null || coapMethodString.contains("error")) {
 			throw new InvalidMethodException(httpMethod + " method not mapped");
 		}
@@ -411,7 +422,7 @@ public final class HttpTranslator {
 		try {
 			coapMethod = Integer.parseInt(coapMethodString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the http method in coap method: " + e);
+			LOGGER.warn("Cannot convert the http method in coap method: " + e);
 			throw new TranslationException("Cannot convert the http method in coap method", e);
 		}
 
@@ -428,10 +439,10 @@ public final class HttpTranslator {
 		try {
 			uriString = URLDecoder.decode(uriString, "UTF-8");
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("Failed to decode the uri: " + e.getMessage());
+			LOGGER.warn("Failed to decode the uri: " + e.getMessage());
 			throw new TranslationException("Failed decoding the uri: " + e.getMessage());
 		} catch (Throwable e) {
-			LOGGER.warning("Malformed uri: " + e.getMessage());
+			LOGGER.warn("Malformed uri: " + e.getMessage());
 			throw new InvalidFieldException("Malformed uri: " + e.getMessage());
 		}
 
@@ -470,7 +481,7 @@ public final class HttpTranslator {
 				coapRequest.setDestination(localHostAddress);
 				// TODO: setDestinationPort???
 			} catch (UnknownHostException e) {
-				LOGGER.warning("Cannot get the localhost address: " + e.getMessage());
+				LOGGER.warn("Cannot get the localhost address: " + e.getMessage());
 				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
 			}
 		} else {
@@ -521,7 +532,7 @@ public final class HttpTranslator {
 	 * @return the coap response * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Response getCoapResponse(HttpResponse httpResponse, Request coapRequest) throws TranslationException {
+	public Response getCoapResponse(HttpResponse httpResponse, Request coapRequest) throws TranslationException {
 		if (httpResponse == null) {
 			throw new IllegalArgumentException("httpResponse == null");
 		}
@@ -545,17 +556,17 @@ public final class HttpTranslator {
 			}
 		} else {
 			// get the translation from the property file
-			String coapCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_HTTP_CODE + httpCode);
+			String coapCodeString = httpTranslationProperties.getProperty(KEY_HTTP_CODE + httpCode);
 
 			if (coapCodeString == null || coapCodeString.isEmpty()) {
-				LOGGER.warning("coapCodeString == null");
+				LOGGER.warn("coapCodeString == null");
 				throw new TranslationException("coapCodeString == null");
 			}
 
 			try {
 				coapCode = ResponseCode.valueOf(Integer.parseInt(coapCodeString.trim()));
 			} catch (NumberFormatException e) {
-				LOGGER.warning("Cannot convert the status code in number: " + e.getMessage());
+				LOGGER.warn("Cannot convert the status code in number: " + e.getMessage());
 				throw new TranslationException("Cannot convert the status code in number", e);
 			}
 		}
@@ -615,7 +626,7 @@ public final class HttpTranslator {
 	 * @return null if the request has no payload * @throws TranslationException
 	 *         the translation exception
 	 */
-	public static HttpEntity getHttpEntity(Message coapMessage) throws TranslationException {
+	public HttpEntity getHttpEntity(Message coapMessage) throws TranslationException {
 		if (coapMessage == null) {
 			throw new IllegalArgumentException("coapMessage == null");
 		}
@@ -635,7 +646,7 @@ public final class HttpTranslator {
 			} else {
 				int coapContentType = coapMessage.getOptions().getContentFormat();
 				// search for the media type inside the property file
-				String coapContentTypeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_MEDIA + coapContentType);
+				String coapContentTypeString = httpTranslationProperties.getProperty(KEY_COAP_MEDIA + coapContentType);
 
 				// if the content-type has not been found in the property file,
 				// try to get its string value (expressed in mime type)
@@ -653,7 +664,7 @@ public final class HttpTranslator {
 				try {
 					contentType = ContentType.parse(coapContentTypeString);
 				} catch (UnsupportedCharsetException e) {
-					LOGGER.finer("Cannot convert string to ContentType: " + e.getMessage());
+					LOGGER.debug("Cannot convert string to ContentType: {}", e.getMessage());
 					contentType = ContentType.APPLICATION_OCTET_STREAM;
 				}
 			}
@@ -715,7 +726,7 @@ public final class HttpTranslator {
 	 * 
 	 * @return Header[]
 	 */
-	public static Header[] getHttpHeaders(List<Option> optionList) {
+	public Header[] getHttpHeaders(List<Option> optionList) {
 		if (optionList == null) {
 			throw new IllegalArgumentException("coapMessage == null");
 		}
@@ -730,7 +741,7 @@ public final class HttpTranslator {
 			int optionNumber = option.getNumber();
 			if (optionNumber != OptionNumberRegistry.CONTENT_FORMAT && optionNumber != OptionNumberRegistry.PROXY_URI) {
 				// get the mapping from the property file
-				String headerName = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_OPTION + optionNumber);
+				String headerName = httpTranslationProperties.getProperty(KEY_COAP_OPTION + optionNumber);
 
 				// set the header
 				if (headerName != null && !headerName.isEmpty()) {
@@ -778,7 +789,7 @@ public final class HttpTranslator {
 	 * @return the http request * @throws TranslationException the translation
 	 *         exception * @throws URISyntaxException the uRI syntax exception
 	 */
-	public static HttpRequest getHttpRequest(Request coapRequest) throws TranslationException {
+	public HttpRequest getHttpRequest(Request coapRequest) throws TranslationException {
 		if (coapRequest == null) {
 			throw new IllegalArgumentException("coapRequest == null");
 		}
@@ -804,10 +815,10 @@ public final class HttpTranslator {
 					coapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.warning("UTF-8 do not support this encoding: " + e);
+			LOGGER.warn("UTF-8 do not support this encoding: " + e);
 			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
-			LOGGER.warning("Cannot translate the server uri" + e);
+			LOGGER.warn("Cannot translate the server uri" + e);
 			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
 		}
 
@@ -858,7 +869,7 @@ public final class HttpTranslator {
 	 * @throws TranslationException
 	 *             the translation exception
 	 */
-	public static void getHttpResponse(HttpRequest httpRequest, Response coapResponse, HttpResponse httpResponse) throws TranslationException {
+	public void getHttpResponse(HttpRequest httpRequest, Response coapResponse, HttpResponse httpResponse) throws TranslationException {
 		if (httpRequest == null) {
 			throw new IllegalArgumentException("httpRequest == null");
 		}
@@ -871,10 +882,10 @@ public final class HttpTranslator {
 
 		// get/set the response code
 		ResponseCode coapCode = coapResponse.getCode();
-		String httpCodeString = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_CODE + coapCode.value);
+		String httpCodeString = httpTranslationProperties.getProperty(KEY_COAP_CODE + coapCode.value);
 
 		if (httpCodeString == null || httpCodeString.isEmpty()) {
-			LOGGER.warning("httpCodeString == null");
+			LOGGER.warn("httpCodeString == null");
 			throw new TranslationException("httpCodeString == null");
 		}
 
@@ -882,7 +893,7 @@ public final class HttpTranslator {
 		try {
 			httpCode = Integer.parseInt(httpCodeString.trim());
 		} catch (NumberFormatException e) {
-			LOGGER.warning("Cannot convert the coap code in http status code" + e);
+			LOGGER.warn("Cannot convert the coap code in http status code" + e);
 			throw new TranslationException("Cannot convert the coap code in http status code", e);
 		}
 
@@ -923,6 +934,10 @@ public final class HttpTranslator {
 			}
 		}
 	}
+	
+	public Properties getHttpTranslationProperties() {
+		return httpTranslationProperties;
+	}
 
 	/**
 	 * Change charset.
@@ -938,7 +953,7 @@ public final class HttpTranslator {
 	 * @return the byte[] * @throws TranslationException the translation
 	 *         exception
 	 */
-	private static byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) throws TranslationException {
+	private byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) throws TranslationException {
 		try {
 			// decode with the source charset
 			CharsetDecoder decoder = fromCharset.newDecoder();
@@ -956,22 +971,13 @@ public final class HttpTranslator {
 			// If the character sequence starting at the input buffer's current
 			// position cannot be mapped to an equivalent byte sequence and the
 			// current unmappable-character
-			LOGGER.finer("Charset translation: cannot mapped to an output char byte: " + e.getMessage());
+			LOGGER.debug("Charset translation: cannot mapped to an output char byte: {}", e.getMessage());
 			return null;
 		} catch (CharacterCodingException e) {
-			LOGGER.warning("Problem in the decoding/encoding charset: " + e.getMessage());
+			LOGGER.warn("Problem in the decoding/encoding charset: " + e.getMessage());
 			throw new TranslationException("Problem in the decoding/encoding charset", e);
 		}
 
 		return payload;
 	}
-
-	/**
-	 * The Constructor is private because the class is an helper class and
-	 * cannot be instantiated.
-	 */
-	private HttpTranslator() {
-
-	}
-
 }

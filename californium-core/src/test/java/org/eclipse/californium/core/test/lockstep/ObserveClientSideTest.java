@@ -25,6 +25,10 @@
  *                                                    Add printServerLog after
  *                                                    tests.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add check for empty exchange store
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for timedout blockwise
+ *                                                    notify. Issue #451
+ *                                                    Correct type of MAX_RETRANSMIT
+ *                                                    from float to int.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -33,7 +37,7 @@ import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -44,13 +48,10 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Large;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -68,17 +69,16 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class ObserveClientSideTest {
-	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
-	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_EXCHANGE_LIFETIME = 2470; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 1000; // milliseconds
 	
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static NetworkConfig CONFIG;
 
-	private MessageExchangeStore clientExchangeStore;
 	private LockstepEndpoint server;
-	private Endpoint client;
+	private CoapTestEndpoint client;
 	private int mid = 8000;
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
@@ -90,20 +90,20 @@ public class ObserveClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 1500);
 	}
 
 	@Before
 	public void setupEndpoints() throws Exception {
 		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
 		// bind to loopback address using an ephemeral port
-	//	CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-
-		clientExchangeStore = new InMemoryMessageExchangeStore(CONFIG);
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, clientExchangeStore);
+	    //CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
@@ -114,7 +114,7 @@ public class ObserveClientSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(CONFIG, clientExchangeStore);
+			assertAllExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
 			
@@ -399,9 +399,9 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, true, 16)
 				.payload(respPayload.substring(16, 32)).go();
 		// ensure client don't ask for block anymore
-		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
+		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("No block2 message expected anymore", message);
-		// TODO ensure that blockdata buffer is cleared in blockwiselayer...
+		assertTrue("Blockwise layer must be empty", client.getStack().getBlockwiseLayer().isEmpty());
 
 		// Send new notif without block
 		notifyPayload = generateRandomPayload(8);
@@ -931,4 +931,256 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 	}
+
+	/**
+	 * Verifies Incomplete block2 (missing last piggyback response) does not
+	 * leak
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock2NotificationNoAckNoResponse() throws Exception {
+
+		System.out.println("Incomplete  block2 notification :");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length())
+				.payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+
+		// Send incomplete block2 notification
+		respPayload = generateRandomPayload(42);
+		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16)
+				.size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		// we don't answer to the last request, @after should check is there is
+		// no leak.
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verifies cancelled observation while block2 notification does not leak.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testCancelledWhileBlock2Notification() throws Exception {
+
+		System.out.println("cancelled block2 transfer:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length())
+				.payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+
+		// create new server with new port
+		server = createChangedLockstepEndpoint(server);
+
+		// Send new block2 notification
+		respPayload = generateRandomPayload(42);
+		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16)
+				.size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		printServerLog(clientInterceptor);
+
+		client.cancelObservation(server.getToken("A"));
+		System.out.println("Cancel observation " + Utils.toHexString(server.getToken("A")));
+
+		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
+
+		// TODO we want to check is ExchangeStore is empty but currently
+		// Deduplicator is not empty after cancel.
+		// assertTrue("ExchangeStore must be empty",
+		// clientExchangeStore.isEmpty());
+	}
+
+	/**
+	 * Verifies incomplete acknowledged block2 notification () does not leak
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testIncompleteBlock2NotificationAckNoResponse() throws Exception {
+
+		System.out.println("Incomplete Acknowledged block2 notification :");
+		respPayload = generateRandomPayload(40);
+		String path = "test";
+
+		// Established new observe relation with block2
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).observe(0).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(0).block2(0, true, 16).size2(respPayload.length())
+				.payload(respPayload.substring(0, 16)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32)).go();
+
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+		printServerLog(clientInterceptor);
+
+		// create new server with new port
+		server = createChangedLockstepEndpoint(server);
+
+		// Send new block2 notification
+		respPayload = generateRandomPayload(42);
+		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16)
+				.size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
+		server.sendEmpty(ACK).loadMID("C").go();
+		// we acknowledge but never send the response, @after should check is
+		// there is no leak.
+
+		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Test that notifies are still received, even if a blockwise notify 
+	 * times out.
+
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * CON [MID=48684, T=55dca046fd7555c1], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=48684, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(1)
+	 * CON [MID=48685, T=7309fa61ceba5915], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=48685, T=7309fa61ceba5915], 2.05, 2:1/0/16
+	 * (response finished)
+	 * (notification received)
+	 * <-----   CON [MID=8001, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(2)
+	 * ACK [MID=8001]   ----->
+	 * (GET rest of blockwise notify)
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * CON [MID=48686, T=9eda32a025c9fc3e], GET, /test, 2:1/0/16    ----->
+	 * (blockwise GET of the rest of the notfiy times out)
+	 * (next notification received)
+	 * <-----   CON [MID=8002, T=55dca046fd7555c1], 2.05, 2:0/1/16, observe(3)
+	 * ACK [MID=8002]   ----->
+	 * CON [MID=48687, T=ceeee83a176a5c1b], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=48687, T=ceeee83a176a5c1b], 2.05, 2:1/0/16
+	 * (notification received)
+	 * </pre>
+	 */
+	@Test
+	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
+		System.out.println("Blockwise Observe:");
+		int timeoutMillis = CONFIG.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		
+		// observer request response will be sent using blockwise
+		respPayload = generateRandomPayload(2 * 16);
+		// notification payload sended without blockwise
+		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+
+		// Send observe request
+		client.sendRequest(request);
+		// Expect observe request
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+
+		// send blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").block2(0, true, 16).observe(1)
+				.payload(respPayload.substring(0, 16)).go();
+		// Expect next block request
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		// send last blockwise response
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
+				.payload(respPayload.substring(16, 32)).go();
+		// Check that we get the response
+		Response response = request.waitForResponse();
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		String notifyPayload = generateRandomPayload(2 * 16);
+
+		// send notify
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		// timeout, retransmission
+		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		// timeout, retransmission
+		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		
+		assertNull("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS));
+
+		// next notify
+		notifyPayload = generateRandomPayload(2 * 16);
+
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
+				.payload(notifyPayload.substring(16, 32)).go();
+
+		Response notification1 = notificationListener.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(notification1, notifyPayload);
+		
+	}
+
 }

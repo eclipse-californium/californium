@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,13 +14,15 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation 
  *                                                    for handshakeFailed.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use final for collections
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
@@ -61,11 +63,11 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
  */
 public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, SessionListener {
 
-	private static final Logger LOG = Logger.getLogger(InMemoryConnectionStore.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
-	private LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
-	private SessionCache sessionCache;
+	private final LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
+	private final SessionCache sessionCache;
 
 	/**
 	 * Creates a store with a capacity of 500000 connections and
@@ -122,7 +124,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 				}
 			});
 		}
-		LOG.log(Level.CONFIG, "Created new InMemoryConnectionStore [capacity: {0}, connection expiration threshold: {1}s]",
+		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				new Object[]{capacity, threshold});
 	}
 

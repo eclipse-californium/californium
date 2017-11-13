@@ -22,6 +22,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF tests to PseudoRandomFunctionTest
+ *    Ludwig Seitz (RISE SICS) - Moved verifyCertificate() tests here from CertificateMessage
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -29,16 +30,22 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -53,11 +60,17 @@ public class HandshakerTest {
 	final int[] receivedMessages = new int[10];
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
 	Handshaker handshaker;
+	Handshaker handshakerWithAnchors;
 	DTLSSession session;
 	X509Certificate[] certificateChain;
+	X509Certificate[] trustAnchor;
 	CertificateMessage certificateMessage;
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
 	RecordLayer recordLayer;
+	CertificateMessage message;
+	InetSocketAddress peerAddress;
+	PublicKey serverPublicKey;
+	TrustedRpkStore rpkStore;
 
 	@Before
 	public void setUp() throws Exception {
@@ -68,9 +81,13 @@ public class HandshakerTest {
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
+		trustAnchor = DtlsTestTools.getTrustedCertificates();
 		certificateMessage = createCertificateMessage(1);
 		recordLayer = mock(RecordLayer.class);
-		handshaker = new Handshaker(false, session, recordLayer, null, null, 1500) {
+		serverPublicKey = DtlsTestTools.getPublicKey();
+		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
+		rpkStore = new InMemoryRpkTrustStore(Collections.singleton(new RawPublicKeyIdentity(serverPublicKey)));
+		handshaker = new Handshaker(false, session, recordLayer, null, null, 1500, rpkStore) {
 			@Override
 			public void startHandshake() {
 			}
@@ -83,13 +100,27 @@ public class HandshakerTest {
 				}
 			}
 		};
+		
+		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null, trustAnchor, 1500, rpkStore) {
+            @Override
+            public void startHandshake() {
+            }
+
+            @Override
+            protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+                if (message instanceof HandshakeMessage) {
+                    receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
+                    incrementNextReceiveSeq();
+                }
+            }
+        };
 	}
 
 	@Test
 	public void testProcessMessageBuffersUnexpectedChangeCipherSpecMessage() throws Exception {
 
 		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
-		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer);
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, rpkStore);
 
 		// WHEN the peer sends its ChangeCipherSpec message
 		InetSocketAddress senderAddress = new InetSocketAddress(5000);
@@ -114,7 +145,7 @@ public class HandshakerTest {
 		final InetSocketAddress senderAddress = new InetSocketAddress(5000);
 
 		// GIVEN a handshaker expecting the peer's ChangeCipherSpec message
-		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer);
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, rpkStore);
 		handshaker.expectChangeCipherSpecMessage();
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
@@ -201,7 +232,35 @@ public class HandshakerTest {
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
-	
+
+	@Test
+	public void testVerifyCertificateSucceedsForExampleCertificates() throws IOException, GeneralSecurityException {
+		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
+		assertThatCertificateVerificationSucceeds();
+
+		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
+		assertThatCertificateVerificationSucceeds();
+	}
+
+	@Test
+	public void testVerifyRPKSucceeds() throws IOException, GeneralSecurityException {
+		givenARawPublicKeyCertificateMessage(serverPublicKey);
+		assertThatCertificateVerificationSucceeds();
+	}
+
+	@Test
+	public void testVerifyRpkFailsIfRpkIsUntrusted() throws IOException, GeneralSecurityException {
+		givenARawPublicKeyCertificateMessage(DtlsTestTools.getClientPublicKey());
+		assertThatCertificateVerificationFails();
+	}
+
+	@Test
+	public void testVerifyCertificateFailsIfTrustAnchorIsEmpty() throws IOException, GeneralSecurityException {
+
+		givenACertificateMessage(DtlsTestTools.getClientCertificateChain(), false);
+		assertThatCertificateValidationFailsForEmptyTrustAnchor();
+	}
+
 	private void givenAFragmentedHandshakeMessage(HandshakeMessage message) {
 		List<FragmentedHandshakeMessage> fragments = new LinkedList<>();
 		byte[] serializedMsg = message.fragmentToByteArray();
@@ -211,18 +270,27 @@ public class HandshakerTest {
 			int fragmentLength = Math.min(maxFragmentSize, serializedMsg.length - fragmentOffset);
 			byte[] fragment = new byte[fragmentLength];
 			System.arraycopy(serializedMsg, fragmentOffset, fragment, 0, fragmentLength);
-			FragmentedHandshakeMessage msg = 
-					new FragmentedHandshakeMessage(
-							fragment,
-							message.getMessageType(),
-							fragmentOffset,
-							serializedMsg.length,
-							endpoint);
+			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(fragment, message.getMessageType(),
+					fragmentOffset, serializedMsg.length, endpoint);
 			msg.setMessageSeq(message.getMessageSeq());
 			fragments.add(msg);
 			fragmentOffset += fragmentLength;
 		}
-		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[]{});
+		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[] {});
+	}
+
+	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey)
+			throws IOException, GeneralSecurityException {
+		certificateChain = chain;
+		if (useRawPublicKey) {
+			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
+		} else {
+			message = new CertificateMessage(chain, peerAddress);
+		}
+	}
+
+	private void givenARawPublicKeyCertificateMessage(PublicKey publicKey) {
+		message = new CertificateMessage(publicKey.getEncoded(), peerAddress);
 	}
 
 	private void assertThatReassembledMessageEqualsOriginalMessage(HandshakeMessage result) {
@@ -230,6 +298,33 @@ public class HandshakerTest {
 		CertificateMessage reassembled = (CertificateMessage) result;
 		assertThat(reassembled.getPublicKey(), is(certificateMessage.getPublicKey()));
 		assertThat(reassembled.getMessageSeq(), is(certificateMessage.getMessageSeq()));
+	}
+
+	private void assertThatCertificateVerificationSucceeds() {
+		try {
+			handshakerWithAnchors.verifyCertificate(message);
+			// all is well
+		} catch (HandshakeException e) {
+			fail("Verification of certificate should have succeeded");
+		}
+	}
+
+	private void assertThatCertificateVerificationFails() {
+		try {
+			handshaker.verifyCertificate(message);
+			fail("Verification of certificate should have failed");
+		} catch (HandshakeException e) {
+			// all is well
+		}
+	}
+
+	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
+		try {
+			handshaker.verifyCertificate(message);
+			fail("Verification of certificate should have failed");
+		} catch (HandshakeException e) {
+			// all is well
+		}
 	}
 
 	private Record createRecord(int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
@@ -257,8 +352,9 @@ public class HandshakerTest {
 		private AtomicBoolean changeCipherSpecProcessed = new AtomicBoolean(false);
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
-		ChangeCipherSpecTestHandshaker(final DTLSSession session, final RecordLayer recordLayer) {
-			super(false, session, recordLayer, null, null, 1500);
+		ChangeCipherSpecTestHandshaker(final DTLSSession session, final RecordLayer recordLayer,
+				TrustedRpkStore rpkStore) {
+			super(false, session, recordLayer, null, null, 1500, rpkStore);
 		}
 
 		@Override

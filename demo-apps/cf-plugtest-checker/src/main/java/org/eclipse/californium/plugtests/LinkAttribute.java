@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,11 +12,13 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
 import java.util.Scanner;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.regex.Pattern;
 
 
@@ -27,7 +29,7 @@ public class LinkAttribute {
 
 // Logging /////////////////////////////////////////////////////////////////////
 	
-	protected static final Logger LOG = Logger.getLogger(LinkAttribute.class.getName());
+	protected static final Logger LOG = LoggerFactory.getLogger(LinkAttribute.class.getName());
 
 // Constants ///////////////////////////////////////////////////////////////////
 
@@ -71,7 +73,7 @@ public class LinkAttribute {
 		String name = scanner.findInLine(WORD);
 		if (name != null) {
 			
-			LOG.finest(String.format("Parsed link attribute: %s", name));
+			LOG.trace("Parsed link attribute: {}", name);
 			
 			LinkAttribute attr = new LinkAttribute();
 			attr.name = name;
