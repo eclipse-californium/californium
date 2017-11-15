@@ -56,7 +56,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `1.1.0-SNAPHOT`.
+You can then simply depend on `1.1.0-SNAPSHOT`.
  
 # Eclipse
 
@@ -77,8 +77,10 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 # Interop Server
 
-A test server is running at [coap://iot.eclipse.org:5683/](coap://iot.eclipse.org:5683/).
+A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
+It is an instance of the `cf-plugtest-server` from the demo-apps.
 The root resource responds with its current version.
+More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
 
 Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).

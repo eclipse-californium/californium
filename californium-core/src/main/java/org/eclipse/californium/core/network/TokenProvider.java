@@ -22,7 +22,7 @@ import org.eclipse.californium.core.network.Exchange.KeyToken;
 /**
  * A {@link TokenProvider} provides CoAP tokens that are guaranteed to be not in
  * use. To not run out of unused tokens, used tokens MUST be released with
- * {@link #releaseToken(byte[])} after usage.
+ * {@link #releaseToken(KeyToken)} after usage.
  *
  * Implementations of {@link TokenProvider} MUST be thread-safe.
  */
@@ -30,8 +30,9 @@ public interface TokenProvider {
 
 	/**
 	 * Returns a token that is not in use. After this token is not in use
-	 * anymore it must be released with {@link #releaseToken(byte[])}.
+	 * anymore it must be released with {@link #releaseToken(KeyToken)}.
 	 * 
+	 * @param message The message to get a token for.
 	 * @return a token that is not in use
 	 */
 	KeyToken getUnusedToken(Message message);
@@ -39,16 +40,16 @@ public interface TokenProvider {
 	/**
 	 * Releases the given token to be used again.
 	 * 
-	 * @param token the token to be released
+	 * @param keyToken the token to be released
 	 */
 	void releaseToken(KeyToken keyToken);
 
 	/**
 	 * Indicates if the given token is in use, i.e. was returned by
-	 * {@link #getUnusedToken()} but not yet released by
-	 * {@link #releaseToken(byte[])}.
+	 * {@link #getUnusedToken(Message)} but not yet released by
+	 * {@link #releaseToken(KeyToken)}.
 	 * 
-	 * @param token the token to be checked
+	 * @param keyToken the token to be checked
 	 * @return <code>true</code> if the given token is still in use, <code>false</code> otherwise
 	 */
 	boolean isTokenInUse(KeyToken keyToken);

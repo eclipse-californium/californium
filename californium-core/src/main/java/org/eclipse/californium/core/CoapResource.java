@@ -188,7 +188,8 @@ public  class CoapResource implements Resource {
 	public CoapResource(String name, boolean visible) {
 		this.name = name;
 		this.path = "";
-		this.visible = visible;
+		this.setVisible(visible);
+		
 		this.attributes = new ResourceAttributes();
 		this.children = new ConcurrentHashMap<String, Resource>();
 		this.observers = new CopyOnWriteArrayList<ResourceObserver>();

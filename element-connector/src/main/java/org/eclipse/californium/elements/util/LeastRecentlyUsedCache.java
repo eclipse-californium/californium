@@ -395,7 +395,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Gets all connections contained in this cache.
 	 * <p>
-	 * The iterator returned is directly backed by this cache's underyling map.
+	 * The iterator returned is directly backed by this cache's underlying map.
 	 * If the cache is modified while an iteration over the values is in progress,
 	 * the results of the iteration are undefined.
 	 * </p>
@@ -471,7 +471,7 @@ public class LeastRecentlyUsedCache<K, V> {
 
 		@Override
 		public String toString() {
-			return new StringBuffer("CacheEntry [key: ").append(key)
+			return new StringBuilder("CacheEntry [key: ").append(key)
 					.append(", last access: ").append(lastUpdate).append("]")
 					.toString();
 		}

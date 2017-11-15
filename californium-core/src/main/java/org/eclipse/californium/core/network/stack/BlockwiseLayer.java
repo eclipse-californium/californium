@@ -18,6 +18,9 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check, if exchange is already
+ *                                                    completed before report timeout.
+ *                                                    Issue #103
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -495,7 +498,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * @param exchange The message exchange that the response is part of.
 	 * @param response The response received from the peer.
-	 * @param block2 The block2 option from the reponse.
+	 * @param block2 The block2 option from the response.
 	 */
 	private void handleBlock2Response(final Exchange exchange, final Response response, final BlockOption block2) {
 
@@ -805,7 +808,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
-			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise trasnfer",
+			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise transfer",
 					new Object[]{request.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
@@ -892,12 +895,14 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			if (exchange.getRequest() == null) {
-				LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
-			} else {
-				LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
+			if (!exchange.isComplete()) {
+				if (exchange.getRequest() == null) {
+					LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
+				} else {
+					LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
+				}
+				exchange.setComplete();
 			}
-			exchange.setComplete();
 		}
 	}
 

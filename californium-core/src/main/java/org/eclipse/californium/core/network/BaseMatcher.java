@@ -12,11 +12,9 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  ******************************************************************************/
 package org.eclipse.californium.core.network;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
@@ -26,49 +24,33 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public abstract class BaseMatcher implements Matcher {
 
-	private static final Logger LOG = Logger.getLogger(BaseMatcher.class.getName());
 	protected final NetworkConfig config;
+	protected final MessageExchangeStore exchangeStore;
 	protected boolean running = false;
-	protected MessageExchangeStore exchangeStore;
 
 	/**
 	 * Creates a new matcher based on configuration values.
 	 * 
 	 * @param config the configuration to use.
-	 * @throws NullPointerException if the configuration, notification listener,
-	 *             or the observation store is {@code null}.
+	 * @param exchangeStore the exchange store to use for keeping track of
+	 *            message exchanges with endpoints.
+	 * @throws NullPointerException if the configuration,
+	 *             or the exchange store is {@code null}.
 	 */
-	public BaseMatcher(final NetworkConfig config) {
+	public BaseMatcher(final NetworkConfig config, final MessageExchangeStore exchangeStore) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
+		} else if (exchangeStore == null) {
+			throw new NullPointerException("ExchangeStore must not be null");
 		} else {
 			this.config = config;
-		}
-	}
-
-	@Override
-	public synchronized final void setMessageExchangeStore(final MessageExchangeStore store) {
-		if (running) {
-			throw new IllegalStateException("MessageExchangeStore can only be set on stopped Matcher");
-		} else if (store == null) {
-			throw new NullPointerException("Message exchange store must not be null");
-		} else {
-			this.exchangeStore = store;
-		}
-	}
-
-	protected final void assertMessageExchangeStoreIsSet() {
-		if (exchangeStore == null) {
-			LOG.log(Level.CONFIG, "no MessageExchangeStore set, using default {0}",
-					InMemoryMessageExchangeStore.class.getName());
-			exchangeStore = new InMemoryMessageExchangeStore(config);
+			this.exchangeStore = exchangeStore;
 		}
 	}
 
 	@Override
 	public synchronized void start() {
 		if (!running) {
-			assertMessageExchangeStoreIsSet();
 			exchangeStore.start();
 			running = true;
 		}

@@ -14,6 +14,8 @@
  *    Bosch Software Innovations GmbH - add support for correlation context to provide
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add comment on processing
+ *                                                    onContextEstablished. issue #311 
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -28,6 +30,9 @@ public interface MessageCallback {
 	 * context will include e.g. the DTLS session's ID, epoch number and cipher
 	 * that is used for sending the message to the peer.
 	 * </p>
+	 * Note: usually this callback must be processed in a synchronous manner, because
+	 * if it returns, the message is sent. Therefore take special care in methods called
+	 * on this callback.
 	 *  
 	 * @param context transport specific properties describing the context in
 	 *                   which the message is sent

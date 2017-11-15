@@ -113,12 +113,12 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append("\n\t\t\t\tElliptic Curves Length: ").append(getLength() - 6);
-		sb.append("\n\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):");
+		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6);
+		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):");
 
 		for (Integer curveId : supportedGroups) {
 			SupportedGroup group = SupportedGroup.fromId(curveId);
-			sb.append("\n\t\t\t\t\tElliptic Curve: ");
+			sb.append(System.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
 			if (group != null) {
 				sb.append(group.name());
 			} else {

@@ -19,19 +19,16 @@ package org.eclipse.californium.proxy;
 
 import java.io.IOException;
 import java.net.SocketException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.proxy.resources.ForwardingResource;
 import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
 
@@ -44,15 +41,13 @@ import org.eclipse.californium.proxy.resources.StatsResource;
 public class ProxyHttpServer {
 
 	private final static Logger LOGGER = Logger.getLogger(ProxyHttpServer.class.getCanonicalName());
-	
-	private static final String PROXY_COAP_CLIENT = "proxy/coapClient";
-	private static final String PROXY_HTTP_CLIENT = "proxy/httpClient";
 
 	private final ProxyCacheResource cacheResource = new ProxyCacheResource(true);
 	private final StatsResource statsResource = new StatsResource(cacheResource);
 	
-	private ProxyCoapResolver proxyCoapResolver;
 	private HttpStack httpStack;
+
+	private ForwardingResource coap2coap;
 
 	/**
 	 * Instantiates a new proxy endpoint from the default ports.
@@ -60,8 +55,8 @@ public class ProxyHttpServer {
 	 * @throws SocketException
 	 *             the socket exception
 	 */
-	public ProxyHttpServer(CoapServer server) throws IOException {
-		this(NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
+	public ProxyHttpServer(ForwardingResource coap) throws IOException {
+		this(coap, NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
 	}
 
 	/**
@@ -72,7 +67,7 @@ public class ProxyHttpServer {
 	 * @throws IOException
 	 *             the socket exception
 	 */
-	public ProxyHttpServer(int httpPort) throws IOException {
+	public ProxyHttpServer(ForwardingResource coap, int httpPort) throws IOException {
 	
 		this.httpStack = new HttpStack(httpPort);
 		this.httpStack.setRequestHandler(new RequestHandler() {
@@ -80,11 +75,10 @@ public class ProxyHttpServer {
 				ProxyHttpServer.this.handleRequest(request);
 			}
 		});
+		this.coap2coap = coap;
 	}
 
 	public void handleRequest(final Request request) {
-		
-		LOGGER.info("ProxyEndpoint handles request "+request);
 		
 		Exchange exchange = new Exchange(request, Origin.REMOTE) {
 
@@ -106,6 +100,7 @@ public class ProxyHttpServer {
 					request.setResponse(response);
 					responseProduced(request, response);
 					httpStack.doSendResponse(request, response);
+					LOGGER.info("HTTP returned " + response);
 				} catch (Exception e) {
 					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);
 				}
@@ -134,63 +129,10 @@ public class ProxyHttpServer {
 			exchange.sendResponse(response);
 			return;
 		} else {
-
-			// edit the request to be correctly forwarded if the proxy-uri is
-			// set
-			if (request.getOptions().hasProxyUri()) {
-				try {
-					manageProxyUriRequest(request);
-					LOGGER.info("after manageProxyUriRequest: "+request);
-
-				} catch (URISyntaxException e) {
-					LOGGER.warning(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
-
-					exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
-				}
-			}
-
+			// HttpTranslator set Proxy-Uri from HTTP URI template
 			// handle the request as usual
-			proxyCoapResolver.forwardRequest(exchange);
-			/*
-			 * Martin:
-			 * Originally, the request was delivered to the ProxyCoAP2Coap which was at the path
-			 * proxy/coapClient or to proxy/httpClient
-			 * This approach replaces this implicit fuzzy connection with an explicit
-			 * and dynamically changeable one.
-			 */
+			coap2coap.handleRequest(exchange);
 		}
-	}
-
-	/**
-	 * Manage proxy uri request.
-	 * 
-	 * @param request
-	 *            the request
-	 * @throws URISyntaxException
-	 *             the uRI syntax exception
-	 */
-	private void manageProxyUriRequest(Request request) throws URISyntaxException {
-		// check which schema is requested
-		URI proxyUri = new URI(request.getOptions().getProxyUri());
-
-		// the local resource that will abstract the client part of the
-		// proxy
-		String clientPath;
-
-		// switch between the schema requested
-		if (proxyUri.getScheme() != null && proxyUri.getScheme().matches("^http.*")) {
-			// the local resource related to the http client
-			clientPath = PROXY_HTTP_CLIENT;
-		} else {
-			// the local resource related to the http client
-			clientPath = PROXY_COAP_CLIENT;
-		}
-
-		LOGGER.info("Chose "+clientPath+" as clientPath");
-
-		// set the path in the request to be forwarded correctly
-		request.getOptions().setUriPath(clientPath);
-		
 	}
 
 	protected void responseProduced(Request request, Response response) {
@@ -202,14 +144,5 @@ public class ProxyHttpServer {
 		} else {
 				LOGGER.info("Do not cache response");
 		}
-	}
-
-	public ProxyCoapResolver getProxyCoapResolver() {
-		return proxyCoapResolver;
-	}
-
-	public void setProxyCoapResolver(ProxyCoapResolver proxyCoapResolver) {
-		this.proxyCoapResolver = proxyCoapResolver;
-	}
-	
+	}	
 }

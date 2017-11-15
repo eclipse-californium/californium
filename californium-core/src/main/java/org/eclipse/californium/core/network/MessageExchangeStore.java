@@ -9,7 +9,12 @@
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
+ * Contributors:
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to remove for
+ *                                                    save cleanup.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -17,7 +22,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.KeyUri;
-import org.eclipse.californium.elements.CorrelationContext;
 
 /**
  * A registry for keeping track of message exchanges with peers.
@@ -43,10 +47,11 @@ public interface MessageExchangeStore {
 	/**
 	 * Assigns an unused message ID to a message.
 	 * 
-	 * @param message the message. The message will have its <em>mid</em> property set
-	 *        to {@code -1} if all message IDs are currently in use for the message's destination endpoint.
+	 * @param message the message. The message to assign the ID to.
+	 * @return The assigned message ID. This will be {@link Message#NONE} if all message IDs are currently in use for
+	 *         the message's destination endpoint.
 	 */
-	void assignMessageId(Message message);
+	int assignMessageId(Message message);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -60,10 +65,12 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the request has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
+	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
+	 *                                  or if the request already has a message ID that is still in use.
 	 */
-	void registerOutboundRequest(Exchange exchange);
+	boolean registerOutboundRequest(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -76,10 +83,11 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the request has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
 	 */
-	void registerOutboundRequestWithTokenOnly(Exchange exchange);
+	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.
@@ -91,10 +99,12 @@ public interface MessageExchangeStore {
 	 * method.
 	 * 
 	 * @param exchange the exchange to register.
+	 * @return {@code true} if the response has been registered successfully.
 	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) response.
+	 * @throws IllegalArgumentException if the exchange does not contain a (current) response
+	 *                                  or if the response already has a message ID that is still in use.
 	 */
-	void registerOutboundResponse(Exchange exchange);
+	boolean registerOutboundResponse(Exchange exchange);
 
 	/**
 	 * Registers an exchange used for doing a blockwise transfer with a given URI.
@@ -110,24 +120,29 @@ public interface MessageExchangeStore {
 	 * Removes the exchange registered under a given token.
 	 * 
 	 * @param token the token of the exchange to remove.
+	 * @param exchange Exchange to be removed, if registered with provided token.
 	 */
-	void remove(KeyToken token);
+	void remove(KeyToken token, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
 	 * 
 	 * @param messageId the message ID to remove the exchange for.
-	 * @return the exchange that was registered under the given message ID or {@code null}
-	 * if no exchange was registered under the ID.
+	 * @param exchange Exchange to be removed. If {@code null}, the current
+	 *                 exchange with the MID is removed. If not {@code null},
+	 *                 only this exchange is removed, if it's registered with
+	 *                 the MID.
+	 * @return the removed exchange, or {@code null}, if no exchange was removed.
 	 */
-	Exchange remove(KeyMID messageId);
+	Exchange remove(KeyMID messageId, Exchange exchange);
 
 	/**
 	 * Removes the exchange used for a blockwise transfer of a resource.
 	 * 
 	 * @param requestUri the URI under which the exchange has been registered.
+	 * @param exchange Exchange to be removed, if registered with provided URI.
 	 */
-	void remove(KeyUri requestUri);
+	void remove(KeyUri requestUri, Exchange exchange);
 
 	/**
 	 * Gets the exchange registered under a given token.
@@ -152,21 +167,6 @@ public interface MessageExchangeStore {
 	 * @return the exchange or {@code null} if no exchange is registered for the given URI.
 	 */
 	Exchange get(KeyUri requestUri);
-
-	/**
-	 * Sets the correlation context on the exchange initiated by a request
-	 * with a given token.
-	 * <p>
-	 * This method is necessary because the correlation context may not be known
-	 * when the exchange is originally registered. This is due to the fact
-	 * that the information contained in the correlation context is gathered by
-	 * the transport layer when the request establishing the observation is sent
-	 * to the peer.
-	 * 
-	 * @param token the token of the request.
-	 * @param correlationContext the context.
-	 */
-	void setContext(KeyToken token, CorrelationContext correlationContext);
 
 	/**
 	 * Checks if the specified message ID is already associated with a previous

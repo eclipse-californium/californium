@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove contextEstablished.
+ *                                                    issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -33,12 +35,4 @@ public interface ExchangeObserver {
 	 * @param exchange the exchange
 	 */
 	void completed(Exchange exchange);
-	
-	/**
-	 * Invoked when a new correlation context is set.
-	 * 
-	 * @param exchange the exchange
-	 */
-	void contextEstablished(Exchange exchange);
-
 }

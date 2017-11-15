@@ -22,6 +22,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -105,6 +106,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				Level.FINER,
 				"Received server's [{0}] FINISHED message again, retransmitting last flight...",
 				message.getPeer());
+			lastFlight.incrementTries();
+			lastFlight.setNewSequenceNumbers();
 			recordLayer.sendFlight(lastFlight);
 			return;
 		}
@@ -112,7 +115,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
 		if (LOGGER.isLoggable(Level.FINE)) {
-			StringBuffer msg = new StringBuffer();
+			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
@@ -180,7 +183,11 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
 
-			incrementNextReceiveSeq();
+			if (lastFlight == null) {
+				// only increment for ongoing handshake flights, not for the last flight!
+				// not ignore a server FINISHED retransmission caused by lost client FINISHED
+				incrementNextReceiveSeq();
+			}
 			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
 					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;

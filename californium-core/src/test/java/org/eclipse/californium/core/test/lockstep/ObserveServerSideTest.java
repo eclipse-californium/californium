@@ -18,6 +18,14 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - reduce code duplication, split up into
  *                                      separate test cases, remove wait cycles
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add volatile and relax
+ *                                                    retransmission timing by
+ *                                                    increasing the ACK_TIMEOUT.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check MIDs of notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use renamed sameMID instead
+ *                                                    of loadMID
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -48,18 +56,30 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/**
+ * Tests for server side observes.
+ * 
+ * Understanding the threading model of this test isn't easy. The
+ * {@link #TestObserveResource} is mainly executed synchronous to the test
+ * execution. But there are exceptions, especially the response and some
+ * retransmission are executed in an other thread. So be careful!
+ */
 @Category(Medium.class)
 public class ObserveServerSideTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private static final int ACK_TIMEOUT = 100;
+	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
 	private static NetworkConfig CONFIG;
 
@@ -69,8 +89,8 @@ public class ObserveServerSideTest {
 	private int mid = 7000;
 
 	private static TestObserveResource testObsResource;
-	private static String respPayload;
-	private static Type respType;
+	private volatile static String respPayload;
+	private volatile static Type respType;
 
 	private static ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
@@ -81,7 +101,7 @@ public class ObserveServerSideTest {
 		Logger ul = Logger.getLogger(UDPConnector.class.getName());
 		ul.setLevel(Level.OFF);
 
-		CONFIG = new NetworkConfig()
+		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
@@ -160,13 +180,13 @@ public class ObserveServerSideTest {
 		testObsResource.change("Fifth notification");
 		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("D", "E").payload(respPayload).go();
 		serverInterceptor.log(" // lost");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log(" // lost");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log(" // lost");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log(" // lost");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("E").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("E").payload(respPayload).go();
 		serverInterceptor.log(" // lost");
 
 		Thread.sleep(ACK_TIMEOUT + 100);
@@ -192,7 +212,7 @@ public class ObserveServerSideTest {
 		testObsResource.change("First notification " + generateRandomPayload(10));
 		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
 		serverInterceptor.log("// lost ");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("B").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("B").payload(respPayload).go();
 		serverInterceptor.log("// lost (1. retransmission)");
 
 		// Resource changes and sends next CON which will be transmitted after the former has timed out
@@ -207,7 +227,7 @@ public class ObserveServerSideTest {
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("C", "D").payload(respPayload).go();
 		serverInterceptor.log("// lost (3. retransmission)");
 
-		client.expectResponse().type(CON).code(CONTENT).token(tok).loadMID("MID").loadObserve("D").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("D").payload(respPayload).go();
 		serverInterceptor.log("// lost (4. retransmission)");
 
 		Thread.sleep(ACK_TIMEOUT + 100);
@@ -231,7 +251,7 @@ public class ObserveServerSideTest {
 		testObsResource.change("First notification " + generateRandomPayload(10));
 		client.expectResponse().type(respType).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
 		serverInterceptor.log("// lost ");
-		client.expectResponse().type(respType).code(CONTENT).token(tok).loadMID("MID").loadObserve("B").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).sameMID("MID").loadObserve("B").payload(respPayload).go();
 
 		System.out.println("Reject notification");
 		client.sendEmpty(RST).loadMID("MID").go();
@@ -378,31 +398,30 @@ public class ObserveServerSideTest {
 
 		// First notification
 		testObsResource.change("First notification " + generateRandomPayload(10));
-		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
+		client.expectResponse().type(NON).code(CONTENT).token(tok).newMID("MID").checkObs("A", "B").payload(respPayload).go();
 
 		// Now client crashes and no longer responds
 
 		respType = CON;
 		testObsResource.change("Second notification " + generateRandomPayload(10));
-		client.expectResponse().type(respType).code(CONTENT).token(tok).checkObs("B", "C").payload(respPayload).go();
+		client.expectResponse().type(respType).code(CONTENT).token(tok).newMID("MID").checkObs("B", "C").payload(respPayload).go();
 		// client does not ACK the CON notification
 
 		respType = NON;
 		testObsResource.change("NON notification 1 " + generateRandomPayload(10));
 		// server re-transmits unACKed CON notification but client does not reply
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
 
 		testObsResource.change("NON notification 2 " + generateRandomPayload(10));
 		// server re-transmits unACKed CON notification but client does not reply
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").storeMID("MID_R").checkObs("B", "B").payload(respPayload).go();
 
+		// server re-transmits unACKed CON notification with unmodified payload and (repeated) MID
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID_R").loadObserve("B").payload(respPayload).go();
+		
 		testObsResource.change("NON notification 3 " + generateRandomPayload(10));
 		// server re-transmits unACKed CON notification but client does not reply
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
-
-		testObsResource.change("NON notification 4 " + generateRandomPayload(10));
-		// server re-transmits unACKed CON notification but client does not reply
-		client.expectResponse().type(CON).code(CONTENT).token(tok).checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
 
 		// after 4 retransmission attempts the server cancels the observation
 		serverInterceptor.log(System.lineSeparator() + "   server cancels observe relation");

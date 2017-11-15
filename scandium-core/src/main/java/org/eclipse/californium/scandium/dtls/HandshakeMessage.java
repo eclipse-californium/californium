@@ -132,12 +132,12 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tHandshake Protocol");
-		sb.append("\n\tType: ").append(getMessageType());
-		sb.append("\n\tPeer: ").append(getPeer());
-		sb.append("\n\tMessage Sequence No: ").append(messageSeq);
-		sb.append("\n\tFragment Offset: ").append(fragmentOffset);
-		sb.append("\n\tFragment Length: ").append(fragmentLength);
-		sb.append("\n\tLength: ").append(getMessageLength()).append("\n");
+		sb.append(System.lineSeparator()).append("\tType: ").append(getMessageType());
+		sb.append(System.lineSeparator()).append("\tPeer: ").append(getPeer());
+		sb.append(System.lineSeparator()).append("\tMessage Sequence No: ").append(messageSeq);
+		sb.append(System.lineSeparator()).append("\tFragment Offset: ").append(fragmentOffset);
+		sb.append(System.lineSeparator()).append("\tFragment Length: ").append(fragmentLength);
+		sb.append(System.lineSeparator()).append("\tLength: ").append(getMessageLength()).append(System.lineSeparator());
 
 		return sb.toString();
 	}

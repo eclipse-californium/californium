@@ -18,6 +18,9 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use onResponse of CoapObserveRelation
+ *                                                    to order notifies and responses.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use effective endpoint for ping()
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -41,6 +44,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * The Class CoapClient.
@@ -174,7 +178,7 @@ public class CoapClient {
 	 * @return the CoAP client
 	 */
 	public CoapClient useExecutor() {
-		this.executor = Executors.newSingleThreadExecutor(new Utils.NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		this.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
 		
 		// activates the executor so that this user thread starts deterministically
 		executor.execute(new Runnable() {
@@ -294,7 +298,7 @@ public class CoapClient {
 			Request request = new Request(null, Type.CON);
 			request.setToken(new byte[0]);
 			request.setURI(uri);
-			request.send().waitForResponse(timeout);
+			send(request).waitForResponse(timeout);
 			return request.isRejected();
 		} catch (InterruptedException e) {
 			// waiting was interrupted, which is fine
@@ -873,9 +877,9 @@ public class CoapClient {
 			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
 			request.addMessageObserver(new ObserveMessageObserverImpl(handler, relation));
 			CoapResponse response = synchronous(request, outEndpoint);
-			if (response == null || !response.advanced().getOptions().hasObserve())
+			if (response == null || !response.advanced().getOptions().hasObserve()) {
 				relation.setCanceled(true);
-			relation.setCurrent(response);
+			}
 			return relation;
 		} else {
 			throw new IllegalArgumentException("please make sure that the request has observe option set.");
@@ -1139,9 +1143,7 @@ public class CoapClient {
 		 */
 		@Override protected void deliver(CoapResponse response) {
 			synchronized (relation) {
-				if (relation.getOrderer().isNew(response.advanced())) {
-					relation.setCurrent(response);
-					relation.prepareReregistration(response, 2000);
+				if (relation.onResponse(response)) {
 					handler.onLoad(response);
 				} else {
 					LOGGER.log(Level.FINER, "Dropping old notification: {0}", response.advanced());
@@ -1163,7 +1165,7 @@ public class CoapClient {
 	/**
 	 * The Builder can be used to build a CoapClient if the URI's pieces are
 	 * available in separate strings. This is in particular useful to add 
-	 * mutliple queries to the URI.
+	 * multiple queries to the URI.
 	 */
 	public static class Builder {
 		

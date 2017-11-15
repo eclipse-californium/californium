@@ -13,6 +13,11 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - clear thread-list on stop
+ *                                                    log exception when stopping.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix error stopping an connector,
+ *                                                    when socket failed to open.
+ *                                                    issue #345
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -52,8 +57,8 @@ public class UDPConnector implements Connector {
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
-	private boolean running;
-	
+	private volatile boolean running;
+
 	private DatagramSocket socket;
 	
 	private final InetSocketAddress localAddr;
@@ -74,7 +79,6 @@ public class UDPConnector implements Connector {
 	private int receiverCount = 1;
 	
 	private int receiverPacketSize = 2048;
-	private boolean logPackets = false;
 	
 	/**
 	 * Creates a connector on the wildcard address listening on an
@@ -107,13 +111,15 @@ public class UDPConnector implements Connector {
 	
 	@Override
 	public synchronized void start() throws IOException {
-		if (running) return;
-		
+		if (running) {
+			return;
+		}
+
 		// if localAddr is null or port is 0, the system decides
 		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
+		// running only, if the socket could be opened
+		running = true;
 
-		this.running = true;
-		
 		if (receiveBufferSize != UNDEFINED) {
 			socket.setReceiveBufferSize(receiveBufferSize);
 		}
@@ -150,36 +156,49 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 		
-		String startupMsg = new StringBuffer("UDPConnector listening on ")
-			.append(socket.getLocalSocketAddress()).append(", recv buf = ")
-			.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
-			.append(", recv packet size = ").append(receiverPacketSize).toString();
-		LOGGER.log(Level.CONFIG, startupMsg);
+		if (LOGGER.isLoggable(Level.CONFIG)) {
+			String startupMsg = new StringBuilder("UDPConnector listening on ")
+				.append(socket.getLocalSocketAddress()).append(", recv buf = ")
+				.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
+				.append(", recv packet size = ").append(receiverPacketSize).toString();
+			LOGGER.log(Level.CONFIG, startupMsg);
+		}
 	}
 
 	@Override
 	public synchronized void stop() {
-		if (!running) return;
-		this.running = false;
+		if (!running) {
+			return;
+		}
+		running = false;
 		// stop all threads
-		if (senderThreads!= null)
-			for (Thread t:senderThreads) {
+		if (senderThreads != null) {
+			for (Thread t : senderThreads) {
 				t.interrupt();
 			}
-		if (receiverThreads!= null)
-			for (Thread t:receiverThreads) {
+			senderThreads.clear();
+			senderThreads = null;
+		}
+		if (receiverThreads != null) {
+			for (Thread t : receiverThreads) {
 				t.interrupt();
 			}
+			receiverThreads.clear();
+			receiverThreads = null;
+		}
 		outgoing.clear();
-		String address = socket.getLocalSocketAddress().toString();
-		if (socket != null)
+		
+		String address = localAddr.toString();
+		if (socket != null) {
+			address = socket.getLocalSocketAddress().toString();
 			socket.close();
-		socket = null;
+			socket = null;
+		}
 		LOGGER.log(Level.CONFIG, "UDPConnector on [{0}] has stopped.", address);
 	}
 
 	@Override
-	public synchronized void destroy() {
+	public void destroy() {
 		stop();
 	}
 
@@ -216,14 +235,20 @@ public class UDPConnector implements Connector {
 
 		public void run() {
 			LOGGER.log(Level.FINE, "Starting network stage thread [{0}]", getName());
-			while (running) {
+			while (true) {
 				try {
 					work();
+					if (!running) {
+						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						break;
+					}
 				} catch (Throwable t) {
 					if (running) {
 						LOGGER.log(Level.SEVERE, "Exception in network stage thread [" + getName() + "]:", t);
 					} else {
 						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						LOGGER.log(Level.FINER, "   stopped at:", t);
+						break;
 					}
 				}
 			}

@@ -11,7 +11,7 @@
 		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>californium-core</artifactId>
-	<packaging>jar</packaging>
+	<packaging>bundle</packaging>
 
 	<name>Californium (Cf) Core</name>
 	<description>CoAP library module</description>
@@ -30,12 +30,63 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
-			<type>jar</type>
 		</dependency>
 	</dependencies>
 
+	<profiles>
+		<profile>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
+			<activation>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>element-connector</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.core,
+							org.eclipse.californium.core.coap,
+							org.eclipse.californium.core.network,
+							org.eclipse.californium.core.network.config,
+							org.eclipse.californium.core.network.interceptors,
+							org.eclipse.californium.core.network.stack,
+							org.eclipse.californium.core.observe,
+							org.eclipse.californium.core.server,
+							org.eclipse.californium.core.server.resources
+						</Export-Package>
+						<Private-Package>
+							org.eclipse.californium.core.network.deduplication,
+							org.eclipse.californium.core.network.serialization,
+							org.eclipse.californium.core.network.stack.*
+						</Private-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.groupId}.core</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -46,6 +97,7 @@
 						   by means of the Californium-logging.properties file
 						-->
 						<java.util.logging.config.file>${project.build.testOutputDirectory}/Californium-logging.properties</java.util.logging.config.file>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
 					</systemPropertyVariables>
 					<excludes>
 						<exclude>**/*$*</exclude>
@@ -58,7 +110,7 @@
 					<!-- parallel>classes</parallel>
 					<threadCountClasses>8</threadCountClasses-->
 					<groups>org.eclipse.californium.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
+					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 				</configuration>
 				<executions>
 					<execution>
@@ -69,7 +121,7 @@
 						</goals>
 						<configuration>
 							<groups>org.eclipse.californium.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large</excludedGroups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -80,8 +132,34 @@
 						</goals>
 						<configuration>
 							<groups>org.eclipse.californium.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium</excludedGroups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
+					</execution>
+					<execution>
+						<id>native-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<systemPropertyVariables>
+								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
+							</systemPropertyVariables>
+							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
+							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<!-- export CoapNetworkRule for tests -->
+							<goal>test-jar</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

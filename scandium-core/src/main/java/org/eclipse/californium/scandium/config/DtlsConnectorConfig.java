@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                               configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add enable address reuse
+ *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -25,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +35,8 @@ import java.util.List;
 import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
@@ -62,8 +67,11 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	private static final String EC_ALGORITHM_NAME = "EC";
+
+	private boolean enableReuseAddress;
+	
 	private InetSocketAddress address;
-	private Certificate[] trustStore = new Certificate[0];
+	private X509Certificate[] trustStore = new X509Certificate[0];
 
 	/**
 	 * The maximum fragment length this connector can process at once.
@@ -95,10 +103,13 @@ public final class DtlsConnectorConfig {
 	private PublicKey publicKey = null;
 
 	/** the certificate for RPK and X509 mode */
-	private Certificate[] certChain;
+	private X509Certificate[] certChain;
 
 	/** the supported cipher suites in order of preference */
 	private CipherSuite[] supportedCipherSuites;
+	
+	/** default is trust all RPKs **/
+	private TrustedRpkStore trustedRPKs = new TrustAllRpks();
 
 	private int outboundMessageBufferSize = 100000;
 
@@ -130,7 +141,7 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the (intial) time to wait before a handshake flight of messages gets re-transmitted.
+	 * Gets the (initial) time to wait before a handshake flight of messages gets re-transmitted.
 	 * 
 	 * This timeout gets adjusted during the course of repeated re-transmission of a flight.
 	 * The DTLS spec suggests an exponential back-off strategy, i.e. after each re-transmission the
@@ -178,7 +189,7 @@ public final class DtlsConnectorConfig {
 	 * @return the certificates or <code>null</code> if the connector is
 	 * not supposed to support certificate based authentication
 	 */
-	public Certificate[] getCertificateChain() {
+	public X509Certificate[] getCertificateChain() {
 		if (certChain == null) {
 			return null;
 		} else {
@@ -252,7 +263,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the root certificates
 	 */
-	public Certificate[] getTrustStore() {
+	public X509Certificate[] getTrustStore() {
 		return trustStore;
 	}
 
@@ -281,6 +292,13 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * @return true, if address reuse should be enabled for the socket. 
+	 */
+	public boolean isAddressReuseEnabled() {
+		return enableReuseAddress;
+	}
+	
+	/**
 	 * Gets the maximum number of (active) connections the connector will support.
 	 * <p>
 	 * Once this limit is reached, new connections will only be accepted if <em>stale</em>
@@ -305,6 +323,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public long getStaleConnectionThreshold() {
 		return staleConnectionThreshold;
+	}
+	
+	/**
+	 * @return The trust store for raw public keys verified out-of-band for
+	 *         DTLS-RPK handshakes
+	 */
+	public TrustedRpkStore getRpkTrustStore() {
+		return trustedRPKs;
 	}
 
 	/**
@@ -374,6 +400,16 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setClientOnly() {
 			clientOnly = true;
+			return this;
+		}
+
+		/**
+		 * Enables address reuse for the socket.
+		 * 
+		 * @return this builder for command chaining
+		 */
+		public Builder setEnableAddressReuse(boolean enable) {
+			config.enableReuseAddress = enable;
 			return this;
 		}
 
@@ -599,7 +635,7 @@ public final class DtlsConnectorConfig {
 		 * @param privateKey
 		 *            the private key used for creating signatures
 		 * @param certificateChain
-		 *            the chain of certificates asserting the private key subject's
+		 *            the chain of X.509 certificates asserting the private key subject's
 		 *            identity
 		 * @param preferRawPublicKeys
 		 *            <code>true</code> if the connector should indicate preference for
@@ -607,7 +643,8 @@ public final class DtlsConnectorConfig {
 		 *            handshake with a peer (instead of including the full X.509 certificate chain)
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate chain is <code>null</code>
-		 *            or the certificate chain does not contain any certificates 
+		 *            or the certificate chain does not contain any certificates
+		 * @throws IllegalArgumentException if the certificate chain contains a non-X.509 certificate
 		 * @see #setIdentity(PrivateKey, PublicKey) for configuring <em>RawPublicKey</em>
 		 *            mode only
 		 */
@@ -619,7 +656,7 @@ public final class DtlsConnectorConfig {
 				throw new NullPointerException("The certificate chain must not be null or empty");
 			} else {
 				config.privateKey = privateKey;
-				config.certChain = Arrays.copyOf(certificateChain, certificateChain.length);
+				config.certChain = toX509Certificates(certificateChain);
 				config.publicKey =  config.certChain[0].getPublicKey();
 				config.sendRawKey = preferRawPublicKeys;
 				return this;
@@ -633,14 +670,27 @@ public final class DtlsConnectorConfig {
 		 * @param trustedCerts the trusted root certificates
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
+		 * @throws IllegalArgumentException if the array contains a non-X.509 certificate
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
-				config.trustStore = Arrays.copyOf(trustedCerts, trustedCerts.length);
+				config.trustStore = toX509Certificates(trustedCerts);
 				return this;
 			}
+		}
+
+		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
+			List<X509Certificate> result = new ArrayList<>(certs.length);
+			for (Certificate cert : certs) {
+				if (X509Certificate.class.isInstance(cert)) {
+					result.add((X509Certificate) cert);
+				} else {
+					throw new IllegalArgumentException("can only process X.509 certificates");
+				}
+			}
+			return result.toArray(new X509Certificate[certs.length]);
 		}
 
 		/**
@@ -780,6 +830,19 @@ public final class DtlsConnectorConfig {
 			}
 
 			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[0]);
+		}
+	
+
+		/**
+		 * Sets the store for trusted raw public keys.
+		 * 
+		 * @param store the trust store
+		 */
+		public void setRpkTrustStore(TrustedRpkStore store) {
+			if (store == null) {
+				throw new IllegalStateException("Must provide a non-null trust store");
+			}
+			config.trustedRPKs = store;
 		}
 	}
 }

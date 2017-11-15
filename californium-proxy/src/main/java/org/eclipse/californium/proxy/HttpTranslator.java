@@ -19,21 +19,12 @@
 package org.eclipse.californium.proxy;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.UnmappableCharacterException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,6 +53,7 @@ import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.message.BasicRequestLine;
 import org.apache.http.message.BasicStatusLine;
 import org.apache.http.util.EntityUtils;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -199,7 +191,7 @@ public final class HttpTranslator {
 		List<Option> optionList = new LinkedList<Option>();
 
 		// iterate over the headers
-		for (Header header : headers) {
+		headerLoop : for (Header header : headers) {
 			try {
 				String headerName = header.getName().toLowerCase();
 				
@@ -227,8 +219,7 @@ public final class HttpTranslator {
 					continue;
 				}
 	
-				// ignore the content-type because it will be handled within the
-				// payload
+				// ignore the content-type because it will be handled in the payload processing
 				if (optionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
 					continue;
 				}
@@ -266,14 +257,17 @@ public final class HttpTranslator {
 				} else if (optionNumber == OptionNumberRegistry.MAX_AGE) {
 					int maxAge = 0;
 					if (!headerValue.contains("no-cache")) {
-						headerValue = headerValue.split(",")[0];
-						if (headerValue != null) {
-							int index = headerValue.indexOf('=');
-							try {
-								maxAge = Integer.parseInt(headerValue.substring(index + 1).trim());
-							} catch (NumberFormatException e) {
-								LOGGER.warning("Cannot convert cache control in max-age option");
-								continue;
+						for (String headerValueItem : headerValue.split(",")) {
+							headerValueItem = headerValueItem.trim();
+							
+							if (headerValueItem.startsWith("max-age")) {
+								int index = headerValueItem.indexOf('=');
+								try {
+									maxAge = Integer.parseInt(headerValueItem.substring(index + 1).trim());
+								} catch (NumberFormatException e) {
+									LOGGER.warning("Cannot convert cache control in max-age option");
+									continue headerLoop;
+								}
 							}
 						}
 					}
@@ -336,17 +330,14 @@ public final class HttpTranslator {
 			payload = EntityUtils.toByteArray(httpEntity);
 			if (payload != null && payload.length > 0) {
 
-				// the only supported charset in CoAP is UTF-8
-				Charset coapCharset = UTF_8;
-
 				// get the charset for the http entity
 				ContentType httpContentType = ContentType.getOrDefault(httpEntity);
 				Charset httpCharset = httpContentType.getCharset();
 
 				// check if the charset is the one allowed by coap
-				if (httpCharset != null && !httpCharset.equals(coapCharset)) {
+				if (httpCharset != null && !httpCharset.equals(CoAP.UTF8_CHARSET)) {
 					// translate the payload to the utf-8 charset
-					payload = changeCharset(payload, httpCharset, coapCharset);
+					payload = changeCharset(payload, httpCharset, CoAP.UTF8_CHARSET);
 				}
 			}
 		} catch (IOException e) {
@@ -383,20 +374,12 @@ public final class HttpTranslator {
 	 * @param proxyResource
 	 *            the proxy resource, if present in the uri, indicates the need
 	 *            of forwarding for the current request
-	 * @param proxyingEnabled
-	 *            TODO
 	 * 
 	 * 
 	 * @return the coap request * @throws TranslationException the translation
 	 *         exception
 	 */
-	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
-		if (httpRequest == null) {
-			throw new IllegalArgumentException("httpRequest == null");
-		}
-		if (proxyResource == null) {
-			throw new IllegalArgumentException("proxyResource == null");
-		}
+	public static Request getCoapRequest(HttpRequest httpRequest, String proxyResource) throws TranslationException {
 
 		// get the http method
 		String httpMethod = httpRequest.getRequestLine().getMethod().toLowerCase();
@@ -420,8 +403,6 @@ public final class HttpTranslator {
 
 		// get the uri
 		String uriString = httpRequest.getRequestLine().getUri();
-		// remove the initial "/"
-		uriString = uriString.substring(1);
 
 		// decode the uri to translate the application/x-www-form-urlencoded
 		// format
@@ -443,42 +424,22 @@ public final class HttpTranslator {
 		// proxy resource: /proxy
 		// coap server: vslab-dhcp-17.inf.ethz.ch:5684
 		// coap resource: helloWorld
-		if (uriString.matches(".?" + proxyResource + ".*")) {
+		if (uriString.startsWith(proxyResource)) {
 
-			// find the first occurrence of the proxy resource
-			int index = uriString.indexOf(proxyResource);
-			// delete the slash
-			index = uriString.indexOf('/', index);
-			uriString = uriString.substring(index + 1);
+			// extract embedded URI
+			uriString = uriString.substring(proxyResource.length());
 
-			if (proxyingEnabled) {
-				// if the uri hasn't the indication of the scheme, add it
-				if (!uriString.matches("^coaps?://.*")) {
-					uriString = "coap://" + uriString;
-				}
-
-				// the uri will be set as a proxy-uri option
-				coapRequest.getOptions().setProxyUri(uriString);
-			} else {
-				coapRequest.setURI(uriString);
+			// if the uri hasn't the indication of the scheme, add it
+			if (!uriString.matches("^coaps?://.*")) {
+				uriString = "coap://" + uriString;
 			}
 
-			// set the proxy as the sender to receive the response correctly
-			try {
-				// TODO check with multihomed hosts
-				InetAddress localHostAddress = InetAddress.getLocalHost();
-				coapRequest.setDestination(localHostAddress);
-				// TODO: setDestinationPort???
-			} catch (UnknownHostException e) {
-				LOGGER.warning("Cannot get the localhost address: " + e.getMessage());
-				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
-			}
+			// the proxy internally always uses the Proxy-Uri option
+			coapRequest.getOptions().setProxyUri(uriString);
+
 		} else {
-			// if the uri does not contains the proxy resource, it means the
-			// request is local to the proxy and it shouldn't be forwarded
-
-			// set the uri string as uri-path option
-			coapRequest.getOptions().setUriPath(uriString);
+			LOGGER.warning("Malrouted request: " + httpRequest.getRequestLine());
+			return null;
 		}
 
 		// translate the http headers in coap options
@@ -674,7 +635,7 @@ public final class HttpTranslator {
 
 					// since ISO-8859-1 is a subset of UTF-8, it is needed to
 					// check if the mapping could be accomplished, only if the
-					// operation is succesful the payload and the charset should
+					// operation is successful the payload and the charset should
 					// be changed
 					if (newPayload != null) {
 						payload = newPayload;
@@ -724,11 +685,10 @@ public final class HttpTranslator {
 
 		// iterate over each option
 		for (Option option : optionList) {
-			// skip content-type because it should be translated while handling
-			// the payload; skip proxy-uri because it has to be translated in a
-			// different way
+			// skip content-type because it should be translated while handling the payload
+			// skip ETag for correct formatting
 			int optionNumber = option.getNumber();
-			if (optionNumber != OptionNumberRegistry.CONTENT_FORMAT && optionNumber != OptionNumberRegistry.PROXY_URI) {
+			if (optionNumber != OptionNumberRegistry.CONTENT_FORMAT && optionNumber != OptionNumberRegistry.ETAG) {
 				// get the mapping from the property file
 				String headerName = HTTP_TRANSLATION_PROPERTIES.getProperty(KEY_COAP_OPTION + optionNumber);
 
@@ -741,7 +701,7 @@ public final class HttpTranslator {
 					} else if (OptionNumberRegistry.getFormatByNr(optionNumber) == optionFormats.INTEGER) {
 						stringOptionValue = Integer.toString(option.getIntegerValue());
 					} else if (OptionNumberRegistry.getFormatByNr(optionNumber) == optionFormats.OPAQUE) {
-						stringOptionValue = new String(option.getValue());
+						stringOptionValue = option.toValueString();
 					} else {
 						// if the option is not formattable, skip it
 						continue;
@@ -756,6 +716,9 @@ public final class HttpTranslator {
 					Header header = new BasicHeader(headerName, stringOptionValue);
 					headers.add(header);
 				}
+			} else if (optionNumber == OptionNumberRegistry.ETAG) {
+				Header header = new BasicHeader("etag", "\"" + option.toValueString().substring(2) + "\"");
+				headers.add(header);
 			}
 		}
 
@@ -834,6 +797,7 @@ public final class HttpTranslator {
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
 		}
+		httpRequest.setHeader("Connection", "close");
 
 		return httpRequest;
 	}
@@ -922,6 +886,8 @@ public final class HttpTranslator {
 				httpResponse.setHeader("content-type", contentType.toString());
 			}
 		}
+		LOGGER.info("Translated " + coapResponse);
+		LOGGER.info("To " + httpResponse);
 	}
 
 	/**
@@ -934,36 +900,10 @@ public final class HttpTranslator {
 	 * @param toCharset
 	 *            the to charset
 	 * 
-	 * 
-	 * @return the byte[] * @throws TranslationException the translation
-	 *         exception
+	 * @return the byte[] the translation
 	 */
-	private static byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) throws TranslationException {
-		try {
-			// decode with the source charset
-			CharsetDecoder decoder = fromCharset.newDecoder();
-			CharBuffer charBuffer = decoder.decode(ByteBuffer.wrap(payload));
-			decoder.flush(charBuffer);
-
-			// encode to the destination charset
-			CharsetEncoder encoder = toCharset.newEncoder();
-			ByteBuffer byteBuffer = encoder.encode(charBuffer);
-			encoder.flush(byteBuffer);
-			payload = byteBuffer.array();
-		} catch (UnmappableCharacterException e) {
-			// thrown when an input character (or byte) sequence is valid but
-			// cannot be mapped to an output byte (or character) sequence.
-			// If the character sequence starting at the input buffer's current
-			// position cannot be mapped to an equivalent byte sequence and the
-			// current unmappable-character
-			LOGGER.finer("Charset translation: cannot mapped to an output char byte: " + e.getMessage());
-			return null;
-		} catch (CharacterCodingException e) {
-			LOGGER.warning("Problem in the decoding/encoding charset: " + e.getMessage());
-			throw new TranslationException("Problem in the decoding/encoding charset", e);
-		}
-
-		return payload;
+	private static byte[] changeCharset(byte[] payload, Charset fromCharset, Charset toCharset) {
+		return new String(payload, fromCharset).getBytes(toCharset);
 	}
 
 	/**

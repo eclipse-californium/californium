@@ -18,6 +18,10 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getPayloadTracingString 
  *                                                    (for message tracing)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make messaging states thread safe
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use unmodifiable facade
+ *                                                    instead of create it on
+ *                                                    every getMessageObservers()
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -30,6 +34,7 @@ import java.nio.charset.CodingErrorAction;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -63,6 +68,12 @@ public abstract class Message {
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
+	/**
+	 * The largest message ID allowed by CoAP.
+	 * <p>
+	 * The value of this constant is 2^16 - 1.
+	 */
+	public static final int MAX_MID = (1 << 16) - 1;
 
 	/** The type. One of {CON, NON, ACK or RST}. */
 	private CoAP.Type type;
@@ -70,8 +81,15 @@ public abstract class Message {
 	/** The 16-bit Message Identification. */
 	private int mid = NONE; // Message ID
 
-	/** The token, a 0-8 byte array. */
-	private byte[] token;
+	/**
+	 * The token, a 0-8 byte array.
+	 * <p>
+	 * This field is initialized to {@code null} so that client code can
+	 * determine whether the message already has a token assigned or not. An
+	 * empty array would not work here because it is already a valid token
+	 * according to the CoAP spec.
+	 */
+	private byte[] token = null;
 
 	/** The set of options of this message. */
 	private OptionSet options;
@@ -92,19 +110,19 @@ public abstract class Message {
 	private int sourcePort;
 
 	/** Indicates if the message has been acknowledged. */
-	private boolean acknowledged;
+	private volatile boolean acknowledged;
 
 	/** Indicates if the message has been rejected. */
-	private boolean rejected;
+	private volatile boolean rejected;
 
 	/** Indicates if the message has been canceled. */
-	private boolean canceled;
+	private volatile boolean canceled;
 
 	/** Indicates if the message has timed out */
-	private boolean timedOut; // Important for CONs
+	private volatile boolean timedOut; // Important for CONs
 
 	/** Indicates if the message is a duplicate. */
-	private boolean duplicate;
+	private volatile boolean duplicate;
 
 	/** The serialized message as byte array. */
 	private byte[] bytes;
@@ -115,10 +133,17 @@ public abstract class Message {
 	 * (lazy-initialization). If a handler is added, the list will be created
 	 * and from then on must never again become null.
 	 */
-	private List<MessageObserver> messageObservers;
+	private AtomicReference<List<MessageObserver>> messageObservers = new AtomicReference<List<MessageObserver>>();
+	
+	/**
+	 * A unmodifiable facade for the list of all {@link ObserveManager}.
+	 * @see #messageObservers
+	 * @see #getMessageObservers() 
+	 */
+	private volatile List<MessageObserver> unmodifiableMessageObserversFacade = null;
 
 	/**
-	 * The timestamp when this message has been received or sent or 0 if neither
+	 * The timestamp when this message has been received, sent, or 0, if neither
 	 * has happened yet. The {@link Matcher} sets the timestamp.
 	 */
 	private long timestamp;
@@ -153,6 +178,7 @@ public abstract class Message {
 
 	/**
 	 * Sets the CoAP message type.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param type the new type
@@ -169,13 +195,13 @@ public abstract class Message {
 	 * @return true, if is confirmable
 	 */
 	public boolean isConfirmable() {
-		return getType()==Type.CON;
+		return getType() == Type.CON;
 	}
 
 	/**
 	 * Chooses between confirmable and non-confirmable message.
-	 * Pass true for CON, false for NON.
-	 * Provides a fluent API to chain setters.
+	 * 
+	 * Pass true for CON, false for NON. Provides a fluent API to chain setters.
 	 *
 	 * @param con true for CON, false for NON
 	 * @return this Message
@@ -202,15 +228,27 @@ public abstract class Message {
 	}
 
 	/**
+	 * Checks whether this message has a valid ID.
+	 * 
+	 * @return {@code true} if this message's ID is a 16 bit unsigned integer.
+	 */
+	public boolean hasMID() {
+		return mid != NONE;
+	}
+
+	/**
 	 * Sets the 16-bit message identification.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param mid the new mid
 	 * @return this Message
 	 */
 	public Message setMID(int mid) {
-		if (mid >= 1<<16 || mid < NONE)
-			throw new IllegalArgumentException("The MID must be a 16-bit number between 0 and "+((1<<16)-1)+" inclusive but was "+mid);
+		// NONE is allowed as a temporary placeholder
+		if (mid > MAX_MID || mid < NONE) {
+			throw new IllegalArgumentException("The MID must be an unsigned 16-bit number but was " + mid);
+		}
 		this.mid = mid;
 		return this;
 	}
@@ -225,7 +263,7 @@ public abstract class Message {
 	/**
 	 * Checks whether this message has a non-zero length token.
 	 * 
-	 * @return {@code true} if this message has a token of a non-zero length
+	 * @return {@code true} if this message's token is either {@code null} or of length 0.
 	 */
 	public boolean hasEmptyToken() {
 		return token == null || token.length == 0;
@@ -656,10 +694,10 @@ public abstract class Message {
 	 * @return an immutable list of the registered observers.
 	 */
 	public List<MessageObserver> getMessageObservers() {
-		if (messageObservers == null) {
+		if (null == unmodifiableMessageObserversFacade) {
 			return Collections.emptyList();
 		} else {
-			return Collections.unmodifiableList(messageObservers);
+			return unmodifiableMessageObserversFacade;
 		}
 	}
 
@@ -672,10 +710,8 @@ public abstract class Message {
 	public void addMessageObserver(final MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
-		} else if (messageObservers == null) {
-			initMessageObserverList();
 		}
-		messageObservers.add(observer);
+		ensureMessageObserverList().add(observer);
 	}
 
 	/**
@@ -687,10 +723,10 @@ public abstract class Message {
 	public void addMessageObservers(final List<MessageObserver> observers) {
 		if (observers == null) {
 			throw new NullPointerException();
-		} else if (messageObservers == null) {
-			initMessageObserverList();
 		}
-		messageObservers.addAll(observers);
+		if (!observers.isEmpty()) {
+			ensureMessageObserverList().addAll(observers);
+		}
 	}
 
 	/**
@@ -702,20 +738,27 @@ public abstract class Message {
 	public void removeMessageObserver(final MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
-		} else if (messageObservers != null) {
-			messageObservers.remove(observer);
+		}
+		List<MessageObserver> list = messageObservers.get();
+		if (list != null) {
+			list.remove(observer);
 		}
 	}
 
 	/**
-	 * Creates a new list of {@link MessageObserver} if not already defined. This
-	 * method is thread-safe and creates exactly one list.
+	 * Get list of {@link MessageObserver}. If not already defined, create a new
+	 * one. This method is thread-safe and creates exactly one list.
 	 */
-	private void initMessageObserverList() {
-		synchronized (this) {
-			if (messageObservers == null) {
-				messageObservers = new CopyOnWriteArrayList<MessageObserver>();
+	private List<MessageObserver> ensureMessageObserverList() {
+		List<MessageObserver> list = messageObservers.get();
+		if (null == list) {
+			boolean created = messageObservers.compareAndSet(null, new CopyOnWriteArrayList<MessageObserver>());
+			list = messageObservers.get();
+			if (created) {
+				unmodifiableMessageObserversFacade = Collections.unmodifiableList(list);
 			}
 		}
+		return list;
 	}
+
 }

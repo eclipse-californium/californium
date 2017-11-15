@@ -68,7 +68,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
 		if (LOGGER.isLoggable(Level.FINE)) {
-			StringBuffer msg = new StringBuffer();
+			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));

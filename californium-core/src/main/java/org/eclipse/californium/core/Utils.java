@@ -18,6 +18,8 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add toHexText 
  *                                                    (for message tracing)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace '\n' with 
+ *                                                    System.lineSeparator() 
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -72,11 +74,11 @@ public final class Utils {
 		if (bytes == null) return "null";
 		if (length > bytes.length) length = bytes.length;
 		StringBuilder sb = new StringBuilder();
-		if (16 < length) sb.append('\n');
+		if (16 < length) sb.append(System.lineSeparator());
 		for(int index = 0; index < length; ++index) {
 			sb.append(String.format("%02x", bytes[index] & 0xFF));
 			if (31 == (31 & index)) {
-				sb.append('\n');
+				sb.append(System.lineSeparator());
 			} else {
 				sb.append(' ');
 			}
@@ -97,16 +99,17 @@ public final class Utils {
 
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Request ]=============================================\n");
-		sb.append(String.format("MID    : %d\n", r.getMID()));
-		sb.append(String.format("Token  : %s\n", r.getTokenString()));
-		sb.append(String.format("Type   : %s\n", r.getType().toString()));
-		sb.append(String.format("Method : %s\n", r.getCode().toString()));
-		sb.append(String.format("Options: %s\n", r.getOptions().toString()));
-		sb.append(String.format("Payload: %d Bytes\n", r.getPayloadSize()));
+		sb.append("==[ CoAP Request ]=============================================").append(System.lineSeparator());
+		sb.append(String.format("MID    : %d", r.getMID())).append(System.lineSeparator());
+		sb.append(String.format("Token  : %s", r.getTokenString())).append(System.lineSeparator());
+		sb.append(String.format("Type   : %s", r.getType().toString())).append(System.lineSeparator());
+		sb.append(String.format("Method : %s", r.getCode().toString())).append(System.lineSeparator());
+		sb.append(String.format("Options: %s", r.getOptions().toString())).append(System.lineSeparator());
+		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(System.lineSeparator());
 		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------");
+			sb.append("---------------------------------------------------------------").append(System.lineSeparator());
 			sb.append(r.getPayloadString());
+			sb.append(System.lineSeparator());
 		}
 		sb.append("===============================================================");
 
@@ -130,111 +133,22 @@ public final class Utils {
 	 * @return the pretty print
 	 */
 	public static String prettyPrint(Response r) {
-
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Response ]============================================\n");
-		sb.append(String.format("MID    : %d\n", r.getMID()));
-		sb.append(String.format("Token  : %s\n", r.getTokenString()));
-		sb.append(String.format("Type   : %s\n", r.getType().toString()));
-		sb.append(String.format("Status : %s\n", r.getCode().toString()));
-		sb.append(String.format("Options: %s\n", r.getOptions().toString()));
-		sb.append(String.format("Payload: %d Bytes\n", r.getPayloadSize()));
+		sb.append("==[ CoAP Response ]============================================").append(System.lineSeparator());
+		sb.append(String.format("MID    : %d", r.getMID())).append(System.lineSeparator());
+		sb.append(String.format("Token  : %s", r.getTokenString())).append(System.lineSeparator());
+		sb.append(String.format("Type   : %s", r.getType().toString())).append(System.lineSeparator());
+		sb.append(String.format("Status : %s", r.getCode().toString())).append(System.lineSeparator());
+		sb.append(String.format("Options: %s", r.getOptions().toString())).append(System.lineSeparator());
+		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(System.lineSeparator());
 		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------\n");
+			sb.append("---------------------------------------------------------------").append(System.lineSeparator());
 			sb.append(r.getPayloadString());
-			sb.append("\n");
+			sb.append(System.lineSeparator());
 		}
 		sb.append("===============================================================");
 
 		return sb.toString();
-	}
-
-	static final ThreadGroup COAP_THREAD_GROUP = new ThreadGroup("Californium"); //$NON-NLS-1$
-
-	/**
-	 * A factory to create executor services with daemon threads.
-	 */
-	public static class DaemonThreadFactory extends NamedThreadFactory {
-
-		/**
-		 * Creates a new factory and sets the thread group to Californium
-		 * default group.
-		 *
-		 * @param threadPrefix the prefix, that becomes part of the name of all
-		 *            threads, created by this factory.
-		 */
-		public DaemonThreadFactory(final String threadPrefix) {
-			super(threadPrefix, null);
-		}
-
-		/**
-		 * Creates a new factory.
-		 *
-		 * @param threadPrefix the prefix, that becomes part of the name of all
-		 *            threads, created by this factory.
-		 * @param threadGroup the thread group or <code>null</code>
-		 */
-		public DaemonThreadFactory(final String threadPrefix, final ThreadGroup threadGroup) {
-			super(threadPrefix, threadGroup);
-		}
-
-		/**
-		 * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
-		 */
-		@Override
-		public Thread newThread(Runnable runnable) {
-			final Thread thread = super.newThread(runnable);
-			thread.setDaemon(true);
-			return thread;
-		}
-	}
-
-	/**
-	 * The default thread factory
-	 */
-	public static class NamedThreadFactory implements ThreadFactory {
-
-		private final ThreadGroup group;
-		private final AtomicInteger index = new AtomicInteger(1);
-		private final String prefix;
-
-		/**
-		 * Creates a new factory and sets the thread group to Californium
-		 * default group.
-		 *
-		 * @param threadPrefix the prefix, that becomes part of the name of all
-		 *            threads, created by this factory.
-		 */
-		public NamedThreadFactory(final String threadPrefix) {
-			this(threadPrefix, null);
-		}
-
-		/**
-		 * Creates a new factory.
-		 *
-		 * @param threadPrefix the prefix, that becomes part of the name of all
-		 *            threads, created by this factory.
-		 * @param threadGroup the thread group or <code>null</code>
-		 */
-		public NamedThreadFactory(final String threadPrefix, final ThreadGroup threadGroup) {
-			group = null == threadGroup ? COAP_THREAD_GROUP : threadGroup;
-			prefix = threadPrefix;
-		}
-
-		/**
-		 * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
-		 */
-		@Override
-		public Thread newThread(Runnable runnable) {
-			final Thread ret = new Thread(group, runnable, prefix + index.getAndIncrement(), 0);
-			if (ret.isDaemon()) {
-				ret.setDaemon(false);
-			}
-			if (ret.getPriority() != Thread.NORM_PRIORITY) {
-				ret.setPriority(Thread.NORM_PRIORITY);
-			}
-			return ret;
-		}
 	}
 }

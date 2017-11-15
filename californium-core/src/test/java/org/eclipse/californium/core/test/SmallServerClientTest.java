@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -35,8 +37,10 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -46,43 +50,44 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class SmallServerClientTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static String SERVER_RESPONSE = "server responds hi";
-	
+
 	private int serverPort;
-	
+
 	@Before
 	public void initLogger() {
-		System.out.println("\nStart "+getClass().getSimpleName());
+		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		EndpointManager.clear();
 	}
-	
+
 	@After
 	public void after() {
-		System.out.println("End "+getClass().getSimpleName());
+		System.out.println("End " + getClass().getSimpleName());
 	}
-	
+
 	@Test
 	public void testNonconfirmable() throws Exception {
 		createSimpleServer();
-		
+
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.setConfirmable(false);
-		request.setDestination(InetAddress.getByName("localhost")); // InetAddress.getLocalHost() returns different address on Linux
+		request.setDestination(InetAddress.getLoopbackAddress());
 		request.setDestinationPort(serverPort);
 		request.setPayload("client says hi");
 		request.send();
 		System.out.println("client sent request");
-		
+
 		// receive response and check
 		Response response = request.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
 		System.out.println("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
-	
-	
+
 	private void createSimpleServer() {
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapServer server = new CoapServer();

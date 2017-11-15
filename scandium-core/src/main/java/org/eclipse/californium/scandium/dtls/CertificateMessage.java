@@ -18,6 +18,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve handling of empty messages
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 477074 (erroneous encoding of RPK)
+ *    Ludwig Seitz (RISE SICS) - Moved certificate validation to Handhaker
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -27,21 +28,16 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
-import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,7 +113,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            certification.
 	 * 
 	 */
-	public CertificateMessage(Certificate[] certificateChain, InetSocketAddress peerAddress) {
+	public CertificateMessage(X509Certificate[] certificateChain, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
@@ -168,30 +164,23 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @throws IllegalArgumentException if the given array contains non X.509 certificates or
 	 *                                  the certificates do not form a chain.
 	 */
-	private void setCertificateChain(final Certificate[] chain) {
+	private void setCertificateChain(final X509Certificate[] chain) {
 		List<X509Certificate> certificates = new ArrayList<>();
 		X500Principal issuer = null;
-		X509Certificate cert;
 		try {
 			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-			for (Certificate c : chain) {
-				if (!(c instanceof X509Certificate)) {
-					throw new IllegalArgumentException(
-							"Certificate chain must consist of X.509 certificates only");
-				} else {
-					cert = (X509Certificate) c;
-					LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
-					if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-						LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
-								cert.getSubjectX500Principal().getName());
-						throw new IllegalArgumentException("Given certificates do not form a chain");
-					}
-					if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
-						// not a self-signed certificate
-						certificates.add(cert);
-						issuer = cert.getIssuerX500Principal();
-						LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
-					}
+			for (X509Certificate cert : chain) {
+				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
+				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
+					LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
+							cert.getSubjectX500Principal().getName());
+					throw new IllegalArgumentException("Given certificates do not form a chain");
+				}
+				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
+					// not a self-signed certificate
+					certificates.add(cert);
+					issuer = cert.getIssuerX500Principal();
+					LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
 				}
 			}
 			this.certPath = factory.generateCertPath(certificates);
@@ -266,69 +255,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *        <em>RawPublicKey</em>s are used
 	 */
 	public CertPath getCertificateChain() {
-		if (certPath != null) {
-			return certPath;
-		} else {
-			return null;
-		}
-	}
-
-	private static Set<TrustAnchor> getTrustAnchors(Certificate[] trustedCertificates) {
-		Set<TrustAnchor> result = new HashSet<>();
-		if (trustedCertificates != null) {
-			for (Certificate cert : trustedCertificates) {
-				if (CERTIFICATE_TYPE_X509.equals(cert.getType())) {
-					result.add(new TrustAnchor((X509Certificate) cert, null));
-				} else {
-					LOGGER.log(Level.INFO,
-							"List of trusted CA certificates contains non-X.509 certificate of type [{0}]",
-							cert.getType());
-				}
-			}
-		}
-		return result;
-	}
-
-	/**
-	 * Validates the X.509 certificate chain provided by the the peer as part of this message.
-	 * 
-	 * This method checks
-	 * <ol>
-	 * <li>that each certificate's issuer DN equals the subject DN of the next certiciate in the chain</li>
-	 * <li>that each certificate is currently valid according to its validity period</li>
-	 * <li>that the chain is rooted at a trusted CA</li>
-	 * </ol>
-	 * 
-	 * @param trustedCertificates the list of trusted root CAs
-	 * 
-	 * @throws HandshakeException if any of the checks fails
-	 */
-	public void verifyCertificate(Certificate[] trustedCertificates) throws HandshakeException {
-		if (certPath != null) {
-
-			Set<TrustAnchor> trustAnchors = getTrustAnchors(trustedCertificates);
-
-			try {
-//				CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-//				CertPath certPath = certFactory.generateCertPath(Arrays.asList(certificateChain));
-
-				PKIXParameters params = new PKIXParameters(trustAnchors);
-				// TODO: implement alternative means of revocation checking
-				params.setRevocationEnabled(false);
-
-				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-				validator.validate(certPath, params);
-
-			} catch (GeneralSecurityException e) {
-				if (LOGGER.isLoggable(Level.FINEST)) {
-					LOGGER.log(Level.FINEST, "Certificate validation failed", e);
-				} else if (LOGGER.isLoggable(Level.FINE)) {
-					LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
-				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, getPeer());
-				throw new HandshakeException("Certificate chain could not be validated", alert);
-			}
-		}
+		return certPath;
 	}
 
 	// Serialization //////////////////////////////////////////////////

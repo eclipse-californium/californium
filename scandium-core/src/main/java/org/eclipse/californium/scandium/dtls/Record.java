@@ -17,6 +17,7 @@
  *                   property of type long in order to prevent tedious conversions
  *                   in client code
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -36,7 +37,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CipherType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -609,8 +609,8 @@ public class Record {
 		byte[] explicitNonceUsed = reader.readBytes(8);
 		if (!Arrays.equals(explicitNonce, explicitNonceUsed) && LOGGER.isLoggable(Level.FINE)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-			b.append("\nUsed    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
-			b.append("\nExpected: ").append(ByteArrayUtils.toHexString(explicitNonce));
+			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
+			b.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
 			LOGGER.log(Level.FINE, b.toString());
 		}
 
@@ -702,6 +702,23 @@ public class Record {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	/**
+	 * Check, if record is CLIENT_HELLO of epoch 0.
+	 * 
+	 * This is important to detect a new association according RFC6347, section 4.2.8.
+	 * 
+	 * 
+	 * @return {@code true}, if record contains CLIENT_HELLO of epoch 0,
+	 *         {@code false} otherwise.
+	 */
+	public boolean isNewClientHello() {
+		if (0 < epoch || type != ContentType.HANDSHAKE || null == fragmentBytes || 0 == fragmentBytes.length) {
+			return false;
+		}
+		HandshakeType handshakeType = HandshakeType.getTypeByCode(fragmentBytes[0]);
+		return handshakeType == HandshakeType.CLIENT_HELLO;
+	}
+
 	public ContentType getType() {
 		return type;
 	}
@@ -736,9 +753,8 @@ public class Record {
 			throw new IllegalArgumentException("Sequence number must have max 48 bits");
 		}
 		this.sequenceNumber = sequenceNumber;
-		if (session != null && session.getWriteState() != null && 
-				CipherType.BLOCK.equals(session.getWriteState().getCipherSuite().getCipherType())) {
-			fragmentBytes = encryptBlockCipher(fragment.toByteArray());
+		if (session != null && session.getWriteState() != null && epoch > 0) {
+			fragmentBytes = encryptFragment(fragment.toByteArray());
 		}
 	}
 
@@ -770,6 +786,15 @@ public class Record {
 		} else {
 			throw new IllegalStateException("Record does not have a peer address");
 		}
+	}
+
+	/**
+	 * Get fragment payload as byte array.
+	 * 
+	 * @return fragments byte array.
+	 */
+	public byte[] getFragmentBytes() {
+		return fragmentBytes;
 	}
 
 	/**
@@ -937,19 +962,19 @@ public class Record {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("==[ DTLS Record ]==============================================");
-		sb.append("\nContent Type: ").append(type.toString());
-		sb.append("\nPeer address: ").append(getPeerAddress());
-		sb.append("\nVersion: ").append(version.getMajor()).append(", ").append(version.getMinor());
-		sb.append("\nEpoch: ").append(epoch);
-		sb.append("\nSequence Number: ").append(sequenceNumber);
-		sb.append("\nLength: ").append(length);
-		sb.append("\nFragment:");
+		sb.append(System.lineSeparator()).append("Content Type: ").append(type.toString());
+		sb.append(System.lineSeparator()).append("Peer address: ").append(getPeerAddress());
+		sb.append(System.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
+		sb.append(System.lineSeparator()).append("Epoch: ").append(epoch);
+		sb.append(System.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
+		sb.append(System.lineSeparator()).append("Length: ").append(length);
+		sb.append(System.lineSeparator()).append("Fragment:");
 		if (fragment != null) {
-			sb.append("\n").append(fragment);
+			sb.append(System.lineSeparator()).append(fragment);
 		} else {
-			sb.append("\nfragment is not decrypted yet\n");
+			sb.append(System.lineSeparator()).append("fragment is not decrypted yet");
 		}
-		sb.append("\n===============================================================");
+		sb.append(System.lineSeparator()).append("===============================================================");
 
 		return sb.toString();
 	}

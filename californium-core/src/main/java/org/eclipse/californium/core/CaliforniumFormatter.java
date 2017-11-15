@@ -16,11 +16,13 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - logging improvements
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move time to begin of line
+ *                                                    use append for each
+ *                                                    stacktrace line
+ *    Achim Kraus (Bosch Software Innovations GmbH) - search for line number of caller
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -50,54 +52,98 @@ public class CaliforniumFormatter extends Formatter {
 		logPolicy = new LogPolicy();
 	}
 
+	/**
+	 * Get line number of log call.
+	 * 
+	 * @param className class name of call
+	 * @param methodName method name of call
+	 * @return line number of log call, or {@code -1}, if caller could not be
+	 *         determined.
+	 */
+	public int getCallersLineNumber(final String className, final String methodName) {
+		// check for valid parameters
+		if (null == className || null == methodName) {
+			return -1;
+		}
+
+		StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+		for (StackTraceElement element : stackTrace) {
+			if (className.equals(element.getClassName()) && methodName.equals(element.getMethodName())) {
+				return element.getLineNumber();
+			}
+		}
+
+		return -1;
+	}
+
 	@Override
 	public String format(final LogRecord record) {
-
-		String stackTrace = "";
-		Throwable throwable = record.getThrown();
-		if (throwable != null) {
-			StringWriter sw = new StringWriter();
-			throwable.printStackTrace(new PrintWriter(sw));
-			stackTrace = sw.toString();
+		StringBuilder builder = new StringBuilder();
+		if (logPolicy.dateFormat != null) {
+			builder.append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(": ");
 		}
-
-		int lineNo;
-		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-		if (throwable != null && stack.length > 7) {
-			lineNo = stack[7].getLineNumber();
-		} else if (stack.length > 8) {
-			lineNo = stack[8].getLineNumber();
-		} else {
-			lineNo = -1;
-		}
-
-		StringBuffer b = new StringBuffer();
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD_ID)) {
-			b.append(String.format("%2d", record.getThreadID())).append(" ");
+			builder.append(String.format("%3d", record.getThreadID())).append(" ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_LEVEL)) {
-			b.append(record.getLevel().toString()).append(" ");
+			builder.append(record.getLevel().toString()).append(" ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_CLASS)) {
-			b.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
+			builder.append("[").append(getSimpleClassName(record.getSourceClassName())).append("]: ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_MESSAGE)) {
-			b.append(formatMessage(record));
+			builder.append(formatMessage(record)).append(" - ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_SOURCE)) {
-			b.append(" - (").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
+			int lineNo = getCallersLineNumber(record.getSourceClassName(), record.getSourceMethodName());
+			builder.append("(").append(record.getSourceClassName()).append(".java:").append(lineNo).append(") ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_METHOD)) {
-			b.append(record.getSourceMethodName()).append("()");
+			builder.append(record.getSourceMethodName()).append("() ");
 		}
 		if (logPolicy.isEnabled(LogPolicy.LOG_POLICY_SHOW_THREAD)) {
-			b.append(" in thread ").append(Thread.currentThread().getName());
+			builder.append("in thread ").append(Thread.currentThread().getName());
 		}
-		if (logPolicy.dateFormat != null) {
-			b.append(" at (").append(logPolicy.dateFormat.format(new Date(record.getMillis()))).append(")");
+		builder.append(System.lineSeparator());
+		append(builder, record.getThrown());
+		return builder.toString();
+	}
+
+	/**
+	 * Append stack trace of throwable to string builder.
+	 * 
+	 * @param builder string builder to append
+	 * @param throwable throwable, may be {@code null}.
+	 */
+	private static void append(final StringBuilder builder, final Throwable throwable) {
+		Throwable cause = throwable;
+		while (null != cause) {
+			builder.append(cause).append(System.lineSeparator());
+			StackTraceElement[] stackTrace = cause.getStackTrace();
+			for (StackTraceElement element : stackTrace) {
+				builder.append("\tat ").append(element.getClassName()).append(".").append(element.getMethodName());
+				if (element.isNativeMethod()) {
+					builder.append("(Native Method)");
+				}
+				String filename = element.getFileName();
+				if (null == filename) {
+					builder.append("(Unknown Source)");
+				} else {
+					builder.append("(").append(filename);
+					int line = element.getLineNumber();
+					if (0 <= line) {
+						builder.append(":").append(line);
+					}
+					builder.append(")");
+				}
+				builder.append(System.lineSeparator());
+			}
+			cause = cause.getCause();
+			if (null != cause) {
+				builder.append("caused by ");
+			}
 		}
-		b.append(System.lineSeparator()).append(stackTrace);
-		return b.toString();
 	}
 
 	/**
@@ -108,7 +154,7 @@ public class CaliforniumFormatter extends Formatter {
 	 */
 	private static String getSimpleClassName(final String absolute) {
 		String[] parts = absolute.split("\\.");
-		return parts[parts.length -1];
+		return parts[parts.length - 1];
 	}
 
 	/**
@@ -126,7 +172,7 @@ public class CaliforniumFormatter extends Formatter {
 		private static final String LOG_POLICY_SHOW_THREAD_ID = "californium.LogPolicy.showThreadID";
 		private static final String LOG_POLICY_DATE_FORMAT = "californium.LogPolicy.dateFormat";
 
-		private Map<String, Boolean> policy = new HashMap<String, Boolean>();		
+		private Map<String, Boolean> policy = new HashMap<String, Boolean>();
 		private Format dateFormat = null;
 
 		/**
@@ -147,23 +193,24 @@ public class CaliforniumFormatter extends Formatter {
 			// configuration
 			String df = LogManager.getLogManager().getProperty(LOG_POLICY_DATE_FORMAT);
 			if (df != null) {
-				if (!df.equals("")) {
+				if (df.isEmpty()) {
+					// date format configured as "" => disable date in output
+				} else {
 					dateFormat = new SimpleDateFormat(df);
 				}
 			} else {
 				dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			}
 		}
-		
+
 		/**
 		 * Adds a particular configuration property for controlling content to
 		 * be included in the formatter's output.
 		 * 
-		 * @param propertyName
-		 *            the name of the property to add to the policy
-		 * @param defaultValue
-		 *            the value to fall back to if the {@link LogManager} does
-		 *            not contain a value for the configuration property
+		 * @param propertyName the name of the property to add to the policy
+		 * @param defaultValue the value to fall back to if the
+		 *            {@link LogManager} does not contain a value for the
+		 *            configuration property
 		 * @return the updated policy
 		 */
 		private LogPolicy addPolicy(final String propertyName, final boolean defaultValue) {

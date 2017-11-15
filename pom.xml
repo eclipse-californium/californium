@@ -90,6 +90,16 @@
 				<role>Committer</role>
 			</roles>
 		</developer>
+		<developer>
+			<id>boaks</id>
+			<name>Achim Kraus</name>
+			<email>achim.kraus@bosch-si.com</email>
+			<organization>Bosch Software Innovations GmbH</organization>
+			<organizationUrl>http://www.bosch-si.com</organizationUrl>
+			<roles>
+				<role>Committer</role>
+			</roles>
+		</developer>
 	</developers>
 
 	<properties>
@@ -138,6 +148,14 @@
 				<artifactId>hamcrest-library</artifactId>
 				<version>1.3</version>
 				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>element-connector</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+				<scope>test</scope>
+				<type>test-jar</type>
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
@@ -240,6 +258,11 @@
 							</goals>
 						</execution>
 					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.0.2</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>

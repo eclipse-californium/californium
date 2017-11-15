@@ -30,6 +30,10 @@
  *                                                    properties with corresponding properties in DTLSSession
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - support MaxFragmentLength Hello extension sent by client
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *                                                    supportedClientCertificateTypes
+ *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring                                                   
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,8 +54,6 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -171,6 +173,9 @@ public class ServerHandshaker extends Handshaker {
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @param trustedRPKs  the set of raw public key identities that have been verified out of 
+	 *     bound and are trusted. Can be null           
+	 *            
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws IllegalArgumentException
@@ -180,7 +185,8 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit);
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit,
+		        config.getRpkTrustStore());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -195,7 +201,8 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 		if (rootCertificates != null && rootCertificates.length > 0) {
-			this.supportedClientCertificateTypes.add(CertificateType.X_509);
+			int index = config.isSendRawKey() ? 1 : 0;
+			this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 		}
 
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -223,6 +230,8 @@ public class ServerHandshaker extends Handshaker {
 			// its finished message again, so we simply retransmit our last flight
 			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
+			lastFlight.incrementTries();
+			lastFlight.setNewSequenceNumbers();
 			recordLayer.sendFlight(lastFlight);
 			return;
 		}
@@ -230,7 +239,7 @@ public class ServerHandshaker extends Handshaker {
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
 		if (LOGGER.isLoggable(Level.FINE)) {
-			StringBuffer msg = new StringBuffer();
+			StringBuilder msg = new StringBuilder();
 			msg.append(String.format(
 					"Processing %s message from peer [%s]",
 					message.getContentType(), message.getPeer()));
@@ -305,7 +314,11 @@ public class ServerHandshaker extends Handshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
 
-			incrementNextReceiveSeq();
+			if (lastFlight == null) {
+				// only increment for ongoing handshake flights, not for the last flight!
+				// not ignore a client FINISHED retransmission caused by lost server FINISHED
+				incrementNextReceiveSeq();
+			}
 			LOGGER.log(Level.FINE, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
 					new Object[]{message.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
@@ -334,7 +347,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		clientCertificate = message;
-		clientCertificate.verifyCertificate(rootCertificates);
+		verifyCertificate(clientCertificate);
 		clientPublicKey = clientCertificate.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 		// TODO why don't we also update the MessageDigest at this point?
@@ -568,7 +581,7 @@ public class ServerHandshaker extends Handshaker {
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			// TODO SHA256withECDSA is default but should be configurable
-			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
+			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 			try {
 				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
 				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom,

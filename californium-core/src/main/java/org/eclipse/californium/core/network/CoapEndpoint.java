@@ -25,6 +25,10 @@
  *                                      of Response(s) to Request (fix GitHub issue #1)
  *    Bosch Software Innovations GmbH - adapt message parsing error handling
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore in
+ *                                                    BaseMatcher final
+ *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
+ *                                                    canceled messages
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -38,9 +42,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
@@ -69,6 +73,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.tcp.TcpConnector;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -161,8 +166,6 @@ public class CoapEndpoint implements Endpoint {
 	
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
-
-	private final MessageExchangeStore exchangeStore;
 
 	/**
 	 * Creates a new <em>coap</em> endpoint using default configuration.
@@ -261,18 +264,19 @@ public class CoapEndpoint implements Endpoint {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
-		this.exchangeStore = exchangeStore;
+		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
+				: new InMemoryMessageExchangeStore(config);
 
 		// To make TCP support backwards compatible using less clean "instanceof" shortcut in 1.1 branch.
 		// In 2.0 branch, the connector API has been expected to export a new isSchemeSupported(String scheme)
 		// method, which is used instead.
 		if (connector instanceof TcpConnector) {
-			this.matcher = new TcpMatcher(config);
+			this.matcher = new TcpMatcher(config, localExchangeStore);
 			this.coapstack = new CoapTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config);
+			this.matcher = new UdpMatcher(config, localExchangeStore);
 			this.coapstack = new CoapUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
@@ -316,7 +320,7 @@ public class CoapEndpoint implements Endpoint {
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
 			setExecutor(Executors.newSingleThreadScheduledExecutor(
-					new Utils.DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#'))); //$NON-NLS-1$
+					new DaemonThreadFactory("CoapEndpoint-" + connector.getAddress() + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
 				public void started(final Endpoint endpoint) {
@@ -331,12 +335,6 @@ public class CoapEndpoint implements Endpoint {
 					executor.shutdown();
 				}
 			});
-		}
-
-		if (exchangeStore == null) {
-			matcher.setMessageExchangeStore(new InMemoryMessageExchangeStore(config));
-		} else {
-			matcher.setMessageExchangeStore(exchangeStore);
 		}
 
 		try {
@@ -532,8 +530,20 @@ public class CoapEndpoint implements Endpoint {
 				messageInterceptor.sendRequest(request);
 			}
 
-			// One of the interceptors may have cancelled the request
-			if (!request.isCanceled()) {
+			// Request may have been canceled already, e.g. by one of the interceptors
+			// or client code
+			if (request.isCanceled()) {
+
+				// make sure we do necessary house keeping, e.g. removing the exchange from
+				// ExchangeStore to avoid memory leak
+				// The Exchange may already have been completed implicitly by client code
+				// invoking Request.cancel().
+				// However, that might have happened BEFORE the exchange got registered with the
+				// ExchangeStore. So, to make sure that we do not leak memory we complete the
+				// Exchange again here, triggering the "housekeeping" functionality in the Matcher
+				exchange.setComplete();
+
+			} else {
 				// create callback for setting correlation context
 				MessageCallback callback = new MessageCallback() {
 
@@ -563,7 +573,12 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!response.isCanceled()) {
+			if (response.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serializeResponse(response));
 			}
 		}
@@ -584,7 +599,12 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (!message.isCanceled()) {
+			if (message.isCanceled()) {
+				if (null != exchange) {
+					exchange.setComplete();
+				}
+			}
+			else {
 				connector.send(serializer.serializeEmptyMessage(message));
 			}
 		}
@@ -656,7 +676,8 @@ public class CoapEndpoint implements Endpoint {
 					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 				}
 
-			} catch (MessageFormatException e) {
+			} catch (CoAPMessageFormatException e) {
+
 				if (e.isConfirmable() && e.hasMid()) {
 					// reject erroneous reliably transmitted message as mandated by CoAP spec
 					// https://tools.ietf.org/html/rfc7252#section-4.2
@@ -669,11 +690,16 @@ public class CoapEndpoint implements Endpoint {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 				}
+			} catch (MessageFormatException e) {
+
+				// ignore erroneous messages that are not transmitted reliably
+				LOGGER.log(Level.FINER, "discarding malformed message from [{0}]", raw.getInetSocketAddress());
 			}
 		}
 
-		private void reject(final RawData raw, final MessageFormatException cause) {
-			// Generate RST, and send it if not cancelled by one of the interceptors
+		private void reject(final RawData raw, final CoAPMessageFormatException cause) {
+
+			// Generate RST
 			EmptyMessage rst = new EmptyMessage(Type.RST);
 			rst.setMID(cause.getMid());
 			rst.setDestination(raw.getAddress());

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -28,6 +28,10 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF code to separate PseudoRandomFunction class
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use LinkedHashSet to order listeners
+ *                                                    see issue #406
+ *    Ludwig Seitz (RISE SICS) - Moved certificate validation here from CertificateMessage
+ *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -37,11 +41,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
+import java.security.cert.CertPathValidator;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,11 +62,13 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -102,7 +112,10 @@ public abstract class Handshaker {
 	protected final DTLSSession session;
 	protected final RecordLayer recordLayer;
 	/** list of trusted self-signed root certificates */
-	protected final Certificate[] rootCertificates;
+	protected final X509Certificate[] rootCertificates;
+
+	/** The trusted raw public keys */
+	protected final TrustedRpkStore rpkStore;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)
@@ -135,68 +148,70 @@ public abstract class Handshaker {
 	protected PublicKey publicKey;
 
 	/** The chain of certificates asserting this handshaker's identity */
-	protected Certificate[] certificateChain;
+	protected X509Certificate[] certificateChain;
 
-	private Set<SessionListener> sessionListeners = new HashSet<>();
+	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
 
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
-	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
+	 * Creates a new handshaker for negotiating a DTLS session with a given
+	 * peer.
 	 * 
-	 * @param isClient
-	 *            indicates whether this handshaker plays the client or server role.
-	 * @param session
-	 *            the session this handshaker is negotiating.
-	 * @param recordLayer
-	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
-	 * @param rootCertificates
-	 *            the trusted root certificates.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
-	 * @throws IllegalStateException
-	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException
-	 *            if session or recordLayer is <code>null</code>.
+	 * @param isClient indicates whether this handshaker plays the client or
+	 *            server role.
+	 * @param session the session this handshaker is negotiating.
+	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param sessionListener the listener to notify about the session's
+	 *            life-cycle events.
+	 * @param rootCertificates the trusted root certificates.
+	 * @param maxTransmissionUnit the MTU value reported by the network
+	 *            interface the record layer is bound to.
+	 * @param rpkStore the store containing the trusted raw public keys.
+	 * @throws IllegalStateException if the message digest required for
+	 *             computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException if session or recordLayer is
+	 *             <code>null</code>.
 	 */
-	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener, 
-			Certificate[] rootCertificates, int maxTransmissionUnit) {
-		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit);
+	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
+			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			TrustedRpkStore rpkStore) {
+		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit, rpkStore);
 	}
 
 	/**
-	 * Creates a new handshaker for negotiating a DTLS session with a given peer.
+	 * Creates a new handshaker for negotiating a DTLS session with a given
+	 * peer.
 	 * 
-	 * @param isClient
-	 *            indicates whether this handshaker plays the client or server role.
-	 * @param initialMessageSeq
-	 *            the initial message sequence number to use and expect in the exchange
-	 *            of handshake messages with the peer. This parameter can be used to
-	 *            initialize the <em>message_seq</em> and <em>receive_next_seq</em>
-	 *            counters to a value larger than 0, e.g. if one or more cookie exchange
-	 *            round-trips have been performed with the peer before the handshake starts.
-	 * @param session
-	 *            the session this handshaker is negotiating.
-	 * @param recordLayer
-	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
-	 * @param rootCertificates
-	 *            the trusted root certificates.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
-	 * @throws IllegalStateException
-	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException
-	 *            if session or recordLayer is <code>null</code>.
-	 * @throws IllegalArgumentException if the initial message sequence number is negative
+	 * @param isClient indicates whether this handshaker plays the client or
+	 *            server role.
+	 * @param initialMessageSeq the initial message sequence number to use and
+	 *            expect in the exchange of handshake messages with the peer.
+	 *            This parameter can be used to initialize the
+	 *            <em>message_seq</em> and <em>receive_next_seq</em> counters to
+	 *            a value larger than 0, e.g. if one or more cookie exchange
+	 *            round-trips have been performed with the peer before the
+	 *            handshake starts.
+	 * @param session the session this handshaker is negotiating.
+	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param sessionListener the listener to notify about the session's
+	 *            life-cycle events.
+	 * @param rootCertificates the trusted root certificates.
+	 * @param maxTransmissionUnit the MTU value reported by the network
+	 *            interface the record layer is bound to.
+	 * @param rpkStore the store containing the trusted raw public keys.
+	 * @throws IllegalStateException if the message digest required for
+	 *             computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException if session or recordLayer is
+	 *             <code>null</code>.
+	 * @throws IllegalArgumentException if the initial message sequence number
+	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, Certificate[] rootCertificates, int maxTransmissionUnit) {
+			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			TrustedRpkStore rpkStore) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
@@ -210,17 +225,19 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates == null ? new Certificate[0] : rootCertificates;
+		this.rootCertificates = rootCertificates == null ? new X509Certificate[0] : rootCertificates;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
 		try {
 			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
 		} catch (NoSuchAlgorithmException e) {
-			// this cannot happen on a Java SE 7 VM because SHA-256 is mandatory to implement
-			throw new IllegalStateException(
-					String.format("Message digest algorithm %s is not available on JVM", MESSAGE_DIGEST_ALGORITHM_NAME));
+			// this cannot happen on a Java SE 7 VM because SHA-256 is mandatory
+			// to implement
+			throw new IllegalStateException(String.format("Message digest algorithm %s is not available on JVM",
+					MESSAGE_DIGEST_ALGORITHM_NAME));
 		}
+		this.rpkStore = rpkStore;
 	}
 
 	/**
@@ -907,5 +924,68 @@ public abstract class Handshaker {
 	 */
 	protected final void expectChangeCipherSpecMessage() {
 		this.changeCipherSuiteMessageExpected = true;
+	}
+	
+	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
+		Set<TrustAnchor> result = new HashSet<>();
+		if (trustedCertificates != null) {
+			for (X509Certificate cert : trustedCertificates) {
+				result.add(new TrustAnchor((X509Certificate) cert, null));
+			}
+		}
+		return result;
+	}
+	
+	/**
+	 * Validates the X.509 certificate chain provided by the the peer as part of
+	 * this message, or the raw public key.
+	 * 
+	 * This method checks
+	 * <ol>
+	 * <li>that each certificate's issuer DN equals the subject DN of the next
+	 * certiciate in the chain</li>
+	 * <li>that each certificate is currently valid according to its validity
+	 * period</li>
+	 * <li>that the chain is rooted at a trusted CA</li>
+	 * </ol>
+	 * 
+	 * OR that the raw public key is in the raw public key trust store.
+	 * 
+	 * @param message the certificate message
+	 * 
+	 * @throws HandshakeException if any of the checks fails
+	 */
+	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
+		if (message.getCertificateChain() != null) {
+
+			Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
+
+			try {
+				PKIXParameters params = new PKIXParameters(trustAnchors);
+				// TODO: implement alternative means of revocation checking
+				params.setRevocationEnabled(false);
+
+				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+				validator.validate(message.getCertificateChain(), params);
+
+			} catch (GeneralSecurityException e) {
+				if (LOGGER.isLoggable(Level.FINEST)) {
+					LOGGER.log(Level.FINEST, "Certificate validation failed", e);
+				} else if (LOGGER.isLoggable(Level.FINE)) {
+					LOGGER.log(Level.FINE, "Certificate validation failed due to {0}", e.getMessage());
+				}
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+						session.getPeer());
+				throw new HandshakeException("Certificate chain could not be validated", alert);
+			}
+		} else {
+			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
+			if (!rpkStore.isTrusted(rpk)) {
+				LOGGER.fine("Certificate validation failed: Raw public key is not trusted");
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+						session.getPeer());
+				throw new HandshakeException("Raw public key is not trusted", alert);
+			}
+		}
 	}
 }

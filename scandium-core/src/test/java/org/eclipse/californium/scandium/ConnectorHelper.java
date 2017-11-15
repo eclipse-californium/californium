@@ -172,7 +172,7 @@ public class ConnectorHelper {
 		client.start();
 		client.send(msgToSend);
 
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
 		establishedServerSession = con.getEstablishedSession();

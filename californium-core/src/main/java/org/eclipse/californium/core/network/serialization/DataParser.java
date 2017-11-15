@@ -18,6 +18,8 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add CoAP detail information 
+ *                                                 to MessageFormatException
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -53,17 +55,22 @@ public abstract class DataParser {
 	 */
 	public final Message parseMessage(final byte[] msg) {
 
+		String message = "illegal message code";
 		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
-		if (CoAP.isRequest(header.getCode())) {
-			return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
-		} else if (CoAP.isResponse(header.getCode())) {
-			return parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
-		} else if (CoAP.isEmptyMessage(header.getCode())) {
-			return parseMessage(reader, header, new EmptyMessage(header.getType()));
-		} else {
-			throw new MessageFormatException("illegal message code", header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
+		try {
+			if (CoAP.isRequest(header.getCode())) {
+				return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
+			} else if (CoAP.isResponse(header.getCode())) {
+				return parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
+			} else if (CoAP.isEmptyMessage(header.getCode())) {
+				return parseMessage(reader, header, new EmptyMessage(header.getType()));
+			}
+		} catch (MessageFormatException e) {
+			/** use message to add CoAP message specific information */
+			message = e.getMessage();
 		}
+		throw new CoAPMessageFormatException(message, header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
 	}
 
 	private static Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
@@ -132,14 +139,14 @@ public abstract class DataParser {
 				if (reader.bytesAvailable(optionLength)) {
 					Option option = new Option(currentOptionNumber);
 					option.setValue(reader.readBytes(optionLength));
-	
+
 					// add option to message
 					message.getOptions().addOption(option);
 				} else {
 					String msg = String.format(
 							"Message contains option of length %d with only fewer bytes left in the message",
 							optionLength);
-					throw new MessageFormatException(msg, message.getMID(), message.getRawCode(), message.isConfirmable());
+					throw new CoAPMessageFormatException(msg, message.getMID(), message.getRawCode(), message.isConfirmable());
 				}
 			} else
 				break;
@@ -148,7 +155,7 @@ public abstract class DataParser {
 		if (nextByte == PAYLOAD_MARKER) {
 			// the presence of a marker followed by a zero-length payload must be processed as a message format error
 			if (!reader.bytesAvailable()) {
-				throw new MessageFormatException(
+				throw new CoAPMessageFormatException(
 						"Found payload marker (0xFF) but message contains no payload",
 						message.getMID(), message.getRawCode(), message.isConfirmable());
 			} else {
@@ -185,7 +192,7 @@ public abstract class DataParser {
 		} else if (delta == 14) {
 			return reader.read(16) + 269;
 		} else {
-			throw new MessageFormatException(
+			throw new CoAPMessageFormatException(
 					"Message contains illegal option delta/length: " + delta,
 					message.getMID(), message.getRawCode(), message.isConfirmable());
 		}

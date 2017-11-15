@@ -91,7 +91,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		responseCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).recordStats().expireAfterWrite(CACHE_RESPONSE_MAX_AGE, TimeUnit.SECONDS).build(new CacheLoader<CacheKey, Response>() {
 			@Override
 			public Response load(CacheKey request) throws NullPointerException {
-				// retreive the response from the incoming request, no
+				// retrieve the response from the incoming request, no
 				// exceptions are thrown
 				Response cachedResponse = request.getResponse();
 
@@ -279,8 +279,8 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		for (CacheKey cachedRequest : responseCache.asMap().keySet()) {
 			Response response = responseCache.asMap().get(cachedRequest);
 
-			builder.append(cachedRequest.getProxyUri().toString() + " (" + 
-					MediaTypeRegistry.toString(cachedRequest.getMediaType()) + ") > " + getRemainingLifetime(response) + " seconds | (" + cachedRequest.getMediaType() + ")\n");
+			builder.append(cachedRequest.getProxyUri()).append(" (").append(
+					MediaTypeRegistry.toString(cachedRequest.getMediaType())).append(") > ").append(getRemainingLifetime(response)).append(" seconds | (").append(cachedRequest.getMediaType()).append(")\n");
 		}
 
 		exchange.respond(ResponseCode.CONTENT, builder.toString());

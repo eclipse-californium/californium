@@ -18,29 +18,26 @@
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - reduce code duplication, split up into
  *                                      separate test cases, remove wait cycles
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - split responseType in
+ *                                                    type(Type... types) and
+ *                                                    storeType(String var)
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.TestTools.*;
-import static org.eclipse.californium.core.coap.CoAP.Code.GET;
-import static org.eclipse.californium.core.coap.CoAP.Code.POST;
-import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_INCOMPLETE;
-import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
-import static org.eclipse.californium.core.coap.CoAP.Type.NON;
+import static org.eclipse.californium.core.coap.CoAP.Code.*;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.waitUntilDeduplicatorShouldBeEmpty;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -50,11 +47,13 @@ import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -64,6 +63,9 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class BlockwiseServerSideTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	
 	public static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	public static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static NetworkConfig CONFIG;
@@ -81,7 +83,7 @@ public class BlockwiseServerSideTest {
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseServerSideTest.class.getSimpleName());
-		CONFIG = new NetworkConfig()
+		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 100)
@@ -171,7 +173,12 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
 
-		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL);
+		waitUntilDeduplicatorShouldBeEmpty(TEST_EXCHANGE_LIFETIME, TEST_SWEEP_DEDUPLICATOR_INTERVAL, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return exchangeStore.isEmpty();
+			}
+		});
 		Assert.assertTrue(
 				"Incomplete ongoing blockwise exchange should have been evicted from message exchange store",
 				exchangeStore.isEmpty());
@@ -644,7 +651,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(280);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -660,7 +667,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(290);
 		test1.changed();
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -697,7 +704,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(140);
 		test2.changed(); // First notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -713,7 +720,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(145);
 		test2.changed(); // Second notification
 
-		client.expectResponse().responseType("T", CON, NON).code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 

@@ -17,6 +17,14 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus - fixing race condition and visibility
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for 
+ *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for reregister
+ *                                                    issue #56. 
+ *                                                    Introduce CountingHandler
+ *                                                    use expected= annotation for
+ *                                                    expected exceptions
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageInterceptorAdapter
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -28,8 +36,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.category.Medium;
@@ -47,10 +55,12 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -78,7 +88,7 @@ import org.junit.experimental.categories.Category;
  * <pre>
  *   19 INFO [ReliabilityLayer$RetransmissionTask]: Timeout: retransmit message, failed: 1, ...
  *   11 INFO [ReliabilityLayer$RetransmissionTask]: Timeout: retransmit message, failed: 2, ...
- *   Resource resX changed to "resX sais hi for the 3 time"
+ *   Resource resX changed to "resX says hi for the 3 time"
  *   19 INFO [ReliabilityLayer$RetransmissionTask]: Timeout: retransmit message, failed: 3, ...
  *   11 INFO [ReliabilityLayer$RetransmissionTask]: Timeout: retransmit message, failed: 4, ...
  *   17 INFO [ReliabilityLayer$RetransmissionTask]: Timeout: retransmission limit reached, exchange failed, ...
@@ -86,6 +96,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ObserveTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	static final String TARGET_X = "resX";
 	static final String TARGET_Y = "resY";
@@ -173,8 +185,6 @@ public class ObserveTest {
 	public void testObserveClient() throws Exception {
 
 		final AtomicInteger resetCounter = new AtomicInteger(0);
-		final AtomicInteger notificationCounter = new AtomicInteger(0);
-		final CountDownLatch latch = new CountDownLatch(1);
 
 		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor(resetCounter));
 		resourceX.setObserveType(Type.NON);
@@ -182,29 +192,16 @@ public class ObserveTest {
 		int repeat = 3;
 
 		CoapClient client = new CoapClient(uriX);
-
-		CoapObserveRelation rel = client.observeAndWait(new CoapHandler() {
-
-			@Override
-			public void onLoad(CoapResponse response) {
-				int counter = notificationCounter.incrementAndGet();
-				System.out.println("Received " + counter + ". Notification: " + response.advanced());
-				latch.countDown();
-			}
-
-			@Override
-			public void onError() {
-			}
-		});
-
-		assertFalse("Response not received", rel.isCanceled());
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
 
 		// onLoad is called asynchronous to returning the response
-		// therefore wait for onLoad
-		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+		// therefore wait for one onLoad
+		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
 
-		// only one notification (the response) received
-		assertEquals(1, notificationCounter.get());
+		assertFalse("Response not received", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
 
 		rel.reactiveCancel();
 		System.out.println(uriX + " reactive canceled");
@@ -214,11 +211,111 @@ public class ObserveTest {
 			Thread.sleep(50);
 		}
 
-		// still only one notification (the response) received
-		assertEquals(1, notificationCounter.get());
+		// still only one notification (the response) is received
+		assertFalse(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
 		assertEquals(repeat, resetCounter.get()); // repeat RST received
 		// no RST delivered (interceptor)
 		assertEquals(1, resourceX.getObserverCount());
+	}
+
+	@Test
+	public void testObserveClientReregister() throws Exception {
+		resourceX.setObserveType(Type.NON);
+
+		CoapClient client = new CoapClient(uriX);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Response not received", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		
+		resourceX.changed("client");
+		// assert notify received
+		assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+		assertFalse(rel.isCanceled());
+		assertEquals("\"resX says client for the 2 time\"", rel.getCurrent().getResponseText());
+		
+		rel.reregister();
+		assertFalse(rel.isCanceled());
+		// assert reregister succeeded
+		assertTrue(handler.waitForLoadCalls(3, 1000, TimeUnit.MILLISECONDS));
+		System.out.println(uriX + " reregistered");
+		assertFalse(rel.isCanceled());
+		// resource not changed
+		assertEquals("\"resX says client for the 2 time\"", rel.getCurrent().getResponseText());
+		
+		resourceX.changed("new client");
+		// assert notify received after reregister
+		assertTrue(handler.waitForLoadCalls(4, 1000, TimeUnit.MILLISECONDS));
+		assertEquals("\"resX says new client for the 3 time\"", rel.getCurrent().getResponseText());
+		assertEquals(1, resourceX.getObserverCount());
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testObserveClientReregisterAfterReject() throws Exception {
+		resourceX.setObserveType(Type.NON);
+		resourceX.rejectNextGet();
+		CoapClient client = new CoapClient(uriX);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+		assertTrue("Not rejected", rel.isCanceled());
+		rel.reregister();
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testObserveClientReregisterAfterTimeout() throws Exception {
+		resourceX.setObserveType(Type.NON);
+		resourceX.delayNextGet(100);
+		CoapClient client = new CoapClient(uriX);
+		long timeout = client.getTimeout();
+		client.setTimeout(1);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+		assertTrue("No timeout", rel.isCanceled());
+		client.setTimeout(timeout);
+		rel.reregister();
+	}
+
+	@Test
+	public void testObserveClientReregisterBeforeTimeout() throws Exception {
+		resourceX.setObserveType(Type.NON);
+		resourceX.delayNextGet(100);
+		CoapClient client = new CoapClient(uriX);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observe(handler);
+		assertFalse("Timeout", rel.isCanceled());
+		assertFalse("reregister not ignored", rel.reregister()); 
+		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		resourceX.changed("client");
+		// assert notify received
+		assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+		assertFalse("Response not received", rel.isCanceled());
+	}
+
+	@Test
+	public void testObserveClientReregisterAfterReregister() throws Exception {
+		resourceX.setObserveType(Type.NON);
+
+		CoapClient client = new CoapClient(uriX);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+		assertFalse("Response not received", rel.isCanceled());
+		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+		resourceX.delayNextGet(100);
+		// one more onLoad call
+		assertTrue("reregister not triggered", rel.reregister()); 
+		// one more onLoad call
+		assertFalse("reregister not ignored", rel.reregister()); 
+		assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+		// one more onLoad call
+		resourceX.changed("client");
+		// assert notify received
+		assertTrue(handler.waitForLoadCalls(3, 1000, TimeUnit.MILLISECONDS));
+		assertFalse("Response not received", rel.isCanceled());
 	}
 
 	/**
@@ -227,27 +324,22 @@ public class ObserveTest {
 	 * 
 	 * @throws Exception
 	 */
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testObserveAndWaitExceptionHandling() throws Exception {
 		CoapClient client = new CoapClient(uriX);
 		Request request = Request.newGet().setURI(uriX);
 
 		@SuppressWarnings("unused")
-		CoapObserveRelation rel = null;
-		try {
-			rel = client.observeAndWait(request, new CoapHandler() {
+		CoapObserveRelation rel = client.observeAndWait(request, new CoapHandler() {
 
-				@Override
-				public void onLoad(CoapResponse response) {
-				}
+			@Override
+			public void onLoad(CoapResponse response) {
+			}
 
-				@Override
-				public void onError() {
-				}
-			});
-		} catch (Exception e) {
-			assertTrue(e instanceof IllegalArgumentException);
-		}
+			@Override
+			public void onError() {
+			}
+		});
 	}
 
 	/**
@@ -256,32 +348,27 @@ public class ObserveTest {
 	 * 
 	 * @throws Exception
 	 */
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testObserveExceptionHandling() throws Exception {
 		CoapClient client = new CoapClient(uriX);
 		Request request = Request.newGet().setURI(uriX);
 
 		@SuppressWarnings("unused")
-		CoapObserveRelation rel = null;
-		try {
-			rel = client.observe(request, new CoapHandler() {
+		CoapObserveRelation rel = client.observe(request, new CoapHandler() {
 
-				@Override
-				public void onLoad(CoapResponse response) {
-				}
+			@Override
+			public void onLoad(CoapResponse response) {
+			}
 
-				@Override
-				public void onError() {
-				}
-			});
-		} catch (Exception e) {
-			assertTrue(e instanceof IllegalArgumentException);
-		}
+			@Override
+			public void onError() {
+			}
+		});
 	}
 
 	private void createServer() {
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = new NetworkConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
 		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
@@ -298,7 +385,7 @@ public class ObserveTest {
 		uriY = getUri(endpoint, TARGET_Y);
 	}
 
-	private class ClientMessageInterceptor implements MessageInterceptor {
+	private class ClientMessageInterceptor extends MessageInterceptorAdapter {
 
 		private int counter = 0; // counts the incoming responses
 
@@ -349,29 +436,9 @@ public class ObserveTest {
 					+ ", payload = " + response.getPayloadString());
 			response.cancel();
 		}
-
-		@Override
-		public void sendRequest(Request request) {
-		}
-
-		@Override
-		public void sendResponse(Response response) {
-		}
-
-		@Override
-		public void sendEmptyMessage(EmptyMessage message) {
-		}
-
-		@Override
-		public void receiveRequest(Request request) {
-		}
-
-		@Override
-		public void receiveEmptyMessage(EmptyMessage message) {
-		}
 	}
 
-	private class ServerMessageInterceptor implements MessageInterceptor {
+	private class ServerMessageInterceptor extends MessageInterceptorAdapter {
 
 		private final AtomicInteger resetCounter;
 
@@ -380,32 +447,12 @@ public class ObserveTest {
 		}
 
 		@Override
-		public void receiveResponse(Response response) {
-		}
-
-		@Override
-		public void sendRequest(Request request) {
-		}
-
-		@Override
-		public void sendResponse(Response response) {
-		}
-
-		@Override
-		public void sendEmptyMessage(EmptyMessage message) {
-		}
-
-		@Override
-		public void receiveRequest(Request request) {
-		}
-
-		@Override
 		public void receiveEmptyMessage(EmptyMessage message) {
 			if (message.getType() == Type.RST) {
 				int counter = resetCounter.incrementAndGet();
 				System.out.println("Received " + counter + ". RST: " + message.getMID());
-				// this cancel stops the message processing => notifies will
-				// continue
+				// this cancel stops the message processing
+				// => notifies will continue
 				message.cancel();
 			}
 		}
@@ -413,10 +460,12 @@ public class ObserveTest {
 
 	private static class MyResource extends CoapResource {
 
-		private Type type = Type.CON;
-		private int counter = 0;
-		private String currentLabel;
-		private String currentResponse;
+		private volatile Type type = Type.CON;
+		private volatile String currentLabel;
+		private volatile String currentResponse;
+		private AtomicBoolean reject = new AtomicBoolean();
+		private AtomicInteger counter = new AtomicInteger();
+		private AtomicInteger delay = new AtomicInteger();
 
 		public MyResource(String name) {
 			super(name);
@@ -426,10 +475,21 @@ public class ObserveTest {
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			Response response = new Response(ResponseCode.CONTENT);
-			response.setPayload(currentResponse);
-			response.setType(type);
-			exchange.respond(response);
+			int delay = this.delay.getAndSet(0);
+			if (0 < delay) {
+				try {
+					Thread.sleep(delay);
+				} catch (InterruptedException e) {
+				}
+			}
+			if (reject.compareAndSet(true, false)) {
+				exchange.reject();
+			} else {
+				Response response = new Response(ResponseCode.CONTENT);
+				response.setPayload(currentResponse);
+				response.setType(type);
+				exchange.respond(response);
+			}
 		}
 
 		@Override
@@ -443,14 +503,69 @@ public class ObserveTest {
 			changed();
 		}
 
+		public void rejectNextGet() {
+			reject.set(true);
+		}
+
+		public void delayNextGet(int delay) {
+			this.delay.set(delay);
+		}
+
 		public void prepareResponse() {
+			int count = counter.incrementAndGet();
 			if (null == currentLabel) {
-				currentResponse = String.format("\"%s says hi for the %d time\"", getName(), ++counter);
+				currentResponse = String.format("\"%s says hi for the %d time\"", getName(), count);
 			} else {
-				currentResponse = String.format("\"%s says %s for the %d time\"", getName(), currentLabel, ++counter);
+				currentResponse = String.format("\"%s says %s for the %d time\"", getName(), currentLabel, count);
 			}
 			System.out.println("Resource " + getName() + " changed to " + currentResponse);
 		}
+	}
 
+	private class CountingHandler implements CoapHandler {
+
+		public AtomicInteger loadCalls = new AtomicInteger();
+		public AtomicInteger errorCalls = new AtomicInteger();
+
+		@Override
+		public void onLoad(CoapResponse response) {
+			int counter;
+			synchronized (this) {
+				counter = loadCalls.incrementAndGet();
+				notifyAll();
+			}
+			System.out.println("Received " + counter + ". Notification: " + response.advanced());
+		}
+
+		@Override
+		public void onError() {
+			int counter;
+			synchronized (this) {
+				counter = errorCalls.incrementAndGet();
+				notifyAll();
+			}
+			System.out.println(counter + " Errors!");
+		}
+
+		public boolean waitForLoadCalls(final int counter, final long timeout, final TimeUnit unit)
+				throws InterruptedException {
+			return waitForCalls(counter, timeout, unit, loadCalls);
+		}
+
+		private synchronized boolean waitForCalls(final int counter, final long timeout, final TimeUnit unit,
+				AtomicInteger calls) throws InterruptedException {
+			if (0 < timeout) {
+				long end = System.nanoTime() + unit.toNanos(timeout);
+				while (calls.get() < counter) {
+					long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
+					if (0 < left) {
+						wait(left);
+					} else {
+						break;
+					}
+				}
+			}
+			return calls.get() >= counter;
+		}
 	}
 }

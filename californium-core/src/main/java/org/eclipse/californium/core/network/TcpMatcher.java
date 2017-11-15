@@ -22,6 +22,14 @@
  * of Response(s) to Request (fix GitHub issue #1)
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - processing of notifies according UdpMatcher.
+ * Achim Kraus (Bosch Software Innovations GmbH) - add Exchange to removes.
+ * Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
+ * Achim Kraus (Bosch Software Innovations GmbH) - reset blockwise-cleanup on 
+ *                                                 complete exchange. Issue #103
+ * Achim Kraus (Bosch Software Innovations GmbH) - release all tokens except of
+ *                                                 starting observe requests
+ * Achim Kraus (Bosch Software Innovations GmbH) - remove contextEstablished.
+ *                                                 issue #311
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -51,8 +59,8 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
-	public TcpMatcher(final NetworkConfig config) {
-		super(config);
+	public TcpMatcher(final NetworkConfig config, final MessageExchangeStore exchangeStore) {
+		super(config, exchangeStore);
 	}
 
 	@Override
@@ -88,7 +96,7 @@ public final class TcpMatcher extends BaseMatcher {
 			} else {
 				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}", new Object[] { idByUri,
 						request });
-				exchangeStore.remove(idByUri);
+				exchangeStore.remove(idByUri, exchange);
 			}
 		}
 
@@ -181,12 +189,28 @@ public final class TcpMatcher extends BaseMatcher {
 
 		@Override
 		public void completed(final Exchange exchange) {
+			if (exchange.isComplete()) {
+				// not for completeCurrentRequest
+				exchange.setBlockCleanupHandle(null);
+			}
 			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
 				// this endpoint created the Exchange by issuing a request
-				Exchange.KeyToken idByToken = Exchange.KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-				exchangeStore.remove(idByToken);
-				if (!exchange.getCurrentRequest().getOptions().hasObserve()) {
-					exchangeStore.releaseToken(idByToken);
+				Request originRequest = exchange.getCurrentRequest();
+				if (originRequest.getToken() == null) {
+					// this should not happen because we only register the observer
+					// if we have successfully registered the exchange
+					LOGGER.log(
+							Level.WARNING,
+							"exchange observer has been completed on unregistered exchange [peer: {0}:{1}, origin: {2}]",
+							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+									exchange.getOrigin()});
+				} else {
+					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					exchangeStore.remove(idByToken, exchange);
+					if(!originRequest.isObserve()) {
+						exchangeStore.releaseToken(idByToken);
+					}
+					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
@@ -197,15 +221,10 @@ public final class TcpMatcher extends BaseMatcher {
 					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
 					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
-					exchangeStore.remove(uriKey);
+					exchangeStore.remove(uriKey, exchange);
 				}
 			}
 		}
 
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-			KeyToken token = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-			exchangeStore.setContext(token, exchange.getCorrelationContext());
-		}
 	}
 }

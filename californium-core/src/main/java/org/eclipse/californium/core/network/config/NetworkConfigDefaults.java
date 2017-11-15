@@ -17,10 +17,15 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - don't use strict request/response matching by default 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add defaults for
+ *                                                    DEFAULT_MID_TRACKER,
+ *                                                    DEFAULT_MID_TRACKER_GROUPS, and
+ *                                                    DEFAULT_EXCHANGE_LIFETIME
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.network.GroupedMessageIdTracker;
 import org.eclipse.californium.elements.UDPConnector;
 
 /**
@@ -52,6 +57,29 @@ public class NetworkConfigDefaults {
 	 */
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 30 * 1000; // 30 secs
 
+	/**
+	 * The default MID tracker.
+	 * 
+	 * Supported values are {@code NULL}, {@code GROUPED}, or {@code MAPBASED}.
+	 * <p>
+	 * The default value is {@code GROUPED}.
+	 */
+	public static final String DEFAULT_MID_TRACKER = "GROUPED";
+
+	/**
+	 * The default number of MID groups.
+	 * <p>
+	 * Used for {@link GroupedMessageIdTracker}. The default value is 16.
+	 */
+	public static final int DEFAULT_MID_TRACKER_GROUPS = 16;
+
+	/**
+	 * The default exchange lifetime in milliseconds.
+	 * <p>
+	 * The default value is 247s.
+	 */
+	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -74,7 +102,7 @@ public class NetworkConfigDefaults {
 		config.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1.5f);
 		config.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 2f);
 		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 4);
-		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247 * 1000); // ms
+		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME); // ms
 		config.setLong(NetworkConfig.Keys.NON_LIFETIME, 145 * 1000); // ms
 		config.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 93 * 1000);
 		config.setInt(NetworkConfig.Keys.NSTART, 1);
@@ -82,12 +110,14 @@ public class NetworkConfigDefaults {
 		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
 
 		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, true);
+		config.setString(NetworkConfig.Keys.MID_TRACKER, DEFAULT_MID_TRACKER);
+		config.setInt(NetworkConfig.Keys.MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
 		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
 
 		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 512);
 		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1024);
 		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 10 * 60 * 1000); // ms
+		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // ms
 
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
 		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);

@@ -12,11 +12,14 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for different
+ *                                                    MessageIdTracker modes
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -24,6 +27,7 @@ import java.net.UnknownHostException;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,6 +45,60 @@ public class InMemoryMessageIdProviderTest {
 	@Before
 	public void setup() {
 		config = NetworkConfig.createStandardWithoutFile();
+	}
+
+	@Test
+	public void testNullTrackerGetNextMessageIdReturnsMid() {
+		config.set(NetworkConfig.Keys.MID_TRACKER, "NULL");
+		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
+		InetSocketAddress peerAddress = getPeerAddress(1);
+		int mid1 = provider.getNextMessageId(peerAddress);
+		int mid2 = provider.getNextMessageId(peerAddress);
+		assertThat(mid1, is(not(Message.NONE)));
+		assertThat(mid2, is(not(Message.NONE)));
+		assertThat(mid1, is(not(mid2)));
+		for (int index = 0; index < TOTAL_NO_OF_MIDS * 2; ++index) {
+			int mid = provider.getNextMessageId(peerAddress);
+			assertThat(mid, is(not(Message.NONE)));
+		}
+	}
+
+	@Test
+	public void testMapBasedTrackerGetNextMessageIdReturnsMid() {
+		config.set(NetworkConfig.Keys.MID_TRACKER, "MAPBASED");
+		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
+		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
+	}
+
+	@Test
+	public void testGroupedTrackerGetNextMessageIdReturnsMid() {
+		config.set(NetworkConfig.Keys.MID_TRACKER, "GROUPED");
+		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
+		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
+	}
+
+	private void testLimitedTrackerGetNextMessageIdReturnsMid(InMemoryMessageIdProvider provider) {
+		InetSocketAddress peerAddress = getPeerAddress(1);
+		int mid1 = provider.getNextMessageId(peerAddress);
+		int mid2 = provider.getNextMessageId(peerAddress);
+		assertThat(mid1, is(not(Message.NONE)));
+		assertThat(mid2, is(not(Message.NONE)));
+		assertThat(mid1, is(not(mid2)));
+		int mid = provider.getNextMessageId(peerAddress);
+		for (int index = 0; index < TOTAL_NO_OF_MIDS * 2; ++index) {
+			mid = provider.getNextMessageId(peerAddress);
+			if (Message.NONE == mid) {
+				break;
+			}
+		}
+		assertThat(mid, is(Message.NONE));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testIllegalTracker() {
+		config.set(NetworkConfig.Keys.MID_TRACKER, "ILLEGAL");
+		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
+		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
 	}
 
 	@Test

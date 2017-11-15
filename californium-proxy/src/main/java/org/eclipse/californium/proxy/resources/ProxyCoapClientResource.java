@@ -30,20 +30,20 @@ import org.eclipse.californium.proxy.TranslationException;
  */
 public class ProxyCoapClientResource extends ForwardingResource {
 	
+	private long timeout;
+	
 	public ProxyCoapClientResource() {
-		this("coapClient");
+		this(100000); // 100 s
 	} 
 	
-	public ProxyCoapClientResource(String name) {
-		// set the resource hidden
-		super(name, true);
-		getAttributes().setTitle("Forward the requests to a CoAP server.");
+	public ProxyCoapClientResource(long timeout) {
+		super("coap2coap");
+		this.timeout = timeout;
 	}
 
 	@Override
-	public Response forwardRequest(Request request) {
-		LOGGER.info("ProxyCoAP2CoAP forwards "+request);
-		Request incomingRequest = request;
+	public Response forwardRequest(Request incomingRequest) {
+		LOGGER.info("ProxyCoapClientResource forwards " + incomingRequest);
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
@@ -51,31 +51,16 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			return new Response(ResponseCode.BAD_OPTION);
 		}
 
-		// remove the fake uri-path
-		// FIXME: HACK // TODO: why? still necessary in new Cf?
-		incomingRequest.getOptions().clearUriPath();
-
 		// create a new request to forward to the requested coap server
 		Request outgoingRequest = null;
 		try {
 			// create the new request from the original
 			outgoingRequest = CoapTranslator.getRequest(incomingRequest);
 
-//			// enable response queue for blocking I/O
-//			outgoingRequest.enableResponseQueue(true);
-
-			// get the token from the manager // TODO: necessary?
-//			outgoingRequest.setToken(TokenManager.getInstance().acquireToken());
-
 			// execute the request
-			LOGGER.finer("Sending coap request.");
-//			outgoingRequest.execute();
-			LOGGER.info("ProxyCoapClient received CoAP request and sends a copy to CoAP target");
+			LOGGER.finer("Sending proxied CoAP request.");
 			outgoingRequest.send();
-
-			// accept the request sending a separate response to avoid the
-			// timeout in the requesting client
-			LOGGER.finer("Acknowledge message sent");
+			
 		} catch (TranslationException e) {
 			LOGGER.warning("Proxy-uri option malformed: " + e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
@@ -85,16 +70,12 @@ public class ProxyCoapClientResource extends ForwardingResource {
 		}
 
 		try {
-			// receive the response // TODO: don't wait for ever
-			Response receivedResponse = outgoingRequest.waitForResponse();
+			// receive the response
+			Response incomingResponse = outgoingRequest.waitForResponse(timeout);
 
-			if (receivedResponse != null) {
-				LOGGER.finer("Coap response received.");
-
-				// create the real response for the original request
-				Response outgoingResponse = CoapTranslator.getResponse(receivedResponse);
-
-				return outgoingResponse;
+			if (incomingResponse != null) {
+				LOGGER.info("ProxyCoapClientResource received " + incomingResponse);
+				return CoapTranslator.getResponse(incomingResponse);
 			} else {
 				LOGGER.warning("No response received.");
 				return new Response(CoapTranslator.STATUS_TIMEOUT);

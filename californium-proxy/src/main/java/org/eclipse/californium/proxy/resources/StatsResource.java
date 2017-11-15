@@ -164,7 +164,7 @@ public class StatsResource extends CoapResource {
 			StringBuilder stringBuilder = new StringBuilder();
 			CacheStats cacheStats = cacheResource.getCacheStats().minus(relativeCacheStats);
 
-			stringBuilder.append(String.format("Total succesful loaded values: %d %n", cacheStats.loadSuccessCount()));
+			stringBuilder.append(String.format("Total successful loaded values: %d %n", cacheStats.loadSuccessCount()));
 			stringBuilder.append(String.format("Total requests: %d %n", cacheStats.requestCount()));
 			stringBuilder.append(String.format("Hits ratio: %d/%d - %.3f %n", cacheStats.hitCount(), cacheStats.missCount(), cacheStats.hitRate()));
 			stringBuilder.append(String.format("Average time spent loading new values (nanoseconds): %.3f %n", cacheStats.averageLoadPenalty()));

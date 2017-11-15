@@ -18,6 +18,12 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 464383
  *    Kai Hudalla (Bosch Software Innovations GmbH) - move code to set new sequence numbers
  *                                                    from DTLSConnector here
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make access to retransmission task
+ *                                                    thread safe. Deprecate constructor
+ *                                                    with InetSocketAddress
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add isRetransmissionCancelled
+ *                                                    to stop retransmission when already
+ *                                                    hand over to other executor
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -46,7 +52,7 @@ public class DTLSFlight {
 	 * The DTLS messages that belong to this flight and need to be sent, when
 	 * the timeout expires.
 	 */
-	private List<Record> messages;
+	private final List<Record> messages;
 
 	/** The peer's address. */
 	private InetSocketAddress peerAddress;
@@ -69,7 +75,17 @@ public class DTLSFlight {
 	 */
 	private boolean retransmissionNeeded = false;
 
-	/** The retransmission task. Needed when to cancel the retransmission. */
+	/**
+	 * Set, when {@link #cancelRetransmission()} was called to prevent flight
+	 * from being scheduled for retransmission due to a race condition.
+	 * Must be access within a synchronized block together with {@link #retransmitTask}.
+	 */
+	private boolean cancelled;
+
+	/** 
+	 * The retransmission task. Needed to cancel the retransmission.
+	 * Must be access within a synchronized block together with {@link #cancelled}.
+	 */
 	private ScheduledFuture<?> retransmitTask;
 
 	/**
@@ -96,6 +112,7 @@ public class DTLSFlight {
 	 * @param peerAddress the IP address and port to send the records to
 	 * @throws NullPointerException if peerAddress is <code>null</code>
 	 */
+	@Deprecated
 	public DTLSFlight(final InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
@@ -115,9 +132,16 @@ public class DTLSFlight {
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
 	public DTLSFlight(final DTLSSession session) {
-		this(session.getPeer());
+		if (session == null) {
+			throw new NullPointerException("Session must not be null");
+		}
+		if (session.getPeer() == null) {
+			throw new NullPointerException("Peer address must not be null");
+		}
 		this.session = session;
-		retransmissionNeeded = true;
+		this.peerAddress = session.getPeer();
+		this.messages = new ArrayList<Record>();
+		this.retransmissionNeeded = true;
 	}
 
 	/**
@@ -212,23 +236,59 @@ public class DTLSFlight {
 	}
 
 	/**
-	 * Cancels retransmission of this flight.
+	 * Cancel current retransmission.
+	 * 
+	 * Intended to be called within a synchronized block.
 	 */
-	public void cancelRetransmission() {
-		if (retransmitTask != null) {
-			retransmitTask.cancel(true);
+	private final void cancelCurrentRetransmission() {
+		if (this.retransmitTask != null) {
+			if (!this.retransmitTask.isDone()) {
+				this.retransmitTask.cancel(true);
+			}
 			this.retransmitTask = null;
 		}
 	}
 
-	public ScheduledFuture<?> getRetransmitTask() {
-		return retransmitTask;
+	/**
+	 * Cancels retransmission of this flight.
+	 * 
+	 * Note: a already cancelled flight could not be restarted using
+	 * {@link #setRetransmitTask(ScheduledFuture)}.
+	 */
+	public synchronized void cancelRetransmission() {
+		cancelled = true;
+		cancelCurrentRetransmission();
 	}
 
-	public void setRetransmitTask(final ScheduledFuture<?> retransmitTask) {
-		this.retransmitTask = retransmitTask;
+	/**
+	 * Set retransmission task.
+	 * 
+	 * Cancel a previous task, if not already done. If retransmission for this
+	 * flight is already cancelled, the new retransmitTask will also be
+	 * cancelled. This prevents the flight from being retransmitted due to a
+	 * race condition of receiving a message and executing the retransmission
+	 * task in parallel.
+	 * 
+	 * @param retransmitTask new retransmitTaks.
+	 */
+	public synchronized void setRetransmitTask(final ScheduledFuture<?> retransmitTask) {
+		if (cancelled) {
+			retransmitTask.cancel(true);
+		} else {
+			cancelCurrentRetransmission();
+			this.retransmitTask = retransmitTask;
+		}
 	}
-
+	
+	/**
+	 * Check, if retransmission was cancelled.
+	 * 
+	 * @return {@code true}, if retransmission was cancelled, {@code false}, otherwise.
+	 */
+	public synchronized boolean isRetransmissionCancelled() {
+		return cancelled;
+	}
+	
 	/**
 	 * Sets new sequence numbers on the records contained in this flight.
 	 * 

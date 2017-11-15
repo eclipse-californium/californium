@@ -33,6 +33,24 @@
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - set correlation context on sent/received messages
  *                                      (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce synchronized getSocket()
+ *                                                    as pair to synchronized releaseSocket().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - restart internal executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - processing retransmission of flight
+ *                                                    after last flight was sent.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Change RetransmitTask to
+ *                                                    schedule a "stripped job"
+ *                                                    instead of executing 
+ *                                                    handleTimeout directly.
+ *                                                    cancel flight only, if they
+ *                                                    should not be retransmitted
+ *                                                    anymore.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for cancelled retransmission
+ *                                                    before sending.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move application handler call
+ *                                                    out of synchronized block
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
+ *                                                    if bindAddress determines a port
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -52,10 +70,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,6 +84,8 @@ import org.eclipse.californium.elements.CorrelationContext;
 import org.eclipse.californium.elements.DtlsCorrelationContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -103,6 +121,9 @@ import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedRunnable;
+
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
@@ -125,8 +146,12 @@ public class DTLSConnector implements Connector {
 			+ 12 // DTLS message headers
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
-
-	static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Californium/Scandium"); //$NON-NLS-1$
+	/**
+	 * The default size of the striped executor's thread pool which is used for processing records.
+	 * <p>
+	 * The value of this property is 6 * <em>#(CPU cores)</em>.
+	 */
+	private static final int DEFAULT_EXECUTOR_THREAD_POOL_SIZE = 6 * Runtime.getRuntime().availableProcessors();
 
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
@@ -162,9 +187,10 @@ public class DTLSConnector implements Connector {
 	private AtomicBoolean running = new AtomicBoolean(false);
 
 	private RawDataChannel messageHandler;
-
 	private ErrorHandler errorHandler;
 	private SessionListener sessionCacheSynchronization;
+	private StripedExecutorService executor;
+	private boolean hasInternalExecutor;
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
@@ -180,14 +206,14 @@ public class DTLSConnector implements Connector {
 	/**
 	 * Creates a DTLS connector for a given set of configuration options.
 	 * 
-	 * @param configuration the configuration options
-	 * @param sessionCache an (optional) cache for <code>DTLSSession</code> objects that can be used for
+	 * @param configuration The configuration options.
+	 * @param sessionCache An (optional) cache for <code>DTLSSession</code> objects that can be used for
 	 *       persisting and/or sharing of session state among multiple instances of <code>DTLSConnector</code>.
 	 *       Whenever a handshake with a client is finished the negotiated session is put to this cache.
 	 *       Similarly, whenever a client wants to perform an abbreviated handshake based on an existing session
 	 *       the connection store will try to retrieve the session from this cache if it is
 	 *       not available from the connection store's in-memory (first-level) cache.
-	 * @throws NullPointerException if the configuration is <code>null</code>
+	 * @throws NullPointerException if the configuration is <code>null</code>.
 	 */
 	public DTLSConnector(final DtlsConnectorConfig configuration, final SessionCache sessionCache) {
 		this(configuration,
@@ -197,7 +223,15 @@ public class DTLSConnector implements Connector {
 						sessionCache));
 	}
 
+	/**
+	 * Creates a DTLS connector for a given set of configuration options.
+	 * 
+	 * @param configuration The configuration options.
+	 * @param connectionStore The registry to use for managing connections to peers.
+	 * @throws NullPointerException if any of the parameters is <code>null</code>.
+	 */
 	DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
+
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
 		} else if (connectionStore == null) {
@@ -207,6 +241,31 @@ public class DTLSConnector implements Connector {
 			this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
+		}
+	}
+
+	/**
+	 * Sets the executor to use for processing records.
+	 * <p>
+	 * If this property is not set before invoking the {@linkplain #start() start method},
+	 * a new {@link StripedExecutorService} is created with a thread pool of
+	 * {@linkplain #DEFAULT_EXECUTOR_THREAD_POOL_SIZE default size}.
+	 * 
+	 * This helps with performing multiple handshakes in parallel, in particular if the key exchange
+	 * requires a look up of identities, e.g. in a database or using a web service.
+	 * <p>
+	 * If this method is used to set an executor, the executor will <em>not</em> be shut down
+	 * by the {@linkplain #stop() stop method}.
+	 * 
+	 * @param executor The executor.
+	 * @throws IllegalStateException if his connector is already running.
+	 */
+	public final synchronized void setExecutor(StripedExecutorService executor) {
+
+		if (running.get()) {
+			throw new IllegalStateException("cannot set executor while connector is running");
+		} else {
+			this.executor = executor;
 		}
 	}
 
@@ -258,22 +317,24 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 
-		timer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+		timer = Executors.newSingleThreadScheduledExecutor(
+				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
-			private final AtomicInteger index = new AtomicInteger(1);
-
-			@Override
-			public Thread newThread(Runnable r) {
-				final Thread ret = new Thread(SCANDIUM_THREAD_GROUP, r,
-						"DTLS RetransmitTask " + index.getAndIncrement(), 0);
-				ret.setDaemon(true);
-				ret.setPriority(Thread.NORM_PRIORITY);
-				return ret;
-			}
-		});
+		if (executor == null) {
+			// use a decently sized thread pool
+			executor = new StripedExecutorService(DEFAULT_EXECUTOR_THREAD_POOL_SIZE);
+			this.hasInternalExecutor = true;
+		}
 		socket = new DatagramSocket(null);
-		// make it easier to stop/start a server consecutively without delays
-		socket.setReuseAddress(true);
+		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
+			// make it easier to stop/start a server consecutively without delays
+			LOGGER.config("Enable address reuse for socket!");
+			socket.setReuseAddress(true);
+			if (!socket.getReuseAddress()) {
+				LOGGER.warning("Enable address reuse for socket failed!");
+			}
+		}
+		
 		socket.bind(bindAddress);
 		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
 			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
@@ -343,7 +404,7 @@ public class DTLSConnector implements Connector {
 	 * <p>
 	 * This method's execution time is proportional to the number of connections this connector maintains.
 	 */
-	public final synchronized void forceResumeAllSesions() {
+	public final synchronized void forceResumeAllSessions() {
 		connectionStore.markAllAsResumptionRequired();
 	}
 
@@ -363,8 +424,8 @@ public class DTLSConnector implements Connector {
 	 */
 	final synchronized void releaseSocket() {
 		running.set(false);
-		sender.interrupt();
 		outboundMessages.clear();
+		sender.interrupt();
 		if (socket != null) {
 			socket.close();
 			socket = null;
@@ -372,11 +433,20 @@ public class DTLSConnector implements Connector {
 		maximumTransmissionUnit = 0;
 	}
 
+	private final synchronized DatagramSocket getSocket() {
+		return socket;
+	}
+
 	@Override
 	public final synchronized void stop() {
 		if (running.get()) {
 			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
 			timer.shutdownNow();
+			if (hasInternalExecutor) {
+				executor.shutdownNow();
+				executor = null;
+				hasInternalExecutor = false;
+			}
 			releaseSocket();
 		}
 	}
@@ -398,9 +468,16 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void receiveNextDatagramFromNetwork() throws IOException {
+
 		byte[] buffer = new byte[inboundDatagramBufferSize];
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-		synchronized (socket) {
+		DatagramSocket socket = getSocket();
+		if (socket == null) {
+			// very unlikely race condition.
+			return;
+		}
+		
+		synchronized(socket) {
 			socket.receive(packet);
 		}
 
@@ -415,37 +492,75 @@ public class DTLSConnector implements Connector {
 		LOGGER.log(Level.FINER, "Received {0} DTLS records using a {1} byte datagram buffer",
 				new Object[]{records.size(), inboundDatagramBufferSize});
 
-		for (Record record : records) {
+		for (final Record record : records) {
 			try {
-				LOGGER.log(Level.FINEST, "Received DTLS record of type [{0}]", record.getType());
 
 				switch(record.getType()) {
-				case APPLICATION_DATA:
-					processApplicationDataRecord(record);
-					break;
-				case ALERT:
-					processAlertRecord(record);
-					break;
-				case CHANGE_CIPHER_SPEC:
-					processChangeCipherSpecRecord(record);
-					break;
 				case HANDSHAKE:
-					processHandshakeRecord(record);
+				case APPLICATION_DATA:
+				case ALERT:
+				case CHANGE_CIPHER_SPEC:
+					executor.execute(new StripedRunnable() {
+
+						@Override
+						public Object getStripe() {
+							return record.getPeerAddress();
+						}
+
+						@Override
+						public void run() {
+							processRecord(record);
+						}
+					});
 					break;
 				default:
 					LOGGER.log(
 						Level.FINE,
-						"Discarding record of unsupported type [{0}] from peer [{1}]",
+						"Discarding unsupported record [type: {0}, peer: {1}]",
 						new Object[]{record.getType(), record.getPeerAddress()});
 				}
 			} catch (RuntimeException e) {
 				LOGGER.log(
 					Level.INFO,
-					String.format("Unexpected error occurred while processing record from peer [%s]", peerAddress),
+					String.format("Unexpected error occurred while processing record [type: %s, peer: %s]",
+							record.getType(), peerAddress),
 					e);
 				terminateConnection(peerAddress, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				break;
 			}
+		}
+	}
+
+	private void processRecord(Record record) {
+
+		try {
+			LOGGER.log(Level.FINEST, "Received DTLS record of type [{0}]", record.getType());
+
+			switch(record.getType()) {
+			case APPLICATION_DATA:
+				processApplicationDataRecord(record);
+				break;
+			case ALERT:
+				processAlertRecord(record);
+				break;
+			case CHANGE_CIPHER_SPEC:
+				processChangeCipherSpecRecord(record);
+				break;
+			case HANDSHAKE:
+				processHandshakeRecord(record);
+				break;
+			default:
+				LOGGER.log(
+					Level.FINE,
+					"Discarding record of unsupported type [{0}] from peer [{1}]",
+					new Object[]{record.getType(), record.getPeerAddress()});
+			}
+		} catch (RuntimeException e) {
+			LOGGER.log(
+				Level.INFO,
+				String.format("Unexpected error occurred while processing record from peer [%s]", record.getPeerAddress()),
+				e);
+			terminateConnection(record.getPeerAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		}
 	}
 
@@ -555,10 +670,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void processApplicationDataRecord(final Record record) {
-
+		DTLSSession session = null;
 		Connection connection = connectionStore.get(record.getPeerAddress());
-		if (connection != null && connection.hasEstablishedSession()) {
-			DTLSSession session = connection.getEstablishedSession();
+		if (connection != null && (session = connection.getEstablishedSession()) != null) {
+			RawData receivedApplicationMessage = null;
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 				// before MAC validation based on the record's sequence numbers
@@ -573,8 +688,8 @@ public class DTLSConnector implements Connector {
 						// thus, the handshake seems to have been completed successfully
 						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-						// finally, forward de-crypted message to application layer
-						handleApplicationMessage(message, session);
+						// create application message.
+						receivedApplicationMessage = createApplicationMessage(message, session);
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -584,6 +699,11 @@ public class DTLSConnector implements Connector {
 							record.getPeerAddress());
 				}
 			}
+			RawDataChannel channel = messageHandler;
+			// finally, forward de-crypted message to application layer outside the synchronized block
+			if (channel != null && receivedApplicationMessage != null) {
+				channel.receiveData(receivedApplicationMessage);
+			}
 		} else {
 			LOGGER.log(Level.FINER,
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
@@ -591,14 +711,10 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleApplicationMessage(ApplicationMessage message, DTLSSession session) {
-		if (messageHandler != null) {
-			DtlsCorrelationContext context = new DtlsCorrelationContext(
-					session.getSessionIdentifier().toString(),
-					String.valueOf(session.getReadEpoch()),
-					session.getReadStateCipher());
-			messageHandler.receiveData(RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false));
-		}
+	private RawData createApplicationMessage(ApplicationMessage message, DTLSSession session) {
+		DtlsCorrelationContext context = new DtlsCorrelationContext(session.getSessionIdentifier().toString(),
+				String.valueOf(session.getReadEpoch()), session.getReadStateCipher());
+		return RawData.inbound(message.getData(), message.getPeer(), session.getPeerIdentity(), context, false);
 	}
 
 	/**
@@ -745,14 +861,23 @@ public class DTLSConnector implements Connector {
 	 * @throws HandshakeException if the handshake message cannot be processed
 	 */
 	private void processHandshakeRecordWithConnection(final Record record, final Connection connection) throws HandshakeException {
-		if (connection.hasOngoingHandshake() && connection.getOngoingHandshake().getSession().getReadEpoch() == record.getEpoch()) {
-			// evaluate message in context of ongoing handshake
-			record.setSession(connection.getOngoingHandshake().getSession());
+		if (connection.hasOngoingHandshake()) {
+			DTLSSession handshakeSession = connection.getOngoingHandshake().getSession();
+			if (handshakeSession.getReadEpoch() == record.getEpoch()) {
+				// evaluate message in context of ongoing handshake
+				record.setSession(handshakeSession);
+			} else if (!record.isNewClientHello()) {
+				// epoch is not the same as the current session so we
+				// can not decrypt the message now. Let handshaker handle it
+				// (it can queue it to deal with it later)
+				connection.getOngoingHandshake().processMessage(record);
+				return;
+			}
 		} else if (connection.hasEstablishedSession() && connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
 			// client wants to re-negotiate established connection's crypto params
 			// evaluate message in context of established session
 			record.setSession(connection.getEstablishedSession());
-		} else if (record.getEpoch() == 0) {
+		} else if (record.isNewClientHello()) {
 			// client has lost track of existing connection and wants to negotiate a new connection
 			// in epoch 0 no crypto params have been established yet, thus we do not need to set a session
 		} else {
@@ -792,7 +917,7 @@ public class DTLSConnector implements Connector {
 	 * @param connection
 	 * @throws HandshakeException if the handshake message cannot be processed
 	 */
-	private void processOngoingHandshakeMessage(final HandshakeMessage message, final Record record, final Connection connection) throws HandshakeException {
+	private static void processOngoingHandshakeMessage(final HandshakeMessage message, final Record record, final Connection connection) throws HandshakeException {
 		if (connection.hasOngoingHandshake()) {
 			connection.getOngoingHandshake().processMessage(record);
 		} else {
@@ -1261,10 +1386,12 @@ public class DTLSConnector implements Connector {
 
 	private void sendHandshakeFlight(DTLSFlight flight, Connection connection) {
 		if (flight != null) {
-			connection.cancelPendingFlight();
 			if (flight.isRetransmissionNeeded()) {
 				connection.setPendingFlight(flight);
 				scheduleRetransmission(flight);
+			}
+			else {
+				connection.cancelPendingFlight();
 			}
 			sendFlight(flight);
 		}
@@ -1339,7 +1466,8 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void sendDatagram(DatagramPacket datagramPacket) throws IOException {
-		if (!socket.isClosed()) {
+		DatagramSocket socket = getSocket();
+		if (socket != null && !socket.isClosed()) {
 			socket.send(datagramPacket);
 		} else {
 			LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
@@ -1376,9 +1504,6 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void scheduleRetransmission(DTLSFlight flight) {
-
-		// cancel existing retransmission task (if any)
-		flight.cancelRetransmission();
 
 		if (flight.isRetransmissionNeeded()) {
 
@@ -1457,6 +1582,7 @@ public class DTLSConnector implements Connector {
 	 */
 	@Override
 	public final InetSocketAddress getAddress() {
+		DatagramSocket socket = getSocket();
 		if (socket == null) {
 			return config.getAddress();
 		} else {
@@ -1498,7 +1624,20 @@ public class DTLSConnector implements Connector {
 
 		@Override
 		public void run() {
-			handleTimeout(flight);
+			executor.execute(new StripedRunnable() {
+
+				@Override
+				public Object getStripe() {
+					return flight.getPeerAddress();
+				}
+
+				@Override
+				public void run() {
+					if (!flight.isRetransmissionCancelled()) {
+						handleTimeout(flight);
+					}
+				}
+			});
 		}
 	}
 
@@ -1513,7 +1652,7 @@ public class DTLSConnector implements Connector {
 		 * @param name the name, e.g., of the transport protocol
 		 */
 		protected Worker(String name) {
-			super(SCANDIUM_THREAD_GROUP, name);
+			super(NamedThreadFactory.SCANDIUM_THREAD_GROUP, name);
 		}
 
 		@Override

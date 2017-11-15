@@ -38,6 +38,7 @@ public interface MessageDeliverer {
 	 * 
 	 * @param exchange
 	 *            the exchange containing the inbound {@code Request}
+	 * @throws NullPointerException if exchange is {@code null}.
 	 */
 	void deliverRequest(Exchange exchange);
 
@@ -48,6 +49,8 @@ public interface MessageDeliverer {
 	 *            the exchange containing the originating CoAP request
 	 * @param response
 	 *            the inbound CoAP response message
+	 * @throws NullPointerException if exchange or response are {@code null}.
+	 * @throws IllegalArgumentException if the exchange does not contain a request.
 	 */
 	void deliverResponse(Exchange exchange, Response response);
 }

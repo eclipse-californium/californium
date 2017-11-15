@@ -22,6 +22,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add reset() for junit tests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -54,15 +55,24 @@ import java.util.logging.Logger;
  * sends itself over the default endpoint.
  * <p>
  * To make a server listen for requests on the default endpoint, call
- * <pre>{@code
- *  CoapServer server = new CoapServer();
- * }</pre>
+ * 
+ * <pre>
+ * {
+ * 	&#64;code
+ * 	CoapServer server = new CoapServer();
+ * }
+ * </pre>
+ * 
  * or more explicit
- * <pre>{@code
- *  Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint();
- *  CoapServer server = new CoapServer();
- *  server.addEndpoint(endpoint);
- * }</pre>
+ * 
+ * <pre>
+ * {
+ * 	&#64;code
+ * 	Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint();
+ * 	CoapServer server = new CoapServer();
+ * 	server.addEndpoint(endpoint);
+ * }
+ * </pre>
  */
 public class EndpointManager {
 
@@ -99,9 +109,9 @@ public class EndpointManager {
 	 * send requests over the endpoint and receive responses. It is not possible
 	 * to receive requests by default. If a request arrives at the endpoint, the
 	 * {@link ClientMessageDeliverer} rejects it. To receive requests, the
-	 * endpoint must be added to an instance of {@link CoapServer}. Be careful with
-	 * stopping or destroying the default endpoint as it affects all messages
-	 * that are supposed to be sent over it.
+	 * endpoint must be added to an instance of {@link CoapServer}. Be careful
+	 * with stopping or destroying the default endpoint as it affects all
+	 * messages that are supposed to be sent over it.
 	 *
 	 * @return the default endpoint
 	 */
@@ -113,9 +123,10 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Gets the default tcp endpoint for implicit use by client. By default, the tcp endpoint has single worker
-	 * thread, and uses default TCP settings.
-	 * Be careful to stop default tcp endpoint, as it stops all messages sent over it.
+	 * Gets the default tcp endpoint for implicit use by client. By default, the
+	 * tcp endpoint has single worker thread, and uses default TCP settings. Be
+	 * careful to stop default tcp endpoint, as it stops all messages sent over
+	 * it.
 	 */
 	public Endpoint getDefaultTcpEndpoint() {
 		if (default_tcp_endpoint == null) {
@@ -125,9 +136,10 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Gets the default tcp endpoint for implicit use by client. By default, the tcp endpoint has single worker
-	 * thread, and uses default TCP settings.
-	 * Be careful to stop default tcp endpoint, as it stops all messages sent over it.
+	 * Gets the default tcp endpoint for implicit use by client. By default, the
+	 * tcp endpoint has single worker thread, and uses default TCP settings. Be
+	 * careful to stop default tcp endpoint, as it stops all messages sent over
+	 * it.
 	 */
 	public Endpoint getDefaultSecureTcpEndpoint() {
 		if (default_secure_tpc_endpoint == null) {
@@ -137,13 +149,15 @@ public class EndpointManager {
 	}
 
 	/*
-	 * Creates an endpoint with the wildcard adress (::0) and an ephemeral port.
-	 * The new endpoint gets a client message deliverer and is started.
-	 * To listen on specific interfaces or ports, set the default endpoint manually.
-	 * To distinguish different interfaces, one endpoint per interface must be added.
+	 * Creates an endpoint with the wildcard address (::0) and an ephemeral port.
+	 * The new endpoint gets a client message deliverer and is started. To
+	 * listen on specific interfaces or ports, set the default endpoint
+	 * manually. To distinguish different interfaces, one endpoint per interface
+	 * must be added.
 	 */
 	private synchronized void createDefaultEndpoint() {
-		if (default_endpoint != null) return;
+		if (default_endpoint != null)
+			return;
 
 		default_endpoint = new CoapEndpoint();
 
@@ -193,9 +207,11 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 * Configures a new secure tcp endpoint to use by default. Any old tcp
+	 * endpoint is destroyed.
 	 *
-	 * @param endpoint the new default secure tcp endpoint.
+	 * @param endpoint
+	 *            the new default secure tcp endpoint.
 	 */
 	public synchronized void setTcpEndpoint(Endpoint endpoint) {
 		if (this.default_tcp_endpoint != null) {
@@ -216,9 +232,11 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Configures a new secure tcp endpoint to use by default. Any old tcp endpoint is destroyed.
+	 * Configures a new secure tcp endpoint to use by default. Any old tcp
+	 * endpoint is destroyed.
 	 *
-	 * @param endpoint the new default secure tcp endpoint.
+	 * @param endpoint
+	 *            the new default secure tcp endpoint.
 	 */
 	public synchronized void setSecureTcpEndpoint(Endpoint endpoint) {
 		if (this.default_secure_tpc_endpoint != null) {
@@ -240,7 +258,9 @@ public class EndpointManager {
 
 	/**
 	 * Configures a new default endpoint. Any old default endpoint is destroyed.
-	 * @param endpoint the new default endpoint
+	 * 
+	 * @param endpoint
+	 *            the new default endpoint
 	 */
 	public synchronized void setDefaultEndpoint(Endpoint endpoint) {
 
@@ -262,12 +282,12 @@ public class EndpointManager {
 	}
 
 	/**
-	 * Gets the default endpoint for coaps for implicit use by clients.
-	 * By default, the endpoint has a single-threaded executor and is started.
-	 * It is possible to send requests over the endpoint and receive responses.
-	 * It is not possible to receive requests by default. If a request arrives
-	 * at the endpoint, the {@link ClientMessageDeliverer} rejects it. To
-	 * receive requests, the endpoint must be added to an instance of
+	 * Gets the default endpoint for coaps for implicit use by clients. By
+	 * default, the endpoint has a single-threaded executor and is started. It
+	 * is possible to send requests over the endpoint and receive responses. It
+	 * is not possible to receive requests by default. If a request arrives at
+	 * the endpoint, the {@link ClientMessageDeliverer} rejects it. To receive
+	 * requests, the endpoint must be added to an instance of
 	 * {@link CoapServer}. Be careful with stopping or destroying the default
 	 * endpoint as it affects all messages that are supposed to be sent over it.
 	 *
@@ -285,18 +305,22 @@ public class EndpointManager {
 	}
 
 	private synchronized void createDefaultSecureEndpoint() {
-		if (default_secure_endpoint != null) return;
+		if (default_secure_endpoint != null)
+			return;
 
 		LOGGER.config("Secure endpoint must be injected via setDefaultSecureEndpoint()");
 	}
 
 	/**
-	 * Configures a new default secure endpoint. Any old default endpoint is destroyed.
-	 * @param endpoint the new default endpoint
+	 * Configures a new default secure endpoint. Any old default endpoint is
+	 * destroyed.
+	 * 
+	 * @param endpoint
+	 *            the new default endpoint
 	 */
 	public synchronized void setDefaultSecureEndpoint(Endpoint endpoint) {
 
-		if (this.default_secure_endpoint!=null) {
+		if (this.default_secure_endpoint != null) {
 			this.default_secure_endpoint.destroy();
 		}
 
@@ -319,7 +343,7 @@ public class EndpointManager {
 			while (nets.hasMoreElements()) {
 				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
 				while (inetAddresses.hasMoreElements()) {
-	        		interfaces.add(inetAddresses.nextElement());
+					interfaces.add(inetAddresses.nextElement());
 				}
 			}
 		} catch (SocketException e) {
@@ -340,6 +364,34 @@ public class EndpointManager {
 			it.default_secure_endpoint.clear();
 		if (it.default_tcp_endpoint != null)
 			it.default_tcp_endpoint.clear();
+		if (it.default_secure_tpc_endpoint != null)
+			it.default_secure_tpc_endpoint.clear();
+	}
+
+	// Needed for JUnit Tests to ensure, that the defaults endpoints are reseted
+	// to their initial values.
+	/**
+	 * Reset default endpoints. Destroy all default endpoints and clear their
+	 * set.
+	 */
+	public static void reset() {
+		EndpointManager it = getEndpointManager();
+		if (it.default_endpoint != null) {
+			it.default_endpoint.destroy();
+			it.default_endpoint = null;
+		}
+		if (it.default_secure_endpoint != null) {
+			it.default_secure_endpoint.destroy();
+			it.default_secure_endpoint = null;
+		}
+		if (it.default_tcp_endpoint != null) {
+			it.default_tcp_endpoint.destroy();
+			it.default_tcp_endpoint = null;
+		}
+		if (it.default_secure_tpc_endpoint != null) {
+			it.default_secure_tpc_endpoint.destroy();
+			it.default_secure_tpc_endpoint = null;
+		}
 	}
 
 	/**
@@ -358,9 +410,12 @@ public class EndpointManager {
 
 		@Override
 		public void deliverResponse(Exchange exchange, Response response) {
-			if (exchange == null) throw new NullPointerException();
-			if (exchange.getRequest() == null) throw new NullPointerException();
-			if (response == null) throw new NullPointerException();
+			if (exchange == null)
+				throw new NullPointerException();
+			if (exchange.getRequest() == null)
+				throw new NullPointerException();
+			if (response == null)
+				throw new NullPointerException();
 			exchange.getRequest().setResponse(response);
 		}
 	}

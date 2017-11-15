@@ -14,10 +14,14 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for terminating a handshake
  *    Bosch Software Innovations GmbH - add constructor based on current connection state
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make pending flight and handshaker
+ *                                                    access thread safe.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use volatile for establishedSession.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,11 +38,11 @@ import java.util.logging.Logger;
 public final class Connection implements SessionListener {
 
 	private static final Logger LOGGER = Logger.getLogger(Connection.class.getName());
-	private InetSocketAddress peerAddress;
-	private DTLSSession establishedSession;
-	private SessionTicket ticket;
-	private Handshaker ongoingHandshake;
-	private DTLSFlight pendingFlight;
+	private final InetSocketAddress peerAddress;
+	private volatile DTLSSession establishedSession;
+	private final SessionTicket ticket;
+	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
 	// Used to know when an abbreviated handshake should be initiated
 	private boolean resumptionRequired = false; 
@@ -64,6 +68,7 @@ public final class Connection implements SessionListener {
 			throw new NullPointerException("session ticket must not be null");
 		}
 		this.ticket = sessionTicket;
+		this.peerAddress = null;
 	}
 
 	/**
@@ -78,8 +83,9 @@ public final class Connection implements SessionListener {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else {
+			this.ticket = null;
 			this.peerAddress = peerAddress;
-			this.ongoingHandshake = ongoingHandshake;
+			this.ongoingHandshake.set(ongoingHandshake);
 		}
 	}
 
@@ -148,7 +154,7 @@ public final class Connection implements SessionListener {
 	 * @return the handshaker or <code>null</code> if no handshake is going on
 	 */
 	public Handshaker getOngoingHandshake() {
-		return ongoingHandshake;
+		return ongoingHandshake.get();
 	}
 
 	/**
@@ -157,7 +163,7 @@ public final class Connection implements SessionListener {
 	 * @return <code>true</code> if a handshake is going on
 	 */
 	public boolean hasOngoingHandshake() {
-		return ongoingHandshake != null;
+		return ongoingHandshake.get() != null;
 	}
 
 	/**
@@ -166,7 +172,7 @@ public final class Connection implements SessionListener {
 	 * @param ongoingHandshake the handshaker
 	 */
 	public void setOngoingHandshake(Handshaker ongoingHandshake) {
-		this.ongoingHandshake = ongoingHandshake;
+		this.ongoingHandshake.set(ongoingHandshake);
 	}
 
 	/**
@@ -182,14 +188,19 @@ public final class Connection implements SessionListener {
 	}
 
 	/**
-	 * Registers an outbound flight that has not been acknowledged by the peer yet in order
-	 * to be able to cancel its re-transmission later once it has been acknowledged.
+	 * Registers an outbound flight that has not been acknowledged by the peer
+	 * yet in order to be able to cancel its re-transmission later once it has
+	 * been acknowledged. The retransmission of a different previous pending
+	 * flight will be cancelled also.
 	 * 
 	 * @param pendingFlight the flight
 	 * @see #cancelPendingFlight()
 	 */
 	public void setPendingFlight(DTLSFlight pendingFlight) {
-		this.pendingFlight = pendingFlight;
+		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
+		if (flight != null && flight != pendingFlight) {
+			flight.cancelRetransmission();
+		}
 	}
 
 	/**
@@ -199,10 +210,7 @@ public final class Connection implements SessionListener {
 	 * This method is usually invoked once an flight has been acknowledged by the peer. 
 	 */
 	public void cancelPendingFlight() {
-		if (pendingFlight != null) {
-			pendingFlight.cancelRetransmission();
-			pendingFlight = null;
-		}
+		setPendingFlight(null);
 	}
 
 	/**
@@ -215,32 +223,33 @@ public final class Connection implements SessionListener {
 	 *                 an established session nor an ongoing handshake exists
 	 */
 	public DTLSSession getSession() {
-		if (establishedSession != null) {
-			return establishedSession;
-		} else if (ongoingHandshake != null) {
-			return ongoingHandshake.getSession();
-		} else {
-			return null;
+		DTLSSession session = establishedSession;
+		if (session == null) {
+			Handshaker handshaker = ongoingHandshake.get();
+			if (handshaker != null) {
+				session = handshaker.getSession();
+			}
 		}
+		return session;
 	}
 
 	@Override
 	public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
-		this.ongoingHandshake = handshaker;
+		this.ongoingHandshake.set(handshaker);
 		LOGGER.log(Level.FINE, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
 	}
 
 	@Override
-	public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession) throws HandshakeException {
-		this.establishedSession = establishedSession;
-		LOGGER.log(Level.FINE, "Session with [{0}] has been established", establishedSession.getPeer());
+	public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
+		this.establishedSession = session;
+		LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
 	}
 
 	@Override
 	public void handshakeCompleted(InetSocketAddress peer) {
-		if (this.ongoingHandshake != null) {
+		Handshaker handshaker = ongoingHandshake.getAndSet(null);
+		if (handshaker != null) {
 			cancelPendingFlight();
-			this.ongoingHandshake = null;
 			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
 		}
 	}

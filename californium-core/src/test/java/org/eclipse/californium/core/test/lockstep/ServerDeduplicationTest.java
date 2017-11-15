@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
+ *                                                    setup of test-network
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -36,9 +38,11 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -48,6 +52,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ServerDeduplicationTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final int DEDUPLICATOR_SWEEP_INTERVAL = 200; // ms
 	private static final String resourceName = "test";
@@ -61,7 +67,7 @@ public class ServerDeduplicationTest {
 	@BeforeClass
 	public static void setupServer() throws Exception {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		NetworkConfig config = network.getStandardTestConfig();
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL);
 		Endpoint ep = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);

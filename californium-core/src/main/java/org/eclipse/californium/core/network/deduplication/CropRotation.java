@@ -16,6 +16,8 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make first and second
+ *                                                    volatile
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -31,6 +33,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 
 /**
@@ -49,12 +52,12 @@ public class CropRotation implements Deduplicator {
 	private boolean running = false;
 	private ScheduledExecutorService executor;
 
-	private ExchangeMap[] maps;
-	private int first;
-	private int second;
+	private final ExchangeMap maps[];
+	private volatile int first;
+	private volatile int second;
 
-	private long period;
-	private Rotation rotation;
+	private final long period;
+	private final Rotation rotation;
 
 	/**
 	 * Creates a new crop rotation deduplicator for configuration properties.
@@ -79,7 +82,7 @@ public class CropRotation implements Deduplicator {
 	public synchronized void start() {
 		if (!running) {
 			if (executor == null || executor.isShutdown()) {
-				executor = Executors.newSingleThreadScheduledExecutor(new Utils.DaemonThreadFactory("Deduplicator"));
+				executor = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("Deduplicator"));
 			}
 			rotation.schedule();
 			running = true;

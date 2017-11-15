@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015 - 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,8 @@
  *                                                    Message.getPayloadTracingString(). 
  *                                                    (for message tracing)
  *                                                    set scheme on setOptions(URI)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove lazy lock for responses
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix empty uri query in getURI()
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -31,6 +33,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.Principal;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -109,9 +112,6 @@ public class Request extends Message {
 	private Response response;
 
 	private String scheme;
-
-	/** The lock object used to wait for a response. */
-	private Object lock;
 
 	/** the authenticated (remote) sender's identity **/
 	private Principal senderIdentity;
@@ -226,8 +226,7 @@ public class Request extends Message {
 
 		try {
 			String coapUri = uri;
-			if (!uri.startsWith("coap://") && !uri.startsWith("coaps://") && !uri.startsWith("coap+tcp://")
-					&& !uri.startsWith("coaps+tcp://")) {
+			if (!uri.contains("://")) {
 				coapUri = "coap://" + uri;
 				LOGGER.log(Level.WARNING, "update your code to supply an RFC 7252 compliant URI including a scheme");
 			}
@@ -358,42 +357,54 @@ public class Request extends Message {
 		return result;
 	}
 
-	// TODO: test this method.
 	/**
-	 * Gets the absolute Request-URI as string.
+	 * Gets a URI derived from this request's options and properties as defined by
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.5">RFC 7252, Section 6.5</a>.
 	 * <p>
-	 * To support virtual servers, it either uses the Uri-Host option
-	 * or "localhost" if the option is not present.
-	 * </p>
+	 * This method falls back to using <em>localhost</em> as the host part in the returned URI
+	 * if both the <em>destination</em> as well as the <em>Uri-Host</em> option are {@code null}
+	 * (mostly when receiving a request without a <em>Uri-Host</em> option).
 	 * 
-	 * @return the absolute URI string
+	 * @return The URI string.
+	 * @throws IllegalStateException if this request contains options and/or properties which
+	 *                               cannot be parsed into a URI.
 	 */
 	public String getURI() {
 
-		StringBuilder builder = new StringBuilder();
-		if (getScheme() != null) {
-			builder.append(getScheme()).append("://");
-		} else {
-			builder.append("coap://");
-		}
 		String host = getOptions().getUriHost();
-		if (host != null) {
-			builder.append(host);
-		} else {
-			builder.append("localhost");
+		if (host == null) {
+			if (getDestination() != null) {
+				host = getDestination().getHostAddress();
+			} else {
+				// used during construction or when receiving
+				host = "localhost";
+			}
 		}
+
 		Integer port = getOptions().getUriPort();
-		if (port != null) {
-			builder.append(":").append(port);
+		if (port == null) {
+			port = getDestinationPort();
 		}
-		String path = getOptions().getUriPathString();
-		builder.append("/").append(path);
-		String query = getOptions().getUriQueryString();
-		if (query.length() > 0) {
-			builder.append("?").append(query);
+		if (port > 0) {
+			if (CoAP.isSupportedScheme(getScheme())) {
+				if (CoAP.getDefaultPort(getScheme()) == port) {
+					port = -1;
+				}
+			}
+		} else {
+			port = -1;
 		}
-		// TODO: Query as well?
-		return builder.toString();
+		// according RFC7252, section 6.5, item 7, a empty resource name is represented by "/" as path. 
+		// therefore always use the leading "/", even if the uri path is empty. 
+		String path = "/" + getOptions().getUriPathString();
+		String query = getOptions().getURIQueryCount() > 0 ? getOptions().getUriQueryString() : null;
+		try {
+			URI uri = new URI(getScheme(), null, host, port, path, query, null);
+			// ensure, that non-ascii characters are "percent-encoded"
+			return uri.toASCIIString();  
+		} catch (URISyntaxException e) {
+			throw new IllegalStateException("cannot create URI from request", e);
+		}
 	}
 
 	/**
@@ -511,7 +522,7 @@ public class Request extends Message {
 	 *
 	 * @return the response
 	 */
-	public Response getResponse() {
+	public synchronized Response getResponse() {
 		return response;
 	}
 
@@ -526,15 +537,10 @@ public class Request extends Message {
 	 *            the new response
 	 */
 	public void setResponse(Response response) {
-		this.response = response;
-
-		// only for synchronous/blocking requests
-		if (lock != null) {
-			synchronized (lock) {
-				lock.notifyAll();
-			}
+		synchronized (this) {
+			this.response = response;
+			notifyAll();
 		}
-		// else: we know that nobody is waiting on the lock
 
 		for (MessageObserver handler : getMessageObservers()) {
 			handler.onResponse(response);
@@ -576,25 +582,23 @@ public class Request extends Message {
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
-		long before = System.currentTimeMillis();
-		long expired = timeout>0 ? (before + timeout) : 0;
-		// Lazy initialization of a lock
+		long before = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+		long expired = timeout > 0 ? (before + timeout) : 0;
+		long leftTimeout = timeout;
 		synchronized (this) {
-			if (lock == null) {
-				lock = new Object();
-			}
-		}
-		// wait for response
-		synchronized (lock) {
 			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected()) {
-				lock.wait(timeout);
-				long now = System.currentTimeMillis();
+				wait(leftTimeout);
+				long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 				// timeout expired?
-				if (timeout > 0 && expired <= now) {
-					// break loop since response is still null
-					break;
+				if (timeout > 0) {
+					leftTimeout = expired - now;
+					if (0 >= leftTimeout) {
+						// break loop
+						break;
+					}
 				}
 			}
+			
 			Response r = this.response;
 			this.response = null;
 			return r;
@@ -610,9 +614,9 @@ public class Request extends Message {
 	@Override
 	public void setTimedOut(boolean timedOut) {
 		super.setTimedOut(timedOut);
-		if (timedOut && lock != null) {
-			synchronized (lock) {
-				lock.notifyAll();
+		if (timedOut) {
+			synchronized (this) {
+				notifyAll();
 			}
 		}
 	}
@@ -626,9 +630,9 @@ public class Request extends Message {
 	@Override
 	public void setCanceled(boolean canceled) {
 		super.setCanceled(canceled);
-		if (canceled && lock != null) {
-			synchronized (lock) {
-				lock.notifyAll();
+		if (canceled) {
+			synchronized (this) {
+				notifyAll();
 			}
 		}
 	}
@@ -636,9 +640,9 @@ public class Request extends Message {
 	@Override
 	public void setRejected(boolean rejected) {
 		super.setRejected(rejected);
-		if (rejected  && lock != null) {
-			synchronized (lock) {
-				lock.notifyAll();
+		if (rejected) {
+			synchronized (this) {
+				notifyAll();
 			}
 		}
 	}

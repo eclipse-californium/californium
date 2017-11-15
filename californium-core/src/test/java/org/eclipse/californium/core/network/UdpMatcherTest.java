@@ -12,18 +12,20 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust for changed UdpMatcher 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
@@ -227,10 +229,32 @@ public class UdpMatcherTest {
 		assertThat(tokenProvider.isTokenInUse(keyToken), is(true));
 	}
 
+	/**
+	 * Verifies that canceling a message that has no MID set does not throw an exception.
+	 * 
+	 */
+	@Test
+	public void testExchangeObserverToleratesUnsentMessages() {
+
+		// GIVEN a request that has no MID and has not been sent yet
+		UdpMatcher matcher = newMatcher(false);
+		Request request = Request.newGet();
+		request.setDestination(dest.getAddress());
+		request.setDestinationPort(dest.getPort());
+		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		exchange.setRequest(request);
+		assertFalse(request.hasMID());
+		matcher.observe(exchange);
+
+		// WHEN the request is canceled and thus the message exchange completes
+		exchange.setComplete();
+
+		// THEN the matcher's exchange observer does not throw an exception
+	}
+
 	private UdpMatcher newMatcher(boolean useStrictMatching) {
 		config.setBoolean(NetworkConfig.Keys.USE_STRICT_RESPONSE_MATCHING, useStrictMatching);
-		UdpMatcher matcher = new UdpMatcher(config);
-		matcher.setMessageExchangeStore(messageExchangeStore);
+		UdpMatcher matcher = new UdpMatcher(config, messageExchangeStore);
 		matcher.start();
 		return matcher;
 	}
