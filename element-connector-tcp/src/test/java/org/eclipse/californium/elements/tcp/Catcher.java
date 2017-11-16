@@ -51,7 +51,7 @@ public class Catcher implements RawDataChannel {
 		}
 	}
 
-	public void blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
+	public boolean blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
 		synchronized (lock) {
 			timeout += TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 			while (messages.size() < expectedSize) {
@@ -60,6 +60,7 @@ public class Catcher implements RawDataChannel {
 					break;
 				lock.wait(time);
 			}
+			return messages.size() >= expectedSize; 
 		}
 	}
 

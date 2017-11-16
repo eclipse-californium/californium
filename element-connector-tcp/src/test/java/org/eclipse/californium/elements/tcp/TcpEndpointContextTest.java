@@ -21,6 +21,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove type checks for
  *                                                    EndpointContext. Functionality
  *                                                    should not depend on that.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use timeouts for waiting on
+ *                                                    messages.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -29,6 +31,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.text.IsEmptyString.isEmptyOrNullString;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.fail;
 import static org.eclipse.californium.elements.tcp.ConnectorTestUtil.*;
 
 import java.net.InetSocketAddress;
@@ -51,6 +54,8 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 public class TcpEndpointContextTest {
+
+	public static final long MESSAGE_TIMEOUT_MILLIS = 2000;
 
 	@Rule
 	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
@@ -78,8 +83,8 @@ public class TcpEndpointContextTest {
 	 */
 	@Test
 	public void testEndpointContext() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
-				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), ConnectorTestUtil.NUMBER_OF_THREADS,
+				ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 
@@ -97,7 +102,7 @@ public class TcpEndpointContextTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 		EndpointContext receivingServerContext = serverCatcher.getMessage(0).getEndpointContext();
 		assertThat(receivingServerContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
@@ -107,10 +112,9 @@ public class TcpEndpointContextTest {
 		// Response message must go over the same connection client already
 		// opened
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
-		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, 
-				serverCallback);
+		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 
 		EndpointContext serverContext = serverCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("Serverside no TCP Endpoint Context", serverContext, is(instanceOf(TcpEndpointContext.class)));
@@ -139,8 +143,7 @@ public class TcpEndpointContextTest {
 	}
 
 	/**
-	 * Test, if the endpoint context is different when reconnect after
-	 * timeout.
+	 * Test, if the endpoint context is different when reconnect after timeout.
 	 *
 	 * <pre>
 	 * 1. Send a request and fetch the endpoint context on client and
@@ -152,8 +155,8 @@ public class TcpEndpointContextTest {
 	 */
 	@Test
 	public void testEndpointContextWhenReconnectAfterTimeout() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
-				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), ConnectorTestUtil.NUMBER_OF_THREADS,
+				ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 
@@ -171,19 +174,20 @@ public class TcpEndpointContextTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 		EndpointContext serverContext = serverCatcher.getMessage(0).getEndpointContext();
 
 		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 
 		// timeout connection, hopefully this triggers a reconnect
-		Thread.sleep(TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
+		Thread.sleep(
+				TimeUnit.MILLISECONDS.convert(ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S * 2, TimeUnit.SECONDS));
 
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		serverCatcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS);
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		// new (different) client side connection id
@@ -214,8 +218,8 @@ public class TcpEndpointContextTest {
 	 */
 	@Test
 	public void testEndpointContextWhenReconnectAfterStopStart() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
-				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), ConnectorTestUtil.NUMBER_OF_THREADS,
+				ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_RECONNECT_IN_S);
 
@@ -233,7 +237,7 @@ public class TcpEndpointContextTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 		EndpointContext serverContext = serverCatcher.getMessage(0).getEndpointContext();
 
 		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
@@ -246,7 +250,13 @@ public class TcpEndpointContextTest {
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		if (!serverCatcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS)) {
+			Throwable error = clientCallback.getError();
+			if (error != null) {
+				error.printStackTrace();
+				fail("send error " + error.toString());
+			}
+		}
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		// new (different) client side connection id
@@ -264,8 +274,8 @@ public class TcpEndpointContextTest {
 	}
 
 	/**
-	 * Test, if the endpoint context provided for sending is handled proper
-	 * on the client side. 
+	 * Test, if the endpoint context provided for sending is handled proper on
+	 * the client side.
 	 * 
 	 * <pre>
 	 * 1. Send a request with endpoint context and check, that the message
@@ -281,8 +291,8 @@ public class TcpEndpointContextTest {
 	@Test
 	public void testClientSendingEndpointContext() throws Exception {
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
-				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), ConnectorTestUtil.NUMBER_OF_THREADS,
+				ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		client.setEndpointContextMatcher(matcher);
@@ -302,32 +312,32 @@ public class TcpEndpointContextTest {
 		RawData msg = createMessage(100, context, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, 2000);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(0));
 
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 
 		EndpointContext clientContext = clientCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
 
 		msg = createMessage(100, clientContext, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		serverCatcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS);
 
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(100, context, clientCallback);
 		client.send(msg);
 
-		serverCatcher.blockUntilSize(3, 2000);
+		serverCatcher.blockUntilSize(3, MESSAGE_TIMEOUT_MILLIS);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(3));
 	}
 
 	/**
-	 * Test, if the endpoint context provided for sending is handled proper
-	 * on the server side.
+	 * Test, if the endpoint context provided for sending is handled proper on
+	 * the server side.
 	 *
 	 * <pre>
 	 * 1. Send a request without endpoint context and check, that the
@@ -343,8 +353,8 @@ public class TcpEndpointContextTest {
 	@Test
 	public void testServerSendingEndpointContext() throws Exception {
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0),
-				ConnectorTestUtil.NUMBER_OF_THREADS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), ConnectorTestUtil.NUMBER_OF_THREADS,
+				ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		TcpClientConnector client = new TcpClientConnector(ConnectorTestUtil.NUMBER_OF_THREADS,
 				ConnectorTestUtil.CONNECTION_TIMEOUT_IN_MS, ConnectorTestUtil.IDLE_TIMEOUT_IN_S);
 		server.setEndpointContextMatcher(matcher);
@@ -363,7 +373,7 @@ public class TcpEndpointContextTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
 		EndpointContext serverContext = receivedMsg.getEndpointContext();
@@ -373,27 +383,27 @@ public class TcpEndpointContextTest {
 		msg = createMessage(100, serverContext, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 
 		serverCallback = new SimpleMessageCallback();
 		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(2);
+		clientCatcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS);
 
 		serverCallback = new SimpleMessageCallback();
 		TcpEndpointContext context = new TcpEndpointContext(receivedMsg.getInetSocketAddress(), "n.a.");
 		msg = createMessage(100, context, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(3, 2000);
+		clientCatcher.blockUntilSize(3, MESSAGE_TIMEOUT_MILLIS);
 		assertThat("Clientside received unexpected message", !clientCatcher.hasMessage(3));
 
 	}
 
 	/**
 	 * Test, if the endpoint context is determined proper when connecting to
-	 * different servers. 
+	 * different servers.
 	 * 
 	 * <pre>
 	 * 1. Send a message to different servers and determine the used 
@@ -440,7 +450,7 @@ public class TcpEndpointContextTest {
 		/* receive messages for all servers */
 		for (RawData message : messages) {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
-			catcher.blockUntilSize(1);
+			catcher.blockUntilSize(1, MESSAGE_TIMEOUT_MILLIS);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}
 
@@ -458,7 +468,7 @@ public class TcpEndpointContextTest {
 		/* receive 2. (follow up) messages for all servers */
 		for (RawData followupMessage : followupMessages) {
 			Catcher catcher = servers.get(followupMessage.getInetSocketAddress());
-			catcher.blockUntilSize(2);
+			catcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS);
 			assertArrayEquals(followupMessage.getBytes(), catcher.getMessage(1).getBytes());
 		}
 
