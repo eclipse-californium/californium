@@ -38,6 +38,8 @@
  *                                                    cleanup stale functions.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - keep original response, if
+ *                                                    current request is the original
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -559,22 +561,29 @@ public class BlockwiseLayer extends AbstractLayer {
 					clearBlock1Status(key);
 				default:
 				}
-				// prepare the response as response to the original request
-				Response resp = new Response(response.getCode());
-				// adjust the token using the original request
-				resp.setToken(exchange.getRequest().getToken());
-				if (exchange.getRequest().getType() == Type.CON) {
-					resp.setType(Type.ACK);
-					// adjust MID also
-					resp.setMID(exchange.getRequest().getMID());
+
+				// check, if response is for original request
+				if (exchange.getRequest() != exchange.getCurrentRequest()) {
+					// prepare the response as response to the original request
+					Response resp = new Response(response.getCode());
+					// adjust the token using the original request
+					resp.setToken(exchange.getRequest().getToken());
+					if (exchange.getRequest().getType() == Type.CON) {
+						resp.setType(Type.ACK);
+						// adjust MID also
+						resp.setMID(exchange.getRequest().getMID());
+					} else {
+						resp.setType(Type.NON);
+					}
+					resp.setSourceContext(response.getSourceContext());
+					resp.setPayload(response.getPayload());
+					resp.setOptions(response.getOptions());
+					resp.setRTT(exchange.calculateRTT());
+					exchange.setResponse(resp);
+					upper().receiveResponse(exchange, resp);
 				} else {
-					resp.setType(Type.NON);
+					upper().receiveResponse(exchange, response);
 				}
-				resp.setSourceContext(response.getSourceContext());
-				resp.setPayload(response.getPayload());
-				resp.setOptions(response.getOptions());
-				exchange.setResponse(resp);
-				upper().receiveResponse(exchange, resp);
 				return;
 			}
 
