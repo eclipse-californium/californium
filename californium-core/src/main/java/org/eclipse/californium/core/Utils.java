@@ -20,11 +20,9 @@
  *                                                    (for message tracing)
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace '\n' with 
  *                                                    System.lineSeparator() 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add rtt
  ******************************************************************************/
 package org.eclipse.californium.core;
-
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
@@ -141,6 +139,9 @@ public final class Utils {
 		sb.append(String.format("Type   : %s", r.getType().toString())).append(System.lineSeparator());
 		sb.append(String.format("Status : %s", r.getCode().toString())).append(System.lineSeparator());
 		sb.append(String.format("Options: %s", r.getOptions().toString())).append(System.lineSeparator());
+		if (r.getRTT() != null) {
+			sb.append(String.format("RTT    : %d ms", r.getRTT())).append(System.lineSeparator());
+		}
 		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(System.lineSeparator());
 		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
 			sb.append("---------------------------------------------------------------").append(System.lineSeparator());
