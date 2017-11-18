@@ -167,10 +167,10 @@ public class PlugtestClient {
 			SSLContext serverSslContext = null;
 			try {
 				clientCredentials = SslContextUtil.loadCredentials(
-						SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
+						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);
 				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_PROTOCOL + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 				serverSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
 						clientCredentials.getCertificateChain(), trustedCertificates);
 			} catch (GeneralSecurityException e) {
