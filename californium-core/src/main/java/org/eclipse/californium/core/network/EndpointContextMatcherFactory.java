@@ -19,6 +19,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContextMatcherFactory
  *                                                    to EndpointContextMatcherFactroy.
  *                                                    Add PRINCIPAL mode.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add TlsEndpointContextMatcher
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -30,6 +31,7 @@ import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.RelaxedDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
+import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 
 /**
@@ -47,9 +49,7 @@ public class EndpointContextMatcherFactory {
 	 * used to determine, if {@link StrictDtlsEndpointContextMatcher},
 	 * {@link RelaxedDtlsEndpointContextMatcher}, or
 	 * {@link PrincipalEndpointContextMatcher} is used. For other protocol
-	 * flavors the corresponding matcher is used. Note: currently the TLS based
-	 * endpoint context matcher is still missing and therefore for backwards
-	 * compatibility the DTLS ones are used.
+	 * flavors the corresponding matcher is used.
 	 * 
 	 * @param connector connector to create related endpoint context matcher.
 	 * @param config configuration.
@@ -65,10 +65,7 @@ public class EndpointContextMatcherFactory {
 				return new TcpEndpointContextMatcher();
 			}
 			else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
-				/*
-				 * To be implemented in a future PR, in the meanwhile use
-				 * default dtls matcher as default for backwards compatibility
-				 */
+				return new TlsEndpointContextMatcher();
 			}
 		}
 		String textualMode = "???";
