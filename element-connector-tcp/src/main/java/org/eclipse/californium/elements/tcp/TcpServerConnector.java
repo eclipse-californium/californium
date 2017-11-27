@@ -24,6 +24,7 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                 remove scheme
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - move SO_KEEPALIVE to child options.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -100,9 +101,12 @@ public class TcpServerConnector implements Connector {
 		workerGroup = new NioEventLoopGroup(numberOfThreads);
 
 		ServerBootstrap bootstrap = new ServerBootstrap();
+		// server socket 
 		bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-				.option(ChannelOption.SO_BACKLOG, 100).option(ChannelOption.SO_KEEPALIVE, true)
-				.option(ChannelOption.AUTO_READ, true).childHandler(new ChannelRegistry());
+				.option(ChannelOption.SO_BACKLOG, 100).option(ChannelOption.AUTO_READ, true)
+				.childHandler(new ChannelRegistry());
+		// connection socket
+		bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
 
 		// Start the server.
 		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();
@@ -196,6 +200,7 @@ public class TcpServerConnector implements Connector {
 	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
 	 */
 	protected void onNewChannelCreated(Channel ch) {
+		
 	}
 
 
