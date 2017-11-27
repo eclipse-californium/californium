@@ -18,6 +18,13 @@
 
 	<properties>
 		<httpasyncclient.version>4.1.2</httpasyncclient.version>
+		<httpasyncclient.version.spec>
+			version="[${versionmask;==;${httpasyncclient.version}},${versionmask;+;${httpasyncclient.version}})"
+		</httpasyncclient.version.spec>
+		<httpcore.version>4.4.5</httpcore.version>
+		<httpcore.version.spec>version="[${versionmask;==;${httpcore.version}},${versionmask;+;${httpcore.version}})"</httpcore.version.spec>
+		<httpclient.version>4.5.2</httpclient.version>
+		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
 	</properties>
 
 	<dependencies>
@@ -35,6 +42,24 @@
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpasyncclient</artifactId>
 			<version>${httpasyncclient.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>${httpcore.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore-nio</artifactId>
+			<version>${httpcore.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -65,6 +90,25 @@
 							org.eclipse.californium.proxy.resources
 						</Export-Package>
 						<Import-Package>
+							org.apache.http; ${httpcore.version.spec},
+							org.apache.http.client.*; ${httpclient.version.spec},
+							org.apache.http.concurrent; ${httpcore.version.spec},
+							org.apache.http.conn*; ${httpclient.version.spec},
+							org.apache.http.entity; ${httpcore.version.spec},
+							org.apache.http.impl; ${httpcore.version.spec},
+							org.apache.http.impl.client; ${httpclient.version.spec},
+							org.apache.http.impl.nio; ${httpcore.version.spec},
+							org.apache.http.impl.nio.client; ${httpasyncclient.version.spec},
+							org.apache.http.impl.nio.conn; ${httpasyncclient.version.spec},
+							org.apache.http.impl.nio.reactor; ${httpcore.version.spec},
+							org.apache.http.message; ${httpcore.version.spec},
+							org.apache.http.nio; ${httpcore.version.spec},
+							org.apache.http.nio.conn; ${httpasyncclient.version.spec},
+							org.apache.http.nio.protocol; ${httpcore.version.spec},
+							org.apache.http.nio.reactor; ${httpcore.version.spec},
+							org.apache.http.params; ${httpcore.version.spec},
+							org.apache.http.protocol; ${httpcore.version.spec},
+							org.apache.http.util; ${httpcore.version.spec},
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.proxy</Bundle-SymbolicName>
