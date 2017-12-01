@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix stale check in get()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use nano time to decouple
+ *                                                    from system time changes
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -446,7 +448,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		private CacheEntry(K key, V value) {
 			this.value = value;
 			this.key = key;
-			this.lastUpdate = System.currentTimeMillis();
+			this.lastUpdate = System.nanoTime();
 		}
 
 		private K getKey() {
@@ -458,12 +460,12 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private boolean isStale(long threshold) {
-			return System.currentTimeMillis() - lastUpdate >= TimeUnit.SECONDS.toMillis(threshold);
+			return System.nanoTime() - lastUpdate >= TimeUnit.SECONDS.toNanos(threshold);
 		}
 
 		private void recordAccess(CacheEntry<K, V> header) {
 			remove();
-			lastUpdate = System.currentTimeMillis();
+			lastUpdate = System.nanoTime();
 			addBefore(header);
 		}
 
