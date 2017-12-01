@@ -24,6 +24,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
  *                                                    by DTLS_RESPONSE_MATCHING
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add clone method
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  */
-public final class NetworkConfig {
+public final class NetworkConfig implements Cloneable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
 
@@ -276,6 +277,23 @@ public final class NetworkConfig {
 	public NetworkConfig() {
 		this.properties = new Properties();
 		NetworkConfigDefaults.setDefaults(this);
+	}
+
+	/**
+	 * Instantiates a new network configuration as clone of a provided
+	 * configuration.
+	 * 
+	 * @param config configuration to be cloned.
+	 * @see #clone()
+	 */
+	private NetworkConfig(NetworkConfig config) {
+		this.properties = new Properties();
+		this.properties.putAll(config.properties);
+	}
+
+	@Override
+	public Object clone() {
+		return new NetworkConfig(this);
 	}
 
 	/**

@@ -14,29 +14,19 @@
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - split creating connectors into
+ *                                                    AbstractTestServer.
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.security.GeneralSecurityException;
-import java.security.cert.Certificate;
+import java.util.Arrays;
 
-import javax.net.ssl.SSLContext;
-
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
-import org.eclipse.californium.elements.tcp.TcpServerConnector;
-import org.eclipse.californium.elements.tcp.TlsServerConnector;
-import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Large;
@@ -60,11 +50,6 @@ import org.eclipse.californium.plugtests.resources.Query;
 import org.eclipse.californium.plugtests.resources.Separate;
 import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ServerNames;
 
 // ETSI Plugtest environment
 //import java.net.InetSocketAddress;
@@ -74,44 +59,35 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * The class PlugtestServer implements the test specification for the ETSI IoT
  * CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
-public class PlugtestServer extends CoapServer {
+public class PlugtestServer extends AbstractTestServer {
 
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
-	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-	private static final String SERVER_NAME = "server";
-	private static final String PSK_IDENTITY_PREFIX = "cali.";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
 	private static final int MAX_RESOURCE_SIZE = 8192;
 
-	private static final NetworkConfig CONFIG = NetworkConfig.getStandard();
-
-	// allows port configuration in Californium.properties
-
 	public static void main(String[] args) {
-		CONFIG // used for plugtest
+		// allows port configuration in Californium.properties
+		NetworkConfig config = NetworkConfig.getStandard();
+		config // used for plugtest
 		.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
 		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000)
 		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300);
 
-		if (CONFIG.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
-			CONFIG.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
+		if (config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
+			config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
 		}
 
-		
 		// create server
 		try {
+			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
 			PlugtestServer server = new PlugtestServer();
 			// ETSI Plugtest environment
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(true, true, true, true, false);
+			server.addEndpoints(config, !noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
 			// add special interceptor for message traces
@@ -132,72 +108,6 @@ public class PlugtestServer extends CoapServer {
 			System.exit(ERR_INIT_FAILED);
 		}
 
-	}
-
-	private void addEndpoints(boolean udp, boolean tcp, boolean secure, boolean plain, boolean altPort) {
-		int coapPort = CONFIG.getInt(NetworkConfig.Keys.COAP_PORT);
-		int coapsPort = CONFIG.getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
-		int tcpThreads = CONFIG.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-		int tcpIdleTimeout = CONFIG.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-
-		SslContextUtil.Credentials serverCredentials = null;
-		Certificate[] trustedCertificates = null;
-		SSLContext serverSslContext = null;
-
-		if (altPort) {
-			coapPort += 100;
-			coapsPort += 100;
-		}
-		
-		if (secure) {
-			try {
-				serverCredentials = SslContextUtil.loadCredentials(
-						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
-						KEY_STORE_PASSWORD);
-				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				serverSslContext = SslContextUtil.createSSLContext(SERVER_NAME, serverCredentials.getPrivateKey(),
-						serverCredentials.getCertificateChain(), trustedCertificates);
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			if (plain) {
-				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
-				if (udp) {
-					addEndpoint(new CoapEndpoint(bindToAddress, CONFIG));
-				}
-				if (tcp) {
-					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
-					addEndpoint(new CoapEndpoint(connector, CONFIG));
-				}
-			}
-			if (secure) {
-				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
-				if (udp) {
-					DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-					dtlsConfig.setAddress(bindToAddress);
-					dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 });
-					dtlsConfig.setPskStore(new PlugPskStore());
-					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-							true);
-					dtlsConfig.setTrustStore(trustedCertificates);
-
-					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-
-					addEndpoint(new CoapEndpoint(connector, CONFIG));
-				}
-				if (tcp) {
-					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
-							tcpIdleTimeout);
-					addEndpoint(new CoapEndpoint(connector, CONFIG));
-				}
-			}
-		}
 	}
 
 	public PlugtestServer() throws SocketException {
@@ -227,27 +137,5 @@ public class PlugtestServer extends CoapServer {
 		add(new Validate());
 		add(new Create());
 		add(new Shutdown());
-	}
-
-	private static class PlugPskStore implements PskStore {
-
-		@Override
-		public byte[] getKey(String identity) {
-			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
-			}
-			return null;
-		}
-
-		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
-			return getKey(identity);
-		}
-
-		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
-			return PSK_IDENTITY_PREFIX + "sandbox";
-		}
-
 	}
 }
