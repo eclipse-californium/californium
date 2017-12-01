@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix stale check in get()
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -20,6 +21,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An in-memory cache with a maximum capacity
@@ -55,6 +57,9 @@ import java.util.Map;
  * Insertion, lookup and removal of entries is done in
  * <em>O(log n)</em>.
  * </p>
+ * 
+ * Note: if the <em>expiration threshold</em> is {@code 0}, "stale" is not
+ * applied in {@link #get(Object)} (otherwise that get would never return something).
  * 
  * @param <K> The type of the keys used in the cache.
  * @param <V> The type of the values used in the cache.
@@ -130,7 +135,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	private void initLinkedList() {
-		header = new CacheEntry<>(null, null, -1);
+		header = new CacheEntry<>();
 		header.after = header.before = header;
 	}
 
@@ -257,9 +262,8 @@ public class LeastRecentlyUsedCache<K, V> {
 				add(key, value);
 				return true;
 			} else {
-				long thresholdDate = System.currentTimeMillis() - expirationThreshold * 1000;
 				CacheEntry<K, V> eldest = header.after;
-				if (eldest.isStale(thresholdDate)) {
+				if (eldest.isStale(expirationThreshold)) {
 					eldest.remove();
 					cache.remove(eldest.getKey());
 					add(key, value);
@@ -290,7 +294,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	private void add(K key, V value) {
-		CacheEntry<K, V> entry = new CacheEntry<>(key, value, System.currentTimeMillis());
+		CacheEntry<K, V> entry = new CacheEntry<>(key, value);
 		cache.put(key, entry);
 		entry.addBefore(header);
 	}
@@ -312,7 +316,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		CacheEntry<K, V> entry = cache.get(key);
 		if (entry == null) {
 			return null;
-		} else if (entry.isStale(expirationThreshold)) {
+		} else if (expirationThreshold > 0 && entry.isStale(expirationThreshold)) {
 			cache.remove(entry.getKey());
 			entry.remove();
 			return null;
@@ -427,16 +431,22 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	private static class CacheEntry<K, V> {
-		private K key;
-		private V value;
+		private final K key;
+		private final V value;
 		private long lastUpdate;
 		private CacheEntry<K, V> after;
 		private CacheEntry<K, V> before;
 
-		private CacheEntry(K key, V value, long lastUpdate) {
+		private CacheEntry() {
+			this.key = null;
+			this.value = null;
+			this.lastUpdate = -1;
+		}
+
+		private CacheEntry(K key, V value) {
 			this.value = value;
 			this.key = key;
-			this.lastUpdate = lastUpdate;
+			this.lastUpdate = System.currentTimeMillis();
 		}
 
 		private K getKey() {
@@ -448,7 +458,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private boolean isStale(long threshold) {
-			return lastUpdate <= threshold;
+			return System.currentTimeMillis() - lastUpdate >= TimeUnit.SECONDS.toMillis(threshold);
 		}
 
 		private void recordAccess(CacheEntry<K, V> header) {
