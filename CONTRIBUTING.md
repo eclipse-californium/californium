@@ -39,11 +39,16 @@ You can find all the details in the [Contributing via Git](http://wiki.eclipse.o
 
 ## Making your Changes
 
+1. Consider to start with creating an issue on GitHub to discuss your plans and get the proper startup information.
 1. Fork the repository on GitHub
-1. Create a new branch for your changes
-1. Make your changes
+1. Create a new branch for your changes based on the 2.0.x branch. 
+   Please note: work based on other branches without prior discussion in an issue, may be in vain.
+1. If you use the eclipse IDE, please import our prefer formatter `eclipse-formatter-profile.xml` from the californium parent-folder and apply it to your changes (only :-) ).
+1. Make your changes 
 1. Make sure you include test cases for non-trivial features/changes
 1. Make sure the test suite runs successfully after you made your changes
+1. If new files are created, provide a proper license header
+   (see license_header_template.txt and copy the adjusted javadoc comment to the top of your java file)
 1. Commit your changes into the branch you created in step 2
 1. Use descriptive and meaningful commit messages
 1. If you have a lot of commits squash them into a single commit
