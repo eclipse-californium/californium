@@ -16,13 +16,14 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add more test with preset
+ *                                                    Endpoints
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.notNullValue;
-import static org.hamcrest.core.IsNull.nullValue;
 import static org.hamcrest.core.IsSame.sameInstance;
 
 import java.io.IOException;
@@ -42,8 +43,10 @@ import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class EndpointManagerTest {
+
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
 
 	@Before
 	public void setUp() throws Exception {
@@ -79,13 +82,14 @@ public class EndpointManagerTest {
 		assertThat(oldEndpoint.isStarted(), is(false));
 	}
 
-	@Test
-	public void testSetDefaultEndpointSchemeFailure() throws Exception {
-		try {
-			EndpointManager.getEndpointManager().setDefaultEndpoint(null);
-			assertThat("null should fail", false);
-		} catch (NullPointerException ex) {
-		}
+	@Test(expected = NullPointerException.class)
+	public void testSetDefaultEndpointWithNull() throws Exception {
+		EndpointManager.getEndpointManager().setDefaultEndpoint(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetDefaultEndpointProtocolNotSupported() throws Exception {
+		EndpointManager.getEndpointManager().setDefaultEndpoint(createEndpoint("http"));
 	}
 
 	@Test
@@ -101,34 +105,62 @@ public class EndpointManagerTest {
 		assertThat(endpoint.isStarted(), is(true));
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testGetDefaultCoapsEndpointFailure() throws Exception {
+		EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_SECURE_URI_SCHEME);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testGetDefaultCoapOverTcpEndpointFailure() throws Exception {
+		EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_TCP_URI_SCHEME);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testGetDefaultCoapsOverTcpEndpointFailure() throws Exception {
+		EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_SECURE_TCP_URI_SCHEME);
+	}
+
 	@Test
 	public void testGetDefaultCoapsEndpoint() throws Exception {
-		// WHEN get the default endpoint
+		whenEndpointSetAsDefault("DTLS");
+
 		Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_SECURE_URI_SCHEME);
 
-		// THEN assert that the endpoint is not available
-		assertThat(endpoint, is(nullValue()));
+		assertThat(endpoint, is(notNullValue()));
+		assertThat(endpoint.getUri(), is(notNullValue()));
+		assertThat(endpoint.getUri().getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
+		assertThat(endpoint.isStarted(), is(true));
 	}
 
 	@Test
 	public void testGetDefaultCoapOverTcpEndpoint() throws Exception {
-		// WHEN get the default endpoint
-		Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_TCP_URI_SCHEME);
-
-		// THEN assert that the endpoint is not available
-		assertThat(endpoint, is(nullValue()));
+		whenEndpointSetAsDefault("TCP");
+		EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_TCP_URI_SCHEME);
 	}
 
 	@Test
 	public void testGetDefaultCoapsOverTcpEndpoint() throws Exception {
-		// WHEN get the default endpoint
-		Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_SECURE_TCP_URI_SCHEME);
-
-		// THEN assert that the endpoint is not available
-		assertThat(endpoint, is(nullValue()));
+		whenEndpointSetAsDefault("TLS");
+		EndpointManager.getEndpointManager().getDefaultEndpoint(CoAP.COAP_SECURE_TCP_URI_SCHEME);
 	}
 
-	private static class DummyHttpConnector implements Connector {
+	private static void whenEndpointSetAsDefault(String protocol) {
+		EndpointManager.getEndpointManager().setDefaultEndpoint(createEndpoint(protocol));
+	}
+
+	private static Endpoint createEndpoint(String protocol) {
+		return new CoapEndpoint(new DummyConnector(protocol), network.getStandardTestConfig());
+	}
+
+	private static class DummyConnector implements Connector {
+
+		private final String protocol;
+		private final InetSocketAddress address;
+		
+		public DummyConnector(String protocol) {
+			this.protocol = protocol;
+			this.address = new InetSocketAddress(0);
+		}
 
 		@Override
 		public void start() throws IOException {
@@ -156,12 +188,12 @@ public class EndpointManagerTest {
 
 		@Override
 		public InetSocketAddress getAddress() {
-			return null;
+			return address;
 		}
 
 		@Override
 		public String getProtocol() {
-			return "HTTP";
+			return protocol;
 		}
 
 		@Override
