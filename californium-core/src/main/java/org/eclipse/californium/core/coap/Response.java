@@ -45,6 +45,9 @@ public class Response extends Message {
 	/** The response code. */
 	private final CoAP.ResponseCode code;
 
+	/**
+	 * RTT (round trip time) in milliseconds.
+	 */
 	private Long rtt;
 
 	private boolean last = true;
@@ -122,18 +125,18 @@ public class Response extends Message {
 	}
 
 	/**
-	 * Return RTT.
+	 * Return RTT (round trip time).
 	 * 
-	 * @return rtt, or {@code null}, if not set.
+	 * @return RTT in milliseconds, or {@code null}, if not set.
 	 */
 	public Long getRTT() {
 		return rtt;
 	}
 
 	/**
-	 * Set rtt.
+	 * Set RTT (round trip time) .
 	 * 
-	 * @param rtt rtt of response
+	 * @param rtt round trip time of response in milliseconds
 	 */
 	public void setRTT(long rtt) {
 		this.rtt = rtt;
