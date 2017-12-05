@@ -49,6 +49,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
+import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -79,7 +80,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * concurrent collections in the matcher and therefore establish a "happens
  * before" order (as long as threads accessing the exchange via the matcher).
  * But some methods are out of scope of that and use Exchange directly (e.g.
- * {@link #setEndpointContext(EndpointContext) the "sender thread" or
+ * {@link #setEndpointContext(EndpointContext)} the "sender thread" or
  * {@link #setFailedTransmissionCount(int)} the "retransmission thread
  * (executor)"). Therefore use at least volatile for the fields. This doesn't
  * ensure, that Exchange is thread safe, it only ensures the visibility of the

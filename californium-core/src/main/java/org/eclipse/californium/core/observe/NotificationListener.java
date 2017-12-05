@@ -33,7 +33,7 @@ public interface NotificationListener {
 	/**
 	 * Invoked when a notification for an observed resource has been received.
 	 * 
-	 * @param Request
+	 * @param request
 	 *            The original request that was used to establish the
 	 *            observation.
 	 * @param response

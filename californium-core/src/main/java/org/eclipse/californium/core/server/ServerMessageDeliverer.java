@@ -139,8 +139,6 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 *            the exchange of the current request
 	 * @param resource
 	 *            the target resource
-	 * @param path
-	 *            the path to the resource
 	 */
 	protected final void checkForObserveOption(final Exchange exchange, final Resource resource) {
 
