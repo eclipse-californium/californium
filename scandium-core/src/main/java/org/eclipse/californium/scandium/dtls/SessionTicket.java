@@ -123,7 +123,7 @@ public final class SessionTicket {
 	 * @param source The encoded session ticket.
 	 * @return The session object created from the ticket. Note that the session contains <em>pending</em>
 	 *         state information only and thus requires an abbreviated handshake to take place in order to
-	 *         create <em>current</em> read and write state. Returns {@ode null} if the  session ticket is
+	 *         create <em>current</em> read and write state. Returns {@code null} if the  session ticket is
 	 *         not encoded according to the structure defined by {@link #encode(DatagramWriter)}.
 	 */
 	public static SessionTicket decode(final DatagramReader source) {
