@@ -27,6 +27,7 @@ DO NOT USE IN PRODUCTION SYSTEMS!</description>
 				<targetPath>certs</targetPath>
 				<includes>
 					<include>*.jks</include>
+					<include>*.p12</include>
 				</includes>
 			</resource>
 		</resources>
