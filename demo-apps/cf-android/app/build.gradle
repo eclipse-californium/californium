@@ -9,11 +9,11 @@ repositories {
 
 android {
     compileSdkVersion 22
-    buildToolsVersion "22.0.1"
+    buildToolsVersion '26.0.2'
 
     defaultConfig {
         applicationId "org.eclipse.californium.examples.android"
-        minSdkVersion 15
+        minSdkVersion 19
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
@@ -24,10 +24,28 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    packagingOptions {
+        pickFirst 'about.html'
+        pickFirst 'edl-v10.html'
+        pickFirst 'epl-v10.html'
+        pickFirst 'notice.html'
+        pickFirst 'META-INF/INDEX.LIST'
+        pickFirst 'META-INF/LICENSE'
+        pickFirst 'META-INF/io.netty.versions.properties'
+        pickFirst 'LICENSE-2.0.txt'
+        exclude   '**/*.jks'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:22.2.1'
-    compile 'org.eclipse.californium:californium-core:1.0.0-SNAPSHOT'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.android.support:appcompat-v7:22.2.1'
+    implementation 'org.eclipse.californium:californium-core:1.0.7-SNAPSHOT'
+    implementation 'org.eclipse.californium:scandium:1.0.7-SNAPSHOT'
+    implementation 'org.eclipse.californium:demo-certs:1.0.7-SNAPSHOT'
 }

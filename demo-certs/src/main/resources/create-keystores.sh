@@ -4,6 +4,11 @@ KEY_STORE=keyStore.jks
 KEY_STORE_PWD=endPass
 TRUST_STORE=trustStore.jks
 TRUST_STORE_PWD=rootPass
+
+# android support
+KEY_STORE_P12=keyStore.p12
+TRUST_STORE_P12=trustStore.p12
+
 VALIDITY=365
 
 echo "creating root key and certificate..."
@@ -31,3 +36,8 @@ keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias client | 
   keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > client.pem
 keytool -alias client -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file client.pem
 
+echo "exporting keys into PKCS#12 format to support android"
+keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD \
+   -destkeystore $KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
+keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD \
+   -destkeystore $TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
