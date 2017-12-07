@@ -36,6 +36,20 @@ public class LeastRecentlyUsedCacheTest {
 	LeastRecentlyUsedCache<Integer, String> cache;
 
 	@Test
+	public void testGetFailsWhenExpired() throws InterruptedException {
+		long threshold =  1; // second
+		int capacity = 5;
+		int numberOfSessions = 1;
+
+		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertNotNull(cache.get(key));
+		Thread.sleep(threshold * 1100);
+		assertNull(cache.get(key));
+	}
+
+	@Test
 	public void testStoreAddsNewValueIfCapacityNotReached() {
 		int capacity = 10;
 
