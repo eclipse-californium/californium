@@ -72,7 +72,7 @@ public class EndpointManagerTest {
 	public void testSetDefaultEndpoint() throws Exception {
 		// GIVEN a old and a new endpoint
 		Endpoint oldEndpoint = EndpointManager.getEndpointManager().getDefaultEndpoint();
-		Endpoint endpoint = new CoapEndpoint();
+		Endpoint endpoint = new CoapEndpoint.CoapEndpointBuilder().build();
 
 		// WHEN set the new default endpoint
 		EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
@@ -149,7 +149,10 @@ public class EndpointManagerTest {
 	}
 
 	private static Endpoint createEndpoint(String protocol) {
-		return new CoapEndpoint(new DummyConnector(protocol), network.getStandardTestConfig());
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(new DummyConnector(protocol));
+		builder.setNetworkConfig(network.getStandardTestConfig());
+		return builder.build();
 	}
 
 	private static class DummyConnector implements Connector {

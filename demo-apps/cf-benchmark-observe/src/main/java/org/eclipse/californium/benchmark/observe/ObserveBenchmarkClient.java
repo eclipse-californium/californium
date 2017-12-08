@@ -101,7 +101,9 @@ public class ObserveBenchmarkClient {
 			
 		server.add(new AnnounceResource("announce"));
 		
-		server.addEndpoint(new CoapEndpoint(sockAddr));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(sockAddr);
+		server.addEndpoint(builder.build());
 		server.start();
 
 		System.out.println("Observe benchmark announcement server listening on " + sockAddr);

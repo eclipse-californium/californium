@@ -109,8 +109,10 @@ public class BenchmarkServer {
 		server.add(new BenchmarkResource("benchmark"));
 		server.add(new FibonacciResource("fibonacci"));
 		server.add(new ShutDownResource("shutdown"));
-		
-		server.addEndpoint(new CoapEndpoint(sockAddr));
+
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(sockAddr);
+		server.addEndpoint(builder.build());
 		server.start();
 
 		System.out.println("Benchmark server listening on " + sockAddr);

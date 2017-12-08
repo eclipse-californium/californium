@@ -101,8 +101,9 @@ public class SimpleFileServer extends CoapServer {
 	 */
 	private void addEndpoints() {
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
-			addEndpoint(new CoapEndpoint(bindToAddress));
+			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			builder.setInetSocketAddress(new InetSocketAddress(addr, COAP_PORT));
+			addEndpoint(builder.build());
 		}
 	}
 

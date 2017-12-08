@@ -77,7 +77,11 @@ public class CoapEndpointTest {
 		establishedContext = new MapBasedEndpointContext(CONNECTOR_ADDRESS, null);
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
-		endpoint = new CoapEndpoint(connector, CONFIG);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(connector);
+		builder.setNetworkConfig(CONFIG);
+
+		endpoint = builder.build();
 		sentLatch = new CountDownLatch(1);
 		latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
@@ -157,7 +161,10 @@ public class CoapEndpointTest {
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
 		SimpleConnector connector = new SimpleSecureConnector();
-		Endpoint endpoint = new CoapEndpoint(connector, CONFIG);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(connector);
+		builder.setNetworkConfig(CONFIG);
+		Endpoint endpoint = builder.build();
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override

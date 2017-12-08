@@ -70,7 +70,10 @@ public class ServerDeduplicationTest {
 		NetworkConfig config = network.getStandardTestConfig();
 		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL);
-		Endpoint ep = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		Endpoint ep = builder.build();
 		ep.addInterceptor(new MessageTracer());
 		server = new CoapServer();
 		server.addEndpoint(ep);

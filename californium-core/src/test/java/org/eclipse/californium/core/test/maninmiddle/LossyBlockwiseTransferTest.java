@@ -82,10 +82,18 @@ public class LossyBlockwiseTransferTest {
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+
+		clientEndpoint = builder.build();
 		clientEndpoint.start();
 
-		Endpoint serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+
+		Endpoint serverEndpoint = builder.build();
 		server = new CoapServer();
 		server.addEndpoint(serverEndpoint);
 		server.add(new CoapResource("test") {

@@ -39,6 +39,8 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -155,7 +157,7 @@ public class MessageExchangeStoreTool {
 
 		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
 				InMemoryObservationStore observationStore, MessageExchangeStore exchangeStore) {
-			super(CoapEndpoint.createUDPConnector(bind, config), config, observationStore, exchangeStore);
+			super(new UDPConnector(bind), true, config, observationStore, exchangeStore, new UdpEndpointContextMatcher());
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
