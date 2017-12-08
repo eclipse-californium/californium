@@ -95,7 +95,9 @@ public class SmallServerClientTest {
 	}
 
 	private void createSimpleServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint endpoint = builder.build();
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {

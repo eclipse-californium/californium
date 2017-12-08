@@ -239,7 +239,9 @@ public class ClientAsynchronousTest {
 	}
 
 	private static void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint endpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();

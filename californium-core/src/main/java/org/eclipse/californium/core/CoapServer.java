@@ -167,7 +167,10 @@ public class CoapServer implements ServerInterface {
 				new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
 		for (int port : ports) {
-			addEndpoint(new CoapEndpoint(port, this.config));
+			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			builder.setPort(port);
+			builder.setNetworkConfig(config);
+			addEndpoint(builder.build());
 		}
 	}
 
@@ -207,7 +210,10 @@ public class CoapServer implements ServerInterface {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.info("no endpoints have been defined for server, setting up server endpoint on default port {}", port);
-			addEndpoint(new CoapEndpoint(port, this.config));
+			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			builder.setPort(port);
+			builder.setNetworkConfig(config);
+			addEndpoint(builder.build());
 		}
 
 		int started = 0;

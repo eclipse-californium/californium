@@ -376,11 +376,19 @@ public class MemoryLeakingHashMapTest {
 
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, serverExchangeStore);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setMessageExchangeStore(serverExchangeStore);
+		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(new MessageTracer());
 
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,  clientExchangeStore);
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setMessageExchangeStore(clientExchangeStore);
+		clientEndpoint = builder.build();
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed

@@ -69,7 +69,10 @@ public class DeduplicationTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
-		client = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		client = builder.build();
 		client.addInterceptor(new MessageTracer());
 		client.start();
 		clientPort = client.getAddress().getPort();
