@@ -30,18 +30,20 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>1.0.4</version>
+            <version>1.0.6</version>
     </dependency>
     ...
   </dependencies>
   ...
 ```
 
-If you want to give the most recent milestone a try, use version `2.0.0-M2` instead.
+If you want to give the most recent milestone a try, use version `2.0.0-M6` instead.
 
-##### Current Master Builds
+Please Note: in the meantime, a lot of new bugfixes and improvements has been made in branch 2.0.x, which had affected the API and could not be back-ported to the other branches. Even if 2.0.x is still under development, we recommend to focus on using the 2.0.x branch, especially for larger changes.
 
-You can also be bold and try out the most recent build from `master`.
+##### Current Builds
+
+You can also be bold and try out the most recent build from `2.0.x`.
 However, we are not publishing those to Maven Central but to Californium's project repository at Eclipse only.
 You will therefore need to add the Eclipse Repository to your `pom.xml` first:
 
@@ -56,7 +58,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `1.1.0-SNAPHOT`.
+You can then simply depend on `2.0.0-SNAPSHOT`.
  
 # Eclipse
 
@@ -77,8 +79,10 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 # Interop Server
 
-A test server is running at [coap://iot.eclipse.org:5683/](coap://iot.eclipse.org:5683/).
+A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
+It is an instance of the `cf-plugtest-server` from the demo-apps.
 The root resource responds with its current version.
+More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
 
 Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).

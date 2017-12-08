@@ -22,6 +22,7 @@
  *                                                    (for message tracing)
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change type for rtt to Long
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -44,7 +45,10 @@ public class Response extends Message {
 	/** The response code. */
 	private final CoAP.ResponseCode code;
 
-	private long rtt;
+	/**
+	 * RTT (round trip time) in milliseconds.
+	 */
+	private Long rtt;
 
 	private boolean last = true;
 
@@ -120,10 +124,20 @@ public class Response extends Message {
 		this.last = last;
 	}
 
-	public long getRTT() {
+	/**
+	 * Return RTT (round trip time).
+	 * 
+	 * @return RTT in milliseconds, or {@code null}, if not set.
+	 */
+	public Long getRTT() {
 		return rtt;
 	}
 
+	/**
+	 * Set RTT (round trip time) .
+	 * 
+	 * @param rtt round trip time of response in milliseconds
+	 */
 	public void setRTT(long rtt) {
 		this.rtt = rtt;
 	}

@@ -46,12 +46,12 @@ public class TlsConnectorTestUtil {
 	public static Principal clientSubjectDN;
 
 	public static void initializeSsl() throws Exception {
-		KeyManager[] clientKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION,
+		KeyManager[] clientKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 				CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-		KeyManager[] serverKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION,
+		KeyManager[] serverKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 				SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		TrustManager[] trusts = SslContextUtil
-				.loadTrustManager(SslContextUtil.CLASSPATH_PROTOCOL + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+				.loadTrustManager(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 
 		clientSubjectDN = getSubjectDN(clientKeys, CLIENT_NAME);
 		serverSubjectDN = getSubjectDN(serverKeys, SERVER_NAME);
@@ -82,15 +82,15 @@ public class TlsConnectorTestUtil {
 		if (aliasPrivateKey == null) {
 			aliasPrivateKey = aliasChain;
 		}
-		Credentials credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION,
+		Credentials credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 				aliasPrivateKey, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		X509Certificate[] chain = SslContextUtil.loadCertificateChain(
-				SslContextUtil.CLASSPATH_PROTOCOL + KEY_STORE_LOCATION, aliasChain, KEY_STORE_PASSWORD);
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, aliasChain, KEY_STORE_PASSWORD);
 
 		KeyManager[] keys = SslContextUtil.createKeyManager(aliasChain, credentials.getPrivateKey(), chain);
 
 		TrustManager[] trusts = SslContextUtil.loadTrustManager(
-				SslContextUtil.CLASSPATH_PROTOCOL + TRUST_STORE_LOCATION, aliasTrustsPattern, TRUST_STORE_PASSWORD);
+				SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, aliasTrustsPattern, TRUST_STORE_PASSWORD);
 
 		Principal subjectDN = getSubjectDN(keys, aliasChain);
 		log("keys ", keys);

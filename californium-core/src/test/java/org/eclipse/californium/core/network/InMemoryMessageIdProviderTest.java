@@ -137,7 +137,7 @@ public class InMemoryMessageIdProviderTest {
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		addPeers(provider, MAX_PEERS);
 
-		Thread.sleep(MAX_PEER_INACTIVITY_PERIOD * 1000);
+		Thread.sleep(MAX_PEER_INACTIVITY_PERIOD * 1200);
 
 		assertThat(provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1)), is(not(-1)));
 	}

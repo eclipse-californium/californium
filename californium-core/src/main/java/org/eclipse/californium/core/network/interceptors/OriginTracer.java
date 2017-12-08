@@ -20,13 +20,14 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reduce trace to 
+ *                                                    InetSocketAddress
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,14 +52,14 @@ public final class OriginTracer extends MessageInterceptorAdapter {
 
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.trace("{}", request.getSourceContext());
+		LOGGER.trace("{}", request.getSourceContext().getPeerAddress());
 	}
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
 		// only log pings
 		if (message.getType() == Type.CON) {
-			LOGGER.trace("{}", message.getSourceContext());
+			LOGGER.trace("{}", message.getSourceContext().getPeerAddress());
 		}
 	}
 }

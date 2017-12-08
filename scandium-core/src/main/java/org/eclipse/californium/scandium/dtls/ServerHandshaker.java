@@ -174,9 +174,7 @@ public class ServerHandshaker extends Handshaker {
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
-	 * @param trustedRPKs  the set of raw public key identities that have been verified out of 
-	 *     bound and are trusted. Can be null           
-	 *            
+	 *
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws IllegalArgumentException

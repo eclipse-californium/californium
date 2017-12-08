@@ -321,7 +321,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 * @param endpointContextMatcher endpoint context matcher for relating
 	 *            responses to requests. If <code>null</code>, the result of
-	 *            {@link EndpointContextMatcherFactory#create(NetworkConfig)}
+	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
 	 *            is used as matcher.
 	 */
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
