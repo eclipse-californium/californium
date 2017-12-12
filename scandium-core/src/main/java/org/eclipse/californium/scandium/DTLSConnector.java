@@ -68,6 +68,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
  *                                                    to DTLSSession
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -699,6 +700,7 @@ public class DTLSConnector implements Connector {
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 						// create application message.
 						receivedApplicationMessage = RawData.inbound(message.getData(), session.getConnectionReadContext(), false);
+						connection.refreshAutoResumptionTime();
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -1071,7 +1073,7 @@ public class DTLSConnector implements Connector {
 	 *           cannot be used to start a handshake with the peer
 	 */
 	private void startNewHandshake(final ClientHello clientHello, final Record record) throws HandshakeException {
-		Connection peerConnection = new Connection(record.getPeerAddress());
+		Connection peerConnection = new Connection(record.getPeerAddress(), config.getAutoResumptionTimeoutMillis());
 		connectionStore.put(peerConnection);
 
 		// use the record sequence number from CLIENT_HELLO as initial sequence number
@@ -1099,7 +1101,7 @@ public class DTLSConnector implements Connector {
 		if (previousConnection != null && previousConnection.isActive()) {
 
 			// session has been found in cache, resume it
-			Connection peerConnection = new Connection(record.getPeerAddress());
+			Connection peerConnection = new Connection(record.getPeerAddress(), config.getAutoResumptionTimeoutMillis());
 			SessionTicket ticket = null;
 			if (previousConnection.hasEstablishedSession()) {
 				ticket = previousConnection.getEstablishedSession().getSessionTicket();
@@ -1261,7 +1263,7 @@ public class DTLSConnector implements Connector {
 		// at all times
 
 		if (connection == null) {
-			connection = new Connection(peerAddress);
+			connection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
 			connectionStore.put(connection);
 		}
 
@@ -1284,7 +1286,7 @@ public class DTLSConnector implements Connector {
 			DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress, session.getSessionTicket(), 0);
 
 			// terminate the previous connection and add the new one to the store
-			Connection newConnection = new Connection(peerAddress);
+			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
 			terminateConnection(connection, null, null);
 			connectionStore.put(newConnection);
 			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
@@ -1312,8 +1314,14 @@ public class DTLSConnector implements Connector {
 					session.getSequenceNumber(),
 					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
 					session);
+			
 			sendRecord(record);
 			message.onSent();
+			InetSocketAddress peerAddress = message.getInetSocketAddress();
+			Connection connection = connectionStore.get(peerAddress);
+			if (connection != null) {
+				connection.refreshAutoResumptionTime();
+			}
 		} catch (IOException e) {
 			message.onError(e);
 		} catch (GeneralSecurityException e) {

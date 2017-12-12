@@ -21,6 +21,7 @@
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *    Achim Kraus (Bosch Software Innovations GmbH) - include trustedRPKs in
  *                                                    determineCipherSuitesFromConfig
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -129,6 +130,14 @@ public final class DtlsConnectorConfig {
 	private ServerNameResolver serverNameResolver;
 
 	private Integer connectionThreadCount;;
+
+	/**
+	 * Automatic session resumption timeout. Triggers session resumption
+	 * automatically, if no messages are exchanged for this timeout. Intended to
+	 * be used, if traffic is routed through a NAT. If {@code null}, no
+	 * automatic session resumption is used. Value is in milliseconds.
+	 */
+	private Long autoResumptionTimeoutMillis;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -354,6 +363,20 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getConnectionThreadCount() {
 		return connectionThreadCount;
+	}
+
+	/**
+	 * Get the timeout for automatic session resumption.
+	 * 
+	 * If no messages are exchanged for this timeout, the next message will
+	 * trigger a session resumption automatically. Intended to be used, if
+	 * traffic is routed over a NAT.
+	 * 
+	 * @return timeout in milliseconds, or {@code null}, if no automatic resumption
+	 *         is intended.
+	 */
+	public Long getAutoResumptionTimeoutMillis() {
+		return autoResumptionTimeoutMillis;
 	}
 
 	/**
@@ -817,6 +840,18 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setConnectionThreadCount(int threadCount) {
 			config.connectionThreadCount = threadCount;
+			return this;
+		}
+
+		/**
+		 * Set the timeout of automatic session resumption in milliseconds.
+		 * <p>
+		 * The default value is {@code null}, no automatic session resumption.
+		 * 
+		 * @return this builder for command chaining.
+		 */
+		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
+			config.autoResumptionTimeoutMillis = timeoutInMillis;
 			return this;
 		}
 

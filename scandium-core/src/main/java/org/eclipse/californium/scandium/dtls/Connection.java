@@ -19,10 +19,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use volatile for establishedSession.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +48,11 @@ public final class Connection implements SessionListener {
 	private final SessionTicket ticket;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
-
+	private final AtomicLong lastMessage = new AtomicLong();
+	private final Long autoResumptionTimeout;
+	
 	// Used to know when an abbreviated handshake should be initiated
-	private boolean resumptionRequired = false; 
+	private volatile boolean resumptionRequired = false; 
 
 	/**
 	 * Creates a new connection to a given peer.
@@ -55,8 +60,8 @@ public final class Connection implements SessionListener {
 	 * @param peerAddress the IP address and port of the peer the connection exists with
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
-	public Connection(final InetSocketAddress peerAddress) {
-		this(peerAddress, (Handshaker) null);
+	public Connection(final InetSocketAddress peerAddress, final Long autoResumptionTimeout) {
+		this(peerAddress, (Handshaker) null, autoResumptionTimeout);
 	}
 
 	/**
@@ -71,6 +76,7 @@ public final class Connection implements SessionListener {
 		}
 		this.ticket = sessionTicket;
 		this.peerAddress = null;
+		this.autoResumptionTimeout = null;
 	}
 
 	/**
@@ -81,12 +87,13 @@ public final class Connection implements SessionListener {
 	 *                   handshake with the peer 
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
-	public Connection(final InetSocketAddress peerAddress, final Handshaker ongoingHandshake) {
+	public Connection(final InetSocketAddress peerAddress, final Handshaker ongoingHandshake, final Long autoResumptionTimeout) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else {
 			this.ticket = null;
 			this.peerAddress = peerAddress;
+			this.autoResumptionTimeout = autoResumptionTimeout;
 			this.ongoingHandshake.set(ongoingHandshake);
 		}
 	}
@@ -269,7 +276,36 @@ public final class Connection implements SessionListener {
 	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
 	 */
 	public boolean isResumptionRequired() {
-		return resumptionRequired;
+		return resumptionRequired || isAutoResumptionRequired();
+	}
+
+	/**
+	 * Check, if the automatic session resumption should be triggered.
+	 * 
+	 * @return {@code true}, if the {@link #autoResumptionTimeout} has expired
+	 *         without exchanging message.
+	 */
+	public boolean isAutoResumptionRequired() {
+		if (autoResumptionTimeout != null && establishedSession != null) {
+			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+			if ((lastMessage.get() + autoResumptionTimeout - now) < 0) {
+				setResumptionRequired(true);
+				return resumptionRequired;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Refresh auto resumption timeout.
+	 * @see #autoResumptionTimeout
+	 * @see #lastMessage
+	 */
+	public void refreshAutoResumptionTime() {
+		if (autoResumptionTimeout != null) {
+			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+			lastMessage.set(now);
+		}
 	}
 
 	/**

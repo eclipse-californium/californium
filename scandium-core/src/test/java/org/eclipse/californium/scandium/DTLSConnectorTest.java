@@ -37,6 +37,7 @@
  *                                                    testConnectorAbortsHandshakeOnUnknownPskIdentity
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests to
  *                                                    DTLSCorrelationTest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for automatic resumption
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -214,6 +215,21 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(stripedExecutor);
+
+		clientRawDataChannel = new LatchDecrementingRawDataChannel();
+	}
+
+	public void autoResumeSetUp(int timeout) throws Exception {
+		cleanUp();
+		serverSessionCache.establishedSessionCounter.set(0);
+		pskStoreLatency = 0;
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
+		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
+		clientConfig = clientConfigBuilder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(stripedExecutor);
 
@@ -1116,6 +1132,71 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
+	public void testConnectorAutoResumesSession() throws Exception {
+
+		autoResumeSetUp(1000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+
+		Thread.sleep(2000);
+
+		assertThat(connection.isAutoResumptionRequired(), is(true));
+		
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(2));
+	}
+
+	@Test
+	public void testConnectorNoAutoResumesSession() throws Exception {
+
+		autoResumeSetUp(2000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+		Thread.sleep(1500);
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		Thread.sleep(1500);
+
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+	}
+
+	@Test
 	public void testStartStopWithNewAddress() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession(false);
@@ -1363,8 +1444,8 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverConnectionStore.clear();
 		assertTrue(serverConnectionStore.remainingCapacity() == SERVER_CONNECTION_STORE_CAPACITY);
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))));
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050))));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), null)));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), null)));
 
 		CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);
