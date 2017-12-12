@@ -19,6 +19,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -30,6 +31,11 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 public class InMemorySessionCache implements SessionCache {
 
 	private final Map<SessionId, byte[]> cache = new ConcurrentHashMap<>();
+
+	/**
+	 * Count for {@link #put(DTLSSession)} calls.
+	 */
+	public final AtomicInteger establishedSessionCounter = new AtomicInteger();
 
 	/**
 	 * Puts a ticket to the cache.
@@ -50,6 +56,7 @@ public class InMemorySessionCache implements SessionCache {
 	@Override
 	public void put(final DTLSSession session) {
 		if (session != null) {
+			establishedSessionCounter.incrementAndGet();
 			put(session.getSessionIdentifier(), session.getSessionTicket());
 		}
 	}

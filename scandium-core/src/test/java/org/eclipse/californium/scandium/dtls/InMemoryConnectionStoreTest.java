@@ -135,7 +135,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress);
+		Connection con = new Connection(peerAddress, null);
 		con.sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
