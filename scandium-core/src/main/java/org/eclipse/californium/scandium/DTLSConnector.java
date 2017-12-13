@@ -65,19 +65,19 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.CorrelationContext;
@@ -158,9 +158,8 @@ public class DTLSConnector implements Connector {
 
 	private final ResumptionSupportingConnectionStore connectionStore;
 
-	/** A queue for buffering outgoing messages */
-	private final BlockingQueue<RawData> outboundMessages;
-
+	private final AtomicInteger pendingOutboundMessages = new AtomicInteger();
+	
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -179,9 +178,6 @@ public class DTLSConnector implements Connector {
 
 	/** The thread that receives messages */
 	private Worker receiver;
-
-	/** The thread that sends messages */
-	private Worker sender;
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
@@ -238,7 +234,7 @@ public class DTLSConnector implements Connector {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
 			this.config = configuration;
-			this.outboundMessages = new LinkedBlockingQueue<>(config.getOutboundMessageBufferSize());
+			this.pendingOutboundMessages.set(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
@@ -317,6 +313,8 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 
+		pendingOutboundMessages.set(config.getOutboundMessageBufferSize());
+
 		timer = Executors.newSingleThreadScheduledExecutor(
 				new DaemonThreadFactory("DTLS RetransmitTask-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 
@@ -363,13 +361,6 @@ public class DTLSConnector implements Connector {
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		running.set(true);
 
-		sender = new Worker("DTLS-Sender-" + lastBindAddress) {
-				@Override
-				public void doWork() throws Exception {
-					sendNextMessageOverNetwork();
-				}
-			};
-
 		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
 				@Override
 				public void doWork() throws Exception {
@@ -378,7 +369,6 @@ public class DTLSConnector implements Connector {
 			};
 
 		receiver.start();
-		sender.start();
 		LOGGER.log(
 				Level.INFO,
 				"DTLS connector listening on [{0}] with MTU [{1}] using (inbound) datagram buffer size [{2} bytes]",
@@ -424,8 +414,6 @@ public class DTLSConnector implements Connector {
 	 */
 	final synchronized void releaseSocket() {
 		running.set(false);
-		outboundMessages.clear();
-		sender.interrupt();
 		if (socket != null) {
 			socket.close();
 			socket = null;
@@ -1243,7 +1231,7 @@ public class DTLSConnector implements Connector {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void send(RawData msg) {
+	public final void send(final RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
 		} else if (!running.get()) {
@@ -1252,24 +1240,36 @@ public class DTLSConnector implements Connector {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {
-			boolean queueFull = !outboundMessages.offer(msg);
-			if (queueFull) {
+			if (pendingOutboundMessages.decrementAndGet() >= 0) {
+				executor.execute(new StripedRunnable() {
+	
+					@Override
+					public Object getStripe() {
+						return msg.getInetSocketAddress();
+					}
+	
+					@Override
+					public void run() {
+						try {
+							pendingOutboundMessages.incrementAndGet();
+							if (running.get()) {
+								sendMessage(msg);
+							}
+						} catch (Exception e) {
+							if (running.get()) {
+								LOGGER.log(Level.FINE, "Exception thrown by worker thread [" + Thread.currentThread().getName() + "]", e);
+							}
+						} finally {
+							pendingOutboundMessages.incrementAndGet();
+						}
+					}
+				});
+			}
+			else {
+				pendingOutboundMessages.incrementAndGet();
 				LOGGER.log(Level.WARNING, "Outbound message queue is full! Dropping outbound message to peer [{0}]",
 						msg.getInetSocketAddress());
 			}
-		}
-	}
-
-	private void sendNextMessageOverNetwork() throws HandshakeException {
-
-		try {
-			RawData message = outboundMessages.take(); // Blocking
-			sendMessage(message);
-		} catch (InterruptedException e) {
-			// this means that the worker thread for sending
-			// outbound messages has been interrupted, most
-			// probably because the connector is shutting down
-			Thread.currentThread().interrupt();
 		}
 	}
 
@@ -1398,7 +1398,6 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void sendFlight(DTLSFlight flight) {
-
 		byte[] payload = new byte[] {};
 		int maxDatagramSize = maximumTransmissionUnit;
 		if (flight.getSession() != null) {
@@ -1411,9 +1410,9 @@ public class DTLSConnector implements Connector {
 		// put as many records into one datagram as allowed by the max. payload size
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
 
-		try {
+		try{
 			for (Record record : flight.getMessages()) {
-
+	
 				byte[] recordBytes = record.toByteArray();
 				if (recordBytes.length > maxDatagramSize) {
 					LOGGER.log(
@@ -1436,19 +1435,19 @@ public class DTLSConnector implements Connector {
 					datagrams.add(datagram);
 					payload = new byte[] {};
 				}
-
+	
 				payload = ByteArrayUtils.concatenate(payload, recordBytes);
 			}
-
+	
 			DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 					flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 			datagrams.add(datagram);
-
+	
 			// send it over the UDP socket
 			LOGGER.log(Level.FINER, "Sending flight of {0} message(s) to peer [{1}] using {2} datagram(s) of max. {3} bytes",
 					new Object[]{flight.getMessages().size(), flight.getPeerAddress(), datagrams.size(), maxDatagramSize});
 			for (DatagramPacket datagramPacket : datagrams) {
-				sendDatagram(datagramPacket);
+				sendNextDatagramOverNetwork(datagramPacket);
 			}
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Could not send datagram", e);
@@ -1459,13 +1458,13 @@ public class DTLSConnector implements Connector {
 		try {
 			byte[] recordBytes = record.toByteArray();
 			DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
-			sendDatagram(datagram);
+			sendNextDatagramOverNetwork(datagram);
 		} catch (IOException e) {
 			LOGGER.log(Level.WARNING, "Could not send record", e);
 		}
 	}
-
-	private void sendDatagram(DatagramPacket datagramPacket) throws IOException {
+	
+	private void sendNextDatagramOverNetwork(final DatagramPacket datagramPacket) throws IOException {
 		DatagramSocket socket = getSocket();
 		if (socket != null && !socket.isClosed()) {
 			socket.send(datagramPacket);
