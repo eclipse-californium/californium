@@ -26,6 +26,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                    remove scheme
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - returns address context
+ *                                                    when sending a message.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -324,19 +326,22 @@ public class UDPConnector implements Connector {
 				 * check, if message should be sent with the
 				 * "none endpoint context" of UDP connector
 				 */
+				EndpointContext destination = raw.getEndpointContext();
+				InetSocketAddress destinationAddress = destination.getPeerAddress();
 				EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
-				if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
+				if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, null)) {
 					LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}",
 							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
-									datagram.getAddress(), datagram.getPort() });
+									destinationAddress });
 					raw.onError(new EndpointMismatchException());
 					return;
 				}
+				EndpointContext connectionContext = new AddressEndpointContext(destinationAddress);
+				raw.onContextEstablished(connectionContext);
 				datagram.setData(raw.getBytes());
-				datagram.setAddress(raw.getAddress());
-				datagram.setPort(raw.getPort());
-				LOGGER.debug("UDPConnector ({}) sends {} bytes to {}:{}",
-						new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
+				datagram.setSocketAddress(destinationAddress);
+				LOGGER.debug("UDPConnector ({}) sends {} bytes to {}",
+						new Object[] { this, datagram.getLength(), destinationAddress});
 				socket.send(datagram);
 				raw.onSent();
 			} catch (IOException ex) {

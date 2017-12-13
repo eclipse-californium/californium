@@ -15,10 +15,11 @@
  *                                - initial API and implementation
  *     Achim Kraus (Bosch Software Innovations GmbH) - cleanup
  *     Bosch Software Innovations GmbH - migrate to SLF4J
+ *     Achim Kraus (Bosch Software Innovations GmbH) - cleanup
+ *     Achim Kraus (Bosch Software Innovations GmbH) - remove address from KeyToken
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Set;
@@ -26,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
@@ -63,8 +63,8 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 	}
 
 	@Override
-	public KeyToken getUnusedToken(final Message message) {
-		return createUnusedToken(message);
+	public KeyToken getUnusedToken() {
+		return createUnusedToken();
 	}
 
 	@Override
@@ -77,15 +77,13 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 		return usedTokens.contains(keyToken);
 	}
 
-	private KeyToken createUnusedToken(final Message message) {
-		InetSocketAddress socketAddress = message.getDestinationContext().getPeerAddress();
-		byte[] address = socketAddress.getAddress().getAddress();
+	private KeyToken createUnusedToken() {
 		byte[] token = new byte[tokenSizeLimit];
 		KeyToken result;
 		// TODO what to do when there are no more unused tokens left?
 		do {
 			rng.nextBytes(token);
-			result =  KeyToken.fromValues(token, address, socketAddress.getPort());
+			result =  KeyToken.fromValues(token);
 		} while (!usedTokens.add(result));
 		return result;
 	}

@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce external dependency
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add address ignoring matcher
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -39,6 +40,8 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 
@@ -110,15 +113,16 @@ public class MessageExchangeStoreTool {
 			}
 		});
 		assertTrue("endpoint still contains states", endpoint.isEmpty());
-		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests()+ " not terminated with an event",
+		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests() + " not terminated with an event",
 				endpoint.getRequestChecker().allRequestsTerminated());
-		
+
 	}
 
-	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval, CheckCondition check) {
+	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval,
+			CheckCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
-			System.out.println("Wait until deduplicator should be empty (" + timeToWait/1000f + " seconds)");
+			System.out.println("Wait until deduplicator should be empty (" + timeToWait / 1000f + " seconds)");
 			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -156,15 +160,21 @@ public class MessageExchangeStoreTool {
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
-				InMemoryObservationStore observationStore, MessageExchangeStore exchangeStore) {
-			super(new UDPConnector(bind), true, config, observationStore, exchangeStore, new UdpEndpointContextMatcher());
+				InMemoryObservationStore observationStore, MessageExchangeStore exchangeStore,
+				EndpointContextMatcher endpointContextMatcher) {
+			super(new UDPConnector(bind), true, config, observationStore, exchangeStore, endpointContextMatcher);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
-			this(bind, config, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config));
+			this(bind, config, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), null);
+		}
+
+		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean ignoreAddress) {
+			this(bind, config, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config),
+					new TestEndpointContextMatcher(ignoreAddress));
 		}
 
 		@Override
@@ -239,9 +249,46 @@ public class MessageExchangeStoreTool {
 		public boolean allRequestsTerminated() {
 			return requests.isEmpty();
 		}
-		
-		public Collection<Request> getUnterminatedRequests(){
+
+		public Collection<Request> getUnterminatedRequests() {
 			return requests;
 		}
 	}
+
+	public static class TestEndpointContextMatcher extends UdpEndpointContextMatcher {
+
+		/**
+		 * Ignore address. Plain coap is not supporting observe/notify with
+		 * changed addresses. To make such tests, please use
+		 * {@link CoapTestEndpoint#CoapTestEndpoint(InetSocketAddress, NetworkConfig, boolean)}
+		 */
+		private final boolean ignoreAddress;
+
+		/**
+		 * Create context matcher.
+		 * 
+		 * @param ignoreAddress {@code true}, if address should be ignored,
+		 *            {@code false}, otherwise.
+		 */
+		public TestEndpointContextMatcher(boolean ignoreAddress) {
+			this.ignoreAddress = ignoreAddress;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * Depending on {@link #ignoreAddress}, the address is ignored for
+		 * matching.
+		 */
+		@Override
+		public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
+			if (ignoreAddress) {
+				return super.internalMatch(requestContext, responseContext);
+			} else {
+				return super.isResponseRelatedToRequest(requestContext, responseContext);
+			}
+		}
+
+	}
+
 }

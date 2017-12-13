@@ -214,10 +214,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		Request request = exchange.getCurrentRequest();
 		KeyToken idByToken;
 		if (request.getToken() == null) {
-			idByToken = tokenProvider.getUnusedToken(request);
+			idByToken = tokenProvider.getUnusedToken();
 			request.setToken(idByToken.getToken());
 		} else {
-			idByToken = KeyToken.fromOutboundMessage(request);
+			idByToken = KeyToken.fromMessage(request);
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())

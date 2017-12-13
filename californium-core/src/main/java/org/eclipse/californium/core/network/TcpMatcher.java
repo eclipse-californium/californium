@@ -126,7 +126,7 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveResponse(final Response response) {
 
-		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromMessage(response);
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -170,11 +170,11 @@ public final class TcpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					KeyToken idByToken = KeyToken.fromMessage(originRequest);
 					exchangeStore.remove(idByToken, exchange);
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);

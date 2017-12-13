@@ -19,6 +19,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
  *                                                    to distinguish from 
  *                                                    none plain UDP contexts.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check address for plain udp
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -40,6 +41,9 @@ public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
+		if (!requestContext.getPeerAddress().equals(responseContext.getPeerAddress())) {
+			return false;
+		}
 		return internalMatch(requestContext, responseContext);
 	}
 
@@ -48,7 +52,7 @@ public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 		return internalMatch(messageContext, connectorContext);
 	}
 
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+	protected final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
 		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
 	}
 
