@@ -169,7 +169,10 @@ public class ClientInitializer {
 			connector = new UDPConnector();
 		}
 
-		CoapEndpoint endpoint = new CoapEndpoint(connector, config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(connector);
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
 		if (verbose) {
 			endpoint.addInterceptor(new MessageTracer());
 		}

@@ -86,11 +86,17 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.UDP) || protocols.contains(Protocol.TCP)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
 				if (protocols.contains(Protocol.UDP)) {
-					addEndpoint(new CoapEndpoint(bindToAddress, config));
+					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					builder.setInetSocketAddress(bindToAddress);
+					builder.setNetworkConfig(config);
+					addEndpoint(builder.build());
 				}
 				if (protocols.contains(Protocol.TCP)) {
 					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
-					addEndpoint(new CoapEndpoint(connector, config));
+					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					builder.setConnector(connector);
+					builder.setNetworkConfig(config);
+					addEndpoint(builder.build());
 				}
 			}
 			if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
@@ -107,13 +113,19 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfig.setTrustStore(trustedCertificates);
 
 					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					builder.setConnector(connector);
+					builder.setNetworkConfig(config);
 
-					addEndpoint(new CoapEndpoint(connector, config));
+					addEndpoint(builder.build());
 				}
 				if (protocols.contains(Protocol.TLS)) {
 					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
 							tcpIdleTimeout);
-					addEndpoint(new CoapEndpoint(connector, config));
+					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					builder.setConnector(connector);
+					builder.setNetworkConfig(config);
+					addEndpoint(builder.build());
 				}
 			}
 		}
