@@ -66,6 +66,7 @@ target/
 ######################
 Californium.properties
 UUID.properties
+Proxy.properties
 *.log
 *.sql
 *.sqlite
