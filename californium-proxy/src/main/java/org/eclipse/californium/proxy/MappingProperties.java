@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
  *    Francesco Corazza - HTTP cross-proxy
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused "std" mappings
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
@@ -44,12 +45,6 @@ public class MappingProperties extends java.util.Properties {
 	/** The header for Californium property files. */
 	private static final String HEADER = "Californium Cross-Proxy mapping properties file";
 
-	/** The name of the default properties file. */
-	private static final String DEFAULT_FILENAME = "ProxyMapping.properties";
-
-	// default properties used by the library
-	public static final MappingProperties std = new MappingProperties(DEFAULT_FILENAME);
-	
 	// Constructors ////////////////////////////////////////////////////////////
 	
 	public MappingProperties(String fileName) {
