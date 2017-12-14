@@ -317,7 +317,10 @@ public class SecureObserveTest {
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
-		serverEndpoint = new CoapEndpoint(serverConnector, config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(serverConnector);
+		builder.setNetworkConfig(config);
+		serverEndpoint = builder.build();
 
 		server = new CoapServer();
 		server.addEndpoint(serverEndpoint);
@@ -330,7 +333,10 @@ public class SecureObserveTest {
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
-		clientEndpoint = new CoapEndpoint(new DTLSConnector(clientdtlsConfig), config);
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(new DTLSConnector(clientdtlsConfig));
+		builder.setNetworkConfig(config);
+		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 	}
 
