@@ -65,6 +65,7 @@ target/
 # Logs and databases #
 ######################
 Californium.properties
+UUID.properties
 *.log
 *.sql
 *.sqlite
