@@ -12,14 +12,19 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
+ *                                                    for configuration
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
+import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.plugtests.AbstractTestServer;
@@ -33,22 +38,39 @@ import org.eclipse.californium.plugtests.PlugtestServer;
  */
 public class ExtendedTestServer extends AbstractTestServer {
 
+	private static final File CONFIG_FILE = new File("CaliforniumReceivetest.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Server";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
+	private static final int DEFAULT_BLOCK_SIZE = 1024;
+
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			// start on alternative port, 5783 and 5784
+			config.setInt(Keys.COAP_PORT, config.getInt(Keys.COAP_PORT) + 100);
+			config.setInt(Keys.COAP_SECURE_PORT, config.getInt(Keys.COAP_SECURE_PORT) + 100);
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 10000);
+			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
+			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
+			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
+		}
+		
+	};
+	
 	public static void main(String[] args) {
 		// start standard plugtest server
 		PlugtestServer.main(args);
 
-		// allows port configuration in Californium.properties
-		NetworkConfig config = (NetworkConfig) NetworkConfig.getStandard().clone();
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1200).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
-		// start on alternative port, 5783 and 5784
-		config.setInt(NetworkConfig.Keys.COAP_PORT, config.getInt(NetworkConfig.Keys.COAP_PORT) + 100);
-		config.setInt(NetworkConfig.Keys.COAP_SECURE_PORT, config.getInt(NetworkConfig.Keys.COAP_SECURE_PORT) + 100);
-
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		// create server
 		try {
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
-			ExtendedTestServer server = new ExtendedTestServer();
-			server.addEndpoints(config, !noLoopback,
+			ExtendedTestServer server = new ExtendedTestServer(config);
+			server.addEndpoints(!noLoopback,
 					Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
@@ -72,8 +94,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
-	public ExtendedTestServer() throws SocketException {
-
+	public ExtendedTestServer(NetworkConfig config) throws SocketException {
+		super(config);
 		// add resources to the server
 		add(new RequestStatistic());
 	}

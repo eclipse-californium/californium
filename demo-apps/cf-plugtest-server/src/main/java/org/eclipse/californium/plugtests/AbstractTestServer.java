@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add ETSI credentials
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -23,11 +24,13 @@ import java.security.cert.Certificate;
 import java.util.List;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSessionContext;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -55,12 +58,26 @@ public abstract class AbstractTestServer extends CoapServer {
 	private static final String PSK_IDENTITY_PREFIX = "cali.";
 	private static final byte[] PSK_SECRET = ".fornium".getBytes();
 
-	public void addEndpoints(NetworkConfig config, boolean loopback, List<Protocol> protocols) {
-		int coapPort = config.getInt(NetworkConfig.Keys.COAP_PORT);
-		int coapsPort = config.getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
-		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-		int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+	// from ETSI Plugtest test spec
+	public static final String ETSI_PSK_IDENTITY = "password";
+	public static final byte[] ETSI_PSK_SECRET = "sesame".getBytes();
 
+	private final NetworkConfig config;
+	
+	protected AbstractTestServer(NetworkConfig config) {
+		super(config);
+		this.config = config;
+	}
+
+	public void addEndpoints(boolean loopback, List<Protocol> protocols) {
+		int coapPort = config.getInt(Keys.COAP_PORT);
+		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
+		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
+		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
+		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
+		int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
+		
 		SslContextUtil.Credentials serverCredentials = null;
 		Certificate[] trustedCertificates = null;
 		SSLContext serverSslContext = null;
@@ -73,6 +90,11 @@ public abstract class AbstractTestServer extends CoapServer {
 						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 				serverSslContext = SslContextUtil.createSSLContext(SERVER_NAME, serverCredentials.getPrivateKey(),
 						serverCredentials.getCertificateChain(), trustedCertificates);
+				SSLSessionContext serverSessionContext = serverSslContext.getServerSessionContext();
+				if (serverSessionContext != null) {
+					serverSessionContext.setSessionTimeout(sessionTimeout);
+					serverSessionContext.setSessionCacheSize(maxPeers);
+				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -111,7 +133,8 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 							true);
 					dtlsConfig.setTrustStore(trustedCertificates);
-
+					dtlsConfig.setMaxConnections(maxPeers);
+					dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
 					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 					builder.setConnector(connector);
@@ -137,6 +160,9 @@ public abstract class AbstractTestServer extends CoapServer {
 		public byte[] getKey(String identity) {
 			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
 				return PSK_SECRET;
+			}
+			if (identity.equals(ETSI_PSK_IDENTITY)) {
+				return ETSI_PSK_SECRET;
 			}
 			return null;
 		}

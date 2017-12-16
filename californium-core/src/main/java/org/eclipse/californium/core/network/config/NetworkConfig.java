@@ -25,6 +25,8 @@
  *                                                    by DTLS_RESPONSE_MATCHING
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add clone method
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for custom defaults
+ *                                                    remove clone method
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -42,7 +44,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  */
-public final class NetworkConfig implements Cloneable {
+public final class NetworkConfig {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
 
@@ -197,6 +199,17 @@ public final class NetworkConfig implements Cloneable {
 		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
+
+		/** Properties for encryption */
+		/**
+		 * (D)TLS session timeout in seconds.
+		 */
+		public static final String SECURE_SESSION_TIMEOUT = "SECURE_SESSION_TIMEOUT";
+		/**
+		 * DTLS auto resumption timeout in milliseconds. After that period
+		 * without exchanged messages, the session is forced to resume.
+		 */
+		public static final String DTLS_AUTO_RESUME_TIMEOUT = "DTLS_AUTO_RESUME_TIMEOUT";
 	}
 
 	/**
@@ -242,8 +255,25 @@ public final class NetworkConfig implements Cloneable {
 	 * @return the configuration
 	 */
 	public static NetworkConfig createStandardFromStream(InputStream inStream) {
-		LOGGER.info("Creating standard network configuration properties from stream");
-		standard = new NetworkConfig();
+		standard = createFromStream(inStream, null);
+		return standard;
+	}
+
+	/**
+	 * Creates a network configuration from stream.
+	 *
+	 * Support environments without file access.
+	 * 
+	 * @param inStream input stream to read properties.
+	 * @param customHandler custom defaults handler. Maybe {@code null}.
+	 * @return the configuration
+	 */
+	public static NetworkConfig createFromStream(InputStream inStream, final NetworkConfigDefaultHandler customHandler) {
+		LOGGER.info("Creating network configuration properties from stream");
+		NetworkConfig standard = new NetworkConfig();
+		if (customHandler != null) {
+			customHandler.applyDefaults(standard);
+		}
 		try {
 			standard.load(inStream);
 		} catch (IOException e) {
@@ -253,19 +283,37 @@ public final class NetworkConfig implements Cloneable {
 	}
 
 	/**
-	 * Creates the standard with a file. If the file with the name
-	 * {@link #DEFAULT_FILE_NAME} exists, the configuration reads the properties
-	 * from this file. Otherwise it creates the file.
+	 * Creates the standard with a file. If the provided file exists, the
+	 * configuration reads the properties from this file. Otherwise it creates
+	 * the file.
 	 * 
 	 * @param file the configuration file
 	 * @return the network configuration
 	 */
 	public static NetworkConfig createStandardWithFile(final File file) {
-		standard = new NetworkConfig();
+		standard = createWithFile(file, DEFAULT_HEADER, null);
+		return standard;
+	}
+
+	/**
+	 * Creates the standard with a file. If the provided file exists, the
+	 * configuration reads the properties from this file. Otherwise it creates
+	 * the file with the provided header.
+	 * 
+	 * @param file the configuration file
+	 * @param header The header to write to the top of the file.
+	 * @param customHandler custom defaults handler. Maybe {@code null}.
+	 * @return the network configuration
+	 */
+	public static NetworkConfig createWithFile(final File file, final String header, final NetworkConfigDefaultHandler customHandler) {
+		NetworkConfig standard = new NetworkConfig();
+		if (customHandler != null) {
+			customHandler.applyDefaults(standard);
+		}
 		if (file.exists()) {
 			standard.load(file);
 		} else {
-			standard.store(file);
+			standard.store(file, header);
 		}
 		return standard;
 	}
@@ -277,23 +325,6 @@ public final class NetworkConfig implements Cloneable {
 	public NetworkConfig() {
 		this.properties = new Properties();
 		NetworkConfigDefaults.setDefaults(this);
-	}
-
-	/**
-	 * Instantiates a new network configuration as clone of a provided
-	 * configuration.
-	 * 
-	 * @param config configuration to be cloned.
-	 * @see #clone()
-	 */
-	private NetworkConfig(NetworkConfig config) {
-		this.properties = new Properties();
-		this.properties.putAll(config.properties);
-	}
-
-	@Override
-	public Object clone() {
-		return new NetworkConfig(this);
 	}
 
 	/**

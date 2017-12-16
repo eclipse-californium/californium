@@ -12,23 +12,25 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove MAC usage for
+ *                                                    PSK identity.
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
-import java.util.Enumeration;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSessionContext;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
@@ -53,7 +55,6 @@ public class ClientInitializer {
 	private static final String CLIENT_NAME = "client";
 	private static final String PSK_IDENTITY_PREFIX = "cali.";
 	private static final byte[] PSK_SECRET = ".fornium".getBytes();
-	private static final int MAX_RESOURCE_SIZE = 8192;
 
 	/**
 	 * Initialize client.
@@ -61,11 +62,6 @@ public class ClientInitializer {
 	 * @param args the arguments
 	 */
 	public static Arguments init(NetworkConfig config, String[] args) {
-
-		// Config used for plugtest
-		if (config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
-			config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
-		}
 		int index = 0;
 		boolean json = false;
 		boolean verbose = false;
@@ -103,26 +99,36 @@ public class ClientInitializer {
 			uri = uri.substring(uri.length() - 1);
 		}
 
-		setupEndpoint(uri, verbose, rpc, x509, ping);
+		setupEndpoint(config, uri, verbose, rpc, x509, ping);
 
 		return new Arguments(uri, ping[0], verbose, json);
 	}
 
-	private static void setupEndpoint(String uri, boolean verbose, boolean rpc, boolean x509, boolean ping[]) {
-		NetworkConfig config = NetworkConfig.getStandard();
+	private static void setupEndpoint(NetworkConfig config, String uri, boolean verbose, boolean rpc, boolean x509, boolean ping[]) {
 		Connector connector = null;
+		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
+		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
+		int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
+		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
+		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
 
 		if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			SslContextUtil.Credentials clientCredentials = null;
 			Certificate[] trustedCertificates = null;
-			SSLContext serverSslContext = null;
+			SSLContext clientSslContext = null;
 			try {
 				clientCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 						CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 				trustedCertificates = SslContextUtil.loadTrustedCertificates(
 						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				serverSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
+				clientSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
 						clientCredentials.getCertificateChain(), trustedCertificates);
+				SSLSessionContext clientSessionContext = clientSslContext.getClientSessionContext();
+				if (clientSessionContext != null) {
+					clientSessionContext.setSessionTimeout(sessionTimeout);
+					clientSessionContext.setSessionCacheSize(maxPeers);
+				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -132,37 +138,22 @@ public class ClientInitializer {
 			if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 				if (rpc || x509) {
-					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							rpc);
+					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(), rpc);
 					dtlsConfig.setTrustStore(trustedCertificates);
 				} else {
-					byte[] id = null;
-					try {
-						Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-						if (nets.hasMoreElements()) {
-							id = nets.nextElement().getHardwareAddress();
-						}
-					} catch (Throwable e) {
-					}
-					if (id == null) {
-						id = new byte[8];
-						SecureRandom random = new SecureRandom();
-						random.nextBytes(id);
-					}
+					byte[] id = new byte[8];
+					SecureRandom random = new SecureRandom();
+					random.nextBytes(id);
 					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
 				}
+				dtlsConfig.setMaxConnections(maxPeers);
+				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 				connector = new DTLSConnector(dtlsConfig.build());
 			} else if (uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-				int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-				int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-				connector = new TlsClientConnector(serverSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
 				ping[0] = false;
 			}
 		} else if (uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
-			int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-			int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-			int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
 			ping[0] = false;
 		} else if (uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {

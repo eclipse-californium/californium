@@ -134,7 +134,7 @@ public class LossyBlockwiseTransferTest {
 		respPayload = generateRandomPayload(250);
 
 		CoapClient coapclient = new CoapClient(uri);
-		coapclient.setTimeout(10000);
+		coapclient.setTimeout(10000L);
 		coapclient.setEndpoint(clientEndpoint);
 
 		middle.drop(5, 6, 8, 9, 15);

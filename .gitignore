@@ -64,7 +64,7 @@ target/
 
 # Logs and databases #
 ######################
-Californium.properties
+Californium*.properties
 UUID.properties
 Proxy.properties
 *.log

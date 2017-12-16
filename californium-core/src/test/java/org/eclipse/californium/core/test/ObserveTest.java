@@ -275,12 +275,11 @@ public class ObserveTest {
 		resourceX.setObserveType(Type.NON);
 		resourceX.delayNextGet(100);
 		CoapClient client = new CoapClient(uriX);
-		long timeout = client.getTimeout();
-		client.setTimeout(1);
+		client.setTimeout(1L);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 		assertTrue("No timeout", rel.isCanceled());
-		client.setTimeout(timeout);
+		client.setTimeout(null);
 		rel.reregister();
 	}
 

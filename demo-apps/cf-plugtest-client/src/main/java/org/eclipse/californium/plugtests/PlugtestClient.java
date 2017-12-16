@@ -15,12 +15,15 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - split creating connectors into
  *                                                    ClientInitializer.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
+ *                                                    for configuration
  ******************************************************************************/
 /**
  * 
  */
 package org.eclipse.californium.plugtests;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
@@ -35,6 +38,8 @@ import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
 /**
@@ -47,6 +52,26 @@ import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
  * -Djava.util.logging.config.file=../run/Californium-logging.properties
  */
 public class PlugtestClient {
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Client";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
+	private static final int DEFAULT_BLOCK_SIZE = 64;
+
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			// adjust defaults for plugtest
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
+			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+		}
+		
+	};
 
 	
 	/**
@@ -69,10 +94,9 @@ public class PlugtestClient {
 			System.out.println("  URI       : The CoAP URI of the Plugtest server to test (coap://...)");
 			System.exit(-1);
 		}
+
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		
-		// Config used for plugtest
-		NetworkConfig config = NetworkConfig.getStandard().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64);
 		Arguments arguments = ClientInitializer.init(config, args);
 
 		if (arguments.ping) {
@@ -187,7 +211,7 @@ public class PlugtestClient {
 		System.out.println(response.getResponseText());
 
 		client.setURI(uri + "/separate");
-		client.setTimeout(10000);
+		client.setTimeout(10000L);
 		client.useNONs();
 
 		System.out.println("===============\nCC17");
@@ -197,7 +221,7 @@ public class PlugtestClient {
 		System.out.println(response.getResponseText());
 
 		client.setURI(uri + "/test");
-		client.setTimeout(0);
+		client.setTimeout(0L);
 		client.useCONs();
 
 		System.out.println("===============\nCC18");

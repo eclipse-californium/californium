@@ -19,6 +19,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use configuration from
+ *                                                    related exchange endpoint
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -43,8 +45,8 @@ public class ObserveRelation {
 	/** The logger. */
 	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class.getCanonicalName());
 	
-	private final long CHECK_INTERVAL_TIME = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
-	private final int CHECK_INTERVAL_COUNT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
+	private final long checkIntervalTime;
+	private final int checkIntervalCount;
 	
 	private final ObservingEndpoint endpoint;
 
@@ -90,6 +92,9 @@ public class ObserveRelation {
 		this.resource = resource;
 		this.exchange = exchange;
 		this.established = false;
+		NetworkConfig config = exchange.getEndpoint().getConfig();
+		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
+		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
 		
 		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
 	}
@@ -170,8 +175,8 @@ public class ObserveRelation {
 
 	public boolean check() {
 		boolean check = false;
-		check |= this.interestCheckTimer + CHECK_INTERVAL_TIME < System.currentTimeMillis();
-		check |= (++interestCheckCounter >= CHECK_INTERVAL_COUNT);
+		check |= this.interestCheckTimer + checkIntervalTime < System.currentTimeMillis();
+		check |= (++interestCheckCounter >= checkIntervalCount);
 		if (check) {
 			this.interestCheckTimer = System.currentTimeMillis();
 			this.interestCheckCounter = 0;

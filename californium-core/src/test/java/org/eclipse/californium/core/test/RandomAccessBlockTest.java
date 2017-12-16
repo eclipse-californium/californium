@@ -138,7 +138,7 @@ public class RandomAccessBlockTest {
 		String uri = getUri(serverAddress, TARGET);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(clientEndpoint);
-		client.setTimeout(1000);
+		client.setTimeout(1000L);
 
 		for (int i = 0; i < blockOrder.length; i++) {
 			int num = blockOrder[i];

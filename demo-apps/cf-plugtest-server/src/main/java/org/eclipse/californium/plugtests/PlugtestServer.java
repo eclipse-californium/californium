@@ -16,15 +16,20 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - split creating connectors into
  *                                                    AbstractTestServer.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
+ *                                                    for configuration
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
+import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.plugtests.resources.Create;
@@ -60,34 +65,42 @@ import org.eclipse.californium.plugtests.resources.Validate;
  * CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class PlugtestServer extends AbstractTestServer {
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Server";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
+	private static final int DEFAULT_BLOCK_SIZE = 64;
 
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
-	private static final int MAX_RESOURCE_SIZE = 8192;
 
-	public static void main(String[] args) {
-		// allows port configuration in Californium.properties
-		NetworkConfig config = NetworkConfig.getStandard();
-		config // used for plugtest
-		.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64)
-		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4)
-		.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000)
-		.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 300);
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
 
-		if (config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
-			config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
+			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
 		}
+		
+	};
+	
+	public static void main(String[] args) {
+		
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
 		// create server
 		try {
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
-			PlugtestServer server = new PlugtestServer();
+			PlugtestServer server = new PlugtestServer(config);
 			// ETSI Plugtest environment
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(config, !noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			server.addEndpoints(!noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
 			// add special interceptor for message traces
@@ -110,8 +123,9 @@ public class PlugtestServer extends AbstractTestServer {
 
 	}
 
-	public PlugtestServer() throws SocketException {
-
+	public PlugtestServer(NetworkConfig config) throws SocketException {
+		super(config);
+		
 		// add resources to the server
 		add(new DefaultTest());
 		add(new LongPath());
