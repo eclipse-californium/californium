@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
+ *                                                    for configuration
  ******************************************************************************/
 
 package org.eclipse.californium.extplugtests;
@@ -19,6 +21,7 @@ package org.eclipse.californium.extplugtests;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -34,6 +37,8 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
@@ -52,6 +57,11 @@ import com.google.gson.JsonSyntaxException;
  */
 public class ReceivetestClient {
 
+	private static final File CONFIG_FILE = new File("CaliforniumReceivetest.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Client";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
+	private static final int DEFAULT_BLOCK_SIZE = 1024;
+
 	/**
 	 * Properties filename for device UUID.
 	 */
@@ -69,6 +79,25 @@ public class ReceivetestClient {
 	 * Maximum time difference display as milliseconds.
 	 */
 	private static final int MAX_DIFF_TIME_IN_MILLIS = 30000;
+
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			// start on alternative port, 5783 and 5784
+			config.setInt(Keys.COAP_PORT, config.getInt(Keys.COAP_PORT) + 100);
+			config.setInt(Keys.COAP_SECURE_PORT, config.getInt(Keys.COAP_SECURE_PORT) + 100);
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
+			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
+			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 20);
+			config.setInt(Keys.TCP_WORKER_THREADS, 2);
+		}
+
+	};
 
 	/**
 	 * Main entry point.
@@ -91,8 +120,8 @@ public class ReceivetestClient {
 			System.exit(-1);
 		}
 
-		NetworkConfig config = (NetworkConfig) NetworkConfig.getStandard().clone();
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 1200).setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 1024);
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+
 		Arguments arguments = ClientInitializer.init(config, args);
 
 		String uuid = getUUID();

@@ -32,6 +32,8 @@
  *                                                    RuntimeException.
  *                                                    (don't destroy endpoint on shutdown)
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - get default timeout from configuration
+ *                                                    of effective endpoint
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -68,8 +70,12 @@ public class CoapClient {
 	/** The logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapClient.class.getCanonicalName());
 
-	/** The timeout. */
-	private long timeout = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+	/** The timeout. 
+	 * 
+	 * Request/Response timeout in milliseconds.
+	 * If {@code null}, use EXCHANGE_LIFETIME of effective endpoint 
+	 */
+	private Long timeout;
 
 	/** The destination URI */
 	private String uri;
@@ -137,12 +143,13 @@ public class CoapClient {
 	 * Gets the maximum amount of time that synchronous method calls will block
 	 * and wait.
 	 * <p>
-	 * The default value of this property is read from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
+	 * If this property is {@code null}, the value is from configuration property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
+	 * of the effective endpoint.
 	 * 
-	 * @return The timeout in milliseconds.
+	 * @return The timeout in milliseconds, or {@code null}.
 	 */
-	public long getTimeout() {
+	public Long getTimeout() {
 		return timeout;
 	}
 
@@ -151,8 +158,10 @@ public class CoapClient {
 	 * and wait. Setting this property to 0 will result in methods waiting
 	 * infinitely.
 	 * <p>
-	 * The default value of this property is read from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}.
+	 * If this property is {@code null}, the value is from configuration
+	 * property
+	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
+	 * of the effective endpoint.
 	 * <p>
 	 * Under normal circumstances this property should be set to at least the
 	 * <em>EXCHANGE_LIFETIME</em> (the default) in order to account for
@@ -164,12 +173,15 @@ public class CoapClient {
 	 * can no longer associate this client's address with the original DTLS
 	 * session. In such cases it might be worthwhile to set the value of this
 	 * property to a smaller number so that the timeout is detected sooner and a
-	 * new session can be negotiated.
+	 * new session can be negotiated. You may also consider to use the automatic
+	 * session resumption to pass such a NAT firewall, see
+	 * DtlsConnectorConfig.autoResumptionTimeoutMillis.
 	 * 
-	 * @param timeout The timeout in milliseconds.
+	 * @param timeout The timeout in milliseconds. {@code null}, if
+	 *            EXCHANGE_LIFETIME of effective endpoint should be used.
 	 * @return This CoAP client for command chaining.
 	 */
-	public CoapClient setTimeout(long timeout) {
+	public CoapClient setTimeout(Long timeout) {
 		this.timeout = timeout;
 		return this;
 	}
@@ -370,11 +382,19 @@ public class CoapClient {
 	 * @return success of the ping
 	 */
 	public boolean ping(long timeout) {
+		return ping(new Long(timeout));
+	}
+
+	private boolean ping(Long timeout) {
 		try {
 			Request request = new Request(null, Type.CON);
 			request.setToken(new byte[0]);
 			request.setURI(uri);
-			send(request).waitForResponse(timeout);
+			Endpoint outEndpoint = getEffectiveEndpoint(request);
+			if (timeout == null) {
+				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+			}
+			send(request, outEndpoint).waitForResponse(timeout);
 			return request.isRejected();
 		} catch (InterruptedException e) {
 			// waiting was interrupted, which is fine
@@ -861,7 +881,11 @@ public class CoapClient {
 	 */
 	private CoapResponse synchronous(Request request, Endpoint outEndpoint) {
 		try {
-			Response response = send(request, outEndpoint).waitForResponse(getTimeout());
+			Long timeout = getTimeout();
+			if (timeout == null) {
+				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+			}
+			Response response = send(request, outEndpoint).waitForResponse(timeout);
 			if (response == null) {
 				// Cancel request so appropriate clean up can happen.
 				request.cancel();

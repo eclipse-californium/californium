@@ -63,7 +63,7 @@ public class NetworkConfigDefaults {
 	 * The default value of 5 minutes is chosen to be a little more than the default
 	 * EXCHANGE_LIFETIME of 247s.
 	 */
-	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins
+	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
 	
 	/**
 	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
@@ -107,6 +107,34 @@ public class NetworkConfigDefaults {
 	 */
 	public static final String DEFAULT_DTLS_RESPONSE_MATCHING = "STRICT";
 
+	/**
+	 * The default tcp connection idle timeout in seconds.
+	 * <p>
+	 * The default value is 10s.
+	 */
+	public static final int DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT = 10; // 10s [s]
+
+	/**
+	 * The default tcp connect timeout in milliseconds.
+	 * <p>
+	 * The default value is 10s.
+	 */
+	public static final int DEFAULT_TCP_CONNECT_TIMEOUT = 10000; // 10s [ms]
+
+	/**
+	 * The default secure session timeout in seconds.
+	 * <p>
+	 * The default value is 24h.
+	 */
+	public static final int DEFAULT_SECURE_SESSION_TIMEOUT = 60 * 60 * 24; // 24h [s]
+
+	/**
+	 * The default dtls auto resumption timeout in milliseconds.
+	 * <p>
+	 * The default value is 30s.
+	 */
+	public static final int DEFAULT_DTLS_AUTO_RESUME_TIMEOUT = 30000; // 30s [ms]
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -119,65 +147,68 @@ public class NetworkConfigDefaults {
 		final String OS = System.getProperty("os.name");
 		final boolean WINDOWS = OS.startsWith("Windows");
 
-		config.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
-		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD);
+		config.setInt(Keys.MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
+		config.setLong(Keys.MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD);
 
-		config.setInt(NetworkConfig.Keys.COAP_PORT, CoAP.DEFAULT_COAP_PORT);
-		config.setInt(NetworkConfig.Keys.COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
+		config.setInt(Keys.COAP_PORT, CoAP.DEFAULT_COAP_PORT);
+		config.setInt(Keys.COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
 
-		config.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 2000);
-		config.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1.5f);
-		config.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 2f);
-		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 4);
-		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME); // ms
-		config.setLong(NetworkConfig.Keys.NON_LIFETIME, 145 * 1000); // ms
-		config.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 93 * 1000);
-		config.setInt(NetworkConfig.Keys.NSTART, 1);
-		config.setInt(NetworkConfig.Keys.LEISURE, 5000);
-		config.setFloat(NetworkConfig.Keys.PROBING_RATE, 1f);
+		config.setInt(Keys.ACK_TIMEOUT, 2000);
+		config.setFloat(Keys.ACK_RANDOM_FACTOR, 1.5f);
+		config.setFloat(Keys.ACK_TIMEOUT_SCALE, 2f);
+		config.setInt(Keys.MAX_RETRANSMIT, 4);
+		config.setLong(Keys.EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME); // ms
+		config.setLong(Keys.NON_LIFETIME, 145 * 1000); // ms
+		config.setLong(Keys.MAX_TRANSMIT_WAIT, 93 * 1000);
+		config.setInt(Keys.NSTART, 1);
+		config.setInt(Keys.LEISURE, 5000);
+		config.setFloat(Keys.PROBING_RATE, 1f);
 
-		config.setBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START, true);
-		config.setString(NetworkConfig.Keys.MID_TRACKER, DEFAULT_MID_TRACKER);
-		config.setInt(NetworkConfig.Keys.MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
-		config.setInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 8);
+		config.setBoolean(Keys.USE_RANDOM_MID_START, true);
+		config.setString(Keys.MID_TRACKER, DEFAULT_MID_TRACKER);
+		config.setInt(Keys.MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
+		config.setInt(Keys.TOKEN_SIZE_LIMIT, 8);
 
-		config.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, DEFAULT_PREFERRED_BLOCK_SIZE);
-		config.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
-		config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		config.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // ms
+		config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_PREFERRED_BLOCK_SIZE);
+		config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
+		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
+		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
 
-		config.setLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); // ms
-		config.setInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
-		config.setLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // ms
+		config.setLong(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); //24 [ms]
+		config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
+		config.setLong(Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // [ms]
 
-		config.setBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL, false);
-		config.setString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa"); // see org.eclipse.californium.core.network.stack.congestioncontrol
+		config.setBoolean(Keys.USE_CONGESTION_CONTROL, false);
+		config.setString(Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa"); // see org.eclipse.californium.core.network.stack.congestioncontrol
 
-		config.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, CORES);
-		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, WINDOWS ? CORES : 1);
-		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, WINDOWS ? CORES : 1);
+		config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, CORES);
+		config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, WINDOWS ? CORES : 1);
+		config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, WINDOWS ? CORES : 1);
 
-		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 2048);
-		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, UDPConnector.UNDEFINED);
-		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
-		config.setInt(NetworkConfig.Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
+		config.setInt(Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 2048);
+		config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, UDPConnector.UNDEFINED);
+		config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
+		config.setInt(Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
-		config.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
-		config.setInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD, 2000);
-		config.setString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING, DEFAULT_DTLS_RESPONSE_MATCHING);
+		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
+		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
+		config.setInt(Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setString(Keys.DTLS_RESPONSE_MATCHING, DEFAULT_DTLS_RESPONSE_MATCHING);
 
-		config.setInt(NetworkConfig.Keys.HTTP_PORT, 8080);
-		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);
-		config.setInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
-		config.setInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
-		config.setInt(NetworkConfig.Keys.HTTP_CACHE_SIZE, 32);
+		config.setInt(Keys.HTTP_PORT, 8080);
+		config.setInt(Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);
+		config.setInt(Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
+		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
+		config.setInt(Keys.HTTP_CACHE_SIZE, 32);
 
-		config.setInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // s
+		config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // s
 
-		config.setInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // s
-		config.setInt(NetworkConfig.Keys.TCP_WORKER_THREADS, 1);
-		config.setInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT, 10000); // ms
+		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
+		config.setInt(Keys.TCP_WORKER_THREADS, 1);
+		config.setInt(Keys.TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT); // ms
+
+		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
+		config.setLong(Keys.DTLS_AUTO_RESUME_TIMEOUT, DEFAULT_DTLS_AUTO_RESUME_TIMEOUT);
 	}
 
 	// prevent instantiation
