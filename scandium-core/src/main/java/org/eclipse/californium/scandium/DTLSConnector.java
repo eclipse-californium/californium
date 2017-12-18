@@ -36,6 +36,8 @@
  *                                                    out of synchronized block
  *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
  *                                                    if bindAddress determines a port
+ *    Achim Kraus (Bosch Software Innovations GmbH) - protect critical handshaker section
+ *                                                    Fix issue #473
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -118,6 +120,9 @@ public class DTLSConnector implements Connector {
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
+
+	// guard access to critical handshaker section
+	private Object handshakerLock = new Object();
 
 	// guard access to cookieMacKey
 	private Object cookieMacKeyLock = new Object();
@@ -444,7 +449,9 @@ public class DTLSConnector implements Connector {
 					processChangeCipherSpecRecord(record);
 					break;
 				case HANDSHAKE:
-					processHandshakeRecord(record);
+					synchronized (handshakerLock) {
+						processHandshakeRecord(record);
+					}
 					break;
 				default:
 					LOGGER.log(
@@ -1154,7 +1161,6 @@ public class DTLSConnector implements Connector {
 		// TODO make sure that only ONE handshake is in progress with a peer
 		// at all times
 		
-		Handshaker handshaker = null;
 		DTLSFlight flight = null;
 
 		try {
@@ -1162,24 +1168,34 @@ public class DTLSConnector implements Connector {
 				connection = new Connection(peerAddress);
 				connectionStore.put(connection);
 			}
-			
 			DTLSSession session = connection.getEstablishedSession();
-			if (session == null) {
-				// no session with peer available, create new empty session &
-				// start fresh handshake
-				handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), connection, config, maximumTransmissionUnit);
+			if (session == null || connection.isResumptionRequired()) {
+				synchronized (handshakerLock) {
+					Handshaker handshaker;
+					if (session == null) {
+						// no session with peer available, create new empty session &
+						// start fresh handshake
+						handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), connection, config, maximumTransmissionUnit);
+					}
+					// TODO what if there already is an ongoing handshake with the peer
+					else {
+						// create the session to resume from the previous one.
+						DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
+		
+						// terminate the previous connection and add the new one to the store
+						Connection newConnection = new Connection(peerAddress);
+						terminateConnection(connection, null, null);
+						connectionStore.put(newConnection);
+						handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config, maximumTransmissionUnit);
+					}
+					// start DTLS handshake protocol
+					// get starting handshake message
+					flight = handshaker.getStartHandshakeMessage();
+					connection.setPendingFlight(flight);
+					scheduleRetransmission(flight);
+				}
 			}
-			// TODO what if there already is an ongoing handshake with the peer
-			else if (connection.isResumptionRequired()){
-				// create the session to resume from the previous one.
-				DTLSSession resumableSession = new DTLSSession(peerAddress, session, 0);
-
-				// terminate the previous connection and add the new one to the store
-				Connection newConnection = new Connection(peerAddress);
-				terminateConnection(connection, null, null);
-				connectionStore.put(newConnection);
-				handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config, maximumTransmissionUnit);
-			} else {
+			else  {
 				// session to peer is active, send encrypted message
 				flight = new DTLSFlight(session);
 				flight.addMessage(new Record(
@@ -1188,13 +1204,6 @@ public class DTLSConnector implements Connector {
 						session.getSequenceNumber(),
 						new ApplicationMessage(message.getBytes(), peerAddress),
 						session));
-			}
-			// start DTLS handshake protocol
-			if (handshaker != null) {
-				// get starting handshake message
-				flight = handshaker.getStartHandshakeMessage();
-				connection.setPendingFlight(flight);
-				scheduleRetransmission(flight);
 			}
 			sendFlight(flight);
 		} catch (GeneralSecurityException e) {
