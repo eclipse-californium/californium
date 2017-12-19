@@ -75,6 +75,7 @@ public class SecureObserveTest {
 	private MyResource resource;
 
 	private String uri;
+	private String uriUserInfo;
 
 	@Before
 	public void startupServer() {
@@ -223,7 +224,7 @@ public class SecureObserveTest {
 		createSecureServer(DtlsMode.PRINCIPAL);
 		createInverseNat();
 
-		CoapClient client = new CoapClient(uri);
+		CoapClient client = new CoapClient(uriUserInfo);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -269,7 +270,7 @@ public class SecureObserveTest {
 		createSecureServer(DtlsMode.PRINCIPAL);
 		createInverseNat();
 
-		CoapClient client = new CoapClient(uri);
+		CoapClient client = new CoapClient(uriUserInfo);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -329,6 +330,7 @@ public class SecureObserveTest {
 		server.start();
 
 		uri = serverEndpoint.getUri() + "/" + TARGET;
+		uriUserInfo = uri.replace("//", "//" + IDENITITY + "@");
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
@@ -346,6 +348,9 @@ public class SecureObserveTest {
 		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
 		System.out.println("URI: change " + uri + " to " + natURI);
 		uri = natURI;
+		natURI = uriUserInfo.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
+		System.out.println("URI: change " + uriUserInfo + " to " + natURI);
+		uriUserInfo = natURI;
 	}
 
 	private static class MyResource extends CoapResource {

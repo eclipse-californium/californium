@@ -25,6 +25,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -210,14 +211,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		return mid;
 	}
 
-	private void registerWithToken(final Exchange exchange) {
+	private void registerWithToken(final Exchange exchange, final byte[] identity) {
 		Request request = exchange.getCurrentRequest();
 		KeyToken idByToken;
 		if (request.getToken() == null) {
-			idByToken = tokenProvider.getUnusedToken(request);
+			idByToken = tokenProvider.getUnusedToken(identity);
 			request.setToken(idByToken.getToken());
 		} else {
-			idByToken = KeyToken.fromOutboundMessage(request);
+			idByToken = KeyToken.fromMessage(request, identity);
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
@@ -229,7 +230,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public boolean registerOutboundRequest(final Exchange exchange) {
+	public boolean registerOutboundRequest(final Exchange exchange, final byte[] identity) {
 
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
@@ -238,7 +239,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else {
 			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
 			if (Message.NONE != mid) {
-				registerWithToken(exchange);
+				registerWithToken(exchange, identity);
 				return true;
 			} else {
 				return false;
@@ -247,13 +248,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public boolean registerOutboundRequestWithTokenOnly(final Exchange exchange) {
+	public boolean registerOutboundRequestWithTokenOnly(final Exchange exchange, final byte[] identity) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			registerWithToken(exchange);
+			registerWithToken(exchange, identity);
 			return true;
 		}
 	}
