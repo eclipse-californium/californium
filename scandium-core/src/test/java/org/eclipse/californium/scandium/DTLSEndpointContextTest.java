@@ -286,6 +286,11 @@ public class DTLSEndpointContextTest {
 		}
 
 		@Override
+		public byte[] getEndpointIdentifier(EndpointContext endpointContext) {
+			return null;
+		}
+
+		@Override
 		public boolean isResponseRelatedToRequest(EndpointContext requestContext,
 				EndpointContext responseContext) {
 			return false;

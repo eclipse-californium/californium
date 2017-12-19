@@ -55,6 +55,11 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	@Override
+	public byte[] getEndpointIdentifier(EndpointContext endpointContext) {
+		return null;
+	}
+
+	@Override
 	public String getName() {
 		return name;
 	}
