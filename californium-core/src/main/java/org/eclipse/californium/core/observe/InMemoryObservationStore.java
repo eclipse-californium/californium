@@ -40,7 +40,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 		if (obs == null) {
 			throw new NullPointerException("observation must not be null");
 		} else {
-			final Token token = new Token(obs.getRequest().getToken());
+			final Token token = obs.getRequest().getToken();
 			LOG.debug("adding observation for token {}", token);
 			map.put(token, obs);
 		}

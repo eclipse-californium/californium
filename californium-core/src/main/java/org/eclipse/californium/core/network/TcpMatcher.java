@@ -37,6 +37,7 @@
  *                                                 by EndpointContext of response.
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -110,7 +111,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 		// ensure Token is set
 		if (message.isConfirmable()) {
-			message.setToken(new byte[0]);
+			message.setToken(Token.EMPTY);
 		} else {
 			throw new UnsupportedOperationException("sending empty message (ACK/RST) over tcp is not supported!");
 		}
@@ -127,7 +128,7 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveResponse(final Response response) {
 
-		final Token idByToken = new Token(response.getToken());
+		final Token idByToken = response.getToken();
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -175,7 +176,7 @@ public final class TcpMatcher extends BaseMatcher {
 							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					Token idByToken = new Token(originRequest.getToken());
+					Token idByToken = originRequest.getToken();
 					exchangeStore.remove(idByToken, exchange);
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
@@ -192,7 +193,7 @@ public final class TcpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				Token idByToken = new Token(request.getToken());
+				Token idByToken = request.getToken();
 				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}

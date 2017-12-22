@@ -33,6 +33,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -115,7 +116,7 @@ public class ServerDeduplicationTest {
 	@Test
 	public void testServerRespondsToDuplicateRequest() throws Exception {
 
-		byte[] token = new byte[]{0x00, 0x00};
+		Token token = Token.fromProvider(new byte[]{0x00, 0x00});
 		int mid = 1234;
 
 		client.sendRequest(CON, GET, token, mid).path(resourceName).go();

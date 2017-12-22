@@ -312,8 +312,8 @@ public class ClusteringTest {
 		// cancel observation
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Cancel Observation.");
-		Token keyToken = new Token(request.getToken());
-		store.remove(keyToken);
+		Token token = request.getToken();
+		store.remove(token);
 
 		// server send new response to client 1
 		System.out.println();

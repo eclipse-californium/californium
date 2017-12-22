@@ -119,7 +119,7 @@ public class UdpMatcherTest {
 		exchange.completeCurrentRequest();
 
 		// THEN assert that token got released
-		Token token = new Token(exchange.getCurrentRequest().getToken());
+		Token token = exchange.getCurrentRequest().getToken();
 		assertThat(tokenProvider.isTokenInUse(token), is(false));
 	}
 
@@ -133,7 +133,7 @@ public class UdpMatcherTest {
 		exchange.completeCurrentRequest();
 
 		// THEN assert that token got not released
-		Token token = new Token(exchange.getCurrentRequest().getToken());
+		Token token = exchange.getCurrentRequest().getToken();
 		assertThat(tokenProvider.isTokenInUse(token), is(true));
 	}
 
@@ -148,7 +148,7 @@ public class UdpMatcherTest {
 		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
 
 		// THEN the token has been released for re-use
-		Token token = new Token(exchange.getCurrentRequest().getToken());
+		Token token = exchange.getCurrentRequest().getToken();
 		assertThat(tokenProvider.isTokenInUse(token), is(false));
 	}
 

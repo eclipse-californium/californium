@@ -46,6 +46,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -160,7 +161,7 @@ public abstract class BaseMatcher implements Matcher {
 				
 				@Override
 				protected void failed() {
-					final Token token = new Token(request.getToken());
+					final Token token = request.getToken();
 					observationStore.remove(token);
 					exchangeStore.releaseToken(token);
 				}
@@ -180,7 +181,7 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Token idByToken = new Token(response.getToken());
+			final Token idByToken = response.getToken();
 
 			final Observation obs = observationStore.get(idByToken);
 			if (obs != null) {
@@ -249,13 +250,12 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
-		final Token idByToken = new Token(token);
+	public void cancelObserve(Token token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this almost in vain,
 		// except, when a blockwise notify is pending.
-		for (Exchange exchange : exchangeStore.findByToken(idByToken)) {
+		for (Exchange exchange : exchangeStore.findByToken(token)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
 				// cancel only observe requests, 
@@ -265,7 +265,7 @@ public abstract class BaseMatcher implements Matcher {
 				exchange.setComplete();
 			}
 		}
-		observationStore.remove(idByToken);
+		observationStore.remove(token);
 	}
 
 }

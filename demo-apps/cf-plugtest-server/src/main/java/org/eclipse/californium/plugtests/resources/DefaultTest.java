@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.plugtests.resources;
 
@@ -47,11 +48,14 @@ public class DefaultTest extends CoapResource {
 				request.getCode(), 
 				request.getMID()));
 
-		if (request.getToken().length > 0) {
+		if (request.getToken() != null) {
 			payload.append("\nToken: ");
-			StringBuilder tok = new StringBuilder(request.getToken()==null?"null":"");
-			if (request.getToken()!=null) for(byte b:request.getToken()) tok.append(String.format("%02x", b&0xff));
-			payload.append(tok);
+			if (request.hasEmptyToken()) {
+				payload.append("[]");
+			} else {
+				for (byte b : request.getTokenBytes())
+					payload.append(String.format("%02x", b & 0xff));
+			}
 		}
 
 		if (payload.length() > 64) {
