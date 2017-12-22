@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -139,7 +140,7 @@ public class DataSerializerTest {
 		request.setMID(1);
 
 		EmptyMessage ack = EmptyMessage.newACK(request);
-		ack.setToken(new byte[0]);
+		ack.setToken(Token.EMPTY);
 		RawData data = serializer.serializeEmptyMessage(ack, null);
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));

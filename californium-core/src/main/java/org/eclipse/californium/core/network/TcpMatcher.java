@@ -36,6 +36,11 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                 by EndpointContext of response.
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *                                                 store observation before exchange
+ *                                                 to create global token
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ * Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -45,7 +50,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -67,30 +72,31 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @param config the configuration to use.
 	 * @param notificationListener the callback to invoke for notifications
 	 *            received from peers.
+	 * @param tokenGenerator token generator to create tokens for 
+	 *            observations created by the endpoint this matcher is part of.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
-	 * @throws NullPointerException if the configuration, notification listener,
-	 *             or the observation store is {@code null}.
+	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
 	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, observationStore, exchangeStore);
+			final TokenGenerator tokenGenerator, final ObservationStore observationStore,
+			final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
 	@Override
 	public void sendRequest(Exchange exchange, final Request request) {
 
-		exchange.setObserver(exchangeObserver);
-		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
-		LOGGER.debug("tracking open request using {}", request.getTokenString());
-
 		if (request.isObserve()) {
 			registerObserve(request);
 		}
+		exchange.setObserver(exchangeObserver);
+		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
+		LOGGER.debug("tracking open request using {}", request.getTokenString());
 	}
 
 	@Override
@@ -109,7 +115,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 		// ensure Token is set
 		if (message.isConfirmable()) {
-			message.setToken(new byte[0]);
+			message.setToken(Token.EMPTY);
 		} else {
 			throw new UnsupportedOperationException("sending empty message (ACK/RST) over tcp is not supported!");
 		}
@@ -126,17 +132,12 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveResponse(final Response response) {
 
-		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+		final Token idByToken = response.getToken();
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
 			// we didn't find a message exchange for the token from the response
-			// that is scoped to the response's source endpoint address
 			// let's try to find an existing observation for the token
-			// NOTE this approach is very prone to faked notifications
-			// because we do not check that the notification's sender is
-			// the same as the receiver of the original observe request
-			// TODO: assert that notification's source endpoint is correct
 			exchange = matchNotifyResponse(response);
 		}
 
@@ -170,18 +171,13 @@ public final class TcpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
-									exchange.getOrigin()});
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: LOCAL]",
+							originRequest.getDestinationContext().getPeerAddress());
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					Token idByToken = originRequest.getToken();
 					exchangeStore.remove(idByToken, exchange);
-					if(!originRequest.isObserve()) {
-						exchangeStore.releaseToken(idByToken);
-					}
-					LOGGER.debug("Exchange [{}, origin: {}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.debug("Exchange [{}, origin: LOCAL] completed", idByToken);
 				}
-
 			} else { // Origin.REMOTE
 				// nothing to do
 			}

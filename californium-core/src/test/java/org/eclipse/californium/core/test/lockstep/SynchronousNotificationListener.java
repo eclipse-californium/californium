@@ -13,10 +13,10 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - collect notifies for log.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -61,7 +61,7 @@ public class SynchronousNotificationListener implements NotificationListener {
 
 	@Override
 	public void onNotification(final Request req, final Response resp) {
-		if (request == null || Arrays.equals(request.getToken(), req.getToken())) {
+		if (request == null || request.getToken().equals(req.getToken())) {
 			synchronized (lock) {
 				notifies.add(resp);
 				response = resp;

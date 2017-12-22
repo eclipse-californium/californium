@@ -53,14 +53,17 @@ public final class MatcherTestUtils {
 	
 	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
+				new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher) {
+	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore,
+			EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, correlationContextMatcher);
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
+				observationStore, exchangeStore, correlationContextMatcher);
 
 		matcher.start();
 		return matcher;

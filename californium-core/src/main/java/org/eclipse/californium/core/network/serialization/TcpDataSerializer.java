@@ -18,6 +18,7 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -35,22 +36,22 @@ public final class TcpDataSerializer extends DataSerializer {
 		// Variable length encoding per: https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02
 		if (header.getBodyLength() < 13) {
 			writer.write(header.getBodyLength(), LENGTH_NIBBLE_BITS);
-			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
+			writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
 		} else if (header.getBodyLength() < (1 << 8) + 13) {
 			writer.write(13, LENGTH_NIBBLE_BITS);
-			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
+			writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
 			writer.write(header.getBodyLength() - 13, Byte.SIZE);
 		} else if (header.getBodyLength() < (1 << 16) + 269) {
 			writer.write(14, LENGTH_NIBBLE_BITS);
-			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
+			writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
 			writer.write(header.getBodyLength() - 269, 2 * Byte.SIZE);
 		} else {
 			writer.write(15, LENGTH_NIBBLE_BITS);
-			writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
+			writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
 			writer.write(header.getBodyLength() - 65805, 4 * Byte.SIZE);
 		}
 
 		writer.write(header.getCode(), CODE_BITS);
-		writer.writeBytes(header.getToken());
+		writer.writeBytes(header.getToken().getBytes());
 	}
 }
