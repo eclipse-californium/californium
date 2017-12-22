@@ -45,6 +45,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -61,6 +62,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -72,6 +74,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
+	protected final EndpointContextMatcher endpointContextMatcher;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
 
@@ -89,7 +92,7 @@ public abstract class BaseMatcher implements Matcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -98,11 +101,14 @@ public abstract class BaseMatcher implements Matcher {
 			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
 			throw new NullPointerException("ObservationStore must not be null");
+		} else if (endpointContextMatcher == null) {
+			throw new NullPointerException("EndpointContextMatcher must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
+			this.endpointContextMatcher = endpointContextMatcher;
 		}
 	}
 
@@ -148,7 +154,8 @@ public abstract class BaseMatcher implements Matcher {
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
-			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
+			byte[] identity = endpointContextMatcher.getEndpointIdentifier(request.getDestinationContext());
+			final KeyToken idByToken = KeyToken.fromMessage(request, identity);
 			LOG.debug("registering observe request {}", request);
 			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
@@ -179,7 +186,8 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+			byte[] identity = endpointContextMatcher.getEndpointIdentifier(response.getSourceContext());
+			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromMessage(response, identity);
 
 			final Observation obs = observationStore.get(response.getToken());
 			if (obs != null) {

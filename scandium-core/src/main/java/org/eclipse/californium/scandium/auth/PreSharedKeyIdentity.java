@@ -64,11 +64,7 @@ public class PreSharedKeyIdentity implements Principal {
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result
-				+ ((identity == null) ? 0 : identity.hashCode());
-		return result;
+		return identity.hashCode();
 	}
 
 	@Override
@@ -83,13 +79,6 @@ public class PreSharedKeyIdentity implements Principal {
 			return false;
 		}
 		PreSharedKeyIdentity other = (PreSharedKeyIdentity) obj;
-		if (identity == null) {
-			if (other.identity != null) {
-				return false;
-			}
-		} else if (!identity.equals(other.identity)) {
-			return false;
-		}
-		return true;
+		return identity.equals(other.identity);
 	}
 }

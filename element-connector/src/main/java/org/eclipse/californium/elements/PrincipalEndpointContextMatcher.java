@@ -12,6 +12,10 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - support UserInfo principal
+ *                                                    comparing the names only
+ *    Achim Kraus (Bosch Software Innovations GmbH) - user principal name as
+ *                                                    endpoint identifier
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -31,6 +35,15 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	public String getName() {
 		return "principal correlation";
 	}
+
+	@Override
+        public byte[] getEndpointIdentifier(EndpointContext endpointContext) {
+                Principal principal = endpointContext.getPeerIdentity();
+                if (principal == null) {
+                        throw new IllegalArgumentException("principal must be provided!");
+                }
+                return principal.getName().getBytes();
+        }
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
@@ -77,6 +90,13 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	 *         otherwise.
 	 */
 	protected boolean matchPrincipals(Principal requestedPrincipal, Principal availablePrincipal) {
-		return requestedPrincipal.equals(availablePrincipal);
+		if (requestedPrincipal.equals(availablePrincipal)) {
+			return true;
+		}
+		if (requestedPrincipal instanceof UserInfo) {
+			// if the UserInfo is provided in the URI, check only the names
+			return requestedPrincipal.getName().equals(availablePrincipal.getName());
+		}
+		return false;
 	}
 }

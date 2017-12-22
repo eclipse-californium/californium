@@ -36,6 +36,7 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                 by EndpointContext of response.
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -59,7 +60,6 @@ public final class TcpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class.getName());
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
-	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over TCP.
@@ -77,15 +77,15 @@ public final class TcpMatcher extends BaseMatcher {
 	 */
 	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
 			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, observationStore, exchangeStore);
-		this.endpointContextMatcher = endpointContextMatcher;
+		super(config, notificationListener, observationStore, exchangeStore, endpointContextMatcher);
 	}
 
 	@Override
 	public void sendRequest(Exchange exchange, final Request request) {
 
 		exchange.setObserver(exchangeObserver);
-		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
+		byte[] identity = endpointContextMatcher.getEndpointIdentifier(request.getDestinationContext());
+		exchangeStore.registerOutboundRequestWithTokenOnly(exchange, identity);
 		LOGGER.debug("tracking open request using {}", request.getTokenString());
 
 		if (request.isObserve()) {
@@ -125,8 +125,8 @@ public final class TcpMatcher extends BaseMatcher {
 
 	@Override
 	public Exchange receiveResponse(final Response response) {
-
-		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+		byte[] identity = endpointContextMatcher.getEndpointIdentifier(response.getSourceContext());
+		final Exchange.KeyToken idByToken = Exchange.KeyToken.fromMessage(response, identity);
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -170,11 +170,12 @@ public final class TcpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
-									exchange.getOrigin()});
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[] { originRequest.getDestinationContext().getPeerAddress(),
+									exchange.getOrigin() });
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					byte[] identity = endpointContextMatcher.getEndpointIdentifier(originRequest.getDestinationContext());
+					KeyToken idByToken = KeyToken.fromMessage(originRequest, identity);
 					exchangeStore.remove(idByToken, exchange);
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);

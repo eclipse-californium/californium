@@ -40,6 +40,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                    by EndpointContext of response.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -70,7 +71,6 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
 	 * Creates a new matcher for running CoAP over UDP.
@@ -81,21 +81,20 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 * @param matchingStrategy endpoint context matcher to relate
+	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if the configuration, notification listener,
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
-		super(config, notificationListener, observationStore, exchangeStore);
-		this.endpointContextMatcher = matchingStrategy;
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
+		super(config, notificationListener, observationStore, exchangeStore, endpointContextMatcher);
 	}
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
-
-		if (exchangeStore.registerOutboundRequest(exchange)) {
+		byte[] identity = endpointContextMatcher.getEndpointIdentifier(request.getDestinationContext());
+		if (exchangeStore.registerOutboundRequest(exchange, identity)) {
 
 			exchange.setObserver(exchangeObserver);
 
@@ -207,7 +206,8 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		final byte[] identity = endpointContextMatcher.getEndpointIdentifier(response.getSourceContext());
+		final KeyToken idByToken = KeyToken.fromMessage(response, identity);
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -350,12 +350,12 @@ public final class UdpMatcher extends BaseMatcher {
 				if (originRequest.getToken() == null) {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
-					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
-									exchange.getOrigin()});
+					LOGGER.warn("exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[] { originRequest.getDestinationContext().getPeerAddress(),
+									exchange.getOrigin() });
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					byte[] identity = endpointContextMatcher.getEndpointIdentifier(originRequest.getDestinationContext());
+					KeyToken idByToken = KeyToken.fromMessage(originRequest, identity);
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
@@ -370,7 +370,8 @@ public final class UdpMatcher extends BaseMatcher {
 						if (request != originRequest && null != request.getToken()
 								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
 							// remove starting request also
-							idByToken = KeyToken.fromOutboundMessage(request);
+							identity = endpointContextMatcher.getEndpointIdentifier(request.getDestinationContext());
+							idByToken = KeyToken.fromMessage(request, identity);
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
 								exchangeStore.releaseToken(idByToken);

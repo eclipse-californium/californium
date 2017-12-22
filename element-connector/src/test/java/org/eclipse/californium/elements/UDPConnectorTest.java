@@ -77,6 +77,11 @@ public class UDPConnectorTest {
 		}
 
 		@Override
+		public byte[] getEndpointIdentifier(EndpointContext endpointContext) {
+			return null;
+		}
+
+		@Override
 		public String getName() {
 			return "test-only";
 		}

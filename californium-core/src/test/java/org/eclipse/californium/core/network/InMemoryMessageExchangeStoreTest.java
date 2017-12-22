@@ -65,7 +65,7 @@ public class InMemoryMessageExchangeStoreTest {
 		Exchange exchange = newOutboundRequest();
 
 		// WHEN registering the outbound request
-		store.registerOutboundRequest(exchange);
+		store.registerOutboundRequest(exchange, null);
 
 		// THEN the request gets assigned an MID and is put to the store
 		assertNotNull(exchange.getCurrentRequest().getMID());
@@ -77,13 +77,13 @@ public class InMemoryMessageExchangeStoreTest {
 	public void testRegisterOutboundRequestRejectsOtherRequestWithAlreadyUsedMid() {
 
 		Exchange exchange = newOutboundRequest();
-		store.registerOutboundRequest(exchange);
+		store.registerOutboundRequest(exchange, null);
 
 		// WHEN registering another request with the same MID
 		Exchange newExchange = newOutboundRequest();
 		newExchange.getCurrentRequest().setMID(exchange.getCurrentRequest().getMID());
 		try {
-			store.registerOutboundRequest(newExchange);
+			store.registerOutboundRequest(newExchange, null);
 			fail("should have thrown IllegalArgumentException");
 		} catch (IllegalArgumentException e) {
 			// THEN the newExchange is not put to the store
@@ -98,11 +98,11 @@ public class InMemoryMessageExchangeStoreTest {
 	public void testRegisterOutboundRequestRejectsMultipleRegistrationOfSameRequest() {
 
 		Exchange exchange = newOutboundRequest();
-		store.registerOutboundRequest(exchange);
+		store.registerOutboundRequest(exchange, null);
 
 		// WHEN registering the same request again
 		try {
-			store.registerOutboundRequest(exchange);
+			store.registerOutboundRequest(exchange, null);
 			fail("should have thrown IllegalArgumentException");
 		} catch (IllegalArgumentException e) {
 			// THEN the store rejects the re-registration
@@ -123,11 +123,11 @@ public class InMemoryMessageExchangeStoreTest {
 	public void testRegisterOutboundRequestAcceptsRetransmittedRequest() {
 
 		Exchange exchange = newOutboundRequest();
-		store.registerOutboundRequest(exchange);
+		store.registerOutboundRequest(exchange, null);
 
 		// WHEN registering the same request as a re-transmission
 		exchange.setFailedTransmissionCount(1);
-		store.registerOutboundRequest(exchange);
+		store.registerOutboundRequest(exchange, null);
 
 		// THEN the store contains the re-transmitted request
 		KeyMID key = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());

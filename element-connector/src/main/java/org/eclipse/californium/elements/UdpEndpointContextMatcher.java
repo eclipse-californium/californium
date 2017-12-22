@@ -19,8 +19,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
  *                                                    to distinguish from 
  *                                                    none plain UDP contexts.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check address for plain udp
  ******************************************************************************/
 package org.eclipse.californium.elements;
+
+import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 /**
  * Endpoint context matcher for UDP.
@@ -39,7 +43,22 @@ public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	@Override
+	public byte[] getEndpointIdentifier(EndpointContext endpointContext) {
+		InetSocketAddress socketAddress = endpointContext.getPeerAddress();
+		byte[] address = socketAddress.getAddress().getAddress();
+		int port = socketAddress.getPort();
+		int portIndex = address.length;
+		address = Arrays.copyOf(address, portIndex + 2);
+		address[portIndex] = (byte) port;
+		address[portIndex + 1] = (byte) (port >>> 8);
+		return address;
+	}
+
+	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
+		if (!requestContext.getPeerAddress().equals(responseContext.getPeerAddress())) {
+			return false;
+		}
 		return internalMatch(requestContext, responseContext);
 	}
 
@@ -48,7 +67,7 @@ public class UdpEndpointContextMatcher implements EndpointContextMatcher {
 		return internalMatch(messageContext, connectorContext);
 	}
 
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+	protected final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
 		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
 	}
 

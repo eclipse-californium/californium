@@ -32,6 +32,7 @@
  *                                                    completeCurrentRequest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext to
  *                                                    EndpointContext.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -748,23 +749,21 @@ public class Exchange {
 	 */
 	public static final class KeyToken {
 
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
 		private final byte[] token;
-		private final byte[] address;
-		private final int port;
+		private final byte[] identity;
 		private final int hash;
 
-		private KeyToken(byte[] token, byte[] address, int port) {
+		private KeyToken(final byte[] token, final byte[] identity) {
 			if (token == null) {
 				throw new NullPointerException("token bytes must not be null");
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("port must be a 16 bit unsigned int");
 			}
 			this.token = Arrays.copyOf(token, token.length);
-			this.address = address;
-			this.port = port;
+			if (identity == null) {
+				this.identity = null;
+			}
+			else {
+				this.identity = Arrays.copyOf(identity, identity.length);
+			}
 			this.hash = createHash();
 		}
 
@@ -776,22 +775,8 @@ public class Exchange {
 		 * @param message the message.
 		 * @return the key.
 		 */
-		public static KeyToken fromInboundMessage(final Message message) {
-			InetSocketAddress address = message.getSourceContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a new key for an outbound CoAP message.
-		 * <p>
-		 * The key will be scoped to the message's destination endpoint.
-		 * 
-		 * @param message the message.
-		 * @return the key.
-		 */
-		public static KeyToken fromOutboundMessage(final Message message) {
-			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
+		public static KeyToken fromMessage(final Message message, final byte[] identity) {
+			return new KeyToken(message.getToken(), identity);
 		}
 
 		/**
@@ -804,15 +789,14 @@ public class Exchange {
 		 * @throws NullPointerException if token or address is {@code null}
 		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
 		 */
-		public static KeyToken fromValues(byte[] token, byte[] address, int port) {
-			return new KeyToken(token, address, port);
+		public static KeyToken fromValues(final byte[] token, final byte[] identity) {
+			return new KeyToken(token, identity);
 		}
 
 		private int createHash() {
 			final int prime = 31;
 			int result = 1;
-			result = prime * result + port;
-			result = prime * result + Arrays.hashCode(address);
+			result = prime * result + Arrays.hashCode(identity);
 			result = prime * result + Arrays.hashCode(token);
 			return result;
 		}
@@ -820,7 +804,7 @@ public class Exchange {
 		@Override
 		public String toString() {
 			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append(", ")
-					.append(Utils.toHexString(address)).append(":").append(port).append("]").toString();
+					.append(Utils.toHexString(identity)).append("]").toString();
 		}
 
 		@Override
@@ -837,11 +821,9 @@ public class Exchange {
 			if (getClass() != obj.getClass())
 				return false;
 			KeyToken other = (KeyToken) obj;
-			if (!Arrays.equals(address, other.address))
-				return false;
-			if (port != other.port)
-				return false;
 			if (!Arrays.equals(token, other.token))
+				return false;
+			if (!Arrays.equals(identity, other.identity))
 				return false;
 			return true;
 		}

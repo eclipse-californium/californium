@@ -13,6 +13,7 @@
  * Contributors:
  *     Daniel Maier (Bosch Software Innovations GmbH)
  *                                - initial API and implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint identifier for KeyToken
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -35,7 +36,7 @@ public interface TokenProvider {
 	 * @param message The message to get a token for.
 	 * @return a token that is not in use
 	 */
-	KeyToken getUnusedToken(Message message);
+	KeyToken getUnusedToken(byte[] identity);
 
 	/**
 	 * Releases the given token to be used again.
