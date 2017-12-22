@@ -132,6 +132,7 @@ public class HelloExtensionNegotiationTest {
 		// given a constrained client that can only handle fragments of max. 512 bytes
 		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setMaxFragmentLengthCode(1)
+				.setMaxTransmissionUnit(1024)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 

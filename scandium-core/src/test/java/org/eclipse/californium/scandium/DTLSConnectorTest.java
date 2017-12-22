@@ -135,8 +135,6 @@ public class DTLSConnectorTest {
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
-	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
-	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -1659,8 +1657,8 @@ public class DTLSConnectorTest {
 		// when retrieving the maximum transmission unit from the client
 		int mtu = connector.getMaximumTransmissionUnit();
 
-		// then the value is the IPv6 min. MTU
-		assertThat(mtu, is(IPV6_MIN_MTU));
+		// then the value is the IPv4 min. MTU
+		assertThat(mtu, is(DTLSConnector.DEFAULT_IPV4_MTU));
 	}
 
 	@Test
@@ -1672,8 +1670,8 @@ public class DTLSConnectorTest {
 		InetSocketAddress unknownPeer = serverEndpoint;
 		int maxFragmentLength = client.getMaximumFragmentLength(unknownPeer);
 
-		// then the value is the minimum IPv6 MTU - DTLS/UDP/IP header overhead
-		assertThat(maxFragmentLength, is(IPV6_MIN_MTU - DTLS_UDP_IP_HEADER_LENGTH));
+		// then the value is the minimum IPv4 MTU - DTLS/UDP/IP header overhead
+		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - DTLSSession.HEADER_LENGTH));
 	}
 
 	@Test

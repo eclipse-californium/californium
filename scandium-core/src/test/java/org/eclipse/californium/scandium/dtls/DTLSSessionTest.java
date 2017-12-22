@@ -94,10 +94,7 @@ public class DTLSSessionTest {
 	private void assertAnyFragmentFitsIntoUnfragmentedDatagram(int mtu) {
 		int datagramSize = session.getMaxFragmentLength()
 				+ session.getWriteState().getMaxCiphertextExpansion()
-				+ 12 // DTLS session headers
-				+ 13 // DTLS record headers
-				+ 8 // UDP headers
-				+ 20; // IP headers
+				+ DTLSSession.HEADER_LENGTH;
 		assertTrue(datagramSize <= mtu);
 		assertThat(session.getMaxDatagramSize(), is(datagramSize));
 	}

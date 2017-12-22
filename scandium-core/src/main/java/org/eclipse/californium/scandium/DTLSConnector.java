@@ -91,12 +91,15 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -171,6 +174,14 @@ public class DTLSConnector implements Connector {
 	 */
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
+	public static final int MAX_MTU = 65535;
+	/**
+	 * MTU values according 
+	 * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
+	 */
+	public static final int DEFAULT_IPV6_MTU = 1280;
+	public static final int DEFAULT_IPV4_MTU = 576;
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName());
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION =
@@ -198,7 +209,7 @@ public class DTLSConnector implements Connector {
 	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
 	
 	private InetSocketAddress lastBindAddress;
-	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
+	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
@@ -464,12 +475,32 @@ public class DTLSConnector implements Connector {
 				connectionStore.clear();
 			}
 		}
-		NetworkInterface ni = NetworkInterface.getByInetAddress(bindAddress.getAddress());
-		if (ni != null && ni.getMTU() > 0) {
-			this.maximumTransmissionUnit = ni.getMTU();
-		} else {
-			LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [1280] of IPv6 instead");
-			this.maximumTransmissionUnit = 1280;
+		if (config.getMaxTransmissionUnit() == null) {
+			InetAddress localInterfaceAddress = bindAddress.getAddress();
+			if (localInterfaceAddress.isAnyLocalAddress()) {
+				int mtu = MAX_MTU;
+				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+				while (interfaces.hasMoreElements()) {
+					NetworkInterface iface = interfaces.nextElement();
+					mtu = Math.min(mtu, iface.getMTU());
+				}
+				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", mtu);
+				this.maximumTransmissionUnit = mtu;
+			} else {
+				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
+				if (ni != null && ni.getMTU() > 0) {
+					this.maximumTransmissionUnit = ni.getMTU();
+				} else if (localInterfaceAddress instanceof Inet4Address){
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", DEFAULT_IPV4_MTU);
+					this.maximumTransmissionUnit = DEFAULT_IPV4_MTU;
+				} else {
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv6 instead", DEFAULT_IPV6_MTU);
+					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
+				}
+			}
+		}
+		else {
+			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
 		}
 
 		if (config.getMaxFragmentLengthCode() != null) {
@@ -961,7 +992,7 @@ public class DTLSConnector implements Connector {
 		if (record.getEpoch() > 0) {
 			LOGGER.debug(
 				"Discarding unexpected handshake message [epoch={}] received from peer [{}] without existing connection",
-				new Object[]{record.getEpoch(), record.getPeerAddress()});
+				record.getEpoch(), record.getPeerAddress());
 		} else {
 			try {
 				// in epoch 0 no crypto params have been established yet, thus we can simply call getFragment()
@@ -972,7 +1003,7 @@ public class DTLSConnector implements Connector {
 				} else {
 					LOGGER.debug(
 							"Discarding unexpected {} message from peer [{}]",
-							new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer()});
+							handshakeMessage.getMessageType(), handshakeMessage.getPeer());
 				}
 			} catch (GeneralSecurityException e) {
 				discardRecord(record, e);
