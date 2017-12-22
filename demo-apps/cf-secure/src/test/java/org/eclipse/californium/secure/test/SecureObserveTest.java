@@ -41,6 +41,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -313,9 +314,10 @@ public class SecureObserveTest {
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING, mode.name());
+		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
+				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
+				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L) // set response timeout (indirect) to 10s
+				.setString(Keys.DTLS_RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(serverConnector);
