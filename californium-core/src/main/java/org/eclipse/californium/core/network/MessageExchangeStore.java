@@ -15,14 +15,15 @@
  *                                                    save cleanup.
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.List;
 
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 
 /**
  * A registry for keeping track of message exchanges with peers.
@@ -113,7 +114,7 @@ public interface MessageExchangeStore {
 	 * @param token the token of the exchange to remove.
 	 * @param exchange Exchange to be removed, if registered with provided token.
 	 */
-	void remove(KeyToken token, Exchange exchange);
+	void remove(Token token, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
@@ -130,10 +131,10 @@ public interface MessageExchangeStore {
 	/**
 	 * Gets the exchange registered under a given token.
 	 * 
-	 * @param token the token under which the exchange has been registered.
+	 * @param token the key token under which the exchange has been registered.
 	 * @return the exchange or {@code null} if no exchange exists for the given token.
 	 */
-	Exchange get(KeyToken token);
+	Exchange get(Token token);
 
 	/**
 	 * Gets the exchange registered under a given message ID.
@@ -148,18 +149,18 @@ public interface MessageExchangeStore {
 	 * exchange and otherwise associates the key with the exchange specified. 
 	 * This method can also be thought of as <em>put if absent</em>.
 	 * This is equivalent to
-     * <pre>
-     *   if (!duplicator.containsKey(key))
-     *       return duplicator.put(key, value);
-     *   else
-     *       return duplicator.get(key);
-     * </pre>
-     * except that the action is performed atomically.
+	 * <pre>
+	 *   if (!duplicator.containsKey(key))
+	 *       return duplicator.put(key, value);
+	 *   else
+	 *       return duplicator.get(key);
+	 * </pre>
+	 * except that the action is performed atomically.
 	 * 
 	 * @param messageId the message ID of the request
 	 * @param exchange the exchange
 	 * @return the previous exchange associated with the specified key, or
-     *         <tt>null</tt> if there was no mapping for the key.
+	 *         <tt>null</tt> if there was no mapping for the key.
 	 */
 	Exchange findPrevious(KeyMID messageId, Exchange exchange);
 
@@ -187,12 +188,12 @@ public interface MessageExchangeStore {
 	 * @param token the token to look for.
 	 * @return the exchanges.
 	 */
-	List<Exchange> findByToken(byte[] token);
-	
+	List<Exchange> findByToken(Token token);
+
 	/**
 	 * Releases the given token to be used again.
 	 * 
-	 * @param keyToken the KeyToken to release.
+	 * @param token the token to release.
 	 */
-	void releaseToken(KeyToken keyToken);
+	void releaseToken(Token token);
 }
