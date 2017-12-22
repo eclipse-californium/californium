@@ -46,6 +46,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -150,7 +151,7 @@ public abstract class BaseMatcher implements Matcher {
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
 			// TODO: change to use KeyTokenFactory
-			final KeyToken idByToken = new Token(request.getToken());
+			final KeyToken idByToken = request.getToken();
 			LOG.debug("registering observe request {}", request);
 			observationStore.add(idByToken, new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
@@ -182,7 +183,7 @@ public abstract class BaseMatcher implements Matcher {
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
 			// TODO: change to use KeyTokenFactory
-			final KeyToken idByToken = new Token(response.getToken());
+			final KeyToken idByToken = response.getToken();
 
 			final Observation obs = observationStore.get(idByToken);
 			if (obs != null) {
@@ -251,9 +252,9 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
+	public void cancelObserve(Token token) {
 		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = new Token(token);
+		final KeyToken idByToken = token;
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this almost in vain,

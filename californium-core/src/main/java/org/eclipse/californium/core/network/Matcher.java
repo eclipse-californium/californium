@@ -15,14 +15,16 @@
  *    (a lot of changes from different authors, please refer to gitlog).
  *    Achim Kraus (Bosch Software Innovations GmbH) - make exchangeStore final
  *                                                    remove setMessageExchangeStore
- *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext
  *                                                    by EndpointContext of response.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
@@ -152,5 +154,5 @@ public interface Matcher {
 	 * 
 	 * @param token the token of the observation.
 	 */
-	void cancelObserve(byte[] token);
+	void cancelObserve(Token token);
 }

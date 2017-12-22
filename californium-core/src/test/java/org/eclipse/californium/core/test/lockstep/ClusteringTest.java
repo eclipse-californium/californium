@@ -314,7 +314,7 @@ public class ClusteringTest {
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Cancel Observation.");
 		// TODO: change to use KeyTokenFactory
-		KeyToken keyToken = new Token(request.getToken());
+		KeyToken keyToken = request.getToken();
 		store.remove(keyToken);
 
 		// server send new response to client 1

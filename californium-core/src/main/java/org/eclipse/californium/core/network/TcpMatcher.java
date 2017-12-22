@@ -37,6 +37,7 @@
  *                                                 by EndpointContext of response.
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -110,7 +111,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage message) {
 		// ensure Token is set
 		if (message.isConfirmable()) {
-			message.setToken(new byte[0]);
+			message.setToken(Token.EMPTY);
 		} else {
 			throw new UnsupportedOperationException("sending empty message (ACK/RST) over tcp is not supported!");
 		}
@@ -128,7 +129,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public Exchange receiveResponse(final Response response) {
 
 		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = new Token(response.getToken());
+		final KeyToken idByToken = response.getToken();
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -177,7 +178,7 @@ public final class TcpMatcher extends BaseMatcher {
 									exchange.getOrigin()});
 				} else {
 					// TODO: change to use KeyTokenFactory
-					KeyToken idByToken = new Token(originRequest.getToken());
+					KeyToken idByToken = originRequest.getToken();
 					exchangeStore.remove(idByToken, exchange);
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken.getToken());
@@ -195,7 +196,7 @@ public final class TcpMatcher extends BaseMatcher {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
 				// TODO: change to use KeyTokenFactory
-				KeyToken idByToken = new Token(request.getToken());
+				KeyToken idByToken = request.getToken();
 				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}

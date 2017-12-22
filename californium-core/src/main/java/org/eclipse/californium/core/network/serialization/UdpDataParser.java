@@ -18,11 +18,13 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - introduce dedicated MessageFormatException
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -41,7 +43,7 @@ public final class UdpDataParser extends DataParser {
 		assertValidTokenLength(tokenLength);
 		int code = reader.read(CODE_BITS);
 		int mid = reader.read(MESSAGE_ID_BITS);
-		byte token[] = reader.readBytes(tokenLength);
+		Token token = Token.fromProvider(reader.readBytes(tokenLength));
 
 		return new MessageHeader(version, CoAP.Type.valueOf(type), token, code, mid, 0);
 	}

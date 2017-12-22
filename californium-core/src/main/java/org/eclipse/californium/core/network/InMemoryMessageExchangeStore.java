@@ -26,12 +26,12 @@
  *                                                    issue #311
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -216,12 +216,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void registerWithToken(final Exchange exchange) {
 		Request request = exchange.getCurrentRequest();
-		Token token;
-		if (request.getToken() == null) {
+		Token token = request.getToken();
+		if (token == null) {
 			token = tokenProvider.getUnusedToken();
-			request.setToken(token.getBytes());
+			request.setToken(token);
 		} else {
-			token = new Token(request.getToken());
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
@@ -369,7 +368,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && Arrays.equals(token.getBytes(), request.getToken())) {
+					if (request != null && token.equals(request.getToken())) {
 						result.add(entry.getValue());
 					}
 				}

@@ -71,7 +71,7 @@ public class Validate extends CoapResource {
 								request.getCode(),
 								request.getMID()));
 		
-				if (request.getToken().length > 0) {
+				if (!request.hasEmptyToken()) {
 					payload.append("\nToken: ");
 					payload.append(request.getTokenString());
 				}

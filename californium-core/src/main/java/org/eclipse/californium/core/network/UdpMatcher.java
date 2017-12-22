@@ -41,10 +41,10 @@
  *                                                    by EndpointContext of response.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,7 +160,7 @@ public final class UdpMatcher extends BaseMatcher {
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 
 		// ensure Token is set
-		message.setToken(new byte[0]);
+		message.setToken(Token.EMPTY);
 
 		if (message.getType() == Type.RST && exchange != null) {
 			// We have rejected the request or response
@@ -209,7 +209,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
 		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = new Token(response.getToken());
+		final KeyToken idByToken = response.getToken();
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -358,7 +358,7 @@ public final class UdpMatcher extends BaseMatcher {
 									exchange.getOrigin()});
 				} else {
 					// TODO: change to use KeyTokenFactory
-					KeyToken idByToken = new Token(originRequest.getToken());
+					KeyToken idByToken = originRequest.getToken();
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken.getToken());
@@ -371,10 +371,10 @@ public final class UdpMatcher extends BaseMatcher {
 						 */
 						Request request = exchange.getRequest();
 						if (request != originRequest && null != request.getToken()
-								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
+								&& !request.getToken().equals(originRequest.getToken())) {
 							// remove starting request also
 							// TODO: change to use KeyTokenFactory
-							idByToken = new Token(request.getToken());
+							idByToken = request.getToken();
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
 								exchangeStore.releaseToken(idByToken.getToken());
@@ -420,7 +420,7 @@ public final class UdpMatcher extends BaseMatcher {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
 				// TODO: change to use KeyTokenFactory
-				KeyToken idByToken = new Token(request.getToken());
+				KeyToken idByToken = request.getToken();
 				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}

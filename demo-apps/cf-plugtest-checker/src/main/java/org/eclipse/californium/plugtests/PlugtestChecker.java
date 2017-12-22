@@ -13,6 +13,7 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 
 package org.eclipse.californium.plugtests;
@@ -39,6 +40,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
 
@@ -666,7 +668,7 @@ public class PlugtestChecker {
 				System.out.println("FAIL: Response without Token");
 			} else {
 				System.out.printf("PASS: Token (%s)\n",
-						Utils.toHexString(response.getToken()));
+						response.getTokenString());
 			}
 
 			return success;
@@ -684,7 +686,7 @@ public class PlugtestChecker {
 
 			if (!success) {
 				System.out.println("FAIL: Expected no token but had "
-						+ Utils.toHexString(response.getToken()));
+						+ response.getTokenString());
 			} else {
 				System.out.printf("PASS: No Token\n");
 			}
@@ -866,18 +868,18 @@ public class PlugtestChecker {
 		 *            the actual token
 		 * @return true, if successful
 		 */
-		protected boolean checkToken(byte[] expectedToken, byte[] actualToken) {
+		protected boolean checkToken(Token expectedToken, Token actualToken) {
 
 			boolean success = true;
 
-			if (expectedToken == null || expectedToken.length == 0) {
+			if (expectedToken == null || expectedToken.isEmpty()) {
 
-				success = actualToken == null || actualToken.length == 0;
+				success = actualToken == null || actualToken.isEmpty();
 
 				if (!success) {
 					System.out.printf(
 							"FAIL: Expected empty token, but was %s\n",
-							Utils.toHexString(actualToken));
+							actualToken.getAsString());
 				} else {
 					System.out.println("PASS: Correct empty token");
 				}
@@ -886,27 +888,27 @@ public class PlugtestChecker {
 
 			} else {
 
-				success = actualToken.length <= 8;
-				success &= actualToken.length >= 1;
+				success = actualToken.length() <= 8;
+				success &= actualToken.length() >= 1;
 
 				// eval token length
 				if (!success) {
 					System.out
 							.printf("FAIL: Expected token %s, but %s has illeagal length\n",
-									Utils.toHexString(expectedToken),
-									Utils.toHexString(actualToken));
+									expectedToken.getAsString(),
+									actualToken.getAsString());
 					return success;
 				}
 
-				success &= Arrays.equals(expectedToken, actualToken);
+				success &= expectedToken.equals(actualToken);
 
 				if (!success) {
 					System.out.printf("FAIL: Expected token %s, but was %s\n",
-							Utils.toHexString(expectedToken),
-							Utils.toHexString(actualToken));
+							expectedToken.getAsString(),
+							actualToken.getAsString());
 				} else {
 					System.out.printf("PASS: Correct token (%s)\n",
-							Utils.toHexString(actualToken));
+							actualToken.getAsString());
 				}
 
 				return success;
