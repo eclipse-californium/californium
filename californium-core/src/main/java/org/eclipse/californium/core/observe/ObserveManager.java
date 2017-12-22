@@ -16,11 +16,14 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.eclipse.californium.core.coap.Token;
 
 /**
  * The observe manager holds a mapping of endpoint addresses to
@@ -89,7 +92,7 @@ public class ObserveManager {
 		}
 	}
 
-	public ObserveRelation getRelation(InetSocketAddress source, byte[] token) {
+	public ObserveRelation getRelation(InetSocketAddress source, Token token) {
 		ObservingEndpoint remote = getObservingEndpoint(source);
 		if (remote!=null) {
 			return remote.getObserveRelation(token);

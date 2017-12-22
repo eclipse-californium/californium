@@ -32,6 +32,8 @@
  *                                                    completeCurrentRequest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext to
  *                                                    EndpointContext.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove KeyToken,
+ *                                                    replaced by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -737,117 +739,6 @@ public class Exchange {
 		public static KeyMID fromOutboundMessage(Message message) {
 			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
 			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
-		}
-	}
-
-	/**
-	 * A CoAP message token scoped to a remote endpoint.
-	 * <p>
-	 * This class is used by the matcher to correlate messages by their token
-	 * and endpoint address.
-	 */
-	public static final class KeyToken {
-
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
-		private final byte[] token;
-		private final byte[] address;
-		private final int port;
-		private final int hash;
-
-		private KeyToken(byte[] token, byte[] address, int port) {
-			if (token == null) {
-				throw new NullPointerException("token bytes must not be null");
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("port must be a 16 bit unsigned int");
-			}
-			this.token = Arrays.copyOf(token, token.length);
-			this.address = address;
-			this.port = port;
-			this.hash = createHash();
-		}
-
-		/**
-		 * Creates a new key for an inbound CoAP message.
-		 * <p>
-		 * The key will be scoped to the message's source endpoint.
-		 * 
-		 * @param message the message.
-		 * @return the key.
-		 */
-		public static KeyToken fromInboundMessage(final Message message) {
-			InetSocketAddress address = message.getSourceContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a new key for an outbound CoAP message.
-		 * <p>
-		 * The key will be scoped to the message's destination endpoint.
-		 * 
-		 * @param message the message.
-		 * @return the key.
-		 */
-		public static KeyToken fromOutboundMessage(final Message message) {
-			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a new key for a token and an endpoint address.
-		 * 
-		 * @param token the token.
-		 * @param address the endpoint's address.
-		 * @param port the endpoint's port.
-		 * @return the key.
-		 * @throws NullPointerException if token or address is {@code null}
-		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
-		 */
-		public static KeyToken fromValues(byte[] token, byte[] address, int port) {
-			return new KeyToken(token, address, port);
-		}
-
-		private int createHash() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + port;
-			result = prime * result + Arrays.hashCode(address);
-			result = prime * result + Arrays.hashCode(token);
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append(", ")
-					.append(Utils.toHexString(address)).append(":").append(port).append("]").toString();
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			KeyToken other = (KeyToken) obj;
-			if (!Arrays.equals(address, other.address))
-				return false;
-			if (port != other.port)
-				return false;
-			if (!Arrays.equals(token, other.token))
-				return false;
-			return true;
-		}
-
-		public byte[] getToken() {
-			return Arrays.copyOf(token, token.length);
 		}
 	}
 }

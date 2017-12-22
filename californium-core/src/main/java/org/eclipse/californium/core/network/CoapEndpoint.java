@@ -47,6 +47,8 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Builder and deprecate 
  *                                                    constructors
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -68,6 +70,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
@@ -97,7 +100,6 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -157,21 +159,21 @@ import org.slf4j.LoggerFactory;
  * execute tasks, e.g., when a request arrives.
  */
 public class CoapEndpoint implements Endpoint {
-	
+
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
-	
+
 	/** The stack of layers that make up the CoAP protocol */
 	private final CoapStack coapstack;
-	
+
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
-	
+
 	private final String scheme;
-	
+
 	/** The configuration of this endpoint */
 	private final NetworkConfig config;
-	
+
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private final Matcher matcher;
 
@@ -183,13 +185,13 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The executor to run tasks for this endpoint and its layers */
 	private ScheduledExecutorService executor;
-	
+
 	/** Indicates if the endpoint has been started */
 	private boolean started;
-	
+
 	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
 	private List<EndpointObserver> observers = new CopyOnWriteArrayList<>();
-	
+
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
 
@@ -261,7 +263,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(new UDPConnector(address), true, config, null, null, null);
+		this(new UDPConnector(address), true, config, null, null, null, null);
 	}
 
 	/**
@@ -273,7 +275,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
-		this(new UDPConnector(address), true, config, null, exchangeStore, null);
+		this(new UDPConnector(address), true, config, null, null, exchangeStore, null);
 	}
 
 	/**
@@ -287,7 +289,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, false, config, null, null, null);
+		this(connector, false, config, null, null, null, null);
 	}
 
 	/**
@@ -300,7 +302,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(new UDPConnector(address), true, config, store, null, null);
+		this(new UDPConnector(address), true, config, null, store, null, null);
 	}
 
 	/**
@@ -316,8 +318,9 @@ public class CoapEndpoint implements Endpoint {
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 */
 	@Deprecated
-	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store, MessageExchangeStore exchangeStore) {
-		this(connector, false, config, store, exchangeStore, null);
+	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
+			MessageExchangeStore exchangeStore) {
+		this(connector, false, config, null, store, exchangeStore, null);
 	}
 
 	/**
@@ -330,9 +333,10 @@ public class CoapEndpoint implements Endpoint {
 	 * is configured for.
 	 *
 	 * @param connector The connector to use.
-	 * @param applyConfiguration if {@code true}, apply network configuration to connector.
-	 *            Requires a {@link UDPConnector}.
+	 * @param applyConfiguration if {@code true}, apply network configuration to
+	 *            connector. Requires a {@link UDPConnector}.
 	 * @param config The configuration values to use.
+	 * @param tokenGenerator token generator.
 	 * @param store The store to use for keeping track of observations initiated
 	 *            by this endpoint.
 	 * @param exchangeStore The store to use for keeping track of message
@@ -345,15 +349,20 @@ public class CoapEndpoint implements Endpoint {
 	 *             but the connector is not a {@link UDPConnector}
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
-			ObservationStore store, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher) {
+			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
+			EndpointContextMatcher endpointContextMatcher) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 
-		// when remove the deprecated constructors, this checks and defaults maybe removed also
+		// when remove the deprecated constructors, this checks and defaults
+		// maybe removed also
+		if (tokenGenerator == null) {
+			tokenGenerator = new RandomTokenGenerator(config);
+		}
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
-				: new InMemoryMessageExchangeStore(config);
+				: new InMemoryMessageExchangeStore(config, tokenGenerator);
 		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
 		if (null == endpointContextMatcher) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
@@ -370,22 +379,21 @@ public class CoapEndpoint implements Endpoint {
 				udpConnector.setSendBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER));
 				udpConnector.setReceiverPacketSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE));
 			} else {
-				throw new IllegalArgumentException(
-						"Connector must be a UDPConnector to use apply configuration!");
+				throw new IllegalArgumentException("Connector must be a UDPConnector to use apply configuration!");
 			}
 		}
-		
+
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{} uses {}", new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
-			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
+			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore, localExchangeStore,
 					endpointContextMatcher);
 			this.coapstack = createTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore, localExchangeStore,
 					endpointContextMatcher);
 			this.coapstack = createUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
@@ -586,8 +594,8 @@ public class CoapEndpoint implements Endpoint {
 	 * will also be forwarded to all notification listeners.
 	 * </p>
 	 * 
-	 *  @param deliverer the processor to deliver messages to.
-	 *  @throws NullPointerException if the given deliverer is {@code null}
+	 * @param deliverer the processor to deliver messages to.
+	 * @throws NullPointerException if the given deliverer is {@code null}
 	 */
 	@Override
 	public void setMessageDeliverer(MessageDeliverer deliverer) {
@@ -618,12 +626,13 @@ public class CoapEndpoint implements Endpoint {
 	public NetworkConfig getConfig() {
 		return config;
 	}
-	
+
 	public Connector getConnector() {
 		return connector;
 	}
 
 	private class NotificationDispatcher implements NotificationListener {
+
 		@Override
 		public void onNotification(final Request request, final Response response) {
 
@@ -689,7 +698,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor:interceptors) {
+			for (MessageInterceptor interceptor : interceptors) {
 				interceptor.sendResponse(response);
 			}
 			response.setReadyToSend();
@@ -699,8 +708,7 @@ public class CoapEndpoint implements Endpoint {
 				if (null != exchange) {
 					exchange.setComplete();
 				}
-			}
-			else {
+			} else {
 				connector.send(serializer.serializeResponse(response, new MessageCallbackForwarder(response)));
 			}
 		}
@@ -716,7 +724,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor:interceptors) {
+			for (MessageInterceptor interceptor : interceptors) {
 				interceptor.sendEmptyMessage(message);
 			}
 			message.setReadyToSend();
@@ -725,8 +733,7 @@ public class CoapEndpoint implements Endpoint {
 				if (null != exchange) {
 					exchange.setComplete();
 				}
-			}
-			else {
+			} else {
 				connector.send(serializer.serializeEmptyMessage(message, new MessageCallbackForwarder(message)));
 			}
 		}
@@ -802,9 +809,8 @@ public class CoapEndpoint implements Endpoint {
 					// reject erroneous reliably transmitted message as mandated by CoAP spec
 					// https://tools.ietf.org/html/rfc7252#section-4.2
 					reject(raw, e);
-					LOGGER.debug(
-							"rejected malformed message from [{}], reason: {}",
-							new Object[]{raw.getEndpointContext(), e.getMessage()});
+					LOGGER.debug("rejected malformed message from [{}], reason: {}",
+							new Object[] { raw.getEndpointContext(), e.getMessage() });
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.debug("discarding malformed message from [{}]", raw.getEndpointContext());
@@ -841,7 +847,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor:interceptors) {
+			for (MessageInterceptor interceptor : interceptors) {
 				interceptor.receiveRequest(request);
 			}
 
@@ -862,7 +868,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor:interceptors) {
+			for (MessageInterceptor interceptor : interceptors) {
 				interceptor.receiveResponse(response);
 			}
 
@@ -887,7 +893,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor:interceptors) {
+			for (MessageInterceptor interceptor : interceptors) {
 				interceptor.receiveEmptyMessage(message);
 			}
 
@@ -931,10 +937,10 @@ public class CoapEndpoint implements Endpoint {
 			}
 			this.message = message;
 		}
-		
+
 		@Override
 		public void onContextEstablished(EndpointContext context) {
-			
+
 		}
 
 		@Override
@@ -980,7 +986,7 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public void cancelObservation(byte[] token) {
+	public void cancelObservation(Token token) {
 		matcher.cancelObserve(token);
 	}
 
@@ -1062,6 +1068,10 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 		 */
 		private EndpointContextMatcher endpointContextMatcher = null;
+		/**
+		 * Token generator for endpoint.
+		 */
+		private TokenGenerator tokenGenerator;
 
 		/**
 		 * Create new builder.
@@ -1246,12 +1256,23 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		/**
+		 * Set token generator.
+		 * 
+		 * Provides a fluent API to chain setters.
+		 * 
+		 * @param tokenGenerator token generator
+		 * @return this
+		 * @see #tokenGenerator
+		 */
+		public CoapEndpointBuilder setTokenGenerator(TokenGenerator tokenGenerator) {
+			this.tokenGenerator = tokenGenerator;
+			return this;
+		}
+
+		/**
 		 * Create {@link CoapEndpoint} using the provided parameter or defaults.
 		 * 
 		 * @return new endpoint
-		 * @throws IllegalArgumentException if applyConfiguration is
-		 *             {@code true}, but the connector doesn't implement
-		 *             {@link ConnectorConfigurator}
 		 */
 		public CoapEndpoint build() {
 			if (config == null) {
@@ -1263,16 +1284,19 @@ public class CoapEndpoint implements Endpoint {
 				}
 				connector = new UDPConnector(bindAddress);
 			}
+			if (tokenGenerator == null) {
+				tokenGenerator = new RandomTokenGenerator(config);
+			}
 			if (observationStore == null) {
 				observationStore = new InMemoryObservationStore();
 			}
 			if (exchangeStore == null) {
-				exchangeStore = new InMemoryMessageExchangeStore(config);
+				exchangeStore = new InMemoryMessageExchangeStore(config, tokenGenerator);
 			}
 			if (endpointContextMatcher == null) {
 				endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 			}
-			return new CoapEndpoint(connector, applyConfiguration, config, observationStore, exchangeStore,
+			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore, exchangeStore,
 					endpointContextMatcher);
 		}
 	}

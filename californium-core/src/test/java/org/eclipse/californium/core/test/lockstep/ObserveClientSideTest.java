@@ -48,7 +48,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Large;
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -1027,7 +1026,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		client.cancelObservation(server.getToken("A"));
-		System.out.println("Cancel observation " + Utils.toHexString(server.getToken("A")));
+		System.out.println("Cancel observation " + server.getToken("A").getAsString());
 
 		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
 

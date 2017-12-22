@@ -19,11 +19,13 @@
  * Bosch Software Innovations GmbH - introduce dedicated MessageFormatException
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - use Message.NONE as mid
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
@@ -51,7 +53,7 @@ public final class TcpDataParser extends DataParser {
 		}
 		reader.readBytes(lengthSize);
 		int code = reader.read(CODE_BITS);
-		byte token[] = reader.readBytes(tokenLength);
+		Token token = Token.fromProvider(reader.readBytes(tokenLength));
 
 		// No MID/Type/VERSION in TCP message. Use defaults.
 		return new MessageHeader(CoAP.VERSION, CoAP.Type.CON, token, code, Message.NONE, 0);

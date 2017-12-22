@@ -37,6 +37,7 @@ import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
@@ -189,7 +190,7 @@ public class PlugtestClient {
 		System.out.println("===============\nCC12");
 		System.out.println("---------------\nGET /test w/o Token\n---------------");
 		Request req12 = Request.newGet(); // never re-use a Request object
-		req12.setToken(new byte[0]);
+		req12.setToken(Token.EMPTY);
 		response = client.advanced(req12);
 		System.out.println(response.advanced().getType() + "-" + response.getCode());
 		System.out.println(response.getResponseText());

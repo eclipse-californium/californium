@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
@@ -105,8 +106,8 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 					resource.handleRequest(exchange);
 				}
 			} else {
-				LOGGER.info("did not find resource {} requested by {}:{}",
-						new Object[]{path, request.getSource(), request.getSourcePort()});
+				LOGGER.info("did not find resource {} requested by {}",
+						new Object[]{path, request.getSourceContext().getPeerAddress()});
 				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 			}
 		}
@@ -145,13 +146,13 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 		Request request = exchange.getRequest();
 		if (request.getCode() == Code.GET && request.getOptions().hasObserve() && resource.isObservable()) {
 
-			InetSocketAddress source = new InetSocketAddress(request.getSource(), request.getSourcePort());
+			InetSocketAddress source = request.getSourceContext().getPeerAddress();
 
 			if (request.getOptions().getObserve() == 0) {
 				// Requests wants to observe and resource allows it :-)
 				LOGGER.debug(
-						"initiating an observe relation between {}:{} and resource {}",
-						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
+						"initiating an observe relation between {} and resource {}",
+						new Object[]{source, resource.getURI()});
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);

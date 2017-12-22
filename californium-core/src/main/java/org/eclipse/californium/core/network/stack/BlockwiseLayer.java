@@ -43,10 +43,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use uniformly the response 
  *                                                    source endpoint context
  *                                                    for next block requests
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -795,7 +795,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				Block2BlockwiseStatus status = getInboundBlock2Status(key, exchange, response);
 
-				if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || Arrays.equals(response.getToken(), exchange.getCurrentRequest().getToken()))) {
+				if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || response.getToken().equals(exchange.getCurrentRequest().getToken()))) {
 
 					// check token to avoid mixed blockwise transfers (possible with observe) 
 

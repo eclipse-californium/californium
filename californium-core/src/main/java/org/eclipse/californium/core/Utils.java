@@ -51,9 +51,11 @@ public final class Utils {
 		if (bytes == null) {
 			sb.append("null");
 		} else {
+			sb.append("[");
 			for(byte b : bytes) {
 				sb.append(String.format("%02x", b & 0xFF));
 			}
+			sb.append("]");
 		}
 		return sb.toString();
 	}

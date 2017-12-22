@@ -16,13 +16,15 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import org.eclipse.californium.core.coap.Token;
 
 /**
  * This class represents an observing endpoint. It holds all observe relations
@@ -68,8 +70,9 @@ public class ObservingEndpoint {
 	 * resources from this server.
 	 */
 	public void cancelAll() {
-		for (ObserveRelation relation:relations)
+		for (ObserveRelation relation : relations) {
 			relation.cancel();
+		}
 	}
 
 	/**
@@ -80,10 +83,12 @@ public class ObservingEndpoint {
 		return address;
 	}
 
-	public ObserveRelation getObserveRelation(byte[] token) {
-		for (ObserveRelation relation:relations) {
-			if (Arrays.equals(relation.getExchange().getRequest().getToken(), token)) {
-				return relation;
+	public ObserveRelation getObserveRelation(Token token) {
+		if (token != null) {
+			for (ObserveRelation relation:relations) {
+				if (token.equals(relation.getExchange().getRequest().getToken())) {
+					return relation;
+				}
 			}
 		}
 		return null;
