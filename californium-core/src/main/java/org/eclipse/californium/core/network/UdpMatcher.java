@@ -40,6 +40,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                    by EndpointContext of response.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -52,8 +53,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -207,7 +208,8 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		// TODO: change to use KeyTokenFactory
+		final KeyToken idByToken = new Token(response.getToken());
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -351,14 +353,15 @@ public final class UdpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					// TODO: change to use KeyTokenFactory
+					KeyToken idByToken = new Token(originRequest.getToken());
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
-						exchangeStore.releaseToken(idByToken);
+						exchangeStore.releaseToken(idByToken.getToken());
 					}
 					/* filter calls by completeCurrentRequest */
 					if (exchange.isComplete()) {
@@ -370,10 +373,11 @@ public final class UdpMatcher extends BaseMatcher {
 						if (request != originRequest && null != request.getToken()
 								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
 							// remove starting request also
-							idByToken = KeyToken.fromOutboundMessage(request);
+							// TODO: change to use KeyTokenFactory
+							idByToken = new Token(request.getToken());
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
-								exchangeStore.releaseToken(idByToken);
+								exchangeStore.releaseToken(idByToken.getToken());
 							}
 						}
 					}
@@ -415,7 +419,9 @@ public final class UdpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
+				// TODO: change to use KeyTokenFactory
+				KeyToken idByToken = new Token(request.getToken());
+				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}
 	}

@@ -25,6 +25,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -45,8 +46,8 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
@@ -215,19 +216,21 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void registerWithToken(final Exchange exchange) {
 		Request request = exchange.getCurrentRequest();
-		KeyToken idByToken;
+		Token token;
 		if (request.getToken() == null) {
-			idByToken = tokenProvider.getUnusedToken(request);
-			request.setToken(idByToken.getToken());
+			token = tokenProvider.getUnusedToken();
+			request.setToken(token.getBytes());
 		} else {
-			idByToken = KeyToken.fromOutboundMessage(request);
+			token = new Token(request.getToken());
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
-					&& tokenProvider.isTokenInUse(idByToken)) {
-				LOGGER.warn("manual token overrides existing open request: {}", idByToken);
+					&& tokenProvider.isTokenInUse(token)) {
+				LOGGER.warn("manual token overrides existing open request: {}", token);
 			}
 		}
+		// TODO: change to use KeyTokenFactory
+		KeyToken idByToken = token;
 		exchangesByToken.put(idByToken, exchange);
 	}
 
@@ -262,10 +265,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void remove(final KeyToken token, final Exchange exchange) {
-		boolean removed = exchangesByToken.remove(token, exchange);
+	public void remove(final KeyToken keyToken, final Exchange exchange) {
+		boolean removed = exchangesByToken.remove(keyToken, exchange);
 		if (removed) {
-			LOGGER.debug("removing exchange for token {}", token);
+			LOGGER.debug("removing exchange for token {}", keyToken);
 		}
 	}
 
@@ -286,11 +289,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public Exchange get(final KeyToken token) {
-		if (token == null) {
+	public Exchange get(final KeyToken keyToken) {
+		if (keyToken == null) {
 			return null;
 		} else {
-			return exchangesByToken.get(token);
+			return exchangesByToken.get(keyToken);
 		}
 	}
 
@@ -359,13 +362,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public List<Exchange> findByToken(byte[] token) {
+	public List<Exchange> findByToken(Token token) {
 		List<Exchange> result = new ArrayList<>();
 		if (token != null) {
+			// TODO: remove the for ... 
 			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && Arrays.equals(token, request.getToken())) {
+					if (request != null && Arrays.equals(token.getBytes(), request.getToken())) {
 						result.add(entry.getValue());
 					}
 				}
@@ -375,8 +379,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void releaseToken(KeyToken keyToken) {
-		tokenProvider.releaseToken(keyToken);
+	public void releaseToken(Token token) {
+		tokenProvider.releaseToken(token);
 	}
 
 	protected Map<KeyToken, Exchange> getExchangesByToken() {

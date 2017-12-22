@@ -16,6 +16,7 @@
  *                                                    sending to "any" doesn't work on windows
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -37,8 +38,10 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -310,7 +313,9 @@ public class ClusteringTest {
 		// cancel observation
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Cancel Observation.");
-		store.remove(request.getToken());
+		// TODO: change to use KeyTokenFactory
+		KeyToken keyToken = new Token(request.getToken());
+		store.remove(keyToken);
 
 		// server send new response to client 1
 		System.out.println();
