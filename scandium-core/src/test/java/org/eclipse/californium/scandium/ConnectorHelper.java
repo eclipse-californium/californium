@@ -116,6 +116,7 @@ public class ConnectorHelper {
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
+			.setMaxTransmissionUnit(1024)
 			.setClientAuthenticationRequired(true)
 			.build();
 

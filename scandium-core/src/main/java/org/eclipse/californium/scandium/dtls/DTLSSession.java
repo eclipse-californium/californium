@@ -61,12 +61,14 @@ public final class DTLSSession {
 	 * <li>13 bytes DTLS record header</li>
 	 * <li>8 bytes UDP header</li>
 	 * <li>20 bytes IP header</li>
+	 * <li>36 bytes optional IP options</li>
 	 * </ol>
 	 * <p>
 	 * 53 bytes in total.
 	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
 								+ 13 // bytes DTLS record headers
+								+ 36 // bytes optional IP options
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class.getName());

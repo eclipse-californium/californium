@@ -101,9 +101,14 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Maximal number of retransmissions before the attempt to transmit a
-	 * message is canceled
+	 * message is canceled.
 	 */
 	private Integer maxRetransmissions;
+
+	/**
+	 * Maximum transmission unit.
+	 */
+	private Integer maxTransmissionUnit;
 
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
@@ -190,6 +195,17 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxRetransmissions() {
 		return maxRetransmissions;
+	}
+
+	/**
+	 * Gets the maximum transmission unit.
+	 * 
+	 * Maximum number of bytes sent in one transmission.
+	 * 
+	 * @return maximum transmission unit
+	 */
+	public Integer getMaxTransmissionUnit() {
+		return maxTransmissionUnit;
 	}
 
 	/**
@@ -563,6 +579,18 @@ public final class DtlsConnectorConfig {
 				config.maxRetransmissions = count;
 				return this;
 			}
+		}
+
+		/**
+		 * Set maximum transmission unit. Maximum number of bytes sent in one
+		 * transmission.
+		 * 
+		 * @param mtu maximum transmission unit
+		 * @return this builder for command chaining
+		 */
+		public Builder setMaxTransmissionUnit(int mtu) {
+			config.maxTransmissionUnit = mtu;
+			return this;
 		}
 
 		/**
