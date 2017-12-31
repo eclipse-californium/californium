@@ -61,6 +61,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -171,10 +172,9 @@ public abstract class Message {
 	private volatile List<MessageObserver> unmodifiableMessageObserversFacade = null;
 
 	/**
-	 * The timestamp when this message has been received, sent, or 0, if neither
-	 * has happened yet. The {@link Matcher} sets the timestamp.
+	 * The nano-timestamp when this message has been received, or {@code 0} for outgoing messages.
 	 */
-	private volatile long timestamp;
+	private volatile long receiveNanoTimestamp;
 
 	/**
 	 * Creates a new message with no specified message type.
@@ -935,23 +935,25 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the timestamp.
+	 * Gets the nano timestamp of receiving this message.
 	 *
-	 * @return the timestamp
+	 * @return the nano timestamp
+	 * @see ClockUtil#nanoRealtime()
 	 */
-	public long getTimestamp() {
-		return timestamp;
+	public long getReceiveNanoTimestamp() {
+		return receiveNanoTimestamp;
 	}
 
 	/**
-	 * Sets the timestamp.
+	 * Sets nano timestamp of receiving this message.
 	 * 
 	 * Not part of the fluent API.
 	 *
-	 * @param timestamp the new timestamp
+	 * @param nano timestamp the nano timestamp when receiving this message.
+	 * @see ClockUtil#nanoRealtime()
 	 */
-	public void setTimestamp(long timestamp) {
-		this.timestamp = timestamp;
+	public void setReceiveNanoTimestamp(long timestamp) {
+		this.receiveNanoTimestamp = timestamp;
 	}
 
 	/**

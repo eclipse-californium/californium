@@ -41,6 +41,7 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -69,6 +70,8 @@ public class ReliabilityLayer extends AbstractLayer {
 	private final float ack_timeout_scale;
 	private final int max_retransmit;
 
+	private final AtomicInteger counter = new AtomicInteger();
+	
 	/**
 	 * Constructs a new reliability layer. Changes to the configuration are
 	 * observed and automatically applied.
@@ -210,6 +213,14 @@ public class ReliabilityLayer extends AbstractLayer {
 	public void receiveRequest(final Exchange exchange, final Request request) {
 
 		if (request.isDuplicate()) {
+			if (exchange.getSendNanoTimestamp() > request.getReceiveNanoTimestamp()) {
+				// received before response was sent
+				int c = counter.incrementAndGet();
+				LOGGER.warn("{}: {} duplicate request {}, server sent response delayed, ignore request", c, exchange,
+						request);
+				return;
+			}
+
 			// Request is a duplicate, so resend ACK, RST or response
 			exchange.retransmitResponse();
 			Response currentResponse = exchange.getCurrentResponse();
