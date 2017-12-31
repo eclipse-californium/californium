@@ -50,6 +50,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -369,12 +370,13 @@ public class UDPConnector implements Connector {
 							"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
 							effectiveAddr, datagram.getAddress(), datagram.getPort(), size - 1);
 				} else {
+					long timestamp = ClockUtil.nanoRealtime();
 					LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", effectiveAddr, datagram.getLength(),
 							datagram.getAddress(), datagram.getPort());
 					byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 					RawData msg = RawData.inbound(bytes,
 							new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
-							false);
+							false, timestamp);
 					receiver.receiveData(msg);
 				}
 			}

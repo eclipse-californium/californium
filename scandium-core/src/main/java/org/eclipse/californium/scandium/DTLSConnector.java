@@ -1289,7 +1289,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					context = session.getConnectionWriteContext();
 				}
 				LOGGER.debug("Received APPLICATION_DATA for {}", context);
-				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false);
+				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false, record.getReceiveNanos());
 				channel.receiveData(receivedApplicationMessage);
 			}
 		} else if (ongoingHandshake != null) {

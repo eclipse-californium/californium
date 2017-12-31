@@ -146,7 +146,7 @@ public class CoapEndpointTest {
 		};
 
 		
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getSourceContext().getPeerIdentity(), is(clientId));
@@ -154,7 +154,7 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_URI_SCHEME));
@@ -185,7 +185,7 @@ public class CoapEndpointTest {
 		cleanup.add(endpoint);
 		
 		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
@@ -200,7 +200,7 @@ public class CoapEndpointTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false);
+		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false, System.nanoTime());
 
 		// WHEN the incoming message is processed by the Inbox
 		connector.receiveMessage(inboundMessage);
