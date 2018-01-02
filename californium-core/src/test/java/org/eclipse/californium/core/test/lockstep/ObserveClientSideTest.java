@@ -29,6 +29,9 @@
  *                                                    notify. Issue #451
  *                                                    Correct type of MAX_RETRANSMIT
  *                                                    from float to int.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - ignore address on request/response
+ *                                                    matching to support tests using
+ *                                                    changed addresses.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -103,7 +106,7 @@ public class ObserveClientSideTest {
 		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
 		// bind to loopback address using an ephemeral port
 	    //CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, true);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();

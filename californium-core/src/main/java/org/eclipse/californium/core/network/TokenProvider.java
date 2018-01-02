@@ -13,10 +13,11 @@
  * Contributors:
  *     Daniel Maier (Bosch Software Innovations GmbH)
  *                                - initial API and implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - create tokens unique in 
+ *                                                    the scope of the server
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.Exchange.KeyToken;
 
 /**
@@ -32,10 +33,9 @@ public interface TokenProvider {
 	 * Returns a token that is not in use. After this token is not in use
 	 * anymore it must be released with {@link #releaseToken(KeyToken)}.
 	 * 
-	 * @param message The message to get a token for.
 	 * @return a token that is not in use
 	 */
-	KeyToken getUnusedToken(Message message);
+	KeyToken getUnusedToken();
 
 	/**
 	 * Releases the given token to be used again.
@@ -46,11 +46,11 @@ public interface TokenProvider {
 
 	/**
 	 * Indicates if the given token is in use, i.e. was returned by
-	 * {@link #getUnusedToken(Message)} but not yet released by
+	 * {@link #getUnusedToken()} but not yet released by
 	 * {@link #releaseToken(KeyToken)}.
 	 * 
 	 * @param keyToken the token to be checked
-	 * @return <code>true</code> if the given token is still in use, <code>false</code> otherwise
+	 * @return {@code true}, if the given token is still in use, {@code false}, otherwise
 	 */
 	boolean isTokenInUse(KeyToken keyToken);
 }

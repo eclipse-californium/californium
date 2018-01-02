@@ -148,7 +148,7 @@ public abstract class BaseMatcher implements Matcher {
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
-			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
+			final KeyToken idByToken = KeyToken.fromMessage(request);
 			LOG.debug("registering observe request {}", request);
 			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
@@ -179,7 +179,7 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromMessage(response);
 
 			final Observation obs = observationStore.get(response.getToken());
 			if (obs != null) {

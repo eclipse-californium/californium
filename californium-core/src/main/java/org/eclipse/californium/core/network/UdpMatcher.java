@@ -207,7 +207,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		final KeyToken idByToken = KeyToken.fromMessage(response);
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -351,11 +351,11 @@ public final class UdpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					KeyToken idByToken = KeyToken.fromMessage(originRequest);
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
@@ -370,7 +370,7 @@ public final class UdpMatcher extends BaseMatcher {
 						if (request != originRequest && null != request.getToken()
 								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
 							// remove starting request also
-							idByToken = KeyToken.fromOutboundMessage(request);
+							idByToken = KeyToken.fromMessage(request);
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
 								exchangeStore.releaseToken(idByToken);
