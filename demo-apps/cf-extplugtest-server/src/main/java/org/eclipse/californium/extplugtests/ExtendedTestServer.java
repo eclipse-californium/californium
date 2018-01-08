@@ -14,6 +14,7 @@
  *    Bosch Software Innovations GmbH - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
  *                                                    for configuration
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add benchmark
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
@@ -26,6 +27,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
+import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
@@ -58,30 +60,63 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 		}
-		
+
 	};
-	
+
 	public static void main(String[] args) {
+		System.out.println("\nCalifornium (Cf) Extended Plugtest Server");
+		System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
+		System.out.println();
+		System.out.println("Usage: " + ExtendedTestServer.class.getSimpleName() + " [-noLoopback [-noBenchmark]]");
+		System.out.println("  -noLoopback  : no endpoints for loopback/localhost interfaces");
+		System.out.println("  -noBenchmark : disable benchmark resource");
 		// start standard plugtest server
-		PlugtestServer.main(args);
+
+		PlugtestServer.start(args);
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		// create server
 		try {
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
-			ExtendedTestServer server = new ExtendedTestServer(config);
-			server.addEndpoints(!noLoopback,
-					Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			boolean noBenchmark = args.length > 1 ? args[1].equalsIgnoreCase("-noBenchmark") : false;
+
+			ExtendedTestServer server = new ExtendedTestServer(config, noBenchmark);
+			server.addEndpoints(!noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
 				System.out.println("listen on " + ep.getUri());
 				// Eclipse IoT metrics
-				ep.addInterceptor(new OriginTracer());
+				if (noBenchmark) {
+					ep.addInterceptor(new OriginTracer());
+				}
 			}
 
-			System.out.println(ExtendedTestServer.class.getSimpleName() + " started ...");
+			if (noBenchmark) {
+				System.out.println(ExtendedTestServer.class.getSimpleName() + " without benchmark started ...");
+			} else {
+				Runtime runtime = Runtime.getRuntime();
+				long max = runtime.maxMemory();
+				System.out.println(ExtendedTestServer.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				for (;;) {
+					try {
+						Thread.sleep(15000);
+					} catch (InterruptedException e) {
+						break;
+					}
+					long used = runtime.totalMemory() - runtime.freeMemory();
+					int fill = (int) ((used * 100L) / max);
+					if (fill > 80) {
+						System.out.println("Maxium heap size: " + max / (1024 * 1024) + "M " + fill + "% used.");
+						System.out.println("Heap may exceed! Enlarge the maxium heap size.");
+						System.out.println("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
+						System.out.println("in \"" + CONFIG_FILE + "\" or set");
+						System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
+						break;
+					}
+				}
+			}
 
 		} catch (Exception e) {
 
@@ -94,9 +129,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
-	public ExtendedTestServer(NetworkConfig config) throws SocketException {
+	public ExtendedTestServer(NetworkConfig config, boolean noBenchmark) throws SocketException {
 		super(config);
+		int maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
+		add(new Benchmark(noBenchmark, maxMessageSize));
 	}
 }

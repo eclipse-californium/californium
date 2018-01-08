@@ -84,9 +84,6 @@ public class ReceivetestClient {
 
 		@Override
 		public void applyDefaults(NetworkConfig config) {
-			// start on alternative port, 5783 and 5784
-			config.setInt(Keys.COAP_PORT, config.getInt(Keys.COAP_PORT) + 100);
-			config.setInt(Keys.COAP_SECURE_PORT, config.getInt(Keys.COAP_SECURE_PORT) + 100);
 			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
@@ -116,7 +113,9 @@ public class ReceivetestClient {
 			System.out.println("  -j        : use JSON format.");
 			System.out.println("  -r        : use raw public certificate. Default PSK.");
 			System.out.println("  -x        : use x.509 certificate");
-			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test (coap://...)");
+			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test (coap://<host>[:<port>])");
+			System.out.println();
+			System.out.println("Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
 			System.exit(-1);
 		}
 
