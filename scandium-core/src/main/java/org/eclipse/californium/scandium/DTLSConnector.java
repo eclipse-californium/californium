@@ -69,6 +69,8 @@
  *                                                    to DTLSSession
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change receiver thread to
+ *                                                    daemon
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -404,7 +406,7 @@ public class DTLSConnector implements Connector {
 				receiveNextDatagramFromNetwork(packet);
 			}
 		};
-
+		receiver.setDaemon(true);
 		receiver.start();
 		LOGGER.info(
 				"DTLS connector listening on [{}] with MTU [{}] using (inbound) datagram buffer size [{} bytes]",
