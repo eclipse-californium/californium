@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
@@ -42,11 +43,15 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Client initializer.
  */
 public class ClientInitializer {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class.getCanonicalName());
 
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -101,10 +106,13 @@ public class ClientInitializer {
 
 		setupEndpoint(config, uri, verbose, rpc, x509, ping);
 
-		return new Arguments(uri, ping[0], verbose, json);
+		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
+
+		return new Arguments(uri, ping[0], verbose, json, leftArgs);
 	}
 
-	private static void setupEndpoint(NetworkConfig config, String uri, boolean verbose, boolean rpc, boolean x509, boolean ping[]) {
+	private static void setupEndpoint(NetworkConfig config, String uri, boolean verbose, boolean rpc, boolean x509,
+			boolean[] ping) {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
@@ -138,7 +146,8 @@ public class ClientInitializer {
 			if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 				if (rpc || x509) {
-					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(), rpc);
+					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
+							rpc);
 					dtlsConfig.setTrustStore(trustedCertificates);
 				} else {
 					byte[] id = new byte[8];
@@ -170,13 +179,13 @@ public class ClientInitializer {
 		EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
 	}
 
-	private static class PlugPskStore implements PskStore {
+	public static class PlugPskStore implements PskStore {
 
 		private final String identity;
 
 		public PlugPskStore(String id) {
 			identity = PSK_IDENTITY_PREFIX + id;
-			System.out.println("DTLS-PSK-Identity: " + identity + " (" + (id.length() / 2) + " bytes)");
+			LOGGER.info("DTLS-PSK-Identity: {} ({} random bytes)", identity , (id.length() / 2));
 		}
 
 		@Override
@@ -205,12 +214,14 @@ public class ClientInitializer {
 		public final boolean verbose;
 		public final boolean json;
 		public final String uri;
+		public final String[] args;
 
-		public Arguments(String uri, boolean ping, boolean verbose, boolean json) {
+		public Arguments(String uri, boolean ping, boolean verbose, boolean json, String[] args) {
 			this.uri = uri;
 			this.ping = ping;
 			this.verbose = verbose;
 			this.json = json;
+			this.args = args;
 		}
 	}
 }

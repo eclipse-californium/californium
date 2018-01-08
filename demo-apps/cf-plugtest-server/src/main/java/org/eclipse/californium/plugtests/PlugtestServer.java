@@ -88,7 +88,15 @@ public class PlugtestServer extends AbstractTestServer {
 	};
 	
 	public static void main(String[] args) {
-		
+		System.out.println("\nCalifornium (Cf) Plugtest Server");
+		System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
+		System.out.println();
+		System.out.println("Usage: " + PlugtestServer.class.getSimpleName() + " [-noLoopback]");
+		System.out.println("  -noLoopback : no endpoints for loopback/localhost interfaces");
+		start(args);
+	}	
+	
+	public static void start(String[] args) {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
 		// create server
