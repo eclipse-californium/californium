@@ -18,17 +18,11 @@ package org.eclipse.californium.core.coap;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.network.KeyToken;
-import org.eclipse.californium.core.network.KeyTokenFactory;
 
 /**
  * Implementation of CoAP token.
- * 
- * Note: the {@link KeyToken} implements relation is only temporary!
- * Introducing the {@link KeyTokenFactory} requires many changes and will
- * be applied in late.
  */
-public class Token implements KeyToken {
+public class Token {
 
 	/**
 	 * Empty token.
@@ -135,11 +129,6 @@ public class Token implements KeyToken {
 	 */
 	public int length() {
 		return token.length;
-	}
-
-	@Override
-	public Token getToken() {
-		return this;
 	}
 
 	/**

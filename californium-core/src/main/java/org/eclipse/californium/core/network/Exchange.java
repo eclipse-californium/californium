@@ -554,6 +554,18 @@ public class Exchange {
 		return nanoTimestamp;
 	}
 
+	public boolean isCanceled() {
+		Message request = this.request;
+		if (request != null && request.isCanceled()) {
+			return true;
+		}
+		request = this.currentRequest;
+		if (request != null && request.isCanceled()) {
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Calculates the RTT (round trip time) of this exchange.
 	 * 
@@ -619,13 +631,12 @@ public class Exchange {
 	 * @param ctx the endpoint context information
 	 */
 	public void setEndpointContext(final EndpointContext ctx) {
-		if (endpointContext.compareAndSet(null, ctx)) {
+		endpointContext.set(ctx);
+		if (!isComplete() && !isCanceled() && (0 == getFailedTransmissionCount())) {
 			ExchangeObserver obs = this.observer;
 			if (obs != null) {
 				obs.contextEstablished(this);
 			}
-		} else {
-			endpointContext.set(ctx);
 		}
 	}
 

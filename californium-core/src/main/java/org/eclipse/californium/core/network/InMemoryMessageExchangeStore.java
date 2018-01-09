@@ -27,6 +27,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -187,6 +188,23 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		return mid;
 	}
 
+	@Override
+	public Token assignToken(Message message) {
+		Token token = message.getToken();
+		if (token == null) {
+			token = tokenProvider.getUnusedToken();
+			message.setToken(token);
+		} else {
+			// ongoing requests may reuse token
+			if (!(message.getOptions().hasBlock1()
+				|| message.getOptions().hasBlock2() || message.getOptions().hasObserve())
+				&& tokenProvider.isTokenInUse(token)) {
+				LOGGER.warn("manual token overrides existing open request: {}", token);
+			}
+		}
+		return token;
+	}
+
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
 
 		int mid = message.getMID();
@@ -214,7 +232,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		return mid;
 	}
 
-	private void registerWithToken(final Exchange exchange) {
+	private void registerWithToken(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 		Request request = exchange.getCurrentRequest();
 		Token token = request.getToken();
 		if (token == null) {
@@ -228,13 +246,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				LOGGER.warn("manual token overrides existing open request: {}", token);
 			}
 		}
-		// TODO: change to use KeyTokenFactory
-		KeyToken idByToken = token;
+		KeyToken idByToken = keyTokenFactory.create(token, exchange.getEndpointContext());
 		exchangesByToken.put(idByToken, exchange);
 	}
 
 	@Override
-	public boolean registerOutboundRequest(final Exchange exchange) {
+	public boolean registerOutboundRequest(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
@@ -243,7 +260,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else {
 			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
 			if (Message.NONE != mid) {
-				registerWithToken(exchange);
+				registerWithToken(keyTokenFactory, exchange);
 				return true;
 			} else {
 				return false;
@@ -252,13 +269,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public boolean registerOutboundRequestWithTokenOnly(final Exchange exchange) {
+	public boolean registerOutboundRequestWithTokenOnly(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			registerWithToken(exchange);
+			registerWithToken(keyTokenFactory, exchange);
 			return true;
 		}
 	}
@@ -369,7 +386,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
 					// TODO: change to use KeyTokenFactory for request token
-					if (request != null && keyToken.equals(request.getToken())) {
+					if (request != null && keyToken.getToken().equals(request.getToken())) {
 						result.add(entry.getValue());
 					}
 				}

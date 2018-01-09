@@ -42,6 +42,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -88,21 +90,19 @@ public final class UdpMatcher extends BaseMatcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
-		super(config, notificationListener, observationStore, exchangeStore);
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore,
+			final EndpointContextMatcher matchingStrategy, final KeyTokenFactory keyTokenFactory) {
+		super(config, notificationListener, observationStore, exchangeStore, keyTokenFactory);
 		this.endpointContextMatcher = matchingStrategy;
 	}
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
-
-		if (exchangeStore.registerOutboundRequest(exchange)) {
-
-			exchange.setObserver(exchangeObserver);
-
-			// for observe request.
-			if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
-				registerObserve(request);
+		
+		if (exchangeStore.assignMessageId(request) != Message.NONE) {
+			if (exchange.getFailedTransmissionCount() == 0) {
+				exchangeStore.assignToken(request);
+				exchange.setObserver(exchangeObserver);
 			}
 
 			if (LOGGER.isDebugEnabled()) {
@@ -208,8 +208,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = response.getToken();
+		final KeyToken idByToken = keyTokenFactory.create(response.getToken(), response.getSourceContext());
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -348,20 +347,20 @@ public final class UdpMatcher extends BaseMatcher {
 					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
 					exchangeStore.remove(idByMID, exchange);
 				}
-
-				if (originRequest.getToken() == null) {
+				Token token = originRequest.getToken();
+				if (token == null) {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
-							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
-									exchange.getOrigin()});
+							"exchange observer has been completed on unregistered exchange [peer: {}, LOCAL]",
+							originRequest.getDestinationContext().getPeerAddress());
 				} else {
-					// TODO: change to use KeyTokenFactory
-					KeyToken idByToken = originRequest.getToken();
-					exchangeStore.remove(idByToken, exchange);
+					if (exchange.getEndpointContext() != null) {
+						KeyToken idByToken = keyTokenFactory.create(token,  exchange.getEndpointContext());
+						exchangeStore.remove(idByToken, exchange);
+					}
 					if (!originRequest.isObserve()) {
-						exchangeStore.releaseToken(idByToken.getToken());
+						exchangeStore.releaseToken(token);
 					}
 					/* filter calls by completeCurrentRequest */
 					if (exchange.isComplete()) {
@@ -373,15 +372,16 @@ public final class UdpMatcher extends BaseMatcher {
 						if (request != originRequest && null != request.getToken()
 								&& !request.getToken().equals(originRequest.getToken())) {
 							// remove starting request also
-							// TODO: change to use KeyTokenFactory
-							idByToken = request.getToken();
-							exchangeStore.remove(idByToken, exchange);
+							if (exchange.getEndpointContext() != null) {
+								KeyToken idByToken = keyTokenFactory.create(request.getToken(),  exchange.getEndpointContext());
+								exchangeStore.remove(idByToken, exchange);
+							}
 							if (!request.isObserve()) {
-								exchangeStore.releaseToken(idByToken.getToken());
+								exchangeStore.releaseToken(request.getToken());
 							}
 						}
 					}
-					LOGGER.debug("Exchange [{}, origin: {}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.debug("Exchange [{}, LOCAL] completed", token);
 				}
 
 			} else { // Origin.REMOTE
@@ -399,7 +399,7 @@ public final class UdpMatcher extends BaseMatcher {
 						KeyMID midKey = KeyMID.fromOutboundMessage(response);
 						exchangeStore.remove(midKey, exchange);
 
-						LOGGER.debug("Exchange [{}, {}] completed", new Object[]{midKey, exchange.getOrigin()});
+						LOGGER.debug("Exchange [{}, REMOTE] completed", midKey);
 					}
 					else {
 						// sometime proactive cancel requests and notifies are overlapping
@@ -417,11 +417,11 @@ public final class UdpMatcher extends BaseMatcher {
 
 		@Override
 		public void contextEstablished(final Exchange exchange) {
-			Request request = exchange.getRequest(); 
-			if (request != null && request.isObserve()) {
-				// TODO: change to use KeyTokenFactory
-				KeyToken idByToken = request.getToken();
-				observationStore.setContext(idByToken, exchange.getEndpointContext());
+			exchangeStore.registerOutboundRequest(keyTokenFactory, exchange);
+			Request request = exchange.getRequest();
+			if (request != null && exchange.getCurrentRequest() == request && request.isObserve()) {
+				// for observe request.
+				registerObserve(request, exchange.getEndpointContext());
 			}
 		}
 	}

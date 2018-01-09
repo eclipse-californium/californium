@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.KeyToken;
-import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An observation store that keeps all observations in-memory.
@@ -90,16 +89,5 @@ public final class InMemoryObservationStore implements ObservationStore {
 	 */
 	public void clear() {
 		map.clear();
-	}
-
-	@Override
-	public void setContext(KeyToken keyToken, final EndpointContext ctx) {
-
-		if (keyToken != null && ctx != null) {
-			Observation obs = map.get(keyToken);
-			if (obs != null) {
-				map.put(keyToken, new Observation(obs.getRequest(), ctx));
-			}
-		}
 	}
 }

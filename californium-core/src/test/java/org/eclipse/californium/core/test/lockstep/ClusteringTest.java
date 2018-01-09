@@ -38,10 +38,10 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.KeyToken;
+import org.eclipse.californium.core.network.TokenOnlyKeyTokenFactory;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -314,7 +314,7 @@ public class ClusteringTest {
 		System.out.println();
 		System.out.println(System.lineSeparator() + "Cancel Observation.");
 		// TODO: change to use KeyTokenFactory
-		KeyToken keyToken = request.getToken();
+		KeyToken keyToken = TokenOnlyKeyTokenFactory.INSTANCE.create(request.getToken(), request.getDestinationContext());
 		store.remove(keyToken);
 
 		// server send new response to client 1

@@ -16,6 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -47,14 +48,26 @@ public interface MessageExchangeStore {
 	void stop();
 
 	/**
-	 * Assigns an unused message ID to a message.
+	 * Assigns an unused message ID to a message, if not already set.
 	 * 
 	 * @param message the message. The message to assign the ID to.
-	 * @return The assigned message ID. This will be {@link Message#NONE} if all message IDs are currently in use for
-	 *         the message's destination endpoint.
+	 * @return The resulting message ID. Either the already set or the assigned
+	 *         message ID. This will be {@link Message#NONE}, if all message IDs
+	 *         are currently in use for the message's destination endpoint.
 	 */
 	int assignMessageId(Message message);
 
+	/**
+	 * Assign a unused token, if not already stead.
+	 * 
+	 * The token must be released.
+	 * 
+	 * @param message the message to assign the unused token.
+	 * @return the resulting token. Either the already set or the assigned
+	 *         token.
+	 */
+	Token assignToken(Message message);
+	
 	/**
 	 * Registers an exchange for an outbound request.
 	 * <p>
@@ -72,7 +85,7 @@ public interface MessageExchangeStore {
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
 	 *                                  or if the request already has a message ID that is still in use.
 	 */
-	boolean registerOutboundRequest(Exchange exchange);
+	boolean registerOutboundRequest(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -89,7 +102,7 @@ public interface MessageExchangeStore {
 	 * @throws NullPointerException if any of the given params is {@code null}.
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
 	 */
-	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
+	boolean registerOutboundRequestWithTokenOnly(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.
