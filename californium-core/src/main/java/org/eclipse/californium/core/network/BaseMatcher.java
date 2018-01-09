@@ -63,6 +63,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -244,15 +245,8 @@ public abstract class BaseMatcher implements Matcher {
 		return exchange;
 	}
 
-	/**
-	 * Cancels all pending blockwise requests that have been induced by a
-	 * notification we have received indicating a blockwise transfer of the
-	 * resource.
-	 * 
-	 * @param token the token of the observation.
-	 */
 	@Override
-	public void cancelObserve(Token token) {
+	public void cancelObserve(Token token, EndpointContext context) {
 		// TODO: change to use KeyTokenFactory
 		final KeyToken idByToken = token;
 		// we do not know the destination endpoint the requests have been sent

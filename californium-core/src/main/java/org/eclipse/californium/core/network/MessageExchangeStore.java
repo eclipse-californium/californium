@@ -183,12 +183,12 @@ public interface MessageExchangeStore {
 
 	/**
 	 * Gets all message exchanges of local origin that contain a request
-	 * with a given token.
+	 * with a given key token.
 	 * 
-	 * @param token the token to look for.
+	 * @param keyToken the key token to look for.
 	 * @return the exchanges.
 	 */
-	List<Exchange> findByToken(Token token);
+	List<Exchange> findByToken(KeyToken keyToken);
 
 	/**
 	 * Releases the given token to be used again.

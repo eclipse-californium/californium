@@ -182,7 +182,7 @@ public class CoapObserveRelation {
 	 * Cancel observer.
 	 */
 	private void cancel() {
-		endpoint.cancelObservation(request.getToken());
+		endpoint.cancelObservation(request.getToken(), request.getDestinationContext());
 		setCanceled(true);
 	}
 

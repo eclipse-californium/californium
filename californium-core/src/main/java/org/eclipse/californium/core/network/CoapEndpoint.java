@@ -982,8 +982,8 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public void cancelObservation(Token token) {
-		matcher.cancelObserve(token);
+	public void cancelObservation(Token token, EndpointContext context) {
+		matcher.cancelObserve(token, context);
 	}
 
 	/**

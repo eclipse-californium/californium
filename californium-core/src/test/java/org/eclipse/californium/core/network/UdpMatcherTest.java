@@ -145,7 +145,7 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN canceling any observe relations for the exchange's token
-		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
+		matcher.cancelObserve(exchange.getCurrentRequest().getToken(), exchangeEndpointContext);
 
 		// THEN the token has been released for re-use
 		Token token = exchange.getCurrentRequest().getToken();

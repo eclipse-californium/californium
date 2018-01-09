@@ -361,14 +361,15 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public List<Exchange> findByToken(Token token) {
+	public List<Exchange> findByToken(KeyToken keyToken) {
 		List<Exchange> result = new ArrayList<>();
-		if (token != null) {
+		if (keyToken != null) {
 			// TODO: remove the for ... 
 			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && token.equals(request.getToken())) {
+					// TODO: change to use KeyTokenFactory for request token
+					if (request != null && keyToken.equals(request.getToken())) {
 						result.add(entry.getValue());
 					}
 				}

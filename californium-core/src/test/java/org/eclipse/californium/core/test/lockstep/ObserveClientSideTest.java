@@ -314,7 +314,7 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 
 		// canceling in the middle of blockwise transfer
-		client.cancelObservation(request.getToken());
+		client.cancelObservation(request.getToken(), request.getDestinationContext());
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
 		// notification must not be delivered
@@ -1025,7 +1025,7 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		printServerLog(clientInterceptor);
 
-		client.cancelObservation(server.getToken("A"));
+		client.cancelObservation(server.getToken("A"), request.getDestinationContext());
 		System.out.println("Cancel observation " + server.getToken("A").getAsString());
 
 		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());

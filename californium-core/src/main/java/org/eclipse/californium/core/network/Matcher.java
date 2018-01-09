@@ -18,6 +18,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext
  *                                                    by EndpointContext of response.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct signature of
+ *                                                    cancelObservation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -25,6 +27,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
@@ -153,6 +156,7 @@ public interface Matcher {
 	 * we have received indicating a blockwise transfer of the resource.
 	 * 
 	 * @param token the token of the observation.
+	 * @param context endpoint context used for the observation.
 	 */
-	void cancelObserve(Token token);
+	void cancelObserve(Token token, EndpointContext context);
 }
