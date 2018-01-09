@@ -48,6 +48,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Builder and deprecate 
  *                                                    constructors
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -263,7 +264,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(new UDPConnector(address), true, config, null, null, null);
+		this(new UDPConnector(address), true, config, null, null, null, null);
 	}
 
 	/**
@@ -275,7 +276,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
-		this(new UDPConnector(address), true, config, null, exchangeStore, null);
+		this(new UDPConnector(address), true, config, null, exchangeStore, null, null);
 	}
 
 	/**
@@ -289,7 +290,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, false, config, null, null, null);
+		this(connector, false, config, null, null, null, null);
 	}
 
 	/**
@@ -302,7 +303,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(new UDPConnector(address), true, config, store, null, null);
+		this(new UDPConnector(address), true, config, store, null, null, null);
 	}
 
 	/**
@@ -319,7 +320,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store, MessageExchangeStore exchangeStore) {
-		this(connector, false, config, store, exchangeStore, null);
+		this(connector, false, config, store, exchangeStore, null, null);
 	}
 
 	/**
@@ -347,18 +348,22 @@ public class CoapEndpoint implements Endpoint {
 	 *             but the connector is not a {@link UDPConnector}
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
-			ObservationStore store, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher) {
+			ObservationStore store, MessageExchangeStore exchangeStore, 
+			EndpointContextMatcher endpointContextMatcher, KeyTokenFactory keyTokenFactory) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 
 		// when remove the deprecated constructors, this checks and defaults maybe removed also
-		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
+		MessageExchangeStore localExchangeStore = (exchangeStore != null) ? exchangeStore
 				: new InMemoryMessageExchangeStore(config);
 		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
-		if (null == endpointContextMatcher) {
+		if (endpointContextMatcher == null) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
+		}
+		if (keyTokenFactory == null) {
+			keyTokenFactory = TokenOnlyKeyTokenFactory.INSTANCE;
 		}
 
 		// keep for subclasses
@@ -382,13 +387,13 @@ public class CoapEndpoint implements Endpoint {
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
-					endpointContextMatcher);
+					endpointContextMatcher, keyTokenFactory);
 			this.coapstack = createTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), observationStore, localExchangeStore,
-					endpointContextMatcher);
+					endpointContextMatcher, keyTokenFactory);
 			this.coapstack = createUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
@@ -1064,7 +1069,11 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 		 */
 		private EndpointContextMatcher endpointContextMatcher = null;
-
+		/**
+		 * Key token factory.
+		 * @see 
+		 */
+		private KeyTokenFactory keyTokenFactory = null;
 		/**
 		 * Create new builder.
 		 */
@@ -1248,6 +1257,20 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		/**
+		 * Set key token factory.
+		 * 
+		 * Provides a fluent API to chain setters.
+		 * 
+		 * @param keyTokenFactory key token factory
+		 * @return this
+		 * @see #keyTokenFactory
+		 */
+		public CoapEndpointBuilder setKeyTokenFactory(KeyTokenFactory keyTokenFactory) {
+			this.keyTokenFactory = keyTokenFactory;
+			return this;
+		}
+
+		/**
 		 * Create {@link CoapEndpoint} using the provided parameter or defaults.
 		 * 
 		 * @return new endpoint
@@ -1274,8 +1297,11 @@ public class CoapEndpoint implements Endpoint {
 			if (endpointContextMatcher == null) {
 				endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 			}
+			if (keyTokenFactory == null) {
+				keyTokenFactory = TokenOnlyKeyTokenFactory.INSTANCE;
+			}
 			return new CoapEndpoint(connector, applyConfiguration, config, observationStore, exchangeStore,
-					endpointContextMatcher);
+					endpointContextMatcher, keyTokenFactory);
 		}
 	}
 }

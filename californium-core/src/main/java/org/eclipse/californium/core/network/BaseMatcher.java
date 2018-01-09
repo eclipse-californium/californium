@@ -47,6 +47,7 @@
  *                                                    issue 465
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -75,6 +76,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
+	protected final KeyTokenFactory keyTokenFactory;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
 
@@ -88,11 +90,13 @@ public abstract class BaseMatcher implements Matcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
+	 * @param keyTokenFactory key token factory.
 	 * @throws NullPointerException if the configuration, notification listener,
-	 *             or the observation store is {@code null}.
+	 *             the observation store, or the key token factory is {@code null}.
 	 */
 	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore,
+			final KeyTokenFactory keyTokenFactory) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -101,11 +105,14 @@ public abstract class BaseMatcher implements Matcher {
 			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
 			throw new NullPointerException("ObservationStore must not be null");
+		} else if (keyTokenFactory == null) {
+			throw new NullPointerException("KeyTokenFactory must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
+			this.keyTokenFactory = keyTokenFactory;
 		}
 	}
 
@@ -151,8 +158,7 @@ public abstract class BaseMatcher implements Matcher {
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
-			// TODO: change to use KeyTokenFactory
-			final KeyToken idByToken = request.getToken();
+			final KeyToken idByToken = keyTokenFactory.create(request.getToken(), request.getDestinationContext());
 			LOG.debug("registering observe request {}", request);
 			observationStore.add(idByToken, new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
@@ -161,7 +167,7 @@ public abstract class BaseMatcher implements Matcher {
 				public void onCancel() {
 					failed();
 				}
-				
+
 				@Override
 				protected void failed() {
 					observationStore.remove(idByToken);
@@ -183,8 +189,7 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			// TODO: change to use KeyTokenFactory
-			final KeyToken idByToken = response.getToken();
+			final KeyToken idByToken = keyTokenFactory.create(response.getToken(), response.getSourceContext());
 
 			final Observation obs = observationStore.get(idByToken);
 			if (obs != null) {
@@ -219,7 +224,7 @@ public abstract class BaseMatcher implements Matcher {
 							}
 						}
 					}
-					
+
 					@Override
 					public void onTimeout() {
 						// Ignore timeout, don't remove observation!
@@ -247,13 +252,12 @@ public abstract class BaseMatcher implements Matcher {
 
 	@Override
 	public void cancelObserve(Token token, EndpointContext context) {
-		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = token;
+		final KeyToken idByToken = keyTokenFactory.create(token, context);
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this almost in vain,
 		// except, when a blockwise notify is pending.
-		for (Exchange exchange : exchangeStore.findByToken(idByToken.getToken())) {
+		for (Exchange exchange : exchangeStore.findByToken(idByToken)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
 				// cancel only observe requests, 

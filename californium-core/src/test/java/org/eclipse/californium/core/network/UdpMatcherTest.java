@@ -58,6 +58,7 @@ public class UdpMatcherTest {
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
 	private EndpointContextMatcher endpointContextMatcher;
+	private KeyTokenFactory keyTokenFactory;
 	
 	@Before
 	public void before(){
@@ -65,6 +66,7 @@ public class UdpMatcherTest {
 		tokenProvider = new InMemoryRandomTokenProvider(config);
 		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
 		observationStore =  new InMemoryObservationStore();
+		keyTokenFactory = TokenOnlyKeyTokenFactory.INSTANCE;
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
@@ -166,9 +168,9 @@ public class UdpMatcherTest {
 		exchange.setRequest(request);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
-		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
+		when(exchangeStore.registerOutboundRequest(keyTokenFactory, exchange)).thenReturn(false);
 		verify(endpointContextMatcher, never()).isResponseRelatedToRequest(null, null);
-		UdpMatcher matcher = MatcherTestUtils.newUdpMatcher(exchangeStore, observationStore, endpointContextMatcher);
+		UdpMatcher matcher = MatcherTestUtils.newUdpMatcher(exchangeStore, observationStore, endpointContextMatcher, keyTokenFactory);
 
 		// WHEN the request is being sent
 		matcher.sendRequest(exchange, request);
@@ -180,6 +182,6 @@ public class UdpMatcherTest {
 	}
 
 	private UdpMatcher newUdpMatcher() {
-		return MatcherTestUtils.newUdpMatcher(messageExchangeStore, observationStore, endpointContextMatcher);
+		return MatcherTestUtils.newUdpMatcher(messageExchangeStore, observationStore, endpointContextMatcher, keyTokenFactory);
 	}
 }

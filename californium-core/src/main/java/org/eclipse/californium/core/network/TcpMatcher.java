@@ -38,6 +38,7 @@
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ * Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -78,8 +79,9 @@ public final class TcpMatcher extends BaseMatcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, observationStore, exchangeStore);
+			 final ObservationStore observationStore, final MessageExchangeStore exchangeStore, 
+			 final EndpointContextMatcher endpointContextMatcher, final KeyTokenFactory keyTokenFactory) {
+		super(config, notificationListener, observationStore, exchangeStore, keyTokenFactory);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
@@ -87,7 +89,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public void sendRequest(Exchange exchange, final Request request) {
 
 		exchange.setObserver(exchangeObserver);
-		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
+		exchangeStore.registerOutboundRequestWithTokenOnly(keyTokenFactory, exchange);
 		LOGGER.debug("tracking open request using {}", request.getTokenString());
 
 		if (request.isObserve()) {
@@ -128,8 +130,7 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveResponse(final Response response) {
 
-		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = response.getToken();
+		final KeyToken idByToken = keyTokenFactory.create(response.getToken(), response.getSourceContext());
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -177,8 +178,7 @@ public final class TcpMatcher extends BaseMatcher {
 							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					// TODO: change to use KeyTokenFactory
-					KeyToken idByToken = originRequest.getToken();
+					KeyToken idByToken = keyTokenFactory.create(originRequest.getToken(), originRequest.getDestinationContext());
 					exchangeStore.remove(idByToken, exchange);
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken.getToken());
@@ -195,8 +195,7 @@ public final class TcpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				// TODO: change to use KeyTokenFactory
-				KeyToken idByToken = request.getToken();
+				KeyToken idByToken = keyTokenFactory.create(request.getToken(), request.getDestinationContext());
 				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}

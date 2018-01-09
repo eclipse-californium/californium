@@ -16,6 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -72,7 +73,7 @@ public interface MessageExchangeStore {
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
 	 *                                  or if the request already has a message ID that is still in use.
 	 */
-	boolean registerOutboundRequest(Exchange exchange);
+	boolean registerOutboundRequest(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -89,7 +90,7 @@ public interface MessageExchangeStore {
 	 * @throws NullPointerException if any of the given params is {@code null}.
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
 	 */
-	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
+	boolean registerOutboundRequestWithTokenOnly(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.

@@ -42,6 +42,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -88,15 +89,16 @@ public final class UdpMatcher extends BaseMatcher {
 	 *             or the observation store is {@code null}.
 	 */
 	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
-		super(config, notificationListener, observationStore, exchangeStore);
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore,
+			final EndpointContextMatcher matchingStrategy, final KeyTokenFactory keyTokenFactory) {
+		super(config, notificationListener, observationStore, exchangeStore, keyTokenFactory);
 		this.endpointContextMatcher = matchingStrategy;
 	}
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		if (exchangeStore.registerOutboundRequest(exchange)) {
+		if (exchangeStore.registerOutboundRequest(keyTokenFactory, exchange)) {
 
 			exchange.setObserver(exchangeObserver);
 
@@ -208,8 +210,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		// TODO: change to use KeyTokenFactory
-		final KeyToken idByToken = response.getToken();
+		final KeyToken idByToken = keyTokenFactory.create(response.getToken(), response.getSourceContext());
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -357,8 +358,7 @@ public final class UdpMatcher extends BaseMatcher {
 							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					// TODO: change to use KeyTokenFactory
-					KeyToken idByToken = originRequest.getToken();
+					KeyToken idByToken = keyTokenFactory.create(originRequest.getToken(), originRequest.getDestinationContext());
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken.getToken());
@@ -374,7 +374,7 @@ public final class UdpMatcher extends BaseMatcher {
 								&& !request.getToken().equals(originRequest.getToken())) {
 							// remove starting request also
 							// TODO: change to use KeyTokenFactory
-							idByToken = request.getToken();
+							idByToken = keyTokenFactory.create(request.getToken(), request.getDestinationContext());
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
 								exchangeStore.releaseToken(idByToken.getToken());
@@ -419,8 +419,7 @@ public final class UdpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				// TODO: change to use KeyTokenFactory
-				KeyToken idByToken = request.getToken();
+				KeyToken idByToken = keyTokenFactory.create(request.getToken(), request.getDestinationContext());
 				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}
