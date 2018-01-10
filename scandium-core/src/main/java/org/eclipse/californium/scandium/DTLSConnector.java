@@ -38,6 +38,8 @@
  *                                                    if bindAddress determines a port
  *    Achim Kraus (Bosch Software Innovations GmbH) - protect critical handshaker section
  *                                                    Fix issue #473
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change worker threads to
+ *                                                    daemon
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1455,6 +1457,7 @@ public class DTLSConnector implements Connector {
 		 */
 		private Worker(String name) {
 			super(name);
+			setDaemon(true);
 		}
 
 		@Override
