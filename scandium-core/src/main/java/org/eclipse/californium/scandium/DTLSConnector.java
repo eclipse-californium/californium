@@ -51,6 +51,8 @@
  *                                                    out of synchronized block
  *    Achim Kraus (Bosch Software Innovations GmbH) - use socket's reuseAddress only
  *                                                    if bindAddress determines a port
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change receiver thread to
+ *                                                    daemon
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -367,7 +369,7 @@ public class DTLSConnector implements Connector {
 					receiveNextDatagramFromNetwork();
 				}
 			};
-
+		receiver.setDaemon(true);
 		receiver.start();
 		LOGGER.log(
 				Level.INFO,
