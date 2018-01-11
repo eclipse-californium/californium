@@ -10,9 +10,13 @@
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
+ * Contributors:
+ *    initial implementation please refer gitlog
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use KeyToken
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import org.eclipse.californium.core.network.KeyToken;
 import org.eclipse.californium.elements.EndpointContext;
 
 /**
@@ -32,14 +36,14 @@ public interface ObservationStore {
 	 * @param obs The observation to add.
 	 * @throws NullPointerException if observation is {@code null}.
 	 */
-	void add(Observation obs);
+	void add(KeyToken token, Observation obs);
 
 	/**
 	 * Removes the observation initiated by the request with the given token.
 	 * 
 	 * @param token The token of the observation to remove.
 	 */
-	void remove(byte[] token);
+	void remove(KeyToken token);
 
 	/**
 	 * Gets the observation initiated by the request with the given token.
@@ -47,7 +51,7 @@ public interface ObservationStore {
 	 * @param token The token of the initiating request.
 	 * @return The corresponding observation or {@code null} if no observation is registered for the given token.
 	 */
-	Observation get(byte[] token);
+	Observation get(KeyToken token);
 
 	/**
 	 * Sets the endpoint context on the observation initiated by the request
@@ -63,5 +67,5 @@ public interface ObservationStore {
 	 * @param token The token of the observation to set the context on.
 	 * @param endpointContext The context to set.
 	 */
-	void setContext(byte[] token, EndpointContext endpointContext);
+	void setContext(KeyToken token, EndpointContext endpointContext);
 }

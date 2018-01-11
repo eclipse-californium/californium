@@ -15,14 +15,16 @@
  *                                                    save cleanup.
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.List;
 
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 
 /**
  * A registry for keeping track of message exchanges with peers.
@@ -71,7 +73,7 @@ public interface MessageExchangeStore {
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
 	 *                                  or if the request already has a message ID that is still in use.
 	 */
-	boolean registerOutboundRequest(Exchange exchange);
+	boolean registerOutboundRequest(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
@@ -88,7 +90,7 @@ public interface MessageExchangeStore {
 	 * @throws NullPointerException if any of the given params is {@code null}.
 	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
 	 */
-	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
+	boolean registerOutboundRequestWithTokenOnly(KeyTokenFactory keyTokenFactory, Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.
@@ -110,10 +112,10 @@ public interface MessageExchangeStore {
 	/**
 	 * Removes the exchange registered under a given token.
 	 * 
-	 * @param token the token of the exchange to remove.
-	 * @param exchange Exchange to be removed, if registered with provided token.
+	 * @param keyToken the key token of the exchange to remove.
+	 * @param exchange Exchange to be removed, if registered with provided key token.
 	 */
-	void remove(KeyToken token, Exchange exchange);
+	void remove(KeyToken keyToken, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
@@ -130,10 +132,10 @@ public interface MessageExchangeStore {
 	/**
 	 * Gets the exchange registered under a given token.
 	 * 
-	 * @param token the token under which the exchange has been registered.
-	 * @return the exchange or {@code null} if no exchange exists for the given token.
+	 * @param keyToken the key token under which the exchange has been registered.
+	 * @return the exchange or {@code null} if no exchange exists for the given key token.
 	 */
-	Exchange get(KeyToken token);
+	Exchange get(KeyToken keyToken);
 
 	/**
 	 * Gets the exchange registered under a given message ID.
@@ -148,18 +150,18 @@ public interface MessageExchangeStore {
 	 * exchange and otherwise associates the key with the exchange specified. 
 	 * This method can also be thought of as <em>put if absent</em>.
 	 * This is equivalent to
-     * <pre>
-     *   if (!duplicator.containsKey(key))
-     *       return duplicator.put(key, value);
-     *   else
-     *       return duplicator.get(key);
-     * </pre>
-     * except that the action is performed atomically.
+	 * <pre>
+	 *   if (!duplicator.containsKey(key))
+	 *       return duplicator.put(key, value);
+	 *   else
+	 *       return duplicator.get(key);
+	 * </pre>
+	 * except that the action is performed atomically.
 	 * 
 	 * @param messageId the message ID of the request
 	 * @param exchange the exchange
 	 * @return the previous exchange associated with the specified key, or
-     *         <tt>null</tt> if there was no mapping for the key.
+	 *         <tt>null</tt> if there was no mapping for the key.
 	 */
 	Exchange findPrevious(KeyMID messageId, Exchange exchange);
 
@@ -182,17 +184,17 @@ public interface MessageExchangeStore {
 
 	/**
 	 * Gets all message exchanges of local origin that contain a request
-	 * with a given token.
+	 * with a given key token.
 	 * 
-	 * @param token the token to look for.
+	 * @param keyToken the key token to look for.
 	 * @return the exchanges.
 	 */
-	List<Exchange> findByToken(byte[] token);
-	
+	List<Exchange> findByToken(KeyToken keyToken);
+
 	/**
 	 * Releases the given token to be used again.
 	 * 
-	 * @param keyToken the KeyToken to release.
+	 * @param token the token to release.
 	 */
-	void releaseToken(KeyToken keyToken);
+	void releaseToken(Token token);
 }

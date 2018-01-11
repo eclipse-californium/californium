@@ -25,12 +25,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove setContext().
  *                                                    issue #311
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,8 +47,8 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
@@ -213,26 +215,26 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		return mid;
 	}
 
-	private void registerWithToken(final Exchange exchange) {
+	private void registerWithToken(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 		Request request = exchange.getCurrentRequest();
-		KeyToken idByToken;
-		if (request.getToken() == null) {
-			idByToken = tokenProvider.getUnusedToken(request);
-			request.setToken(idByToken.getToken());
+		Token token = request.getToken();
+		if (token == null) {
+			token = tokenProvider.getUnusedToken();
+			request.setToken(token);
 		} else {
-			idByToken = KeyToken.fromOutboundMessage(request);
 			// ongoing requests may reuse token
 			if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 					|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())
-					&& tokenProvider.isTokenInUse(idByToken)) {
-				LOGGER.warn("manual token overrides existing open request: {}", idByToken);
+					&& tokenProvider.isTokenInUse(token)) {
+				LOGGER.warn("manual token overrides existing open request: {}", token);
 			}
 		}
+		KeyToken idByToken = keyTokenFactory.create(token, request.getDestinationContext());
 		exchangesByToken.put(idByToken, exchange);
 	}
 
 	@Override
-	public boolean registerOutboundRequest(final Exchange exchange) {
+	public boolean registerOutboundRequest(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
@@ -241,7 +243,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else {
 			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
 			if (Message.NONE != mid) {
-				registerWithToken(exchange);
+				registerWithToken(keyTokenFactory, exchange);
 				return true;
 			} else {
 				return false;
@@ -250,22 +252,22 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public boolean registerOutboundRequestWithTokenOnly(final Exchange exchange) {
+	public boolean registerOutboundRequestWithTokenOnly(KeyTokenFactory keyTokenFactory, final Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			registerWithToken(exchange);
+			registerWithToken(keyTokenFactory, exchange);
 			return true;
 		}
 	}
 
 	@Override
-	public void remove(final KeyToken token, final Exchange exchange) {
-		boolean removed = exchangesByToken.remove(token, exchange);
+	public void remove(final KeyToken keyToken, final Exchange exchange) {
+		boolean removed = exchangesByToken.remove(keyToken, exchange);
 		if (removed) {
-			LOGGER.debug("removing exchange for token {}", token);
+			LOGGER.debug("removing exchange for token {}", keyToken);
 		}
 	}
 
@@ -286,11 +288,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public Exchange get(final KeyToken token) {
-		if (token == null) {
+	public Exchange get(final KeyToken keyToken) {
+		if (keyToken == null) {
 			return null;
 		} else {
-			return exchangesByToken.get(token);
+			return exchangesByToken.get(keyToken);
 		}
 	}
 
@@ -359,13 +361,15 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public List<Exchange> findByToken(byte[] token) {
+	public List<Exchange> findByToken(KeyToken keyToken) {
 		List<Exchange> result = new ArrayList<>();
-		if (token != null) {
+		if (keyToken != null) {
+			// TODO: remove the for ... 
 			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && Arrays.equals(token, request.getToken())) {
+					// TODO: change to use KeyTokenFactory for request token
+					if (request != null && keyToken.getToken().equals(request.getToken())) {
 						result.add(entry.getValue());
 					}
 				}
@@ -375,8 +379,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void releaseToken(KeyToken keyToken) {
-		tokenProvider.releaseToken(keyToken);
+	public void releaseToken(Token token) {
+		tokenProvider.releaseToken(token);
 	}
 
 	protected Map<KeyToken, Exchange> getExchangesByToken() {

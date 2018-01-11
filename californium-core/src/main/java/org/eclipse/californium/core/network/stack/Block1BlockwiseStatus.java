@@ -13,10 +13,9 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
-
-import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -163,6 +162,6 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true} if the tokens match.
 	 */
 	boolean hasMatchingToken(final Response response) {
-		return request != null && Arrays.equals(request.getToken(), response.getToken());
+		return request != null && request.getToken().equals(response.getToken());
 	}
 }

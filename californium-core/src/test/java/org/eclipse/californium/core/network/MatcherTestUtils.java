@@ -53,14 +53,14 @@ public final class MatcherTestUtils {
 	
 	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
+		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher, TokenOnlyKeyTokenFactory.INSTANCE);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher) {
+	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher, KeyTokenFactory keyTokenFactory) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, correlationContextMatcher);
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, observationStore, exchangeStore, correlationContextMatcher, keyTokenFactory);
 
 		matcher.start();
 		return matcher;
@@ -69,6 +69,16 @@ public final class MatcherTestUtils {
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
+		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		exchange.setRequest(request);
+		matcher.sendRequest(exchange, request);
+		exchange.setEndpointContext(exchangeContext);
+		return exchange;
+	}
+
+	static Exchange sendRequest(EndpointContext requestContext, Matcher matcher, EndpointContext exchangeContext) {
+		Request request = Request.newGet();
+		request.setDestinationContext(requestContext);
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
 		exchange.setRequest(request);
 		matcher.sendRequest(exchange, request);

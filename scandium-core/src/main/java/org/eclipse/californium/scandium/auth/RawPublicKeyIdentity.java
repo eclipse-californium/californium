@@ -135,10 +135,7 @@ public class RawPublicKeyIdentity implements Principal {
 	 */
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((publicKey == null) ? 0 : Arrays.hashCode(getSubjectInfo()));
-		return result;
+		return Arrays.hashCode(getSubjectInfo());
 	}
 
 	/**
@@ -157,14 +154,7 @@ public class RawPublicKeyIdentity implements Principal {
 			return false;
 		} else {
 			RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
-			if (publicKey == null) {
-				if (other.publicKey != null) {
-					return false;
-				}
-			} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
-				return false;
-			}
-			return true;
+			return Arrays.equals(getSubjectInfo(), other.getSubjectInfo());
 		}
 	}
 }

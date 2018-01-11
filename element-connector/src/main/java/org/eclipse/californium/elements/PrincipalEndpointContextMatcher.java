@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - support UserInfo principal
+ *                                                    comparing the names only
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -77,6 +79,13 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	 *         otherwise.
 	 */
 	protected boolean matchPrincipals(Principal requestedPrincipal, Principal availablePrincipal) {
-		return requestedPrincipal.equals(availablePrincipal);
+		if (requestedPrincipal.equals(availablePrincipal)) {
+			return true;
+		}
+		if (requestedPrincipal instanceof UserInfo) {
+			// if the UserInfo is provided in the URI, check only the names
+			return requestedPrincipal.getName().equals(availablePrincipal.getName());
+		}
+		return false;
 	}
 }

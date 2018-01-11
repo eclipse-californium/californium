@@ -15,23 +15,22 @@
  *                                - initial API and implementation
  *     Achim Kraus (Bosch Software Innovations GmbH) - cleanup
  *     Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 
 /**
- * {@link TokenProvider} that uses random tokens and stores them in memory. 
+ * {@link TokenProvider} that uses random tokens and stores them in memory.
  * 
  * Note: This {@link TokenProvider} is not sufficient if persistence is in use.
  *
@@ -41,8 +40,8 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryRandomTokenProvider.class.getName());
 	private static final int MAX_TOKEN_LENGTH = 8; // bytes
-	
-	private final Set<KeyToken> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<KeyToken, Boolean>());
+
+	private final Set<Token> usedTokens = Collections.newSetFromMap(new ConcurrentHashMap<Token, Boolean>());
 	private final int tokenSizeLimit;
 	private final SecureRandom rng;
 
@@ -57,35 +56,34 @@ public class InMemoryRandomTokenProvider implements TokenProvider {
 			throw new NullPointerException("NetworkConfig must not be null");
 		}
 		this.rng = new SecureRandom();
-		this.rng.nextInt(10);  // trigger self-seeding of the PRNG, may "take a while"
-		this.tokenSizeLimit = networkConfig.getInt(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
+		this.rng.nextInt(10); // trigger self-seeding of the PRNG, may "take a
+								// while"
+		this.tokenSizeLimit = networkConfig.getInt(Keys.TOKEN_SIZE_LIMIT, MAX_TOKEN_LENGTH);
 		LOGGER.info("using tokens of {} bytes in length", this.tokenSizeLimit);
 	}
 
 	@Override
-	public KeyToken getUnusedToken(final Message message) {
-		return createUnusedToken(message);
+	public Token getUnusedToken() {
+		return createUnusedToken();
 	}
 
 	@Override
-	public void releaseToken(final KeyToken keyToken) {
-		usedTokens.remove(keyToken);
+	public void releaseToken(Token token) {
+		usedTokens.remove(token);
 	}
 
 	@Override
-	public boolean isTokenInUse(final KeyToken keyToken) {
-		return usedTokens.contains(keyToken);
+	public boolean isTokenInUse(Token token) {
+		return usedTokens.contains(token);
 	}
 
-	private KeyToken createUnusedToken(final Message message) {
-		InetSocketAddress socketAddress = message.getDestinationContext().getPeerAddress();
-		byte[] address = socketAddress.getAddress().getAddress();
+	private Token createUnusedToken() {
 		byte[] token = new byte[tokenSizeLimit];
-		KeyToken result;
-		// TODO what to do when there are no more unused tokens left?
+		Token result;
+		// TODO: what to do when there are no more unused tokens left?
 		do {
 			rng.nextBytes(token);
-			result =  KeyToken.fromValues(token, address, socketAddress.getPort());
+			result = Token.fromProvider(token);
 		} while (!usedTokens.add(result));
 		return result;
 	}
