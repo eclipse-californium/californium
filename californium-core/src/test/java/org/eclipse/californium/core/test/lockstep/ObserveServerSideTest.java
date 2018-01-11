@@ -27,6 +27,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use renamed sameMID instead
  *                                                    of loadMID
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -54,9 +55,9 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -155,7 +156,7 @@ public class ObserveServerSideTest {
 
 		System.out.println("Establish an observe relation. Cancellation after timeout");
 		respPayload = generateRandomPayload(30);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
@@ -207,7 +208,7 @@ public class ObserveServerSideTest {
 	public void testEstablishmentAndTimeoutWithUpdateInMiddle() throws Exception {
 		System.out.println("Establish an observe relation. Cancellation after timeout. During the timeouts, the resource still changes.");
 		respPayload = generateRandomPayload(30);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
@@ -246,7 +247,7 @@ public class ObserveServerSideTest {
 	public void testEstablishmentAndRejectCancellation() throws Exception {
 		System.out.println("Establish an observe relation. Cancellation due to a reject from the client");
 		respPayload = generateRandomPayload(30);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
@@ -272,7 +273,7 @@ public class ObserveServerSideTest {
 	public void testObserveWithBlock() throws Exception {
 		System.out.println("Observe with blockwise");
 		respPayload = generateRandomPayload(80);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		// Establish relation
 		respType = null; // first type is normal ACK
@@ -283,7 +284,7 @@ public class ObserveServerSideTest {
 		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
 
 		// Get remaining blocks
-		byte[] tok2 = generateNextToken();
+		Token tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(2, false, 32).go();
@@ -299,7 +300,7 @@ public class ObserveServerSideTest {
 		client.sendEmpty(ACK).loadMID("MID").go();
 
 		// Get remaining blocks
-		byte[] tok3 = generateNextToken();
+		Token tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(2, false, 32).go();
@@ -323,7 +324,7 @@ public class ObserveServerSideTest {
 
 		System.out.println("Establish an observe relation and receive NON notifications");
 		respPayload = generateRandomPayload(30);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
@@ -359,7 +360,7 @@ public class ObserveServerSideTest {
 
 		System.out.println("Establish an observe relation and receive NON notifications");
 		respPayload = generateRandomPayload(30);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 16).go();
@@ -402,7 +403,7 @@ public class ObserveServerSideTest {
 	public void testQuickChangeAndTimeout() throws Exception {
 		System.out.println("Establish an observe relation to a quickly changing resource and do no longer respond");
 		respPayload = generateRandomPayload(20);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
@@ -453,7 +454,7 @@ public class ObserveServerSideTest {
 	public void testIncompleteBlock2Notification() throws Exception {
 		System.out.println("Observe with blockwise");
 		respPayload = generateRandomPayload(32);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		// Establish observe relation
 		respType = null; // first type is normal ACK
@@ -471,7 +472,7 @@ public class ObserveServerSideTest {
 		client.sendEmpty(ACK).loadMID("MID").go();
 
 		// Get remaining blocks
-		byte[] tok3 = generateNextToken();
+		Token tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).loadETag("tag").block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 32).payload(respPayload, 32, 64).go();
 		// we don't send last request, @after should check is there is

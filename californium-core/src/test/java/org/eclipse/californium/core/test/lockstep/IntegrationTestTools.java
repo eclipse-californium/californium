@@ -16,6 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use waitForCondition
  *    Achim Kraus (Bosch Software Innovations GmbH) - move waitUntilDeduplicatorShouldBeEmpty
  *                                                    to MessageExchangeStoreTool
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -29,6 +30,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 
 /**
  * Common functionality for integration tests.
@@ -97,8 +99,8 @@ public final class IntegrationTestTools {
 		interceptor.clear();
 	}
 
-	public static byte[] generateNextToken() {
-		return b(++currentToken);
+	public static Token generateNextToken() {
+		return Token.fromProvider(b(++currentToken));
 	}
 
 	private static byte[] b(int... is) {

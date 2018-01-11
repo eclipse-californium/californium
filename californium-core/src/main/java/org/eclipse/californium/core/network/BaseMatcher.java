@@ -45,6 +45,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token and KeyToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use key token factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -55,12 +58,13 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -72,6 +76,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
+	protected final KeyTokenFactory keyTokenFactory;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
 
@@ -85,11 +90,13 @@ public abstract class BaseMatcher implements Matcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
+	 * @param keyTokenFactory key token factory.
 	 * @throws NullPointerException if the configuration, notification listener,
-	 *             or the observation store is {@code null}.
+	 *             the observation store, or the key token factory is {@code null}.
 	 */
 	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore) {
+			final ObservationStore observationStore, final MessageExchangeStore exchangeStore,
+			final KeyTokenFactory keyTokenFactory) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -98,11 +105,14 @@ public abstract class BaseMatcher implements Matcher {
 			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
 			throw new NullPointerException("ObservationStore must not be null");
+		} else if (keyTokenFactory == null) {
+			throw new NullPointerException("KeyTokenFactory must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
+			this.keyTokenFactory = keyTokenFactory;
 		}
 	}
 
@@ -140,28 +150,29 @@ public abstract class BaseMatcher implements Matcher {
 	 * observer.
 	 * 
 	 * @param request observe request.
+	 * @param context resulting endpoint context of request. 
 	 */
-	protected final void registerObserve(final Request request) {
+	protected final void registerObserve(final Request request, EndpointContext context) {
 
 		// We ignore blockwise request, except when this is an early negotiation
 		// (num and M is set to 0)
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
-			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
+			final KeyToken idByToken = keyTokenFactory.create(request.getToken(), context);
 			LOG.debug("registering observe request {}", request);
-			observationStore.add(new Observation(request, null));
+			observationStore.add(idByToken, new Observation(request, context));
 			// remove it if the request is cancelled, rejected, timedout, or send error
 			request.addMessageObserver(new MessageObserverAdapter() {
 				@Override
 				public void onCancel() {
 					failed();
 				}
-				
+
 				@Override
 				protected void failed() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
+					observationStore.remove(idByToken);
+					exchangeStore.releaseToken(idByToken.getToken());
 				}
 			});
 		}
@@ -179,9 +190,9 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+			final KeyToken idByToken = keyTokenFactory.create(response.getToken(), response.getSourceContext());
 
-			final Observation obs = observationStore.get(response.getToken());
+			final Observation obs = observationStore.get(idByToken);
 			if (obs != null) {
 				// there is an observation for the token from the response
 				// re-create a corresponding Exchange object for it so
@@ -209,12 +220,12 @@ public abstract class BaseMatcher implements Matcher {
 								LOG.debug(
 										"response to observe request with token {} does not contain observe option, removing request from observation store",
 										idByToken);
-								observationStore.remove(request.getToken());
-								exchangeStore.releaseToken(idByToken);
+								observationStore.remove(idByToken);
+								exchangeStore.releaseToken(idByToken.getToken());
 							}
 						}
 					}
-					
+
 					@Override
 					public void onTimeout() {
 						// Ignore timeout, don't remove observation!
@@ -231,8 +242,8 @@ public abstract class BaseMatcher implements Matcher {
 
 					@Override
 					protected void failed() {
-						observationStore.remove(request.getToken());
-						exchangeStore.releaseToken(idByToken);
+						observationStore.remove(idByToken);
+						exchangeStore.releaseToken(idByToken.getToken());
 					}
 				});
 			}
@@ -240,20 +251,14 @@ public abstract class BaseMatcher implements Matcher {
 		return exchange;
 	}
 
-	/**
-	 * Cancels all pending blockwise requests that have been induced by a
-	 * notification we have received indicating a blockwise transfer of the
-	 * resource.
-	 * 
-	 * @param token the token of the observation.
-	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
+	public void cancelObserve(Token token, EndpointContext context) {
+		final KeyToken idByToken = keyTokenFactory.create(token, context);
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this almost in vain,
 		// except, when a blockwise notify is pending.
-		for (Exchange exchange : exchangeStore.findByToken(token)) {
+		for (Exchange exchange : exchangeStore.findByToken(idByToken)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
 				// cancel only observe requests, 
@@ -263,7 +268,7 @@ public abstract class BaseMatcher implements Matcher {
 				exchange.setComplete();
 			}
 		}
-		observationStore.remove(token);
+		observationStore.remove(idByToken);
 	}
 
 }

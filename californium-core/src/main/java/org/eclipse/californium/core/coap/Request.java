@@ -32,10 +32,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - support URI UserInfo as principal
+ *                                                    for endpoint context
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -44,8 +47,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,6 +56,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.UserInfo;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -129,7 +131,6 @@ public class Request extends Message {
 	private String scheme;
 
 	/** The destination address of this message. */
-	@Deprecated
 	private InetAddress destination;
 
 	/** The destination port of this message. */
@@ -285,9 +286,10 @@ public class Request extends Message {
 
 		try {
 			InetAddress destAddress = InetAddress.getByName(host);
-			setDestination(destAddress);
+			setDestinationContext(null);
+			destination = destAddress;
 
-			return setOptions(new URI(uri.getScheme(), null, host, uri.getPort(), uri.getPath(), uri.getQuery(),
+			return setOptions(new URI(uri.getScheme(), uri.getUserInfo(), host, uri.getPort(), uri.getPath(), uri.getQuery(),
 					uri.getFragment()));
 
 		} catch (UnknownHostException e) {
@@ -361,8 +363,14 @@ public class Request extends Message {
 		if (port <= 0) {
 			port = CoAP.getDefaultPort(scheme);
 		}
-
-		setDestinationPort(port);
+		
+		Principal principal = null;
+		final String userInfo = uri.getUserInfo();
+		if (userInfo != null){
+			principal = new UserInfo(userInfo);
+		}
+		setDestinationContext(new AddressEndpointContext(new InetSocketAddress(getDestination(), port), principal));
+		
 		// do not set the Uri-Port option unless it is used for proxying
 		// (setting Uri-Scheme option)
 
@@ -437,7 +445,6 @@ public class Request extends Message {
 	 * Gets the destination address.
 	 *
 	 * @return the destination
-	 * @deprecated
 	 */
 	public InetAddress getDestination() {
 		EndpointContext context = getDestinationContext();

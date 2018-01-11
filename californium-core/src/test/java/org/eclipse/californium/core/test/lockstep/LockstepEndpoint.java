@@ -42,6 +42,7 @@
  *                                                    receiveNextExpectedMessage
  *                                                    to check, if still messages
  *                                                    arrive.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -72,6 +73,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -210,17 +212,17 @@ public class LockstepEndpoint {
 	 * @throws NoSuchElementException, if nothing so stored under the name, or
 	 *             the item doesn't contain a token.
 	 */
-	public byte[] getToken(String var) {
+	public Token getToken(String var) {
 		Object item = storage.get(var);
 		if (null != item) {
-			if (item instanceof byte[]) {
+			if (item instanceof Token) {
 				// saveToken
-				return (byte[]) item;
+				return (Token) item;
 			}
 			if (item instanceof Object[]) {
 				// saveBoth
 				Object[] items = (Object[]) item;
-				return (byte[]) items[1];
+				return (Token) items[1];
 			}
 			throw new NoSuchElementException("Variable '" + var + "' is no token (" + item.getClass() + ")");
 		}
@@ -250,7 +252,7 @@ public class LockstepEndpoint {
 		return new ResponseExpectation();
 	}
 
-	public ResponseExpectation expectResponse(Type type, ResponseCode code, byte[] token, int mid) {
+	public ResponseExpectation expectResponse(Type type, ResponseCode code, Token token, int mid) {
 		return expectResponse().type(type).code(code).token(token).mid(mid);
 	}
 
@@ -258,7 +260,7 @@ public class LockstepEndpoint {
 		return new EmptyMessageExpectation(type, mid);
 	}
 
-	public RequestProperty sendRequest(Type type, Code code, byte[] token, int mid) {
+	public RequestProperty sendRequest(Type type, Code code, Token token, int mid) {
 		if (type == null) {
 			throw new NullPointerException();
 		}
@@ -493,16 +495,16 @@ public class LockstepEndpoint {
 			return this;
 		}
 
-		public MessageExpectation token(final byte[] token) {
+		public MessageExpectation token(final Token token) {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					assertArrayEquals("Wrong token:", token, message.getToken());
-					print("Correct token: " + Utils.toHexString(token));
+					assertEquals("Wrong token:", token, message.getToken());
+					print("Correct token: " + token.getAsString());
 				}
 
 				public String toString() {
-					return "Expected token: " + Utils.toHexString(token);
+					return "Expected token: " + token.getAsString();
 				}
 			});
 			return this;
@@ -523,14 +525,14 @@ public class LockstepEndpoint {
 
 				@Override
 				public void check(Message message) {
-					byte[] expected = getToken(var);
+					Token expected = getToken(var);
 					assertEquals("Wrong token:", expected, message.getToken());
-					print("Correct token: " + Utils.toHexString(expected));
+					print("Correct token: " + expected.getAsString());
 				}
 
 				public String toString() {
-					byte[] expected = getToken(var);
-					return "Expected token: " + Utils.toHexString(expected);
+					Token expected = getToken(var);
+					return "Expected token: " + expected.getAsString();
 				}
 			});
 			return this;
@@ -729,13 +731,13 @@ public class LockstepEndpoint {
 				public void check(Message message) {
 					Object[] pair = (Object[]) storage.get(var);
 					assertEquals("Wrong MID:", pair[0], message.getMID());
-					assertArrayEquals("Wrong token:", (byte[]) pair[1], message.getToken());
-					print("Correct MID: " + message.getMID() + " and token: " + Utils.toHexString(message.getToken()));
+					assertEquals("Wrong token:", pair[1], message.getToken());
+					print("Correct MID: " + message.getMID() + " and token: " + message.getTokenString());
 				}
 
 				public String toString() {
 					Object[] pair = (Object[]) storage.get(var);
-					return "Expected MID: " + pair[0] + " and token " + Utils.toHexString((byte[]) pair[1]);
+					return "Expected MID: " + pair[0] + " and token " + ((Token) pair[1]).getAsString();
 				}
 			});
 			midExpectations.add(new MidExpectation() {
@@ -828,7 +830,7 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public RequestExpectation token(final byte[] token) {
+		public RequestExpectation token(final Token token) {
 			super.token(token);
 			return this;
 		}
@@ -978,7 +980,7 @@ public class LockstepEndpoint {
 		}
 
 		@Override
-		public ResponseExpectation token(final byte[] token) {
+		public ResponseExpectation token(final Token token) {
 			super.token(token);
 			return this;
 		}
@@ -1330,14 +1332,14 @@ public class LockstepEndpoint {
 		private List<Property<Message>> properties = new LinkedList<LockstepEndpoint.Property<Message>>();
 
 		private Type type;
-		private byte[] token;
+		private Token token;
 		private int mid;
 
 		public MessageProperty(Type type) {
 			this.type = type;
 		}
 
-		public MessageProperty(Type type, byte[] token, int mid) {
+		public MessageProperty(Type type, Token token, int mid) {
 			this.type = type;
 			this.token = token;
 			this.mid = mid;
@@ -1367,7 +1369,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 		
-		public MessageProperty token(final byte[] token) {
+		public MessageProperty token(final Token token) {
 			this.token = token;
 			return this;
 		}
@@ -1450,7 +1452,7 @@ public class LockstepEndpoint {
 			properties.add(new Property<Message>() {
 
 				public void set(Message message) {
-					byte[] tok = getToken(var);
+					Token tok = getToken(var);
 					message.setToken(tok);
 				}
 			});
@@ -1461,7 +1463,7 @@ public class LockstepEndpoint {
 	public class EmptyMessageProperty extends MessageProperty {
 
 		public EmptyMessageProperty(Type type, int mid) {
-			super(type, new byte[0], mid);
+			super(type, new Token(new byte[0]), mid);
 		}
 
 		public EmptyMessageProperty(Type type, String midVar) {
@@ -1486,7 +1488,7 @@ public class LockstepEndpoint {
 
 		private Code code;
 
-		public RequestProperty(Type type, Code code, byte[] token, int mid) {
+		public RequestProperty(Type type, Code code, Token token, int mid) {
 			super(type, token, mid);
 			this.code = code;
 		}
@@ -1614,7 +1616,7 @@ public class LockstepEndpoint {
 		}
 		
 		@Override
-		public ResponseProperty token(final byte[] token) {
+		public ResponseProperty token(final Token token) {
 			super.token(token);
 			return this;
 		}
@@ -1691,7 +1693,7 @@ public class LockstepEndpoint {
 								"Did not find MID and token for variable " + var + ". Did you forgot a go()?");
 					}
 					response.setMID((Integer) pair[0]);
-					response.setToken((byte[]) pair[1]);
+					response.setToken((Token) pair[1]);
 				}
 			});
 			return this;

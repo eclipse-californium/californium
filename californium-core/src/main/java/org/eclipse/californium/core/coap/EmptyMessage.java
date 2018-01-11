@@ -18,10 +18,9 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use source and destination
  *                                                    EndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
-
-import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 
@@ -47,20 +46,24 @@ public class EmptyMessage extends Message {
 	public String toString() {
 		String appendix = "";
 		// crude way to check nothing extra is set in an empty message
-		if (!hasEmptyToken()
-				|| getOptions().asSortedList().size()>0
-				|| getPayloadSize()>0) {
+		if (!hasEmptyToken() || getOptions().asSortedList().size() > 0 || getPayloadSize() > 0) {
 			String payload = getPayloadString();
 			if (payload == null) {
 				payload = "no payload";
 			} else {
 				int len = payload.length();
-				if (payload.indexOf("\n")!=-1) payload = payload.substring(0, payload.indexOf("\n"));
-				if (payload.length() > 24) payload = payload.substring(0,20);
-				payload = "\""+payload+"\"";
-				if (payload.length() != len+2) payload += ".. " + payload.length() + " bytes";
+				if (payload.indexOf("\n") != -1) {
+					payload = payload.substring(0, payload.indexOf("\n"));
+				}
+				if (payload.length() > 24) {
+					payload = payload.substring(0, 20);
+				}
+				payload = "\"" + payload + "\"";
+				if (payload.length() != len + 2) {
+					payload += ".. " + payload.length() + " bytes";
+				}
 			}
-			appendix = " NON-EMPTY: Token="+Arrays.toString(getToken())+", "+getOptions()+", "+payload;
+			appendix = " NON-EMPTY: Token=" + getTokenString() + ", " + getOptions() + ", " + payload;
 		}
 		return String.format("%s        MID=%5d%s", getType(), getMID(), appendix);
 	}
@@ -82,7 +85,7 @@ public class EmptyMessage extends Message {
 		ack.setMID(message.getMID());
 		return ack;
 	}
-	
+
 	/**
 	 * Create a new reset message for the specified message.
 	 *
@@ -95,5 +98,5 @@ public class EmptyMessage extends Message {
 		rst.setMID(message.getMID());
 		return rst;
 	}
-	
+
 }
