@@ -76,6 +76,16 @@ public final class MatcherTestUtils {
 		return exchange;
 	}
 
+	static Exchange sendRequest(EndpointContext requestContext, Matcher matcher, EndpointContext exchangeContext) {
+		Request request = Request.newGet();
+		request.setDestinationContext(requestContext);
+		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		exchange.setRequest(request);
+		matcher.sendRequest(exchange, request);
+		exchange.setEndpointContext(exchangeContext);
+		return exchange;
+	}
+
 	static Exchange sendObserveRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
