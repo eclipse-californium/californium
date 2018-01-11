@@ -16,6 +16,9 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - correct signature of
+ *                                                    cancelObservation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -28,10 +31,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -101,7 +106,7 @@ public interface Endpoint {
 	 * @param obs the observer
 	 */
 	void removeObserver(EndpointObserver obs);
-	
+
 	/**
 	 * Adds a listener for observe notification (This is related to CoAP
 	 * observe)
@@ -199,6 +204,8 @@ public interface Endpoint {
 	 * @param token
 	 *            the token of the original request which establishes the
 	 *            observe relation to cancel.
+	 * @param context 
+	 *            endpoint context used for the observation
 	 */
-	void cancelObservation(byte[] token);
+	void cancelObservation(Token token, EndpointContext context);
 }

@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.EndpointObserver;
@@ -44,6 +45,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.EndpointContext;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -212,7 +214,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void cancelObservation(byte[] token) {
+		public void cancelObservation(Token token, EndpointContext context) {
 		}
 		
 	}

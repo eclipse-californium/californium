@@ -47,6 +47,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add Builder and deprecate 
  *                                                    constructors
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -68,6 +69,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
@@ -980,8 +982,8 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public void cancelObservation(byte[] token) {
-		matcher.cancelObserve(token);
+	public void cancelObservation(Token token, EndpointContext context) {
+		matcher.cancelObserve(token, context);
 	}
 
 	/**

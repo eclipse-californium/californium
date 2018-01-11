@@ -18,6 +18,7 @@
  * Kai Hudalla - logging
  * Bosch Software Innovations GmbH - turn into utility class with static methods only
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
+ * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -33,9 +34,9 @@ public final class UdpDataSerializer extends DataSerializer {
 	@Override protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
 		writer.write(VERSION, VERSION_BITS);
 		writer.write(header.getType().value, TYPE_BITS);
-		writer.write(header.getToken().length, TOKEN_LENGTH_BITS);
+		writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
 		writer.write(header.getCode(), CODE_BITS);
 		writer.write(header.getMID(), MESSAGE_ID_BITS);
-		writer.writeBytes(header.getToken());
+		writer.writeBytes(header.getToken().getBytes());
 	}
 }
