@@ -28,6 +28,7 @@ import static org.eclipse.californium.core.network.MatcherTestUtils.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Message;
@@ -40,6 +41,7 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.UserInfo;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -53,8 +55,9 @@ public class UdpMatcherTest {
 
 	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 
+	private NetworkConfig config;
+	private TokenProvider tokenProvider; 
 	private InMemoryObservationStore observationStore;
-	private InMemoryRandomTokenProvider tokenProvider; 
 	private InMemoryMessageExchangeStore messageExchangeStore;
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
@@ -63,7 +66,7 @@ public class UdpMatcherTest {
 	
 	@Before
 	public void before(){
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		config = NetworkConfig.createStandardWithoutFile();
 		tokenProvider = new InMemoryRandomTokenProvider(config);
 		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
 		observationStore =  new InMemoryObservationStore();
@@ -182,7 +185,66 @@ public class UdpMatcherTest {
 		assertFalse(exchange.hasObserver());
 	}
 
+	@Test
+	public void testReceiveResponseMatchesWithExtendedKeyToken() {
+		// setup to use the same token but different principals
+		Principal peer = new UserInfo("Peer");
+		Principal otherPeer = new UserInfo("other");
+		EndpointContext requestContext = new AddressEndpointContext(dest);
+		EndpointContext peerContext = new AddressEndpointContext(dest, peer);
+		EndpointContext otherContext = new AddressEndpointContext(dest, otherPeer);
+		keyTokenFactory = PrincipalKeyTokenFactory.INSTANCE;
+		tokenProvider = FIX_TOKEN_PROVIDER;
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
+
+		// GIVEN a request sent with additional principal information
+		when(endpointContextMatcher.isResponseRelatedToRequest(peerContext, peerContext)).thenReturn(true);
+		when(endpointContextMatcher.isResponseRelatedToRequest(otherContext, otherContext)).thenReturn(true);
+
+		UdpMatcher matcher = newUdpMatcher();
+
+		Exchange exchange1 = sendRequest(requestContext, matcher, peerContext);
+		Exchange exchange2 = sendRequest(requestContext, matcher, otherContext);
+
+		// WHEN a response arrives
+		Response response1 = receiveResponseFor(exchange1.getCurrentRequest(), peerContext);
+		Exchange matchedExchange1 = matcher.receiveResponse(response1);
+
+		Response response2 = receiveResponseFor(exchange2.getCurrentRequest(), otherContext);
+		Exchange matchedExchange2 = matcher.receiveResponse(response2);
+
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(peerContext, peerContext);
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(otherContext, otherContext);
+
+		// THEN assert that the response is successfully matched against the request
+		assertThat(matchedExchange1, is(exchange1));
+		assertThat(matchedExchange2, is(exchange2));
+		
+		exchange1.setComplete();
+		assertThat(messageExchangeStore.isEmpty(), is (false));
+		exchange2.setComplete();
+		assertThat(messageExchangeStore.isEmpty(), is (true));
+	}
+
 	private UdpMatcher newUdpMatcher() {
 		return MatcherTestUtils.newUdpMatcher(messageExchangeStore, observationStore, endpointContextMatcher, keyTokenFactory);
 	}
+	
+	private static final TokenProvider FIX_TOKEN_PROVIDER = new TokenProvider() {
+		private final Token FIX = new Token(new byte[] {0x5a} );
+		
+		@Override
+		public void releaseToken(Token token) {
+		}
+		
+		@Override
+		public boolean isTokenInUse(Token token) {
+			return false;
+		}
+		
+		@Override
+		public Token getUnusedToken() {
+			return FIX;
+		}
+	};
 }

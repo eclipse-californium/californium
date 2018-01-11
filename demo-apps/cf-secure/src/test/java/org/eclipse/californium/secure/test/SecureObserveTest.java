@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.PrincipalKeyTokenFactory;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -76,6 +77,7 @@ public class SecureObserveTest {
 	private MyResource resource;
 
 	private String uri;
+	private String uriUserInfo;
 
 	@Before
 	public void startupServer() {
@@ -224,7 +226,7 @@ public class SecureObserveTest {
 		createSecureServer(DtlsMode.PRINCIPAL);
 		createInverseNat();
 
-		CoapClient client = new CoapClient(uri);
+		CoapClient client = new CoapClient(uriUserInfo);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -270,7 +272,7 @@ public class SecureObserveTest {
 		createSecureServer(DtlsMode.PRINCIPAL);
 		createInverseNat();
 
-		CoapClient client = new CoapClient(uri);
+		CoapClient client = new CoapClient(uriUserInfo);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -280,8 +282,8 @@ public class SecureObserveTest {
 		// therefore wait for one onLoad
 		assertTrue(handler.waitForLoadCalls(1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		assertFalse("Response not received", rel.isCanceled());
-		assertNotNull("Response not received", rel.getCurrent());
+		assertFalse("Observe is canceled", rel.isCanceled());
+		assertNotNull("Response not available", rel.getCurrent());
 		assertEquals("\"resource says hi for the 1 time\"", rel.getCurrent().getResponseText());
 
 		for (int i = 0; i < REPEATS; ++i) {
@@ -331,6 +333,7 @@ public class SecureObserveTest {
 		server.start();
 
 		uri = serverEndpoint.getUri() + "/" + TARGET;
+		uriUserInfo = uri.replace("//", "//" + IDENITITY + "@");
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
@@ -338,6 +341,9 @@ public class SecureObserveTest {
 		builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(new DTLSConnector(clientdtlsConfig));
 		builder.setNetworkConfig(config);
+		if (mode == DtlsMode.PRINCIPAL) {
+			builder.setKeyTokenFactory(PrincipalKeyTokenFactory.INSTANCE);
+		}
 		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 	}
@@ -348,6 +354,9 @@ public class SecureObserveTest {
 		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
 		System.out.println("URI: change " + uri + " to " + natURI);
 		uri = natURI;
+		natURI = uriUserInfo.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
+		System.out.println("URI: change " + uriUserInfo + " to " + natURI);
+		uriUserInfo = natURI;
 	}
 
 	private static class MyResource extends CoapResource {
