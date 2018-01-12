@@ -23,7 +23,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -40,6 +39,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
@@ -88,7 +88,7 @@ import org.junit.runners.Parameterized;
 //		Request result = parser.parseRequest(rawData);
 		Request result = (Request) parser.parseMessage(rawData);
 		assertEquals(request.getMID(), result.getMID());
-		assertArrayEquals(request.getToken(), result.getToken());
+		assertEquals(request.getToken(), result.getToken());
 		assertEquals(request.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
@@ -186,7 +186,7 @@ import org.junit.runners.Parameterized;
 
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals(response.getMID(), result.getMID());
-		assertArrayEquals(response.getToken(), result.getToken());
+		assertEquals(response.getToken(), result.getToken());
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
@@ -195,7 +195,7 @@ import org.junit.runners.Parameterized;
 		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
-		response.setToken(new byte[] {});
+		response.setToken(Token.EMPTY);
 		response.getOptions().addLocationPath("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ").addLocationPath("γλώσσα")
 				.addLocationPath("пустынных").addLocationQuery("ვეპხის=யாமறிந்த").addLocationQuery("⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎");
 		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");

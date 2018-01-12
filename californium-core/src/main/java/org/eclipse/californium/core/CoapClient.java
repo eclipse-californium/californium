@@ -34,12 +34,12 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - get default timeout from configuration
  *                                                    of effective endpoint
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -56,6 +56,7 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -388,7 +389,7 @@ public class CoapClient {
 	private boolean ping(Long timeout) {
 		try {
 			Request request = new Request(null, Type.CON);
-			request.setToken(new byte[0]);
+			request.setToken(Token.EMPTY);
 			request.setURI(uri);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			if (timeout == null) {
@@ -1179,7 +1180,7 @@ public class CoapClient {
 
 		@Override
 		public void onNotification(Request request, Response response) {
-			if (Arrays.equals(request.getToken(), req.getToken())) {
+			if (request.getToken().equals(req.getToken())) {
 				obs.onResponse(response);
 			}
 		}

@@ -13,16 +13,16 @@
  * Contributors:
  *     Daniel Maier (Bosch Software Innovations GmbH)
  *                                - initial API and implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 
 /**
  * A {@link TokenProvider} provides CoAP tokens that are guaranteed to be not in
  * use. To not run out of unused tokens, used tokens MUST be released with
- * {@link #releaseToken(KeyToken)} after usage.
+ * {@link #releaseToken(Token)} after usage.
  *
  * Implementations of {@link TokenProvider} MUST be thread-safe.
  */
@@ -30,27 +30,26 @@ public interface TokenProvider {
 
 	/**
 	 * Returns a token that is not in use. After this token is not in use
-	 * anymore it must be released with {@link #releaseToken(KeyToken)}.
+	 * anymore it must be released with {@link #releaseToken(Token)}.
 	 * 
-	 * @param message The message to get a token for.
 	 * @return a token that is not in use
 	 */
-	KeyToken getUnusedToken(Message message);
+	Token getUnusedToken();
 
 	/**
 	 * Releases the given token to be used again.
 	 * 
-	 * @param keyToken the token to be released
+	 * @param token the token to be released
 	 */
-	void releaseToken(KeyToken keyToken);
+	void releaseToken(Token token);
 
 	/**
 	 * Indicates if the given token is in use, i.e. was returned by
-	 * {@link #getUnusedToken(Message)} but not yet released by
-	 * {@link #releaseToken(KeyToken)}.
+	 * {@link #getUnusedToken()} but not yet released by
+	 * {@link #releaseToken(Token)}.
 	 * 
-	 * @param keyToken the token to be checked
-	 * @return <code>true</code> if the given token is still in use, <code>false</code> otherwise
+	 * @param token the token to be checked
+	 * @return {@code true}, if the given token is still in use, {@code false}, otherwise
 	 */
-	boolean isTokenInUse(KeyToken keyToken);
+	boolean isTokenInUse(Token token);
 }

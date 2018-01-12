@@ -40,10 +40,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace parameter EndpointContext 
  *                                                    by EndpointContext of response.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -159,7 +160,7 @@ public final class UdpMatcher extends BaseMatcher {
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 
 		// ensure Token is set
-		message.setToken(new byte[0]);
+		message.setToken(Token.EMPTY);
 
 		if (message.getType() == Type.RST && exchange != null) {
 			// We have rejected the request or response
@@ -207,7 +208,7 @@ public final class UdpMatcher extends BaseMatcher {
 		 */
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
-		final KeyToken idByToken = KeyToken.fromInboundMessage(response);
+		final Token idByToken = response.getToken();
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 		boolean isNotify = false; // don't remove MID for notifies. May be already reused.
@@ -351,11 +352,11 @@ public final class UdpMatcher extends BaseMatcher {
 					// this should not happen because we only register the observer
 					// if we have successfully registered the exchange
 					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}:{}, origin: {}]",
-							new Object[]{ originRequest.getDestination(), originRequest.getDestinationPort(),
+							"exchange observer has been completed on unregistered exchange [peer: {}, origin: {}]",
+							new Object[]{ originRequest.getDestinationContext().getPeerAddress(),
 									exchange.getOrigin()});
 				} else {
-					KeyToken idByToken = KeyToken.fromOutboundMessage(originRequest);
+					Token idByToken = originRequest.getToken();
 					exchangeStore.remove(idByToken, exchange);
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
@@ -368,9 +369,10 @@ public final class UdpMatcher extends BaseMatcher {
 						 */
 						Request request = exchange.getRequest();
 						if (request != originRequest && null != request.getToken()
-								&& !Arrays.equals(request.getToken(), originRequest.getToken())) {
+								&& !request.getToken().equals(originRequest.getToken())) {
 							// remove starting request also
-							idByToken = KeyToken.fromOutboundMessage(request);
+							// TODO: change to use KeyTokenFactory
+							idByToken = request.getToken();
 							exchangeStore.remove(idByToken, exchange);
 							if (!request.isObserve()) {
 								exchangeStore.releaseToken(idByToken);
@@ -415,7 +417,8 @@ public final class UdpMatcher extends BaseMatcher {
 		public void contextEstablished(final Exchange exchange) {
 			Request request = exchange.getRequest(); 
 			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
+				Token idByToken = request.getToken();
+				observationStore.setContext(idByToken, exchange.getEndpointContext());
 			}
 		}
 	}

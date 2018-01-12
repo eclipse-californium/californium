@@ -16,6 +16,7 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext and
  *                                                    EndpointContextMatcher mocks
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -31,7 +32,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -118,8 +119,8 @@ public class UdpMatcherTest {
 		exchange.completeCurrentRequest();
 
 		// THEN assert that token got released
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(false));
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(tokenProvider.isTokenInUse(token), is(false));
 	}
 
 	@Test
@@ -132,8 +133,8 @@ public class UdpMatcherTest {
 		exchange.completeCurrentRequest();
 
 		// THEN assert that token got not released
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(true));
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(tokenProvider.isTokenInUse(token), is(true));
 	}
 
 	@Test
@@ -147,8 +148,8 @@ public class UdpMatcherTest {
 		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
 
 		// THEN the token has been released for re-use
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(false));
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(tokenProvider.isTokenInUse(token), is(false));
 	}
 
 	/**

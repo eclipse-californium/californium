@@ -25,6 +25,7 @@
  *                                                    type(Type... types) and
  *                                                    storeType(String var)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageExchangeStoreTool
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -46,6 +47,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
@@ -86,7 +88,7 @@ public class BlockwiseServerSideTest {
 	private String reqtPayload;
 	private byte[] etag;
 	private Integer expectedMid;
-	private byte[] expectedToken;
+	private Token expectedToken;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
 	@BeforeClass
@@ -171,7 +173,7 @@ public class BlockwiseServerSideTest {
 	public void testGETWithETag() throws Exception {
 		System.out.println("Simple blockwise GET:");
 		respPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		etag = new byte[]{ 0x00, 0x01 };
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
@@ -211,7 +213,7 @@ public class BlockwiseServerSideTest {
 
 		System.out.println("Blockwise GET with early negotiation");
 		respPayload = generateRandomPayload(76); // smaller than MAX MESSAGE SIZE
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(0, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 32).size2(respPayload.length())
@@ -251,7 +253,7 @@ public class BlockwiseServerSideTest {
 	public void testGETLateNegotiation() throws Exception {
 		System.out.println("Blockwise GET with late negotiation:");
 		respPayload = generateRandomPayload(170);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(respPayload.length())
@@ -292,7 +294,7 @@ public class BlockwiseServerSideTest {
 	public void testGETLateNegotiationLostACK() throws Exception {
 		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(220);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(respPayload.length())
@@ -331,7 +333,7 @@ public class BlockwiseServerSideTest {
 	public void testIncompleteGET() throws Exception {
 		System.out.println("Incomplete blockwise GET:");
 		respPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length())
@@ -370,7 +372,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Incomplete blockwise PUT:");
 
 		reqtPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
 			.payload(reqtPayload.substring(0,  128)).go();
@@ -416,7 +418,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(50);
 		reqtPayload = generateRandomPayload(300);
 
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
 		client.expectResponse(ACK, CONTINUE, tok, mid).block1(0, true, 128).payload("").go();
 
@@ -434,7 +436,7 @@ public class BlockwiseServerSideTest {
 	public void testSimpleAtomicBlockwisePUTWithLostAck() throws Exception {
 		System.out.println("Simple atomic blockwise PUT with lost ACK");
 		respPayload = generateRandomPayload(50);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
@@ -456,7 +458,7 @@ public class BlockwiseServerSideTest {
 	public void testSimpleAtomicBlockwisePUTWithRestartOfTransfer() throws Exception {
 		System.out.println("Simple atomic blockwise PUT restart of the blockwise transfer");
 		respPayload = generateRandomPayload(50);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
@@ -487,7 +489,7 @@ public class BlockwiseServerSideTest {
 	public void testPUTFailsWith413IfBodyExceedsMaxBodySize() throws Exception {
 
 		System.out.println("Blockwise PUT fails for excessive body size");
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(MAX_RESOURCE_BODY_SIZE + 10);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
@@ -503,7 +505,7 @@ public class BlockwiseServerSideTest {
 	public void testPUTFailsWith408OnIncompleteTransfer() throws Exception {
 
 		System.out.println("Blockwise PUT fails for incomplete transfer");
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
@@ -552,7 +554,7 @@ public class BlockwiseServerSideTest {
 	public void testAtomicBlockwisePOSTWithBlockwiseResponse() throws Exception {
 		System.out.println("Atomic blockwise POST with blockwise response:");
 		respPayload = generateRandomPayload(500);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 		etag = new byte[]{ 0x00, 0x01 };
 
@@ -584,7 +586,7 @@ public class BlockwiseServerSideTest {
 	public void testAtomicBlockwisePOSTWithBlockwiseResponseLateNegotiation() throws Exception {
 		System.out.println("Atomic blockwise POST with blockwise response using late negotiation:");
 		respPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 		etag = new byte[]{ 0x00, 0x01 };
 
@@ -646,7 +648,7 @@ public class BlockwiseServerSideTest {
 	public void testAtomicBlockwisePOSTWithBlockwiseResponseEarlyNegotiation() throws Exception {
 		System.out.println("Atomic blockwise POST with blockwise response using early negotiation:");
 		respPayload = generateRandomPayload(250);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 		etag = new byte[]{ 0x00, 0x01 };
 
@@ -692,7 +694,7 @@ public class BlockwiseServerSideTest {
 	public void testInterruptBlock2WithNewBlock2GET() throws Exception {
 		System.out.println("Block2 interrupted by new block2:");
 		respPayload = generateRandomPayload(386);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		System.out.println("Begin block2 exchange on " + RESOURCE_PATH);
 
 		// begin block2 transfer
@@ -726,7 +728,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Random access PUT attempt: (try to put block 2 first is now allowed)");
 		respPayload = generateRandomPayload(50);
 		reqtPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
 		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).block1(2, true, 64).go();
@@ -736,7 +738,7 @@ public class BlockwiseServerSideTest {
 	public void testRandomAccessGET() throws Exception {
 		System.out.println("Random access GET: (only access block 2 and 4 of response)");
 		respPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(2, true, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, true, 64).payload(respPayload.substring(2*64, 3*64)).go();
@@ -749,7 +751,7 @@ public class BlockwiseServerSideTest {
 	public void testObserveWithBlockwiseResponse() throws Exception {
 		System.out.println("Observe sequence with blockwise response:");
 		respPayload = generateRandomPayload(300);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 
 		/*
 		 * Notice that only the first GET request contains the observe option
@@ -768,7 +770,7 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).observe(0).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
-		byte[] tok1 = generateNextToken();
+		Token tok1 = generateNextToken();
 		client.sendRequest(CON, GET, tok1, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok1, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
 
@@ -784,7 +786,7 @@ public class BlockwiseServerSideTest {
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
-		byte[] tok2 = generateNextToken();
+		Token tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
 
@@ -800,7 +802,7 @@ public class BlockwiseServerSideTest {
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
-		byte[] tok3 = generateNextToken();
+		Token tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 128).noOption(OBSERVE).payload(respPayload.substring(128, 256)).go();
 
@@ -814,7 +816,7 @@ public class BlockwiseServerSideTest {
 	public void testObserveWithBlockwiseResponseEarlyNegotiation() throws Exception {
 		System.out.println("Observe sequence with early negotiation:");
 		respPayload = generateRandomPayload(150);
-		byte[] tok = generateNextToken();
+		Token tok = generateNextToken();
 		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 64).go();
@@ -835,7 +837,7 @@ public class BlockwiseServerSideTest {
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
-		byte[] tok2 = generateNextToken();
+		Token tok2 = generateNextToken();
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
 
@@ -851,7 +853,7 @@ public class BlockwiseServerSideTest {
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
-		byte[] tok3 = generateNextToken();
+		Token tok3 = generateNextToken();
 		client.sendRequest(CON, GET, tok3, ++mid).path(RESOURCE_PATH).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok3, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
 

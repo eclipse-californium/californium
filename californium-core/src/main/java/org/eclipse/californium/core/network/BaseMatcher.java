@@ -45,6 +45,8 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -55,7 +57,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -148,7 +150,6 @@ public abstract class BaseMatcher implements Matcher {
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
 				&& !request.getOptions().getBlock2().isM()) {
 			// add request to the store
-			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
 			LOG.debug("registering observe request {}", request);
 			observationStore.add(new Observation(request, null));
 			// remove it if the request is cancelled, rejected, timedout, or send error
@@ -160,8 +161,9 @@ public abstract class BaseMatcher implements Matcher {
 				
 				@Override
 				protected void failed() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
+					final Token token = request.getToken();
+					observationStore.remove(token);
+					exchangeStore.releaseToken(token);
 				}
 			});
 		}
@@ -179,9 +181,9 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
+			final Token idByToken = response.getToken();
 
-			final Observation obs = observationStore.get(response.getToken());
+			final Observation obs = observationStore.get(idByToken);
 			if (obs != null) {
 				// there is an observation for the token from the response
 				// re-create a corresponding Exchange object for it so
@@ -209,7 +211,7 @@ public abstract class BaseMatcher implements Matcher {
 								LOG.debug(
 										"response to observe request with token {} does not contain observe option, removing request from observation store",
 										idByToken);
-								observationStore.remove(request.getToken());
+								observationStore.remove(idByToken);
 								exchangeStore.releaseToken(idByToken);
 							}
 						}
@@ -231,7 +233,7 @@ public abstract class BaseMatcher implements Matcher {
 
 					@Override
 					protected void failed() {
-						observationStore.remove(request.getToken());
+						observationStore.remove(idByToken);
 						exchangeStore.releaseToken(idByToken);
 					}
 				});
@@ -248,7 +250,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
+	public void cancelObserve(Token token) {
 		// we do not know the destination endpoint the requests have been sent
 		// to therefore we need to find them by token only
 		// Note: observe exchanges are not longer stored, so this almost in vain,
