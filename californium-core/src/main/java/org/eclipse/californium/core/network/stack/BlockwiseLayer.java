@@ -40,6 +40,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - keep original response, if
  *                                                    current request is the original
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use uniformly the response 
+ *                                                    source endpoint context
+ *                                                    for next block requests
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -747,6 +750,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		Request nextBlock = status.getNextRequestBlock(nextNum, newSzx);
 		// we use the same token to ease traceability
 		nextBlock.setToken(response.getToken());
+		nextBlock.setDestinationContext(response.getSourceContext());
 		addBlock1CleanUpObserver(nextBlock, key);
 
 		exchange.setCurrentRequest(nextBlock);
