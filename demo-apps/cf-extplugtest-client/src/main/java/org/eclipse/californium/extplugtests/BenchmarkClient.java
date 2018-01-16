@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add transmission error statistic
  ******************************************************************************/
 
 package org.eclipse.californium.extplugtests;
@@ -141,6 +142,14 @@ public class BenchmarkClient {
 	};
 
 	/**
+	 * Overall transmission error counter.
+	 */
+	private static final AtomicLong transmissionErrorCounter = new AtomicLong();
+	/**
+	 * Don't stop client on transmission errors.
+	 */
+	private static boolean noneStop;
+	/**
 	 * Client to be used for benchmark.
 	 */
 	private final CoapClient client;
@@ -194,6 +203,8 @@ public class BenchmarkClient {
 			} else {
 				LOGGER.warn("Received error response: {}", response.advanced());
 			}
+		} else {
+			LOGGER.warn("Received no response!");
 		}
 		return false;
 	}
@@ -213,18 +224,9 @@ public class BenchmarkClient {
 			@Override
 			public void onLoad(CoapResponse response) {
 				if (response.isSuccess()) {
-					overallRequestsDownCounter.countDown();
+					next();
 					long c = overallRequestsDownCounter.getCount();
 					LOGGER.info("Received response: {} {}", response.advanced(), c);
-					if (0 < c) {
-						requestsCounter.incrementAndGet();
-						Request post = Request.newPost();
-						post.setURI(client.getURI());
-						post.addMessageObserver(retransmissionDetector);
-						client.advanced(this, post);
-					} else {
-						stop();
-					}
 				} else {
 					LOGGER.warn("Received error response: {}", response.advanced());
 					stop();
@@ -234,9 +236,30 @@ public class BenchmarkClient {
 			@Override
 			public void onError() {
 				long c = requestsCounter.get();
-				LOGGER.error("failed after {} requests!", c);
-				stop();
+				if (noneStop) {
+					transmissionErrorCounter.incrementAndGet();
+					LOGGER.info("Error after {} requests.", c);
+					next();
+				} else {
+					LOGGER.error("failed after {} requests!", c);
+					stop();
+				}
 			}
+
+			public void next() {
+				overallRequestsDownCounter.countDown();
+				long c = overallRequestsDownCounter.getCount();
+				if (0 < c) {
+					requestsCounter.incrementAndGet();
+					Request post = Request.newPost();
+					post.setURI(client.getURI());
+					post.addMessageObserver(retransmissionDetector);
+					client.advanced(this, post);
+				} else {
+					stop();
+				}
+			}
+
 		}, post);
 		clientCounter.incrementAndGet();
 	}
@@ -263,11 +286,12 @@ public class BenchmarkClient {
 			System.out.println("\nCalifornium (Cf) Benchmark Client");
 			System.out.println("(c) 2018, Bosch Software Innovations GmbH and others");
 			System.out.println();
-			System.out.println("Usage: " + BenchmarkClient.class.getSimpleName() + " URI [#clients] [#requests]");
+			System.out.println("Usage: " + BenchmarkClient.class.getSimpleName() + " URI [#clients] [#requests] [nonestop]");
 			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test");
 			System.out.println("              (coap://<host>[:<port>]/benchmark  or coaps://<host>[:<port>]/benchmark)");
 			System.out.println("  #clients  : number of clients. Default " + DEFAULT_CLIENTS + ".");
 			System.out.println("  #requests : number of requests per clients. Default " + DEFAULT_REQUESTS + ".");
+			System.out.println("  nonestop  : don't stop client if request fails (timeout)");
 			System.out.println();
 			System.out.println("Example: " + BenchmarkClient.class.getSimpleName() + " coap://localhost:5783/benchmark");
 			System.out.println("Note: californium.eclipse.org doesn't support a benchmark and will response with 5.01, NOT_IMPLEMENTED!");
@@ -288,6 +312,9 @@ public class BenchmarkClient {
 			clients = Integer.parseInt(arguments.args[0]);
 			if (1 < arguments.args.length) {
 				requests = Integer.parseInt(arguments.args[1]);
+				if (2 < arguments.args.length) {
+					noneStop = arguments.args[2].equalsIgnoreCase("nonestop");
+				}
 			}
 		}
 
@@ -306,8 +333,8 @@ public class BenchmarkClient {
 
 		boolean plain = uri.getScheme().equals(CoAP.COAP_URI_SCHEME);
 
-		System.out.format("Create %d %sbenchmark clients, expect to send %d request overall to %s%n", clients,
-				plain ? "" : "secure ", overallRequests, uri);
+		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
+				noneStop ? "none-stop " : "", plain ? "" : "secure ", overallRequests, uri);
 
 		final CountDownLatch start = new CountDownLatch(clients);
 
@@ -355,6 +382,7 @@ public class BenchmarkClient {
 		long nanos = System.nanoTime();
 		long lastRequestsCountDown = overallRequestsDownCounter.getCount();
 		long lastRetransmissions = retransmissionCounter.get();
+		long lastTransmissionErrrors = transmissionErrorCounter.get();
 
 		for (BenchmarkClient client : clientList) {
 			client.startBenchmark();
@@ -378,11 +406,15 @@ public class BenchmarkClient {
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
 			long retransmissions = retransmissionCounter.get();
 			long retransmissionsDifference = retransmissions - lastRetransmissions;
+			long transmissionErrors = transmissionErrorCounter.get();
+			long transmissionErrorsDifference = transmissionErrors - lastTransmissionErrrors;
 			lastRequestsCountDown = currentRequestsCountDown;
 			lastRetransmissions = retransmissions;
-			System.out.format("%d requests (%d reqs/s, %s, %d clients)%n", currentOverallSentRequests,
+			lastTransmissionErrrors = transmissionErrors;
+			System.out.format("%d requests (%d reqs/s, %s, %s, %d clients)%n", currentOverallSentRequests,
 					requestDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
-					formatRetransmissions(retransmissionsDifference, requestDifference), numberOfClients);
+					formatRetransmissions(retransmissionsDifference, requestDifference),
+					formatTransmissionErrors(transmissionErrorsDifference, requestDifference), numberOfClients);
 		}
 		long overallSentRequests = overallRequests - overallRequestsDownCounter.getCount();
 		nanos = System.nanoTime() - nanos;
@@ -402,6 +434,10 @@ public class BenchmarkClient {
 		long retransmissions = retransmissionCounter.get();
 		if (retransmissions > 0) {
 			System.out.println(formatRetransmissions(retransmissions, overallSentRequests));
+		}
+		long transmissionErrors = transmissionErrorCounter.get();
+		if (transmissionErrors > 0) {
+			System.out.println(formatTransmissionErrors(transmissionErrors, overallSentRequests));
 		}
 		if (overallSentRequests < overallRequests) {
 			System.out.format("Stale at %d messages (%d%%)%n", overallSentRequests,
@@ -432,6 +468,18 @@ public class BenchmarkClient {
 						.toString();
 			} else {
 				return formatter.format("%d retransmissions (no response-messages received!)", retransmissions)
+						.toString();
+			}
+		}
+	}
+
+	private static String formatTransmissionErrors(long transmissionErrors, long requests) {
+		try (Formatter formatter = new Formatter()) {
+			if (requests > 0) {
+				return formatter.format("%d transmission errors (%4.2f%%)", transmissionErrors,
+						((transmissionErrors * 100D) / requests)).toString();
+			} else {
+				return formatter.format("%d transmission errors (no response-messages received!)", transmissionErrors)
 						.toString();
 			}
 		}
