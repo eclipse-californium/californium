@@ -13,14 +13,21 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use more general NatUtil
- *                                                    l
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests to ensure, that 
+ *                                                    responses/notifies are 
+ *                                                    dropped on the server side
  ******************************************************************************/
-package org.eclipse.californium.secure.test;
+package org.eclipse.californium.integration.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.DtlsMode;
 
 import java.net.InetAddress;
@@ -43,6 +50,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -71,6 +79,7 @@ public class SecureObserveTest {
 	private CoapServer server;
 	private TestUtilPskStore pskStore;
 	private DTLSConnector serverConnector;
+	private DTLSConnector clientConnector;
 	private CoapEndpoint serverEndpoint;
 	private CoapEndpoint clientEndpoint;
 	private MyResource resource;
@@ -119,6 +128,58 @@ public class SecureObserveTest {
 		}
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
+		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+	}
+
+	/**
+	 * Test observe using a DTLS connection with new session.
+	 * After the new handshake, the server is intended not to send notifies.
+	 */
+	@Test
+	public void testSecureObserveWithNewSession() throws Exception {
+
+		createSecureServer(DtlsMode.STRICT);
+
+		CoapClient client = new CoapClient(uri);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		assertFalse("Observe relation not established!", rel.isCanceled());
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitForLoadCalls(1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
+		assertFalse("Response not received", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resource says hi for the 1 time\"", rel.getCurrent().getResponseText());
+
+		for (int i = 0; i < REPEATS; ++i) {
+			resource.changed("client");
+			Thread.sleep(50);
+		}
+
+		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
+		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+
+		clientConnector.clearConnectionState();
+
+		// new handshake
+		CoapResponse response = client.get();
+		assertNotNull("Response not received", response);
+
+		// notify (in scope of old DTLS session) should be rejected by the server 
+		resource.changed("new client");
+
+		assertFalse("Unexpected notify", handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says new client for the " + (REPEATS + 2) +" time\""));
+		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
+				is(instanceOf(EndpointMismatchException.class)));
 	}
 
 	/**
@@ -165,6 +226,8 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies after address changed",
 				handler.waitForLoadCalls(REPEATS + REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 	}
 
 	/**
@@ -204,6 +267,9 @@ public class SecureObserveTest {
 
 		assertFalse("Unexpected notifies after address changed",
 				handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
+				is(instanceOf(EndpointMismatchException.class)));
 
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client");
@@ -212,6 +278,9 @@ public class SecureObserveTest {
 
 		assertFalse("Unexpected notifies after address changed",
 				handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
+				is(instanceOf(EndpointMismatchException.class)));
 	}
 
 	/**
@@ -258,6 +327,8 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies after address changed",
 				handler.waitForLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 	}
 
 	/**
@@ -307,6 +378,9 @@ public class SecureObserveTest {
 
 		assertFalse("Unexpected notifies after address and principal changed",
 				handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
+				is(instanceOf(EndpointMismatchException.class)));
 	}
 
 	private void createSecureServer(DtlsMode mode) {
@@ -316,7 +390,10 @@ public class SecureObserveTest {
 		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
 				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L) // set response timeout (indirect) to 10s
+				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L) // set response
+																// timeout
+																// (indirect) to
+																// 10s
 				.setString(Keys.DTLS_RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
@@ -335,8 +412,9 @@ public class SecureObserveTest {
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
+		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.CoapEndpointBuilder();
-		builder.setConnector(new DTLSConnector(clientdtlsConfig));
+		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
@@ -354,26 +432,28 @@ public class SecureObserveTest {
 
 		private volatile Type type = Type.NON;
 		private volatile String currentLabel;
-		private volatile String currentResponse;
+		private volatile String currentResponsePayload;
+		private volatile Response currentResponse;
 		private AtomicInteger counter = new AtomicInteger();
 
 		public MyResource(String name) {
 			super(name);
-			prepareResponse();
+			prepareResponsePayload();
 			setObservable(true);
 		}
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Response response = new Response(ResponseCode.CONTENT);
-			response.setPayload(currentResponse);
+			response.setPayload(currentResponsePayload);
 			response.setType(type);
+			currentResponse = response;
 			exchange.respond(response);
 		}
 
 		@Override
 		public void changed() {
-			prepareResponse();
+			prepareResponsePayload();
 			super.changed();
 		}
 
@@ -382,16 +462,20 @@ public class SecureObserveTest {
 			changed();
 		}
 
-		public void prepareResponse() {
+		public void prepareResponsePayload() {
 			int count = counter.incrementAndGet();
 			if (null == currentLabel) {
-				currentResponse = String.format("\"%s says hi for the %d time\"", getName(), count);
+				currentResponsePayload = String.format("\"%s says hi for the %d time\"", getName(), count);
 			} else {
-				currentResponse = String.format("\"%s says %s for the %d time\"", getName(), currentLabel, count);
+				currentResponsePayload = String.format("\"%s says %s for the %d time\"", getName(), currentLabel,
+						count);
 			}
-			System.out.println("Resource " + getName() + " changed to " + currentResponse);
+			System.out.println("Resource " + getName() + " changed to " + currentResponsePayload);
 		}
 
+		public Response getCurrentResponse() {
+			return currentResponse;
+		}
 	}
 
 	private class CountingHandler implements CoapHandler {
