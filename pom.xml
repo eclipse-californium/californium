@@ -197,6 +197,7 @@
 		<module>scandium-core</module>
 		<module>element-connector-tcp</module>
 		<module>californium-core</module>
+		<module>californium-integration-tests</module>
 		<module>californium-proxy</module>
 		<module>californium-osgi</module>
 		<module>demo-apps</module>

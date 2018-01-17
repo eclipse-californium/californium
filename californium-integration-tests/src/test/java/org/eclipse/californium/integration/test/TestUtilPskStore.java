@@ -14,7 +14,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  ******************************************************************************/
 
-package org.eclipse.californium.secure.test;
+package org.eclipse.californium.integration.test;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
