@@ -850,10 +850,6 @@ public class BlockwiseLayer extends AbstractLayer {
 						// copy options
 						block.setOptions(new OptionSet(request.getOptions()));
 						block.getOptions().setBlock2(newSzx, false, nextNum);
-						if (response.getOptions().getETagCount() > 0) {
-							// use ETag provided by peer
-							block.getOptions().addETag(response.getOptions().getETags().get(0));
-						}
 
 						// make sure NOT to use Observe for block retrieval
 						block.getOptions().removeObserve();
