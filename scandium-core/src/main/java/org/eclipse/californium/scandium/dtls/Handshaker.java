@@ -867,22 +867,36 @@ public abstract class Handshaker {
 		this.nextReceiveSeq++;
 	}
 
-	public void addSessionListener(SessionListener listener){
-		if (listener != null)
+	/**
+	 * Adds a listener to the list of listeners to be notified
+	 * about session life cycle events.
+	 * 
+	 * @param listener The listener to add.
+	 */
+	public final void addSessionListener(SessionListener listener){
+		if (listener != null) {
 			sessionListeners.add(listener);
+		}
 	}
-	
-	public void removeSessionListener(SessionListener listener){
-		if (listener != null)
+
+	/**
+	 * Removes a listener from the list of listeners to be notified
+	 * about session life cycle events.
+	 * 
+	 * @param listener The listener to remove.
+	 */
+	public final void removeSessionListener(SessionListener listener){
+		if (listener != null) {
 			sessionListeners.remove(listener);
+		}
 	}
-	
+
 	protected final void handshakeStarted() throws HandshakeException {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeStarted(this);
 		}
 	}
-	
+
 	protected final void sessionEstablished() throws HandshakeException {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.sessionEstablished(this, this.getSession());
@@ -895,9 +909,15 @@ public abstract class Handshaker {
 		}
 	}
 
-	public final void handshakeFailed(Throwable error) {
+	/**
+	 * Notifies all registered session listeners about a handshake
+	 * failure.
+	 * 
+	 * @param cause The reason for the failure.
+	 */
+	public final void handshakeFailed(Throwable cause) {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeFailed(getPeerAddress(), error);
+			sessionListener.handshakeFailed(getPeerAddress(), cause);
 		}
 	}
 
