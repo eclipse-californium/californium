@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -99,6 +99,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -181,7 +182,7 @@ public class DTLSConnector implements Connector {
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
-	private Object errorHandleLock= new Object();
+	private Object allertHandlerLock= new Object();
 
 	private DatagramSocket socket;
 
@@ -206,7 +207,7 @@ public class DTLSConnector implements Connector {
 	private EndpointContextMatcher endpointContextMatcher;
 
 	private RawDataChannel messageHandler;
-	private ErrorHandler errorHandler;
+	private AlertHandler alertHandler;
 	private SessionListener sessionCacheSynchronization;
 	private ExecutorService executor;
 	private boolean hasInternalExecutor;
@@ -495,14 +496,14 @@ public class DTLSConnector implements Connector {
 
 	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
-		DatagramSocket socket = getSocket();
-		if (socket == null) {
+		DatagramSocket currentSocket = getSocket();
+		if (currentSocket == null) {
 			// very unlikely race condition.
 			return;
 		}
-		
-		socket.receive(packet);
-		
+
+		currentSocket.receive(packet);
+
 		if (packet.getLength() == 0) {
 			// nothing to do
 			return;
@@ -732,7 +733,7 @@ public class DTLSConnector implements Connector {
 	 * <li>the ALERT is a <em>closure alert</em></li>
 	 * </ul>
 	 * 
-	 * Also notifies a registered {@link #errorHandler} about the alert message.
+	 * Also notifies a registered {@link #alertHandler} about the alert message.
 	 * </p>
 	 * @param record the record containing the ALERT message
 	 * @see ErrorHandler
@@ -789,9 +790,9 @@ public class DTLSConnector implements Connector {
 				// non-fatal alerts do not require any special handling
 			}
 
-			synchronized (errorHandleLock) {
-				if (errorHandler != null) {
-					errorHandler.onError(alert.getPeer(), alert.getLevel(), alert.getDescription());
+			synchronized (allertHandlerLock) {
+				if (alertHandler != null) {
+					alertHandler.onAlert(alert.getPeer(), alert);
 				}
 			}
 			if (null != error && null != handshaker) {
@@ -1728,12 +1729,25 @@ public class DTLSConnector implements Connector {
 
 	/**
 	 * Sets a handler to call back if an alert message is received from a peer.
+	 * <p>
+	 * Setting a handler using this method is useful to be notified when a peer closes
+	 * an existing connection, i.e. when the alert message has not been received during
+	 * a handshake but after the connection has been established.
+	 * <p>
+	 * The handler can be set (and changed) at any time, either before the connector has
+	 * been started or when the connector is already running.
+	 * <p>
+	 * Application code interested in being notified when a particular message cannot be sent,
+	 * e.g. due to a failing DTLS handshake that has been triggered as part of sending
+	 * the message, should instead register a
+	 * {@code org.eclipse.californium.core.coap.MessageObserver} on the message and
+	 * implement its <em>onSendError</em> method accordingly.
 	 * 
-	 * @param errorHandler the handler to invoke
+	 * @param handler The handler to notify.
 	 */
-	public final void setErrorHandler(final ErrorHandler errorHandler) {
-		synchronized (errorHandleLock) {
-			this.errorHandler = errorHandler;
+	public final void setAlertHandler(AlertHandler handler) {
+		synchronized (allertHandlerLock) {
+			this.alertHandler = handler;
 		}
 	}
 

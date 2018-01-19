@@ -142,7 +142,7 @@ public class ConnectorHelper {
 	public void cleanUpServer() {
 		serverConnectionStore.clear();
 		serverRawDataChannel.setProcessor(serverRawDataProcessor);
-		server.setErrorHandler(null);
+		server.setAlertHandler(null);
 	}
 
 	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {

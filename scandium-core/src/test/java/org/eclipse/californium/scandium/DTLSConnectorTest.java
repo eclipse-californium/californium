@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -65,6 +65,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -243,7 +245,7 @@ public class DTLSConnectorTest {
 		}
 		serverConnectionStore.clear();
 		serverRawDataChannel.setProcessor(serverRawDataProcessor);
-		server.setErrorHandler(null);
+		server.setAlertHandler(null);
 	}
 
 	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws Exception {
@@ -312,13 +314,14 @@ public class DTLSConnectorTest {
 		assertConnectionTerminatedOnAlert(alert);
 	}
 
-	private void assertConnectionTerminatedOnAlert(final AlertMessage alert) throws Exception {
+	private void assertConnectionTerminatedOnAlert(final AlertMessage alertToSend) throws Exception {
+
 		final CountDownLatch alertReceived = new CountDownLatch(1);
-		server.setErrorHandler(new ErrorHandler() {
+		server.setAlertHandler(new AlertHandler() {
 			
 			@Override
-			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
-				if (alert.getDescription().equals(description) && peerAddress.equals(clientEndpoint)) {
+			public void onAlert(InetSocketAddress peerAddress, AlertMessage alert) {
+				if (alertToSend.getDescription().equals(alert.getDescription()) && peerAddress.equals(clientEndpoint)) {
 					alertReceived.countDown();
 				}
 			}
@@ -327,7 +330,7 @@ public class DTLSConnectorTest {
 		givenAnEstablishedSession(false);
 
 		// WHEN sending a CLOSE_NOTIFY alert to the server
-		client.send(alert, establishedClientSession);
+		client.send(alertToSend, establishedClientSession);
 
 		// THEN assert that the server has removed all connection state with client
 		assertTrue(alertReceived.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -1459,6 +1462,12 @@ public class DTLSConnectorTest {
 		assertNull("Server should not have established a session with client", serverConnectionStore.get(clientEndpoint));
 	}
 
+	/**
+	 * Verifies that the connector terminates a handshake if the PSK identity provided by the
+	 * client is unknown.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
 	@Test
 	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
 
@@ -1468,22 +1477,31 @@ public class DTLSConnectorTest {
 			.setPskStore(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
 		client = new DTLSConnector(clientConfig);
-		client.setErrorHandler(new ErrorHandler() {
+		client.start();
+		final AtomicReference<AlertMessage> alert = new AtomicReference<>();
+		MessageCallback callback = new MessageCallback() {
 
 			@Override
-			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
-				latch.countDown();
-				assertThat(level, is(AlertLevel.FATAL));
-				assertThat(peerAddress, is(serverEndpoint));
+			public void onSent() {
 			}
-		});
-		client.start();
-		SimpleMessageCallback callback = new SimpleMessageCallback();
+
+			@Override
+			public void onError(Throwable error) {
+				if (error instanceof HandshakeException) {
+					alert.set(((HandshakeException) error).getAlert());
+					latch.countDown();
+				}
+			}
+
+			@Override
+			public void onContextEstablished(EndpointContext context) {
+			}
+		};
 		RawData data = RawData.outbound("Hello".getBytes(), new AddressEndpointContext(serverEndpoint), callback, false);
 		client.send(data);
 
 		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-		assertThat("Error callback missing", callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
+		assertThat(alert.get().getLevel(), is(AlertLevel.FATAL));
 	}
 
 	/**
