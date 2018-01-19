@@ -43,14 +43,15 @@ import org.slf4j.LoggerFactory;
 public final class Connection implements SessionListener {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
+
 	private final InetSocketAddress peerAddress;
-	private volatile DTLSSession establishedSession;
 	private final SessionTicket ticket;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 	private final AtomicLong lastMessage = new AtomicLong();
 	private final Long autoResumptionTimeout;
-	
+
+	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
 	private volatile boolean resumptionRequired = false; 
 
@@ -58,6 +59,7 @@ public final class Connection implements SessionListener {
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
+	 * @param autoResumptionTimeout
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
 	public Connection(final InetSocketAddress peerAddress, final Long autoResumptionTimeout) {
@@ -84,7 +86,8 @@ public final class Connection implements SessionListener {
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
 	 * @param ongoingHandshake the object responsible for managing the already ongoing
-	 *                   handshake with the peer 
+	 *                   handshake with the peer
+	 * @param autoResumptionTimeout
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
 	public Connection(final InetSocketAddress peerAddress, final Handshaker ongoingHandshake, final Long autoResumptionTimeout) {
