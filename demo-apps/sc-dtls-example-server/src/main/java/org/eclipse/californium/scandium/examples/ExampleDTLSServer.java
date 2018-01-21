@@ -37,7 +37,8 @@ import org.slf4j.LoggerFactory;
 public class ExampleDTLSServer {
 
 	private static final int DEFAULT_PORT = 5684;
-	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSServer.class.getName());
+	private static final Logger LOG = LoggerFactory
+			.getLogger(ExampleDTLSServer.class.getName());
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private static final String KEY_STORE_PASSWORD = "endPass";
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -53,13 +54,15 @@ public class ExampleDTLSServer {
 		try {
 			// load the key store
 			KeyStore keyStore = KeyStore.getInstance("JKS");
-			in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
+			in = getClass().getClassLoader()
+					.getResourceAsStream(KEY_STORE_LOCATION);
 			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
 			in.close();
 
 			// load the trust store
 			KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream inTrust = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
+			InputStream inTrust = getClass().getClassLoader()
+					.getResourceAsStream(TRUST_STORE_LOCATION);
 			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
 			// You can load multiple certificates if needed
@@ -69,11 +72,14 @@ public class ExampleDTLSServer {
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
 			builder.setPskStore(pskStore);
-			builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+			builder.setIdentity(
+					(PrivateKey) keyStore.getKey("server",
+							KEY_STORE_PASSWORD.toCharArray()),
 					keyStore.getCertificateChain("server"), true);
 			builder.setTrustStore(trustedCertificates);
 			dtlsConnector = new DTLSConnector(builder.build());
-			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
+			dtlsConnector
+					.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
 		} catch (GeneralSecurityException | IOException e) {
 			LOG.error("Could not load the keystore", e);
@@ -94,7 +100,8 @@ public class ExampleDTLSServer {
 			dtlsConnector.start();
 			System.out.println("DTLS example server started");
 		} catch (IOException e) {
-			throw new IllegalStateException("Unexpected error starting the DTLS UDP server", e);
+			throw new IllegalStateException(
+					"Unexpected error starting the DTLS UDP server", e);
 		}
 	}
 
@@ -111,7 +118,8 @@ public class ExampleDTLSServer {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Received request: {}", new String(raw.getBytes()));
 			}
-			RawData response = RawData.outbound("ACK".getBytes(), raw.getEndpointContext(), null, false);
+			RawData response = RawData.outbound("ACK".getBytes(),
+					raw.getEndpointContext(), null, false);
 			connector.send(response);
 		}
 	}
@@ -120,5 +128,11 @@ public class ExampleDTLSServer {
 
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
+		try {
+			for (;;) {
+				Thread.sleep(5000);
+			}
+		} catch (InterruptedException e) {
+		}
 	}
 }
