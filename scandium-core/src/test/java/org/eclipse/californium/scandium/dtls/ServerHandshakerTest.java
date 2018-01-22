@@ -41,6 +41,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -86,7 +87,7 @@ public class ServerHandshakerTest {
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
 				.setIdentity(privateKey, certificateChain, false)
-				.setTrustStore(trustedCertificates)
+				.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()))
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
 				.build();
 		handshaker = newHandshaker(config, session);

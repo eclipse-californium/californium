@@ -51,6 +51,7 @@ import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
@@ -111,7 +112,7 @@ public class ConnectorHelper {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()))
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
 			.build();
@@ -153,7 +154,7 @@ public class ConnectorHelper {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+				.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()));
 	}
 
 	void givenAnEstablishedSession(final DTLSConnector client) throws Exception {
