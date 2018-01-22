@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  ******************************************************************************/
 
 package org.eclipse.californium.plugtests;
@@ -33,20 +34,20 @@ import java.util.concurrent.Semaphore;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
 
-
 /**
  * The PlugtestChecker is a client to verify the server behavior.
+ * 
  * It uses Cf's internal API for "deep message inspection."
  */
 public class PlugtestChecker {
@@ -61,19 +62,18 @@ public class PlugtestChecker {
 
 	/** The test list. */
 	protected List<String> testsToRun = new ArrayList<String>();
-	
+
 	/**
 	 * Default constructor. Loads with reflection each nested class that is a
 	 * derived type of TestClientAbstract.
 	 * 
-	 * @param serverURI
-	 *            the server uri
+	 * @param serverURI the server uri
 	 */
 	public PlugtestChecker(String serverURI) {
 		if (serverURI == null || serverURI.isEmpty()) {
 			throw new IllegalArgumentException("No server URI given");
 		}
-		
+
 		this.serverURI = serverURI;
 
 		// fill the map with each nested class not abstract that instantiate
@@ -88,32 +88,32 @@ public class PlugtestChecker {
 	}
 
 	/**
-	 * Instantiates the given testNames or if null all tests implemented.
+	 * Instantiates the given testNames, or if {@code null} all tests
+	 * implemented.
 	 * 
-	 * @param testNames
-	 *            the test names
+	 * @param testNames the test names
 	 */
 	public void instantiateTests(String... testNames) {
 
 		Catalog catalog = new Catalog();
-		
+
 		try {
 			List<Report> reports = new ArrayList<Report>();
 
 			Arrays.sort(testNames);
 			List<Class<?>> tests = catalog.getTestsClasses(testNames);
-			
+
 			// iterate for each chosen test
 			for (Class<?> testClass : tests) {
-				System.out.println("Initialize test "+testClass); // DEBUG
-				
+				System.out.println("Initialize test " + testClass); // DEBUG
+
 				Constructor<?> cons = testClass.getConstructor(String.class);
-				
+
 				TestClientAbstract testClient = (TestClientAbstract) cons.newInstance(serverURI);
 				testClient.waitForUntilTestHasTerminated();
 				reports.add(testClient.getReport());
 			}
-			
+
 			System.out.println("\n==== SUMMARY ====");
 			for (Report report : reports) {
 				report.print();
@@ -146,20 +146,20 @@ public class PlugtestChecker {
 
 	/**
 	 * Main entry point.
-	 * Start the program with arguments coap://localhost:5683 .* to start
-	 * all tests.
+	 * 
+	 * Start the program with arguments {@code coap://localhost:5683 .*} to
+	 * start all tests.
 	 * 
 	 * @param args the arguments
 	 */
 	public static void main(String[] args) {
 
 		if (args.length == 0) {
-			
+
 			Catalog catalog = new Catalog();
-			
+
 			System.out.println("\nCalifornium (Cf) Plugtest Server Checker");
-			System.out
-					.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
+			System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
 			System.out.println();
 			System.out.println("Usage: " + PlugtestChecker.class.getSimpleName() + " [-s] URI [TESTNAMES...]");
 			System.out.println("  -s        : Skip the ping in case the remote does not implement it");
@@ -168,28 +168,28 @@ public class PlugtestChecker {
 			System.out.println();
 			System.out.println("Available tests:");
 			System.out.print(" ");
-			
-			for (String name:catalog.getAllTestNames()) {
+
+			for (String name : catalog.getAllTestNames()) {
 				System.out.print(" " + name);
 			}
 			System.exit(-1);
 		}
-		
+
 		int first = 0;
-		if (args[first].equals("-s")) ++first;
+		if (args[first].equals("-s"))
+			++first;
 		String uri = args[first++];
-		
+
 		// allow quick hostname as argument
 		if (!uri.startsWith("coap://")) {
 			uri = "coap://" + uri;
 		}
-		
+
 		// Config used for plugtest
-		NetworkConfig.getStandard()
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64) 
+		NetworkConfig.getStandard().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64);
-		
-		if (first==1) {
+
+		if (first == 1) {
 			if (ping(uri)) {
 				System.out.println("PASS: " + uri + " responds to ping");
 			} else {
@@ -213,9 +213,9 @@ public class PlugtestChecker {
 	public static abstract class TestClientAbstract {
 
 		protected Report report = new Report();
-		
+
 		protected Semaphore terminated = new Semaphore(0);
-		
+
 		/** The test name. */
 		protected String testName = null;
 
@@ -231,16 +231,12 @@ public class PlugtestChecker {
 		/**
 		 * Instantiates a new test client abstract.
 		 * 
-		 * @param testName
-		 *            the test name
-		 * @param verbose
-		 *            the verbose
+		 * @param testName the test name
+		 * @param verbose the verbose
 		 */
-		public TestClientAbstract(String testName, boolean verbose,
-				boolean synchronous) {
+		public TestClientAbstract(String testName, boolean verbose, boolean synchronous) {
 			if (testName == null || testName.isEmpty()) {
-				throw new IllegalArgumentException(
-						"testName == null || testName.isEmpty()");
+				throw new IllegalArgumentException("testName == null || testName.isEmpty()");
 			}
 
 			this.testName = testName;
@@ -251,8 +247,7 @@ public class PlugtestChecker {
 		/**
 		 * Instantiates a new test client abstract.
 		 * 
-		 * @param testName
-		 *            the test name
+		 * @param testName the test name
 		 */
 		public TestClientAbstract(String testName) {
 			this(testName, false, true);
@@ -261,12 +256,9 @@ public class PlugtestChecker {
 		/**
 		 * Execute request.
 		 * 
-		 * @param request
-		 *            the request
-		 * @param serverURI
-		 *            the server uri
-		 * @param resourceUri
-		 *            the resource uri
+		 * @param request the request
+		 * @param serverURI the server uri
+		 * @param resourceUri the resource uri
 		 */
 		protected void executeRequest(Request request, String serverURI, String resourceUri) {
 
@@ -288,8 +280,7 @@ public class PlugtestChecker {
 
 			// print request info
 			if (verbose) {
-				System.out.println("Request for test " + this.testName
-						+ " sent");
+				System.out.println("Request for test " + this.testName + " sent");
 				Utils.prettyPrint(request);
 			}
 
@@ -300,8 +291,7 @@ public class PlugtestChecker {
 					request.waitForResponse(5000);
 				}
 			} catch (InterruptedException e) {
-				System.err.println("Interupted during receive: "
-						+ e.getMessage());
+				System.err.println("Interupted during receive: " + e.getMessage());
 				System.exit(-1);
 			}
 		}
@@ -309,7 +299,7 @@ public class PlugtestChecker {
 		public synchronized void addSummaryEntry(String entry) {
 			report.addEntry(entry);
 		}
-		
+
 		public Report getReport() {
 			return report;
 		}
@@ -317,7 +307,7 @@ public class PlugtestChecker {
 		public synchronized void tickOffTest() {
 			terminated.release();
 		}
-		
+
 		public void waitForUntilTestHasTerminated() {
 			try {
 				terminated.acquire();
@@ -325,7 +315,7 @@ public class PlugtestChecker {
 				e.printStackTrace();
 			}
 		}
-		
+
 		/**
 		 * The Class TestResponseHandler.
 		 */
@@ -348,13 +338,12 @@ public class PlugtestChecker {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
 
 					System.out.println("**** BEGIN CHECK ****");
-					
+
 					if (checkResponse(request, response)) {
 						System.out.println("**** TEST PASSED ****");
 						addSummaryEntry(testName + ": PASSED");
@@ -371,35 +360,27 @@ public class PlugtestChecker {
 		/**
 		 * Check response.
 		 * 
-		 * @param request
-		 *            the request
-		 * @param response
-		 *            the response
+		 * @param request the request
+		 * @param response the response
 		 * @return true, if successful
 		 */
-		protected abstract boolean checkResponse(Request request,
-				Response response);
+		protected abstract boolean checkResponse(Request request, Response response);
 
 		/**
 		 * Check int.
 		 * 
-		 * @param expected
-		 *            the expected
-		 * @param actual
-		 *            the actual
-		 * @param fieldName
-		 *            the field name
+		 * @param expected the expected
+		 * @param actual the actual
+		 * @param fieldName the field name
 		 * @return true, if successful
 		 */
 		protected boolean checkInt(int expected, int actual, String fieldName) {
 			boolean success = expected == actual;
 
 			if (!success) {
-				System.out.println("FAIL: Expected " + fieldName + ": "
-						+ expected + ", but was: " + actual);
+				System.out.println("FAIL: Expected " + fieldName + ": " + expected + ", but was: " + actual);
 			} else {
-				System.out.println("PASS: Correct " + fieldName
-						+ String.format(" (%d)", actual));
+				System.out.println("PASS: Correct " + fieldName + String.format(" (%d)", actual));
 			}
 
 			return success;
@@ -408,12 +389,9 @@ public class PlugtestChecker {
 		/**
 		 * Check int.
 		 * 
-		 * @param expected
-		 *            the expected
-		 * @param actual
-		 *            the actual
-		 * @param fieldName
-		 *            the field name
+		 * @param expected the expected
+		 * @param actual the actual
+		 * @param fieldName the field name
 		 * @return true, if successful
 		 */
 		protected boolean checkInts(int[] expected, int actual, String fieldName) {
@@ -426,11 +404,10 @@ public class PlugtestChecker {
 			}
 
 			if (!success) {
-				System.out.println("FAIL: Expected " + fieldName + ": "
-						+ Arrays.toString(expected) + ", but was: " + actual);
+				System.out.println(
+						"FAIL: Expected " + fieldName + ": " + Arrays.toString(expected) + ", but was: " + actual);
 			} else {
-				System.out.println("PASS: Correct " + fieldName
-						+ String.format(" (%d)", actual));
+				System.out.println("PASS: Correct " + fieldName + String.format(" (%d)", actual));
 			}
 
 			return success;
@@ -439,24 +416,19 @@ public class PlugtestChecker {
 		/**
 		 * Check String.
 		 * 
-		 * @param expected
-		 *            the expected
-		 * @param actual
-		 *            the actual
-		 * @param fieldName
-		 *            the field name
+		 * @param expected the expected
+		 * @param actual the actual
+		 * @param fieldName the field name
 		 * @return true, if successful
 		 */
-		protected boolean checkString(String expected, String actual,
-				String fieldName) {
+		protected boolean checkString(String expected, String actual, String fieldName) {
 			boolean success = expected.equals(actual);
 
 			if (!success) {
-				System.out.println("FAIL: Expected " + fieldName + ": \""
-						+ expected + "\", but was: \"" + actual + "\"");
+				System.out
+						.println("FAIL: Expected " + fieldName + ": \"" + expected + "\", but was: \"" + actual + "\"");
 			} else {
-				System.out.println("PASS: Correct " + fieldName + " \""
-						+ actual + "\"");
+				System.out.println("PASS: Correct " + fieldName + " \"" + actual + "\"");
 			}
 
 			return success;
@@ -465,22 +437,17 @@ public class PlugtestChecker {
 		/**
 		 * Check type.
 		 * 
-		 * @param expectedMessageType
-		 *            the expected message type
-		 * @param actualMessageType
-		 *            the actual message type
+		 * @param expectedMessageType the expected message type
+		 * @param actualMessageType the actual message type
 		 * @return true, if successful
 		 */
-		protected boolean checkType(Type expectedMessageType,
-				Type actualMessageType) {
+		protected boolean checkType(Type expectedMessageType, Type actualMessageType) {
 			boolean success = expectedMessageType.equals(actualMessageType);
 
 			if (!success) {
-				System.out.printf("FAIL: Expected type %s, but was %s\n",
-						expectedMessageType, actualMessageType);
+				System.out.printf("FAIL: Expected type %s, but was %s\n", expectedMessageType, actualMessageType);
 			} else {
-				System.out.printf("PASS: Correct type (%s)\n",
-						actualMessageType.toString());
+				System.out.printf("PASS: Correct type (%s)\n", actualMessageType.toString());
 			}
 
 			return success;
@@ -489,14 +456,11 @@ public class PlugtestChecker {
 		/**
 		 * Check types.
 		 * 
-		 * @param expectedMessageTypes
-		 *            the expected message types
-		 * @param actualMessageType
-		 *            the actual message type
+		 * @param expectedMessageTypes the expected message types
+		 * @param actualMessageType the actual message type
 		 * @return true, if successful
 		 */
-		protected boolean checkTypes(Type[] expectedMessageTypes,
-				Type actualMessageType) {
+		protected boolean checkTypes(Type[] expectedMessageTypes, Type actualMessageType) {
 			boolean success = false;
 			for (Type messageType : expectedMessageTypes) {
 				if (messageType.equals(actualMessageType)) {
@@ -512,11 +476,10 @@ public class PlugtestChecker {
 				}
 				sb.delete(0, 2); // delete the first ", "
 
-				System.out.printf("FAIL: Expected type %s, but was %s\n", "[ "
-						+ sb.toString() + " ]", actualMessageType);
+				System.out.printf("FAIL: Expected type %s, but was %s\n", "[ " + sb.toString() + " ]",
+						actualMessageType);
 			} else {
-				System.out.printf("PASS: Correct type (%s)\n",
-						actualMessageType.toString());
+				System.out.printf("PASS: Correct type (%s)\n", actualMessageType.toString());
 			}
 
 			return success;
@@ -525,21 +488,18 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Content-Type option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasContentType(Response response) {
-			boolean success = response.getOptions().hasContentFormat()
-					|| response.getPayloadSize()==0
+			boolean success = response.getOptions().hasContentFormat() || response.getPayloadSize() == 0
 					|| !CoAP.ResponseCode.isSuccess(response.getCode());
 
 			if (!success) {
 				System.out.println("FAIL: Response without Content-Type");
 			} else {
 				System.out.printf("PASS: Content-Type (%s)\n",
-						MediaTypeRegistry.toString(response.getOptions()
-								.getContentFormat()));
+						MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
 			}
 
 			return success;
@@ -548,8 +508,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Location-Path option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasLocation(Response response) {
@@ -560,8 +519,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response without Location");
 			} else {
-				System.out.printf("PASS: Location (%s)\n", response
-						.getOptions().getLocationPathString());
+				System.out.printf("PASS: Location (%s)\n", response.getOptions().getLocationPathString());
 			}
 
 			return success;
@@ -570,8 +528,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for ETag option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasEtag(Response response) {
@@ -581,10 +538,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response without Etag");
 			} else {
-				System.out.printf(
-						"PASS: Etag (%s)\n",
-						Utils.toHexString(response.getOptions().getETags()
-								.get(0)));
+				System.out.printf("PASS: Etag (%s)\n", Utils.toHexString(response.getOptions().getETags().get(0)));
 			}
 
 			return success;
@@ -593,8 +547,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for not empty payload.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if not empty payload
 		 */
 		protected boolean hasNonEmptyPalyoad(Response response) {
@@ -603,8 +556,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response with empty payload");
 			} else {
-				System.out.printf("PASS: Payload not empty \"%s\"\n",
-						response.getPayloadString());
+				System.out.printf("PASS: Payload not empty \"%s\"\n", response.getPayloadString());
 			}
 
 			return success;
@@ -613,8 +565,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Max-Age option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasMaxAge(Response response) {
@@ -625,8 +576,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response without Max-Age");
 			} else {
-				System.out.printf("PASS: Max-Age (%s)\n", response.getOptions()
-						.getMaxAge());
+				System.out.printf("PASS: Max-Age (%s)\n", response.getOptions().getMaxAge());
 			}
 
 			return success;
@@ -635,8 +585,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Location-Query option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasLocationQuery(Response response) {
@@ -647,8 +596,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response without Location-Query");
 			} else {
-				System.out.printf("PASS: Location-Query (%s)\n", response
-						.getOptions().getLocationQueryString());
+				System.out.printf("PASS: Location-Query (%s)\n", response.getOptions().getLocationQueryString());
 			}
 
 			return success;
@@ -657,8 +605,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Token option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasToken(Response response) {
@@ -667,8 +614,7 @@ public class PlugtestChecker {
 			if (!success) {
 				System.out.println("FAIL: Response without Token");
 			} else {
-				System.out.printf("PASS: Token (%s)\n",
-						response.getTokenString());
+				System.out.printf("PASS: Token (%s)\n", response.getTokenString());
 			}
 
 			return success;
@@ -677,16 +623,14 @@ public class PlugtestChecker {
 		/**
 		 * Checks for absent Token option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasNoToken(Response response) {
 			boolean success = response.hasEmptyToken();
 
 			if (!success) {
-				System.out.println("FAIL: Expected no token but had "
-						+ response.getTokenString());
+				System.out.println("FAIL: Expected no token but had " + response.getTokenString());
 			} else {
 				System.out.printf("PASS: No Token\n");
 			}
@@ -697,8 +641,7 @@ public class PlugtestChecker {
 		/**
 		 * Checks for Observe option.
 		 * 
-		 * @param response
-		 *            the response
+		 * @param response the response
 		 * @return true, if successful
 		 */
 		protected boolean hasObserve(Response response, boolean invert) {
@@ -713,7 +656,7 @@ public class PlugtestChecker {
 				System.out.println("FAIL: Response without Observe");
 			} else if (!invert) {
 				System.out.printf("PASS: Observe (%d)\n",
-				// response.getFirstOption(OptionNumberRegistry.OBSERVE).getIntValue());
+						// response.getFirstOption(OptionNumberRegistry.OBSERVE).getIntValue());
 						response.getOptions().getObserve().intValue());
 			} else {
 				System.out.println("PASS: No Observe");
@@ -729,39 +672,32 @@ public class PlugtestChecker {
 		protected boolean checkOption(Option expextedOption, Option actualOption) {
 			// boolean success = actualOption!=null &&
 			// expextedOption.getOptionNumber()==actualOption.getOptionNumber();
-			boolean success = actualOption != null
-					&& expextedOption.getNumber() == actualOption.getNumber();
+			boolean success = actualOption != null && expextedOption.getNumber() == actualOption.getNumber();
 
 			if (!success) {
-				System.out.printf("FAIL: Missing option nr %d\n",
-						expextedOption.getNumber());
+				System.out.printf("FAIL: Missing option nr %d\n", expextedOption.getNumber());
 			} else {
 
 				// raw value byte array can be different, although value is the
 				// same
-				success &= expextedOption.toString().equals(
-						actualOption.toString());
+				success &= expextedOption.toString().equals(actualOption.toString());
 
 				if (!success) {
-					System.out.printf("FAIL: Expected %s, but was %s\n",
-							expextedOption.toString(), actualOption.toString());
-				} else {
-					System.out.printf("PASS: Correct option (%s)\n",
+					System.out.printf("FAIL: Expected %s, but was %s\n", expextedOption.toString(),
 							actualOption.toString());
+				} else {
+					System.out.printf("PASS: Correct option (%s)\n", actualOption.toString());
 				}
 			}
 
 			return success;
 		}
 
-		protected boolean checkOption(BlockOption expected, BlockOption actual,
-				String optionName) {
-			boolean success = expected == null ? actual == null : expected
-					.equals(actual);
+		protected boolean checkOption(BlockOption expected, BlockOption actual, String optionName) {
+			boolean success = expected == null ? actual == null : expected.equals(actual);
 
 			if (!success) {
-				System.out.println("FAIL: option " + optionName + ": expected "
-						+ expected + " but was " + actual);
+				System.out.println("FAIL: option " + optionName + ": expected " + expected + " but was " + actual);
 			} else {
 				System.out.println("PASS: Correct option " + actual);
 			}
@@ -769,14 +705,12 @@ public class PlugtestChecker {
 			return success;
 		}
 
-		protected boolean checkOption(byte[] expectedOption,
-				byte[] actualOption, String optionName) {
+		protected boolean checkOption(byte[] expectedOption, byte[] actualOption, String optionName) {
 			boolean success = Arrays.equals(expectedOption, actualOption);
 
 			if (!success) {
-				System.out.println("FAIL: Option " + optionName + ": expected "
-						+ Utils.toHexString(expectedOption) + " but was "
-						+ Utils.toHexString(actualOption));
+				System.out.println("FAIL: Option " + optionName + ": expected " + Utils.toHexString(expectedOption)
+						+ " but was " + Utils.toHexString(actualOption));
 			} else {
 				System.out.printf("PASS: Correct option %s\n", optionName);
 			}
@@ -784,14 +718,12 @@ public class PlugtestChecker {
 			return success;
 		}
 
-		protected boolean checkOption(List<String> expected,
-				List<String> actual, String optionName) {
+		protected boolean checkOption(List<String> expected, List<String> actual, String optionName) {
 			// boolean success = expected.size() == actual.size();
 			boolean success = expected.equals(actual);
 
 			if (!success) {
-				System.out.println("FAIL: Option " + optionName + ": expected "
-						+ expected + " but was " + actual);
+				System.out.println("FAIL: Option " + optionName + ": expected " + expected + " but was " + actual);
 			} else {
 				System.out.printf("PASS: Correct option %s\n", optionName);
 			}
@@ -799,14 +731,11 @@ public class PlugtestChecker {
 			return success;
 		}
 
-		protected boolean checkOption(Integer expected, Integer actual,
-				String optionName) {
-			boolean success = expected == null ? actual == null : expected
-					.equals(actual);
+		protected boolean checkOption(Integer expected, Integer actual, String optionName) {
+			boolean success = expected == null ? actual == null : expected.equals(actual);
 
 			if (!success) {
-				System.out.println("FAIL: Option " + optionName + ": expected "
-						+ expected + " but was " + actual);
+				System.out.println("FAIL: Option " + optionName + ": expected " + expected + " but was " + actual);
 			} else {
 				System.out.printf("PASS: Correct option %s\n", optionName);
 			}
@@ -814,44 +743,36 @@ public class PlugtestChecker {
 			return success;
 		}
 
-		protected boolean checkDifferentOption(Option expextedOption,
-				Option actualOption) {
+		protected boolean checkDifferentOption(Option expextedOption, Option actualOption) {
 			// boolean success = actualOption!=null &&
 			// expextedOption.getOptionNumber()==actualOption.getOptionNumber();
-			boolean success = actualOption != null
-					&& expextedOption.getNumber() == actualOption.getNumber();
+			boolean success = actualOption != null && expextedOption.getNumber() == actualOption.getNumber();
 
 			if (!success) {
-				System.out.printf("FAIL: Missing option nr %d\n",
-						expextedOption.getNumber());
+				System.out.printf("FAIL: Missing option nr %d\n", expextedOption.getNumber());
 			} else {
 
 				// raw value byte array can be different, although value is the
 				// same
-				success &= !expextedOption.toString().equals(
-						actualOption.toString());
+				success &= !expextedOption.toString().equals(actualOption.toString());
 
 				if (!success) {
-					System.out.printf(
-							"FAIL: Expected difference, but was %s\n",
-							actualOption.toString());
+					System.out.printf("FAIL: Expected difference, but was %s\n", actualOption.toString());
 				} else {
-					System.out.printf("PASS: Expected not %s and was %s\n",
-							expextedOption.toString(), actualOption.toString());
+					System.out.printf("PASS: Expected not %s and was %s\n", expextedOption.toString(),
+							actualOption.toString());
 				}
 			}
 
 			return success;
 		}
 
-		protected boolean checkDifferentOption(byte[] expected, byte[] actual,
-				String optionName) {
+		protected boolean checkDifferentOption(byte[] expected, byte[] actual, String optionName) {
 			boolean success = !Arrays.equals(expected, actual);
 
 			if (!success) {
-				System.out.println("FAIL: Option " + optionName + ": expected "
-						+ Utils.toHexString(expected) + " but was "
-						+ Utils.toHexString(actual));
+				System.out.println("FAIL: Option " + optionName + ": expected " + Utils.toHexString(expected)
+						+ " but was " + Utils.toHexString(actual));
 			} else {
 				System.out.println("PASS: Correct option " + optionName);
 			}
@@ -862,10 +783,8 @@ public class PlugtestChecker {
 		/**
 		 * Check token.
 		 * 
-		 * @param expectedToken
-		 *            the expected token
-		 * @param actualToken
-		 *            the actual token
+		 * @param expectedToken the expected token
+		 * @param actualToken the actual token
 		 * @return true, if successful
 		 */
 		protected boolean checkToken(Token expectedToken, Token actualToken) {
@@ -877,9 +796,7 @@ public class PlugtestChecker {
 				success = actualToken == null || actualToken.isEmpty();
 
 				if (!success) {
-					System.out.printf(
-							"FAIL: Expected empty token, but was %s\n",
-							actualToken.getAsString());
+					System.out.printf("FAIL: Expected empty token, but was %s\n", actualToken.getAsString());
 				} else {
 					System.out.println("PASS: Correct empty token");
 				}
@@ -893,22 +810,18 @@ public class PlugtestChecker {
 
 				// eval token length
 				if (!success) {
-					System.out
-							.printf("FAIL: Expected token %s, but %s has illeagal length\n",
-									expectedToken.getAsString(),
-									actualToken.getAsString());
+					System.out.printf("FAIL: Expected token %s, but %s has illeagal length\n",
+							expectedToken.getAsString(), actualToken.getAsString());
 					return success;
 				}
 
 				success &= expectedToken.equals(actualToken);
 
 				if (!success) {
-					System.out.printf("FAIL: Expected token %s, but was %s\n",
-							expectedToken.getAsString(),
+					System.out.printf("FAIL: Expected token %s, but was %s\n", expectedToken.getAsString(),
 							actualToken.getAsString());
 				} else {
-					System.out.printf("PASS: Correct token (%s)\n",
-							actualToken.getAsString());
+					System.out.printf("PASS: Correct token (%s)\n", actualToken.getAsString());
 				}
 
 				return success;
@@ -916,16 +829,14 @@ public class PlugtestChecker {
 		}
 
 		protected boolean checkDiscovery(String expextedResource, String actualDiscovery) {
-			return actualDiscovery.contains("<"+expextedResource+">");
+			return actualDiscovery.contains("<" + expextedResource + ">");
 		}
-		
+
 		/**
 		 * Check discovery.
 		 * 
-		 * @param expextedAttribute
-		 *            the resource attribute to filter
-		 * @param actualDiscovery
-		 *            the reported Link Format
+		 * @param expextedAttribute the resource attribute to filter
+		 * @param actualDiscovery the reported Link Format
 		 * @return true, if successful
 		 */
 		protected boolean checkDiscoveryAttributes(String expextedAttribute, String actualDiscovery) {
@@ -951,8 +862,7 @@ public class PlugtestChecker {
 				success &= LinkFormat.matches(sub, query);
 
 				if (!success) {
-					System.out.printf("FAIL: Expected %s, but was %s\n",
-							expextedAttribute,
+					System.out.printf("FAIL: Expected %s, but was %s\n", expextedAttribute,
 							LinkFormat.serializeResource(sub));
 				}
 			}
@@ -965,7 +875,7 @@ public class PlugtestChecker {
 		}
 
 	}
-	
+
 	private static boolean ping(String address) {
 		try {
 			Request request = new Request(null);
@@ -984,8 +894,7 @@ public class PlugtestChecker {
 	}
 
 	public static String getLargeRequestPayload() {
-		return new StringBuilder()
-				.append("/-------------------------------------------------------------\\\n")
+		return new StringBuilder().append("/-------------------------------------------------------------\\\n")
 				.append("|                  Request BLOCK NO. 1 OF 5                   |\n")
 				.append("|               [each line contains 64 bytes]                 |\n")
 				.append("\\-------------------------------------------------------------/\n")
@@ -1004,7 +913,6 @@ public class PlugtestChecker {
 				.append("/-------------------------------------------------------------\\\n")
 				.append("|                  Request BLOCK NO. 5 OF 5                   |\n")
 				.append("|               [each line contains 64 bytes]                 |\n")
-				.append("\\-------------------------------------------------------------/\n")
-				.toString();
+				.append("\\-------------------------------------------------------------/\n").toString();
 	}
 }
