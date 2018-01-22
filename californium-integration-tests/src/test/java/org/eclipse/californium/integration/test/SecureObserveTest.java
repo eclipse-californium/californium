@@ -133,6 +133,22 @@ public class SecureObserveTest {
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 	}
 
+	@Test(expected = RuntimeException.class)
+	public void testSecureGetWithNewSession() throws Exception {
+
+		createSecureServer(DtlsMode.STRICT);
+
+		CoapClient client = new CoapClient(uri);
+		CoapResponse response = client.get();
+
+		assertEquals("\"resource says hi for the 1 time\"", response.getResponseText());
+
+		clientConnector.clearConnectionState();
+
+		// new handshake with already set endpoint context => exception 
+		response = client.get();
+	}
+
 	/**
 	 * Test observe using a DTLS connection with new session.
 	 * After the new handshake, the server is intended not to send notifies.
@@ -166,7 +182,9 @@ public class SecureObserveTest {
 		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 
+		// clean up session and endpoint context => force new session
 		clientConnector.clearConnectionState();
+		client.setDestinationContext(null);
 
 		// new handshake
 		CoapResponse response = client.get();

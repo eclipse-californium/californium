@@ -32,10 +32,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check endpoint context for 
+ *                                                    setURI
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -44,8 +47,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -284,10 +285,12 @@ public class Request extends Message {
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 
 		try {
-			InetAddress destAddress = InetAddress.getByName(host);
-			setDestination(destAddress);
+			if (getDestinationContext() == null) {
+				InetAddress destAddress = InetAddress.getByName(host);
+				setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destAddress, 0), null));
+			}
 
-			return setOptions(new URI(uri.getScheme(), null, host, uri.getPort(), uri.getPath(), uri.getQuery(),
+			return setOptions(new URI(uri.getScheme(), uri.getUserInfo(), host, uri.getPort(), uri.getPath(), uri.getQuery(),
 					uri.getFragment()));
 
 		} catch (UnknownHostException e) {
@@ -319,14 +322,14 @@ public class Request extends Message {
 	 * @throws IllegalStateException if the destination is not set.
 	 */
 	public Request setOptions(final URI uri) {
-
+		InetAddress destination = getDestination();
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
-		} else if (getDestination() == null) {
+		} else if (destination == null) {
 			throw new IllegalStateException("destination address must be set");
 		}
 
@@ -338,9 +341,9 @@ public class Request extends Message {
 					// host is a literal IP address, so we should be able
 					// to "wrap" it without invoking the resolver
 					InetAddress hostAddress = InetAddress.getByName(host);
-					if (!hostAddress.equals(getDestination())) {
-						throw new IllegalArgumentException(
-								"URI's literal host IP address does not match request's destination address");
+					if (!hostAddress.equals(destination)) {
+						throw new IllegalArgumentException("URI's literal host IP address '" + hostAddress
+								+ "' does not match request's destination address '" + destination + "'");
 					}
 				} catch (UnknownHostException e) {
 					// this should not happen because we do not need to resolve
@@ -354,7 +357,7 @@ public class Request extends Message {
 			}
 		}
 
-		scheme = uri.getScheme().toLowerCase();
+		String scheme = uri.getScheme().toLowerCase();
 		// The Uri-Port is only for special cases where it differs from
 		// the UDP port, usually when Proxy-Scheme is used.
 		int port = uri.getPort();
@@ -362,7 +365,21 @@ public class Request extends Message {
 			port = CoAP.getDefaultPort(scheme);
 		}
 
-		setDestinationPort(port);
+		EndpointContext destinationContext = getDestinationContext();
+		if (destinationContext != null) {
+			int destPort = destinationContext.getPeerAddress().getPort();
+			if (destPort == 0) {
+				destinationContext = null;
+			} else if (destPort != port) {
+				throw new IllegalArgumentException(
+						"URI's port '" + port + "' does not match request's destination port '" + destPort + "'");
+			}
+		}
+
+		if (destinationContext == null) {
+			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), null));
+		}
+		this.scheme = scheme;
 		// do not set the Uri-Port option unless it is used for proxying
 		// (setting Uri-Scheme option)
 
