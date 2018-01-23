@@ -52,7 +52,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.examples.NatUtil;
-import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.junit.After;
@@ -65,8 +65,8 @@ import org.junit.experimental.categories.Category;
 public class SecureObserveTest {
 
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
-			CoapNetworkRule.Mode.NATIVE);
+	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
+			CoapsNetworkRule.Mode.NATIVE);
 
 	static final int TIMEOUT_IN_MILLIS = 2000;
 	static final int REPEATS = 3;
