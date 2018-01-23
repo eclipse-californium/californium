@@ -44,6 +44,9 @@
  *                                                    source endpoint context
  *                                                    for next block requests
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - copy token and mid for error responses
+ *                                                    copy scheme to assembled blockwise 
+ *                                                    payload.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -268,7 +271,12 @@ public class BlockwiseLayer extends AbstractLayer {
 					// original request so that at the end of the
 					// blockwise transfer the Matcher can correctly
 					// close the overall exchange
-					request.setToken(block.getToken());
+					if (request.getToken() == null) {
+						request.setToken(block.getToken());
+					}
+					if (!request.hasMID()) {
+						request.setMID(block.getMID());
+					}
 				}
 
 				@Override
@@ -306,8 +314,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (status == null) {
 
 					LOGGER.debug(
-							"peer wants to retrieve individual block2 {}, delivering request to application layer",
-							block2);
+							"peer wants to retrieve individual block2 {} of {}, delivering request to application layer",
+							block2, key);
 					exchange.setRequest(request);
 					upper().receiveRequest(exchange, request);
 
@@ -395,11 +403,13 @@ public class BlockwiseLayer extends AbstractLayer {
 					status.assembleReceivedMessage(assembled);
 
 					// make sure we deliver the request using the MID and token of the latest request
-					// so that the response created by the application layer can reply to his token and
-					// MID
+					// so that the response created by the application layer can reply to his 
+					// token and MID
 					assembled.setMID(request.getMID());
 					assembled.setToken(request.getToken());
-
+					// copy scheme
+					assembled.setScheme(request.getScheme());
+					
 					// make sure peer's early negotiation of block2 size gets included
 					assembled.getOptions().setBlock2(request.getOptions().getBlock2());
 
@@ -514,10 +524,10 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				if (status.isComplete()) {
 					// clean up blockwise status
-					LOGGER.debug("block2 transfer of response finished after first block: {}", status);
+					LOGGER.debug("block2 transfer of response for {} finished after first block: {}", key, status);
 					clearBlock2Status(key);
 				} else {
-					LOGGER.debug("block2 transfer of response started: {}", status);
+					LOGGER.debug("block2 transfer of response for {} started: {}", key, status);
 					addBlock2CleanUpObserver(responseToSend, key);
 				}
 
