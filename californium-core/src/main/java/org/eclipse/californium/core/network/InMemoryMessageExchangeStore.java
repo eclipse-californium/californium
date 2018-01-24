@@ -228,6 +228,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
 		} else {
 			// ongoing requests may reuse token
+			if (token.isEmpty() && request.getCode() == null) {
+				// ping, no exchange by token required!
+				return;
+			}
 			if (exchangesByToken.put(token, exchange) != exchange) {
 				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
 						|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())) {
