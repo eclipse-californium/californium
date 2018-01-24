@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -27,16 +27,19 @@ package org.eclipse.californium.core.coap;
 
 
 /**
- * A callback that gets invoked on a message's lifecycle events.
+ * A callback that gets invoked on a message's life cycle events.
  * <p>
  * The following methods are called
  * <ul>
- * <li> {@link #onResponse(Response)} when a response arrives</li>
- * <li> {@link #onAcknowledgement()} when the message has been acknowledged</li>
- * <li> {@link #onReject()} when the message has been rejected</li>
- * <li> {@link #onTimeout()} when the client stops retransmitting the message and
+ * <li>{@link #onResponse(Response)} when a response arrives</li>
+ * <li>{@link #onAcknowledgement()} when the message has been acknowledged</li>
+ * <li>{@link #onReject()} when the message has been rejected</li>
+ * <li>{@link #onTimeout()} when the client stops retransmitting the message and
  * still has not received anything from the remote endpoint</li>
- * <li> {@link #onCancel()} when the message has been canceled</li>
+ * <li>{@link #onCancel()} when the message has been canceled</li>
+ * <li>{@link #onReadyToSend()} right before the message is being sent</li>
+ * <li>{@link #onSent()} right after the message has been sent (successfully)</li>
+ * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
  * </ul>
  * <p>
  * The class that is interested in processing a message event either implements
@@ -94,25 +97,26 @@ public interface MessageObserver {
 	void onCancel();
 
 	/**
-	 * Invoked when the message was built and is ready to send.
+	 * Invoked when the message was built and is ready to be sent.
 	 * <p>
-	 * Triggered, before the message was sent by a connector. 
+	 * Triggered, before the message was sent by a connector.
 	 * MID and token is prepared.
 	 */
 	void onReadyToSend();
 
 	/**
-	 * Invoked when the message has been sent.
+	 * Invoked right after the message has been sent.
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
 	 */
 	void onSent();
-	
+
 	/**
 	 * Invoked when sending the message caused an error.
 	 * <p>
 	 * For instance, if the message is not sent, because the endpoint context has changed.
+	 * 
+	 * @param error The cause of the failure to send the message.
 	 */
 	void onSendError(Throwable error);
-	
 }
