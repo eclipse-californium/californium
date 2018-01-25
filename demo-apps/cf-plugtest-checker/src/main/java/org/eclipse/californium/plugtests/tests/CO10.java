@@ -78,7 +78,7 @@ public class CO10 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -101,7 +101,7 @@ public class CO10 extends TestClientAbstract {
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(time + 1000);
+				response = waitForNotification(time + 1000);
 
 				// checking the response
 				if (response != null) {
@@ -151,6 +151,8 @@ public class CO10 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 

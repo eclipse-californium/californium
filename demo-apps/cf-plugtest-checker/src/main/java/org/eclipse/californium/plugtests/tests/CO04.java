@@ -80,7 +80,7 @@ public class CO04 extends TestClientAbstract {
 			long time = 5000;
 			boolean timedOut = false;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -105,7 +105,7 @@ public class CO04 extends TestClientAbstract {
 
 					for (int l = 0; success && (l < observeLoop); ++l) {
 
-						response = request.waitForResponse(time + 1000);
+						response = waitForNotification(time + 1000);
 
 						// checking the response
 						if (response != null) {
@@ -159,7 +159,7 @@ public class CO04 extends TestClientAbstract {
 							reregister.setToken(request.getToken());
 							reregister.setObserve();
 							request = reregister;
-							request.send();
+							startObserve(request);
 
 							response = request.waitForResponse(time);
 							if (response != null) {
@@ -227,6 +227,8 @@ public class CO04 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 

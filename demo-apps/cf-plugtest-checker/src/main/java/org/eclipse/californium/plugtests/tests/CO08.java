@@ -86,7 +86,8 @@ public class CO08 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 			long maxAge = OptionNumberRegistry.Defaults.MAX_AGE;
-			request.send();
+			
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -105,7 +106,7 @@ public class CO08 extends TestClientAbstract {
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(10000);
+				response = waitForNotification(10000);
 
 				// checking the response
 				if (response != null) {
@@ -145,7 +146,7 @@ public class CO08 extends TestClientAbstract {
 			// enable response queue for synchronous I/O
 			asyncRequest.send();
 
-			response = request.waitForResponse(maxAge * 1000 + 1000);
+			response = waitForNotification(maxAge * 1000 + 1000);
 			System.out.println("received " + response);
 
 			if (response != null) {
@@ -170,6 +171,8 @@ public class CO08 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 

@@ -83,7 +83,7 @@ public class CO09 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -97,10 +97,14 @@ public class CO09 extends TestClientAbstract {
 				success &= hasToken(response);
 				success &= hasObserve(response);
 			}
+			else {
+				System.out.println("FAIL: No notification after registration");
+				success = false;
+			}
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(6000);
+				response = waitForNotification(6000);
 
 				// checking the response
 				if (response != null) {
@@ -119,6 +123,10 @@ public class CO09 extends TestClientAbstract {
 						break;
 					}
 				}
+				else {
+					System.out.println("FAIL: missing notification");
+					success = false;
+				}
 			}
 
 			// Client is requested to update the /obs resource on Server
@@ -135,14 +143,22 @@ public class CO09 extends TestClientAbstract {
 			if (response != null) {
 				success &= checkInt(EXPECTED_RESPONSE_CODE_1.value, response.getCode().value, "code");
 			}
+			else {
+				System.out.println("FAIL: missing response");
+				success = false;
+			}
 
-			response = request.waitForResponse(6000);
+			response = waitForNotification(6000);
 			if (response != null) {
 				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
 				success &= hasObserve(response);
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= checkString(newValue, response.getPayloadString(), "payload");
+			}
+			else {
+				System.out.println("FAIL: missing notification after PUT");
+				success = false;
 			}
 
 			if (success) {
@@ -158,6 +174,8 @@ public class CO09 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 

@@ -16,6 +16,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add notification processing and
+ *                                                    adjust tests.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add block2 backward-compatibility
  ******************************************************************************/
 
 package org.eclipse.californium.plugtests;
@@ -39,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLContext;
 
@@ -54,11 +59,13 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
@@ -380,6 +387,29 @@ public class PlugtestChecker {
 		protected boolean sync = true;
 
 		/**
+		 * Current started observation.
+		 */
+		protected volatile Request observe;
+
+		/**
+		 * Last received notification.
+		 * 
+		 * Replaces deprecated notification processing with
+		 * {@link Request#waitForResponse(long)}.
+		 * 
+		 * @see #waitForNotification(int)
+		 * @see #startObserve(Request)
+		 * @see #stopObservation()
+		 */
+		protected AtomicReference<Response> notification = new AtomicReference<Response>();
+
+		/**
+		 * Notification listener forwarding notifications to
+		 * {@link #waitForNotification(int)}.
+		 */
+		protected TestNotificationListener listener;
+
+		/**
 		 * Instantiates a new test client abstract.
 		 * 
 		 * @param testName the test name
@@ -402,6 +432,55 @@ public class PlugtestChecker {
 		 */
 		public TestClientAbstract(String testName) {
 			this(testName, false, true);
+		}
+
+		/**
+		 * Start observe.
+		 */
+		protected void startObserve(Request request) {
+			stopObservation();
+			Endpoint outEndpoint = EndpointManager.getEndpointManager().getDefaultEndpoint(request.getScheme());
+			listener = new TestNotificationListener(outEndpoint);
+			outEndpoint.addNotificationListener(listener);
+			observe = request;
+			request.send(outEndpoint);
+		}
+
+		/**
+		 * Wait for notification.
+		 * 
+		 * @param timeout timeout in milliseconds
+		 * @return response, or {@code null}, if no response is received within
+		 *         the provided timeout.
+		 * @throws IllegalStateException if the observation was not started
+		 *             calling {@link #startObserve(Request)}
+		 * @throws InterruptedException if thread was interrupted during wait.
+		 */
+		protected Response waitForNotification(long timeout) throws IllegalStateException, InterruptedException {
+			if (listener == null) {
+				throw new IllegalStateException("missing startObserve");
+			}
+			Response notify = null;
+			synchronized (notification) {
+				notify = notification.get();
+				if (notify == null) {
+					notification.wait(timeout);
+					notify = notification.get();
+				}
+				notification.set(null);
+			}
+			return notify;
+		}
+
+		/**
+		 * Stop observation and free resources.
+		 */
+		protected void stopObservation() {
+			if (listener != null) {
+				listener.close();
+				listener = null;
+				observe = null;
+			}
 		}
 
 		/**
@@ -473,9 +552,20 @@ public class PlugtestChecker {
 		protected class TestResponseHandler extends MessageObserverAdapter {
 
 			private Request request;
-
+			private final AtomicInteger requestCounter = new AtomicInteger();
+			
 			public TestResponseHandler(Request request) {
 				this.request = request;
+			}
+
+			@Override
+			public void onRetransmission() {
+				requestCounter.decrementAndGet();
+			}
+
+			@Override
+			public void onSent() {
+				requestCounter.incrementAndGet();
 			}
 
 			@Override
@@ -485,12 +575,26 @@ public class PlugtestChecker {
 
 				// checking the response
 				if (response != null) {
-
+					int requests = requestCounter.get();
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
 						System.out.println("Time elapsed (ms): " + response.getRTT());
+						if (requests > 1) {
+							System.out.println(requests + " blocks");
+						}
 						Utils.prettyPrint(response);
+					}
+
+					if ((requests > 1) && !request.getOptions().hasBlock1() && !response.getOptions().hasBlock2()) {
+						// set block2 option from counter
+						// backwards compatibility (test only)
+						int size = response.getPayloadSize() / requests;
+						int bit = Integer.highestOneBit(size);
+						if ((size - bit) != 0) {
+							bit <<= 1;
+						}
+						response.getOptions().setBlock2(BlockOption.size2Szx(bit), false, requests);
 					}
 
 					System.out.println("**** BEGIN CHECK ****");
@@ -506,6 +610,48 @@ public class PlugtestChecker {
 					tickOffTest();
 				}
 			}
+		}
+
+		/**
+		 * Notification listener forwarding notifies as response. Backwards
+		 * compatibility to 1.0.0 notification implementation.
+		 */
+		protected class TestNotificationListener implements NotificationListener {
+
+			private Endpoint endpoint;
+
+			public TestNotificationListener(Endpoint endpoint) {
+				this.endpoint = endpoint;
+			}
+
+			@Override
+			public void onNotification(Request request, Response response) {
+				Request origin = observe;
+				if (origin != null && origin.getToken().equals(response.getToken())) {
+					synchronized (notification) {
+						notification.set(response);
+						notification.notify();
+					}
+				}
+			}
+
+			public void close() {
+				Request origin = observe;
+				if (origin != null && origin.isObserve()) {
+					Request cancel = Request.newGet();
+					cancel.setDestinationContext(origin.getDestinationContext());
+					// use same Token
+					cancel.setToken(origin.getToken());
+					// copy options
+					cancel.setOptions(origin.getOptions());
+					// set Observe to cancel
+					cancel.setObserveCancel();
+					endpoint.sendRequest(cancel);
+				}
+				endpoint.cancelObservation(origin.getToken());
+				endpoint.removeNotificationListener(this);
+			}
+
 		}
 
 		/**

@@ -78,7 +78,7 @@ public class CO02_05 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -100,7 +100,7 @@ public class CO02_05 extends TestClientAbstract {
 
 				// receive multiple responses
 				for (int l = 0; success && l < observeLoop; ++l) {
-					response = request.waitForResponse(time + 1000);
+					response = waitForNotification(time + 1000);
 
 					// checking the response
 					if (response != null) {
@@ -114,8 +114,14 @@ public class CO02_05 extends TestClientAbstract {
 						}
 
 						success &= checkResponse(request, response);
+					} else {
+						System.out.println("FAIL: missing notification");
+						success = false;
 					}
 				}
+			} else {
+				System.out.println("FAIL: No notification after registration");
+				success = false;
 			}
 
 			System.out.println("+++++++++++++++++++++++");
@@ -137,6 +143,8 @@ public class CO02_05 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
