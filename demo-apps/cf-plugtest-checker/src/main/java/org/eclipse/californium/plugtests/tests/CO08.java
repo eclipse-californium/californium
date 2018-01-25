@@ -67,19 +67,17 @@ public class CO08 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
-		
+
 		// for observing
 		int observeLoop = 2;
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -97,8 +95,7 @@ public class CO08 extends TestClientAbstract {
 			response = request.waitForResponse(10000);
 
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-						response.getCode().value, "code");
+				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
 				success &= checkType(Type.ACK, response.getType());
 				success &= hasContentType(response);
 				success &= hasToken(response);
@@ -117,11 +114,10 @@ public class CO08 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
-					
+
 					success &= checkResponse(request, response);
 					maxAge = response.getOptions().getMaxAge();
 
@@ -139,10 +135,10 @@ public class CO08 extends TestClientAbstract {
 			asyncRequest.getOptions().setContentFormat((int) Math.random() * 0xFFFF + 1);
 			asyncRequest.setPayload("Random");
 			asyncRequest.addMessageObserver(new MessageObserverAdapter() {
+
 				public void onResponse(Response response) {
 					if (response != null) {
-						checkInt(EXPECTED_RESPONSE_CODE_1.value,
-								response.getCode().value, "code");
+						checkInt(EXPECTED_RESPONSE_CODE_1.value, response.getCode().value, "code");
 					}
 				}
 			});
@@ -170,7 +166,7 @@ public class CO08 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
