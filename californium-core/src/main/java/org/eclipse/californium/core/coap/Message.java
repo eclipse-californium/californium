@@ -322,6 +322,12 @@ public abstract class Message {
 	/**
 	 * Sets the token bytes, which can be 0--8 bytes.
 	 * 
+	 * Note: 
+	 * To support address changes, the provided tokens must be unique for
+	 * all clients and not only for the client the message is sent to. This
+	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
+	 * "system-local".
+	 * 
 	 * Reset {@link #bytes} to force new serialization.
 	 * 
 	 * Provides a fluent API to chain setters.
@@ -340,6 +346,12 @@ public abstract class Message {
 
 	/**
 	 * Sets the token.
+	 * 
+	 * Note: 
+	 * To support address changes, the provided tokens must be unique for
+	 * all clients and not only for the client the message is sent to. This
+	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
+	 * "system-local".
 	 * 
 	 * Reset {@link #bytes} to force new serialization.
 	 * 
