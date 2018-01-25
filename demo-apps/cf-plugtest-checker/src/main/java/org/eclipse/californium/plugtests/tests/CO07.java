@@ -85,7 +85,7 @@ public class CO07 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -109,7 +109,7 @@ public class CO07 extends TestClientAbstract {
 
 				// receive multiple responses
 				for (int l = 0; success && l < observeLoop; ++l) {
-					response = request.waitForResponse(time + 1000);
+					response = waitForNotification(time + 1000);
 
 					// checking the response
 					if (response != null) {
@@ -146,7 +146,7 @@ public class CO07 extends TestClientAbstract {
 				});
 				asyncRequest.send();
 
-				response = request.waitForResponse(time + 1000);
+				response = waitForNotification(time + 1000);
 
 				if (response != null) {
 
@@ -159,21 +159,26 @@ public class CO07 extends TestClientAbstract {
 					System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received in " + time + "ms");
 					success = false;
 				}
-
-				if (success) {
-					System.out.println("**** TEST PASSED ****");
-					addSummaryEntry(testName + ": PASSED");
-				} else {
-					System.out.println("**** TEST FAILED ****");
-					addSummaryEntry(testName + ": --FAILED--");
-				}
-
-				tickOffTest();
+			} else {
+				System.out.println("FAIL: No notification after registration");
+				success = false;
 			}
+
+			if (success) {
+				System.out.println("**** TEST PASSED ****");
+				addSummaryEntry(testName + ": PASSED");
+			} else {
+				System.out.println("**** TEST FAILED ****");
+				addSummaryEntry(testName + ": --FAILED--");
+			}
+
+			tickOffTest();
 
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
