@@ -97,8 +97,9 @@ public class CO06 extends TestClientAbstract {
 
 					time = response.getOptions().getMaxAge() * 1000;
 					System.out.println("+++++ Max-Age: " + time + " +++++");
-					if (time == 0)
+					if (time == 0) {
 						time = 5000;
+					}
 
 					for (int l = 0; success && (l < observeLoop); ++l) {
 

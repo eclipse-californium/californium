@@ -59,20 +59,18 @@ public class CO01_12 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
-		
+
 		// for observing
 		int observeLoop = 5;
-        long time = 5000;
+		long time = 5000;
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -97,8 +95,10 @@ public class CO01_12 extends TestClientAbstract {
 				success &= hasObserve(response);
 
 				time = response.getOptions().getMaxAge() * 1000;
-				System.out.println("+++++ Max-Age: "+time+" +++++");
-				if (time==0) time = 5000;
+				System.out.println("+++++ Max-Age: " + time + " +++++");
+				if (time == 0) {
+					time = 5000;
+				}
 			}
 
 			// receive multiple responses
@@ -112,11 +112,10 @@ public class CO01_12 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
-					
+
 					success &= checkResponse(request, response);
 
 					if (!hasObserve(response)) {
@@ -125,19 +124,19 @@ public class CO01_12 extends TestClientAbstract {
 				}
 			}
 
-            System.out.println("+++++ De-registering +++++");
+			System.out.println("+++++ De-registering +++++");
 			Request deregister = Request.newGet();
 			deregister.setURI(uri);
 			deregister.setToken(request.getToken());
 			deregister.setObserveCancel();
-            request = deregister;
-            request.send();
+			request = deregister;
+			request.send();
 			response = request.waitForResponse(10000);
 
 			if (response != null) {
-    			success &= hasObserve(response, true);
+				success &= hasObserve(response, true);
 			} else {
-                System.out.println("FAIL: No Response after cancellation");
+				System.out.println("FAIL: No Response after cancellation");
 				success = false;
 			}
 
@@ -150,10 +149,9 @@ public class CO01_12 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
-			System.err.println("Interupted during receive: "
-					+ e.getMessage());
+			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
 		}
 	}

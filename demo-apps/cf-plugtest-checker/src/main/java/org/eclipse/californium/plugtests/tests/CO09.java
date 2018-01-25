@@ -64,8 +64,7 @@ public class CO09 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
@@ -110,11 +109,10 @@ public class CO09 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
-					
+
 					success &= checkResponse(request, response);
 
 					if (!hasObserve(response)) {
@@ -156,7 +154,7 @@ public class CO09 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);

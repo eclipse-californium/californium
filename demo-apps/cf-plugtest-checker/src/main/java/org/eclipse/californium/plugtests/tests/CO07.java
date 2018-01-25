@@ -65,20 +65,18 @@ public class CO07 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
-		
+
 		// for observing
 		int observeLoop = 2;
-        long time = 5000;
+		long time = 5000;
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -102,27 +100,28 @@ public class CO07 extends TestClientAbstract {
 				success &= hasContentType(response);
 				success &= hasNonEmptyPalyoad(response);
 				success &= hasObserve(response);
-				
+
 				time = response.getOptions().getMaxAge() * 1000;
-				System.out.println("+++++ Max-Age: "+time+" +++++");
-				if (time==0) time = 5000;
+				System.out.println("+++++ Max-Age: " + time + " +++++");
+				if (time == 0) {
+					time = 5000;
+				}
 
 				// receive multiple responses
 				for (int l = 0; success && l < observeLoop; ++l) {
 					response = request.waitForResponse(time + 1000);
-	
+
 					// checking the response
 					if (response != null) {
 						System.out.println("Received notification " + l);
-	
+
 						// print response info
 						if (verbose) {
 							System.out.println("Response received");
-							System.out.println("Time elapsed (ms): "
-									+ response.getRTT());
+							System.out.println("Time elapsed (ms): " + response.getRTT());
 							Utils.prettyPrint(response);
 						}
-						
+
 						success &= checkResponse(request, response);
 						time = response.getOptions().getMaxAge() * 1000;
 
@@ -131,13 +130,14 @@ public class CO07 extends TestClientAbstract {
 						}
 					}
 				}
-	
+
 				// Delete the /obs resource of the server (either locally or by
 				// having another CoAP client perform a DELETE request)
 				System.out.println("+++++ Sending DELETE +++++");
 				Request asyncRequest = new Request(Code.DELETE, Type.CON);
 				asyncRequest.setURI(uri);
 				asyncRequest.addMessageObserver(new MessageObserverAdapter() {
+
 					public void onResponse(Response response) {
 						if (response != null) {
 							checkInt(EXPECTED_RESPONSE_CODE_1.value, response.getCode().value, "code");
@@ -145,13 +145,13 @@ public class CO07 extends TestClientAbstract {
 					}
 				});
 				asyncRequest.send();
-	
+
 				response = request.waitForResponse(time + 1000);
-	
+
 				if (response != null) {
-	
+
 					Utils.prettyPrint(response);
-	
+
 					success &= checkInt(EXPECTED_RESPONSE_CODE_2.value, response.getCode().value, "code");
 					success &= hasToken(response);
 					success &= hasObserve(response, true);
@@ -159,7 +159,7 @@ public class CO07 extends TestClientAbstract {
 					System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received in " + time + "ms");
 					success = false;
 				}
-	
+
 				if (success) {
 					System.out.println("**** TEST PASSED ****");
 					addSummaryEntry(testName + ": PASSED");
@@ -167,10 +167,10 @@ public class CO07 extends TestClientAbstract {
 					System.out.println("**** TEST FAILED ****");
 					addSummaryEntry(testName + ": --FAILED--");
 				}
-	
+
 				tickOffTest();
 			}
-			
+
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
