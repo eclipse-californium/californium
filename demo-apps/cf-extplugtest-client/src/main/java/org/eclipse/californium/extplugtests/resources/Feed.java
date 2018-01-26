@@ -18,12 +18,15 @@ package org.eclipse.californium.extplugtests.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_IMPLEMENTED;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
@@ -31,13 +34,13 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
- * Benchmark resource.
+ * Reverse observe resource.
  * 
  * NOT intended to be used at californium-sandbox!
  */
-public class Benchmark extends CoapResource {
+public class Feed extends CoapResource {
 
-	private static final String RESOURCE_NAME = "benchmark";
+	private static final String RESOURCE_NAME = "feed";
 	/**
 	 * URI query parameter to specify response length.
 	 */
@@ -46,37 +49,35 @@ public class Benchmark extends CoapResource {
 	/**
 	 * Default response.
 	 */
-	private final byte[] payload = "hello benchmark".getBytes();
-	/**
-	 * Disabled. Response with NOT_IMPLEMENTED (5.01).
-	 */
-	private final boolean disable;
+	private final byte[] payload = "hello feed".getBytes();
 	/**
 	 * Maximum message size.
 	 */
 	private final int maxResourceSize;
+	/**
+	 * Counter for gets/notifies.
+	 */
+	private final CountDownLatch counter;
 
-	public Benchmark(boolean disable, int maxResourceSize) {
+	public Feed(int maxResourceSize, ScheduledExecutorService executorService, CountDownLatch counter) {
 		super(RESOURCE_NAME);
-		this.disable = disable;
 		this.maxResourceSize = maxResourceSize;
-		if (disable) {
-			getAttributes().setTitle("Benchmark (disabled)");
-		} else {
-			getAttributes().setTitle("Benchmark");
-		}
+		this.counter = counter;
+		setObservable(true);
+		setObserveType(CON);
+		getAttributes().setTitle("Feed");
 		getAttributes().addContentType(TEXT_PLAIN);
+		executorService.scheduleWithFixedDelay(new Runnable() {
+
+			@Override
+			public void run() {
+				changed();
+			}
+		}, 250, 250, TimeUnit.MILLISECONDS);
 	}
 
 	@Override
-	public void handlePOST(CoapExchange exchange) {
-
-		if (disable) {
-			// disabled => response with NOT_IMPLEMENTED
-			exchange.respond(NOT_IMPLEMENTED);
-			return;
-		}
-
+	public void handleGET(CoapExchange exchange) {
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
 
@@ -120,7 +121,7 @@ public class Benchmark extends CoapResource {
 				Arrays.fill(responsePayload, payload.length, length, (byte) '*');
 			}
 		}
-
+		counter.countDown();
 		exchange.respond(CONTENT, responsePayload, TEXT_PLAIN);
 	}
 }
