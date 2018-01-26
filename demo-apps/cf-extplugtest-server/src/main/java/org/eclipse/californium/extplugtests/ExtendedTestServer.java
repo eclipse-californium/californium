@@ -21,14 +21,19 @@ package org.eclipse.californium.extplugtests;
 import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
+import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 
@@ -67,12 +72,16 @@ public class ExtendedTestServer extends AbstractTestServer {
 		System.out.println("\nCalifornium (Cf) Extended Plugtest Server");
 		System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
 		System.out.println();
-		System.out.println("Usage: " + ExtendedTestServer.class.getSimpleName() + " [-noLoopback [-noBenchmark]]");
+		System.out.println("Usage: " + ExtendedTestServer.class.getSimpleName() + " [-noLoopback [-noBenchmark|noPlugtest]]");
 		System.out.println("  -noLoopback  : no endpoints for loopback/localhost interfaces");
 		System.out.println("  -noBenchmark : disable benchmark resource");
-		// start standard plugtest server
+		System.out.println("  -noPlugtest  : disable plugtest server");
 
-		PlugtestServer.start(args);
+		boolean noPlugtest = args.length > 1 ? args[1].equalsIgnoreCase("-noPlugTest") : false;
+		if (!noPlugtest) {
+			// start standard plugtest server
+			PlugtestServer.start(args);
+		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		// create server
@@ -80,8 +89,18 @@ public class ExtendedTestServer extends AbstractTestServer {
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
 			boolean noBenchmark = args.length > 1 ? args[1].equalsIgnoreCase("-noBenchmark") : false;
 
+			ScheduledExecutorService executor = Executors.newScheduledThreadPool(//
+					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
+
 			ExtendedTestServer server = new ExtendedTestServer(config, noBenchmark);
+			server.setExecutor(executor);
+			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
+			server.add(reverseObserver);
 			server.addEndpoints(!noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			for (Endpoint ep : server.getEndpoints()) {
+				ep.addNotificationListener(reverseObserver);
+			}
 			server.start();
 
 			// add special interceptor for message traces
@@ -91,6 +110,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				if (noBenchmark) {
 					ep.addInterceptor(new OriginTracer());
 				}
+				ep.addInterceptor(new MessageTracer());
 			}
 
 			if (noBenchmark) {
@@ -98,7 +118,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			} else {
 				Runtime runtime = Runtime.getRuntime();
 				long max = runtime.maxMemory();
-				System.out.println(ExtendedTestServer.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				System.out.println(
+						ExtendedTestServer.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
 				for (;;) {
 					try {
 						Thread.sleep(15000);
@@ -131,9 +152,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	public ExtendedTestServer(NetworkConfig config, boolean noBenchmark) throws SocketException {
 		super(config);
-		int maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE);
+		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
-		add(new Benchmark(noBenchmark, maxMessageSize));
+		add(new Benchmark(noBenchmark, maxResourceSize));
 	}
 }

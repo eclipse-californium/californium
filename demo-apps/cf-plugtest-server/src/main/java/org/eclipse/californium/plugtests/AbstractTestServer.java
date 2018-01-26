@@ -77,6 +77,7 @@ public abstract class AbstractTestServer extends CoapServer {
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
 		int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
+		int dtlsThreads = config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 		
 		SslContextUtil.Credentials serverCredentials = null;
 		Certificate[] trustedCertificates = null;
@@ -135,6 +136,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfig.setTrustStore(trustedCertificates);
 					dtlsConfig.setMaxConnections(maxPeers);
 					dtlsConfig.setStaleConnectionThreshold(staleTimeout);
+					dtlsConfig.setConnectionThreadCount(dtlsThreads);
 					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
 					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 					builder.setConnector(connector);
