@@ -17,6 +17,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token,
  *                                                    token generator and
  *                                                    ensure putIfAbsent semantic
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add observation to logging
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -48,9 +49,9 @@ public final class InMemoryObservationStore implements ObservationStore {
 		} else {
 			Observation result = map.putIfAbsent(key, obs);
 			if (result == null) {
-				LOGGER.debug("added observation for token {}", key);
+				LOGGER.debug("added observation for {}", key);
 			} else {
-				LOGGER.debug("kept observation for token {}", key);
+				LOGGER.debug("kept observation {} for {}", result, key);
 			}
 			return result;
 		}
@@ -65,9 +66,9 @@ public final class InMemoryObservationStore implements ObservationStore {
 		} else {
 			Observation result = map.put(key, obs);
 			if (result == null) {
-				LOGGER.debug("added observation for token {}", key);
+				LOGGER.debug("added observation for {}", key);
 			} else {
-				LOGGER.debug("replaced observation for token {}", key);
+				LOGGER.debug("replaced observation {} for {}", result, key);
 			}
 			return result;
 		}

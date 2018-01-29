@@ -12,6 +12,7 @@
  *
  * Contributors:
  *    Bosch Software Innovations GmbH - initial API and implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove double [] from toString
  *******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -75,7 +76,7 @@ public class Token {
 
 	@Override
 	public String toString() {
-		return new StringBuilder("Token[").append(Utils.toHexString(token)).append("]").toString();
+		return new StringBuilder("Token=").append(Utils.toHexString(token)).toString();
 	}
 
 	@Override
