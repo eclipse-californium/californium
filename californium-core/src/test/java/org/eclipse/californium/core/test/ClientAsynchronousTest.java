@@ -186,15 +186,15 @@ public class ClientAsynchronousTest {
 
 		// Try to use the builder and add a query
 		new CoapClient.Builder(serverAddress.getHostString(), serverAddress.getPort())
-			.path(TARGET).query(QUERY_UPPER_CASE).create()
-			.get(new TestHandler("Test 8") {
-				@Override public void onLoad(CoapResponse response) {
-					if (CONTENT_1.toUpperCase().equals(response.getResponseText())) {
-						latch.countDown();
+				.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create()
+				.get(new TestHandler("Test 8") {
+					@Override
+					public void onLoad(CoapResponse response) {
+						if (CONTENT_1.toUpperCase().equals(response.getResponseText())) {
+							latch.countDown();
+						}
 					}
-				}
-			}
-		);
+				});
 
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
 	}

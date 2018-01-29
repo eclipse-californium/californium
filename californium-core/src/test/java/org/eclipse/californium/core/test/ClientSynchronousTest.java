@@ -162,7 +162,7 @@ public class ClientSynchronousTest {
 
 		// Try to use the builder and add a query
 		String resp8 = new CoapClient.Builder("localhost", serverPort)
-			.path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
+			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
 		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
 
 		// Check that we indeed received 5 notifications
