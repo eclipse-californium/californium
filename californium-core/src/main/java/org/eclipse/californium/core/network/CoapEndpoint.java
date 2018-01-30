@@ -363,7 +363,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
 				: new InMemoryMessageExchangeStore(config, tokenGenerator);
-		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore();
+		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore(config);
 		if (null == endpointContextMatcher) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 		}
@@ -1288,7 +1288,7 @@ public class CoapEndpoint implements Endpoint {
 				tokenGenerator = new RandomTokenGenerator(config);
 			}
 			if (observationStore == null) {
-				observationStore = new InMemoryObservationStore();
+				observationStore = new InMemoryObservationStore(config);
 			}
 			if (exchangeStore == null) {
 				exchangeStore = new InMemoryMessageExchangeStore(config, tokenGenerator);

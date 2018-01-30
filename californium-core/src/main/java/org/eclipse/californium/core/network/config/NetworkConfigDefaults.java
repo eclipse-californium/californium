@@ -201,7 +201,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(Keys.HTTP_CACHE_SIZE, 32);
 
-		config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // s
+		config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // s, 0 for disable
 
 		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);

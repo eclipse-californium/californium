@@ -18,14 +18,22 @@
  *                                                    token generator and
  *                                                    ensure putIfAbsent semantic
  *    Achim Kraus (Bosch Software Innovations GmbH) - add observation to logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - start status logging with first
+ *                                                    stored observation.
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +44,33 @@ public final class InMemoryObservationStore implements ObservationStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryObservationStore.class.getName());
 	private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
+	private volatile boolean enableStatus;
 
-	public InMemoryObservationStore() {
+	public InMemoryObservationStore(NetworkConfig config) {
+		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		
+		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+			ScheduledExecutorService scheduler = Executors
+					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("ObservationStore"));
+			scheduler.scheduleAtFixedRate(new Runnable() {
+
+				@Override
+				public void run() {
+					if (enableStatus) {
+						LOGGER.info("{} observes", map.size());
+						Iterator<Token> iterator = map.keySet().iterator();
+						int max = 5;
+						while (iterator.hasNext()) {
+							LOGGER.info("   observe {}", iterator.next());
+							--max;
+							if (max == 0) {
+								break;
+							}
+						}
+					}
+				}
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		}
 	}
 
 	@Override
@@ -47,6 +80,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 		} else if (obs == null) {
 			throw new NullPointerException("observation must not be null");
 		} else {
+			enableStatus = true;
 			Observation result = map.putIfAbsent(key, obs);
 			if (result == null) {
 				LOGGER.debug("added observation for {}", key);
@@ -64,6 +98,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 		} else if (obs == null) {
 			throw new NullPointerException("observation must not be null");
 		} else {
+			enableStatus = true;
 			Observation result = map.put(key, obs);
 			if (result == null) {
 				LOGGER.debug("added observation for {}", key);
@@ -79,8 +114,8 @@ public final class InMemoryObservationStore implements ObservationStore {
 		if (token == null) {
 			return null;
 		} else {
-			LOGGER.debug("looking up observation for token {}", token);
 			Observation obs = map.get(token);
+			LOGGER.debug("looking up observation for token {}: {}", token, obs);
 			// clone request in order to prevent accumulation of
 			// message observers on original request
 			return ObservationUtil.shallowClone(obs);
@@ -90,8 +125,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 	@Override
 	public void remove(Token token) {
 		if (token != null) {
-			map.remove(token);
-			LOGGER.debug("removed observation for token {}", token);
+			if (map.remove(token) != null) {
+				LOGGER.debug("removed observation for token {}", token);
+			} else {
+				LOGGER.debug("Already removed observation for token {}", token);
+			}
 		}
 	}
 

@@ -63,10 +63,10 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.test.MessageExchangeStoreTool.TestMessageExchangeStore;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -113,8 +113,8 @@ public class MemoryLeakingHashMapTest {
 	// The server endpoint that we test
 	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
-	private static TestMessageExchangeStore clientExchangeStore;
-	private static TestMessageExchangeStore serverExchangeStore;
+	private static InMemoryMessageExchangeStore clientExchangeStore;
+	private static InMemoryMessageExchangeStore serverExchangeStore;
 
 	private static volatile String currentRequestText;
 	private static TestResource resource;
@@ -374,7 +374,7 @@ public class MemoryLeakingHashMapTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_BLOCK_SIZE);
 
 		// Create the endpoint for the server and create surveillant
-		serverExchangeStore = new TestMessageExchangeStore(config);	
+		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
@@ -382,7 +382,7 @@ public class MemoryLeakingHashMapTest {
 		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(new MessageTracer());
 
-		clientExchangeStore = new TestMessageExchangeStore(config);
+		clientExchangeStore = new InMemoryMessageExchangeStore(config);
 		builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);

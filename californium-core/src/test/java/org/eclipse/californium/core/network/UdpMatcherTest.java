@@ -65,7 +65,7 @@ public class UdpMatcherTest {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		tokenProvider = new RandomTokenGenerator(config);
 		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
-		observationStore =  new InMemoryObservationStore();
+		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
