@@ -389,9 +389,8 @@ public class ObserveClientSideTest {
 		// During block transfer send a complete (none blockwise) response
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).payload(notifyPayload).go();
 		server.expectEmpty(ACK, mid).go();
-		// Check that we get the most recent response (with the higher observe
-		// option value)
-		Response response = request.waitForResponse();
+		// Check that we get the most recent response (with the higher observe option value)
+		Response response = request.waitForResponse(2000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		// Send next block
@@ -1143,7 +1142,7 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
 				.payload(respPayload.substring(16, 32)).go();
 		// Check that we get the response
-		Response response = request.waitForResponse();
+		Response response = request.waitForResponse(2000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 
 		String notifyPayload = generateRandomPayload(2 * 16);
