@@ -54,7 +54,7 @@ public final class MatcherTestUtils {
 	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
+				new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
 		matcher.start();
 		return matcher;
 	}

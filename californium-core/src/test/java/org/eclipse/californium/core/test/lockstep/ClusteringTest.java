@@ -84,7 +84,7 @@ public class ClusteringTest {
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
-		store = new InMemoryObservationStore();
+		store = new InMemoryObservationStore(config);
 
 		notificationListener1 = new SynchronousNotificationListener();
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();

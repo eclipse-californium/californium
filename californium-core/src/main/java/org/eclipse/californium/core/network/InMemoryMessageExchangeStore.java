@@ -30,14 +30,17 @@
  *                                                    of provider. Remove not longer
  *                                                    required releaseToken.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - start status logging with first
+ *                                                    stored exchange. 
+ *                                                    Add exchange dump to status.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -46,7 +49,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
@@ -58,7 +61,6 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
- *
  */
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
@@ -67,6 +69,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
 	// for outgoing
 	private final ConcurrentMap<Token, Exchange> exchangesByToken = new ConcurrentHashMap<>();
+	private volatile boolean enableStatus;
 
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
@@ -84,7 +87,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 */
 	public InMemoryMessageExchangeStore(final NetworkConfig config) {
 		this(config, new RandomTokenGenerator(config));
-		LOGGER.info("using default TokenProvider {}", RandomTokenGenerator.class.getName());
+		LOGGER.debug("using default TokenProvider {}", RandomTokenGenerator.class.getName());
 	}
 
 	/**
@@ -111,14 +114,16 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (LOGGER.isTraceEnabled()) {
+		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
 			this.scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
 			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
-					LOGGER.trace(dumpCurrentLoadLevels());
+					if (enableStatus) {
+						dump(5);
+					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 		}
@@ -128,6 +133,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
+		b.append(deduplicator.size()).append(" MIDs, ");
 		return b.toString();
 	}
 
@@ -192,33 +198,39 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
 
+		enableStatus = true;
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
 				KeyMID key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-					throw new IllegalArgumentException(String
-							.format("automatic message ID [%d] already in use, cannot register exchange", message.getMID()));
+					throw new IllegalArgumentException(String.format(
+							"generated mid [%d] already in use, cannot register exchange", message.getMID()));
 				}
+				LOGGER.debug("exchange added with generated mid {}, {}", key, message);
 			}
 		} else {
-			Exchange existingExchange = exchangesByMID.putIfAbsent(KeyMID.fromOutboundMessage(message), exchange);
+			KeyMID key = KeyMID.fromOutboundMessage(message);
+			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
 					throw new IllegalArgumentException(String
-							.format("message ID [%d] already in use, cannot register exchange", message.getMID()));
+							.format("mid [%d] already in use, cannot register exchange", message.getMID()));
 				} else if (exchange.getFailedTransmissionCount() == 0) {
 					throw new IllegalArgumentException(String.format(
-							"message with already registered ID [%d] is not a re-transmission, cannot register exchange",
+							"message with already registered mid [%d] is not a re-transmission, cannot register exchange",
 							message.getMID()));
 				}
+			} else {
+				LOGGER.debug("exchange added with {}, {}", key, message);
 			}
 		}
 		return mid;
 	}
 
 	private void registerWithToken(final Exchange exchange) {
+		enableStatus = true;
 		Request request = exchange.getCurrentRequest();
 		Token token = request.getToken();
 		if (token == null) {
@@ -226,17 +238,30 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				token = tokenGenerator.createToken(false);
 				request.setToken(token);
 			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
+			LOGGER.debug("exchange added with generated token {}, {}", token, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
 				// ping, no exchange by token required!
 				return;
 			}
-			if (exchangesByToken.put(token, exchange) != exchange) {
-				if (!(exchange.getFailedTransmissionCount() > 0 || request.getOptions().hasBlock1()
-						|| request.getOptions().hasBlock2() || request.getOptions().hasObserve())) {
-					LOGGER.warn("manual token overrides existing open request: {}", token);
+			Exchange previous = exchangesByToken.put(token, exchange);
+			if (previous == null) {
+				BlockOption block2 = request.getOptions().getBlock2();
+				if (block2 != null) {
+					LOGGER.debug("block2 exchange for block {} add with token {}", block2.getNum(), token);
+				} else {
+					LOGGER.debug("exchange added with token {}, {}", token, request);
 				}
+			} else if (previous != exchange) {
+				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
+						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
+					LOGGER.warn("manual token overrides existing open request: {}", token);
+				} else {
+					LOGGER.debug("exchange replaced with token {}, {}", token, request);
+				}
+			} else {
+				LOGGER.debug("exchange kept for {}, {}", token, request);
 			}
 		}
 	}
@@ -334,8 +359,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			}
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
-				LOGGER.info("no MessageIdProvider set, using default {}",
-						InMemoryMessageIdProvider.class.getName());
+				LOGGER.debug("no MessageIdProvider set, using default {}", InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
 			running = true;
@@ -358,6 +382,52 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		}
 	}
 
+	/**
+	 * Dump exchanges of stores.
+	 * 
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 */
+	public void dump(int logMaxExchanges) {
+		if (LOGGER.isInfoEnabled()) {
+			LOGGER.info(dumpCurrentLoadLevels());
+			if (0 < logMaxExchanges) {
+				if (!exchangesByMID.isEmpty()) {
+					dumpExchanges(logMaxExchanges, exchangesByMID.entrySet());
+				}
+				if (!exchangesByToken.isEmpty()) {
+					dumpExchanges(logMaxExchanges, exchangesByToken.entrySet());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Dump collection of exchange entries.
+	 * 
+	 * @param logMaxExchanges maximum number of exchanges to include in dump.
+	 * @param exchangeEntries collection with exchanges entries
+	 */
+	private <K> void dumpExchanges(int logMaxExchanges, Set<Entry<K, Exchange>> exchangeEntries) {
+		for (Entry<K, Exchange> exchangeEntry : exchangeEntries) {
+			Exchange exchange = exchangeEntry.getValue();
+			Request origin = exchange.getRequest();
+			Request current = exchange.getCurrentRequest();
+			if (origin != current && !origin.getToken().equals(current.getToken())) {
+				LOGGER.info("  {}, complete {}, retransmission {}, org {}, {}, {}", exchangeEntry.getKey(),
+						exchange.isComplete(), exchange.getFailedTransmissionCount(), origin.getToken(), current,
+						exchange.getCurrentResponse());
+			} else {
+				String mark = origin == null ? "-" : "+";
+				LOGGER.info("  {}, complete {}, retransmission {}, {} {}, {}", exchangeEntry.getKey(),
+						exchange.isComplete(), exchange.getFailedTransmissionCount(), mark, current,
+						exchange.getCurrentResponse());
+			}
+			if (0 >= --logMaxExchanges) {
+				break;
+			}
+		}
+	}
+
 	@Override
 	public Exchange findPrevious(final KeyMID messageId, final Exchange exchange) {
 		return deduplicator.findPrevious(messageId, exchange);
@@ -372,7 +442,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public List<Exchange> findByToken(Token token) {
 		List<Exchange> result = new ArrayList<>();
 		if (token != null) {
-			// TODO: remove the for ... 
+			// TODO: remove the for ...
 			for (Entry<Token, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
@@ -383,17 +453,5 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			}
 		}
 		return result;
-	}
-
-	protected Map<Token, Exchange> getExchangesByToken() {
-		return exchangesByToken;
-	}
-
-	protected Map<KeyMID, Exchange> getExchangesByMID() {
-		return exchangesByMID;
-	}
-
-	protected Deduplicator getDeduplicator() {
-		return deduplicator;
 	}
 }
