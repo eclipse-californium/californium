@@ -1043,8 +1043,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block1BlockwiseStatus clearBlock1Status(final KeyUri key) {
 		synchronized (block1Transfers) {
 			Block1BlockwiseStatus removedTracker = block1Transfers.remove(key);
-			LOGGER.debug("removing block1 tracker [{}], block1 transfers still in progress: {}",
-					new Object[]{ key, block1Transfers.size() });
+			if (removedTracker != null) {
+				LOGGER.debug("removing block1 tracker [{}], block1 transfers still in progress: {}",
+						new Object[] { key, block1Transfers.size() });
+				removedTracker.setComplete(true);
+			}
 			return removedTracker;
 		}
 	}
@@ -1054,7 +1057,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			Block2BlockwiseStatus removedTracker = block2Transfers.remove(key);
 			if (removedTracker != null) {
 				LOGGER.debug("removing block2 tracker [{}], block2 transfers still in progress: {}",
-						new Object[]{ key, block2Transfers.size() });
+						new Object[] { key, block2Transfers.size() });
+				removedTracker.setComplete(true);
 			}
 			return removedTracker;
 		}
