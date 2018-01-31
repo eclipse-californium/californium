@@ -388,6 +388,80 @@ public class BlockwiseServerSideTest {
 	}
 
 	/**
+	 * Shows 2 successful complete transfers. The second one should not
+	 * terminate before TEST_BLOCKWISE_STATUS_LIFETIME. The idea is to ensure
+	 * than cleaning task is well canceled at the end of the first block
+	 * transfer.
+	 * 
+	 * <pre>
+	 * CLIENT                                                     SERVER
+	 * 
+	 * CON [MID=7001, T=[0b]], PUT, /test, 1:0/1/128, size1(300) ----->
+	 * <-----   ACK [MID=7001, T=[0b]], 2.31, 1:0/1/128
+	 * CON [MID=7002, T=[0b]], PUT, /test, 1:1/1/128    ----->
+	 * <-----   ACK [MID=7002, T=[0b]], 2.31, 1:1/1/128
+	 * CON [MID=7003, T=[0b]], PUT, /test, 1:2/0/128    ----->
+	 * <-----   ACK [MID=7003, T=[0b]], 2.04, 1:2/0/128
+	 * // next transfer
+	 * CON [MID=7004, T=[0c]], PUT, /test, 1:0/1/128, size1(300)    ----->
+	 * <-----   ACK [MID=7004, T=[0c]], 2.31, 1:0/1/128
+	 * CON [MID=7005, T=[0c]], PUT, /test, 1:1/1/128    ----->
+	 * <-----   ACK [MID=7005, T=[0c]], 2.31, 1:1/1/128
+	 * CON [MID=7006, T=[0c]], PUT, /test, 1:2/0/128    ----->
+	 * <-----   ACK [MID=7006, T=[0c]], 2.04, 1:2/0/128
+	 * 
+	 * </pre>
+	 */
+	@Test
+	public void test2ConsecutiveCompletePUT() throws Exception {
+
+		System.out.println("2 consecutive complete PUT with block1 transfer:");
+
+		reqtPayload = generateRandomPayload(300);
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128)
+				.payload(reqtPayload.substring(128, 256)).go();
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128)
+				.payload(reqtPayload.substring(256, 300)).go();
+		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		// Transfer is complete : ensure BlockwiseLayer is empty.
+		assertTrue("BlockwiseLayer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
+		// Try another BlockwiseLayer transfer from same peer, same URL, same
+		// option.
+		serverInterceptor.log(System.lineSeparator() + "// next transfer");
+		reqtPayload = generateRandomPayload(300);
+		tok = generateNextToken();
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128)
+				.payload(reqtPayload.substring(128, 256)).go();
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128)
+				.payload(reqtPayload.substring(256, 300)).go();
+		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		assertTrue("blockwise layer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+	}
+
+	/**
 	 * The following examples demonstrate a PUT exchange; a POST exchange looks
 	 * the same, with different requirements on atomicity/idempotence. Note
 	 * that, similar to GET, the responses to the requests that have a more bit

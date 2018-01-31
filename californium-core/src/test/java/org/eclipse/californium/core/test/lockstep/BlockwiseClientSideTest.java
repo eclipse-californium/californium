@@ -205,6 +205,89 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * Shows 2 successful complete transfers. The second one should not
+	 * terminate before TEST_BLOCKWISE_STATUS_LIFETIME. The idea is to ensure
+	 * than cleaning task is well canceled at the end of the first block
+	 * transfer.
+	 * 
+	 * <pre>
+	 * CON [MID=1620, T=[2a7b3c2bcdb8b5d8]], GET, /test    ----->
+	 * <-----   ACK [MID=1620, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:0/1/128
+	 * CON [MID=1621, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:1/0/128    ----->
+	 * CON [MID=1621, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=1621, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:1/1/128
+	 * CON [MID=1622, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:2/0/128    ----->
+	 * CON [MID=1622, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:2/0/128    ----->
+	 * <-----   ACK [MID=1622, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:2/0/128
+	 * // next transfer 
+	 * CON [MID=1623, T=[ce9a89078049f125]], GET, /test    ----->
+	 * <-----   ACK [MID=1623, T=[ce9a89078049f125]], 2.05, 2:0/1/128
+	 * CON [MID=1624, T=[ce9a89078049f125]], GET, /test, 2:1/0/128    ----->
+	 * CON [MID=1624, T=[ce9a89078049f125]], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=1624, T=[ce9a89078049f125]], 2.05, 2:1/1/128
+	 * CON [MID=1625, T=[ce9a89078049f125]], GET, /test, 2:2/0/128    ----->
+	 * CON [MID=1625, T=[ce9a89078049f125]], GET, /test, 2:2/0/128    ----->
+	 * <-----   ACK [MID=1625, T=[ce9a89078049f125]], 2.05, 2:2/0/128
+	 * </pre>
+	 */
+	@Test
+	public void test2ConsecutiveCompleteGET() throws Exception {
+
+		System.out.println("2 consecutive complete GET with block2 transfers:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send GET request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256, 300))
+				.go();
+
+		// We get the response the transfer is complete : BlockwiseLayer should
+		// be empty
+		request.waitForResponse();
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+
+		clientInterceptor.log(System.lineSeparator() + "// next transfer");
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256, 300))
+				.go();
+
+		// We get the response the transfer is complete : BlockwiseLayer should
+		// be empty
+		request.waitForResponse();
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+
+		printServerLog(clientInterceptor);
+	}
+
+
+	/**
 	 * In the second example, the client anticipates the blockwise transfer
 	 * (e.g., because of a size indication in the link- format description
 	 * [RFC6690]) and sends a size proposal. All ACK messages except for the
