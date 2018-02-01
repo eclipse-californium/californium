@@ -19,9 +19,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust comment for
  *                                                    contextEstablished.
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add remove to ensure 
+ *                                                    message exchange house-keeping
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
  * The exchange observer can be added to an {@link Exchange} and will be invoked
@@ -31,20 +35,31 @@ package org.eclipse.californium.core.network;
 public interface ExchangeObserver {
 
 	/**
+	 * Remove exchange from store.
+	 * 
+	 * @param exchange exchange to remove from store
+	 * @param token token to remove exchange. Maybe {@code null}.
+	 * @param key mid key to remove exchange. Maybe {@code null}.
+	 */
+	void remove(Exchange exchange, Token token, KeyMID key);
+
+	/**
 	 * Invoked when the exchange has completed.
 	 * 
 	 * @param exchange the exchange
+	 * @deprecated intended to be cleaned up.
 	 */
 	void completed(Exchange exchange);
 
 	/**
 	 * Invoked when the first endpoint context is set.
 	 * 
-	 * Note: usually this callback must be processed in a synchronous manner, because
-	 * if it returns, the message is sent. Therefore take special care in methods called
-	 * on this callback.
+	 * Note: usually this callback must be processed in a synchronous manner,
+	 * because if it returns, the message is sent. Therefore take special care
+	 * in methods called on this callback.
 	 * 
 	 * @param exchange the exchange
+	 * @deprecated intended to be moved to MessageObserver.
 	 */
 	void contextEstablished(Exchange exchange);
 

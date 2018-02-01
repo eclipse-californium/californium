@@ -18,9 +18,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  *                                                    Remove not longer
  *                                                    required releaseToken.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add javadoc for
+ *                                                    ConcurrentModificationException
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.Message;
@@ -60,53 +63,66 @@ public interface MessageExchangeStore {
 	/**
 	 * Registers an exchange for an outbound request.
 	 * <p>
-	 * This method assigns an unused message ID to the request contained in the exchange
-	 * and marks it as being <em>in-use</em>.
-	 * If the request does not already contain a token, this method also generates a valid
-	 * token and sets it on the request.
+	 * This method assigns an unused message ID to the request contained in the
+	 * exchange and marks it as being <em>in-use</em>. If the request does not
+	 * already contain a token, this method also generates a valid token and
+	 * sets it on the request.
 	 * <p>
-	 * The exchange can later be retrieved from this store using the corresponding <em>get</em>
-	 * method.
+	 * The exchange can later be retrieved from this store using the
+	 * corresponding <em>get</em> method.
 	 * 
 	 * @param exchange the exchange to register.
-	 * @return {@code true} if the request has been registered successfully.
-	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) request
-	 *                                  or if the request already has a message ID that is still in use.
+	 * @return {@code true} if the request has been registered successfully,
+	 *         {@code false}, otherwise.
+	 * @throws NullPointerException if exchange is {@code null}.
+	 * @throws IllegalArgumentException if the exchange does not contain a
+	 *             (current) request or if the request already has a message ID
+	 *             that is still in use.
+	 * @throws ConcurrentModificationException if the exchange's current request
+	 *             was modified during registration.
 	 */
 	boolean registerOutboundRequest(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound request.
 	 * <p>
-	 * If the request does not already contain a token, this method generates a valid
-	 * and (currently) unused token and sets it on the request. The exchange is then
-	 * registered under the request's token.
+	 * If the request does not already contain a token, this method generates a
+	 * valid and (currently) unused token and sets it on the request. The
+	 * exchange is then registered under the request's token.
 	 * <p>
-	 * The exchange can later be retrieved from this store using the corresponding <em>get</em>
-	 * method.
+	 * The exchange can later be retrieved from this store using the
+	 * corresponding <em>get</em> method.
 	 * 
 	 * @param exchange the exchange to register.
-	 * @return {@code true} if the request has been registered successfully.
-	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) request.
+	 * @return {@code true} if the request has been registered successfully,
+	 *         {@code false}, otherwise.
+	 * @throws NullPointerException if exchange is {@code null}.
+	 * @throws IllegalArgumentException if the exchange does not contain a
+	 *             (current) request.
+	 * @throws ConcurrentModificationException if the exchange's current request
+	 *             was modified during registration.
 	 */
 	boolean registerOutboundRequestWithTokenOnly(Exchange exchange);
 
 	/**
 	 * Registers an exchange for an outbound response.
 	 * <p>
-	 * If the response contained in the exchange does not already contain a message ID, this method
-	 * assigns an unused message ID to the request and marks the message ID as being <em>in-use</em>.
+	 * If the response contained in the exchange does not already contain a
+	 * message ID, this method assigns an unused message ID to the request and
+	 * marks the message ID as being <em>in-use</em>.
 	 * <p>
-	 * The exchange can later be retrieved from this store using the corresponding <em>get</em>
-	 * method.
+	 * The exchange can later be retrieved from this store using the
+	 * corresponding <em>get</em> method.
 	 * 
 	 * @param exchange the exchange to register.
-	 * @return {@code true} if the response has been registered successfully.
-	 * @throws NullPointerException if any of the given params is {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a (current) response
-	 *                                  or if the response already has a message ID that is still in use.
+	 * @return {@code true} if the response has been registered successfully,
+	 *         {@code false}, otherwise.
+	 * @throws NullPointerException if exchange is {@code null}.
+	 * @throws IllegalArgumentException if the exchange does not contain a
+	 *             (current) response or if the response already has a message
+	 *             ID that is still in use.
+	 * @throws ConcurrentModificationException if the exchange's current
+	 *             response was modified during registration.
 	 */
 	boolean registerOutboundResponse(Exchange exchange);
 

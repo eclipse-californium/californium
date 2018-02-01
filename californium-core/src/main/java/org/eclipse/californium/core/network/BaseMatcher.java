@@ -201,7 +201,7 @@ public abstract class BaseMatcher implements Matcher {
 				// that the "upper" layers can correctly process the
 				// notification response
 				final Request request = obs.getRequest();
-				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
+				exchange = new Exchange(request, Origin.LOCAL, obs.getContext(), true);
 				exchange.setRequest(request);
 				LOG.debug("re-created exchange from original observe request: {}", request);
 				request.addMessageObserver(new ObservationObserverAdapter(token) {
@@ -213,7 +213,7 @@ public abstract class BaseMatcher implements Matcher {
 						try {
 							notificationListener.onNotification(request, response);
 						} finally {
-							if (!response.getOptions().hasObserve()) {
+							if (!response.isNotification()) {
 								// Observe response received with no observe
 								// option set. It could be that the Client was
 								// not able to establish the observe. So remove

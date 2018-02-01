@@ -110,13 +110,12 @@ public class BlockwiseLayerTest {
 
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
-		req.prepareDestinationContext();
 		req.addMessageObserver(requestObserver);
 
 		Response response = receiveResponseFor(req);
 		response.getOptions().setSize2(256).setBlock2(BlockOption.size2Szx(64), true, 0);
 
-		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		Exchange exchange = new Exchange(req, Origin.LOCAL);
 		exchange.setRequest(req);
 		blockwiseLayer.receiveResponse(exchange, response);
 
@@ -139,8 +138,7 @@ public class BlockwiseLayerTest {
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
-		req.prepareDestinationContext();
-		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		Exchange exchange = new Exchange(req, Origin.LOCAL);
 		exchange.setRequest(req);
 
 		// WHEN the request used to establish the observe relation has been canceled

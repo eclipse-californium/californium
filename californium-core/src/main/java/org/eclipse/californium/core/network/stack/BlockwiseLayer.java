@@ -853,7 +853,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						 * exchange under a different KeyToken in exchangesByToken,
 						 * which is cleaned up in the else case below.
 						 */
-						if (!response.getOptions().hasObserve()) {
+						if (!response.isNotification()) {
 							block.setToken(response.getToken());
 						}
 
