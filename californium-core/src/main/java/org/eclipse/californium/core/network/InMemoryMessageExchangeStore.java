@@ -33,11 +33,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - start status logging with first
  *                                                    stored exchange. 
  *                                                    Add exchange dump to status.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for modified current requests
+ *                                                    or responses.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -52,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -205,8 +209,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (Message.NONE != mid) {
 				KeyMID key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-					throw new IllegalArgumentException(String.format(
-							"generated mid [%d] already in use, cannot register exchange", message.getMID()));
+					throw new IllegalArgumentException(String
+							.format("generated mid [%d] already in use, cannot register exchange", message.getMID()));
 				}
 				LOGGER.debug("exchange added with generated mid {}, {}", key, message);
 			}
@@ -215,8 +219,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
-					throw new IllegalArgumentException(String
-							.format("mid [%d] already in use, cannot register exchange", message.getMID()));
+					throw new IllegalArgumentException(
+							String.format("mid [%d] already in use, cannot register exchange", message.getMID()));
 				} else if (exchange.getFailedTransmissionCount() == 0) {
 					throw new IllegalArgumentException(String.format(
 							"message with already registered mid [%d] is not a re-transmission, cannot register exchange",
@@ -274,9 +278,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
+			Request currentRequest = exchange.getCurrentRequest();
+			int mid = registerWithMessageId(exchange, currentRequest);
 			if (Message.NONE != mid) {
 				registerWithToken(exchange);
+				if (exchange.getCurrentRequest() != currentRequest) {
+					throw new ConcurrentModificationException("Current request modified!");
+				}
 				return true;
 			} else {
 				return false;
@@ -291,7 +299,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
+			Request currentRequest = exchange.getCurrentRequest();
 			registerWithToken(exchange);
+			if (exchange.getCurrentRequest() != currentRequest) {
+				throw new ConcurrentModificationException("Current request modified!");
+			}
 			return true;
 		}
 	}
@@ -345,7 +357,15 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentResponse() == null) {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
-			return registerWithMessageId(exchange, exchange.getCurrentResponse()) > Message.NONE;
+			Response currentResponse = exchange.getCurrentResponse();
+			if (registerWithMessageId(exchange, currentResponse) > Message.NONE) {
+				if (exchange.getCurrentResponse() != currentResponse) {
+					throw new ConcurrentModificationException("Current response modified!");
+				}
+				return true;
+			} else {
+				return false;
+			}
 		}
 	}
 

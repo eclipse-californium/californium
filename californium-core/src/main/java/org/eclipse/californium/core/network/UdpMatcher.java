@@ -44,7 +44,9 @@
  *                                                    store observation before exchange
  *                                                    to create global token
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
- *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
+ *    Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
+ *                                                    remove implementation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -299,25 +301,22 @@ public final class UdpMatcher extends BaseMatcher {
 		if (exchange != null) {
 			LOGGER.debug("received expected reply for message exchange {}", idByMID);
 		} else {
-			LOGGER.debug(
-					"ignoring unmatchable empty message from {}: {}",
-					new Object[]{message.getSourceContext(), message});
+			LOGGER.debug("ignoring unmatchable empty message from {}: {}",
+					new Object[] { message.getSourceContext(), message });
 		}
 		return exchange;
 	}
 
 	private void removeNotificationsOf(final ObserveRelation relation, final Exchange exchange) {
-		LOGGER.debug("removing all remaining NON-notifications of observe relation with {}",
-				relation.getSource());
-		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
+		LOGGER.debug("removing all remaining NON-notifications of observe relation with {}", relation.getSource());
+		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
 			Response previous = iterator.next();
 			LOGGER.trace("removing NON notification: {}", previous);
 			// notifications are local MID namespace
 			if (previous.hasMID()) {
 				KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
 				exchangeStore.remove(idByMID, exchange);
-			}
-			else {
+			} else {
 				previous.cancel();
 			}
 			iterator.remove();
@@ -325,6 +324,16 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	private class ExchangeObserverImpl implements ExchangeObserver {
+
+		@Override
+		public void remove(Exchange exchange, Token token, KeyMID key) {
+			if (token != null) {
+				exchangeStore.remove(token, exchange);
+			}
+			if (key != null) {
+				exchangeStore.remove(key, exchange);
+			}
+		}
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -392,8 +401,7 @@ public final class UdpMatcher extends BaseMatcher {
 						exchangeStore.remove(midKey, exchange);
 
 						LOGGER.debug("Exchange [{}, REMOTE] completed", midKey);
-					}
-					else {
+					} else {
 						// sometime proactive cancel requests and notifies are overlapping
 						response.cancel();
 					}
@@ -409,7 +417,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		@Override
 		public void contextEstablished(final Exchange exchange) {
-			Request request = exchange.getRequest(); 
+			Request request = exchange.getRequest();
 			if (request != null && request.isObserve()) {
 				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
 			}

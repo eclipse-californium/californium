@@ -40,7 +40,9 @@
  *                                                 store observation before exchange
  *                                                 to create global token
  * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
- * Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
+ * Achim Kraus (Bosch Software Innovations GmbH) - add token generator
+ * Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
+ *                                                 remove implementation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -51,6 +53,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -147,8 +150,7 @@ public final class TcpMatcher extends BaseMatcher {
 		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
 			return exchange;
 		} else {
-			LOGGER.info(
-					"ignoring potentially forged response for token {} with non-matching endpoint context",
+			LOGGER.info("ignoring potentially forged response for token {} with non-matching endpoint context",
 					idByToken);
 			return null;
 		}
@@ -161,6 +163,14 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	private class ExchangeObserverImpl implements ExchangeObserver {
+
+		@Override
+		public void remove(Exchange exchange, Token token, KeyMID key) {
+			if (token != null) {
+				exchangeStore.remove(token, exchange);
+			}
+			// ignore key, MID is not used for TCP!
+		}
 
 		@Override
 		public void completed(final Exchange exchange) {
@@ -185,7 +195,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 		@Override
 		public void contextEstablished(final Exchange exchange) {
-			Request request = exchange.getRequest(); 
+			Request request = exchange.getRequest();
 			if (request != null && request.isObserve()) {
 				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
 			}

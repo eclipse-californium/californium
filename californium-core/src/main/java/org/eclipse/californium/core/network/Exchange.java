@@ -34,6 +34,10 @@
  *                                                    EndpointContext.
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove KeyToken,
  *                                                    replaced by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new ExchangeObserver.remove
+ *                                                    for house-keeping. Introduce
+ *                                                    keepRequestInStore for flexible
+ *                                                    blockwise observe support.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -50,12 +54,15 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An exchange represents the complete state of an exchange of one request and
@@ -70,6 +77,14 @@ import org.eclipse.californium.elements.EndpointContext;
  * functionality. The CoAP Stack contains the functionality of the CoAP protocol
  * and modifies the exchange appropriately. The class Exchange and its fields
  * are <em>NOT</em> thread-safe.
+ * <p>
+ * If the exchange represents a "blockwise" transfer and if the transparent mode
+ * is used, the exchange keeps also the (original) request and use the current
+ * request for transfer the blocks. A request not using observe use the same
+ * token for easier tracking. A request using observe keeps the origin request
+ * with the origin token in store, but use a different token for the transfer of
+ * the left blocks. This enables to catch new notifies while a transfer is
+ * ongoing.
  * <p>
  * The class {@link CoapExchange} provides the corresponding API for developers.
  * Proceed with caution when using this class directly, e.g., through
@@ -89,6 +104,8 @@ import org.eclipse.californium.elements.EndpointContext;
  * states.
  */
 public class Exchange {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(Exchange.class.getName());
 
 	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
 
@@ -129,11 +146,24 @@ public class Exchange {
 	private final long nanoTimestamp;
 
 	/**
+	 * Enable to keep the original request in the exchange store. Intended to be
+	 * used for observe request with blockwise response to be able to react on
+	 * newer notifies during an ongoing transfer.
+	 */
+	private final boolean keepRequestInStore;
+
+	/**
+	 * Indicate exchange for notification.
+	 */
+	private final boolean notification;
+
+	/**
 	 * The actual request that caused this exchange. Layers below the
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
 	 * while layers above should work with the {@link #request}.
 	 */
-	private volatile Request request; // the initial request we have to exchange
+	// the initial request we have to exchange
+	private final AtomicReference<Request> request = new AtomicReference<Request>();
 
 	/**
 	 * The current block of the request that is being processed. This is a
@@ -141,7 +171,7 @@ public class Exchange {
 	 * {@link #request} in case of a normal transfer.
 	 */
 	// Matching needs to know for what we expect a response
-	private volatile Request currentRequest;
+	private final AtomicReference<Request> currentRequest = new AtomicReference<Request>();
 
 	/**
 	 * The actual response that is supposed to be sent to the client. Layers
@@ -153,7 +183,7 @@ public class Exchange {
 
 	/** The current block of the response that is being transferred. */
 	// Matching needs to know when receiving duplicate
-	private volatile Response currentResponse;
+	private final AtomicReference<Response> currentResponse = new AtomicReference<Response>();
 
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
@@ -192,10 +222,25 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @throws NullPointerException, if request is {@code null}
 	 */
 	public Exchange(final Request request, final Origin origin) {
-		// might only be the first block of the whole request
-		this(request, origin, null);
+		this(request, origin, null, request != null && request.isObserve(), false);
+	}
+
+	/**
+	 * Creates a new exchange with the specified request, origin, context, and
+	 * notification marker.
+	 * 
+	 * @param request the request that starts the exchange
+	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param ctx the endpoint context of this exchange
+	 * @param notification {@code true} for notification exchange, {@code false}
+	 *            otherwise
+	 * @throws NullPointerException, if request is {@code null}
+	 */
+	public Exchange(Request request, Origin origin, EndpointContext ctx, boolean notification) {
+		this(request, origin, ctx, request != null && request.isObserve() && !notification, notification);
 	}
 
 	/**
@@ -204,12 +249,24 @@ public class Exchange {
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 * @param ctx the endpoint context of this exchange
+	 * @param keepRequestInStore {@code true}, to keep the original request in
+	 *            store until completed, {@code false} otherwise.
+	 * @param notification {@code true} for notification exchange, {@code false}
+	 *            otherwise
+	 * @throws NullPointerException, if request is {@code null}
 	 */
-	public Exchange(Request request, Origin origin, EndpointContext ctx) {
+	private Exchange(Request request, Origin origin, EndpointContext ctx, boolean keepRequestInStore,
+			boolean notification) {
 		// might only be the first block of the whole request
-		this.currentRequest = request;
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
+		this.currentRequest.set(request);
+		this.request.set(request);
 		this.origin = origin;
 		this.endpointContext.set(ctx);
+		this.keepRequestInStore = keepRequestInStore;
+		this.notification = notification;
 		this.nanoTimestamp = System.nanoTime();
 	}
 
@@ -220,9 +277,10 @@ public class Exchange {
 	 */
 	public void sendAccept() {
 		assert (origin == Origin.REMOTE);
-		if (request.getType() == Type.CON && !request.isAcknowledged()) {
-			request.setAcknowledged(true);
-			EmptyMessage ack = EmptyMessage.newACK(request);
+		Request current = currentRequest.get();
+		if (current.getType() == Type.CON && !current.isAcknowledged()) {
+			current.setAcknowledged(true);
+			EmptyMessage ack = EmptyMessage.newACK(current);
 			endpoint.sendEmptyMessage(this, ack);
 		}
 	}
@@ -233,8 +291,9 @@ public class Exchange {
 	 */
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
-		request.setRejected(true);
-		EmptyMessage rst = EmptyMessage.newRST(request);
+		Request current = currentRequest.get();
+		current.setRejected(true);
+		EmptyMessage rst = EmptyMessage.newRST(current);
 		endpoint.sendEmptyMessage(this, rst);
 	}
 
@@ -245,7 +304,7 @@ public class Exchange {
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
-		response.setDestinationContext(request.getSourceContext());
+		response.setDestinationContext(request.get().getSourceContext());
 		setResponse(response);
 		endpoint.sendResponse(this, response);
 	}
@@ -259,6 +318,27 @@ public class Exchange {
 	}
 
 	/**
+	 * Indicate to keep the original request in the exchange store. Intended to
+	 * be used for observe request with blockwise response to be able to react
+	 * on newer notifies during an ongoing transfer.
+	 * 
+	 * @return {@code true} to keep it, {@code false}, otherwise
+	 */
+	public boolean keepsRequestInStore() {
+		return keepRequestInStore;
+	}
+
+	/**
+	 * Indicate a notification exchange.
+	 * 
+	 * @return {@code true} if notification is exchanged, {@code false},
+	 *         otherwise
+	 */
+	public boolean isNotification() {
+		return notification;
+	}
+
+	/**
 	 * Returns the request that this exchange is associated with. If the request
 	 * is sent blockwise, it might not have been assembled yet and this method
 	 * returns null.
@@ -267,7 +347,7 @@ public class Exchange {
 	 * @see #getCurrentRequest()
 	 */
 	public Request getRequest() {
-		return request;
+		return request.get();
 	}
 
 	/**
@@ -277,7 +357,18 @@ public class Exchange {
 	 * @see #setCurrentRequest(Request)
 	 */
 	public void setRequest(Request request) {
-		this.request = request; // by blockwise layer
+		Request current = this.request.get();
+		if (current != request) {
+			if (keepRequestInStore) {
+				Token token = current.getToken();
+				if (token != null && !token.equals(request.getToken())) {
+					throw new IllegalArgumentException("Token missmatch (" + token + "!=" + request.getToken() + ")!");
+				}
+				this.request.compareAndSet(current, request);
+			} else {
+				this.request.set(request);
+			}
+		}
 	}
 
 	/**
@@ -289,17 +380,40 @@ public class Exchange {
 	 * @return the current request block
 	 */
 	public Request getCurrentRequest() {
-		return currentRequest;
+		return currentRequest.get();
 	}
 
 	/**
 	 * Sets the current request block. If a request is not being sent blockwise,
 	 * the origin request (equal to getRequest()) should be set.
 	 * 
-	 * @param currentRequest the current request block
+	 * @param newCurrentRequest the current request block
 	 */
-	public void setCurrentRequest(Request currentRequest) {
-		this.currentRequest = currentRequest;
+	public void setCurrentRequest(Request newCurrentRequest) {
+		Request previousCurrentRequest = currentRequest.getAndSet(newCurrentRequest);
+		if (previousCurrentRequest != newCurrentRequest) {
+			setRetransmissionHandle(null);
+			failedTransmissionCount = 0;
+			Token token = previousCurrentRequest.getToken();
+			if (token != null) {
+				if (token.equals(newCurrentRequest.getToken())) {
+					token = null;
+				} else if (keepRequestInStore && token.equals(request.get().getToken())) {
+					token = null;
+				}
+			}
+			KeyMID key = null;
+			if (previousCurrentRequest.hasMID() && previousCurrentRequest.getMID() != newCurrentRequest.getMID()) {
+				key = KeyMID.fromOutboundMessage(previousCurrentRequest);
+			}
+			if (token != null || key != null) {
+				LOGGER.info("replace {} by {}", previousCurrentRequest, newCurrentRequest);
+				ExchangeObserver obs = this.observer;
+				if (obs != null) {
+					obs.remove(this, token, key);
+				}
+			}
+		}
 	}
 
 	/**
@@ -331,7 +445,7 @@ public class Exchange {
 	 * @return the current response block
 	 */
 	public Response getCurrentResponse() {
-		return currentResponse;
+		return currentResponse.get();
 	}
 
 	/**
@@ -341,7 +455,16 @@ public class Exchange {
 	 * @param currentResponse the current response block
 	 */
 	public void setCurrentResponse(Response currentResponse) {
-		this.currentResponse = currentResponse;
+		Response previous = this.currentResponse.getAndSet(currentResponse);
+		if (previous != null && previous != currentResponse) {
+			if (previous.getType() == Type.CON && previous.hasMID()) {
+				KeyMID key = KeyMID.fromOutboundMessage(previous);
+				ExchangeObserver obs = this.observer;
+				if (obs != null) {
+					obs.remove(this, null, key);
+				}
+			}
+		}
 	}
 
 	/**
@@ -396,11 +519,10 @@ public class Exchange {
 	/**
 	 * Report transmission timeout for provided message to exchange.
 	 * <p>
-	 * This method also cleans up the Matcher state by calling the
-	 * exchange observer {@link #setComplete()}. The timeout is forward to the
-	 * provided message, and, for the {@link #currentRequest}, it is also
-	 * forwarded to the {@link #request} to timeout the blockwise transfer
-	 * itself.
+	 * This method also cleans up the Matcher state by calling the exchange
+	 * observer {@link #setComplete()}. The timeout is forward to the provided
+	 * message, and, for the {@link #currentRequest}, it is also forwarded to
+	 * the {@link #request} to timeout the blockwise transfer itself.
 	 * 
 	 * @param message message, which transmission has reached the timeout.
 	 */
@@ -410,8 +532,8 @@ public class Exchange {
 		this.setComplete();
 		// forward timeout to message
 		message.setTimedOut(true);
-		Request request = this.request;
-		if (request != null && currentRequest == message && request != message  ) {
+		Request request = this.request.get();
+		if (request != null && request != message && currentRequest.get() == message) {
 			// forward timeout to request
 			request.setTimedOut(true);
 		}
@@ -438,10 +560,12 @@ public class Exchange {
 	}
 
 	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
-		// avoid race condition of multiple responses (e.g., notifications)
-		ScheduledFuture<?> previous = this.retransmissionHandle.getAndSet(retransmissionHandle);
-		if (previous != null) {
-			previous.cancel(false);
+		if (!complete || retransmissionHandle == null) {
+			// avoid race condition of multiple responses (e.g., notifications)
+			ScheduledFuture<?> previous = this.retransmissionHandle.getAndSet(retransmissionHandle);
+			if (previous != null) {
+				previous.cancel(false);
+			}
 		}
 	}
 
@@ -517,8 +641,8 @@ public class Exchange {
 	 * rejecting a response, or when sending the (last) response.
 	 */
 	public void setComplete() {
-		setRetransmissionHandle(null);
 		this.complete = true;
+		setRetransmissionHandle(null);
 		ExchangeObserver obs = this.observer;
 		if (obs != null) {
 			obs.completed(this);
@@ -529,12 +653,14 @@ public class Exchange {
 	 * Complete exchange using the current request and response.
 	 * 
 	 * This method is only needed when the same {@link Exchange} instance uses
-	 * different tokens or MIDs during its lifetime, e.g., when using a different
-	 * token for retrieving the rest of a blockwise notification (when not altered,
-	 * Californium reuses the same token for this). Or when different CON notifies
-	 * are sent with different MIDs. 
+	 * different tokens or MIDs during its lifetime, e.g., when using a
+	 * different token for retrieving the rest of a blockwise notification (when
+	 * not altered, Californium reuses the same token for this). Or when
+	 * different CON notifies are sent with different MIDs.
 	 * <p>
-	 * See {@link BlockwiseLayer} or {@link ObserveLayer} for an example use case.
+	 * See {@link BlockwiseLayer} or {@link ObserveLayer} for an example use
+	 * case.
+	 * @deprecated intended to be cleaned up.
 	 */
 	public void completeCurrentRequest() {
 		setRetransmissionHandle(null);
