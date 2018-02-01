@@ -30,6 +30,7 @@
  *                                                    Exchange.setTimedOut()
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct timeout calculation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix resend current response 
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -77,7 +78,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		max_retransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 
 		LOGGER.info("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={}",
-				new Object[]{ack_timeout, ack_random_factor, ack_timeout_scale});
+				new Object[] { ack_timeout, ack_random_factor, ack_timeout_scale });
 	}
 
 	/**
@@ -135,7 +136,7 @@ public class ReliabilityLayer extends AbstractLayer {
 			}
 
 			LOGGER.trace("switched response message type from {} to {} (request was {})",
-					new Object[] {respType, response.getType(), reqType });
+					new Object[] { respType, response.getType(), reqType });
 
 		} else if (respType == Type.ACK || respType == Type.RST) {
 			response.setMID(exchange.getCurrentRequest().getMID());
@@ -196,10 +197,33 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		if (request.isDuplicate()) {
 			// Request is a duplicate, so resend ACK, RST or response
-			if (exchange.getCurrentResponse() != null) {
+			Response currentResponse = exchange.getCurrentResponse();
+			if (currentResponse != null) {
+				if (currentResponse.getType() == Type.NON || currentResponse.getType() == Type.CON) {
+					// separate response
+					if (request.isConfirmable()) {
+						// resend ACK,
+						// comply to RFC 7252, 4.2, cross-layer behavior
+						EmptyMessage ack = EmptyMessage.newACK(request);
+						sendEmptyMessage(exchange, ack);
+					}
+					if (currentResponse.isConfirmable()) {
+						// retransmission cycle
+						int failedCount;
+						synchronized (exchange) {
+							failedCount = exchange.getFailedTransmissionCount() + 1;
+							exchange.setFailedTransmissionCount(failedCount);
+						}
+						LOGGER.debug("Request Duplicate: retransmit response, failed: {}, response: {}",
+								new Object[] { failedCount, currentResponse });
+						currentResponse.retransmitting();
+						sendResponse(exchange, currentResponse);
+						return;
+					}
+				}
 				LOGGER.debug("respond with the current response to the duplicate request");
 				// Do not restart retransmission cycle
-				lower().sendResponse(exchange, exchange.getCurrentResponse());
+				lower().sendResponse(exchange, currentResponse);
 
 			} else if (exchange.getCurrentRequest().isAcknowledged()) {
 				LOGGER.debug("duplicate request was acknowledged but no response computed yet. Retransmit ACK");
@@ -375,7 +399,8 @@ public class ReliabilityLayer extends AbstractLayer {
 					return;
 
 				} else if (failedCount <= max_retransmit) {
-					LOGGER.debug("Timeout: retransmit message, failed: {}, message: {}", new Object[]{failedCount, message});
+					LOGGER.debug("Timeout: retransmit message, failed: {}, message: {}",
+							new Object[] { failedCount, message });
 
 					// Trigger MessageObservers
 					message.retransmitting();
