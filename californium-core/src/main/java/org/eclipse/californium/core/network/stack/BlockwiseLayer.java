@@ -1041,27 +1041,31 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private Block1BlockwiseStatus clearBlock1Status(final KeyUri key) {
+		int size;
+		Block1BlockwiseStatus removedTracker;
 		synchronized (block1Transfers) {
-			Block1BlockwiseStatus removedTracker = block1Transfers.remove(key);
-			if (removedTracker != null) {
-				LOGGER.debug("removing block1 tracker [{}], block1 transfers still in progress: {}",
-						new Object[] { key, block1Transfers.size() });
-				removedTracker.setComplete(true);
-			}
-			return removedTracker;
+			removedTracker = block1Transfers.remove(key);
+			size = block1Transfers.size();
 		}
+		if (removedTracker != null) {
+			LOGGER.debug("removing block1 tracker [{}], block1 transfers still in progress: {}", key, size);
+			removedTracker.setComplete(true);
+		}
+		return removedTracker;
 	}
 
 	private Block2BlockwiseStatus clearBlock2Status(final KeyUri key) {
+		int size;
+		Block2BlockwiseStatus removedTracker;
 		synchronized (block2Transfers) {
-			Block2BlockwiseStatus removedTracker = block2Transfers.remove(key);
-			if (removedTracker != null) {
-				LOGGER.debug("removing block2 tracker [{}], block2 transfers still in progress: {}",
-						new Object[] { key, block2Transfers.size() });
-				removedTracker.setComplete(true);
-			}
-			return removedTracker;
+			removedTracker = block2Transfers.remove(key);
+			size = block2Transfers.size();
 		}
+		if (removedTracker != null) {
+			LOGGER.debug("removing block2 tracker [{}], block2 transfers still in progress: {}", key, size);
+			removedTracker.setComplete(true);
+		}
+		return removedTracker;
 	}
 
 	private boolean requiresBlockwise(final Request request) {
