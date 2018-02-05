@@ -134,10 +134,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		// If this is a CON notification we now can forget all previous NON notifications
 		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
-			ObserveRelation relation = exchange.getRelation();
-			if (relation != null) {
-				removeNotificationsOf(relation, exchange);
-			}
+			exchange.removeNotifications();
 		}
 
 		// Insert CON to match ACKs and RSTs to the exchange.
@@ -307,22 +304,6 @@ public final class UdpMatcher extends BaseMatcher {
 		return exchange;
 	}
 
-	private void removeNotificationsOf(final ObserveRelation relation, final Exchange exchange) {
-		LOGGER.debug("removing all remaining NON-notifications of observe relation with {}", relation.getSource());
-		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
-			Response previous = iterator.next();
-			LOGGER.trace("removing NON notification: {}", previous);
-			// notifications are local MID namespace
-			if (previous.hasMID()) {
-				KeyMID idByMID = KeyMID.fromOutboundMessage(previous);
-				exchangeStore.remove(idByMID, exchange);
-			} else {
-				previous.cancel();
-			}
-			iterator.remove();
-		}
-	}
-
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override
@@ -332,86 +313,6 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 			if (key != null) {
 				exchangeStore.remove(key, exchange);
-			}
-		}
-
-		@Override
-		public void completed(final Exchange exchange) {
-
-			if (exchange.getOrigin() == Origin.LOCAL) {
-				// this endpoint created the Exchange by issuing a request
-
-				Request originRequest = exchange.getCurrentRequest();
-				if (!originRequest.hasMID()) {
-					// This means that the original request has never been sent at all to the peer,
-					// e.g. if the original request contained a payload that required
-					// transparent blockwise transfer handled by the BlockwiseLayer.
-
-					// In this case the original request has been (transparently) replaced
-					// by the BlockwiseLayer with a sequence of separate request/response message
-					// exchanges for transferring the large payload of the request (and possibly also
-					// for retrieving the large response). All of these exchanges
-					// will already have been completed individually and we are now looking at the original
-					// request that has never been sent to the peer. We therefore do not
-					// need to try to remove its corresponding exchange from the store.
-				} else {
-					// in case an empty ACK was lost
-					KeyMID idByMID = KeyMID.fromOutboundMessage(originRequest);
-					exchangeStore.remove(idByMID, exchange);
-				}
-
-				if (originRequest.getToken() == null) {
-					// this should not happen because we only register the observer
-					// if we have successfully registered the exchange
-					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}, origin: LOCAL]",
-							originRequest.getDestinationContext().getPeerAddress());
-				} else {
-					Token idByToken = originRequest.getToken();
-					exchangeStore.remove(idByToken, exchange);
-					/* filter calls by completeCurrentRequest */
-					if (exchange.isComplete()) {
-						/*
-						 * keep track of the starting request. Currently only
-						 * used with blockwise transfer
-						 */
-						Request request = exchange.getRequest();
-						if (request != originRequest && null != request.getToken()
-								&& !request.getToken().equals(originRequest.getToken())) {
-							// remove starting request also
-							exchangeStore.remove(request.getToken(), exchange);
-						}
-					}
-					LOGGER.debug("Exchange [{}, origin: LOCAL] completed", idByToken);
-				}
-
-			} else { // Origin.REMOTE
-				// this endpoint created the Exchange to respond to a request
-
-				Response response = exchange.getCurrentResponse();
-
-				if (response != null && response.getType() != Type.ACK) {
-					// this means that we have sent the response in a separate CON/NON message
-					// (not piggy-backed in ACK). The response therefore has a different MID
-					// than the original request
-
-					// first remove the entry for the (separate) response's MID
-					if (response.hasMID()) {
-						KeyMID midKey = KeyMID.fromOutboundMessage(response);
-						exchangeStore.remove(midKey, exchange);
-
-						LOGGER.debug("Exchange [{}, REMOTE] completed", midKey);
-					} else {
-						// sometime proactive cancel requests and notifies are overlapping
-						response.cancel();
-					}
-				}
-
-				// Remove all remaining NON-notifications if this exchange is an observe relation
-				ObserveRelation relation = exchange.getRelation();
-				if (relation != null) {
-					removeNotificationsOf(relation, exchange);
-				}
 			}
 		}
 

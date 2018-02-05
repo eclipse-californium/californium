@@ -116,10 +116,10 @@ public class UdpMatcherTest {
 		// GIVEN a request without token sent
 		UdpMatcher matcher = newUdpMatcher();
 		Exchange exchange = sendRequest(dest, matcher, null);
-				// WHEN request gets completed
-		exchange.completeCurrentRequest();
+		// WHEN request gets completed
+		exchange.setComplete();
 
-		// THEN assert that token got released
+		// THEN assert that token got released in both stores
 		Token token = exchange.getCurrentRequest().getToken();
 		assertThat(messageExchangeStore.get(token), is(nullValue()));
 		assertThat(observationStore.get(token), is(nullValue()));
@@ -132,9 +132,10 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN observe request gets completed
-		exchange.completeCurrentRequest();
+		exchange.setComplete();
 
-		// THEN assert that token got not released
+		// THEN assert that token got released in message exchange store
+		// THEN assert that token got not released in observation store
 		Token token = exchange.getCurrentRequest().getToken();
 		assertThat(messageExchangeStore.get(token), is(nullValue()));
 		assertThat(observationStore.get(token), is(notNullValue()));

@@ -43,8 +43,10 @@ package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.Utils;
@@ -57,7 +59,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
-import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
@@ -140,7 +141,7 @@ public class Exchange {
 	private volatile ExchangeObserver observer;
 
 	/** Indicates if the exchange is complete */
-	private volatile boolean complete = false;
+	private final AtomicBoolean complete = new AtomicBoolean();
 
 	/** The nano timestamp when this exchange has been created */
 	private final long nanoTimestamp;
@@ -560,7 +561,7 @@ public class Exchange {
 	}
 
 	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
-		if (!complete || retransmissionHandle == null) {
+		if (!complete.get() || retransmissionHandle == null) {
 			// avoid race condition of multiple responses (e.g., notifications)
 			ScheduledFuture<?> previous = this.retransmissionHandle.getAndSet(retransmissionHandle);
 			if (previous != null) {
@@ -624,7 +625,7 @@ public class Exchange {
 	 * @return {@code true} if this exchange has been completed.
 	 */
 	public boolean isComplete() {
-		return complete;
+		return complete.get();
 	}
 
 	/**
@@ -641,32 +642,36 @@ public class Exchange {
 	 * rejecting a response, or when sending the (last) response.
 	 */
 	public void setComplete() {
-		this.complete = true;
-		setRetransmissionHandle(null);
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.completed(this);
-		}
-	}
-
-	/**
-	 * Complete exchange using the current request and response.
-	 * 
-	 * This method is only needed when the same {@link Exchange} instance uses
-	 * different tokens or MIDs during its lifetime, e.g., when using a
-	 * different token for retrieving the rest of a blockwise notification (when
-	 * not altered, Californium reuses the same token for this). Or when
-	 * different CON notifies are sent with different MIDs.
-	 * <p>
-	 * See {@link BlockwiseLayer} or {@link ObserveLayer} for an example use
-	 * case.
-	 * @deprecated intended to be cleaned up.
-	 */
-	public void completeCurrentRequest() {
-		setRetransmissionHandle(null);
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.completed(this);
+		if (complete.compareAndSet(false, true)) {
+			setRetransmissionHandle(null);
+			ExchangeObserver obs = this.observer;
+			if (obs != null) {
+				if (origin == Origin.LOCAL) {
+					Request currrentRequest = getCurrentRequest();
+					Token token = currrentRequest.getToken();
+					KeyMID key = currrentRequest.hasMID() ? KeyMID.fromOutboundMessage(currrentRequest) : null;
+					if (token != null || key != null) {
+						obs.remove(this, token, key);
+					}
+					if (keepRequestInStore) {
+						Request request = getRequest();
+						if (request != currrentRequest) {
+							token = request.getToken();
+							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
+							if (token != null || key != null) {
+								obs.remove(this, token, key);
+							}
+						}
+					}
+				} else {
+					Response currentResponse = getCurrentResponse();
+					if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
+						KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
+						obs.remove(this, null, key);
+					}
+					removeNotifications();
+				}
+			}
 		}
 	}
 
@@ -707,6 +712,28 @@ public class Exchange {
 	 */
 	public void setRelation(ObserveRelation relation) {
 		this.relation = relation;
+	}
+
+	public void removeNotifications() {
+		ObserveRelation relation = this.relation;
+		if (relation != null) {
+			LOGGER.debug("removing all remaining NON-notifications of observe relation with {}", relation.getSource());
+			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+				Response previous = iterator.next();
+				LOGGER.trace("removing NON notification: {}", previous);
+				// notifications are local MID namespace
+				if (previous.hasMID()) {
+					ExchangeObserver obs = this.observer;
+					if (obs != null) {
+						KeyMID key = KeyMID.fromOutboundMessage(previous);
+						obs.remove(this, null, key);
+					}
+				} else {
+					previous.cancel();
+				}
+				iterator.remove();
+			}
+		}
 	}
 
 	/**
