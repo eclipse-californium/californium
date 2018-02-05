@@ -21,6 +21,9 @@
  *                                                    issue #311
  *    Achim Kraus (Bosch Software Innovations GmbH) - add remove to ensure 
  *                                                    message exchange house-keeping
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -29,8 +32,7 @@ import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
  * The exchange observer can be added to an {@link Exchange} and will be invoked
- * when it has completed, i.e. when the last response has been sent and
- * acknowledged or after the exchange lifecycle time.
+ * for release the exchange from the exchange store.
  */
 public interface ExchangeObserver {
 
@@ -42,17 +44,4 @@ public interface ExchangeObserver {
 	 * @param key mid key to remove exchange. Maybe {@code null}.
 	 */
 	void remove(Exchange exchange, Token token, KeyMID key);
-
-	/**
-	 * Invoked when the first endpoint context is set.
-	 * 
-	 * Note: usually this callback must be processed in a synchronous manner,
-	 * because if it returns, the message is sent. Therefore take special care
-	 * in methods called on this callback.
-	 * 
-	 * @param exchange the exchange
-	 * @deprecated intended to be moved to MessageObserver.
-	 */
-	void contextEstablished(Exchange exchange);
-
 }

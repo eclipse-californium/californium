@@ -24,6 +24,7 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.EndPointManagerPool;
 import org.eclipse.californium.proxy.TranslationException;
@@ -125,6 +126,10 @@ public class ProxyCoapClientResource extends ForwardingResource {
 					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
 					LOGGER.warn("Send error", e);
 					EndPointManagerPool.putClient(endpointManager);
+				}
+
+				@Override
+				public void onContextEstablished(EndpointContext endpointContext) {
 				}
 			});
 
