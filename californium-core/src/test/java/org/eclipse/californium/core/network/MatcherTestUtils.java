@@ -73,8 +73,7 @@ public final class MatcherTestUtils {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange, request);
+		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}
@@ -84,8 +83,7 @@ public final class MatcherTestUtils {
 		request.setDestinationContext(new AddressEndpointContext(dest));
 		request.setObserve();
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange, request);
+		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}

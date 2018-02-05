@@ -101,9 +101,10 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public void sendRequest(final Exchange exchange, final Request request) {
+	public void sendRequest(final Exchange exchange) {
 
 		// for observe request.
+		Request request = exchange.getCurrentRequest();
 		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
 			registerObserve(request);
 		}
@@ -127,8 +128,9 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public void sendResponse(final Exchange exchange, final Response response) {
-
+	public void sendResponse(final Exchange exchange) {
+		
+		Response response = exchange.getCurrentResponse();
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 

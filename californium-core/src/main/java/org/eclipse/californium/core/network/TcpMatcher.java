@@ -94,8 +94,9 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public void sendRequest(Exchange exchange, final Request request) {
+	public void sendRequest(Exchange exchange) {
 
+		Request request = exchange.getCurrentRequest();
 		if (request.isObserve()) {
 			registerObserve(request);
 		}
@@ -105,7 +106,8 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public void sendResponse(Exchange exchange, Response response) {
+	public void sendResponse(Exchange exchange) {
+		Response response = exchange.getCurrentResponse();
 
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());

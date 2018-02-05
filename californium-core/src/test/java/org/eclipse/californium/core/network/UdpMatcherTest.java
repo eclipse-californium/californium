@@ -168,7 +168,6 @@ public class UdpMatcherTest {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
 		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
@@ -176,7 +175,7 @@ public class UdpMatcherTest {
 		UdpMatcher matcher = MatcherTestUtils.newUdpMatcher(exchangeStore, observationStore, endpointContextMatcher);
 
 		// WHEN the request is being sent
-		matcher.sendRequest(exchange, request);
+		matcher.sendRequest(exchange);
 
 		// THEN the request has no MID and token assigned and the exchange has not observer registered
 		assertThat(request.getToken(), is(nullValue()));
