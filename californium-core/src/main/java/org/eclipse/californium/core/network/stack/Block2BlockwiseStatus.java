@@ -364,8 +364,6 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 				exchange.setComplete();
 			}
 			else {
-				// complete current exchange
-				exchange.completeCurrentRequest();
 				// reset to origin request
 				exchange.setCurrentRequest(exchange.getRequest());
 			}

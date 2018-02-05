@@ -891,18 +891,6 @@ public class BlockwiseLayer extends AbstractLayer {
 						// set overall transfer RTT
 						assembled.setRTT(exchange.calculateRTT());
 
-						if (status.isNotification()) {
-							/*
-							 * When retrieving the rest of a blockwise notification
-							 * with a different token, the additional Matcher state
-							 * must be cleaned up through the call below.
-							 */
-							if (!response.getOptions().hasObserve()) {
-								// call the clean-up mechanism for the additional Matcher entry in exchangesByToken
-								exchange.completeCurrentRequest();
-							}
-						}
-
 						clearBlock2Status(key);
 						LOGGER.debug("assembled response: {}", assembled);
 						// Set the original request as current request so that

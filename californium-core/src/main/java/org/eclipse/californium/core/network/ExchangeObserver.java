@@ -44,14 +44,6 @@ public interface ExchangeObserver {
 	void remove(Exchange exchange, Token token, KeyMID key);
 
 	/**
-	 * Invoked when the exchange has completed.
-	 * 
-	 * @param exchange the exchange
-	 * @deprecated intended to be cleaned up.
-	 */
-	void completed(Exchange exchange);
-
-	/**
 	 * Invoked when the first endpoint context is set.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner,
