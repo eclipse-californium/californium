@@ -655,7 +655,8 @@ public class CoapEndpoint implements Endpoint {
 		public void sendRequest(final Exchange exchange, final Request request) {
 
 			assertMessageHasDestinationAddress(request);
-			matcher.sendRequest(exchange, request);
+			exchange.setCurrentRequest(request);
+			matcher.sendRequest(exchange);
 
 			/* 
 			 * Logging here causes significant performance loss.
@@ -691,7 +692,8 @@ public class CoapEndpoint implements Endpoint {
 		public void sendResponse(Exchange exchange, Response response) {
 
 			assertMessageHasDestinationAddress(response);
-			matcher.sendResponse(exchange, response);
+			exchange.setCurrentResponse(response);
+			matcher.sendResponse(exchange);
 
 			/* 
 			 * Logging here causes significant performance loss.
