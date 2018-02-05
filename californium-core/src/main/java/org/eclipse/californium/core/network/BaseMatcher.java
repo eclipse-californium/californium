@@ -55,6 +55,9 @@
  *                                                    observation store remove.
  *                                                    Remove observation, if response
  *                                                    doesn't contain an observe option 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -73,6 +76,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -324,6 +328,11 @@ public abstract class BaseMatcher implements Matcher {
 			if (removed.compareAndSet(false, true)) {
 				observationStore.remove(token);
 			}
+		}
+
+		@Override
+		public void onContextEstablished(EndpointContext endpointContext) {
+			observationStore.setContext(token, endpointContext);
 		}
 	}
 }

@@ -38,6 +38,9 @@
  *                                                    for house-keeping. Introduce
  *                                                    keepRequestInStore for flexible
  *                                                    blockwise observe support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -773,10 +776,7 @@ public class Exchange {
 	 */
 	public void setEndpointContext(final EndpointContext ctx) {
 		if (endpointContext.compareAndSet(null, ctx)) {
-			ExchangeObserver obs = this.observer;
-			if (obs != null) {
-				obs.contextEstablished(this);
-			}
+			getCurrentRequest().onContextEstablished(ctx);
 		} else {
 			endpointContext.set(ctx);
 		}
