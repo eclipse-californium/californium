@@ -31,6 +31,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - correct timeout calculation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix resend current response 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add striped executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -47,6 +48,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.StripedExchangeJob;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 
 /**
@@ -164,7 +166,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	private void prepareRetransmission(final Exchange exchange, final RetransmissionTask task) {
 
 		// prevent RejectedExecutionException
-		if (executor.isShutdown()) {
+		if (isShutdown()) {
 			LOGGER.info("Endpoint is being destroyed: skipping retransmission");
 			return;
 		}
@@ -357,35 +359,32 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * but where the retransmission method calls sendRequest and sendResponse
 	 * respectively.
 	 */
-	protected abstract class RetransmissionTask implements Runnable {
+	protected abstract class RetransmissionTask extends StripedExchangeJob {
 
-		private final Exchange exchange;
 		private final Message message;
 
 		public RetransmissionTask(final Exchange exchange, final Message message) {
-			this.exchange = exchange;
+			super(exchange);
 			this.message = message;
 		}
 
 		public void start() {
 			int timeout = exchange.getCurrentTimeout();
-			ScheduledFuture<?> f = executor.schedule(this, timeout, TimeUnit.MILLISECONDS);
+			ScheduledFuture<?> f = schedule(this, timeout, TimeUnit.MILLISECONDS);
 			exchange.setRetransmissionHandle(f);
 		}
 
 		@Override
-		public void run() {
+		public void runStriped() {
 			/*
 			 * Do not retransmit a message if it has been acknowledged,
 			 * rejected, canceled or already been retransmitted for the maximum
 			 * number of times.
 			 */
 			try {
-				int failedCount;
-				synchronized (exchange) {
-					failedCount = exchange.getFailedTransmissionCount() + 1;
-					exchange.setFailedTransmissionCount(failedCount);
-				}
+				int failedCount = exchange.getFailedTransmissionCount() + 1;
+				exchange.setFailedTransmissionCount(failedCount);
+				exchange.setRetransmissionHandle(null);
 				if (message.isAcknowledged()) {
 					LOGGER.trace("Timeout: message already acknowledged, cancel retransmission of {}", message);
 					return;
@@ -415,7 +414,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.debug("Timeout: retransmission limit reached, exchange failed, message: {}", message);
 					exchange.setTimedOut(message);
 				}
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOGGER.error("Exception in MessageObserver: {}", e.getMessage(), e);
 			}
 		}

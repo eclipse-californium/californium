@@ -19,12 +19,20 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add striped execution
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedRunnable;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -33,7 +41,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 
-
 /**
  * A base class for implementing a layer.
  * <p>
@@ -41,11 +48,11 @@ import org.eclipse.californium.core.network.Exchange;
  * methods of the <em>upperLayer</em> while the <em>send*()</em> methods
  * delegate to the corresponding methods of the <em>lowerLayer</em>.
  * <p>
- * By default the lower and upper layer is set to an instance of {@code LogOnlyLayer}
- * which simply logs the message invocation.
+ * By default the lower and upper layer is set to an instance of
+ * {@code LogOnlyLayer} which simply logs the message invocation.
  * <p>
- * Subclasses can selectively override methods in order to implement the
- * desired behavior.
+ * Subclasses can selectively override methods in order to implement the desired
+ * behavior.
  */
 public abstract class AbstractLayer implements Layer {
 
@@ -59,7 +66,61 @@ public abstract class AbstractLayer implements Layer {
 	private Layer lowerLayer = LogOnlyLayer.getInstance();
 
 	/** The executor. */
-	protected ScheduledExecutorService executor;
+	private ScheduledExecutorService executor;
+
+	/**
+	 * Striped executor facade based on the {@link #executor}.
+	 */
+	private StripedExecutorService stripedExecutor;
+
+	/**
+	 * Check, if {@link #executor} is shutdown.
+	 * 
+	 * @return {@code true}, if executor is shutdown, {@code false}, otherwise.
+	 */
+	protected boolean isShutdown() {
+		return executor.isShutdown();
+	}
+
+	/**
+	 * Execute command using the {@link #stripedExecutor} facade.
+	 * 
+	 * @param command command to execute.
+	 */
+	protected void execute(Runnable command) {
+		stripedExecutor.execute(command);
+	}
+
+	/**
+	 * Schedule command.
+	 * 
+	 * If command implements {@link StripedRunnable}, execute it using
+	 * {@link #stripedExecutor} facade after the delay expires.
+	 * 
+	 * @param command command to execute.
+	 * @param delay the time from now to delay execution
+	 * @param unit the time unit of the delay parameter
+	 * @return a ScheduledFuture representing pending completion of the task
+	 * @throws RejectedExecutionException if the task cannot be scheduled for
+	 *             execution
+	 * @throws NullPointerException if command is null
+	 */
+	protected ScheduledFuture<?> schedule(final Runnable command, long delay, TimeUnit unit) {
+		if (command == null) {
+			throw new NullPointerException("command must not be null!");
+		}
+		Runnable timeJob = command;
+		if (command instanceof StripedRunnable) {
+			timeJob = new Runnable() {
+
+				@Override
+				public void run() {
+					stripedExecutor.execute(command);
+				}
+			};
+		}
+		return executor.schedule(timeJob, delay, unit);
+	}
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
@@ -136,6 +197,11 @@ public abstract class AbstractLayer implements Layer {
 		this.executor = executor;
 	}
 
+	@Override
+	public final void setExecutor(final StripedExecutorService stripedExecutor) {
+		this.stripedExecutor = stripedExecutor;
+	}
+
 	/**
 	 * Rejects a given message.
 	 * <p>
@@ -143,7 +209,7 @@ public abstract class AbstractLayer implements Layer {
 	 * the message's MID.
 	 * 
 	 * @param exchange The exchange the message is part of or {@code null} if
-	 *        the message has been received out of the scope of an exchange.
+	 *            the message has been received out of the scope of an exchange.
 	 * @param message The message to reject.
 	 * @throws IllegalArgumentException if the message is of type ACK or RST.
 	 */
@@ -224,6 +290,10 @@ public abstract class AbstractLayer implements Layer {
 		@Override
 		public void setExecutor(final ScheduledExecutorService executor) {
 			// do nothing
+		}
+
+		@Override
+		public void setExecutor(final StripedExecutorService stripedExecutor) {
 		}
 
 		@Override

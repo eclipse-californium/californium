@@ -17,6 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Bosch Software Innovations GmbH - formatting & small improvements
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add striped executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -31,6 +32,8 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
+
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 
 /**
  * A layer processes requests, responses and empty messages. Layers can be
@@ -133,6 +136,8 @@ public interface Layer {
 	 * @param executor the new executor
 	 */
 	void setExecutor(ScheduledExecutorService executor);
+
+	void setExecutor(StripedExecutorService stripedExecutor);
 
 	/**
 	 * Stop this layer and release any resources.

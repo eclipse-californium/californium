@@ -49,6 +49,8 @@
  *                                                    constructors
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add striped execution
+ *                                                    based on exchange
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -100,6 +102,8 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -185,6 +189,10 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The executor to run tasks for this endpoint and its layers */
 	private ScheduledExecutorService executor;
+	/**
+	 * Striped executor facade based on the {@link #executor}.
+	 */
+	private StripedExecutorService stripedExecutor;
 
 	/** Indicates if the endpoint has been started */
 	private boolean started;
@@ -434,6 +442,8 @@ public class CoapEndpoint implements Endpoint {
 				}
 			});
 		}
+		stripedExecutor = new StripedExecutorService(executor);
+		this.coapstack.setExecutor(stripedExecutor);
 
 		try {
 			LOGGER.debug("Starting endpoint at {}", getUri());
@@ -566,18 +576,13 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-		if (exchange.hasCustomExecutor()) {
-			// handle sending by protocol stage instead of business logic stage
-			runInProtocolStage(new Runnable() {
-				@Override
-				public void run() {
-					coapstack.sendResponse(exchange, response);
-				}
-			});
-		} else {
-			// use same thread to save switching overhead
-			coapstack.sendResponse(exchange, response);
-		}
+		runInProtocolStage(new StripedExchangeJob(exchange) {
+
+			@Override
+			public void runStriped() {
+				coapstack.sendResponse(exchange, response);
+			}
+		});
 	}
 
 	@Override
@@ -789,15 +794,15 @@ public class CoapEndpoint implements Endpoint {
 
 				if (CoAP.isRequest(msg.getRawCode())) {
 
-					receiveRequest((Request) msg, raw);
+					receiveRequest((Request) msg);
 
 				} else if (CoAP.isResponse(msg.getRawCode())) {
 
-					receiveResponse((Response) msg, raw);
+					receiveResponse((Response) msg);
 
 				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
 
-					receiveEmptyMessage((EmptyMessage) msg, raw);
+					receiveEmptyMessage((EmptyMessage) msg);
 
 				} else {
 					LOGGER.debug("silently ignoring non-CoAP message from {}", raw.getEndpointContext());
@@ -837,7 +842,7 @@ public class CoapEndpoint implements Endpoint {
 			coapstack.sendEmptyMessage(null, rst);
 		}
 
-		private void receiveRequest(final Request request, final RawData raw) {
+		private void receiveRequest(final Request request) {
 
 			// set request attributes from raw data
 			request.setScheme(scheme);
@@ -855,13 +860,19 @@ public class CoapEndpoint implements Endpoint {
 			if (!request.isCanceled()) {
 				Exchange exchange = matcher.receiveRequest(request);
 				if (exchange != null) {
-					exchange.setEndpoint(CoapEndpoint.this);
-					coapstack.receiveRequest(exchange, request);
+					stripedExecutor.execute(new StripedExchangeJob(exchange) {
+
+						@Override
+						public void runStriped() {
+							exchange.setEndpoint(CoapEndpoint.this);
+							coapstack.receiveRequest(exchange, request);
+						}
+					});
 				}
 			}
 		}
 
-		private void receiveResponse(final Response response, final RawData raw) {
+		private void receiveResponse(final Response response) {
 
 			/* 
 			 * Logging here causes significant performance loss.
@@ -876,17 +887,30 @@ public class CoapEndpoint implements Endpoint {
 			if (!response.isCanceled()) {
 				Exchange exchange = matcher.receiveResponse(response);
 				if (exchange != null) {
-					exchange.setEndpoint(CoapEndpoint.this);
-					response.setRTT(exchange.calculateRTT());
-					coapstack.receiveResponse(exchange, response);
+					stripedExecutor.execute(new StripedExchangeJob(exchange) {
+
+						@Override
+						public void runStriped() {
+							if (!response.isDuplicate() && exchange.isComplete()) {
+								if (response.getType() != Type.ACK) {
+									LOGGER.debug("rejecting not longer matchable response from {}", response.getSourceContext());
+									reject(response);
+								}
+							} else {
+								exchange.setEndpoint(CoapEndpoint.this);
+								response.setRTT(exchange.calculateRTT());
+								coapstack.receiveResponse(exchange, response);
+							}
+						}
+					});
 				} else if (response.getType() != Type.ACK) {
-					LOGGER.debug("rejecting unmatchable response from {}", raw.getEndpointContext());
+					LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
 					reject(response);
 				}
 			}
 		}
 
-		private void receiveEmptyMessage(final EmptyMessage message, final RawData raw) {
+		private void receiveEmptyMessage(final EmptyMessage message) {
 
 			/* 
 			 * Logging here causes significant performance loss.
@@ -901,13 +925,19 @@ public class CoapEndpoint implements Endpoint {
 			if (!message.isCanceled()) {
 				// CoAP Ping
 				if (message.getType() == Type.CON || message.getType() == Type.NON) {
-					LOGGER.debug("responding to ping from {}", raw.getEndpointContext());
+					LOGGER.debug("responding to ping from {}", message.getSourceContext());
 					reject(message);
 				} else {
 					Exchange exchange = matcher.receiveEmptyMessage(message);
 					if (exchange != null) {
-						exchange.setEndpoint(CoapEndpoint.this);
-						coapstack.receiveEmptyMessage(exchange, message);
+						stripedExecutor.execute(new StripedExchangeJob(exchange) {
+
+							@Override
+							public void runStriped() {
+								exchange.setEndpoint(CoapEndpoint.this);
+								coapstack.receiveEmptyMessage(exchange, message);
+							}
+						});
 					}
 				}
 			}
@@ -996,16 +1026,21 @@ public class CoapEndpoint implements Endpoint {
 	 * @param task the task
 	 */
 	private void runInProtocolStage(final Runnable task) {
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					task.run();
-				} catch (final Throwable t) {
-					LOGGER.error("exception in protocol stage thread: {}", t.getMessage(), t);
+		if (task instanceof StripedExchangeJob) {
+			stripedExecutor.execute(task);
+		} else {
+			executor.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					try {
+						task.run();
+					} catch (Throwable t) {
+						LOGGER.error("exception in protocol stage thread: {}", t.getMessage(), t);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	protected CoapStack createUdpStack(NetworkConfig config, Outbox outbox) {

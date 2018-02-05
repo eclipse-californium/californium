@@ -21,6 +21,7 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - derived from UDP and TCP CoAP stack
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - add striped executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -28,6 +29,8 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -115,6 +118,13 @@ public abstract class BaseCoapStack implements CoapStack {
 	public final void setExecutor(final ScheduledExecutorService executor) {
 		for (Layer layer : layers) {
 			layer.setExecutor(executor);
+		}
+	}
+
+	@Override
+	public final void setExecutor(final StripedExecutorService stripedExecutor) {
+		for (Layer layer : layers) {
+			layer.setExecutor(stripedExecutor);
 		}
 	}
 
