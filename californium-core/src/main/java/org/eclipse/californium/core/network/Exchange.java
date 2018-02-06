@@ -531,15 +531,15 @@ public class Exchange {
 	 * @param message message, which transmission has reached the timeout.
 	 */
 	public void setTimedOut(Message message) {
-		this.timedOut = true;
-		// clean up
-		this.setComplete();
-		// forward timeout to message
-		message.setTimedOut(true);
-		Request request = this.request.get();
-		if (request != null && request != message && currentRequest.get() == message) {
-			// forward timeout to request
-			request.setTimedOut(true);
+		if (this.setComplete()) {
+			this.timedOut = true;
+			// forward timeout to message
+			message.setTimedOut(true);
+			Request request = this.request.get();
+			if (request != null && request != message && currentRequest.get() == message) {
+				// forward timeout to request
+				request.setTimedOut(true);
+			}
 		}
 	}
 
@@ -643,8 +643,9 @@ public class Exchange {
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
 	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
 	 * rejecting a response, or when sending the (last) response.
+	 * @return {@code true}, if complete is set the first time, {@code false}, if it is repeated.
 	 */
-	public void setComplete() {
+	public boolean setComplete() {
 		if (complete.compareAndSet(false, true)) {
 			setRetransmissionHandle(null);
 			ExchangeObserver obs = this.observer;
@@ -675,6 +676,10 @@ public class Exchange {
 					removeNotifications();
 				}
 			}
+			return true;
+		}
+		else {
+			return false;
 		}
 	}
 
