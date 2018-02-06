@@ -643,7 +643,9 @@ public class Exchange {
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
 	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
 	 * rejecting a response, or when sending the (last) response.
-	 * @return {@code true}, if complete is set the first time, {@code false}, if it is repeated.
+	 * 
+	 * @return {@code true}, if complete is set the first time, {@code false},
+	 *         if it is repeated.
 	 */
 	public boolean setComplete() {
 		if (complete.compareAndSet(false, true)) {
@@ -657,8 +659,8 @@ public class Exchange {
 					if (token != null || key != null) {
 						obs.remove(this, token, key);
 					}
+					Request request = getRequest();
 					if (keepRequestInStore) {
-						Request request = getRequest();
 						if (request != currrentRequest) {
 							token = request.getToken();
 							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
@@ -667,6 +669,11 @@ public class Exchange {
 							}
 						}
 					}
+					if (request == currrentRequest) {
+						LOGGER.debug("local exchange completed {}!", request);
+					} else {
+						LOGGER.debug("local exchange completed {}/{}!", request, currrentRequest);
+					}
 				} else {
 					Response currentResponse = getCurrentResponse();
 					if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
@@ -674,11 +681,16 @@ public class Exchange {
 						obs.remove(this, null, key);
 					}
 					removeNotifications();
+					Response response = getResponse();
+					if (response == currentResponse || response == null) {
+						LOGGER.debug("remote exchange completed {}!", currentResponse);
+					} else {
+						LOGGER.debug("remote exchange completed {}/{}!", response, currentResponse);
+					}
 				}
 			}
 			return true;
-		}
-		else {
+		} else {
 			return false;
 		}
 	}
@@ -725,7 +737,7 @@ public class Exchange {
 	public void removeNotifications() {
 		ObserveRelation relation = this.relation;
 		if (relation != null) {
-			LOGGER.debug("removing all remaining NON-notifications of observe relation with {}", relation.getSource());
+			boolean removed = false;
 			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
 				Response previous = iterator.next();
 				LOGGER.trace("removing NON notification: {}", previous);
@@ -740,6 +752,10 @@ public class Exchange {
 					previous.cancel();
 				}
 				iterator.remove();
+				removed = true;
+			}
+			if (removed) {
+				LOGGER.debug("removing all remaining NON-notifications of observe relation with {}", relation.getSource());
 			}
 		}
 	}
