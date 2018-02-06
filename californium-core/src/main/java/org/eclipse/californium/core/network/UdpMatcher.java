@@ -50,7 +50,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +63,6 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
-import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
@@ -135,7 +133,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		// If this is a CON notification we now can forget all previous NON
 		// notifications
-		if (response.getType() == Type.CON || response.getType() == Type.ACK) {
+		if (response.getType() == Type.CON) {
 			exchange.removeNotifications();
 		}
 
@@ -146,19 +144,15 @@ public final class UdpMatcher extends BaseMatcher {
 		} else if (response.getType() == Type.NON) {
 			if (response.getOptions().hasObserve()) {
 				// this is a NON notification
-				// we need to register it so that we can match an RST sent by a
-				// peer
-				// that wants to cancel the observation
+				// we need to register it so that we can match an RST sent
+				// by a peer that wants to cancel the observation
 				// these NON notifications will later be removed from the
-				// exchange store
-				// when ExchangeObserverImpl.completed() is called
+				// exchange store when Exchange.setComplete() is called
 				exchangeStore.registerOutboundResponse(exchange);
 			} else {
 				// we only need to assign an unused MID but we do not need to
-				// register
-				// the exchange under the MID since we do not expect/want a
-				// reply
-				// that we would need to match it against
+				// register the exchange under the MID since we do not
+				// expect/want a reply that we would need to match it against
 				exchangeStore.assignMessageId(response);
 			}
 		}
@@ -184,11 +178,14 @@ public final class UdpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveRequest(final Request request) {
 		/*
-		 * This request could be - Complete origin request => deliver with new
-		 * exchange - One origin block => deliver with ongoing exchange -
-		 * Complete duplicate request or one duplicate block (because client got
-		 * no ACK) => if ACK got lost => resend ACK if ACK+response got lost =>
-		 * resend ACK+response if nothing has been sent yet => do nothing
+		 * This request could be
+		 *  - Complete origin request => deliver with new exchange
+		 *  - One origin block        => deliver with ongoing exchange
+		 *  - Complete duplicate request or one duplicate block (because client got no ACK)
+		 *      =>
+		 * 		if ACK got lost => resend ACK
+		 * 		if ACK+response got lost => resend ACK+response
+		 * 		if nothing has been sent yet => do nothing
 		 * (Retransmission is supposed to be done by the retransm. layer)
 		 */
 
