@@ -47,6 +47,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
  *    Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
  *                                                    remove implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -158,7 +159,7 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 
 		// Only CONs and Observe keep the exchange active (CoAP server side)
-		if (response.getType() != Type.CON && response.isLast()) {
+		if (response.getType() != Type.CON && !response.isNotification()) {
 			exchange.setComplete();
 		}
 	}

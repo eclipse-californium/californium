@@ -43,6 +43,7 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add token generator
  * Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
  *                                                 remove implementation
+ * Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -110,9 +111,7 @@ public final class TcpMatcher extends BaseMatcher {
 		response.setToken(exchange.getCurrentRequest().getToken());
 
 		// Only Observes keep the exchange active (CoAP server side)
-		if (response.isLast()) {
-			exchange.setComplete();
-		}
+		exchange.setComplete();
 	}
 
 	@Override

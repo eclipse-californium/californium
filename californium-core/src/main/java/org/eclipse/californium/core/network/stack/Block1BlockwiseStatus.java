@@ -14,6 +14,7 @@
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -120,8 +121,8 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 		block.setDestinationContext(request.getDestinationContext());
 		// copy options
 		block.setOptions(new OptionSet(request.getOptions()));
-		// copy message observers so that a failing blockwise request also notifies observers registered with
-		// the original request
+		// copy message observers so that a failing blockwise request also 
+		// notifies observers registered with the original request
 		block.addMessageObservers(request.getMessageObservers());
 		if (num == 0) {
 			// indicate overall body size to peer
