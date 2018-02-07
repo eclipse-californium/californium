@@ -775,6 +775,13 @@ public abstract class Message {
 		}
 	}
 
+	public void onComplete() {
+		LOGGER.trace("Message completed {}", this);
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onComplete();
+		}
+	}
+
 	/**
 	 * Checks if this message is a duplicate.
 	 *
