@@ -20,7 +20,7 @@ package org.eclipse.californium.proxy.resources;
 
 import org.eclipse.californium.compat.CompletableFuture;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
@@ -75,20 +75,13 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			outgoingRequest = CoapTranslator.getRequest(incomingRequest);
 
 			// receive the response
-			outgoingRequest.addMessageObserver(new MessageObserver() {
-				@Override
-				public void onRetransmission() {
-				}
+			outgoingRequest.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
 				public void onResponse(Response incomingResponse) {
 					LOGGER.debug("ProxyCoapClientResource received {}", incomingResponse);
 					future.complete(CoapTranslator.getResponse(incomingResponse));
 					EndPointManagerPool.putClient(endpointManager);
-				}
-
-				@Override
-				public void onAcknowledgement() {
 				}
 
 				@Override
@@ -110,14 +103,6 @@ public class ProxyCoapClientResource extends ForwardingResource {
 					LOGGER.warn("Request canceled");
 					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
 					EndPointManagerPool.putClient(endpointManager);
-				}
-
-				@Override
-				public void onSent() {
-				}
-
-				@Override
-				public void onReadyToSend() {
 				}
 
 				@Override
