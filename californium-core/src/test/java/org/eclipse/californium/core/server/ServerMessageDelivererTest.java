@@ -24,6 +24,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.junit.Before;
@@ -50,10 +51,10 @@ public class ServerMessageDelivererTest {
 		rootResource = mock(Resource.class);
 		when(rootResource.getChild(anyString())).thenReturn(rootResource);
 		when(rootResource.getExecutor()).thenReturn(null);
-		incomingRequest = new Exchange(new Request(Code.POST), Exchange.Origin.REMOTE);
+		incomingRequest = new Exchange(new Request(Code.POST), Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		incomingRequest.setRequest(incomingRequest.getCurrentRequest());
 		incomingResponse = new Response(ResponseCode.CONTENT);
-		outboundRequest = new Exchange(new Request(Code.GET), Origin.LOCAL);
+		outboundRequest = new Exchange(new Request(Code.GET), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		outboundRequest.setRequest(outboundRequest.getCurrentRequest());
 	}
 

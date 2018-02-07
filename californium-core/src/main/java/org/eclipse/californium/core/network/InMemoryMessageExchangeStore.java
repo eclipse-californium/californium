@@ -201,18 +201,18 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
-
 		enableStatus = true;
+		exchange.assertIncomplete(message);
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
 				KeyMID key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
-					throw new IllegalArgumentException(String
-							.format("generated mid [%d] already in use, cannot register exchange", message.getMID()));
+					throw new IllegalArgumentException(String.format(
+							"generated mid [%d] already in use, cannot register %s", message.getMID(), exchange));
 				}
-				LOGGER.debug("exchange added with generated mid {}, {}", key, message);
+				LOGGER.debug("{} added with generated mid {}, {}", exchange, key, message);
 			}
 		} else {
 			KeyMID key = KeyMID.fromOutboundMessage(message);
@@ -220,14 +220,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
 					throw new IllegalArgumentException(
-							String.format("mid [%d] already in use, cannot register exchange", message.getMID()));
+							String.format("mid [%d] already in use, cannot register %s", message.getMID(), exchange));
 				} else if (exchange.getFailedTransmissionCount() == 0) {
 					throw new IllegalArgumentException(String.format(
-							"message with already registered mid [%d] is not a re-transmission, cannot register exchange",
-							message.getMID()));
+							"message with already registered mid [%d] is not a re-transmission, cannot register %s",
+							message.getMID(), exchange));
 				}
 			} else {
-				LOGGER.debug("exchange added with {}, {}", key, message);
+				LOGGER.debug("{} added with {}, {}", exchange, key, message);
 			}
 		}
 		return mid;
@@ -236,13 +236,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private void registerWithToken(final Exchange exchange) {
 		enableStatus = true;
 		Request request = exchange.getCurrentRequest();
+		exchange.assertIncomplete(request);
 		Token token = request.getToken();
 		if (token == null) {
 			do {
 				token = tokenGenerator.createToken(false);
 				request.setToken(token);
 			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
-			LOGGER.debug("exchange added with generated token {}, {}", token, request);
+			LOGGER.debug("{} added with generated token {}, {}", exchange, token, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
@@ -253,19 +254,20 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null) {
-					LOGGER.debug("block2 exchange for block {} add with token {}", block2.getNum(), token);
+					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), token);
 				} else {
-					LOGGER.debug("exchange added with token {}, {}", token, request);
+					LOGGER.debug("{} added with token {}, {}", exchange, token, request);
 				}
 			} else if (previous != exchange) {
 				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
 						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
-					LOGGER.warn("manual token overrides existing open request: {}", token);
+					LOGGER.warn("{} with manual token overrides existing {} with open request: {}", exchange, previous,
+							token);
 				} else {
-					LOGGER.debug("exchange replaced with token {}, {}", token, request);
+					LOGGER.debug("{} replaced with token {}, {}", exchange, token, request);
 				}
 			} else {
-				LOGGER.debug("exchange kept for {}, {}", token, request);
+				LOGGER.debug("{} keep for {}, {}", exchange, token, request);
 			}
 		}
 	}
@@ -312,7 +314,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final Token token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.debug("removing exchange for token {}", token);
+			LOGGER.debug("removing {} for token {}", exchange, token);
 		}
 	}
 
@@ -327,7 +329,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.debug("removing exchange for MID {}", messageId);
+			LOGGER.debug("removing {} for MID {}", removedExchange, messageId);
 		}
 		return removedExchange;
 	}
@@ -358,6 +360,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
 			Response currentResponse = exchange.getCurrentResponse();
+			exchange.retransmitResponse();
 			if (registerWithMessageId(exchange, currentResponse) > Message.NONE) {
 				if (exchange.getCurrentResponse() != currentResponse) {
 					throw new ConcurrentModificationException("Current response modified!");
@@ -432,15 +435,20 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Exchange exchange = exchangeEntry.getValue();
 			Request origin = exchange.getRequest();
 			Request current = exchange.getCurrentRequest();
+			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
 			if (origin != current && !origin.getToken().equals(current.getToken())) {
-				LOGGER.info("  {}, complete {}, retransmission {}, org {}, {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), origin.getToken(), current,
-						exchange.getCurrentResponse());
+				LOGGER.info("  {}, complete {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
+						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, origin.getToken(),
+						current, exchange.getCurrentResponse());
 			} else {
 				String mark = origin == null ? "-" : "+";
-				LOGGER.info("  {}, complete {}, retransmission {}, {} {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), mark, current,
+				LOGGER.info("  {}, complete {}, retransmission {}{}, {} {}, {}", exchangeEntry.getKey(),
+						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, mark, current,
 						exchange.getCurrentResponse());
+			}
+			Throwable caller = exchange.getCaller();
+			if (caller != null) {
+				LOGGER.info("  ", caller);
 			}
 			if (0 >= --logMaxExchanges) {
 				break;

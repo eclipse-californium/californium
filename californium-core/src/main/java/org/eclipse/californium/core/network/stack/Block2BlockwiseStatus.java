@@ -30,12 +30,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
-
 
 /**
  * A tracker for the blockwise transfer of a response body.
@@ -285,23 +285,36 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			throw new IllegalStateException("no response to track");
 		}
 
-		Response block = null;
-		if (response.isNotification() && getCurrentNum() == 0) {
-			block = response;
-
-		} else {
-
-			block = new Response(response.getCode());
-			block.setDestinationContext(response.getDestinationContext());
-			block.setOptions(new OptionSet(response.getOptions()));
+		final Response block = new Response(response.getCode());
+		block.setDestinationContext(response.getDestinationContext());
+		block.setOptions(new OptionSet(response.getOptions()));
+		block.addMessageObservers(response.getMessageObservers());
+		if (getCurrentNum() != 0) {
 			// observe option must only be included in first block
 			block.getOptions().removeObserve();
-			block.addMessageObservers(response.getMessageObservers());
-		}
+		} else {
+			block.addMessageObserver(new MessageObserverAdapter() {
 
-		if (getCurrentNum() == 0 && response.getOptions().getSize2() == null) {
-			// indicate overall size to peer
-			block.getOptions().setSize2(response.getPayloadSize());
+				@Override
+				public void onReadyToSend() {
+					// when the request for transferring the first block
+					// has been sent out, we copy the token to the
+					// original request so that at the end of the
+					// blockwise transfer the Matcher can correctly
+					// close the overall exchange
+					if (response.getToken() == null) {
+						response.setToken(block.getToken());
+					}
+					if (!response.hasMID()) {
+						response.setMID(block.getMID());
+					}
+				}
+			});
+			block.setType(response.getType());
+			if (response.getOptions().getSize2() == null) {
+				// indicate overall size to peer
+				block.getOptions().setSize2(response.getPayloadSize());
+			}
 		}
 
 		int bodySize = getBufferSize();
@@ -335,24 +348,26 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param newExchange new exchange
 	 */
 	final void completeOldTransfer(Exchange newExchange) {
-		Exchange exchange;
+		Exchange oldExchange;
 		synchronized (this) {
-			exchange = this.exchange;
+			oldExchange = this.exchange;
 			// stop old cleanup task
 			setBlockCleanupHandle(null);
 			this.exchange = null;
 		}
-		if (exchange != null) {
-			if (newExchange != exchange) {
+		if (oldExchange != null) {
+			if (newExchange != oldExchange) {
 				// complete old exchange
-				if (!exchange.getRequest().isObserve()) {
-					exchange.getRequest().setCanceled(true);
+				if (oldExchange.isNotification()) {
+					// no pending observe request to cancel
+					oldExchange.executeComplete();
+				} else {
+					// cancel pending observe request
+					oldExchange.getRequest().setCanceled(true);
 				}
-				exchange.setComplete();
-			}
-			else {
+			} else {
 				// reset to origin request
-				exchange.setCurrentRequest(exchange.getRequest());
+				oldExchange.setCurrentRequest(oldExchange.getRequest());
 			}
 		}
 	}
@@ -361,23 +376,46 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */
 	final void completeNewTranfer(Exchange newExchange) {
-		Exchange exchange;
+		Exchange oldExchange;
 		synchronized (this) {
-			exchange = this.exchange;
+			oldExchange = this.exchange;
 		}
-		if (newExchange != exchange) {
-			// complete exchange
-			newExchange.setComplete();
+		if (newExchange != oldExchange) {
+			if (newExchange.isNotification()) {
+				// no pending observe request to cancel
+				newExchange.setComplete();
+			} else {
+				// cancel pending observe request
+				newExchange.getRequest().setCanceled(true);
+			}
 		}
+	}
+
+	final boolean completeResponse() {
+		Response response;
+		synchronized (this) {
+			response = this.response;
+		}
+		if (response != null) {
+			setComplete(true);
+			response.onComplete();
+			return true;
+		}
+		return false;
 	}
 
 	@Override
 	public synchronized String toString() {
 		String result = super.toString();
-		if (orderer != null) {
+		if (orderer != null || response != null) {
 			StringBuilder builder = new StringBuilder(result);
-			builder.setLength(result.length()-1);
-			builder.append(", observe=").append(orderer.getCurrent()).append("]");
+			if (orderer != null) {
+				builder.setLength(result.length() - 1);
+				builder.append(", observe=").append(orderer.getCurrent()).append("]");
+			}
+			if (response != null) {
+				builder.append(", ").append(response);
+			}
 			result = builder.toString();
 		}
 		return result;
@@ -408,7 +446,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			int to = Math.min((requestedBlock.getNum() + 1) * requestedBlock.getSize(), bodySize);
 			int length = to - from;
 
-			LOGGER.debug("cropping response body [size={}] to block {}", new Object[]{ bodySize, requestedBlock });
+			LOGGER.debug("cropping response body [size={}] to block {}", bodySize, requestedBlock);
 
 			byte[] blockPayload = new byte[length];
 			boolean m = to < bodySize;

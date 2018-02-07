@@ -55,6 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+
+import java.util.concurrent.Executor;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -89,14 +92,15 @@ public final class UdpMatcher extends BaseMatcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
+	 * @param executor executor to be used for exchanges.
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public UdpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final TokenGenerator tokenGenerator, final ObservationStore observationStore,
-			final MessageExchangeStore exchangeStore, final EndpointContextMatcher matchingStrategy) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore);
+	public UdpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
+			EndpointContextMatcher matchingStrategy) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
 		this.endpointContextMatcher = matchingStrategy;
 	}
 
@@ -114,10 +118,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 				exchange.setObserver(exchangeObserver);
 
-				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("tracking open request [MID: {}, Token: {}]",
-							new Object[] { request.getMID(), request.getTokenString() });
-				}
+				LOGGER.debug("tracking open request [MID: {}, Token: {}]", request.getMID(), request.getToken());
 			} else {
 				LOGGER.warn("message IDs exhausted, could not register outbound request for tracking");
 				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
@@ -129,29 +130,30 @@ public final class UdpMatcher extends BaseMatcher {
 
 	@Override
 	public void sendResponse(final Exchange exchange) {
-		
+
+		boolean ready = true;
 		Response response = exchange.getCurrentResponse();
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 
-		// If this is a CON notification we now can forget all previous NON
-		// notifications
-		if (response.getType() == Type.CON) {
-			exchange.removeNotifications();
-		}
 
 		// Insert CON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON) {
+			// If this is a CON notification we now can forget
+			// all previous NON notifications
+			exchange.removeNotifications();
 			exchangeStore.registerOutboundResponse(exchange);
+			ready = false;
 		} else if (response.getType() == Type.NON) {
-			if (response.getOptions().hasObserve()) {
+			if (response.isNotification()) {
 				// this is a NON notification
 				// we need to register it so that we can match an RST sent
 				// by a peer that wants to cancel the observation
 				// these NON notifications will later be removed from the
 				// exchange store when Exchange.setComplete() is called
 				exchangeStore.registerOutboundResponse(exchange);
+				ready = false;
 			} else {
 				// we only need to assign an unused MID but we do not need to
 				// register the exchange under the MID since we do not
@@ -161,7 +163,7 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 
 		// Only CONs and Observe keep the exchange active (CoAP server side)
-		if (response.getType() != Type.CON && !response.isNotification()) {
+		if (ready) {
 			exchange.setComplete();
 		}
 	}
@@ -194,7 +196,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(request);
 
-		Exchange exchange = new Exchange(request, Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
 		Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 		if (previous == null) {
 			exchange.setObserver(exchangeObserver);
@@ -215,17 +217,13 @@ public final class UdpMatcher extends BaseMatcher {
 		 * Retransmitted CON (because client got no ACK) => resend ACK
 		 */
 
-		KeyMID idByMID = KeyMID.fromInboundMessage(response);
 		final Token idByToken = response.getToken();
 		LOGGER.trace("received response {}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
-		boolean isNotify = false; // don't remove MID for notifies. May be
-									// already reused.
 
 		if (exchange == null) {
 			// we didn't find a message exchange for the token from the response
 			// let's try to find an existing observation for the token
-			isNotify = true;
 			exchange = matchNotifyResponse(response);
 		}
 
@@ -235,26 +233,27 @@ public final class UdpMatcher extends BaseMatcher {
 			// finally check if the response is a duplicate
 			if (response.getType() != Type.ACK) {
 				// deduplication is only relevant for CON/NON messages
+				KeyMID idByMID = KeyMID.fromInboundMessage(response);
 				Exchange prev = exchangeStore.find(idByMID);
-				if (prev != null) {
-					LOGGER.trace("received response for already completed exchange: {}", response);
+				if (prev != null && endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
+						response.getSourceContext())) {
+					LOGGER.trace("received response for already completed {}: {}", prev, response);
 					response.setDuplicate(true);
 					return prev;
 				}
 			} else {
-				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}",
-						new Object[] { response.getSourceContext(), response });
+				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}", response.getSourceContext(),
+						response);
 			}
 			// ignore response
 			return null;
 		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 				response.getSourceContext())) {
-
-			if (response.getType() == Type.ACK && exchange.getCurrentRequest().getMID() != response.getMID()) {
+			Request currentRequest = exchange.getCurrentRequest();
+			if (response.getType() == Type.ACK && currentRequest.getMID() != response.getMID()) {
 				// The token matches but not the MID.
 				LOGGER.warn("possible MID reuse before lifetime end for token [{}], expected MID {} but received {}",
-						new Object[] { response.getTokenString(), exchange.getCurrentRequest().getMID(),
-								response.getMID() });
+						response.getTokenString(), currentRequest.getMID(), response.getMID());
 				// when nested blockwise request/responses occurs (e.g. caused
 				// by retransmission), a old response may stop the
 				// retransmission of the current blockwise request. This seems
@@ -270,14 +269,14 @@ public final class UdpMatcher extends BaseMatcher {
 			// according to the CoAP spec
 			// (https://tools.ietf.org/html/rfc7252#section-4.5),
 			// message deduplication is relevant for CON and NON messages only
-
+			KeyMID idByMID = KeyMID.fromInboundMessage(response);
 			if ((response.getType() == Type.CON || response.getType() == Type.NON)
 					&& exchangeStore.findPrevious(idByMID, exchange) != null) {
-				LOGGER.trace("received duplicate response for open exchange: {}", response);
+				LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
 				response.setDuplicate(true);
-			} else if (!isNotify) {
-				// we have received the expected response for the original
-				// request
+			} else if (!exchange.isNotification()) {
+				// we have received the expected response
+				// for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
 				if (exchangeStore.remove(idByMID, exchange) != null) {
 					LOGGER.debug("closed open request [{}]", idByMID);
@@ -302,12 +301,19 @@ public final class UdpMatcher extends BaseMatcher {
 		Exchange exchange = exchangeStore.remove(idByMID, null);
 
 		if (exchange != null) {
-			LOGGER.debug("received expected reply for message exchange {}", idByMID);
+			if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
+					message.getSourceContext())) {
+				LOGGER.debug("received expected reply for message {}", idByMID);
+				return exchange;
+			} else {
+				LOGGER.info("ignoring potentially forged reply for message {} with non-matching endpoint context",
+						idByMID);
+			}
 		} else {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}",
 					new Object[] { message.getSourceContext(), message });
 		}
-		return exchange;
+		return null;
 	}
 
 	private class ExchangeObserverImpl implements ExchangeObserver {

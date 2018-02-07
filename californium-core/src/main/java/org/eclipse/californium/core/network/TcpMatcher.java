@@ -50,6 +50,8 @@ package org.eclipse.californium.core.network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executor;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -82,14 +84,16 @@ public final class TcpMatcher extends BaseMatcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final TokenGenerator tokenGenerator, final ObservationStore observationStore,
-			final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore);
+	public TcpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
+			EndpointContextMatcher endpointContextMatcher) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
@@ -129,7 +133,7 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveRequest(Request request) {
 
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
 		exchange.setObserver(exchangeObserver);
 		return exchange;
 	}
