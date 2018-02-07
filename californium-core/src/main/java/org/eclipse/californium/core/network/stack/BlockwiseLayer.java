@@ -47,6 +47,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - copy token and mid for error responses
  *                                                    copy scheme to assembled blockwise 
  *                                                    payload.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -386,7 +387,6 @@ public class BlockwiseLayer extends AbstractLayer {
 
 					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
-					piggybacked.setLast(false);
 
 					exchange.setCurrentResponse(piggybacked);
 					lower().sendResponse(exchange, piggybacked);

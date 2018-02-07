@@ -21,6 +21,7 @@
  *                                                    from BlockwiseStatus
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -29,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -296,12 +296,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			block.setOptions(new OptionSet(response.getOptions()));
 			// observe option must only be included in first block
 			block.getOptions().removeObserve();
-			block.addMessageObserver(new MessageObserverAdapter() {
-				@Override
-				public void onTimeout() {
-					response.setTimedOut(true);
-				}
-			});
+			block.addMessageObservers(response.getMessageObservers());
 		}
 
 		if (getCurrentNum() == 0 && response.getOptions().getSize2() == null) {
@@ -324,17 +319,9 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			buf.position(from);
 			buf.get(blockPayload, 0, length);
 			block.setPayload(blockPayload);
-
-			// do not complete notifications
-			block.setLast(!m && !response.getOptions().hasObserve());
-
-			setComplete(!m);
-
-		} else {
-
-			block.setLast(true);
-			setComplete(true);
 		}
+		setComplete(!m);
+
 		block.getOptions().setBlock2(getCurrentSzx(), m, getCurrentNum());
 		return block;
 	}

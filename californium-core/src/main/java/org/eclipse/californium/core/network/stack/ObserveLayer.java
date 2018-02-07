@@ -28,6 +28,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - complete old notification
  *                                                    exchange
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -86,9 +87,6 @@ public class ObserveLayer extends AbstractLayer {
 					}
 				}
 			}
-
-			// This is a notification
-			response.setLast(false);
 
 			/*
 			 * Only one Confirmable message is allowed to be in transit. A CON
