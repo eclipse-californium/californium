@@ -47,6 +47,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - copy token and mid for error responses
  *                                                    copy scheme to assembled blockwise 
  *                                                    payload.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -386,7 +387,6 @@ public class BlockwiseLayer extends AbstractLayer {
 
 					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
-					piggybacked.setLast(false);
 
 					exchange.setCurrentResponse(piggybacked);
 					lower().sendResponse(exchange, piggybacked);
@@ -490,6 +490,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
+						responseToSend.addMessageObservers(response.getMessageObservers());
 					}
 
 				} else if (response.hasBlock(requestBlock2)) {
@@ -506,7 +507,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
 					responseToSend.getOptions().setBlock2(requestBlock2);
-
+					responseToSend.addMessageObservers(response.getMessageObservers());
 				}
 
 			} else if (requiresBlockwise(exchange, response, requestBlock2)) {
@@ -853,7 +854,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						 * exchange under a different KeyToken in exchangesByToken,
 						 * which is cleaned up in the else case below.
 						 */
-						if (!response.getOptions().hasObserve()) {
+						if (!response.isNotification()) {
 							block.setToken(response.getToken());
 						}
 
@@ -890,18 +891,6 @@ public class BlockwiseLayer extends AbstractLayer {
 
 						// set overall transfer RTT
 						assembled.setRTT(exchange.calculateRTT());
-
-						if (status.isNotification()) {
-							/*
-							 * When retrieving the rest of a blockwise notification
-							 * with a different token, the additional Matcher state
-							 * must be cleaned up through the call below.
-							 */
-							if (!response.getOptions().hasObserve()) {
-								// call the clean-up mechanism for the additional Matcher entry in exchangesByToken
-								exchange.completeCurrentRequest();
-							}
-						}
 
 						clearBlock2Status(key);
 						LOGGER.debug("assembled response: {}", assembled);
