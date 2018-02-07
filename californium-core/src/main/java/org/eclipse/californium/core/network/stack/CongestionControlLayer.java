@@ -150,7 +150,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				// Check if NONs are already processed, if not, start bucket
 				// Thread
 				if (!getRemoteEndpoint(exchange).getProcessingNON()) {
-					executor.schedule(new BucketThread(
+					schedule(new BucketThread(
 							getRemoteEndpoint(exchange)), 0,
 							TimeUnit.MILLISECONDS);
 				}
@@ -176,7 +176,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 			// The exchange needs to be deleted after at least 255 s TODO:
 			// should this value be calculated dynamically
-			executor.schedule(new SweepCheckTask(getRemoteEndpoint(exchange),
+			schedule(new SweepCheckTask(getRemoteEndpoint(exchange),
 					exchange), MAX_REMOTE_TRANSACTION_DURATION,
 					TimeUnit.MILLISECONDS);
 			return true;
@@ -430,7 +430,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 					}
 				}
 				// schedule next transmission of a NON based on the RTO value (rate = 1/RTO)
-				executor.schedule(
+				schedule(
 						new BucketThread(getRemoteEndpoint(exchange)),
 						getRemoteEndpoint(exchange).getRTO(),
 						TimeUnit.MILLISECONDS);

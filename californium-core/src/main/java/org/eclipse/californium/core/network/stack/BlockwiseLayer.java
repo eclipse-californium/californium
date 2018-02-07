@@ -853,7 +853,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						 * exchange under a different KeyToken in exchangesByToken,
 						 * which is cleaned up in the else case below.
 						 */
-						if (!response.getOptions().hasObserve()) {
+						if (!response.isNotification()) {
 							block.setToken(response.getToken());
 						}
 
@@ -1199,12 +1199,12 @@ public class BlockwiseLayer extends AbstractLayer {
 	private ScheduledFuture<?> scheduleBlockCleanupTask(final Runnable task) {
 
 		// prevent RejectedExecutionException
-		if (executor.isShutdown()) {
+		if (isShutdown()) {
 			LOGGER.info("Endpoint is being destroyed: skipping block clean-up");
 			return null;
 
 		} else {
-			return executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
+			return schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
 		}
 	}
 
