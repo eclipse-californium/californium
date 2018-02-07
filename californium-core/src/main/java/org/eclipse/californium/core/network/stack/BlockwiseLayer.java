@@ -490,6 +490,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
+						responseToSend.addMessageObservers(response.getMessageObservers());
 					}
 
 				} else if (response.hasBlock(requestBlock2)) {
@@ -506,7 +507,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
 					responseToSend.getOptions().setBlock2(requestBlock2);
-
+					responseToSend.addMessageObservers(response.getMessageObservers());
 				}
 
 			} else if (requiresBlockwise(exchange, response, requestBlock2)) {

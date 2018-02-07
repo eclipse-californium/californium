@@ -98,6 +98,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 		// empty default implementation
 	}
 
+	@Override
+	public void onComplete() {
+		// empty default implementation
+	}
+
 	/**
 	 * Common method to be overwritten to catch failed messages.
 	 * 

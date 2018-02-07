@@ -136,5 +136,6 @@ public interface MessageObserver {
 	 * @param endpointContext resulting endpoint context
 	 */
 	void onContextEstablished(EndpointContext endpointContext);
-
+	
+	void onComplete();
 }
