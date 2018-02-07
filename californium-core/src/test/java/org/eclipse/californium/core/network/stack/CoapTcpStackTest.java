@@ -6,7 +6,9 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
+import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -62,7 +64,8 @@ public class CoapTcpStackTest {
 	@Test public void sendRequestExpectSent() {
 		Request message = new Request(CoAP.Code.GET);
 		message.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		stack.sendRequest(message);
+		Exchange exchange = new Exchange(message, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		stack.sendRequest(exchange, message);
 
 		verify(outbox).sendRequest(any(Exchange.class), eq(message));
 	}
@@ -70,7 +73,7 @@ public class CoapTcpStackTest {
 
 	@Test public void sendResponseExpectSent() {
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(request);
 
 		Response response = new Response(CoAP.ResponseCode.CONTENT);

@@ -139,7 +139,7 @@ public class InMemoryMessageExchangeStoreTest {
 	private Exchange newOutboundRequest() {
 		Request request = Request.newGet();
 		request.setURI("coap://127.0.0.1:" + PEER_PORT + "/test");
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		return exchange;
 	}
 }

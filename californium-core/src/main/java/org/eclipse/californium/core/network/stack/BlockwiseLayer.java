@@ -48,9 +48,14 @@
  *                                                    copy scheme to assembled blockwise 
  *                                                    payload.
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove addBlock2CleanUpObserver in
+ *                                                    sendResponse
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.Iterator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -69,6 +74,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 /**
@@ -141,6 +147,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class.getName());
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
+	private volatile boolean enableStatus;
 	private int maxMessageSize;
 	private int preferredBlockSize;
 	private int preferredBlockSzx;
@@ -195,6 +202,44 @@ public class BlockwiseLayer extends AbstractLayer {
 		LOGGER.info(
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={} and MAX_RESOURCE_BODY_SIZE={}",
 			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
+		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+			ScheduledExecutorService scheduler = Executors
+					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("BlockwiseLayer"));
+			scheduler.scheduleAtFixedRate(new Runnable() {
+
+				@Override
+				public void run() {
+					if (enableStatus) {
+						{
+							LOGGER.info("{} block1 transfers", block1Transfers.size());
+							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.values();
+							int max = 5;
+							while (iterator.hasNext()) {
+								LOGGER.info("   block1 {}", iterator.next());
+								--max;
+								if (max == 0) {
+									break;
+								}
+							}
+						}
+						{
+							LOGGER.info("{} block2 transfers", block2Transfers.size());
+							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.values();
+							int max = 5;
+							while (iterator.hasNext()) {
+								LOGGER.info("   block2 {}", iterator.next());
+								--max;
+								if (max == 0) {
+									break;
+								}
+							}
+						}
+					}
+				}
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		}
 	}
 
 	@Override
@@ -279,18 +324,9 @@ public class BlockwiseLayer extends AbstractLayer {
 						request.setMID(block.getMID());
 					}
 				}
-
-				@Override
-				public void onCancel() {
-					failed();
-				}
-
-				@Override
-				public void failed() {
-					clearBlock1Status(key);
-				}
 			});
 
+			addBlock1CleanUpObserver(block, key);
 			prepareBlock1Cleanup(status, key);
 			return block;
 		}
@@ -522,16 +558,6 @@ public class BlockwiseLayer extends AbstractLayer {
 				Block2BlockwiseStatus status = getOutboundBlock2Status(key, exchange, response);
 				BlockOption block2 = requestBlock2 != null ? requestBlock2 : new BlockOption(preferredBlockSzx, false, 0);
 				responseToSend = status.getNextResponseBlock(block2);
-
-				if (status.isComplete()) {
-					// clean up blockwise status
-					LOGGER.debug("block2 transfer of response for {} finished after first block: {}", key, status);
-					clearBlock2Status(key);
-				} else {
-					LOGGER.debug("block2 transfer of response for {} started: {}", key, status);
-					addBlock2CleanUpObserver(responseToSend, key);
-				}
-
 			}
 
 			BlockOption block1 = exchange.getBlock1ToAck();
@@ -1063,8 +1089,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
-			LOGGER.debug("request body [{}/{}] requires blockwise transfer",
-					new Object[]{request.getPayloadSize(), maxMessageSize});
+			LOGGER.debug("request body [{}/{}] requires blockwise transfer", request.getPayloadSize(), maxMessageSize);
 		}
 		return blockwiseRequired;
 	}
@@ -1077,8 +1102,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = blockwiseRequired || response.getPayloadSize() > requestBlock2.getSize();
 		}
 		if (blockwiseRequired) {
-			LOGGER.debug("response body [{}/{}] requires blockwise transfer",
-					new Object[]{response.getPayloadSize(), maxMessageSize});
+			LOGGER.debug("response body [{}/{}] requires blockwise transfer", response.getPayloadSize(),
+					maxMessageSize);
 		}
 		return blockwiseRequired;
 	}

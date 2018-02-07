@@ -58,12 +58,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - striped exchange execution
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
@@ -89,6 +91,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
 	protected final TokenGenerator tokenGenerator;
+	protected final Executor executor;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
 
@@ -104,11 +107,13 @@ public abstract class BaseMatcher implements Matcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final TokenGenerator tokenGenerator, final ObservationStore observationStore,
-			final MessageExchangeStore exchangeStore) {
+	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,
+			 TokenGenerator tokenGenerator,  ObservationStore observationStore,
+			 MessageExchangeStore exchangeStore, Executor executor) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -125,6 +130,7 @@ public abstract class BaseMatcher implements Matcher {
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.tokenGenerator = tokenGenerator;
+			this.executor = executor;
 		}
 	}
 
@@ -205,8 +211,7 @@ public abstract class BaseMatcher implements Matcher {
 				// that the "upper" layers can correctly process the
 				// notification response
 				final Request request = obs.getRequest();
-				exchange = new Exchange(request, Origin.LOCAL, obs.getContext(), true);
-				exchange.setRequest(request);
+				exchange = new Exchange(request, Origin.LOCAL, executor, obs.getContext(), true);
 				LOG.debug("re-created exchange from original observe request: {}", request);
 				request.addMessageObserver(new ObservationObserverAdapter(token) {
 
@@ -265,7 +270,7 @@ public abstract class BaseMatcher implements Matcher {
 				// not "token" related proactive cancel observe request!
 				// Message.cancel() releases the token in the MessageObserver
 				request.cancel();
-				exchange.setComplete();
+				exchange.executeComplete();
 				found = true;
 			}
 		}

@@ -38,6 +38,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
@@ -114,7 +115,7 @@ public class ResourceAttributesTest {
 		Request request = Request.newGet();
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux&rt=temprature-cel");
 	
-		Exchange exchange = new Exchange(request, Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(request);
 		exchange.setEndpoint(new DummyEndpoint());
 		
@@ -187,6 +188,7 @@ public class ResourceAttributesTest {
 
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
+			exchange.setResponse(response);
 		}
 
 		@Override

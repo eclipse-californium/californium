@@ -167,7 +167,7 @@ public class UdpMatcherTest {
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
