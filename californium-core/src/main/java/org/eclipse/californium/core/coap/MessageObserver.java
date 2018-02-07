@@ -119,4 +119,9 @@ public interface MessageObserver {
 	 * @param error The cause of the failure to send the message.
 	 */
 	void onSendError(Throwable error);
+	
+	/**
+	 * Invoked, when transfer is successfully complete.
+	 */
+	void onComplete();
 }
