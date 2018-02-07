@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -170,6 +170,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		@Override
 		public void receiveResponse(final Exchange exchange, final Response response) {
 			exchange.setComplete();
+			exchange.getRequest().onComplete();
 			if (hasDeliverer()) {
 				// notify request that response has arrived
 				deliverer.deliverResponse(exchange, response);
@@ -195,6 +196,12 @@ public abstract class BaseCoapStack implements CoapStack {
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
 			outbox.sendResponse(exchange, response);
+			BlockOption block2 = response.getOptions().getBlock2();
+			if (block2 == null || !block2.isM()) {
+				// for blockwise, the original response shares
+				// the MessageObserver with the block response
+				response.onComplete();
+			}
 		}
 
 		@Override

@@ -16,9 +16,10 @@
 package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -83,6 +84,7 @@ import org.slf4j.LoggerFactory;
 public class ReverseObserve extends CoapResource implements NotificationListener {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class.getCanonicalName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	private static final String RESOURCE_NAME = "reverse-observe";
 	/**
@@ -96,20 +98,27 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
-	private static final int MAX_NOTIFIES = 1000;
+	private static final int MAX_NOTIFIES = 100000;
 
 	/**
 	 * Observation tokens by peer address.
 	 */
-	private ConcurrentMap<String, Token> observesByPeer = new ConcurrentHashMap<String, Token>();
+	private ConcurrentMap<String, ObservationRequest> observesByPeer = new ConcurrentHashMap<String, ObservationRequest>();
 	/**
 	 * Observations by token.
 	 */
 	private ConcurrentMap<Token, Observation> observesByToken = new ConcurrentHashMap<Token, Observation>();
+
+	private ConcurrentMap<Token, String> peersByToken = new ConcurrentHashMap<Token, String>();
+
 	/**
 	 * Overall received notifications.
 	 */
 	private AtomicLong overallNotifies = new AtomicLong();
+	/**
+	 * Overall received notifications.
+	 */
+	private AtomicLong overallObserves = new AtomicLong();
 	/**
 	 * Scheduler for notification timeout.
 	 */
@@ -128,14 +137,15 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
-		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
 
 				@Override
 				public void run() {
 					if (overallNotifies.get() > 0) {
-						LOGGER.info("{} observes, {} by peers", observesByToken.size(), observesByPeer.size());
-						LOGGER.info("{} notifies overalls", overallNotifies.get());
+						HEALTH_LOGGER.debug("{} observes, {} by peers", observesByToken.size(), observesByPeer.size());
+						HEALTH_LOGGER.debug("{} notifies overall, {} observes overall", overallNotifies.get(),
+								overallObserves.get());
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
@@ -199,16 +209,21 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		if (observe != null && resource != null) {
 			Endpoint endpoint = exchange.advanced().getEndpoint();
 			String key = getPeerKey(exchange);
-			Token token = observesByPeer.putIfAbsent(key, Token.EMPTY);
-			if (token != null && token.equals(Token.EMPTY)) {
-				LOGGER.info("Too many requests from {}", key);
-				exchange.respond(SERVICE_UNAVAILABLE);
-			}
-			else {
+			ObservationRequest pendingObservation = observesByPeer.putIfAbsent(key,
+					new ObservationRequest(exchange, Token.EMPTY));
+			if (pendingObservation != null && pendingObservation.getObservationToken().equals(Token.EMPTY)) {
+				if (pendingObservation.getIncomingExchange().advanced().getRequest().getMID() == request.getMID()) {
+					LOGGER.info("Too many duplicate requests from {}, ignore!", key);
+				} else {
+					LOGGER.info("Too many requests from {}", key);
+					exchange.respond(SERVICE_UNAVAILABLE);
+				}
+			} else {
 				if (observe > 0) {
+					exchange.accept();
 					Request observeRequest = Request.newGet();
-					if (token != null) {
-						observeRequest.setToken(token);
+					if (pendingObservation != null) {
+						observeRequest.setToken(pendingObservation.getObservationToken());
 					}
 					observeRequest.getOptions().setUriPath(resource);
 					observeRequest.getOptions().setObserve(0);
@@ -216,11 +231,18 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 						observeRequest.getOptions().addUriQuery(query);
 					}
 					observeRequest.setDestinationContext(request.getSourceContext());
-					observeRequest.addMessageObserver(new ObserveRequestObserver(exchange, observeRequest, observe));
+					observeRequest.addMessageObserver(new RequestObserver(exchange, observeRequest, observe));
 					observeRequest.send(endpoint);
-				} else if (token != null) {
-					LOGGER.info("Requested cancel observation {}", token);
-					endpoint.cancelObservation(token);
+					overallObserves.incrementAndGet();
+				} else {
+					if (pendingObservation != null) {
+						LOGGER.info("Requested cancel observation {}", pendingObservation.getObservationToken());
+						endpoint.cancelObservation(pendingObservation.getObservationToken());
+						exchange.respond(CHANGED);
+					} else {
+						LOGGER.info("Requested cancel not established observation for {}", key);
+						exchange.respond(CHANGED);
+					}
 				}
 			}
 		} else {
@@ -232,20 +254,28 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	@Override
 	public void onNotification(Request request, Response response) {
 		overallNotifies.incrementAndGet();
-		Observation observation = observesByToken.get(response.getToken());
+		Token token = response.getToken();
+		Observation observation = observesByToken.get(token);
 		if (observation != null) {
 			observation.onNotification();
+		} else {
+			String peer = peersByToken.get(token);
+			if (peer != null) {
+				LOGGER.info("Notification {} from old observe: {}", response, peer);
+			} else {
+				LOGGER.info("Notification {} from unkown observe", response);
+			}
 		}
 	}
 
-	private class ObserveRequestObserver extends MessageObserverAdapter {
+	private class RequestObserver extends MessageObserverAdapter {
 
 		private CoapExchange incomingExchange;
 		private Request outgoingObserveRequest;
 		private AtomicBoolean registered = new AtomicBoolean();
 		private int count;
 
-		public ObserveRequestObserver(CoapExchange incomingExchange, Request outgoingObserveRequest, int count) {
+		public RequestObserver(CoapExchange incomingExchange, Request outgoingObserveRequest, int count) {
 			this.incomingExchange = incomingExchange;
 			this.outgoingObserveRequest = outgoingObserveRequest;
 			this.count = count;
@@ -261,11 +291,14 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					String key = getPeerKey(incomingExchange);
 					Endpoint endpoint = incomingExchange.advanced().getEndpoint();
 					Token token = outgoingObserveRequest.getToken();
-					Token previous = observesByPeer.put(key, token);
-					if (previous != null && !previous.equals(Token.EMPTY) && !token.equals(previous)) {
+					ObservationRequest previous = observesByPeer.put(key,
+							new ObservationRequest(incomingExchange, token));
+					if (previous != null && !previous.getObservationToken().equals(Token.EMPTY)
+							&& !token.equals(previous.getObservationToken())) {
 						LOGGER.info("Cancel previous observation {}", token);
-						endpoint.cancelObservation(previous);
+						endpoint.cancelObservation(previous.getObservationToken());
 					}
+					peersByToken.put(token, key);
 					observesByToken.put(token, new Observation(incomingExchange, token, count));
 					if (!incomingExchange.advanced().isComplete()) {
 						incomingExchange.respond(CONTENT, token.getBytes(), APPLICATION_OCTET_STREAM);
@@ -293,16 +326,35 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		}
 	}
 
+	private class ObservationRequest {
+
+		private final CoapExchange incomingExchange;
+		private final Token observationToken;
+
+		public ObservationRequest(CoapExchange incomingExchange, Token observationToken) {
+			this.incomingExchange = incomingExchange;
+			this.observationToken = observationToken;
+		}
+
+		public Token getObservationToken() {
+			return observationToken;
+		}
+
+		public CoapExchange getIncomingExchange() {
+			return incomingExchange;
+		}
+	}
+
 	private class Observation {
 
 		private final CoapExchange incomingExchange;
-		private final Token token;
+		private final Token observationToken;
 		private final AtomicInteger countDown;
 		private final AtomicReference<Future<?>> timeout = new AtomicReference<Future<?>>();
 
-		public Observation(CoapExchange incomingExchange, Token token, int count) {
+		public Observation(CoapExchange incomingExchange, Token observationToken, int count) {
 			this.incomingExchange = incomingExchange;
-			this.token = token;
+			this.observationToken = observationToken;
 			this.countDown = new AtomicInteger(count);
 			scheduleTimeout();
 		}
@@ -336,10 +388,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		public void reregister() {
 			String key = getPeerKey(incomingExchange);
-			LOGGER.info("Cancel observation {} for {}", token, key);
-			incomingExchange.advanced().getEndpoint().cancelObservation(token);
+			LOGGER.info("Cancel observation {} for {}", observationToken, key);
+			incomingExchange.advanced().getEndpoint().cancelObservation(observationToken);
 			observesByPeer.remove(key);
-			observesByToken.remove(token, this);
+			observesByToken.remove(observationToken, this);
 			LOGGER.info("Restart observation for {}", key);
 			handlePOST(incomingExchange);
 		}

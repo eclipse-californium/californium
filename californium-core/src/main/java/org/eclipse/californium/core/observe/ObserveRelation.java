@@ -197,6 +197,10 @@ public class ObserveRelation {
 	}
 
 	public void setNextControlNotification(Response nextControlNotification) {
+		if (this.nextControlNotification != null && nextControlNotification != null) {
+			// complete deprecated response
+			this.nextControlNotification.onComplete();
+		}
 		this.nextControlNotification = nextControlNotification;
 	}
 	
