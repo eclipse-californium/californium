@@ -144,6 +144,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class.getName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private volatile boolean enableStatus;
@@ -203,7 +204,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
-		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isInfoEnabled()) {
 			ScheduledExecutorService scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("BlockwiseLayer"));
 			scheduler.scheduleAtFixedRate(new Runnable() {
@@ -212,11 +213,11 @@ public class BlockwiseLayer extends AbstractLayer {
 				public void run() {
 					if (enableStatus) {
 						{
-							LOGGER.info("{} block1 transfers", block1Transfers.size());
+							HEALTH_LOGGER.info("{} block1 transfers", block1Transfers.size());
 							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.values();
 							int max = 5;
 							while (iterator.hasNext()) {
-								LOGGER.info("   block1 {}", iterator.next());
+								HEALTH_LOGGER.info("   block1 {}", iterator.next());
 								--max;
 								if (max == 0) {
 									break;
@@ -224,11 +225,11 @@ public class BlockwiseLayer extends AbstractLayer {
 							}
 						}
 						{
-							LOGGER.info("{} block2 transfers", block2Transfers.size());
+							HEALTH_LOGGER.info("{} block2 transfers", block2Transfers.size());
 							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.values();
 							int max = 5;
 							while (iterator.hasNext()) {
-								LOGGER.info("   block2 {}", iterator.next());
+								HEALTH_LOGGER.info("   block2 {}", iterator.next());
 								--max;
 								if (max == 0) {
 									break;

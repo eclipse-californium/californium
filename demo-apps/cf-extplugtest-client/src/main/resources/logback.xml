@@ -21,34 +21,55 @@
 
 		<encoder>
 			<!-- use tab to separate timestamp from message -->
-			<pattern>%d{mm:ss.SSS} %level [%logger{0}]: %msg%n</pattern>
+			<pattern>%d{mm:ss.SSS} %level [%logger{0}]: %msg [%thread]%n</pattern>
 		</encoder>
 	</appender>
 
-	<!-- ORIGIN only to file -->
-	<logger name="org.eclipse.californium.core.network.interceptors.MessageTracer" level="INFO" additivity="false">
-		<appender-ref ref="STDOUT" />
+	<!-- ORIGIN only to file	<logger name="org.eclipse.californium.core.network.interceptors.MessageTracer" level="INFO" additivity="false">
+		<appender-ref ref="FILE" />
+	</logger>
+	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore" level="TRACE" additivity="false">
 		<appender-ref ref="FILE" />
 	</logger>
 	<logger name="org.eclipse.californium.core.network.UdpMatcher" level="TRACE" additivity="false">
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="FILE" />
 	</logger>
-	<logger name="org.eclipse.californium.core.network.Exchange" level="TRACE" additivity="false">
-		<appender-ref ref="STDOUT" />
+
+	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer" level="DEBUG" additivity="false">
 		<appender-ref ref="FILE" />
 	</logger>
-	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore" level="TRACE" additivity="false">
-		<appender-ref ref="STDOUT" />
+	<logger name="org.eclipse.californium.core.network.stack.ReliabilityLayer" level="TRACE" additivity="false">
 		<appender-ref ref="FILE" />
 	</logger>
-	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer" level="INFO" additivity="false">
-		<appender-ref ref="STDOUT" />
+	<logger name="org.eclipse.californium.core.network.stack.ObserveLayer" level="TRACE" additivity="false">
+		<appender-ref ref="FILE" />
+	</logger>
+	<logger name="org.eclipse.californium.core.CoapResource" level="TRACE" additivity="false">
 		<appender-ref ref="FILE" />
 	</logger>
 	<logger name="org.eclipse.californium.core.observe.ObserveRelation" level="TRACE" additivity="false">
-		<appender-ref ref="STDOUT" />
 		<appender-ref ref="FILE" />
+	</logger>
+	<logger name="org.eclipse.californium.core.network.Exchange" level="DEBUG" additivity="false">
+		<appender-ref ref="FILE" />
+	</logger>
+	<logger name="org.eclipse.californium.extplugtests.resources.Feed" level="TRACE" additivity="false">
+		<appender-ref ref="FILE" />
+	</logger>
+	 -->
+
+	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer.health" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.core.observe.InMemoryObservationStore.health" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.extplugtests.resources.ReverseObserve.health" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
 	</logger>
 
 	<logger level="WARN" >
