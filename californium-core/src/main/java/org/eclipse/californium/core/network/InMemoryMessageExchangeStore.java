@@ -65,6 +65,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class.getName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	// for all
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
 	// for outgoing
@@ -114,7 +115,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isInfoEnabled()) {
 			this.scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
 			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
@@ -388,8 +389,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * @param logMaxExchanges maximum number of exchanges to include in dump.
 	 */
 	public void dump(int logMaxExchanges) {
-		if (LOGGER.isInfoEnabled()) {
-			LOGGER.info(dumpCurrentLoadLevels());
+		if (HEALTH_LOGGER.isInfoEnabled()) {
+			HEALTH_LOGGER.info(dumpCurrentLoadLevels());
 			if (0 < logMaxExchanges) {
 				if (!exchangesByMID.isEmpty()) {
 					dumpExchanges(logMaxExchanges, exchangesByMID.entrySet());
@@ -413,12 +414,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Request origin = exchange.getRequest();
 			Request current = exchange.getCurrentRequest();
 			if (origin != current && !origin.getToken().equals(current.getToken())) {
-				LOGGER.info("  {}, complete {}, retransmission {}, org {}, {}, {}", exchangeEntry.getKey(),
+				HEALTH_LOGGER.info("  {}, complete {}, retransmission {}, org {}, {}, {}", exchangeEntry.getKey(),
 						exchange.isComplete(), exchange.getFailedTransmissionCount(), origin.getToken(), current,
 						exchange.getCurrentResponse());
 			} else {
 				String mark = origin == null ? "-" : "+";
-				LOGGER.info("  {}, complete {}, retransmission {}, {} {}, {}", exchangeEntry.getKey(),
+				HEALTH_LOGGER.info("  {}, complete {}, retransmission {}, {} {}, {}", exchangeEntry.getKey(),
 						exchange.isComplete(), exchange.getFailedTransmissionCount(), mark, current,
 						exchange.getCurrentResponse());
 			}
