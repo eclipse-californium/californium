@@ -35,6 +35,9 @@
  *                                                    EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -751,6 +754,31 @@ public abstract class Message {
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onSendError(sendError);
 			}
+		}
+	}
+
+	/**
+	 * Report resulting endpoint context.
+	 * 
+	 * The {@link #destinationContext} may not contain all information, but the
+	 * connector will fill these information and report it. This method doesn't
+	 * change the {@link #destinationContext} but calls
+	 * {@link MessageObserver#onContextEstablished(EndpointContext)}.
+	 * 
+	 * @param endpointContext resulting endpoint context.
+	 */
+	public void onContextEstablished(EndpointContext endpointContext) {
+		if (endpointContext != null) {
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onContextEstablished(endpointContext);
+			}
+		}
+	}
+
+	public void onComplete() {
+		LOGGER.trace("Message completed {}", this);
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onComplete();
 		}
 	}
 

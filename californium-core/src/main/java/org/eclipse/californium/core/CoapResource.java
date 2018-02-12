@@ -24,6 +24,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't add canceled
+ *                                                    observation-relations again.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -292,13 +294,14 @@ public  class CoapResource implements Resource {
 		 */
 		
 		ObserveRelation relation = exchange.getRelation();
-		if (relation == null) return; // because request did not try to establish a relation
+		if (relation == null || relation.isCanceled())
+			return; // because request did not try to establish a relation
 		
 		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
 			response.getOptions().setObserve(notificationOrderer.getCurrent());
 			
 			if (!relation.isEstablished()) {
-				relation.setEstablished(true);
+				relation.setEstablished();
 				addObserveRelation(relation);
 			} else if (observeType != null) {
 				// The resource can control the message type of the notification
@@ -687,9 +690,11 @@ public  class CoapResource implements Resource {
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
 		if (observeRelations.add(relation)) {
-			LOGGER.info("replacing observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("replacing observe relation between {} and resource {} (new {}, size {})", relation.getKey(),
+					getURI(), relation.getExchange(), observeRelations.getSize());
 		} else {
-			LOGGER.info("successfully established observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
+					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
 		}
 		for (ResourceObserver obs:observers)
 			obs.addedObserveRelation(relation);
@@ -700,9 +705,13 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public void removeObserveRelation(ObserveRelation relation) {
-		observeRelations.remove(relation);
-		for (ResourceObserver obs:observers)
-			obs.removedObserveRelation(relation);
+		if (observeRelations.remove(relation)) {
+			LOGGER.info("remove observe relation between {} and resource {} ({}, size {})", relation.getKey(), getURI(),
+					relation.getExchange(), observeRelations.getSize());
+			for (ResourceObserver obs : observers) {
+				obs.removedObserveRelation(relation);
+			}
+		}
 	}
 	
 	/**

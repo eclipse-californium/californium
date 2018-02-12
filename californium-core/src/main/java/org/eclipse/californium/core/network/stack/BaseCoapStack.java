@@ -28,12 +28,11 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -76,9 +75,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public void sendRequest(final Request request) {
+	public void sendRequest(final Exchange exchange, final Request request) {
 		// delegate to top
-		top.sendRequest(request);
+		top.sendRequest(exchange, request);
 	}
 
 	@Override
@@ -137,11 +136,6 @@ public abstract class BaseCoapStack implements CoapStack {
 
 	private class StackTopAdapter extends AbstractLayer {
 
-		public void sendRequest(final Request request) {
-			Exchange exchange = new Exchange(request, Origin.LOCAL);
-			sendRequest(exchange, request); // layer method
-		}
-
 		@Override
 		public void sendRequest(final Exchange exchange, final Request request) {
 			exchange.setRequest(request);
@@ -170,6 +164,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		@Override
 		public void receiveResponse(final Exchange exchange, final Response response) {
 			exchange.setComplete();
+			exchange.getRequest().onComplete();
 			if (hasDeliverer()) {
 				// notify request that response has arrived
 				deliverer.deliverResponse(exchange, response);
@@ -195,6 +190,12 @@ public abstract class BaseCoapStack implements CoapStack {
 		@Override
 		public void sendResponse(Exchange exchange, Response response) {
 			outbox.sendResponse(exchange, response);
+			BlockOption block2 = response.getOptions().getBlock2();
+			if (block2 == null || !block2.isM()) {
+				// for blockwise, the original response shares
+				// the MessageObserver with the block response
+				response.onComplete();
+			}
 		}
 
 		@Override

@@ -1113,8 +1113,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
-
+		assertAllExchangesAreCompleted(config, client.getExchangeStore());
 	}
 
 	/**
@@ -1141,8 +1140,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
-
+		assertAllExchangesAreCompleted(config, client.getExchangeStore());
 	}
 
 	/**

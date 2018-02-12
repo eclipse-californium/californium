@@ -14,7 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 public interface CoapStack {
 
 	// delegate to top
-	void sendRequest(Request request);
+	void sendRequest(Exchange exchange, Request request);
 
 	// delegate to top
 	void sendResponse(Exchange exchange, Response response);

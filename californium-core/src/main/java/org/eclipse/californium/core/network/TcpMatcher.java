@@ -40,17 +40,23 @@
  *                                                 store observation before exchange
  *                                                 to create global token
  * Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
- * Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
+ * Achim Kraus (Bosch Software Innovations GmbH) - add token generator
+ * Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
+ *                                                 remove implementation
+ * Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executor;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -72,25 +78,29 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @param config the configuration to use.
 	 * @param notificationListener the callback to invoke for notifications
 	 *            received from peers.
-	 * @param tokenGenerator token generator to create tokens for 
-	 *            observations created by the endpoint this matcher is part of.
+	 * @param tokenGenerator token generator to create tokens for observations
+	 *            created by the endpoint this matcher is part of.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
-	 * @param exchangeStore The store to use for keeping track of message exchanges.
+	 * @param exchangeStore The store to use for keeping track of message
+	 *            exchanges.
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public TcpMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final TokenGenerator tokenGenerator, final ObservationStore observationStore,
-			final MessageExchangeStore exchangeStore, final EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore);
+	public TcpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
+			EndpointContextMatcher endpointContextMatcher) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
 	@Override
-	public void sendRequest(Exchange exchange, final Request request) {
+	public void sendRequest(Exchange exchange) {
 
+		Request request = exchange.getCurrentRequest();
 		if (request.isObserve()) {
 			registerObserve(request);
 		}
@@ -100,15 +110,14 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public void sendResponse(Exchange exchange, Response response) {
+	public void sendResponse(Exchange exchange) {
+		Response response = exchange.getCurrentResponse();
 
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 
 		// Only Observes keep the exchange active (CoAP server side)
-		if (response.isLast()) {
-			exchange.setComplete();
-		}
+		exchange.setComplete();
 	}
 
 	@Override
@@ -124,7 +133,7 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveRequest(Request request) {
 
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
 		exchange.setObserver(exchangeObserver);
 		return exchange;
 	}
@@ -144,11 +153,11 @@ public final class TcpMatcher extends BaseMatcher {
 		if (exchange == null) {
 			// There is no exchange with the given token - ignore response
 			return null;
-		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(), response.getSourceContext())) {
+		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
+				response.getSourceContext())) {
 			return exchange;
 		} else {
-			LOGGER.info(
-					"ignoring potentially forged response for token {} with non-matching endpoint context",
+			LOGGER.info("ignoring potentially forged response for token {} with non-matching endpoint context",
 					idByToken);
 			return null;
 		}
@@ -163,32 +172,11 @@ public final class TcpMatcher extends BaseMatcher {
 	private class ExchangeObserverImpl implements ExchangeObserver {
 
 		@Override
-		public void completed(final Exchange exchange) {
-			if (exchange.getOrigin() == Exchange.Origin.LOCAL) {
-				// this endpoint created the Exchange by issuing a request
-				Request originRequest = exchange.getCurrentRequest();
-				if (originRequest.getToken() == null) {
-					// this should not happen because we only register the observer
-					// if we have successfully registered the exchange
-					LOGGER.warn(
-							"exchange observer has been completed on unregistered exchange [peer: {}, origin: LOCAL]",
-							originRequest.getDestinationContext().getPeerAddress());
-				} else {
-					Token idByToken = originRequest.getToken();
-					exchangeStore.remove(idByToken, exchange);
-					LOGGER.debug("Exchange [{}, origin: LOCAL] completed", idByToken);
-				}
-			} else { // Origin.REMOTE
-				// nothing to do
+		public void remove(Exchange exchange, Token token, KeyMID key) {
+			if (token != null) {
+				exchangeStore.remove(token, exchange);
 			}
-		}
-
-		@Override
-		public void contextEstablished(final Exchange exchange) {
-			Request request = exchange.getRequest(); 
-			if (request != null && request.isObserve()) {
-				observationStore.setContext(request.getToken(), exchange.getEndpointContext());
-			}
+			// ignore key, MID is not used for TCP!
 		}
 	}
 }
