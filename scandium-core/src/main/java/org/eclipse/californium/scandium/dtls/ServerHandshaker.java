@@ -41,6 +41,9 @@
  *                                                    Additionally don't send cert types, if
  *                                                    only none cert cipher suites are supported
  *                                                    (similar to PR #468)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -212,7 +215,7 @@ public class ServerHandshaker extends Handshaker {
 
 			if (this.clientAuthenticationRequired) {
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				if (rootCertificates != null && rootCertificates.length > 0) {
+				if (rootCertificates != null) {
 					int index = config.isSendRawKey() ? 1 : 0;
 					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 				}

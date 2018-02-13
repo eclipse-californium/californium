@@ -17,6 +17,10 @@
  *                                                    client & server keys and certificate chains
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    add testServerCertExtPrefersX509WithEmptyTrustStore
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -27,6 +31,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -67,6 +72,14 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
 	}
+	@Test
+	public void testServerCertExtPrefersX509WithEmptyTrustStore() throws Exception {
+
+		givenAClientHandshaker(localPeer, false, true);
+		handshaker.startHandshake();
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
+	}
 
 	/**
 	 * Assert that the <em>CLIENT_HELLO</em> message created by the handshaker
@@ -94,7 +107,7 @@ public class ClientHandshakerTest {
 	@Test
 	public void testClientHelloLacksServerNameExtensionForNonRegisteredPeer() throws Exception {
 
-		givenAClientHandshaker(new InetSocketAddress(InetAddress.getByAddress(new byte[]{10, 0, 0, 1}), 10000), false);
+		givenAClientHandshaker(new InetSocketAddress(InetAddress.getByAddress(new byte[]{10, 0, 0, 1}), 10000), false, false);
 
 		// WHEN a handshake is started with the peer
 		handshaker.startHandshake();
@@ -127,10 +140,10 @@ public class ClientHandshakerTest {
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
-		givenAClientHandshaker(localPeer, configureTrustStore);
+		givenAClientHandshaker(localPeer, configureTrustStore, false);
 	}
 
-	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore) throws Exception {
+	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
 		DtlsConnectorConfig.Builder builder = 
 				new DtlsConnectorConfig.Builder()
 					.setAddress(new InetSocketAddress(InetAddress.getLocalHost(), 0))
@@ -152,6 +165,9 @@ public class ClientHandshakerTest {
 
 		if (configureTrustStore) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
+		}
+		else if (configureEmptyTrustStore) {
+			builder.setTrustStore(new Certificate[0]);
 		}
 
 		handshaker = new ClientHandshaker(
