@@ -32,6 +32,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add certificate types only,
  *                                                    if certificates are used
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -166,7 +169,7 @@ public class ClientHandshaker extends Handshaker {
 
 			// we always support receiving a RawPublicKey from the server
 			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			if (rootCertificates != null && rootCertificates.length > 0) {
+			if (rootCertificates != null) {
 				int index = config.isSendRawKey() ? 1 : 0;
 				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
 			}

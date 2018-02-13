@@ -22,6 +22,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - include trustedRPKs in
  *                                                    determineCipherSuitesFromConfig
  *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -898,9 +901,6 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;
-			}
-			if (config.trustStore == null) {
-				config.trustStore = new X509Certificate[0];
 			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = true;

@@ -35,6 +35,9 @@
  *    Ludwig Seitz (RISE SICS) - Moved certificate validation here from CertificateMessage
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -228,7 +231,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates == null ? new X509Certificate[0] : rootCertificates;
+		this.rootCertificates = rootCertificates;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -983,6 +986,11 @@ public abstract class Handshaker {
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
+
+			if (rootCertificates != null && rootCertificates.length == 0) {
+				// trust empty list of root certificates
+				return;
+			}
 
 			Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
 
