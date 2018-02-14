@@ -59,6 +59,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -136,7 +137,6 @@ public final class UdpMatcher extends BaseMatcher {
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 
-
 		// Insert CON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON) {
@@ -182,17 +182,15 @@ public final class UdpMatcher extends BaseMatcher {
 
 	@Override
 	public Exchange receiveRequest(final Request request) {
-		/*
-		 * This request could be
-		 *  - Complete origin request => deliver with new exchange
-		 *  - One origin block        => deliver with ongoing exchange
-		 *  - Complete duplicate request or one duplicate block (because client got no ACK)
-		 *      =>
-		 * 		if ACK got lost => resend ACK
-		 * 		if ACK+response got lost => resend ACK+response
-		 * 		if nothing has been sent yet => do nothing
-		 * (Retransmission is supposed to be done by the retransm. layer)
-		 */
+		// This request could be
+		//  - Complete origin request => deliver with new exchange
+		//  - One origin block        => deliver with ongoing exchange
+		//  - Complete duplicate request or one duplicate block (because client got no ACK)
+		//      =>
+		//      if ACK got lost => resend ACK
+		//      if ACK+response got lost => resend ACK+response
+		//      if nothing has been sent yet => do nothing
+		// (Retransmission is supposed to be done by the retransm. layer)
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(request);
 
@@ -212,10 +210,10 @@ public final class UdpMatcher extends BaseMatcher {
 	@Override
 	public Exchange receiveResponse(final Response response) {
 
-		/*
-		 * This response could be - The first CON/NCON/ACK+response => deliver -
-		 * Retransmitted CON (because client got no ACK) => resend ACK
-		 */
+		// This response could be
+		// - The first CON/NCON/ACK+response => deliver
+		// - Retransmitted CON (because client got no ACK)
+		//      => resend ACK
 
 		final Token idByToken = response.getToken();
 		LOGGER.trace("received response {}", response);
@@ -250,10 +248,11 @@ public final class UdpMatcher extends BaseMatcher {
 		} else if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 				response.getSourceContext())) {
 			Request currentRequest = exchange.getCurrentRequest();
-			if (response.getType() == Type.ACK && currentRequest.getMID() != response.getMID()) {
+			int requestMid = currentRequest.getMID();
+			if (response.getType() == Type.ACK && requestMid != response.getMID()) {
 				// The token matches but not the MID.
-				LOGGER.warn("possible MID reuse before lifetime end for token [{}], expected MID {} but received {}",
-						response.getTokenString(), currentRequest.getMID(), response.getMID());
+				LOGGER.warn("possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
+						response.getTokenString(), requestMid, response.getMID());
 				// when nested blockwise request/responses occurs (e.g. caused
 				// by retransmission), a old response may stop the
 				// retransmission of the current blockwise request. This seems
@@ -274,12 +273,16 @@ public final class UdpMatcher extends BaseMatcher {
 					&& exchangeStore.findPrevious(idByMID, exchange) != null) {
 				LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
 				response.setDuplicate(true);
-			} else if (!exchange.isNotification()) {
+			} else if (response.getType() == Type.ACK || !response.isNotification()) {
 				// we have received the expected response
 				// for the original request
-				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
-				if (exchangeStore.remove(idByMID, exchange) != null) {
-					LOGGER.debug("closed open request [{}]", idByMID);
+				if (requestMid == Message.NONE) {
+					LOGGER.trace("current request changed {}", currentRequest);
+				} else {
+					idByMID = KeyMID.fromOutboundMessage(currentRequest);
+					if (exchangeStore.remove(idByMID, exchange) != null) {
+						LOGGER.debug("closed open request [{}]", idByMID);
+					}
 				}
 			}
 
