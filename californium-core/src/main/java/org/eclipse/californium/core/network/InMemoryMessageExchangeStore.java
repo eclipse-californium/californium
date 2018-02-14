@@ -438,13 +438,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Request current = exchange.getCurrentRequest();
 			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
 			if (origin != current && !origin.getToken().equals(current.getToken())) {
-				HEALTH_LOGGER.info("  {}, complete {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, origin.getToken(),
+				HEALTH_LOGGER.info("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
+						exchange, exchange.getFailedTransmissionCount(), pending, origin.getToken(),
 						current, exchange.getCurrentResponse());
 			} else {
-				String mark = origin == null ? "-" : "+";
-				HEALTH_LOGGER.info("  {}, complete {}, retransmission {}{}, {} {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, mark, current,
+				String mark = origin == null ? "(missing origin request) " : "";
+				HEALTH_LOGGER.info("  {}, {}, retransmission {}{}, {}{}, {}", exchangeEntry.getKey(),
+						exchange, exchange.getFailedTransmissionCount(), pending, mark, current,
 						exchange.getCurrentResponse());
 			}
 			if (HEALTH_LOGGER.isDebugEnabled()) {
