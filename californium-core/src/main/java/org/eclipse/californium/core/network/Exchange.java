@@ -118,7 +118,8 @@ import org.slf4j.LoggerFactory;
 public class Exchange {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Exchange.class.getName());
-	private static final boolean DEBUG = true;
+	
+	static final boolean DEBUG = true;
 
 	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
 	/**

@@ -46,7 +46,11 @@ public abstract class StripedExchangeJob implements StripedRunnable {
 	 */
 	public StripedExchangeJob(Exchange exchange) {
 		this.exchange = exchange;
-		this.caller = new Throwable(exchange + " stripe caller");
+		if (Exchange.DEBUG) {
+			this.caller = new Throwable(exchange + " stripe caller");
+		} else {
+			this.caller = null;
+		}
 	}
 
 	@Override
@@ -64,7 +68,9 @@ public abstract class StripedExchangeJob implements StripedRunnable {
 			if (t.getCause() != null) {
 				LOGGER.error("   Cause:", t.getCause());
 			}
-			LOGGER.error("   Caller:", caller);
+			if (caller != null) {
+				LOGGER.error("   Caller:", caller);
+			}
 		} finally {
 			exchange.clearOwner();
 		}
