@@ -26,6 +26,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocol,
  *                                                    remove scheme
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging on shutdown
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -71,7 +72,6 @@ public class UDPConnector implements Connector {
 
 	private final InetSocketAddress localAddr;
 
-
 	private List<Thread> receiverThreads;
 	private List<Thread> senderThreads;
 
@@ -97,8 +97,8 @@ public class UDPConnector implements Connector {
 	private int receiverPacketSize = 2048;
 
 	/**
-	 * Creates a connector on the wildcard address listening on an
-	 * ephemeral port, i.e. a port chosen by the system.
+	 * Creates a connector on the wildcard address listening on an ephemeral
+	 * port, i.e. a port chosen by the system.
 	 * 
 	 * The effect of this constructor is the same as invoking
 	 * <code>UDPConnector(null)</code>.
@@ -109,9 +109,10 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * Creates a connector bound to a given IP address and port.
-	 *  
-	 * @param address the IP address and port, if <code>null</code>
-	 * the connector is bound to an ephemeral port on the wildcard address
+	 * 
+	 * @param address the IP address and port, if <code>null</code> the
+	 *            connector is bound to an ephemeral port on the wildcard
+	 *            address
 	 */
 	public UDPConnector(InetSocketAddress address) {
 		if (address == null) {
@@ -121,7 +122,7 @@ public class UDPConnector implements Connector {
 		}
 		this.running = false;
 
-		//TODO: think about restricting the outbound queue's capacity
+		// TODO: think about restricting the outbound queue's capacity
 		this.outgoing = new LinkedBlockingQueue<RawData>();
 	}
 
@@ -149,22 +150,22 @@ public class UDPConnector implements Connector {
 
 		// start receiver and sender threads
 		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads",
-				new Object[]{senderCount, receiverCount});
+				new Object[] { senderCount, receiverCount });
 
 		receiverThreads = new LinkedList<Thread>();
-		for (int i=0;i<receiverCount;i++) {
-			receiverThreads.add(new Receiver("UDP-Receiver-"+localAddr+"["+i+"]"));
+		for (int i = 0; i < receiverCount; i++) {
+			receiverThreads.add(new Receiver("UDP-Receiver-" + localAddr + "[" + i + "]"));
 		}
 
 		senderThreads = new LinkedList<Thread>();
-		for (int i=0;i<senderCount;i++) {
-			senderThreads.add(new Sender("UDP-Sender-"+localAddr+"["+i+"]"));
+		for (int i = 0; i < senderCount; i++) {
+			senderThreads.add(new Sender("UDP-Sender-" + localAddr + "[" + i + "]"));
 		}
 
-		for (Thread t:receiverThreads) {
+		for (Thread t : receiverThreads) {
 			t.start();
 		}
-		for (Thread t:senderThreads) {
+		for (Thread t : senderThreads) {
 			t.start();
 		}
 
@@ -174,12 +175,11 @@ public class UDPConnector implements Connector {
 		 * called up there, it seems to work. This issue occurred in Java
 		 * 1.7.0_09, Windows 7.
 		 */
-		
+
 		if (LOGGER.isInfoEnabled()) {
-			String startupMsg = new StringBuilder("UDPConnector listening on ")
-				.append(socket.getLocalSocketAddress()).append(", recv buf = ")
-				.append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
-				.append(", recv packet size = ").append(receiverPacketSize).toString();
+			String startupMsg = new StringBuilder("UDPConnector listening on ").append(socket.getLocalSocketAddress())
+					.append(", recv buf = ").append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
+					.append(", recv packet size = ").append(receiverPacketSize).toString();
 			LOGGER.info(startupMsg);
 		}
 	}
@@ -206,7 +206,7 @@ public class UDPConnector implements Connector {
 			receiverThreads = null;
 		}
 		outgoing.clear();
-		
+
 		String address = localAddr.toString();
 		if (socket != null) {
 			address = socket.getLocalSocketAddress().toString();
@@ -241,8 +241,10 @@ public class UDPConnector implements Connector {
 	}
 
 	public InetSocketAddress getAddress() {
-		if (socket == null) return localAddr;
-		else return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		if (socket == null)
+			return localAddr;
+		else
+			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 	}
 
 	private abstract class NetworkStageThread extends Thread {
@@ -259,20 +261,23 @@ public class UDPConnector implements Connector {
 
 		public void run() {
 			LOGGER.debug("Starting network stage thread [{}]", getName());
-			while (true) {
+			while (running) {
 				try {
 					work();
 					if (!running) {
 						LOGGER.debug("Network stage thread [{}] was stopped successfully", getName());
 						break;
 					}
-				} catch (Throwable t) {
+				} catch (InterruptedException t) {
+					LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
+				} catch (IOException t) {
 					if (running) {
 						LOGGER.error("Exception in network stage thread [{}]:", getName(), t);
 					} else {
-						LOGGER.debug("Network stage thread [{}] was stopped successfully at:", getName(), t);
-						break;
+						LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
 					}
+				} catch (Throwable t) {
+					LOGGER.error("Exception in network stage thread [{}]:", getName(), t);
 				}
 			}
 		}
@@ -282,32 +287,38 @@ public class UDPConnector implements Connector {
 		 */
 		protected abstract void work() throws Exception;
 	}
-	
+
 	private class Receiver extends NetworkStageThread {
-		
+
 		private DatagramPacket datagram;
 		private int size;
-		
+
 		private Receiver(String name) {
 			super(name);
 			this.size = receiverPacketSize;
 			this.datagram = new DatagramPacket(new byte[size], size);
 		}
-		
+
 		protected void work() throws IOException {
 			datagram.setLength(size);
-			socket.receive(datagram);
-			LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}",
-					new Object[]{socket.getLocalSocketAddress(), datagram.getLength(),
-						datagram.getAddress(), datagram.getPort()});
-			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-			RawData msg = RawData.inbound(bytes, new AddressEndpointContext(datagram.getAddress(), datagram.getPort()), false);
+			DatagramSocket socket;
+			synchronized (this) {
+				socket = UDPConnector.this.socket;
+			}
+			if (socket != null) {
+				socket.receive(datagram);
+				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", socket.getLocalSocketAddress(),
+						datagram.getLength(), datagram.getAddress(), datagram.getPort());
+				byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
+				RawData msg = RawData.inbound(bytes,
+						new AddressEndpointContext(datagram.getAddress(), datagram.getPort()), false);
 
-			receiver.receiveData(msg);
+				receiver.receiveData(msg);
+			}
 		}
-		
+
 	}
-	
+
 	private class Sender extends NetworkStageThread {
 
 		private DatagramPacket datagram;
@@ -319,28 +330,36 @@ public class UDPConnector implements Connector {
 
 		protected void work() throws InterruptedException {
 			RawData raw = outgoing.take(); // Blocking
-			try {
-				/*
-				 * check, if message should be sent with the
-				 * "none endpoint context" of UDP connector
-				 */
-				EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
-				if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
-					LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}",
-							new Object[] { socket.getLocalSocketAddress(), datagram.getLength(),
-									datagram.getAddress(), datagram.getPort() });
-					raw.onError(new EndpointMismatchException());
-					return;
+			/*
+			 * check, if message should be sent with the "none endpoint context"
+			 * of UDP connector
+			 */
+			EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
+			if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
+				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", socket.getLocalSocketAddress(),
+						datagram.getLength(), datagram.getAddress(), datagram.getPort());
+				raw.onError(new EndpointMismatchException());
+				return;
+			}
+			datagram.setData(raw.getBytes());
+			datagram.setAddress(raw.getAddress());
+			datagram.setPort(raw.getPort());
+
+			DatagramSocket socket;
+			synchronized (this) {
+				socket = UDPConnector.this.socket;
+			}
+			if (socket != null) {
+				try {
+					socket.send(datagram);
+					raw.onSent();
+				} catch (IOException ex) {
+					raw.onError(ex);
 				}
-				datagram.setData(raw.getBytes());
-				datagram.setAddress(raw.getAddress());
-				datagram.setPort(raw.getPort());
-				LOGGER.debug("UDPConnector ({}) sends {} bytes to {}:{}",
-						new Object[] { this, datagram.getLength(), datagram.getAddress(), datagram.getPort() });
-				socket.send(datagram);
-				raw.onSent();
-			} catch (IOException ex) {
-				raw.onError(ex);
+				LOGGER.debug("UDPConnector ({}) sent {} bytes to {}:{}", this, datagram.getLength(),
+						datagram.getAddress(), datagram.getPort());
+			} else {
+				raw.onError(new IOException("socket already closed!"));
 			}
 		}
 	}
