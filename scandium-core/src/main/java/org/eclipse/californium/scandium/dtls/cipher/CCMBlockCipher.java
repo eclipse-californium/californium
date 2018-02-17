@@ -17,6 +17,7 @@
  *            of HandshakeException to indicate problems with en-/decryption
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesigned implementation
  *                                                    to improve performance
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use NoPadding for android support
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -46,7 +47,11 @@ public class CCMBlockCipher {
 	/**
 	 * The underlying block cipher.
 	 */
-	private static final String BLOCK_CIPHER = "AES";
+	private static final String CIPHER_NAME = "AES/ECB/NoPadding";
+	/**
+	 * Key type for cipher.
+	 */
+	private static final String KEY_TYPE = "AES";
 
 	private static abstract class Block {
 
@@ -302,8 +307,8 @@ public class CCMBlockCipher {
 		 */
 
 		// instantiate the underlying block cipher
-		Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
+		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
 
 		int lengthM = c.length - numAuthenticationBytes;
 		int blockSize = cipher.getBlockSize();
@@ -370,8 +375,8 @@ public class CCMBlockCipher {
 			throws GeneralSecurityException {
 
 		// instantiate the cipher
-		Cipher cipher = Cipher.getInstance(BLOCK_CIPHER);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, BLOCK_CIPHER));
+		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
 		int blockSize = cipher.getBlockSize();
 		int lengthM = m.length;
 
