@@ -13,7 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.elements.auth;
 
 import java.io.ByteArrayInputStream;
 import java.security.Principal;
