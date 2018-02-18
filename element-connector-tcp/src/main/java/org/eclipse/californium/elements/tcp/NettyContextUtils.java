@@ -20,8 +20,11 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
+import java.io.ByteArrayInputStream;
 import java.net.InetSocketAddress;
 import java.security.Principal;
+import java.util.List;
+import java.util.LinkedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
@@ -58,17 +62,16 @@ public class NettyContextUtils {
 			SSLEngine sslEngine = sslHandler.engine();
 			SSLSession sslSession = sslEngine.getSession();
 			if (sslSession != null) {
-				Principal principal = null;
-				try {
-					principal = sslSession.getPeerPrincipal();
-					if (principal == null) {
-						LOGGER.warn("Principal missing");
-					} else {
-						LOGGER.debug("Principal {}", principal.getName());
-					}
-				} catch (SSLPeerUnverifiedException e) {
-					LOGGER.warn("Principal {}", e.getMessage());
-					/* ignore it */
+				Principal principal = getX509CertPath(sslSession);
+				if (principal == null) {
+					// no cert path
+					principal = getX500Principal(sslSession);
+				}
+
+				if (principal == null) {
+					LOGGER.warn("Principal missing");
+				} else {
+					LOGGER.debug("Principal {}", principal.getName());
 				}
 
 				byte[] sessionId = sslSession.getId();
@@ -86,5 +89,46 @@ public class NettyContextUtils {
 
 		LOGGER.debug("TCP({})", id);
 		return new TcpEndpointContext(address, id);
+	}
+
+	private static Principal getX500Principal(SSLSession sslSession) {
+		try {
+			return sslSession.getPeerPrincipal();
+		} catch (SSLPeerUnverifiedException e) {
+			/* ignore it */
+			return null;
+		}
+	}
+
+	private static X509CertPath getX509CertPath(SSLSession sslSession) {
+		try {
+			javax.security.cert.X509Certificate[] peerCertificateChain = sslSession.getPeerCertificateChain();
+			if (peerCertificateChain != null && peerCertificateChain.length != 0) {
+				java.security.cert.CertPath javaCertPath = toJavaCertPath(peerCertificateChain);
+				return new X509CertPath(javaCertPath);
+			}
+		} catch (Exception e) {
+			/* ignore it */
+		}
+
+		return null;
+	}
+
+	private static java.security.cert.CertPath toJavaCertPath(javax.security.cert.X509Certificate[] javaxCertificatePath) throws Exception {
+		List<java.security.cert.Certificate> javaCertificatePath = new LinkedList<>();
+		for (javax.security.cert.X509Certificate javaxCertificate : javaxCertificatePath) {
+			java.security.cert.Certificate javaCertificate = toJavaCertificate(javaxCertificate);
+			javaCertificatePath.add(javaCertificate);
+		}
+
+		java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
+		return cf.generateCertPath(javaCertificatePath);
+	}
+
+	private static java.security.cert.Certificate toJavaCertificate(javax.security.cert.X509Certificate javaxCertificate) throws Exception {
+		byte[] encoded = javaxCertificate.getEncoded();
+		ByteArrayInputStream bis = new ByteArrayInputStream(encoded);
+		java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
+		return cf.generateCertificate(bis);
 	}
 }
