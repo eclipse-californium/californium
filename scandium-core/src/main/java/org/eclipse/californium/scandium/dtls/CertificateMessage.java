@@ -42,8 +42,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.security.auth.x500.X500Principal;
-
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -166,28 +165,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *                                  the certificates do not form a chain.
 	 */
 	private void setCertificateChain(final X509Certificate[] chain) {
-		List<X509Certificate> certificates = new ArrayList<>();
-		X500Principal issuer = null;
-		try {
-			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-			for (X509Certificate cert : chain) {
-				LOGGER.debug("Current Subject DN: {}", cert.getSubjectX500Principal().getName());
-				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-					LOGGER.debug("Actual Issuer DN: {}", cert.getSubjectX500Principal().getName());
-					throw new IllegalArgumentException("Given certificates do not form a chain");
-				}
-				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
-					// not a self-signed certificate
-					certificates.add(cert);
-					issuer = cert.getIssuerX500Principal();
-					LOGGER.debug("Expected Issuer DN: {}", issuer.getName());
-				}
-			}
-			this.certPath = factory.generateCertPath(certificates);
-		} catch (CertificateException e) {
-			// should not happen because all Java 7 implementation MUST support X.509 certificates
-			LOGGER.error("could not create X.509 certificate factory", e);
-		}
+		this.certPath = X509CertPath.generateCertPath(chain);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
