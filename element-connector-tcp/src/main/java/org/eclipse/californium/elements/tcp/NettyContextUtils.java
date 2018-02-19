@@ -20,11 +20,9 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
-import java.io.ByteArrayInputStream;
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.List;
-import java.util.LinkedList;
+import java.security.cert.Certificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,14 +60,36 @@ public class NettyContextUtils {
 			SSLEngine sslEngine = sslHandler.engine();
 			SSLSession sslSession = sslEngine.getSession();
 			if (sslSession != null) {
-				Principal principal = getX509CertPath(sslSession);
-				if (principal == null) {
-					// no cert path
-					principal = getX500Principal(sslSession);
+				boolean checkKerberos = false;
+				Principal principal = null;
+				try {
+					Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
+					if (peerCertificateChain != null && peerCertificateChain.length != 0) {
+						principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
+					} else {
+						// maybe kerberos is used and therefore
+						// getPeerCertificates fails
+						checkKerberos = true;
+					}
+				} catch (SSLPeerUnverifiedException e1) {
+					// maybe kerberos is used and therefore
+					// getPeerCertificates fails
+					checkKerberos = true;
+				} catch (RuntimeException e) {
+					LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
+				}
+
+				if (checkKerberos) {
+					try {
+						principal = sslSession.getPeerPrincipal();
+					} catch (SSLPeerUnverifiedException e2) {
+						// still unverified, so also no kerberos
+						LOGGER.warn("TLS({}) failed to verify principal {}", id, e2.getMessage());
+					}
 				}
 
 				if (principal == null) {
-					LOGGER.warn("Principal missing");
+					LOGGER.debug("Principal missing");
 				} else {
 					LOGGER.debug("Principal {}", principal.getName());
 				}
@@ -78,8 +98,7 @@ public class NettyContextUtils {
 				if (sessionId != null && sessionId.length > 0) {
 					String sslId = StringUtil.byteArray2HexString(sessionId, 0);
 					String cipherSuite = sslSession.getCipherSuite();
-					LOGGER.debug("TLS({},{},{})",
-							new Object[] { id, StringUtil.trunc(sslId, 14), cipherSuite });
+					LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
 					return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
 				}
 			}
@@ -89,46 +108,5 @@ public class NettyContextUtils {
 
 		LOGGER.debug("TCP({})", id);
 		return new TcpEndpointContext(address, id);
-	}
-
-	private static Principal getX500Principal(SSLSession sslSession) {
-		try {
-			return sslSession.getPeerPrincipal();
-		} catch (SSLPeerUnverifiedException e) {
-			/* ignore it */
-			return null;
-		}
-	}
-
-	private static X509CertPath getX509CertPath(SSLSession sslSession) {
-		try {
-			javax.security.cert.X509Certificate[] peerCertificateChain = sslSession.getPeerCertificateChain();
-			if (peerCertificateChain != null && peerCertificateChain.length != 0) {
-				java.security.cert.CertPath javaCertPath = toJavaCertPath(peerCertificateChain);
-				return new X509CertPath(javaCertPath);
-			}
-		} catch (Exception e) {
-			/* ignore it */
-		}
-
-		return null;
-	}
-
-	private static java.security.cert.CertPath toJavaCertPath(javax.security.cert.X509Certificate[] javaxCertificatePath) throws Exception {
-		List<java.security.cert.Certificate> javaCertificatePath = new LinkedList<>();
-		for (javax.security.cert.X509Certificate javaxCertificate : javaxCertificatePath) {
-			java.security.cert.Certificate javaCertificate = toJavaCertificate(javaxCertificate);
-			javaCertificatePath.add(javaCertificate);
-		}
-
-		java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-		return cf.generateCertPath(javaCertificatePath);
-	}
-
-	private static java.security.cert.Certificate toJavaCertificate(javax.security.cert.X509Certificate javaxCertificate) throws Exception {
-		byte[] encoded = javaxCertificate.getEncoded();
-		ByteArrayInputStream bis = new ByteArrayInputStream(encoded);
-		java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-		return cf.generateCertificate(bis);
 	}
 }
