@@ -71,6 +71,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
  *    Achim Kraus (Bosch Software Innovations GmbH) - change receiver thread to
  *                                                    daemon
+ *    Achim Kraus (Bosch Software Innovations GmbH) - response with alert, if 
+ *                                                    connection store is exhausted.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -99,7 +101,6 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
-import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -601,7 +602,7 @@ public class DTLSConnector implements Connector {
 				LOGGER.trace("Aborting handshake with peer [{}]:", peerAddress, cause);
 			} else if (LOGGER.isInfoEnabled()) {
 				LOGGER.info("Aborting handshake with peer [{}]: {}",
-					new Object[]{peerAddress, cause.getMessage()});
+					peerAddress, cause.getMessage());
 			}
 			Handshaker handshaker = connection.getOngoingHandshake();
 			DTLSSession session = handshaker.getSession();
@@ -1077,7 +1078,11 @@ public class DTLSConnector implements Connector {
 	 */
 	private void startNewHandshake(final ClientHello clientHello, final Record record) throws HandshakeException {
 		Connection peerConnection = new Connection(record.getPeerAddress(), config.getAutoResumptionTimeoutMillis());
-		connectionStore.put(peerConnection);
+		if (!connectionStore.put(peerConnection)) {
+			terminateOngoingHandshake(record.getPeerAddress(), new IllegalStateException("connection store exhausted!"),
+					AlertDescription.INTERNAL_ERROR);
+			return;
+		}
 
 		// use the record sequence number from CLIENT_HELLO as initial sequence number
 		// for records sent to the client (see section 4.2.1 of RFC 6347 (DTLS 1.2))
