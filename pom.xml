@@ -280,9 +280,9 @@
 								<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							</manifest>
 						</archive>
-						<descriptorRefs>
-							<descriptorRef>jar-with-dependencies</descriptorRef>
-						</descriptorRefs>
+						<descriptors>
+							<descriptor>enhanced-jar-with-dependencies.xml</descriptor>
+						</descriptors>
 					</configuration>
 					<executions>
 						<execution>
