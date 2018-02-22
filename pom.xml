@@ -273,6 +273,7 @@
 					<inherited>true</inherited>
 					<configuration>
 						<appendAssemblyId>false</appendAssemblyId>
+						<attach>false</attach>
 						<archive>
 							<manifest>
 								<mainClass>${assembly.mainClass}</mainClass>
