@@ -790,7 +790,7 @@ public class ServerHandshaker extends Handshaker {
 					negotiatedClientCertificateType = supportedClientCertType;
 					negotiatedSupportedGroup = group;
 					session.setCipherSuite(cipherSuite);
-					addServerHelloExtensions(cipherSuite, serverHelloExtensions);
+					addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
 					LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]",
 							new Object[]{cipherSuite.name(), getPeerAddress()});
 					return;
@@ -819,24 +819,30 @@ public class ServerHandshaker extends Handshaker {
 		return result;
 	}
 
-	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final HelloExtensions extensions) {
+	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final ClientHello clientHello, final HelloExtensions extensions) {
 		if (negotiatedClientCertificateType != null) {
 			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
-			ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(false);
-			ext.addCertificateType(negotiatedClientCertificateType);
-			extensions.addExtension(ext);
+			if (clientHello.getClientCertificateTypeExtension() != null) {
+				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(false);
+				ext.addCertificateType(negotiatedClientCertificateType);
+				extensions.addExtension(ext);
+			}
 		}
 		if (negotiatedServerCertificateType != null) {
 			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
-			ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(false);
-			ext.addCertificateType(negotiatedServerCertificateType);
-			extensions.addExtension(ext);
+			if (clientHello.getServerCertificateTypeExtension() != null) {
+				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(false);
+				ext.addCertificateType(negotiatedServerCertificateType);
+				extensions.addExtension(ext);
+			}
 		}
 		if (negotiatedCipherSuite.isEccBased()) {
-			// if we chose a ECC cipher suite, the server should send the
-			// supported point formats extension in its ServerHello
-			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-			extensions.addExtension(new SupportedPointFormatsExtension(formats));
+			if (clientHello.getSupportedPointFormatsExtension() != null) {
+				// if we chose a ECC cipher suite, the server should send the
+				// supported point formats extension in its ServerHello
+				List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
+				extensions.addExtension(new SupportedPointFormatsExtension(formats));
+			}
 		}
 	}
 
