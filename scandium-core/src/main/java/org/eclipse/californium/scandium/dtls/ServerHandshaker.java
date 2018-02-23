@@ -35,6 +35,12 @@
  *                                                    supportedClientCertificateTypes
  *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix issue #560
+ *                                                    If client auth is not required, don't sent
+ *                                                    client cert types in SERVER_HELLO
+ *                                                    Additionally don't send cert types, if
+ *                                                    only none cert cipher suites are supported
+ *                                                    (similar to PR #468)
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -198,22 +204,30 @@ public class ServerHandshaker extends Handshaker {
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
-		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		if (rootCertificates != null && rootCertificates.length > 0) {
-			int index = config.isSendRawKey() ? 1 : 0;
-			this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
-		}
-
 		this.supportedServerCertificateTypes = new ArrayList<>();
-		if (privateKey != null && publicKey != null) {
-			if (certificateChain == null || certificateChain.length == 0) {
-				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			} else if (config.isSendRawKey()) {
-				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				this.supportedServerCertificateTypes.add(CertificateType.X_509);
-			} else {
-				this.supportedServerCertificateTypes.add(CertificateType.X_509);
-				this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+		
+		// we only need to include certificate_type extensions in the SERVER_HELLO
+		// if we support a cipher suite that requires a certificate exchange
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
+
+			if (this.clientAuthenticationRequired) {
+				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				if (rootCertificates != null && rootCertificates.length > 0) {
+					int index = config.isSendRawKey() ? 1 : 0;
+					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
+				}
+			}
+
+			if (privateKey != null && publicKey != null) {
+				if (certificateChain == null || certificateChain.length == 0) {
+					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				} else if (config.isSendRawKey()) {
+					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+					this.supportedServerCertificateTypes.add(CertificateType.X_509);
+				} else {
+					this.supportedServerCertificateTypes.add(CertificateType.X_509);
+					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+				}
 			}
 		}
 	}
