@@ -353,6 +353,19 @@
 				<artifactId>maven-enforcer-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>3.0.5</version>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<!-- Make sure that only non-snapshot versions are used for the dependencies. 
 							Only active when property 'snapshotDependencyAllowed' is false. -->
 						<id>enforce-no-snapshots</id>
