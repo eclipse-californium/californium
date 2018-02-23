@@ -91,11 +91,14 @@
 			</plugin>
 		</plugins>
 	</build>
+
 	<dependencies>
+	    <!-- All demos depends of logging framework -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
+		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>

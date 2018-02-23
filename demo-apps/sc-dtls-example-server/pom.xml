@@ -23,13 +23,12 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
-			<version>${project.version}</version>
-			<type>jar</type>
 		</dependency>
+		
+		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<version>${project.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>

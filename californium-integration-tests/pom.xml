@@ -19,33 +19,37 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
-			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
-			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<scope>runtime</scope>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -71,7 +75,6 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
-					<version>${project.version}</version>
 					<classifier>tests</classifier>
 					<scope>test</scope>
 					<type>test-jar</type>
@@ -79,7 +82,6 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>cf-nat</artifactId>
-					<version>${project.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>
