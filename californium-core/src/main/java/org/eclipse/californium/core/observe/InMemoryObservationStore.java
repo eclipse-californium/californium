@@ -50,7 +50,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 	public InMemoryObservationStore(NetworkConfig config) {
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isInfoEnabled()) {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			ScheduledExecutorService scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("ObservationStore"));
 			scheduler.scheduleAtFixedRate(new Runnable() {
@@ -58,11 +58,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 				@Override
 				public void run() {
 					if (enableStatus) {
-						HEALTH_LOGGER.info("{} observes", map.size());
+						HEALTH_LOGGER.debug("{} observes", map.size());
 						Iterator<Token> iterator = map.keySet().iterator();
 						int max = 5;
 						while (iterator.hasNext()) {
-							HEALTH_LOGGER.info("   observe {}", iterator.next());
+							HEALTH_LOGGER.debug("   observe {}", iterator.next());
 							--max;
 							if (max == 0) {
 								break;
