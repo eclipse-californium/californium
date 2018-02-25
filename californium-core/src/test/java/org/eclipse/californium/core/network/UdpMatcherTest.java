@@ -180,7 +180,7 @@ public class UdpMatcherTest {
 		// THEN the request has no MID and token assigned and the exchange has not observer registered
 		assertThat(request.getToken(), is(nullValue()));
 		assertFalse(request.hasMID());
-		assertFalse(exchange.hasObserver());
+		assertFalse(exchange.hasRemoveHandler());
 	}
 
 	private UdpMatcher newUdpMatcher() {

@@ -69,7 +69,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 public final class TcpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class.getName());
-	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
+	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
@@ -104,7 +104,7 @@ public final class TcpMatcher extends BaseMatcher {
 		if (request.isObserve()) {
 			registerObserve(request);
 		}
-		exchange.setObserver(exchangeObserver);
+		exchange.setRemoveHandler(exchangeRemoveHandler);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
 		LOGGER.debug("tracking open request using {}", request.getTokenString());
 	}
@@ -134,7 +134,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public Exchange receiveRequest(Request request) {
 
 		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
-		exchange.setObserver(exchangeObserver);
+		exchange.setRemoveHandler(exchangeRemoveHandler);
 		return exchange;
 	}
 
@@ -169,7 +169,7 @@ public final class TcpMatcher extends BaseMatcher {
 		return null;
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class RemoveHandlerImpl implements RemoveHandler {
 
 		@Override
 		public void remove(Exchange exchange, Token token, KeyMID key) {

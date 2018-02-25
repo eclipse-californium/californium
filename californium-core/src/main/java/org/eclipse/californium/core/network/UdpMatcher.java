@@ -78,7 +78,7 @@ public final class UdpMatcher extends BaseMatcher {
 	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class.getName());
 
 	// TODO: Multicast Exchanges: should not be removed from deduplicator
-	private final ExchangeObserver exchangeObserver = new ExchangeObserverImpl();
+	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
@@ -117,7 +117,7 @@ public final class UdpMatcher extends BaseMatcher {
 		try {
 			if (exchangeStore.registerOutboundRequest(exchange)) {
 
-				exchange.setObserver(exchangeObserver);
+				exchange.setRemoveHandler(exchangeRemoveHandler);
 
 				LOGGER.debug("tracking open request [MID: {}, Token: {}]", request.getMID(), request.getToken());
 			} else {
@@ -197,7 +197,7 @@ public final class UdpMatcher extends BaseMatcher {
 		Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
 		Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 		if (previous == null) {
-			exchange.setObserver(exchangeObserver);
+			exchange.setRemoveHandler(exchangeRemoveHandler);
 			return exchange;
 
 		} else {
@@ -319,7 +319,7 @@ public final class UdpMatcher extends BaseMatcher {
 		return null;
 	}
 
-	private class ExchangeObserverImpl implements ExchangeObserver {
+	private class RemoveHandlerImpl implements RemoveHandler {
 
 		@Override
 		public void remove(Exchange exchange, Token token, KeyMID key) {

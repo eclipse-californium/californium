@@ -24,6 +24,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign into RemoveHandler
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -31,10 +32,10 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
- * The exchange observer can be added to an {@link Exchange} and will be invoked
+ * The remove handler can be set to an {@link Exchange} and will be invoked
  * for release the exchange from the exchange store.
  */
-public interface ExchangeObserver {
+public interface RemoveHandler {
 
 	/**
 	 * Remove exchange from store.

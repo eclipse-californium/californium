@@ -175,8 +175,8 @@ public class Exchange {
 	 */
 	private volatile Endpoint endpoint;
 
-	/** An observer to be called when a request is complete */
-	private volatile ExchangeObserver observer;
+	/** An remove handler to be called when a exchange must be removed from the exchange store */
+	private volatile RemoveHandler removeHandler;
 
 	/** Indicates if the exchange is complete */
 	private final AtomicBoolean complete = new AtomicBoolean();
@@ -467,7 +467,7 @@ public class Exchange {
 			}
 			if (token != null || key != null) {
 				LOGGER.info("{} replace {} by {}", this, previousCurrentRequest, newCurrentRequest);
-				ExchangeObserver obs = this.observer;
+				RemoveHandler obs = this.removeHandler;
 				if (obs != null) {
 					obs.remove(this, token, key);
 				}
@@ -523,10 +523,10 @@ public class Exchange {
 		Response previous = this.currentResponse.getAndSet(currentResponse);
 		if (previous != null && previous != currentResponse) {
 			if (previous.getType() == Type.CON && previous.hasMID()) {
-				ExchangeObserver obs = this.observer;
-				if (obs != null) {
+				RemoveHandler handler = this.removeHandler;
+				if (handler != null) {
 					KeyMID key = KeyMID.fromOutboundMessage(previous);
-					obs.remove(this, null, key);
+					handler.remove(this, null, key);
 				}
 			}
 		}
@@ -742,22 +742,22 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets an observer to be invoked when this exchange completes.
+	 * Sets an remove handler to be invoked when this exchange completes.
 	 * 
-	 * @param observer The observer.
+	 * @param removeHandler The remove handler.
 	 */
-	public void setObserver(ExchangeObserver observer) {
-		this.observer = observer;
+	public void setRemoveHandler(RemoveHandler removeHandler) {
+		this.removeHandler = removeHandler;
 	}
 
 	/**
-	 * Checks whether this exchange has an observer registered.
+	 * Checks whether this exchange has an remove handler set.
 	 * 
-	 * @return {@code true} if an observer is registered.
-	 * @see #setObserver(ExchangeObserver)
+	 * @return {@code true} if an remove handler is set.
+	 * @see #setRemoveHandler(RemoveHandler)
 	 */
-	public boolean hasObserver() {
-		return observer != null;
+	public boolean hasRemoveHandler() {
+		return removeHandler != null;
 	}
 
 	/**
@@ -781,7 +781,7 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange)
+	 * This method invokes the {@linkplain RemoveHandler#completed(Exchange)
 	 * completed} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
@@ -809,14 +809,14 @@ public class Exchange {
 				LOGGER.debug("{}!", this);
 			}
 			setRetransmissionHandle(null);
-			ExchangeObserver obs = this.observer;
-			if (obs != null) {
+			RemoveHandler handler = this.removeHandler;
+			if (handler != null) {
 				if (origin == Origin.LOCAL) {
 					Request currrentRequest = getCurrentRequest();
 					Token token = currrentRequest.getToken();
 					KeyMID key = currrentRequest.hasMID() ? KeyMID.fromOutboundMessage(currrentRequest) : null;
 					if (token != null || key != null) {
-						obs.remove(this, token, key);
+						handler.remove(this, token, key);
 					}
 					Request request = getRequest();
 					if (keepRequestInStore) {
@@ -824,7 +824,7 @@ public class Exchange {
 							token = request.getToken();
 							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
 							if (token != null || key != null) {
-								obs.remove(this, token, key);
+								handler.remove(this, token, key);
 							}
 						}
 					}
@@ -840,7 +840,7 @@ public class Exchange {
 					} else {
 						if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
 							KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-							obs.remove(this, null, key);
+							handler.remove(this, null, key);
 						}
 						removeNotifications();
 						Response response = getResponse();
@@ -945,10 +945,10 @@ public class Exchange {
 				LOGGER.debug("{} removing NON notification: {}", this, previous);
 				// notifications are local MID namespace
 				if (previous.hasMID()) {
-					ExchangeObserver obs = this.observer;
-					if (obs != null) {
+					RemoveHandler handler = this.removeHandler;
+					if (handler != null) {
 						KeyMID key = KeyMID.fromOutboundMessage(previous);
-						obs.remove(this, null, key);
+						handler.remove(this, null, key);
 					}
 				} else {
 					previous.cancel();
