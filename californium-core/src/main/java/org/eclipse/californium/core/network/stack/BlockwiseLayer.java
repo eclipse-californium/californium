@@ -204,7 +204,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isInfoEnabled()) {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			ScheduledExecutorService scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("BlockwiseLayer"));
 			scheduler.scheduleAtFixedRate(new Runnable() {
@@ -213,11 +213,11 @@ public class BlockwiseLayer extends AbstractLayer {
 				public void run() {
 					if (enableStatus) {
 						{
-							HEALTH_LOGGER.info("{} block1 transfers", block1Transfers.size());
+							HEALTH_LOGGER.debug("{} block1 transfers", block1Transfers.size());
 							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.values();
 							int max = 5;
 							while (iterator.hasNext()) {
-								HEALTH_LOGGER.info("   block1 {}", iterator.next());
+								HEALTH_LOGGER.debug("   block1 {}", iterator.next());
 								--max;
 								if (max == 0) {
 									break;
@@ -225,11 +225,11 @@ public class BlockwiseLayer extends AbstractLayer {
 							}
 						}
 						{
-							HEALTH_LOGGER.info("{} block2 transfers", block2Transfers.size());
+							HEALTH_LOGGER.debug("{} block2 transfers", block2Transfers.size());
 							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.values();
 							int max = 5;
 							while (iterator.hasNext()) {
-								HEALTH_LOGGER.info("   block2 {}", iterator.next());
+								HEALTH_LOGGER.debug("   block2 {}", iterator.next());
 								--max;
 								if (max == 0) {
 									break;

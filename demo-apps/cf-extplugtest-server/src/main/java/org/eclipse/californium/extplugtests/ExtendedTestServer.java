@@ -65,6 +65,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
+			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
 		}
 
 	};

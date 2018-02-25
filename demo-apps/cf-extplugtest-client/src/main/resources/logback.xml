@@ -59,16 +59,13 @@
 	</logger>
 	 -->
 
-	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="INFO" additivity="false">
+	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="TRACE" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
-	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer.health" level="INFO" additivity="false">
+	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer.health" level="TRACE" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
-	<logger name="org.eclipse.californium.core.observe.InMemoryObservationStore.health" level="INFO" additivity="false">
-		<appender-ref ref="STDOUT" />
-	</logger>
-	<logger name="org.eclipse.californium.extplugtests.resources.ReverseObserve.health" level="INFO" additivity="false">
+	<logger name="org.eclipse.californium.core.observe.InMemoryObservationStore.health" level="TRACE" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
