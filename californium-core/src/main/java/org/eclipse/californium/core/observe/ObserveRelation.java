@@ -134,28 +134,26 @@ public class ObserveRelation {
 	/**
 	 * Cancel this observe relation. This methods invokes the cancel methods of
 	 * the resource and the endpoint.
-	 * @throws IllegalStateException, if relation was already canceled or wasn't established.
+	 * @throws IllegalStateException, if relation wasn't established.
 	 */
 	public void cancel() {
-		if (canceled) {
-			throw new IllegalStateException(String.format("Observe relation %s with %s already canceled (%s)!",
-					getKey(), resource.getURI(), exchange));
+		if (!canceled) {
+			if (!established) {
+				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+						resource.getURI(), exchange));
+			}
+			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
+			// stop ongoing retransmissions
+			canceled = true;
+			established = false;
+			Response reponse = exchange.getResponse();
+			if (reponse != null) {
+				reponse.cancel();
+			}
+			resource.removeObserveRelation(this);
+			endpoint.removeObserveRelation(this);
+			exchange.executeComplete();
 		}
-		if (!established) {
-			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
-					resource.getURI(), exchange));
-		}
-		LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
-		// stop ongoing retransmissions
-		canceled = true;
-		established = false;
-		Response reponse = exchange.getResponse();
-		if (reponse != null) {
-			reponse.cancel();
-		}
-		resource.removeObserveRelation(this);
-		endpoint.removeObserveRelation(this);
-		exchange.executeComplete();
 	}
 	
 	/**
