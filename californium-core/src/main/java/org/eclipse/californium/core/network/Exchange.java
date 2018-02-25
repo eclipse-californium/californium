@@ -148,7 +148,7 @@ public class Exchange {
 	}
 
 	/**
-	 * ID fro logging.
+	 * ID for logging.
 	 */
 	private final int id;
 	/**
@@ -310,6 +310,14 @@ public class Exchange {
 		this.keepRequestInStore = keepRequestInStore;
 		this.notification = notification;
 		this.nanoTimestamp = System.nanoTime();
+	}
+
+	/**
+	 * Object to be used as stripe for striped execution. Reduce the heap
+	 * consumption of larger stripe keys in the striped executor.
+	 */
+	Object getStripe() {
+		return complete;
 	}
 
 	@Override

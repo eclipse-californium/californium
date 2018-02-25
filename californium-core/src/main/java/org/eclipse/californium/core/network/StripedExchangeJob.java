@@ -55,7 +55,7 @@ public abstract class StripedExchangeJob implements StripedRunnable {
 
 	@Override
 	public Object getStripe() {
-		return exchange;
+		return exchange.getStripe();
 	}
 
 	@Override
