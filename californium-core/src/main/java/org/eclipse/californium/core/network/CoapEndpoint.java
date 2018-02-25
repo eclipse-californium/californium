@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP;
@@ -195,7 +194,7 @@ public class CoapEndpoint implements Endpoint {
 	/**
 	 * Striped executor facade based on the {@link #executor}.
 	 */
-	private volatile StripedExecutorService stripedExecutor;
+	private volatile Executor exchangeExecutor;
 
 	/** Indicates if the endpoint has been started */
 	private boolean started;
@@ -394,22 +393,16 @@ public class CoapEndpoint implements Endpoint {
 			}
 		}
 
-		Executor exchangeExecutor = new Executor() {
+		Executor exchangeExecutionHandler = new Executor() {
 
 			@Override
 			public void execute(Runnable command) {
-				StripedExecutorService executor = stripedExecutor;
+				Executor executor = exchangeExecutor;
 				if (executor == null) {
-					LOGGER.error("Striped executor not ready for exchanges!",
+					LOGGER.error("Executor not ready for exchanges!",
 							new Throwable("exchange execution failed!"));
 				} else {
-					try {
-						executor.execute(command);
-					} catch (RejectedExecutionException e) {
-						if (!executor.isShutdown()) {
-							throw e;
-						}
-					}
+					executor.execute(command);
 				}
 			}
 		};
@@ -419,13 +412,13 @@ public class CoapEndpoint implements Endpoint {
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					localExchangeStore, exchangeExecutor, endpointContextMatcher);
+					localExchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.coapstack = createTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					localExchangeStore, exchangeExecutor, endpointContextMatcher);
+					localExchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.coapstack = createUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
@@ -465,7 +458,7 @@ public class CoapEndpoint implements Endpoint {
 				}
 			});
 		}
-		stripedExecutor = new StripedExecutorService(executor);
+		exchangeExecutor = new StripedExecutorService(executor);
 
 		try {
 			LOGGER.debug("Starting endpoint at {}", getUri());
@@ -587,7 +580,7 @@ public class CoapEndpoint implements Endpoint {
 	public void sendRequest(final Request request) {
 		// create context, if not already set
 		request.prepareDestinationContext();
-		Exchange exchange = new Exchange(request, Origin.LOCAL, stripedExecutor);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, exchangeExecutor);
 		exchange.execute(new StripedExchangeJob(exchange) {
 
 			@Override
@@ -889,7 +882,7 @@ public class CoapEndpoint implements Endpoint {
 			if (!request.isCanceled()) {
 				Exchange exchange = matcher.receiveRequest(request);
 				if (exchange != null) {
-					stripedExecutor.execute(new StripedExchangeJob(exchange) {
+					exchangeExecutor.execute(new StripedExchangeJob(exchange) {
 
 						@Override
 						public void runStriped() {
@@ -916,7 +909,7 @@ public class CoapEndpoint implements Endpoint {
 			if (!response.isCanceled()) {
 				Exchange exchange = matcher.receiveResponse(response);
 				if (exchange != null) {
-					stripedExecutor.execute(new StripedExchangeJob(exchange) {
+					exchangeExecutor.execute(new StripedExchangeJob(exchange) {
 
 						@Override
 						public void runStriped() {
@@ -960,7 +953,7 @@ public class CoapEndpoint implements Endpoint {
 				} else {
 					Exchange exchange = matcher.receiveEmptyMessage(message);
 					if (exchange != null) {
-						stripedExecutor.execute(new StripedExchangeJob(exchange) {
+						exchangeExecutor.execute(new StripedExchangeJob(exchange) {
 
 							@Override
 							public void runStriped() {
