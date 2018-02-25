@@ -98,7 +98,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
-	private static final int MAX_NOTIFIES = 1000;
+	private static final int MAX_NOTIFIES = 100000;
 
 	/**
 	 * Observation tokens by peer address.

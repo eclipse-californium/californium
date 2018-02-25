@@ -65,9 +65,9 @@ public class Feed extends CoapResource {
 	/**
 	 * Default response.
 	 */
-	private final byte[] payload;
+	private final String payload;
 	/**
-	 * Maximum message size.
+	 * Simple ID to distinguish the coap servers.
 	 */
 	private final int id;
 	/**
@@ -118,7 +118,7 @@ public class Feed extends CoapResource {
 		this.intervalMax = intervalMax;
 		this.counter = counter;
 		this.executorService = executorService;
-		this.payload = ("hello " + id + " feed").getBytes();
+		this.payload = "hello " + id + " feed";
 		setObservable(true);
 		setObserveType(type);
 		getAttributes().setTitle("Feed - " + type);
@@ -163,15 +163,21 @@ public class Feed extends CoapResource {
 			}
 		}
 
-		byte[] responsePayload = payload;
+		long count;
+		synchronized (counter) {
+			counter.countDown();
+			count = counter.getCount();
+		}
+		// Changing payload on every GET is no good idea,
+		// but helps to debug blockwise notifies :-)
+		byte[] responsePayload = (payload + "-" + count).getBytes();
 		if (length > 0) {
-			responsePayload = Arrays.copyOf(payload, length);
+			byte[] payload = responsePayload;
+			responsePayload = Arrays.copyOf(responsePayload, length);
 			if (length > payload.length) {
 				Arrays.fill(responsePayload, payload.length, length, (byte) '*');
 			}
 		}
-
-		counter.countDown();
 
 		Response response = Response.createResponse(request, CONTENT);
 		response.setToken(request.getToken());
