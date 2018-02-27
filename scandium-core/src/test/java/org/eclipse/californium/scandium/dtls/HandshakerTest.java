@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.junit.Before;
@@ -101,7 +102,7 @@ public class HandshakerTest {
 			}
 		};
 		
-		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null, trustAnchor, 1500, rpkStore) {
+		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null, new StaticCertificateTrustStore(trustAnchor), 1500, rpkStore) {
             @Override
             public void startHandshake() {
             }

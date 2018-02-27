@@ -68,6 +68,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
+import org.eclipse.californium.scandium.dtls.certstore.TrustedCertificateStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
@@ -114,8 +116,9 @@ public abstract class Handshaker {
 
 	protected final DTLSSession session;
 	protected final RecordLayer recordLayer;
-	/** list of trusted self-signed root certificates */
-	protected final X509Certificate[] rootCertificates;
+
+	/** Store of trusted root certificates */
+	protected final TrustedCertificateStore certificateStore;
 
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
@@ -169,7 +172,7 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certificateStore the store containing the trusted root certificates.
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -179,9 +182,9 @@ public abstract class Handshaker {
 	 *             <code>null</code>.
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, TrustedCertificateStore certificateStore, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
-		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit, rpkStore);
+		this(isClient, 0, session, recordLayer, sessionListener, certificateStore, maxTransmissionUnit, rpkStore);
 	}
 
 	/**
@@ -201,7 +204,7 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certificateStore the store containing the trusted root certificates.
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -213,7 +216,7 @@ public abstract class Handshaker {
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, TrustedCertificateStore certificateStore, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
@@ -228,7 +231,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates == null ? new X509Certificate[0] : rootCertificates;
+		this.certificateStore = certificateStore == null ? new StaticCertificateTrustStore(): certificateStore;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -984,7 +987,7 @@ public abstract class Handshaker {
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
 
-			Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
+			Set<TrustAnchor> trustAnchors = getTrustAnchors(certificateStore.getTrustedCertificate());
 
 			try {
 				PKIXParameters params = new PKIXParameters(trustAnchors);

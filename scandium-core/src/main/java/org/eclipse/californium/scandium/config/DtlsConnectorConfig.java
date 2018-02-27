@@ -36,6 +36,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.ServerNameResolver;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
+import org.eclipse.californium.scandium.dtls.certstore.TrustedCertificateStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -72,7 +74,6 @@ public final class DtlsConnectorConfig {
 	private static final String EC_ALGORITHM_NAME = "EC";
 
 	private InetSocketAddress address;
-	private X509Certificate[] trustStore;
 
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
@@ -121,6 +122,10 @@ public final class DtlsConnectorConfig {
 
 	/** default is trust all RPKs **/
 	private TrustedRpkStore trustedRPKs;
+
+	/** store for all trusted certificated **/
+	private TrustedCertificateStore trustedCertificates;
+
 
 	private Integer outboundMessageBufferSize;
 
@@ -299,8 +304,19 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the root certificates
 	 */
+	@Deprecated
 	public X509Certificate[] getTrustStore() {
-		return trustStore;
+		return trustedCertificates.getTrustedCertificate();
+	}
+
+	/**
+	 * Gets the trusted root certificates to use when verifying
+	 * a peer's certificate during authentication.
+	 * 
+	 * @return the store which contains the root certificates
+	 */
+	public TrustedCertificateStore getCertificateTrustStore() {
+		return trustedCertificates;
 	}
 
 	/**
@@ -747,11 +763,12 @@ public final class DtlsConnectorConfig {
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509 certificate
 		 */
+		@Deprecated
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
-				config.trustStore = toX509Certificates(trustedCerts);
+				config.trustedCertificates = new StaticCertificateTrustStore(toX509Certificates(trustedCerts));
 				return this;
 			}
 		}
@@ -761,13 +778,28 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param store the rpk trust store
 		 */
-		public void setRpkTrustStore(TrustedRpkStore store) {
+		public Builder setCertificateTrustStore(TrustedCertificateStore store) {
+			if (store == null) {
+				throw new IllegalStateException("Must provide a non-null certificate trust store");
+			}
+			config.trustedCertificates = store;
+			return this;
+		}
+
+		/**
+		 * Sets the store for trusted raw public keys.
+		 * 
+		 * @param store the rpk trust store
+		 */
+		public Builder setRpkTrustStore(TrustedRpkStore store) {
 			if (store == null) {
 				throw new IllegalStateException("Must provide a non-null rpk trust store");
 			}
 			config.trustedRPKs = store;
+			return this;
 		}
 
+		@Deprecated
 		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
 			List<X509Certificate> result = new ArrayList<>(certs.length);
 			for (Certificate cert : certs) {
@@ -899,9 +931,6 @@ public final class DtlsConnectorConfig {
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;
 			}
-			if (config.trustStore == null) {
-				config.trustStore = new X509Certificate[0];
-			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = true;
 			}
@@ -929,11 +958,15 @@ public final class DtlsConnectorConfig {
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
 			}
+
+			// must be set after determineCipherSuitesFromConfig(),
+			// otherwise this would be interpreted for client only
+			// as ECDHE_ECDSA support!
 			if (config.trustedRPKs == null) {
-				// must be set after determineCipherSuitesFromConfig(),
-				// otherwise this would be interpreted for client only
-				// as ECDHE_ECDSA support!
 				config.trustedRPKs = new TrustAllRpks();
+			}
+			if (config.trustedCertificates == null) {
+				config.trustedCertificates = new StaticCertificateTrustStore();
 			}
 
 			// check cipher consistency
@@ -985,8 +1018,7 @@ public final class DtlsConnectorConfig {
 			List<CipherSuite> ciphers = new ArrayList<>();
 			boolean certificates = isConfiguredWithKeyPair();
 			if (!certificates && clientOnly) {
-				certificates = config.trustedRPKs != null
-						|| (config.trustStore != null && config.trustStore.length > 0);
+				certificates = config.trustedRPKs != null || config.trustedCertificates != null;
 			}
 
 			if (certificates) {

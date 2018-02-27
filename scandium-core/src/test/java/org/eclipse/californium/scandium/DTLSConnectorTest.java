@@ -79,6 +79,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.certstore.StaticCertificateTrustStore;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.ClientKeyExchange;
@@ -191,7 +192,7 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()))
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
 			.build();
@@ -256,7 +257,7 @@ public class DTLSConnectorTest {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+				.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()));
 	}
 
 	@Test
@@ -1523,7 +1524,7 @@ public class DTLSConnectorTest {
 			.setAddress(clientEndpoint)
 			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()))
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
@@ -1573,7 +1574,7 @@ public class DTLSConnectorTest {
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setCertificateTrustStore(new StaticCertificateTrustStore(DtlsTestTools.getTrustedCertificates()))
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();

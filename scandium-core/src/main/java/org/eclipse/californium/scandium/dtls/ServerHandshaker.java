@@ -184,7 +184,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit,
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getCertificateTrustStore(), maxTransmissionUnit,
 		        config.getRpkTrustStore());
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
@@ -199,7 +199,7 @@ public class ServerHandshaker extends Handshaker {
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
 		this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		if (rootCertificates != null && rootCertificates.length > 0) {
+		if (!certificateStore.isEmpty()) {
 			int index = config.isSendRawKey() ? 1 : 0;
 			this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 		}
@@ -620,7 +620,7 @@ public class ServerHandshaker extends Handshaker {
 			// TODO make this variable, reasonable values
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 			certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
-			certificateRequest.addCertificateAuthorities(rootCertificates);
+			certificateRequest.addCertificateAuthorities(certificateStore.getTrustedCertificate());
 
 			flight.addMessage(wrapMessage(certificateRequest));
 			md.update(certificateRequest.toByteArray());

@@ -148,7 +148,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getTrustStore(), maxTransmissionUnit, 
+		super(true, session, recordLayer, sessionListener, config.getCertificateTrustStore(), maxTransmissionUnit, 
 		        config.getRpkTrustStore());
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
@@ -166,7 +166,7 @@ public class ClientHandshaker extends Handshaker {
 
 			// we always support receiving a RawPublicKey from the server
 			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			if (rootCertificates != null && rootCertificates.length > 0) {
+			if (!certificateStore.isEmpty()) {
 				int index = config.isSendRawKey() ? 1 : 0;
 				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
 			}
