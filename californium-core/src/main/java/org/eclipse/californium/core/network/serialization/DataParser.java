@@ -58,22 +58,29 @@ public abstract class DataParser {
 	 */
 	public final Message parseMessage(final byte[] msg) {
 
-		String message = "illegal message code";
+		String errorMsg = "illegal message code";
 		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
 		try {
+			Message message = null;
 			if (CoAP.isRequest(header.getCode())) {
-				return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
+				message = parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
 			} else if (CoAP.isResponse(header.getCode())) {
-				return parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
+				message = parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
 			} else if (CoAP.isEmptyMessage(header.getCode())) {
-				return parseMessage(reader, header, new EmptyMessage(header.getType()));
+				message = parseMessage(reader, header, new EmptyMessage(header.getType()));
+			}
+
+			// Set the message's bytes and return the message
+			if (message != null) {
+				message.setBytes(msg);
+				return message;
 			}
 		} catch (MessageFormatException e) {
 			/** use message to add CoAP message specific information */
-			message = e.getMessage();
+			errorMsg = e.getMessage();
 		}
-		throw new CoAPMessageFormatException(message, header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
+		throw new CoAPMessageFormatException(errorMsg, header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
 	}
 
 	private static Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
