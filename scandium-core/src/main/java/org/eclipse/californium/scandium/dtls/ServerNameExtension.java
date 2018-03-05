@@ -16,7 +16,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -84,7 +83,7 @@ public final class ServerNameExtension extends HelloExtension {
 	 * @throws NullPointerException if the host name is {@code null}.
 	 */
 	public static ServerNameExtension forHostName(final String hostName) {
-		return new ServerNameExtension(ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, hostName.getBytes(StandardCharsets.US_ASCII))));
+		return new ServerNameExtension(ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET))));
 	}
 
 	/**

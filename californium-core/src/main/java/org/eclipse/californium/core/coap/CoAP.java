@@ -27,7 +27,8 @@ package org.eclipse.californium.core.coap;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * CoAP defines several constants.

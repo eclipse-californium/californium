@@ -29,7 +29,6 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 
@@ -53,7 +52,7 @@ public class ClientHandshakerTest {
 
 	final InetSocketAddress localPeer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	final SimpleRecordLayer recordLayer = new SimpleRecordLayer();
-	final byte[] serverName = "iot.eclipse.org".getBytes(StandardCharsets.US_ASCII);
+	final byte[] serverName = "iot.eclipse.org".getBytes(ServerName.CHARSET);
 
 	ClientHandshaker handshaker;
 

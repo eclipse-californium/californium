@@ -19,8 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
+import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;

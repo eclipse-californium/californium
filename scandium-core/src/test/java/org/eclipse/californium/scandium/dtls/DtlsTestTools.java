@@ -21,7 +21,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -37,6 +36,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools {
 
@@ -166,7 +166,7 @@ public final class DtlsTestTools {
 
 	public static byte[] newServerNameExtension(final String hostName) {
 
-		byte[] name = hostName.getBytes(StandardCharsets.US_ASCII);
+		byte[] name = hostName.getBytes(ServerName.CHARSET);
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(name.length + 3, 16); //server_name_list_length
 		writer.writeByte((byte) 0x00);
