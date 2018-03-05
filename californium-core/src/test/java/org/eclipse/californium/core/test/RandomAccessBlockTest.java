@@ -29,7 +29,6 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.eclipse.californium.category.Medium;
@@ -38,6 +37,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -168,7 +168,7 @@ public class RandomAccessBlockTest {
 		private BlockwiseResource(String name, String responsePayload) {
 			super(name);
 			this.responsePayload = responsePayload;
-			buf = ByteBuffer.wrap(responsePayload.getBytes(StandardCharsets.US_ASCII));
+			buf = ByteBuffer.wrap(responsePayload.getBytes(CoAP.UTF8_CHARSET));
 		}
 
 		@Override

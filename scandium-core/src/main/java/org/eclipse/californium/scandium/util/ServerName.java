@@ -15,15 +15,18 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Arrays;
+
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * A typed server name as defined by RFC 6066, Section 3.
  *
  */
 public class ServerName {
-
+	public static final Charset CHARSET = StandardCharsets.US_ASCII;
+	
 	private final NameType type;
 	private final byte[] name;
 
@@ -62,7 +65,7 @@ public class ServerName {
 		if (hostName == null) {
 			throw new NullPointerException("host name must not be null");
 		} else {
-			return new ServerName(NameType.HOST_NAME, hostName.getBytes(StandardCharsets.US_ASCII));
+			return new ServerName(NameType.HOST_NAME, hostName.getBytes(CHARSET));
 		}
 	}
 

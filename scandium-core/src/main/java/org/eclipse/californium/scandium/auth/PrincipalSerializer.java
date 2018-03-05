@@ -1,6 +1,5 @@
 package org.eclipse.californium.scandium.auth;
 
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 
@@ -9,6 +8,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * A helper for serializing and deserializing principals supported by Scandium.

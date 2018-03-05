@@ -20,7 +20,6 @@ import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
@@ -37,7 +36,7 @@ public class ServerNameExtensionTest {
 
 	byte[] serverNameStructure;
 	ServerNameExtension extension;
-	byte[] iotEclipseOrg = "iot.eclipse.org".getBytes(StandardCharsets.US_ASCII);
+	byte[] iotEclipseOrg = "iot.eclipse.org".getBytes(ServerName.CHARSET);
 	byte[] emptyExtension = new byte[]{
 			(byte) 0x00, (byte) 0x00, // extension code 0x0000
 			(byte) 0x00, (byte) 0x00  // length: 0 bytes
