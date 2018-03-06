@@ -17,6 +17,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - extend endpoint context with
  *                                                    inet socket address and principal
  *    Achim Kraus (Bosch Software Innovations GmbH) - make entries map unmodifiable
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add constructor with attributes map
+ *                                                    to support cloning
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -80,6 +82,25 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		} else {
 			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
 		}
+	}
+
+	/**
+	 * Creates a new endpoint context with correlation context support.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param attributes map of attributes
+	 * @throws NullPointerException if provided peer address, or attributes map
+	 *             is {@code null}.
+	 */
+	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
+			Map<String, String> attributes) {
+		super(peerAddress, peerIdentity);
+		if (attributes == null) {
+			throw new NullPointerException("missing attributes map, must not be null!");
+		}
+		Map<String, String> entries = new HashMap<>(attributes);
+		this.entries = Collections.unmodifiableMap(entries);
 	}
 
 	@Override
