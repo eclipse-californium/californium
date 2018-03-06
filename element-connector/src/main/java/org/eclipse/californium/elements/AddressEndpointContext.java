@@ -69,7 +69,7 @@ public class AddressEndpointContext implements EndpointContext {
 	 */
 	public AddressEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity) {
 		if (peerAddress == null) {
-			throw new NullPointerException("missing peer socket address!");
+			throw new NullPointerException("missing peer socket address, must not be null!");
 		}
 		this.peerAddress = peerAddress;
 		this.peerIdentity = peerIdentity;
