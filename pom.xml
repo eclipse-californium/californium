@@ -356,6 +356,18 @@
 					<artifactId>maven-gpg-plugin</artifactId>
 					<version>1.6</version>
 				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>animal-sniffer-maven-plugin</artifactId>
+					<version>1.16</version>
+					<configuration>
+						<signature>
+							<groupId>net.sf.androidscents.signature</groupId>
+							<artifactId>android-api-level-19</artifactId>
+							<version>4.4_r1</version>
+						</signature>
+					</configuration>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 
