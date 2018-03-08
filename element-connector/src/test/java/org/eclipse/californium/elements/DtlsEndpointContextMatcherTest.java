@@ -41,8 +41,7 @@ public class DtlsEndpointContextMatcherTest {
 		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null,"session", "2", "CIPHER");
 		strictMessageContext = new DtlsEndpointContext(ADDRESS, null,"session", "1", "CIPHER");
 		differentMessageContext = new DtlsEndpointContext(ADDRESS, null,"new session", "1", "CIPHER");
-		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null,"ID", "session");
-		unsecureMessageContext = mapBasedContext;
+		unsecureMessageContext = new UdpEndpointContext(ADDRESS);
 		relaxedMatcher = new RelaxedDtlsEndpointContextMatcher();
 		strictMatcher = new StrictDtlsEndpointContextMatcher();
 	}

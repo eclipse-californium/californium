@@ -27,6 +27,8 @@
  *                                                    remove scheme
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging on shutdown
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use UdpEndpointContext to prevent
+ *                                                    matching with a DtlsEndpointContext
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -311,7 +313,7 @@ public class UDPConnector implements Connector {
 						datagram.getLength(), datagram.getAddress(), datagram.getPort());
 				byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 				RawData msg = RawData.inbound(bytes,
-						new AddressEndpointContext(datagram.getAddress(), datagram.getPort()), false);
+						new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())), false);
 
 				receiver.receiveData(msg);
 			}
@@ -334,16 +336,18 @@ public class UDPConnector implements Connector {
 			 * check, if message should be sent with the "none endpoint context"
 			 * of UDP connector
 			 */
+			EndpointContext destination = raw.getEndpointContext();
+			InetSocketAddress destinationAddress = destination.getPeerAddress();
+			EndpointContext connectionContext = new UdpEndpointContext(destinationAddress);
 			EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
-			if (endpointMatcher != null && !endpointMatcher.isToBeSent(raw.getEndpointContext(), null)) {
+			if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, connectionContext)) {
 				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", socket.getLocalSocketAddress(),
-						datagram.getLength(), datagram.getAddress(), datagram.getPort());
+						datagram.getLength(), destinationAddress.getAddress(), destinationAddress.getPort());
 				raw.onError(new EndpointMismatchException());
 				return;
 			}
 			datagram.setData(raw.getBytes());
-			datagram.setAddress(raw.getAddress());
-			datagram.setPort(raw.getPort());
+			datagram.setSocketAddress(destinationAddress);
 
 			DatagramSocket socket;
 			synchronized (this) {
@@ -351,6 +355,7 @@ public class UDPConnector implements Connector {
 			}
 			if (socket != null) {
 				try {
+					raw.onContextEstablished(connectionContext);
 					socket.send(datagram);
 					raw.onSent();
 				} catch (IOException ex) {
