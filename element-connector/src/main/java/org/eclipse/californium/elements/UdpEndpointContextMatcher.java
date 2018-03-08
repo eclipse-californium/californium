@@ -19,37 +19,49 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
  *                                                    to distinguish from 
  *                                                    none plain UDP contexts.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use UdpEndpointContext to prevent
+ *                                                    matching with a DtlsEndpointContext
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 /**
  * Endpoint context matcher for UDP.
+ * 
+ * Optionally checks address for request-response matching.
  */
-public class UdpEndpointContextMatcher implements EndpointContextMatcher {
+public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
+
+	private static final String KEYS[] = { UdpEndpointContext.KEY_PLAIN };
+
+	/**
+	 * Enable address check for request-response matching.
+	 */
+	private final boolean checkAddress;
+
+	/**
+	 * Create new instance of udp endpoint context matcher with enabled address
+	 * check.
+	 */
+	public UdpEndpointContextMatcher() {
+		this(true);
+	}
 
 	/**
 	 * Create new instance of udp endpoint context matcher.
+	 * 
+	 * @param checkAddress {@code true} with address check, {@code false},
+	 *            without
 	 */
-	public UdpEndpointContextMatcher() {
-	}
-
-	@Override
-	public String getName() {
-		return "udp plain";
+	public UdpEndpointContextMatcher(boolean checkAddress) {
+		super("udp plain", KEYS);
+		this.checkAddress = checkAddress;
 	}
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
-		return internalMatch(requestContext, responseContext);
+		if (checkAddress && !requestContext.getPeerAddress().equals(responseContext.getPeerAddress())) {
+			return false;
+		}
+		return super.isResponseRelatedToRequest(requestContext, responseContext);
 	}
-
-	@Override
-	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
-		return internalMatch(messageContext, connectorContext);
-	}
-
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
-	}
-
 }

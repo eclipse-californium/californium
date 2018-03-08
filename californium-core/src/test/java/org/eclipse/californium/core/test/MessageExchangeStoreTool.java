@@ -13,6 +13,8 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce external dependency
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add parameter for address check
+ *                                                    in UdpEndpointContextMatcher
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -70,10 +72,8 @@ public class MessageExchangeStoreTool {
 				return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
 			}
 		});
-		assertTrue("Client side message exchange store still contains exchanges",
-				isEmptyWithDump(clientExchangeStore));
-		assertTrue("Server side message exchange store still contains exchanges",
-				isEmptyWithDump(serverExchangeStore));
+		assertTrue("Client side message exchange store still contains exchanges", isEmptyWithDump(clientExchangeStore));
+		assertTrue("Server side message exchange store still contains exchanges", isEmptyWithDump(serverExchangeStore));
 	}
 
 	/**
@@ -168,16 +168,22 @@ public class MessageExchangeStoreTool {
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
-				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore) {
+				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
+				boolean checkAddress) {
 			super(new UDPConnector(bind), true, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, new UdpEndpointContextMatcher());
+					exchangeStore, new UdpEndpointContextMatcher(checkAddress));
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
 		}
 
+		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean checkAddress) {
+			this(bind, config, new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config),
+					checkAddress);
+		}
+
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
-			this(bind, config, new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config));
+			this(bind, config, true);
 		}
 
 		@Override

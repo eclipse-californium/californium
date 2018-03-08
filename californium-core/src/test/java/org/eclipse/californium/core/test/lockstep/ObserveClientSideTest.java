@@ -99,10 +99,8 @@ public class ObserveClientSideTest {
 
 	@Before
 	public void setupEndpoints() throws Exception {
-		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
-		// bind to loopback address using an ephemeral port
-	    //CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		// don't check address, tests explicitly change it!
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, false);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
