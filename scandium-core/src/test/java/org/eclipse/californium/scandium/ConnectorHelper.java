@@ -24,6 +24,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
  *    Bosch Software Innovations GmbH - add test cases for GitHub issue #1
+ *    Achim Kraus (Bosch Software Innovations GmbH) - expose client channel to ensure, that
+ *                                                    a server response is received before shutdown
+ *                                                    the connector
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -156,16 +159,16 @@ public class ConnectorHelper {
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
 
-	void givenAnEstablishedSession(final DTLSConnector client) throws Exception {
-		givenAnEstablishedSession(client, true);
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client) throws Exception {
+		return givenAnEstablishedSession(client, true);
 	}
 
-	void givenAnEstablishedSession(final DTLSConnector client, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, boolean releaseSocket) throws Exception {
 		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		givenAnEstablishedSession(client, raw, releaseSocket);
+		return givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
-	void givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
 
 		CountDownLatch latch = new CountDownLatch(1);
 		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel();
@@ -187,6 +190,7 @@ public class ConnectorHelper {
 				client.wait(200);
 			}
 		}
+		return clientChannel;
 	}
 
 	class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
