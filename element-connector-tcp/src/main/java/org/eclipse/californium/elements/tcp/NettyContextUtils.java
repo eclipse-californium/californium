@@ -22,6 +22,7 @@ package org.eclipse.californium.elements.tcp;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
+import java.security.cert.Certificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
@@ -58,25 +60,45 @@ public class NettyContextUtils {
 			SSLEngine sslEngine = sslHandler.engine();
 			SSLSession sslSession = sslEngine.getSession();
 			if (sslSession != null) {
+				boolean checkKerberos = false;
 				Principal principal = null;
 				try {
-					principal = sslSession.getPeerPrincipal();
-					if (principal == null) {
-						LOGGER.warn("Principal missing");
+					Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
+					if (peerCertificateChain != null && peerCertificateChain.length != 0) {
+						principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
 					} else {
-						LOGGER.debug("Principal {}", principal.getName());
+						// maybe kerberos is used and therefore
+						// getPeerCertificates fails
+						checkKerberos = true;
 					}
-				} catch (SSLPeerUnverifiedException e) {
-					LOGGER.warn("Principal {}", e.getMessage());
-					/* ignore it */
+				} catch (SSLPeerUnverifiedException e1) {
+					// maybe kerberos is used and therefore
+					// getPeerCertificates fails
+					checkKerberos = true;
+				} catch (RuntimeException e) {
+					LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
+				}
+
+				if (checkKerberos) {
+					try {
+						principal = sslSession.getPeerPrincipal();
+					} catch (SSLPeerUnverifiedException e2) {
+						// still unverified, so also no kerberos
+						LOGGER.warn("TLS({}) failed to verify principal {}", id, e2.getMessage());
+					}
+				}
+
+				if (principal == null) {
+					LOGGER.debug("Principal missing");
+				} else {
+					LOGGER.debug("Principal {}", principal.getName());
 				}
 
 				byte[] sessionId = sslSession.getId();
 				if (sessionId != null && sessionId.length > 0) {
 					String sslId = StringUtil.byteArray2HexString(sessionId, 0);
 					String cipherSuite = sslSession.getCipherSuite();
-					LOGGER.debug("TLS({},{},{})",
-							new Object[] { id, StringUtil.trunc(sslId, 14), cipherSuite });
+					LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
 					return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
 				}
 			}

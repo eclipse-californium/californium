@@ -23,6 +23,7 @@ import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.text.IsEmptyString.isEmptyOrNullString;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -33,9 +34,11 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContextMatcher;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.tcp.TlsConnectorTestUtil.SSLTestContext;
 import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -434,7 +437,11 @@ public class TlsCorrelationTest {
 		serverCatcher.blockUntilSize(1);
 		RawData receivedMessage = serverCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
-		assertThat(receivedMessage.getSenderIdentity(), is(clientSubjectDN));
+
+		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal>instanceOf(X509CertPath.class)));
+		X509CertPath senderCertPath = (X509CertPath)receivedMessage.getSenderIdentity();
+		assertThat(senderCertPath.getName(), is(clientCertPath.getName()));
+		assertThat(senderCertPath.getPath(), is(clientCertPath.getPath()));
 	}
 
 	/**
@@ -502,7 +509,11 @@ public class TlsCorrelationTest {
 
 		RawData receivedMessage = clientCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
-		assertThat(receivedMessage.getSenderIdentity(), is(serverSubjectDN));
+
+		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal>instanceOf(X509CertPath.class)));
+		X509CertPath senderCertPath = (X509CertPath)receivedMessage.getSenderIdentity();
+		assertThat(senderCertPath.getName(), is(serverCertPath.getName()));
+		assertThat(senderCertPath.getPath(), is(serverCertPath.getPath()));
 	}
 
 	/**
