@@ -16,6 +16,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests to ensure, that 
  *                                                    responses/notifies are 
  *                                                    dropped on the server side
+ *    Achim Kraus (Bosch Software Innovations GmbH) - ensure, that session is resumed
+ *                                                    before sending more notifications
+ *                                                    When fixing issue #23, an 
+ *                                                    additional test should be added.
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
@@ -237,13 +241,18 @@ public class SecureObserveTest {
 		nat.reassignLocalAddresses();
 		serverConnector.forceResumeAllSessions();
 
+		// trigger handshake
+		resource.changed("client");
+		// wait for established session
+		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client");
 			Thread.sleep(50);
 		}
 
 		assertTrue("Missing notifies after address changed",
-				handler.waitForLoadCalls(REPEATS + REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitForLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 	}
