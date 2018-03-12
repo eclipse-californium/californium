@@ -24,6 +24,8 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.net.InetSocketAddress;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,10 +66,15 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
-		if (checkAddress && !requestContext.getPeerAddress().equals(responseContext.getPeerAddress())) {
-			LOGGER.info("request {} doesn't match {}!", requestContext.getPeerAddress(),
-					responseContext.getPeerAddress());
-			return false;
+		if (checkAddress) {
+			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
+			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
+			if (peerAddress1.getPort() != peerAddress2.getPort()
+					|| !peerAddress1.getAddress().equals(peerAddress2.getAddress())) {
+				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
+						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
+				return false;
+			}
 		}
 		return super.isResponseRelatedToRequest(requestContext, responseContext);
 	}
