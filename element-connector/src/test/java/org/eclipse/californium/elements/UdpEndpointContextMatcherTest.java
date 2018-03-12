@@ -42,7 +42,7 @@ public class UdpEndpointContextMatcherTest {
 		messageContext = new UdpEndpointContext(ADDRESS);
 		changedAddressContext = new UdpEndpointContext(CHANGED_ADDRESS);
 		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
-		matcher = new UdpEndpointContextMatcher();
+		matcher = new UdpEndpointContextMatcher(true);
 	}
 
 	@Test
