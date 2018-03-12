@@ -13,7 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.util;
+package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
@@ -22,9 +22,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.util.Base64;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -34,7 +33,6 @@ import org.junit.runners.Parameterized.Parameters;
  * Some test verifying correctness of Rob Harder's {@code Base64} encoder/decoder.
  *
  */
-@Category(Small.class)
 @RunWith(Parameterized.class)
 public class Base64Test {
 

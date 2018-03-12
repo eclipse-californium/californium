@@ -30,7 +30,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;

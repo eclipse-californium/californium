@@ -17,7 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add option for preventing padding
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
-package org.eclipse.californium.scandium.util;
+package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
 import org.slf4j.Logger;
