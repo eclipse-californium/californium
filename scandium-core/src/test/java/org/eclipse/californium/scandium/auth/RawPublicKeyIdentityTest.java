@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.junit.Test;

@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.rpkstore;
 
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 /**
  * An interface for trust stores that provide trusted raw public keys to the

@@ -13,7 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.elements.auth;
 
 import java.security.Principal;
 

@@ -14,7 +14,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - store PublicKey instead of <em>subjectInfo</em>
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.elements.auth;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -26,7 +26,7 @@ import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
-import org.eclipse.californium.scandium.util.Base64;
+import org.eclipse.californium.elements.util.Base64;
 
 /**
  * A principal representing an authenticated peer's <em>RawPublicKey</em>.

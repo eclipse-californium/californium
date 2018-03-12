@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls.rpkstore;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 /**
  * A raw public key store that stores the trusted keys in memory.
