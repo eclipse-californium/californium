@@ -18,20 +18,25 @@ package org.eclipse.californium.extplugtests.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reverse observe resource.
@@ -40,40 +45,84 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  */
 public class Feed extends CoapResource {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class.getCanonicalName());
+	/**
+	 * Resource name.
+	 */
 	private static final String RESOURCE_NAME = "feed";
 	/**
 	 * URI query parameter to specify response length.
 	 */
 	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
-
+	/**
+	 * Default interval for notifies in milliseconds.
+	 */
+	public static final int DEFAULT_FEED_INTERVAL_IN_MILLIS = 100;
+	/**
+	 * Random generator for interval.
+	 */
+	private static final Random random = new Random(1234);
 	/**
 	 * Default response.
 	 */
-	private final byte[] payload = "hello feed".getBytes();
+	private final String payload;
+	/**
+	 * Simple ID to distinguish the coap servers.
+	 */
+	private final int id;
 	/**
 	 * Maximum message size.
 	 */
 	private final int maxResourceSize;
 	/**
+	 * Minimum change interval in milliseconds.
+	 */
+	private final int intervalMin;
+	/**
+	 * Maximum change interval in milliseconds.
+	 */
+	private final int intervalMax;
+
+	/**
 	 * Counter for gets/notifies.
 	 */
 	private final CountDownLatch counter;
+	/**
+	 * Lock for change schedules. {@code true} if schedule, {@code false}, if
+	 * not.
+	 */
+	private final AtomicBoolean changeScheduled = new AtomicBoolean();
+	/**
+	 * Change job for scheduling.
+	 */
+	private final Runnable change = new Runnable() {
 
-	public Feed(int maxResourceSize, ScheduledExecutorService executorService, CountDownLatch counter) {
-		super(RESOURCE_NAME);
+		@Override
+		public void run() {
+			changeScheduled.set(false);
+			LOGGER.info("client[{}] feed change triggered, {} observers", id, getObserverCount());
+			changed();
+		}
+	};
+	/**
+	 * Executor to schedule {@link #change} jobs.
+	 */
+	private final ScheduledExecutorService executorService;
+
+	public Feed(CoAP.Type type, int id, int maxResourceSize, int intervalMin, int intervalMax,
+			ScheduledExecutorService executorService, CountDownLatch counter) {
+		super(RESOURCE_NAME + "-" + type);
+		this.id = id;
 		this.maxResourceSize = maxResourceSize;
+		this.intervalMin = intervalMin;
+		this.intervalMax = intervalMax;
 		this.counter = counter;
+		this.executorService = executorService;
+		this.payload = "hello " + id + " feed";
 		setObservable(true);
-		setObserveType(CON);
-		getAttributes().setTitle("Feed");
+		setObserveType(type);
+		getAttributes().setTitle("Feed - " + type);
 		getAttributes().addContentType(TEXT_PLAIN);
-		executorService.scheduleWithFixedDelay(new Runnable() {
-
-			@Override
-			public void run() {
-				changed();
-			}
-		}, 250, 250, TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -114,14 +163,72 @@ public class Feed extends CoapResource {
 			}
 		}
 
-		byte[] responsePayload = payload;
+		long count;
+		synchronized (counter) {
+			counter.countDown();
+			count = counter.getCount();
+		}
+		// Changing payload on every GET is no good idea,
+		// but helps to debug blockwise notifies :-)
+		byte[] responsePayload = (payload + "-" + count).getBytes();
 		if (length > 0) {
-			responsePayload = Arrays.copyOf(payload, length);
+			byte[] payload = responsePayload;
+			responsePayload = Arrays.copyOf(responsePayload, length);
 			if (length > payload.length) {
 				Arrays.fill(responsePayload, payload.length, length, (byte) '*');
 			}
 		}
-		counter.countDown();
-		exchange.respond(CONTENT, responsePayload, TEXT_PLAIN);
+
+		Response response = Response.createResponse(request, CONTENT);
+		response.setToken(request.getToken());
+		response.setPayload(responsePayload);
+		response.getOptions().setContentFormat(TEXT_PLAIN);
+		if (request.isObserve()) {
+			int observer = getObserverCount();
+			if (changeScheduled.compareAndSet(false, true)) {
+				final int interval;
+				if (intervalMin < intervalMax) {
+					float r = random.nextFloat();
+					interval = (int) ((r * r * r) * (intervalMax - intervalMin)) + intervalMin;
+				} else {
+					interval = intervalMin;
+				}
+				if (interval <= 0) {
+					LOGGER.info("client[{}] {} observer, wait for response {} completed.", id, observer,
+							response.getToken());
+					response.addMessageObserver(new MessageObserverAdapter() {
+
+						private final AtomicBoolean scheduled = new AtomicBoolean();
+
+						@Override
+						public void onComplete() {
+							if (scheduled.compareAndSet(false, true)) {
+								LOGGER.info("client[{}] response complete, next change in {} ms, {} observer.", id,
+										-interval, getObserverCount());
+								executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+							}
+						}
+
+						@Override
+						protected void failed() {
+							if (scheduled.compareAndSet(false, true)) {
+								LOGGER.info("client[{}] response failed, next change in {} ms, {} observer.", id,
+										-interval, getObserverCount());
+								executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+							}
+						}
+
+					});
+				} else {
+					LOGGER.info("client[{}] next change in {} ms, {} observer.", id, interval, observer);
+					executorService.schedule(change, interval, TimeUnit.MILLISECONDS);
+				}
+			} else {
+				LOGGER.info("client[{}] pending change, {} observer, send {}!", id, observer, response.getToken());
+			}
+		} else {
+			LOGGER.info("client[{}] no observe {}!", id, request);
+		}
+		exchange.respond(response);
 	}
 }

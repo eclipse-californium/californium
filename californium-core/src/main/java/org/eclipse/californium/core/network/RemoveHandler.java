@@ -19,33 +19,30 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust comment for
  *                                                    contextEstablished.
  *                                                    issue #311
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add remove to ensure 
+ *                                                    message exchange house-keeping
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign into RemoveHandler
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
- * The exchange observer can be added to an {@link Exchange} and will be invoked
- * when it has completed, i.e. when the last response has been sent and
- * acknowledged or after the exchange lifecycle time.
+ * The remove handler can be set to an {@link Exchange} and will be invoked
+ * for release the exchange from the exchange store.
  */
-public interface ExchangeObserver {
+public interface RemoveHandler {
 
 	/**
-	 * Invoked when the exchange has completed.
+	 * Remove exchange from store.
 	 * 
-	 * @param exchange the exchange
+	 * @param exchange exchange to remove from store
+	 * @param token token to remove exchange. Maybe {@code null}.
+	 * @param key mid key to remove exchange. Maybe {@code null}.
 	 */
-	void completed(Exchange exchange);
-
-	/**
-	 * Invoked when the first endpoint context is set.
-	 * 
-	 * Note: usually this callback must be processed in a synchronous manner, because
-	 * if it returns, the message is sent. Therefore take special care in methods called
-	 * on this callback.
-	 * 
-	 * @param exchange the exchange
-	 */
-	void contextEstablished(Exchange exchange);
-
+	void remove(Exchange exchange, Token token, KeyMID key);
 }

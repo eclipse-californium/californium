@@ -20,6 +20,7 @@
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -42,7 +43,7 @@ public final class MatcherTestUtils {
 	private MatcherTestUtils() {
 	}
 
-	private static NotificationListener notificationListener = new NotificationListener() {
+	private static final NotificationListener notificationListener = new NotificationListener() {
 
 		@Override
 		public void onNotification(Request request, Response response) {
@@ -50,11 +51,12 @@ public final class MatcherTestUtils {
 		
 	};
 
+	public static final Executor TEST_EXCHANGE_EXECUTOR = null;
 	
 	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config), correlationContextMatcher);
+				new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config), TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
 		matcher.start();
 		return matcher;
 	}
@@ -63,7 +65,7 @@ public final class MatcherTestUtils {
 			EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				observationStore, exchangeStore, correlationContextMatcher);
+				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
 
 		matcher.start();
 		return matcher;
@@ -72,9 +74,8 @@ public final class MatcherTestUtils {
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange, request);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}
@@ -83,9 +84,8 @@ public final class MatcherTestUtils {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
 		request.setObserve();
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange, request);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
 	}

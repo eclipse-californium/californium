@@ -23,6 +23,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
  *    Achim Kraus (Bosch Software Innovations GmbH) - change type for rtt to Long
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -49,8 +50,6 @@ public class Response extends Message {
 	 * RTT (round trip time) in milliseconds.
 	 */
 	private Long rtt;
-
-	private boolean last = true;
 
 	/**
 	 * Creates a response to the provided received request with the specified
@@ -101,27 +100,6 @@ public class Response extends Message {
 	public String toString() {
 		String payload = getPayloadTracingString();
 		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
-	}
-
-	/**
-	 * Checks whether this is the last response expected for the exchange it is part of.
-	 * 
-	 * @return {@code true} if this is the last expected response.
-	 */
-	public boolean isLast() {
-		return last;
-	}
-
-	/**
-	 * Defines whether this response is the last response of an exchange.
-	 * <p>
-	 * If this is only a block or a notification, the response might not be the
-	 * last one.
-	 * 
-	 * @param last if this is the last response of an exchange
-	 */
-	public void setLast(boolean last) {
-		this.last = last;
 	}
 
 	/**

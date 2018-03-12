@@ -142,22 +142,29 @@ public class ClientAsynchronousTest {
 		// Observe the resource
 		CoapObserveRelation obs1 = client.observe(new TestHandler("Test Observe") {
 			@Override public void onLoad(final CoapResponse response) {
+				System.err.format("onLoad(%d)%n", receivedNotifications.get());
 				if (CONTENT_1.equals(response.getResponseText())
 					&& response.advanced().getOptions().hasObserve()) {
 					if (latch.getCount() > 0) {
+						System.err.format("Response onLoad(%d)%n", receivedNotifications.get());
 						latch.countDown();
 					} else {
 						expectedNotifications.countDown();
 						receivedNotifications.incrementAndGet();
+						System.err.format("Notification onLoad(%d)%n", receivedNotifications.get());
 					}
 				}
 			}
 		});
-		assertTrue(latch.await(1, TimeUnit.SECONDS));
+		assertTrue(latch.await(1500, TimeUnit.MILLISECONDS));
+		System.err.println("changed 1");
 		resource.changed();
+		System.err.println("changed 2");
 		resource.changed();
+		System.err.println("changed 3");
 		resource.changed();
-		assertTrue(expectedNotifications.await(1, TimeUnit.SECONDS));
+		expectedNotifications.await(1500, TimeUnit.MILLISECONDS);
+		assertThat(expectedNotifications.getCount(), is(0L));
 		obs1.reactiveCancel();
 		resource.changed();
 		Thread.sleep(50);

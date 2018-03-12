@@ -43,13 +43,14 @@ import org.slf4j.LoggerFactory;
 public final class InMemoryObservationStore implements ObservationStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryObservationStore.class.getName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 
 	public InMemoryObservationStore(NetworkConfig config) {
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
-		
-		if (healthStatusInterval > 0 && LOGGER.isInfoEnabled()) {
+
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			ScheduledExecutorService scheduler = Executors
 					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("ObservationStore"));
 			scheduler.scheduleAtFixedRate(new Runnable() {
@@ -57,11 +58,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 				@Override
 				public void run() {
 					if (enableStatus) {
-						LOGGER.info("{} observes", map.size());
+						HEALTH_LOGGER.debug("{} observes", map.size());
 						Iterator<Token> iterator = map.keySet().iterator();
 						int max = 5;
 						while (iterator.hasNext()) {
-							LOGGER.info("   observe {}", iterator.next());
+							HEALTH_LOGGER.debug("   observe {}", iterator.next());
 							--max;
 							if (max == 0) {
 								break;
