@@ -185,7 +185,7 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
-		public static final String DTLS_RESPONSE_MATCHING = "DTLS_RESPONSE_MATCHING";
+		public static final String RESPONSE_MATCHING = "RESPONSE_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
 		public static final String HTTP_SERVER_SOCKET_TIMEOUT = "HTTP_SERVER_SOCKET_TIMEOUT";
