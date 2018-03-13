@@ -32,7 +32,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.DtlsMode;
+import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -110,7 +110,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserve() throws Exception {
 
-		createSecureServer(DtlsMode.STRICT);
+		createSecureServer(MatcherMode.STRICT);
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -140,7 +140,7 @@ public class SecureObserveTest {
 	@Test(expected = RuntimeException.class)
 	public void testSecureGetWithNewSession() throws Exception {
 
-		createSecureServer(DtlsMode.STRICT);
+		createSecureServer(MatcherMode.STRICT);
 
 		CoapClient client = new CoapClient(uri);
 		CoapResponse response = client.get();
@@ -160,7 +160,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveWithNewSession() throws Exception {
 
-		createSecureServer(DtlsMode.STRICT);
+		createSecureServer(MatcherMode.STRICT);
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -213,7 +213,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveServerAddressChangedWithResume() throws Exception {
 
-		createSecureServer(DtlsMode.STRICT);
+		createSecureServer(MatcherMode.STRICT);
 
 		createInverseNat();
 
@@ -264,7 +264,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionRelaxedMatching() throws Exception {
-		createSecureServer(DtlsMode.RELAXED);
+		createSecureServer(MatcherMode.RELAXED);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -317,7 +317,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionPrincipalMatching() throws Exception {
-		createSecureServer(DtlsMode.PRINCIPAL);
+		createSecureServer(MatcherMode.PRINCIPAL);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -365,7 +365,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testObserveServerAddressChangedWithNewSessionAndPrincipal() throws Exception {
-		createSecureServer(DtlsMode.PRINCIPAL);
+		createSecureServer(MatcherMode.PRINCIPAL);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -410,7 +410,7 @@ public class SecureObserveTest {
 				is(instanceOf(EndpointMismatchException.class)));
 	}
 
-	private void createSecureServer(DtlsMode mode) {
+	private void createSecureServer(MatcherMode mode) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
@@ -421,7 +421,7 @@ public class SecureObserveTest {
 																// timeout
 																// (indirect) to
 																// 10s
-				.setString(Keys.DTLS_RESPONSE_MATCHING, mode.name());
+				.setString(Keys.RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(serverConnector);

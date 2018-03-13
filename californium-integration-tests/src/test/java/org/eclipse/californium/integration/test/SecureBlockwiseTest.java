@@ -34,7 +34,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.DtlsMode;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
@@ -78,7 +78,7 @@ public class SecureBlockwiseTest {
 	public void startupServer() {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
-		createSecureServer(DtlsMode.STRICT);
+		createSecureServer(MatcherMode.STRICT);
 		resource.setPayload(payload);
 	}
 
@@ -121,7 +121,7 @@ public class SecureBlockwiseTest {
 		assertThat(resource.getCounter(), is(1));
 	}
 
-	private void createSecureServer(DtlsMode mode) {
+	private void createSecureServer(MatcherMode mode) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
@@ -131,7 +131,7 @@ public class SecureBlockwiseTest {
 				// set response timeout (indirect) to 10s
 				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L).setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
 				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE)
-				.setString(Keys.DTLS_RESPONSE_MATCHING, mode.name());
+				.setString(Keys.RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(serverConnector);
