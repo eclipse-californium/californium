@@ -20,7 +20,6 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A endpoint context providing the inet socket address and a optional principal.
@@ -81,8 +80,8 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
-	public Set<Map.Entry<String, String>> entrySet() {
-		return Collections.emptySet();
+	public Map<String, String> entries() {
+		return Collections.emptyMap();
 	}
 
 	@Override
