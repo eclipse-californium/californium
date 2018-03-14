@@ -108,7 +108,8 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testGetUriReturnsConnectorUri() throws URISyntaxException {
-		URI uri = new URI("coap://" + connector.getAddress().getHostString() + ":" + connector.getAddress().getPort());
+		InetSocketAddress socketAddress = connector.getAddress();
+		URI uri = new URI("coap://" + socketAddress.getAddress().getHostAddress() + ":" + socketAddress.getPort());
 		assertThat(endpoint.getUri(), is(uri));
 	}
 

@@ -49,6 +49,7 @@
  *                                                    constructors
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
+ *    Achim Kraus (Bosch Software Innovations GmbH) - workaround for open jdk URI bug
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -84,8 +85,6 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapTcpStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
-import org.eclipse.californium.core.network.stack.ObserveLayer;
-import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -611,11 +610,22 @@ public class CoapEndpoint implements Endpoint {
 	public URI getUri() {
 		URI uri = null;
 		try {
-			InetSocketAddress address = getAddress();
+			InetSocketAddress socketAddress = getAddress();
 			String scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
-			uri = new URI(scheme, null, address.getHostString(), address.getPort(), null, null, null);
-		} catch (URISyntaxException e) {
-			LOGGER.warn("URI", e);
+			String host = socketAddress.getAddress().getHostAddress();
+			try {
+				uri = new URI(scheme, null, host, socketAddress.getPort(), null, null, null);
+			} catch (URISyntaxException e) {
+				try {
+					// workaround for openjdk bug JDK-8199396.
+					// some characters are not supported for the ipv6 scope.
+					host = host.replaceAll("[-._~]", "");
+					uri = new URI(scheme, null, host, socketAddress.getPort(), null, null, null);
+				} catch (URISyntaxException e2) {
+					// warn with the original violation
+					LOGGER.warn("URI", e);
+				}
+			}
 		} catch (IllegalArgumentException e) {
 			LOGGER.warn("URI", e);
 		}
