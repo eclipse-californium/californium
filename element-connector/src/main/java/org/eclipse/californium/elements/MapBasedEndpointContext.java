@@ -27,7 +27,6 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A map based endpoint context.
@@ -109,8 +108,8 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	}
 
 	@Override
-	public Set<Map.Entry<String, String>> entrySet() {
-		return entries.entrySet();
+	public Map<String, String> entries() {
+		return entries;
 	}
 
 	@Override

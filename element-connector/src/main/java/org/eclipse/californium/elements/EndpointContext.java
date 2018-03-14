@@ -72,7 +72,7 @@ public interface EndpointContext {
 	 *
 	 * @return A set of a map entry containing the key value pair.
 	 */
-	Set<Map.Entry<String, String>> entrySet();
+	Map<String, String> entries();
 
 	/**
 	 * Check, if the correlation information contained, will inhibit a new
