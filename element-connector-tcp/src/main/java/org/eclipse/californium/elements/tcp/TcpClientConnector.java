@@ -30,6 +30,7 @@
  *                                                 after TLS handshake completes overwriting
  *                                                 this method in a sub-class.
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - add logs for create and close channel
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -261,6 +262,7 @@ public class TcpClientConnector implements Connector {
 
 		@Override
 		public void channelCreated(Channel ch) throws Exception {
+			LOGGER.debug("new channel to {}", key);
 			onNewChannelCreated(key, ch);
 
 			// Handler order:
@@ -293,6 +295,7 @@ public class TcpClientConnector implements Connector {
 			// Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
 			poolMap.remove(key);
+			LOGGER.debug("closed channel to {}", key);
 		}
 	}
 }

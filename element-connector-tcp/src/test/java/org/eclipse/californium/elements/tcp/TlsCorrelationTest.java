@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation. 
+ * Achim Kraus (Bosch Software Innovations GmbH) - fix rare reconnect race condition
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -249,8 +250,25 @@ public class TlsCorrelationTest {
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
-
+		if (!serverCatcher.blockUntilSize(2, 2000)) {
+			// message didn't reach server
+			boolean resend = false;
+			EndpointContext clientContext2 = clientCallback.getEndpointContext();
+			if (clientContext2 != null && clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID)
+					.equals(clientContext2.get(TcpEndpointContext.KEY_CONNECTION_ID))) {
+				// message is send, but lost
+				clientCallback = new SimpleMessageCallback();
+				msg = createMessage(server.getAddress(), 100, clientCallback);
+				resend = true;
+			} else if (clientCallback.getError() instanceof IllegalStateException) {
+				// connection is closed while sending the new msg
+				resend = true;
+			}
+			if (resend) {
+				client.send(msg);
+				serverCatcher.blockUntilSize(2);
+			}
+		}
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext();
 		// new (different) client side connection
 		assertThat(clientContextAfterReconnect.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID))));
@@ -438,8 +456,8 @@ public class TlsCorrelationTest {
 		RawData receivedMessage = serverCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
 
-		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal>instanceOf(X509CertPath.class)));
-		X509CertPath senderCertPath = (X509CertPath)receivedMessage.getSenderIdentity();
+		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal> instanceOf(X509CertPath.class)));
+		X509CertPath senderCertPath = (X509CertPath) receivedMessage.getSenderIdentity();
 		assertThat(senderCertPath.getName(), is(clientCertPath.getName()));
 		assertThat(senderCertPath.getPath(), is(clientCertPath.getPath()));
 	}
@@ -510,8 +528,8 @@ public class TlsCorrelationTest {
 		RawData receivedMessage = clientCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
 
-		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal>instanceOf(X509CertPath.class)));
-		X509CertPath senderCertPath = (X509CertPath)receivedMessage.getSenderIdentity();
+		assertThat(receivedMessage.getSenderIdentity(), is(CoreMatchers.<Principal> instanceOf(X509CertPath.class)));
+		X509CertPath senderCertPath = (X509CertPath) receivedMessage.getSenderIdentity();
 		assertThat(senderCertPath.getName(), is(serverCertPath.getName()));
 		assertThat(senderCertPath.getPath(), is(serverCertPath.getPath()));
 	}
