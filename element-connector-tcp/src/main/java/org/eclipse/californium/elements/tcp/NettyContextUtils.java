@@ -17,6 +17,7 @@
  *                                                    add TLS information to
  *                                                    correlation context
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add id to logs
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -89,16 +90,16 @@ public class NettyContextUtils {
 				}
 
 				if (principal == null) {
-					LOGGER.debug("Principal missing");
+					LOGGER.debug("TLS({}) principal missing", id);
 				} else {
-					LOGGER.debug("Principal {}", principal.getName());
+					LOGGER.debug("TLS({}) principal {}", id, principal.getName());
 				}
 
 				byte[] sessionId = sslSession.getId();
 				if (sessionId != null && sessionId.length > 0) {
 					String sslId = StringUtil.byteArray2HexString(sessionId, 0);
 					String cipherSuite = sslSession.getCipherSuite();
-					LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
+					LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 12), cipherSuite);
 					return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
 				}
 			}
