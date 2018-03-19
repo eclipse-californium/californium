@@ -51,6 +51,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
  *                                                    retry-loop for observes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't remove observe 
+ *                                                    on cancel of notify
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -229,25 +231,6 @@ public abstract class BaseMatcher implements Matcher {
 								observationStore.remove(idByToken);
 							}
 						}
-					}
-					
-					@Override
-					public void onTimeout() {
-						// Ignore timeout, don't remove observation!
-						// The notify is already received for this exchange. 
-						// This should only occur, if the notify triggers 
-						// a blockwise get of the rest, where a timeout
-						// should be ignored and not remove the observe.
-					}
-
-					@Override
-					public void onCancel() {
-						failed();
-					}
-
-					@Override
-					protected void failed() {
-						observationStore.remove(idByToken);
 					}
 				});
 			}
