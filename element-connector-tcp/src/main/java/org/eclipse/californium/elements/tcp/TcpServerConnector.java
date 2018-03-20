@@ -64,6 +64,7 @@ public class TcpServerConnector implements Connector {
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
+	private final TcpContextUtil contextUtil;
 	private final ConcurrentMap<SocketAddress, Channel> activeChannels = new ConcurrentHashMap<>();
 
 	/**
@@ -80,9 +81,14 @@ public class TcpServerConnector implements Connector {
 	private InetSocketAddress localAddress;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
+		this(localAddress, numberOfThreads, idleTimeout, new TcpContextUtil());
+	}
+
+	protected TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout, TcpContextUtil contextUtil) {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.localAddress = localAddress;
+		this.contextUtil = contextUtil;
 	}
 
 	@Override
@@ -145,7 +151,7 @@ public class TcpServerConnector implements Connector {
 			msg.onError(new EndpointMismatchException());
 			return;
 		}
-		EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+		EndpointContext context = contextUtil.buildEndpointContext(channel);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if the message should be sent with the established connection */
 		if (null != endpointMatcher
@@ -230,7 +236,7 @@ public class TcpServerConnector implements Connector {
 			ch.pipeline().addLast(new ChannelTracker());
 			ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
 			ch.pipeline().addLast(new CloseOnIdleHandler());
-			ch.pipeline().addLast(new DatagramFramer());
+			ch.pipeline().addLast(new DatagramFramer(contextUtil));
 			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
 			ch.pipeline().addLast(new CloseOnErrorHandler());
 		}

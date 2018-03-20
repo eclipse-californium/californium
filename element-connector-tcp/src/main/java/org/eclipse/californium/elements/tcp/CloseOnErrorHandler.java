@@ -57,8 +57,8 @@ class CloseOnErrorHandler extends ChannelHandlerAdapter {
 					LOGGER.error("Security Exception in channel handler chain for endpoint {}. Closing connection.",
 							ctx.channel().remoteAddress(), rootCause);
 				} else {
-					LOGGER.error("{} in channel handler chain for endpoint {}. Closing connection.",
-							new Object[] { rootCause, ctx.channel().remoteAddress() });
+					LOGGER.error("{} in channel handler chain for endpoint {}. Closing connection.", rootCause,
+							ctx.channel().remoteAddress());
 				}
 			} else {
 				LOGGER.error("Exception in channel handler chain for endpoint {}. Closing connection.",
