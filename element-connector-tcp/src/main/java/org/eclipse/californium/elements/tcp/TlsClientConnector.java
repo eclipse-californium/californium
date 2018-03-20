@@ -85,7 +85,7 @@ public class TlsClientConnector extends TcpClientConnector {
 	 */
 	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis,
 			int handshakeTimeoutMillis, int idleTimeout) {
-		super(numberOfThreads, connectTimeoutMillis, idleTimeout);
+		super(numberOfThreads, connectTimeoutMillis, idleTimeout, new TlsContextUtil(true));
 		this.sslContext = sslContext;
 		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
 	}
@@ -110,7 +110,7 @@ public class TlsClientConnector extends TcpClientConnector {
 				@Override
 				public void operationComplete(Future<Channel> future) throws Exception {
 					if (future.isSuccess()) {
-						EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+						EndpointContext context = contextUtil.buildEndpointContext(channel);
 						if (context == null || context.get(TlsEndpointContext.KEY_SESSION_ID) == null) {
 							throw new RuntimeException("Missing TlsEndpointContext " + context);
 						}

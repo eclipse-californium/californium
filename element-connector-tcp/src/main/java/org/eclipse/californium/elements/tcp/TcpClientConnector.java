@@ -75,6 +75,7 @@ public class TcpClientConnector implements Connector {
 	private final int connectionIdleTimeoutSeconds;
 	private final int connectTimeoutMillis;
 	private final InetSocketAddress localSocketAddress = new InetSocketAddress(0);
+
 	/**
 	 * Endpoint context matcher for outgoing messages.
 	 * 
@@ -86,10 +87,17 @@ public class TcpClientConnector implements Connector {
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
 
+	protected final TcpContextUtil contextUtil;
+
 	public TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
+		this(numberOfThreads, idleTimeout, connectTimeoutMillis, new TcpContextUtil());
+	}
+
+	protected TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout, TcpContextUtil contextUtil) {
 		this.numberOfThreads = numberOfThreads;
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.connectTimeoutMillis = connectTimeoutMillis;
+		this.contextUtil = contextUtil;
 	}
 
 	@Override
@@ -178,7 +186,7 @@ public class TcpClientConnector implements Connector {
 	 * @param msg message to be send
 	 */
 	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg) {
-		EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+		EndpointContext context = contextUtil.buildEndpointContext(channel);
 		/*
 		 * check, if the message should be sent with the established connection
 		 */
@@ -275,7 +283,7 @@ public class TcpClientConnector implements Connector {
 			ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
 			ch.pipeline().addLast(new CloseOnIdleHandler());
 			ch.pipeline().addLast(new RemoveEmptyPoolHandler(key));
-			ch.pipeline().addLast(new DatagramFramer());
+			ch.pipeline().addLast(new DatagramFramer(contextUtil));
 			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
 			ch.pipeline().addLast(new CloseOnErrorHandler());
 		}

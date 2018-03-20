@@ -13,6 +13,7 @@
  * Contributors:
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - add correlation context
+ * Achim Kraus (Bosch Software Innovations GmbH) - add specific context util
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -28,27 +29,19 @@ import java.math.BigInteger;
 import java.util.List;
 
 /**
- * Converts stream of bytes over TCP connection into distinct datagrams based on CoAP over TCP spec.
+ * Converts stream of bytes over TCP connection into distinct datagrams based on
+ * CoAP over TCP spec.
  */
 public class DatagramFramer extends ByteToMessageDecoder {
 
-	public static int getLengthFieldSize(int len) {
-		if (len > 15 || len < 0) {
-			throw new IllegalArgumentException("Invalid len field: " + len);
-		}
+	private final TcpContextUtil contextUtil;
 
-		if (len == 13) {
-			return 1;
-		} else if (len == 14) {
-			return 2;
-		} else if (len == 15) {
-			return 4;
-		} else {
-			return 0;
-		}
+	public DatagramFramer(TcpContextUtil contextUtil) {
+		this.contextUtil = contextUtil;
 	}
 
-	@Override protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+	@Override
+	protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 		while (in.readableBytes() > 0) {
 			byte firstByte = in.getByte(in.readerIndex());
 			int lengthNibble = (firstByte & 0xF0) >>> 4;
@@ -69,11 +62,27 @@ public class DatagramFramer extends ByteToMessageDecoder {
 
 			byte[] data = new byte[coapHeaderSize + bodyLength];
 			in.readBytes(data);
-			// This is TCP connector, so we know remote address is InetSocketAddress.
+			
 			Channel channel = ctx.channel();
-			EndpointContext endpointContext = NettyContextUtils.buildEndpointContext(channel);
+			EndpointContext endpointContext = contextUtil.buildEndpointContext(channel);
 			RawData rawData = RawData.inbound(data, endpointContext, false);
 			out.add(rawData);
+		}
+	}
+
+	private int getLengthFieldSize(int len) {
+		if (len > 15 || len < 0) {
+			throw new IllegalArgumentException("Invalid len field: " + len);
+		}
+
+		if (len == 13) {
+			return 1;
+		} else if (len == 14) {
+			return 2;
+		} else if (len == 15) {
+			return 4;
+		} else {
+			return 0;
 		}
 	}
 
@@ -89,7 +98,8 @@ public class DatagramFramer extends ByteToMessageDecoder {
 		case 2:
 			return new BigInteger(1, data).intValue() + 269;
 		case 4:
-			// Possible overflow here, but is anybody reallying sending 2GB messages around?
+			// Possible overflow here, but is anybody really sending 2GB
+			// messages around?
 			return new BigInteger(1, data).intValue() + 65805;
 		default:
 			throw new IllegalArgumentException("Invalid field size: " + fieldSize);
@@ -100,6 +110,5 @@ public class DatagramFramer extends ByteToMessageDecoder {
 		// https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02
 		// 2 4-bit nibbles (len + tlk_len) + length field + code field + token field.
 		return 2 + lengthFieldSize + tokenFieldSize;
-
 	}
 }

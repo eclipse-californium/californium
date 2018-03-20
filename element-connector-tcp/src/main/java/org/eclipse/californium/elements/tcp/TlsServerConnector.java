@@ -74,7 +74,7 @@ public class TlsServerConnector extends TcpServerConnector {
 	 */
 	public TlsServerConnector(SSLContext sslContext, ClientAuthMode clientAuthMode, InetSocketAddress socketAddress,
 			int numberOfThreads, int handshakeTimeoutMillis, int idleTimeout) {
-		super(socketAddress, numberOfThreads, idleTimeout);
+		super(socketAddress, numberOfThreads, idleTimeout, new TlsContextUtil(clientAuthMode == ClientAuthMode.NEEDED));
 		this.sslContext = sslContext;
 		this.clientAuthMode = clientAuthMode;
 		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
