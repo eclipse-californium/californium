@@ -165,7 +165,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *                                  the certificates do not form a chain.
 	 */
 	private void setCertificateChain(final X509Certificate[] chain) {
-		this.certPath = X509CertPath.generateCertPath(chain);
+		this.certPath = X509CertPath.generateCertPath(false, chain);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

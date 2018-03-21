@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add "include root"
  ******************************************************************************/
 package org.eclipse.californium.elements.auth;
 
@@ -82,21 +83,36 @@ public class X509CertPath implements Principal {
 		}
 	}
 
+	/**
+	 * Create x509 certificate path from certificates chain.
+	 * 
+	 * @param certificateChain chain of certificates
+	 * @return created x509 certificate path
+	 */
 	public static X509CertPath fromCertificatesChain(Certificate[] certificateChain) {
 		if (certificateChain != null && certificateChain.length == 0) {
 			throw new IllegalArgumentException("Certificate chain must not be empty!");
 		}
-		CertPath certPath = generateCertPath(certificateChain);
+		CertPath certPath = generateCertPath(true, certificateChain);
 		return new X509CertPath(certPath);
 	}
 
-	public static CertPath generateCertPath(Certificate[] certificateChain) {
+	/**
+	 * Create certificate path from certificates chain.
+	 * 
+	 * @param includeRoot {@code true}, to include the root certificate in the
+	 *            path, {@code false} otherwise.
+	 * @param certificateChain chain of certificates
+	 * @return created certificate path
+	 */
+	public static CertPath generateCertPath(boolean includeRoot, Certificate[] certificateChain) {
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null!");
 		}
 		List<X509Certificate> certificates = new ArrayList<>();
 		X500Principal issuer = null;
 		try {
+			int index = 0;
 			CertificateFactory factory = CertificateFactory.getInstance(TYPE_X509);
 			for (Certificate cert : certificateChain) {
 				if (!(cert instanceof X509Certificate)) {
@@ -108,7 +124,17 @@ public class X509CertPath implements Principal {
 					LOGGER.debug("Actual Issuer DN: {}", xcert.getSubjectX500Principal().getName());
 					throw new IllegalArgumentException("Given certificates do not form a chain");
 				}
-				if (!xcert.getIssuerX500Principal().equals(xcert.getSubjectX500Principal())) {
+				++index;
+				if (xcert.getIssuerX500Principal().equals(xcert.getSubjectX500Principal())) {
+					// a self-signed root certificate
+					if (index != certificateChain.length) {
+						throw new IllegalArgumentException(
+								"Given certificates do not form a chain, root is not the last!");
+					}
+					if (includeRoot) {
+						certificates.add(xcert);
+					}
+				} else {
 					// not a self-signed certificate
 					certificates.add(xcert);
 					issuer = xcert.getIssuerX500Principal();
@@ -167,4 +193,20 @@ public class X509CertPath implements Principal {
 	public X509Certificate getTarget() {
 		return target;
 	}
+
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o instanceof X509CertPath == false) {
+			return false;
+		}
+		X509CertPath other = (X509CertPath) o;
+		return this.target.equals(other.target);
+	}
+
+	public int hashCode() {
+		return target.hashCode();
+	}
+
 }
