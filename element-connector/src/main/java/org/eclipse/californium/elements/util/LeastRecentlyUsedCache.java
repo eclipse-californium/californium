@@ -15,6 +15,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix stale check in get()
  *    Achim Kraus (Bosch Software Innovations GmbH) - use nano time to decouple
  *                                                    from system time changes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add save remove with value
+ *                                                    parameter
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -154,7 +156,7 @@ public class LeastRecentlyUsedCache<K, V> {
 
 	/**
 	 * Gets the period of time after which an entry is considered <em>stale</em> if it hasn't be accessed.
-	 *  
+	 * 
 	 * @return the threshold in seconds
 	 */
 	public final long getExpirationThreshold() {
@@ -168,7 +170,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * <em>NB</em>: invoking this method after creation of the cache does <em>not</em> have an
 	 * immediate effect, i.e. no (now stale) entries are purged from the cache.
 	 * This happens only when a new entry is put to the cache or a stale entry is read from the cache.
-	 *  
+	 * 
 	 * @param newThreshold the threshold in seconds
 	 * @see #put(Object, Object)
 	 * @see #get(Object)
@@ -309,7 +311,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @param key the key to look up in the cache
 	 * @return the value if the key has been found in the cache and the value is
-	 *           not stale, <code>null</code> otherwise
+	 *         not stale, <code>null</code> otherwise
 	 */
 	public final V get(K key) {
 		if (key == null) {
@@ -333,7 +335,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @param key the key of the entry to remove
 	 * @return the removed value or <code>null</code> if the cache does not
-	 *            contain the key
+	 *         contain the key
 	 */
 	public final V remove(K key) {
 		if (key == null) {
@@ -346,6 +348,29 @@ public class LeastRecentlyUsedCache<K, V> {
 		} else {
 			return null;
 		}
+	}
+
+	/**
+	 * Removes provided entry from the cache.
+	 * 
+	 * @param key the key of the entry to remove
+	 * @param value value of the entry to remove
+	 * @return the removed value or <code>null</code> if the cache does not
+	 *         contain the key or entry
+	 */
+	public final V remove(K key, V value) {
+		if (key == null) {
+			return null;
+		}
+		CacheEntry<K, V> entry = cache.get(key);
+		if (entry != null) {
+			if (entry.getValue() == value) {
+				cache.remove(key);
+				entry.remove();
+				return value;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -408,13 +433,14 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * <p>
 	 * Removal of connections from the iterator is unsupported.
 	 * </p>
-	 *  
+	 * 
 	 * @return an iterator over all connections backed by the underlying map.
 	 */
 	public final Iterator<V> values() {
 		final Iterator<CacheEntry<K, V>> iter = cache.values().iterator();
 
 		return new Iterator<V>() {
+
 			@Override
 			public boolean hasNext() {
 				return iter.hasNext();
@@ -433,6 +459,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	private static class CacheEntry<K, V> {
+
 		private final K key;
 		private final V value;
 		private long lastUpdate;
@@ -470,7 +497,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private void addBefore(CacheEntry<K, V> existingEntry) {
-			after  = existingEntry;
+			after = existingEntry;
 			before = existingEntry.before;
 			before.after = this;
 			after.before = this;

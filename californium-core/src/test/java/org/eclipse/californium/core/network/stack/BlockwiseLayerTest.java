@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
@@ -64,7 +65,7 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setUpperLayer(appLayer);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
-		Exchange exchange = new Exchange(request, Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		blockwiseLayer.receiveRequest(exchange, request);
 
@@ -87,7 +88,7 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setLowerLayer(outbox);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
-		Exchange exchange = new Exchange(request, Origin.REMOTE);
+		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		blockwiseLayer.receiveRequest(exchange, request);
 
@@ -110,13 +111,12 @@ public class BlockwiseLayerTest {
 
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
-		req.prepareDestinationContext();
 		req.addMessageObserver(requestObserver);
 
 		Response response = receiveResponseFor(req);
 		response.getOptions().setSize2(256).setBlock2(BlockOption.size2Szx(64), true, 0);
 
-		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		Exchange exchange = new Exchange(req, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(req);
 		blockwiseLayer.receiveResponse(exchange, response);
 
@@ -139,8 +139,7 @@ public class BlockwiseLayerTest {
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
-		req.prepareDestinationContext();
-		Exchange exchange = new Exchange(null, Origin.LOCAL);
+		Exchange exchange = new Exchange(req, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(req);
 
 		// WHEN the request used to establish the observe relation has been canceled

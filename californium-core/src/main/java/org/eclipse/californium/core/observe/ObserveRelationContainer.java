@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	
 	/** The set of observe relations */
-	private ConcurrentHashMap<String, ObserveRelation> observeRelations;
+	private final ConcurrentHashMap<String, ObserveRelation> observeRelations;
 	
 	/**
 	 * Constructs a container for observe relations.

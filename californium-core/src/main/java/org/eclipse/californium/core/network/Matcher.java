@@ -73,9 +73,8 @@ public interface Matcher {
 	 * </ul>
 	 * 
 	 * @param exchange the message exchange that the request is sent as part of.
-	 * @param request the request message being sent.
 	 */
-	void sendRequest(Exchange exchange, Request request);
+	void sendRequest(Exchange exchange);
 
 	/**
 	 * Notifies this matcher about a response message being sent to a peer.
@@ -89,9 +88,8 @@ public interface Matcher {
 	 * to an ACK or RST sent by the peer in response.
 	 * 
 	 * @param exchange the message exchange that the response is sent as part of.
-	 * @param response the response message being sent.
 	 */
-	void sendResponse(Exchange exchange, Response response);
+	void sendResponse(Exchange exchange);
 
 	/**
 	 * Notifies this matcher about an empty ACK or RST being sent to a peer.

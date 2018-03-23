@@ -16,12 +16,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A layer that reacts to user cancelled outgoing requests, and completes exchange, which causes state clean up.
@@ -54,11 +53,9 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 
 		@Override
 		public void onCancel() {
-
-			if (!exchange.isComplete()) {
-				LOGGER.debug("completing canceled request [MID={}, token={}]",
-						new Object[]{ exchange.getRequest().getMID(), exchange.getRequest().getTokenString() });
-				exchange.setComplete();
+			if (exchange.executeComplete()) {
+				LOGGER.debug("{}, canceled request [MID={}, {}]", exchange,
+						exchange.getRequest().getMID(), exchange.getRequest().getToken());
 			}
 		}
 	}

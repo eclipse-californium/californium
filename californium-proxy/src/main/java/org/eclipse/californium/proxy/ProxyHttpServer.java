@@ -87,7 +87,7 @@ public class ProxyHttpServer {
 		
 		LOGGER.info("ProxyEndpoint handles request {}", request);
 		
-		Exchange exchange = new Exchange(request, Origin.REMOTE) {
+		Exchange exchange = new Exchange(request, Origin.REMOTE, null) {
 
 			@Override
 			public void sendAccept() {

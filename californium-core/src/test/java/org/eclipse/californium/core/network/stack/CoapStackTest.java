@@ -4,7 +4,9 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
+import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.junit.Test;
@@ -51,14 +53,15 @@ public class CoapStackTest {
 	@Test public void cancelledMessageExpectExchangeComplete() {
 		Request request = new Request(CoAP.Code.GET);
 		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		ArgumentCaptor<Exchange> exchangeCaptor = ArgumentCaptor.forClass(Exchange.class);
 		doNothing().when(outbox).sendRequest(exchangeCaptor.capture(), eq(request));
 
-		stack.sendRequest(request);
+		stack.sendRequest(exchange, request);
 
 		// Capture exchange
-		Exchange exchange = exchangeCaptor.getValue();
+		exchange = exchangeCaptor.getValue();
 		assertFalse(exchange.isComplete());
 
 		request.setCanceled(true);

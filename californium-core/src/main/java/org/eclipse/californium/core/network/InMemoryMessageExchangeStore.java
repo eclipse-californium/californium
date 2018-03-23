@@ -33,11 +33,14 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - start status logging with first
  *                                                    stored exchange. 
  *                                                    Add exchange dump to status.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check for modified current requests
+ *                                                    or responses.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -52,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -198,8 +202,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
-
 		enableStatus = true;
+		exchange.assertIncomplete(message);
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
@@ -207,24 +211,24 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				KeyMID key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 					throw new IllegalArgumentException(String.format(
-							"generated mid [%d] already in use, cannot register exchange", message.getMID()));
+							"generated mid [%d] already in use, cannot register %s", message.getMID(), exchange));
 				}
-				LOGGER.debug("exchange added with generated mid {}, {}", key, message);
+				LOGGER.debug("{} added with generated mid {}, {}", exchange, key, message);
 			}
 		} else {
 			KeyMID key = KeyMID.fromOutboundMessage(message);
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
-					throw new IllegalArgumentException(String
-							.format("mid [%d] already in use, cannot register exchange", message.getMID()));
+					throw new IllegalArgumentException(
+							String.format("mid [%d] already in use, cannot register %s", message.getMID(), exchange));
 				} else if (exchange.getFailedTransmissionCount() == 0) {
 					throw new IllegalArgumentException(String.format(
-							"message with already registered mid [%d] is not a re-transmission, cannot register exchange",
-							message.getMID()));
+							"message with already registered mid [%d] is not a re-transmission, cannot register %s",
+							message.getMID(), exchange));
 				}
 			} else {
-				LOGGER.debug("exchange added with {}, {}", key, message);
+				LOGGER.debug("{} added with {}, {}", exchange, key, message);
 			}
 		}
 		return mid;
@@ -233,13 +237,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private void registerWithToken(final Exchange exchange) {
 		enableStatus = true;
 		Request request = exchange.getCurrentRequest();
+		exchange.assertIncomplete(request);
 		Token token = request.getToken();
 		if (token == null) {
 			do {
 				token = tokenGenerator.createToken(false);
 				request.setToken(token);
 			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
-			LOGGER.debug("exchange added with generated token {}, {}", token, request);
+			LOGGER.debug("{} added with generated token {}, {}", exchange, token, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
@@ -250,19 +255,20 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null) {
-					LOGGER.debug("block2 exchange for block {} add with token {}", block2.getNum(), token);
+					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), token);
 				} else {
-					LOGGER.debug("exchange added with token {}, {}", token, request);
+					LOGGER.debug("{} added with token {}, {}", exchange, token, request);
 				}
 			} else if (previous != exchange) {
 				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
 						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
-					LOGGER.warn("manual token overrides existing open request: {}", token);
+					LOGGER.warn("{} with manual token overrides existing {} with open request: {}", exchange, previous,
+							token);
 				} else {
-					LOGGER.debug("exchange replaced with token {}, {}", token, request);
+					LOGGER.debug("{} replaced with token {}, {}", exchange, token, request);
 				}
 			} else {
-				LOGGER.debug("exchange kept for {}, {}", token, request);
+				LOGGER.debug("{} keep for {}, {}", exchange, token, request);
 			}
 		}
 	}
@@ -275,9 +281,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
-			int mid = registerWithMessageId(exchange, exchange.getCurrentRequest());
+			Request currentRequest = exchange.getCurrentRequest();
+			int mid = registerWithMessageId(exchange, currentRequest);
 			if (Message.NONE != mid) {
 				registerWithToken(exchange);
+				if (exchange.getCurrentRequest() != currentRequest) {
+					throw new ConcurrentModificationException("Current request modified!");
+				}
 				return true;
 			} else {
 				return false;
@@ -292,7 +302,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentRequest() == null) {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
+			Request currentRequest = exchange.getCurrentRequest();
 			registerWithToken(exchange);
+			if (exchange.getCurrentRequest() != currentRequest) {
+				throw new ConcurrentModificationException("Current request modified!");
+			}
 			return true;
 		}
 	}
@@ -301,7 +315,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final Token token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.debug("removing exchange for token {}", token);
+			LOGGER.debug("removing {} for token {}", exchange, token);
 		}
 	}
 
@@ -316,7 +330,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.debug("removing exchange for MID {}", messageId);
+			LOGGER.debug("removing {} for MID {}", removedExchange, messageId);
 		}
 		return removedExchange;
 	}
@@ -346,7 +360,16 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		} else if (exchange.getCurrentResponse() == null) {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
-			return registerWithMessageId(exchange, exchange.getCurrentResponse()) > Message.NONE;
+			Response currentResponse = exchange.getCurrentResponse();
+			exchange.retransmitResponse();
+			if (registerWithMessageId(exchange, currentResponse) > Message.NONE) {
+				if (exchange.getCurrentResponse() != currentResponse) {
+					throw new ConcurrentModificationException("Current response modified!");
+				}
+				return true;
+			} else {
+				return false;
+			}
 		}
 	}
 
@@ -415,14 +438,18 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Request current = exchange.getCurrentRequest();
 			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
 			if (origin != current && !origin.getToken().equals(current.getToken())) {
-				HEALTH_LOGGER.debug("  {}, complete {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, origin.getToken(), current,
-						exchange.getCurrentResponse());
+				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
+						exchange, exchange.getFailedTransmissionCount(), pending, origin.getToken(),
+						current, exchange.getCurrentResponse());
 			} else {
 				String mark = origin == null ? "(missing origin request) " : "";
-				HEALTH_LOGGER.debug("  {}, complete {}, retransmission {}{}, {} {}, {}", exchangeEntry.getKey(),
-						exchange.isComplete(), exchange.getFailedTransmissionCount(), pending, mark, current,
+				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, {}{}, {}", exchangeEntry.getKey(),
+						exchange, exchange.getFailedTransmissionCount(), pending, mark, current,
 						exchange.getCurrentResponse());
+			}
+			Throwable caller = exchange.getCaller();
+			if (caller != null) {
+				HEALTH_LOGGER.trace("  ", caller);
 			}
 			if (0 >= --logMaxExchanges) {
 				break;
