@@ -24,8 +24,13 @@
  *                                                    race condition in block1wise
  *                                                    when the generated token was 
  *                                                    copied too late (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
+
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * An abstract adapter class for reacting to a message's lifecylce events.
@@ -86,6 +91,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	@Override
 	public void onSendError(Throwable error) {
 		failed();
+	}
+
+	@Override
+	public void onContextEstablished(EndpointContext endpointContext) {
+		// empty default implementation
 	}
 
 	@Override

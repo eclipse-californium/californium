@@ -15,6 +15,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - Initial implementation,
  *                                                    Derived from ObserveLayer
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -61,9 +62,6 @@ public class TcpObserveLayer extends AbstractLayer {
 			if (!response.getOptions().hasObserve()) {
 				/* response for cancel request */
 				relation.cancel();
-				response.setLast(true);
-			} else {
-				response.setLast(false);
 			}
 		} // else no observe was requested or the resource does not allow it
 		lower().sendResponse(exchange, response);

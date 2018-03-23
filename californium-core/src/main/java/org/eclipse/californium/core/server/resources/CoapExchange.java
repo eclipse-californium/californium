@@ -39,11 +39,11 @@ import org.eclipse.californium.core.network.Exchange;
 public class CoapExchange {
 	
 	/* The internal (advanced) exchange. */
-	private Exchange exchange;
-	private Map<String, String> queryParameters;
+	private final Exchange exchange;
+	private final Map<String, String> queryParameters;
 
 	/* The destination resource. */
-	private CoapResource resource;
+	private final CoapResource resource;
 	
 	/* Response option values. */
 	private String locationPath = null;
@@ -66,15 +66,13 @@ public class CoapExchange {
 		}
 		this.exchange = exchange;
 		this.resource = resource;
-		parseUriQuery();
-	}
-
-	private void parseUriQuery() {
 		if (getRequestOptions().getURIQueryCount() > 0) {
-			queryParameters = new HashMap<>();
+			this.queryParameters = new HashMap<>();
 			for (String param : getRequestOptions().getUriQuery()) {
 				addParameter(param);
 			}
+		} else {
+			this.queryParameters = null;
 		}
 	}
 
@@ -93,7 +91,7 @@ public class CoapExchange {
 	 * @return the source address
 	 */
 	public InetAddress getSourceAddress() {
-		return exchange.getRequest().getSource();
+		return exchange.getRequest().getSourceContext().getPeerAddress().getAddress();
 	}
 	
 	/**
@@ -102,7 +100,7 @@ public class CoapExchange {
 	 * @return the source port
 	 */
 	public int getSourcePort() {
-		return exchange.getRequest().getSourcePort();
+		return exchange.getRequest().getSourceContext().getPeerAddress().getPort();
 	}
 	
 	/**

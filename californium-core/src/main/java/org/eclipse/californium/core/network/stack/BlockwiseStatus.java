@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.StripedExchangeJob;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -290,11 +291,21 @@ abstract class BlockwiseStatus {
 	}
 
 	/**
-	 * Complete current transfert
+	 * Complete current transfer.
 	 */
 	public void timeoutCurrentTranfer() {
-		if (exchange != null) {
-			this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+		Exchange exchange;
+		synchronized (this) {
+			exchange = this.exchange;
+		}
+		if (exchange != null && !exchange.isComplete()) {
+			exchange.execute(new StripedExchangeJob(exchange) {
+
+				@Override
+				public void runStriped() {
+					this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+				}
+			});
 		}
 	}
 }

@@ -28,6 +28,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - complete old notification
  *                                                    exchange
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove synchronization and use
+ *                                                    striped exchange execution instead.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -40,6 +43,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.StripedExchangeJob;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -87,9 +91,6 @@ public class ObserveLayer extends AbstractLayer {
 				}
 			}
 
-			// This is a notification
-			response.setLast(false);
-
 			/*
 			 * Only one Confirmable message is allowed to be in transit. A CON
 			 * is in transit as long as it has not been acknowledged, rejected,
@@ -106,17 +107,15 @@ public class ObserveLayer extends AbstractLayer {
 			// The decision whether to postpone this notification or not and the
 			// decision which notification is the freshest to send next must be
 			// synchronized
-			synchronized (exchange) {
-				Response current = relation.getCurrentControlNotification();
-				if (current != null && isInTransit(current)) {
-					LOGGER.debug("a former notification is still in transit. Postponing {}", response);
-					relation.setNextControlNotification(response);
-					// do not send now
-					return;
-				} else {
-					relation.setCurrentControlNotification(response);
-					relation.setNextControlNotification(null);
-				}
+			Response current = relation.getCurrentControlNotification();
+			if (current != null && isInTransit(current)) {
+				LOGGER.debug("a former notification is still in transit. Postponing {}", response);
+				relation.setNextControlNotification(response);
+				// do not send now
+				return;
+			} else {
+				relation.setCurrentControlNotification(response);
+				relation.setNextControlNotification(null);
 			}
 
 			/*
@@ -193,70 +192,65 @@ public class ObserveLayer extends AbstractLayer {
 
 		@Override
 		public void onAcknowledgement() {
-			synchronized (exchange) {
-				ObserveRelation relation = exchange.getRelation();
-				final Response next = relation.getNextControlNotification();
-				relation.setCurrentControlNotification(next);
-				 // next may be null
-				relation.setNextControlNotification(null);
-				if (next != null) {
-					LOGGER.debug("notification has been acknowledged, send the next one");
-					/*
-					 * The matcher must be able to find the NON notifications to remove
-					 * them from the exchangesByMID hashmap
-					 */
-					if (next.getType() == Type.NON) {
-						relation.addNotification(next);
-					}
-					// Create a new task for sending next response so that we
-					// can leave the sync-block
-					executor.execute(new Runnable() {
-
-						public void run() {
-							ObserveLayer.super.sendResponse(exchange, next);
-						}
-					});
+			ObserveRelation relation = exchange.getRelation();
+			final Response next = relation.getNextControlNotification();
+			relation.setCurrentControlNotification(next);
+			// next may be null
+			relation.setNextControlNotification(null);
+			if (next != null) {
+				LOGGER.debug("notification has been acknowledged, send the next one");
+				/*
+				 * The matcher must be able to find the NON notifications to
+				 * remove them from the exchangesByMID hashmap
+				 */
+				if (next.getType() == Type.NON) {
+					relation.addNotification(next);
 				}
+				// Create a new task for sending next response so that we
+				// can leave the sync-block
+				exchange.execute(new StripedExchangeJob(exchange) {
+
+					@Override
+					public void runStriped() {
+						ObserveLayer.super.sendResponse(exchange, next);
+					}
+				});
 			}
 		}
 
 		@Override
 		public void onRetransmission() {
-			synchronized (exchange) {
-				ObserveRelation relation = exchange.getRelation();
-				final Response next = relation.getNextControlNotification();
-				if (next != null) {
-					LOGGER.debug("notification has timed out and there is a fresher notification for the retransmission");
-					// Cancel the original retransmission and send the fresh
-					// notification here
-					response.cancel();
-					// Using new MIDs requires to cleanup the current exchange with old MID.
-					exchange.completeCurrentRequest();
-					// Convert all notification retransmissions to CON
-					if (next.getType() != Type.CON) {
-						next.setType(Type.CON);
-						prepareSelfReplacement(exchange, next);
-					}
-					relation.setCurrentControlNotification(next);
-					relation.setNextControlNotification(null);
-					// Create a new task for sending next response so that we
-					// can leave the sync-block
-					executor.execute(new Runnable() {
-
-						public void run() {
-							ObserveLayer.super.sendResponse(exchange, next);
-						}
-					});
+			ObserveRelation relation = exchange.getRelation();
+			final Response next = relation.getNextControlNotification();
+			if (next != null) {
+				LOGGER.debug("notification has timed out and there is a fresher notification for the retransmission");
+				// Cancel the original retransmission and send the fresh
+				// notification here
+				response.cancel();
+				// Convert all notification retransmissions to CON
+				if (next.getType() != Type.CON) {
+					next.setType(Type.CON);
+					prepareSelfReplacement(exchange, next);
 				}
+				relation.setCurrentControlNotification(next);
+				relation.setNextControlNotification(null);
+				// Create a new task for sending next response so that we
+				// can leave the sync-block
+				exchange.execute(new StripedExchangeJob(exchange) {
+
+					@Override
+					public void runStriped() {
+						ObserveLayer.super.sendResponse(exchange, next);
+					}
+				});
 			}
 		}
 
 		@Override
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
-			LOGGER.info(
-					"notification for token [{}] timed out. Canceling all relations with source [{}]",
-					new Object[]{ relation.getExchange().getRequest().getTokenString(), relation.getSource() });
+			LOGGER.info("notification for token [{}] timed out. Canceling all relations with source [{}]",
+					relation.getExchange().getRequest().getToken(), relation.getSource());
 			relation.cancelAll();
 		}
 
