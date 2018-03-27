@@ -142,6 +142,7 @@ public class BenchmarkClient {
 	 * Special observe/server network configuration defaults handler.
 	 */
 	private static NetworkConfigDefaultHandler OBSERVE_DEFAULTS = new NetworkConfigDefaultHandler() {
+
 		@Override
 		public void applyDefaults(NetworkConfig config) {
 			DEFAULTS.applyDefaults(config);
@@ -466,7 +467,7 @@ public class BenchmarkClient {
 			System.out.println();
 			System.out.println("Examples:");
 			System.out.println("  " + BenchmarkClient.class.getSimpleName()
-					+ " coap://localhost:5783/benchmark&rlen=200 500 2000");
+					+ " coap://localhost:5783/benchmark?rlen=200 500 2000");
 			System.out.println(
 					"  (Benchmark 500 clients each sending about 2000 request and the response should have 200 bytes payload.)");
 			System.out.println();
@@ -665,7 +666,7 @@ public class BenchmarkClient {
 		long overallSentNotifies = overallNotifies - overallNotifiesDownCounter.getCount();
 		notifyNanos = System.nanoTime() - notifyNanos;
 
-		System.out.format("Benchmark clients %s.%n", stale ? "stopped" : "finished");
+		System.out.format("%d benchmark clients %s.%n", clients, stale ? "stopped" : "finished");
 
 		// stop and collect per client requests
 		int statistic[] = new int[clients];

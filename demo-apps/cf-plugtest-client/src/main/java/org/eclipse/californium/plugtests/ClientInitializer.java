@@ -14,6 +14,7 @@
  *    Bosch Software Innovations GmbH - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove MAC usage for
  *                                                    PSK identity.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add argument -i (identity)
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -73,6 +74,9 @@ public class ClientInitializer {
 		boolean ping[] = { true };
 		boolean rpc = false;
 		boolean x509 = false;
+		String id = null;
+		String secret = null;
+
 		if (args[index].equals("-s")) {
 			++index;
 			ping[0] = false;
@@ -91,6 +95,12 @@ public class ClientInitializer {
 		} else if (args[index].equals("-x")) {
 			++index;
 			x509 = true;
+		} else if (args[index].equals("-i")) {
+			++index;
+			id = args[index];
+			++index;
+			secret = args[index];
+			++index;
 		}
 
 		String uri = args[index];
@@ -104,15 +114,15 @@ public class ClientInitializer {
 			uri = uri.substring(uri.length() - 1);
 		}
 
-		setupEndpoint(config, uri, verbose, rpc, x509, ping);
+		setupEndpoint(config, uri, id, secret, verbose, rpc, x509, ping);
 
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
 
 		return new Arguments(uri, ping[0], verbose, json, leftArgs);
 	}
 
-	private static void setupEndpoint(NetworkConfig config, String uri, boolean verbose, boolean rpc, boolean x509,
-			boolean[] ping) {
+	private static void setupEndpoint(NetworkConfig config, String uri, String id, String secret, boolean verbose,
+			boolean rpc, boolean x509, boolean[] ping) {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
@@ -149,11 +159,13 @@ public class ClientInitializer {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 							rpc);
 					dtlsConfig.setTrustStore(trustedCertificates);
+				} else if (id != null) {
+					dtlsConfig.setPskStore(new PlugPskStore(id, secret.getBytes()));
 				} else {
-					byte[] id = new byte[8];
+					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
-					random.nextBytes(id);
-					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
+					random.nextBytes(rid);
+					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(rid)));
 				}
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
@@ -182,14 +194,25 @@ public class ClientInitializer {
 	public static class PlugPskStore implements PskStore {
 
 		private final String identity;
+		private final byte[] secret;
+
+		public PlugPskStore(String id, byte[] secret) {
+			this.identity = id;
+			this.secret = secret;
+			LOGGER.info("DTLS-PSK-Identity: {})", identity);
+		}
 
 		public PlugPskStore(String id) {
 			identity = PSK_IDENTITY_PREFIX + id;
-			LOGGER.info("DTLS-PSK-Identity: {} ({} random bytes)", identity , (id.length() / 2));
+			secret = null;
+			LOGGER.info("DTLS-PSK-Identity: {} ({} random bytes)", identity, (id.length() / 2));
 		}
 
 		@Override
 		public byte[] getKey(String identity) {
+			if (secret != null) {
+				return secret;
+			}
 			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
 				return PSK_SECRET;
 			}

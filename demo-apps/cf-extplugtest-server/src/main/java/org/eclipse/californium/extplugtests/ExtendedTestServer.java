@@ -21,6 +21,7 @@ package org.eclipse.californium.extplugtests;
 import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -74,8 +75,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 		System.out.println("\nCalifornium (Cf) Extended Plugtest Server");
 		System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
 		System.out.println();
-		System.out.println("Usage: " + ExtendedTestServer.class.getSimpleName() + " [-noLoopback [-noBenchmark|noPlugtest]]");
+		System.out.println(
+				"Usage: " + ExtendedTestServer.class.getSimpleName() + " [-noLoopback|-onlyLoopback|-onlyDtlsLoopback [-noBenchmark|noPlugtest]]");
 		System.out.println("  -noLoopback  : no endpoints for loopback/localhost interfaces");
+		System.out.println("  -onlyLoopback: endpoints only for loopback/localhost interfaces");
+		System.out.println("  -onlyDtlsLoopback: endpoint only for loopback with DTLS");
 		System.out.println("  -noBenchmark : disable benchmark resource");
 		System.out.println("  -noPlugtest  : disable plugtest server");
 
@@ -88,8 +92,20 @@ public class ExtendedTestServer extends AbstractTestServer {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		// create server
 		try {
+			boolean onlyLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-onlyLoopback") : false;
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
+			boolean onlyDtlsLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-onlyDtlsLoopback") : false;
 			boolean noBenchmark = args.length > 1 ? args[1].equalsIgnoreCase("-noBenchmark") : false;
+			List<Protocol> protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			List<InterfaceType> types = null;
+			if (noLoopback) {
+				types = Arrays.asList(InterfaceType.EXTERNAL, InterfaceType.IPV4, InterfaceType.IPV6);
+			} else if (onlyLoopback) {
+				types = Arrays.asList(InterfaceType.LOCAL, InterfaceType.IPV4);
+			} else if (onlyDtlsLoopback) {
+				types = Arrays.asList(InterfaceType.LOCAL, InterfaceType.IPV4);
+				protocols = Arrays.asList(Protocol.DTLS);
+			}
 
 			ScheduledExecutorService executor = Executors.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
@@ -99,7 +115,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			server.setExecutor(executor);
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
-			server.addEndpoints(!noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			server.addEndpoints(null, types, protocols);
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}

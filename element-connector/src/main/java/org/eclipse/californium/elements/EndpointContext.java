@@ -22,7 +22,6 @@ package org.eclipse.californium.elements;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A container for storing transport specific information about the context in

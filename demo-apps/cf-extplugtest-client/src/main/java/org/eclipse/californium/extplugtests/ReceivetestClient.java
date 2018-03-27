@@ -108,11 +108,12 @@ public class ReceivetestClient {
 			System.out.println("\nCalifornium (Cf) Receivetest Client");
 			System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
 			System.out.println();
-			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j] [-r|-x] URI");
+			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j] [-r|-x|-i id pw] URI");
 			System.out.println("  -v        : verbose. Enable message tracing.");
 			System.out.println("  -j        : use JSON format.");
 			System.out.println("  -r        : use raw public certificate. Default PSK.");
 			System.out.println("  -x        : use x.509 certificate");
+			System.out.println("  -i id pw  : use PSK with id and password");
 			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test (coap://<host>[:<port>])");
 			System.out.println();
 			System.out.println("Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
