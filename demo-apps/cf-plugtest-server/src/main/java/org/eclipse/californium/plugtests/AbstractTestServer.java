@@ -13,10 +13,13 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add ETSI credentials
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make added endpoints more selectable
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
@@ -49,6 +52,10 @@ public abstract class AbstractTestServer extends CoapServer {
 		UDP, DTLS, TCP, TLS
 	}
 
+	public enum InterfaceType {
+		LOCAL, EXTERNAL, IPV4, IPV6,
+	}
+
 	// exit codes for runtime errors
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -63,13 +70,25 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final byte[] ETSI_PSK_SECRET = "sesame".getBytes();
 
 	private final NetworkConfig config;
-	
+
 	protected AbstractTestServer(NetworkConfig config) {
 		super(config);
 		this.config = config;
 	}
 
-	public void addEndpoints(boolean loopback, List<Protocol> protocols) {
+	/**
+	 * Add endpoints.
+	 * 
+	 * @param selectAddress regular expression to filter the endpoints by
+	 *            {@link InetAddress#getHostAddress())}. Maybe {@code null} or
+	 *            {@code ""}, if endpoints should not be filtered by their host
+	 *            address.
+	 * @param interfaceTypes list of type to filter the endpoints. Maybe
+	 *            {@code null} or empty, if endpoints should not be filtered by
+	 *            type.
+	 * @param protocols list of protocols to create endpoints for.
+	 */
+	public void addEndpoints(String selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols) {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
 		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
@@ -78,7 +97,7 @@ public abstract class AbstractTestServer extends CoapServer {
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
 		int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
 		int dtlsThreads = config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-		
+
 		SslContextUtil.Credentials serverCredentials = null;
 		Certificate[] trustedCertificates = null;
 		SSLContext serverSslContext = null;
@@ -103,9 +122,33 @@ public abstract class AbstractTestServer extends CoapServer {
 			}
 		}
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			if (!loopback && addr.isLoopbackAddress()) {
-				continue;
+			if (interfaceTypes != null && !interfaceTypes.isEmpty()) {
+				if (addr.isLoopbackAddress()) {
+					if (!interfaceTypes.contains(InterfaceType.LOCAL)) {
+						continue;
+					}
+				} else {
+					if (!interfaceTypes.contains(InterfaceType.EXTERNAL)) {
+						continue;
+					}
+				}
+				if (addr instanceof Inet4Address) {
+					if (!interfaceTypes.contains(InterfaceType.IPV4)) {
+						continue;
+					}
+				}
+				if (addr instanceof Inet6Address) {
+					if (!interfaceTypes.contains(InterfaceType.IPV6)) {
+						continue;
+					}
+				}
 			}
+			if (selectAddress != null && !selectAddress.isEmpty()) {
+				if (!addr.getHostAddress().matches(selectAddress)) {
+					continue;
+				}
+			}
+
 			if (protocols.contains(Protocol.UDP) || protocols.contains(Protocol.TCP)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
 				if (protocols.contains(Protocol.UDP)) {

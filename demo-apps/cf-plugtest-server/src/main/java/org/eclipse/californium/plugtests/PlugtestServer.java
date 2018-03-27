@@ -24,6 +24,7 @@ package org.eclipse.californium.plugtests;
 import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
@@ -102,13 +103,14 @@ public class PlugtestServer extends AbstractTestServer {
 		// create server
 		try {
 			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
+			List<InterfaceType> types = noLoopback ? Arrays.asList(InterfaceType.EXTERNAL, InterfaceType.IPV4, InterfaceType.IPV6) : null;
 			PlugtestServer server = new PlugtestServer(config);
 			// ETSI Plugtest environment
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(!noLoopback, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			server.addEndpoints(null, types, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
 			// add special interceptor for message traces

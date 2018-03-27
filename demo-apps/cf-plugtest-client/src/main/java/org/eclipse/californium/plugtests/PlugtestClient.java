@@ -87,11 +87,12 @@ public class PlugtestClient {
 			System.out.println("\nCalifornium (Cf) Plugtest Client");
 			System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
 			System.out.println();
-			System.out.println("Usage: " + PlugtestClient.class.getSimpleName() + " [-s] [-v] [-r|-x] URI");
+			System.out.println("Usage: " + PlugtestClient.class.getSimpleName() + " [-s] [-v] [-r|-x|-i id pw] URI");
 			System.out.println("  -s        : Skip the ping in case the remote does not implement it");
 			System.out.println("  -v        : verbose. Enable message tracing.");
 			System.out.println("  -r        : use raw public certificate. Default PSK.");
 			System.out.println("  -x        : use x.509 certificate");
+			System.out.println("  -i id pw  : use PSK with id and password");
 			System.out.println("  URI       : The CoAP URI of the Plugtest server to test (coap://...)");
 			System.exit(-1);
 		}
