@@ -441,7 +441,7 @@ public final class DtlsConnectorConfig {
 		 * Sets the IP address and port the connector should bind to
 		 * 
 		 * @param address the IP address and port the connector should bind to
-		 * @throws IllegalArgumentException if the given addess is unresolved
+		 * @throws IllegalArgumentException if the given address is unresolved
 		 */
 		public Builder setAddress(InetSocketAddress address) {
 			if (address.isUnresolved()) {
