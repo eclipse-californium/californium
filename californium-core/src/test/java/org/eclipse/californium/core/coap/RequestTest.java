@@ -233,7 +233,7 @@ public class RequestTest {
 	@Test
 	public void setObserveFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.FETCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {
@@ -252,7 +252,7 @@ public class RequestTest {
 	@Test
 	public void setObserveCancelFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.FETCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {
