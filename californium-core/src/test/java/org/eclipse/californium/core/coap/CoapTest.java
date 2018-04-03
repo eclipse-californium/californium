@@ -85,7 +85,9 @@ public class CoapTest {
 		assertThat(CoAP.getCodeClass(ResponseCode.CONTINUE.value), is(CodeClass.SUCCESS_RESPONSE.value));
 		// errors
 		assertThat(CoAP.getCodeClass(ResponseCode.BAD_REQUEST.value), is(CodeClass.ERROR_RESPONSE.value));
+		assertThat(CoAP.getCodeClass(ResponseCode.CONFLICT.value), is(CodeClass.ERROR_RESPONSE.value));
 		assertThat(CoAP.getCodeClass(ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value), is(CodeClass.ERROR_RESPONSE.value));
+		assertThat(CoAP.getCodeClass(ResponseCode.UNPROCESSABLE_ENTITY.value), is(CodeClass.ERROR_RESPONSE.value));
 		// server errors
 		assertThat(CoAP.getCodeClass(ResponseCode.INTERNAL_SERVER_ERROR.value),
 				is(CodeClass.SERVER_ERROR_RESPONSE.value));
@@ -98,13 +100,17 @@ public class CoapTest {
 		// Requests
 		assertThat(CoAP.getCodeDetail(Code.GET.value), is(1));
 		assertThat(CoAP.getCodeDetail(Code.DELETE.value), is(4));
+		assertThat(CoAP.getCodeDetail(Code.FETCH.value), is(5));
+		assertThat(CoAP.getCodeDetail(Code.PATCH.value), is(6));
 		// success
 		assertThat(CoAP.getCodeDetail(ResponseCode.CREATED.value), is(1));
 		assertThat(CoAP.getCodeDetail(ResponseCode.CHANGED.value), is(4));
 		assertThat(CoAP.getCodeDetail(ResponseCode.CONTINUE.value), is(31));
 		// errors
 		assertThat(CoAP.getCodeDetail(ResponseCode.BAD_REQUEST.value), is(0));
+		assertThat(CoAP.getCodeDetail(ResponseCode.CONFLICT.value), is(9));
 		assertThat(CoAP.getCodeDetail(ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value), is(15));
+		assertThat(CoAP.getCodeDetail(ResponseCode.UNPROCESSABLE_ENTITY.value), is(22));
 		// server errors
 		assertThat(CoAP.getCodeDetail(ResponseCode.INTERNAL_SERVER_ERROR.value), is(0));
 		assertThat(CoAP.getCodeDetail(ResponseCode.NOT_IMPLEMENTED.value), is(1));
@@ -123,8 +129,10 @@ public class CoapTest {
 		// errors
 		assertThat(CoAP.formatCode(ResponseCode.BAD_REQUEST.value), is("4.00"));
 		assertThat(CoAP.formatCode(ResponseCode.REQUEST_ENTITY_INCOMPLETE.value), is("4.08"));
+		assertThat(CoAP.formatCode(ResponseCode.CONFLICT.value), is("4.09"));
 		assertThat(CoAP.formatCode(ResponseCode.REQUEST_ENTITY_TOO_LARGE.value), is("4.13"));
 		assertThat(CoAP.formatCode(ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value), is("4.15"));
+		assertThat(CoAP.formatCode(ResponseCode.UNPROCESSABLE_ENTITY.value), is("4.22"));
 		// server errors
 		assertThat(CoAP.formatCode(ResponseCode.INTERNAL_SERVER_ERROR.value), is("5.00"));
 		assertThat(CoAP.formatCode(ResponseCode.NOT_IMPLEMENTED.value), is("5.01"));
