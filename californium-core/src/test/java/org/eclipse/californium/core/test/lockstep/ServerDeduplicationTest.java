@@ -49,6 +49,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -125,6 +126,13 @@ public class ServerDeduplicationTest {
 				} else if (uriPath.endsWith("/SEP")) {
 					exchange.accept();
 					exchange.respond(payload + count);
+				} else if (uriPath.endsWith("/NODEDUP")) {
+					if (!exchange.advanced().setupDeliverDuplicate(2)) {
+						exchange.respond(payload + count);
+					}
+					else {
+						serverInterceptor.log(StringUtil.lineSeparator() + "// setup to deliver duplicate request again!");
+					}
 				} else {
 					exchange.respond(payload + count);
 				}
@@ -189,6 +197,37 @@ public class ServerDeduplicationTest {
 
 	/**
 	 * Verifies that the server recognizes a duplicate request (same MID) and
+	 * delivers the request, if the exchange is prepared to do so.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testServerPiggybackedRespondsToDeliveredDuplicateRequest() throws Exception {
+
+		Token token = Token.fromProvider(new byte[] { 0x00, 0x00 });
+		int mid = 2345;
+		String path = resourceName + "/NODEDUP";
+
+		client.sendRequest(CON, GET, token, mid).path(path).go();
+		// server will not response to the first request
+		assertThat(client.receiveNextMessage(500, TimeUnit.MILLISECONDS), is(nullValue()));
+		client.sendRequest(CON, GET, token, mid).path(path).go();
+		// server will not response to the first retransmission (second request) 
+		assertThat(client.receiveNextMessage(500, TimeUnit.MILLISECONDS), is(nullValue()));
+		client.sendRequest(CON, GET, token, mid).path(path).go();
+		// server send response for the 3. request
+		client.expectResponse(ACK, CONTENT, token, mid).payload(payload + "3").go();
+
+		// client re-transmits request
+		client.sendRequest(CON, GET, token, mid).path(path).go();
+		client.expectResponse(ACK, CONTENT, token, mid).payload(payload + "3").go();
+
+		// no more messages
+		assertThat(client.receiveNextMessage(500, TimeUnit.MILLISECONDS), is(nullValue()));
+	}
+
+	/**
+	 * Verifies that the server recognizes a duplicate request (same MID) and
 	 * sends back the same separate CON response.
 	 * 
 	 * @throws Exception if the test fails.
@@ -197,7 +236,7 @@ public class ServerDeduplicationTest {
 	public void testServerSeparateConRespondsToDuplicateRequest() throws Exception {
 
 		Token token = Token.fromProvider(new byte[] { 0x00, 0x01 });
-		int mid = 2345;
+		int mid = 3456;
 		String path = resourceName + "/CON";
 
 		client.sendRequest(CON, GET, token, mid).path(path).go();
@@ -238,7 +277,7 @@ public class ServerDeduplicationTest {
 	public void testServerSeparateNonRespondsToDuplicateRequest() throws Exception {
 
 		Token token = Token.fromProvider(new byte[] { 0x00, 0x01 });
-		int mid = 2345;
+		int mid = 4567;
 		String path = resourceName + "/NON";
 
 		client.sendRequest(CON, GET, token, mid).path(path).go();

@@ -43,6 +43,7 @@
  *                                                    Issue #487
  *    Achim Kraus (Bosch Software Innovations GmbH) - add checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add deliver duplicate
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -69,6 +70,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
 import org.slf4j.Logger;
@@ -91,7 +93,8 @@ import org.slf4j.LoggerFactory;
  * {@link #execute(StripedExchangeJob)}. For convenience the
  * {@link #executeComplete()} is provided to execute {@link #setComplete()}
  * accordingly. Methods, which are documented to throw a
- * {@link ConcurrentModificationException}MUST comply to this execution pattern!
+ * {@link ConcurrentModificationException} MUST comply to this execution
+ * pattern!
  * <p>
  * If the exchange represents a "blockwise" transfer and if the transparent mode
  * is used, the exchange keeps also the (original) request and use the current
@@ -252,6 +255,21 @@ public class Exchange {
 	// The relation that the target resource has established with the source
 	private volatile ObserveRelation relation;
 
+	/**
+	 * Indicates, that the current request is already answered. Access is
+	 * synchronized in scope of {@link #deliverDuplicatesCounter}.
+	 */
+	private boolean currentRequestAnswered;
+	/**
+	 * Indicates, that a duplicate request without answer should be passed to
+	 * the {@link MessageDeliverer}.
+	 */
+	private boolean deliverDuplicate;
+	/**
+	 * Counter for delivered duplicate requests.
+	 */
+	private final AtomicInteger deliverDuplicatesCounter = new AtomicInteger();
+
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
 	//If object security option is used, the Cryptographic context identifier is stored here
@@ -341,9 +359,20 @@ public class Exchange {
 	 * Accept this exchange and therefore the request. Only if the request's
 	 * type was a <code>CON</code> and the request has not been acknowledged
 	 * yet, it sends an ACK to the client.
+	 * 
+	 * @throws IllegalStateException if {@link #setupDeliverDuplicate(int)} was
+	 *             called before, but {@link #checkCurrentResponse(Response)}
+	 *             wasn't called to indicate the intended request
+	 *             retransmission.
 	 */
 	public void sendAccept() {
 		assert (origin == Origin.REMOTE);
+		synchronized (deliverDuplicatesCounter) {
+			if (deliverDuplicate) {
+				throw new IllegalStateException("Accept not allowed while waiting for request retransmission!");
+			}
+			currentRequestAnswered = true;
+		}
 		Request current = currentRequest;
 		if (current.getType() == Type.CON && !current.isAcknowledged()) {
 			current.setAcknowledged(true);
@@ -355,9 +384,20 @@ public class Exchange {
 	/**
 	 * Reject this exchange and therefore the request. Sends an RST back to the
 	 * client.
+	 * 
+	 * @throws IllegalStateException if {@link #setupDeliverDuplicate(int)} was
+	 *             called before, but {@link #checkCurrentResponse(Response)}
+	 *             wasn't called to indicate the intended request
+	 *             retransmission.
 	 */
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
+		synchronized (deliverDuplicatesCounter) {
+			if (deliverDuplicate) {
+				throw new IllegalStateException("Reject not allowed while waiting for request retransmission!");
+			}
+			currentRequestAnswered = true;
+		}
 		Request current = currentRequest;
 		current.setRejected(true);
 		EmptyMessage rst = EmptyMessage.newRST(current);
@@ -371,6 +411,10 @@ public class Exchange {
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
+		synchronized (deliverDuplicatesCounter) {
+			deliverDuplicate = false;
+			currentRequestAnswered = true;
+		}
 		Request current = currentRequest;
 		response.setDestinationContext(current.getSourceContext());
 		endpoint.sendResponse(this, response);
@@ -464,23 +508,32 @@ public class Exchange {
 		if (currentRequest != newCurrentRequest) {
 			setRetransmissionHandle(null);
 			failedTransmissionCount = 0;
-			Token token = currentRequest.getToken();
-			if (token != null) {
-				if (token.equals(newCurrentRequest.getToken())) {
-					token = null;
-				} else if (keepRequestInStore && token.equals(request.getToken())) {
-					token = null;
+			if (origin == Origin.LOCAL) {
+				Token token = currentRequest.getToken();
+
+				if (token != null) {
+					if (token.equals(newCurrentRequest.getToken())) {
+						token = null;
+					} else if (keepRequestInStore && token.equals(request.getToken())) {
+						token = null;
+					}
 				}
-			}
-			KeyMID key = null;
-			if (currentRequest.hasMID() && currentRequest.getMID() != newCurrentRequest.getMID()) {
-				key = KeyMID.fromOutboundMessage(currentRequest);
-			}
-			if (token != null || key != null) {
-				LOGGER.info("{} replace {} by {}", this, currentRequest, newCurrentRequest);
-				RemoveHandler obs = this.removeHandler;
-				if (obs != null) {
-					obs.remove(this, token, key);
+				KeyMID key = null;
+				if (currentRequest.hasMID() && currentRequest.getMID() != newCurrentRequest.getMID()) {
+					key = KeyMID.fromOutboundMessage(currentRequest);
+				}
+				if (token != null || key != null) {
+					LOGGER.info("{} replace {} by {}", this, currentRequest, newCurrentRequest);
+					RemoveHandler obs = this.removeHandler;
+					if (obs != null) {
+						obs.remove(this, token, key);
+					}
+				}
+			} else if (!newCurrentRequest.isDuplicate()) {
+				synchronized (deliverDuplicatesCounter) {
+					deliverDuplicate = false;
+					currentRequestAnswered = false;
+					deliverDuplicatesCounter.set(0);
 				}
 			}
 			currentRequest = newCurrentRequest;
@@ -533,11 +586,13 @@ public class Exchange {
 	public void setCurrentResponse(Response newCurrentResponse) {
 		assertOwner();
 		if (currentResponse != newCurrentResponse) {
-			if (currentResponse != null && currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
-				RemoveHandler handler = this.removeHandler;
-				if (handler != null) {
-					KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-					handler.remove(this, null, key);
+			if (origin == Origin.REMOTE) {
+				if (currentResponse != null && currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
+					RemoveHandler handler = this.removeHandler;
+					if (handler != null) {
+						KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
+						handler.remove(this, null, key);
+					}
 				}
 			}
 			currentResponse = newCurrentResponse;
@@ -659,6 +714,60 @@ public class Exchange {
 	 */
 	public void setEndpoint(Endpoint endpoint) {
 		this.endpoint = endpoint;
+	}
+
+	/**
+	 * Check, if the duplicated request should be delivered.
+	 * 
+	 * A duplicated request should be delivered, if
+	 * {@link #setupDeliverNextDuplicate(int)} was called successfully before.
+	 * Duplicate request for an already answered request should not be delivered
+	 * again and will return {@code false}. Successive calls to this method
+	 * without successful calls to {@link #setupDeliverDuplicate(int)} will also
+	 * return {@code false}.
+	 * 
+	 * Intended to be used for "short term" congestion control.
+	 * 
+	 * @return {@code true} if duplicate should be delivered, {@code false} if
+	 *         duplicate should be ignored.
+	 */
+	public boolean checkDeliverDuplicate() {
+		synchronized (deliverDuplicatesCounter) {
+			if (deliverDuplicate) {
+				deliverDuplicate = false;
+				deliverDuplicatesCounter.incrementAndGet();
+				return true;
+			} else {
+				return false;
+			}
+		}
+	}
+
+	/**
+	 * Setup exchange to deliver the next duplicate request.
+	 * 
+	 * The provided threshold limits the number of delivered duplicate
+	 * requests, not the number of calls of this method.
+	 * 
+	 * Intended to be used for "short term" congestion control. If the threshold
+	 * is reached, the congestion last longer and a response with 5.03 will be
+	 * more appreciated.
+	 * 
+	 * @param threshold threshold for delivered duplicate requests.
+	 * @return {@code true} if duplicate would be delivered, {@code false}, if
+	 *         threshold of delivered duplicates is reached, the request was
+	 *         already answered, or it's not a CON request.
+	 */
+	public boolean setupDeliverDuplicate(int threshold) {
+		if (!currentRequest.isConfirmable()) {
+			return false;
+		}
+		synchronized (deliverDuplicatesCounter) {
+			if (!currentRequestAnswered && !deliverDuplicate && deliverDuplicatesCounter.get() < threshold) {
+				deliverDuplicate = true;
+			}
+			return deliverDuplicate;
+		}
 	}
 
 	/**

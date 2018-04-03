@@ -33,6 +33,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix resend current response
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove synchronization and use
  *                                                    striped exchange execution instead.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add deliver duplicate
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -54,6 +55,32 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The reliability layer. CON retransmission. ACK/RST processing.
+ * 
+ * CoAP short term congestion control may be based on delayed responses. If the
+ * client complies to NSTART-1, and so waits for responses before sending the
+ * next request, the number of request is throttled by such a delayed response.
+ * This includes also a retransmission of a CON request, even if it is already
+ * received but could just not be processed in time. Depending on your server
+ * processing model, this processing may be executed in the scope of the first
+ * received request, or may be retried with a retransmission of that request.
+ * Therefore {@link #receiveRequest(Exchange, Request)} can handles duplicates
+ * in different ways. If the answer is already available, it sends the answer
+ * again. If not, depending on the processing model, it either ignores
+ * duplicates, or retries to process the duplicates. By default, duplicates are
+ * ignored. If reprocessing is intended,
+ * {@link Exchange#setupDeliverDuplicate(int)} must be called, when processing
+ * the current request could not be finished at that time. To limit this
+ * approach to short term overloads, the threshold may be used. If that is
+ * reached, 5.03 response should be send instead.
+ * 
+ * <code>
+ * // server overloaded, request could not be processed right now
+ * if (!exchange.advanced().requestDeliverDuplicate(2)) {
+ *    // server stays overloaded for longer (2 retransmissions)
+ *    // so give up to shortly wait and response now
+ *    exchange.respond(ResponseCode.SERVICE_UNAVAILABLE, t.getMessage());
+ * }
+ * </code>
  */
 public class ReliabilityLayer extends AbstractLayer {
 
@@ -197,13 +224,15 @@ public class ReliabilityLayer extends AbstractLayer {
 	}
 
 	/**
-	 * When we receive a duplicate of a request, we stop it here and do not
-	 * forward it to the upper layer. If the server has already sent a response,
-	 * we send it again. If the request has only been acknowledged (but the ACK
-	 * has gone lost or not reached the client yet), we resent the ACK. If the
-	 * request has neither been responded, acknowledged or rejected yet, the
-	 * server has not yet decided what to do with the request and we cannot do
-	 * anything.
+	 * When we receive a duplicate of a request, we stop it here by default and
+	 * do not forward it to the upper layer. If the server has already sent a
+	 * response, we send it again. If the request has only been acknowledged
+	 * (but the ACK has gone lost or not reached the client yet), we resent the
+	 * ACK. If the request has neither been responded, acknowledged or rejected
+	 * yet, the server has not yet decided what to do with the request and so we
+	 * cannot do anything. If the server intent to retry processing a request
+	 * with a duplicate, {@link Exchange#setupDeliverDuplicate(int)} must be
+	 * called at the end of the previous request processing.
 	 */
 	@Override
 	public void receiveRequest(final Exchange exchange, final Request request) {
@@ -235,31 +264,36 @@ public class ReliabilityLayer extends AbstractLayer {
 				LOGGER.debug("{} respond with the current response to the duplicate request", exchange);
 				// Do not restart retransmission cycle
 				lower().sendResponse(exchange, currentResponse);
-
+				return;
 			} else if (exchange.getCurrentRequest().isAcknowledged()) {
 				LOGGER.debug("{} duplicate request was acknowledged but no response computed yet. Retransmit ACK",
 						exchange);
 				EmptyMessage ack = EmptyMessage.newACK(request);
 				sendEmptyMessage(exchange, ack);
-
+				return;
 			} else if (exchange.getCurrentRequest().isRejected()) {
 				LOGGER.debug("{} duplicate request was rejected. Reject again", exchange);
 				EmptyMessage rst = EmptyMessage.newRST(request);
 				sendEmptyMessage(exchange, rst);
-
+				return;
+			} else if (exchange.checkDeliverDuplicate()) {
+				LOGGER.debug("{} server is awaiting to deliver this duplicate request.", exchange);
+				// The server has not yet decided, whether to acknowledge or
+				// reject the request. The server is prepared to deliver this
+				// duplicate request again.
 			} else {
 				LOGGER.debug("{} server has not yet decided what to do with the request. We ignore the duplicate.",
 						exchange);
 				// The server has not yet decided, whether to acknowledge or
 				// reject the request. We know for sure that the server has
 				// received the request though and can drop this duplicate here.
+				// don't deliver duplicates
+				return;
 			}
-
-		} else {
-			// Request is not a duplicate
-			exchange.setCurrentRequest(request);
-			upper().receiveRequest(exchange, request);
 		}
+
+		exchange.setCurrentRequest(request);
+		upper().receiveRequest(exchange, request);
 	}
 
 	/**
