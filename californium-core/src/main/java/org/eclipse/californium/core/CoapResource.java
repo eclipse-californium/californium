@@ -219,6 +219,8 @@ public  class CoapResource implements Resource {
 			case POST:	handlePOST(new CoapExchange(exchange, this)); break;
 			case PUT:	handlePUT(new CoapExchange(exchange, this)); break;
 			case DELETE: handleDELETE(new CoapExchange(exchange, this)); break;
+			case FETCH: handleFETCH(new CoapExchange(exchange, this)); break;
+			case PATCH: handlePATCH(new CoapExchange(exchange, this)); break;
 		}
 	}
 	
@@ -267,6 +269,30 @@ public  class CoapResource implements Resource {
 	 * @param exchange the CoapExchange for the simple API
 	 */
 	public void handleDELETE(CoapExchange exchange) {
+		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+	}
+	
+	/**
+	 * Handles the FETCH request in the given CoAPExchange. By default it
+	 * responds with a 4.05 (Method Not Allowed). Override this method to
+	 * respond differently to FETCH requests. The response code to a FETCH
+	 * request should be a Content (2.05).
+	 *
+	 * @param exchange the CoapExchange for the simple API
+	 */
+	public void handleFETCH(CoapExchange exchange) {
+		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+	}
+	
+	/**
+	 * Handles the PATCH request in the given CoAPExchange. By default it
+	 * responds with a 4.05 (Method Not Allowed). Override this method to
+	 * respond differently to PATCH requests. The response code to a PATCH
+	 * requests are Created (2.01) and Changed (2.04).
+	 *
+	 * @param exchange the CoapExchange for the simple API
+	 */
+	public void handlePATCH(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
 	
