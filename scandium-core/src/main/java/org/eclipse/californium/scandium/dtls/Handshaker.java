@@ -47,14 +47,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.CertPathValidator;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +71,7 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,8 +115,11 @@ public abstract class Handshaker {
 
 	protected final DTLSSession session;
 	protected final RecordLayer recordLayer;
-	/** list of trusted self-signed root certificates */
-	protected final X509Certificate[] rootCertificates;
+	/**
+	 * The logic in charge of verifying the chain of certificates asserting this
+	 * handshaker's identity
+	 */
+	protected final CertificateVerifier certificateVerifier;
 
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
@@ -173,7 +173,8 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certVerifier the verifier in charge of validating the peer's
+	 *            certificate chain
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -183,9 +184,9 @@ public abstract class Handshaker {
 	 *             <code>null</code>.
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
-		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit, rpkStore);
+		this(isClient, 0, session, recordLayer, sessionListener, certVerifier, maxTransmissionUnit, rpkStore);
 	}
 
 	/**
@@ -205,7 +206,8 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certVerifier the verifier in charge of validating the peer's
+	 *            certificate chain
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -217,7 +219,7 @@ public abstract class Handshaker {
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
@@ -232,7 +234,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates;
+		this.certificateVerifier = certVerifier;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -956,63 +958,24 @@ public abstract class Handshaker {
 		this.changeCipherSuiteMessageExpected = true;
 	}
 	
-	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
-		Set<TrustAnchor> result = new HashSet<>();
-		if (trustedCertificates != null) {
-			for (X509Certificate cert : trustedCertificates) {
-				result.add(new TrustAnchor((X509Certificate) cert, null));
-			}
-		}
-		return result;
-	}
-	
 	/**
 	 * Validates the X.509 certificate chain provided by the the peer as part of
 	 * this message, or the raw public key.
-	 * 
-	 * This method checks
-	 * <ol>
-	 * <li>that each certificate's issuer DN equals the subject DN of the next
-	 * certiciate in the chain</li>
-	 * <li>that each certificate is currently valid according to its validity
-	 * period</li>
-	 * <li>that the chain is rooted at a trusted CA</li>
-	 * </ol>
-	 * 
-	 * OR that the raw public key is in the raw public key trust store.
-	 * 
+	 *
+	 * This method delegates the certificate chain validation to the
+	 * {@link CertificateVerifier}
+	 *
+	 * OR
+	 *
+	 * checks that the raw public key is in the raw public key trust store.
+	 *
 	 * @param message the certificate message
-	 * 
+	 *
 	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
-
-			if (rootCertificates != null && rootCertificates.length == 0) {
-				// trust empty list of root certificates
-				return;
-			}
-
-			Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
-
-			try {
-				PKIXParameters params = new PKIXParameters(trustAnchors);
-				// TODO: implement alternative means of revocation checking
-				params.setRevocationEnabled(false);
-
-				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-				validator.validate(message.getCertificateChain(), params);
-
-			} catch (GeneralSecurityException e) {
-				if (LOGGER.isTraceEnabled()) {
-					LOGGER.trace("Certificate validation failed", e);
-				} else if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
-				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-						session.getPeer());
-				throw new HandshakeException("Certificate chain could not be validated", alert);
-			}
+			certificateVerifier.verifyCertificate(message, session);
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
 			if (!rpkStore.isTrusted(rpk)) {
