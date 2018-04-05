@@ -43,6 +43,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
@@ -76,6 +78,7 @@ public final class DtlsConnectorConfig {
 
 	private InetSocketAddress address;
 	private X509Certificate[] trustStore;
+	private CertificateVerifier certificateVerifier;
 
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
@@ -304,6 +307,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public X509Certificate[] getTrustStore() {
 		return trustStore;
+	}
+
+	/**
+	 * Gets the verifier in charge of validating the peer's certificate chain
+	 * during the DTLS handshake.
+	 *
+	 * @return the certificate chain verifier
+	 */
+	public CertificateVerifier getCertificateVerifier() {
+		return certificateVerifier;
 	}
 
 	/**
@@ -742,19 +755,51 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the root certificates the connector should use as the trust anchor when verifying
-		 * a peer's identity based on an X.509 certificate chain.
+		 * Sets the root certificates the connector should use:
+		 * <ul>
+		 * <li>as the trust anchor when verifying a peer's identity based on an
+		 * X.509 certificate chain. This is default behavior, which can be
+		 * overridden when passing a custom {@link CertificateVerifier} to this
+		 * builder.</li>
+		 * <li>as the list of certificate authorities when the server is
+		 * requesting a client certificate during the DTLS handshake.</li>
+		 * </ul>
 		 * 
 		 * @param trustedCerts the trusted root certificates
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the array contains a non-X.509 certificate
+		 * @throws IllegalArgumentException if the array contains a non-X.509
+		 *             certificate
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
 				config.trustStore = toX509Certificates(trustedCerts);
+				return this;
+			}
+		}
+
+		/**
+		 * Sets the logic in charge of validating a X.509 certificate chain.
+		 * </br>
+		 *
+		 * Here are a few use cases where a custom implementation would be
+		 * needed:
+		 * <ul>
+		 * <li>client certificate authentication based on a dynamic trusted CA
+		 * <li>revocation not provided by the default implementation (e.g. OCSP)
+		 * <li>cipher suites restriction per client
+		 * </ul>
+		 *
+		 * @param verifier
+		 * @return this builder for command chaining
+		 */
+		public Builder setCertificateVerifier(CertificateVerifier verifier) {
+			if (verifier == null) {
+				throw new NullPointerException("CertificateVerifier must not be null");
+			} else {
+				config.certificateVerifier = verifier;
 				return this;
 			}
 		}
@@ -934,6 +979,9 @@ public final class DtlsConnectorConfig {
 				// otherwise this would be interpreted for client only
 				// as ECDHE_ECDSA support!
 				config.trustedRPKs = new TrustAllRpks();
+			}
+			if (config.certificateVerifier == null) {
+				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
 			}
 
 			// check cipher consistency
