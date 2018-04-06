@@ -252,6 +252,10 @@ public class Exchange {
 
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
+	//If object security option is used, the Cryptographic context identifier is stored here
+    // for request/response mapping of contexts
+    private byte[] cryptoContextId;
+	
 	/**
 	 * Creates a new exchange with the specified request and origin.
 	 * 
@@ -1206,4 +1210,20 @@ public class Exchange {
 			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
+	
+    /**
+     * Sets cryptoContextId
+     * @param cryptoContextId a byte array used for mapping cryptographic contexts
+     */
+    public void setCryptographicContextID(byte[] cryptoContextId){
+        this.cryptoContextId = cryptoContextId;
+    }
+
+    /**
+     * Gets cryptoContextId
+     * @return
+     */
+    public byte[] getCryptographicContextID(){
+        return this.cryptoContextId;
+    }
 }

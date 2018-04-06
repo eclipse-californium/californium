@@ -28,7 +28,7 @@ import org.eclipse.californium.core.network.Exchange;
  * A tracker for the blockwise transfer of a request body.
  *
  */
-final class Block1BlockwiseStatus extends BlockwiseStatus {
+public final class Block1BlockwiseStatus extends BlockwiseStatus {
 
 	private Request request;
 
@@ -44,7 +44,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param preferredBlockSize The size to use for individual blocks.
 	 * @return The tracker.
 	 */
-	static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
+	public static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat());
 		status.request = request;
 		status.exchange = exchange;
@@ -60,7 +60,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param maxBodySize The maximum body size that can be buffered.
 	 * @return The tracker.
 	 */
-	static Block1BlockwiseStatus forInboundRequest(final Exchange exchange, final Request block, final int maxBodySize) {
+	public static Block1BlockwiseStatus forInboundRequest(final Exchange exchange, final Request block, final int maxBodySize) {
 		int contentFormat = block.getOptions().getContentFormat();
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize1()) {
@@ -85,7 +85,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @return The request.
 	 * @throws IllegalStateException if this tracker does not contain a request body.
 	 */
-	synchronized Request getNextRequestBlock(final int num, final int szx) {
+	public synchronized Request getNextRequestBlock(final int num, final int szx) {
 
 		if (request == null) {
 			throw new IllegalStateException("no request body");
@@ -105,7 +105,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @return The request.
 	 * @throws IllegalStateException if this tracker does not contain a request body.
 	 */
-	synchronized Request getNextRequestBlock() {
+	public synchronized Request getNextRequestBlock() {
 
 		if (request == null) {
 			throw new IllegalStateException("no request body");
@@ -148,7 +148,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * <p>
 	 * This method simply invokes {@link Request#cancel()}.
 	 */
-	void cancelRequest() {
+	public void cancelRequest() {
 		if (request != null) {
 			request.cancel();
 		}
@@ -161,7 +161,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param response The response to check.
 	 * @return {@code true} if the tokens match.
 	 */
-	boolean hasMatchingToken(final Response response) {
+	public boolean hasMatchingToken(final Response response) {
 		return request != null && response.getToken().equals(request.getToken());
 	}
 }

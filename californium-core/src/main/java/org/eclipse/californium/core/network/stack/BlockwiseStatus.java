@@ -38,7 +38,7 @@ import org.eclipse.californium.core.network.StripedExchangeJob;
  * <p>
  * Instances of this class are accessed/modified by the {@code BlockwiseLayer} only.
  */
-abstract class BlockwiseStatus {
+public abstract class BlockwiseStatus {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class.getName());
 
@@ -99,7 +99,7 @@ abstract class BlockwiseStatus {
 	 *
 	 * @return The current number.
 	 */
-	final synchronized int getCurrentNum() {
+	public final synchronized int getCurrentNum() {
 		return currentNum;
 	}
 
@@ -108,7 +108,7 @@ abstract class BlockwiseStatus {
 	 *
 	 * @param currentNum The new current number.
 	 */
-	final synchronized void setCurrentNum(final int currentNum) {
+	public final synchronized void setCurrentNum(final int currentNum) {
 		this.currentNum = currentNum;
 	}
 
@@ -117,7 +117,7 @@ abstract class BlockwiseStatus {
 	 *
 	 * @return the current szx
 	 */
-	final synchronized int getCurrentSzx() {
+	public final synchronized int getCurrentSzx() {
 		return currentSzx;
 	}
 
@@ -126,7 +126,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @return The number of bytes corresponding to the current szx code.
 	 */
-	final synchronized int getCurrentSize() {
+	public final synchronized int getCurrentSize() {
 		return BlockOption.szx2Size(currentSzx);
 	}
 
@@ -146,7 +146,7 @@ abstract class BlockwiseStatus {
 	 * @param format The format to check.
 	 * @return {@code true} if this transfer's content format matches the given format.
 	 */
-	final boolean hasContentFormat(final int format) {
+	public final boolean hasContentFormat(final int format) {
 		return this.contentFormat == format;
 	}
 
@@ -155,7 +155,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @return {@code true} if all blocks have been transferred.
 	 */
-	final synchronized boolean isComplete() {
+	public final synchronized boolean isComplete() {
 		return complete;
 	}
 
@@ -166,7 +166,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @param complete {@code true} if all blocks have been transferred.
 	 */
-	protected final synchronized void setComplete(final boolean complete) {
+	public final synchronized void setComplete(final boolean complete) {
 		this.complete = complete;
 		if (complete && cleanUpTask != null) {
 			cleanUpTask.cancel(false);
@@ -180,7 +180,7 @@ abstract class BlockwiseStatus {
 	 * @param block The block to add.
 	 * @return {@code true} if the block could be added to the buffer.
 	 */
-	final synchronized boolean addBlock(final byte[] block) {
+	public final synchronized boolean addBlock(final byte[] block) {
 
 		boolean result = false;
 		if (block == null) {
@@ -200,7 +200,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @return The capacity in bytes.
 	 */
-	final synchronized int getBufferSize() {
+	public final synchronized int getBufferSize() {
 		return buf.capacity();
 	}
 
@@ -239,7 +239,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @return {@code true} if this tracker is used for random block access only.
 	 */
-	final synchronized boolean isRandomAccess() {
+	public final synchronized boolean isRandomAccess() {
 		return randomAccess;
 	}
 
@@ -252,7 +252,7 @@ abstract class BlockwiseStatus {
 	 * @throws IllegalStateException if the first message is {@code null} or the
 	 *             source is not defined.
 	 */
-	final synchronized void assembleReceivedMessage(final Message message) {
+	public final synchronized void assembleReceivedMessage(final Message message) {
 
 		if (message == null) {
 			throw new NullPointerException("message must not be null");
@@ -282,7 +282,7 @@ abstract class BlockwiseStatus {
 	 * 
 	 * @param blockCleanupHandle The handle (may be {@code null}).
 	 */
-	final synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
+	public final synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
 
 		if (this.cleanUpTask != null) {
 			this.cleanUpTask.cancel(false);
