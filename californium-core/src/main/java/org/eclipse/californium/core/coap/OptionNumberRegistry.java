@@ -55,6 +55,9 @@ public final class OptionNumberRegistry {
 	public static final int BLOCK2			= 23;
 	public static final int BLOCK1			= 27;
 	public static final int SIZE2			= 28;
+	
+	//TODO temporary assignment
+	public static final int OSCORE			= 9;
 
 	/**
 	 * Option names.
@@ -83,7 +86,10 @@ public final class OptionNumberRegistry {
 		public static final String Block2			= "Block2";
 		public static final String Block1			= "Block1";
 		public static final String Size2			= "Size2";
+		
+		public static final String Object_Security  = "Object-Security";
 	}
+	
 	
 	/**
 	 * Option default values.
@@ -131,6 +137,7 @@ public final class OptionNumberRegistry {
 			return optionFormats.STRING;
 		case ETAG:
 		case IF_MATCH:
+	    case OSCORE:          
 			return optionFormats.OPAQUE;
 		default:
 			return optionFormats.UNKNOWN;
@@ -227,6 +234,7 @@ public final class OptionNumberRegistry {
 		case IF_NONE_MATCH:
 		case OBSERVE:
 		case ACCEPT:
+		case OSCORE:
 		default:
 			return true;
 		case ETAG:
@@ -304,6 +312,8 @@ public final class OptionNumberRegistry {
 			return Names.Size2;
 		case SIZE1:
 			return Names.Size1;
+		case OSCORE:
+            return Names.Object_Security;	
 		default:
 			return String.format("Unknown (%d)", optionNumber);
 		}
@@ -329,6 +339,7 @@ public final class OptionNumberRegistry {
 		else if (Names.Block1.equals(name))		return BLOCK1;
 		else if (Names.Size2.equals(name))			return SIZE2;
 		else if (Names.Size1.equals(name))			return SIZE1;
+		else if (Names.Object_Security.equals(name)) return OSCORE;
 		else return UNKNOWN;
 	}
 

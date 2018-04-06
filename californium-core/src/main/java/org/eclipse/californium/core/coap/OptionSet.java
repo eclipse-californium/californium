@@ -75,6 +75,7 @@ public final class OptionSet {
 	private Integer      size1;
 	private Integer      size2;
 	private Integer      observe;
+	private byte[]		 oscore;
 	
 	// Arbitrary options
 	private List<Option> others;
@@ -104,6 +105,7 @@ public final class OptionSet {
 		size1               = null;
 		size2               = null;
 		observe             = null;
+		oscore				= null;
 		
 		others              = null; // new LinkedList<>();
 	}
@@ -132,6 +134,7 @@ public final class OptionSet {
 		block1 = null;
 		block2 = null;
 		observe = null;
+		oscore = null;
 		if (others != null)
 			others.clear();
 	}
@@ -163,6 +166,8 @@ public final class OptionSet {
 			block2          = new BlockOption(origin.block2);
 		
 		observe = origin.observe;
+		if(origin.oscore != null)
+			oscore	= origin.oscore.clone();
 		
 		others              = copyList(origin.others);
 	}
@@ -1270,7 +1275,50 @@ public final class OptionSet {
 	public static boolean isValidObserveOption(final int value) {
 		return value >= 0 && value <= MAX_OBSERVE_NO;
 	}
-
+	
+	/**
+	 * Returns the byte array value of the OSCore option.
+	 * @return the OSCore value or null if the option is not present
+	 */
+	public byte[] getOscore() {
+		return oscore;
+	}
+	
+	/**
+	 * Checks if the OSCore option is present.
+	 * @return true if present
+	 */
+	public boolean hasOscore() {
+		return oscore != null;
+	}
+	
+	/**
+	 * Replaces the Oscore option with oscore.
+	 * Returns the current OptionSet object for a fluent API.
+	 * 
+	 * @param oscore the new Oscore value
+	 * @return this OptionSet
+	 * @throws NullPointerException if oscore is null
+	 */
+	public OptionSet setOscore(byte[] oscore){
+		if(oscore != null){
+			this.oscore = oscore.clone();
+		}else{
+			throw new NullPointerException("Oscore cannot be null.");
+		}
+		return this;
+	}
+	
+	/**
+	 * Removes the OSCore options.
+	 * Returns the current OptionSet object for a fluent API.
+	 * @return this OptionSet
+	 */
+	public OptionSet removeOscore(){
+		oscore = null;
+		return this;
+	}
+	
 	/**
 	 * Checks if an arbitrary option is present.
 	 * @param number the option number
@@ -1352,6 +1400,8 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.SIZE1, getSize1()));
 		if (hasSize2())
 			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
+		if(hasOscore())
+			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
 		
 		if (others != null)
 			options.addAll(others);
@@ -1386,6 +1436,7 @@ public final class OptionSet {
 			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
 			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
 			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
+			case OptionNumberRegistry.OSCORE:		  setOscore(option.getValue()); break;
 			default: getOthersInternal().add(option);
 		}
 		return this;

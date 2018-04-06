@@ -40,7 +40,7 @@ import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 /**
  * A tracker for the blockwise transfer of a response body.
  */
-final class Block2BlockwiseStatus extends BlockwiseStatus {
+public final class Block2BlockwiseStatus extends BlockwiseStatus {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Block2BlockwiseStatus.class.getName());
 
@@ -74,7 +74,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 *                           option is used as the block size.
 	 * @return The tracker.
 	 */
-	static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
+	public static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
 		status.response = response;
 		status.exchange = exchange;
@@ -92,7 +92,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param maxBodySize The maximum body size that can be buffered.
 	 * @return The tracker.
 	 */
-	static Block2BlockwiseStatus forInboundResponse(final Exchange exchange, final Response block, final int maxBodySize) {
+	public static Block2BlockwiseStatus forInboundResponse(final Exchange exchange, final Response block, final int maxBodySize) {
 		int contentFormat = block.getOptions().getContentFormat();
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize2()) {
@@ -123,7 +123,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return The tracker.
 	 * @throws IllegalArgumentException if the request does not contain a block2 option.
 	 */
-	static Block2BlockwiseStatus forRandomAccessRequest(final Exchange exchange, final Request request) {
+	public static Block2BlockwiseStatus forRandomAccessRequest(final Exchange exchange, final Request request) {
 
 		BlockOption block2 = request.getOptions().getBlock2();
 		if (block2 == null) {
@@ -156,7 +156,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true} if this tracker has been created for a transferring
 	 *                      the body of a notification.
 	 */
-	final synchronized boolean isNotification() {
+	public final synchronized boolean isNotification() {
 		return orderer != null;
 	}
 
@@ -178,7 +178,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true}, if response is newer than the current transfer,
 	 *         {@code false}, otherwise.
 	 */
-	final synchronized boolean isNew(final Response response) {
+	public final synchronized boolean isNew(final Response response) {
 		if (response == null) {
 			throw new NullPointerException("response block must not be null");
 		} else {
@@ -197,7 +197,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true}, if exchange matches this transfer, {@code false},
 	 *         otherwise.
 	 */
-	final synchronized boolean matchTransfer(Exchange exchange) {
+	public final synchronized boolean matchTransfer(Exchange exchange) {
 		Integer notification = exchange.getNotificationNumber();
 		if (notification != null && orderer != null) {
 			return orderer.getCurrent() == notification;
@@ -216,7 +216,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @throws NullPointerException if response block is {@code null}.
 	 * @throws IllegalArgumentException if the response block has no block2 option.
 	 */
-	synchronized boolean addBlock(final Response responseBlock) {
+	public synchronized boolean addBlock(final Response responseBlock) {
 
 		if (responseBlock == null) {
 			throw new NullPointerException("response block must not be null");
@@ -259,7 +259,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return The response block.
 	 * @throws IllegalStateException if this tracker does not contain a response.
 	 */
-	synchronized Response getNextResponseBlock(final BlockOption block2) {
+	public synchronized Response getNextResponseBlock(final BlockOption block2) {
 
 		if (response == null) {
 			throw new IllegalStateException("no response to track");
@@ -347,7 +347,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * 
 	 * @param newExchange new exchange
 	 */
-	final void completeOldTransfer(Exchange newExchange) {
+	public final void completeOldTransfer(Exchange newExchange) {
 		Exchange oldExchange;
 		synchronized (this) {
 			oldExchange = this.exchange;
@@ -375,7 +375,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */
-	final void completeNewTranfer(Exchange newExchange) {
+	public final void completeNewTranfer(Exchange newExchange) {
 		Exchange oldExchange;
 		synchronized (this) {
 			oldExchange = this.exchange;
@@ -431,7 +431,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 *            can check whether a message contains a particular block using the
 	 *            {@link Response#hasBlock(BlockOption)} method.
 	 */
-	static final void crop(final Response responseToCrop, final BlockOption requestedBlock) {
+	public static final void crop(final Response responseToCrop, final BlockOption requestedBlock) {
 
 		if (responseToCrop == null) {
 			throw new NullPointerException("response message must not be null");

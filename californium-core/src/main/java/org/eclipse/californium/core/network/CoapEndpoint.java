@@ -170,7 +170,7 @@ public class CoapEndpoint implements Endpoint {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
 
 	/** The stack of layers that make up the CoAP protocol */
-	private final CoapStack coapstack;
+	protected CoapStack coapstack;
 
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
@@ -178,7 +178,7 @@ public class CoapEndpoint implements Endpoint {
 	private final String scheme;
 
 	/** The configuration of this endpoint */
-	private final NetworkConfig config;
+	protected final NetworkConfig config;
 
 	/** The matcher which matches incoming responses, akcs and rsts an exchange */
 	private final Matcher matcher;
@@ -392,7 +392,7 @@ public class CoapEndpoint implements Endpoint {
 				throw new IllegalArgumentException("Connector must be a UDPConnector to use apply configuration!");
 			}
 		}
-
+		
 		Executor exchangeExecutionHandler = new Executor() {
 
 			@Override
@@ -685,7 +685,7 @@ public class CoapEndpoint implements Endpoint {
 	 * will then give them to the matcher, the interceptors, and finally send
 	 * them over the connector.
 	 */
-	private class OutboxImpl implements Outbox {
+	public class OutboxImpl implements Outbox {
 
 		@Override
 		public void sendRequest(final Exchange exchange, final Request request) {
