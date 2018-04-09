@@ -1762,12 +1762,23 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleExceptionDuringHandshake(Throwable cause, AlertLevel level, AlertDescription description, Record record) {
-		if (AlertLevel.FATAL.equals(level)) {
-			terminateOngoingHandshake(record.getPeerAddress(), cause, description);
-		} else {
+	private void handleExceptionDuringHandshake(HandshakeException cause, AlertLevel level, AlertDescription description, Record record) {
+		// discard none fatal alert exception
+		if (!AlertLevel.FATAL.equals(level)) {
 			discardRecord(record, cause);
+			return;
 		}
+
+		// "Unknown identity" and "bad PSK" should be both handled in a same way.
+		// Generally "bad PSK" means invalid MAC on FINISHED message.
+		// In production both should be silently ignored : https://bugs.eclipse.org/bugs/show_bug.cgi?id=533258
+		if (AlertDescription.UNKNOWN_PSK_IDENTITY == description) {
+			discardRecord(record, cause);
+			return;
+		}
+
+		// in other cases terminate handshake
+		terminateOngoingHandshake(record.getPeerAddress(), cause, description);
 	}
 
 	private static void discardRecord(final Record record, final Throwable cause) {
