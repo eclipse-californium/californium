@@ -689,7 +689,7 @@ public class ServerHandshaker extends Handshaker {
 		if (psk == null) {
 			throw new HandshakeException(
 					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
 		} else {
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
 			return generatePremasterSecretFromPSK(psk);
