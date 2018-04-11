@@ -21,10 +21,15 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 /**
- * A endpoint context providing the inet socket address and a optional principal.
+ * A endpoint context providing the inet socket address and a optional
+ * principal.
  */
 public class AddressEndpointContext implements EndpointContext {
+
+	protected static final int ID_TRUNC_LENGTH = 6;
 
 	private final InetSocketAddress peerAddress;
 
@@ -133,7 +138,10 @@ public class AddressEndpointContext implements EndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("IP(%s:%d)", peerAddress.getHostString(), peerAddress.getPort());
+		return String.format("IP(%s)", getPeerAddressAsString());
 	}
 
+	protected String getPeerAddressAsString() {
+		return StringUtil.toString(peerAddress);
+	}
 }

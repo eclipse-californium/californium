@@ -30,12 +30,13 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -118,7 +119,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			StringBuilder msg = new StringBuilder();
 			msg.append("Processing {} message from peer [{}]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(System.lineSeparator()).append(message);
+				msg.append(":").append(StringUtil.lineSeparator()).append(message);
 			}
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}

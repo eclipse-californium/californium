@@ -39,12 +39,13 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a DTLS session between two peers. Keeps track of the current and
@@ -444,7 +445,7 @@ public final class DTLSSession {
 		}
 		this.readState = readState;
 		incrementReadEpoch();
-		LOGGER.trace("Setting current read state to{}{}", System.lineSeparator(), readState);
+		LOGGER.trace("Setting current read state to{}{}", StringUtil.lineSeparator(), readState);
 	}
 
 	/**
@@ -499,7 +500,7 @@ public final class DTLSSession {
 		incrementWriteEpoch();
 		// re-calculate maximum fragment length based on cipher suite from updated write state
 		determineMaxFragmentLength(maxFragmentLength);
-		LOGGER.trace("Setting current write state to{}{}", System.lineSeparator(), writeState);
+		LOGGER.trace("Setting current write state to{}{}", StringUtil.lineSeparator(), writeState);
 	}
 
 	/**

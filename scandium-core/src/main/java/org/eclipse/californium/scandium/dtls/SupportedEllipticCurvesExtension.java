@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 
 
@@ -113,12 +114,12 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6);
-		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):");
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6);
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):");
 
 		for (Integer curveId : supportedGroups) {
 			SupportedGroup group = SupportedGroup.fromId(curveId);
-			sb.append(System.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
 			if (group != null) {
 				sb.append(group.name());
 			} else {

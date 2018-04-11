@@ -363,9 +363,12 @@
 					<configuration>
 						<signature>
 							<groupId>net.sf.androidscents.signature</groupId>
-							<artifactId>android-api-level-19</artifactId>
-							<version>4.4_r1</version>
+							<artifactId>android-api-level-16</artifactId>
+							<version>4.1.2_r5</version>
 						</signature>
+						<annotations>
+							<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
+						</annotations>
 					</configuration>
 				</plugin>
 			</plugins>

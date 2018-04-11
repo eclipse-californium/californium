@@ -22,6 +22,8 @@ package org.eclipse.californium.elements;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 /**
  * A endpoint context that explicitly supports DTLS specific properties.
  */
@@ -61,7 +63,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("DTLS(%s:%d,ID:%s)", getPeerAddress().getHostString(), getPeerAddress().getPort(),
-				getSessionId());
+		return String.format("DTLS(%s,ID:%s)", getPeerAddressAsString(),
+				StringUtil.trunc(getSessionId(), ID_TRUNC_LENGTH));
 	}
 }

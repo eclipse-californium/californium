@@ -22,6 +22,8 @@ package org.eclipse.californium.elements;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 /**
  * A endpoint context that explicitly supports TCP specific properties.
  */
@@ -72,8 +74,8 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("TCP(%s:%d,ID:%s)", getPeerAddress().getHostString(), getPeerAddress().getPort(),
-				getConnectionId());
+		return String.format("TCP(%s,ID:%s)", getPeerAddressAsString(),
+				StringUtil.trunc(getConnectionId(), ID_TRUNC_LENGTH));
 	}
 
 }

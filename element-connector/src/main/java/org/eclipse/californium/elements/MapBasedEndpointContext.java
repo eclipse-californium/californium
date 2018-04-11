@@ -169,7 +169,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("MAP(%s:%d)", getPeerAddress().getHostString(), getPeerAddress().getPort());
+		return String.format("MAP(%s)", getPeerAddressAsString());
 	}
 
 }

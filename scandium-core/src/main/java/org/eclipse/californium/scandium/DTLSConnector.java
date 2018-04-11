@@ -105,6 +105,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -972,7 +973,7 @@ public class DTLSConnector implements Connector {
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder("Processing CLIENT_HELLO from peer [").append(record.getPeerAddress()).append("]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(System.lineSeparator()).append(record);
+				msg.append(":").append(StringUtil.lineSeparator()).append(record);
 			}
 			LOGGER.debug(msg.toString());
 		}
@@ -1003,7 +1004,7 @@ public class DTLSConnector implements Connector {
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder("Processing CLIENT_HELLO from peer [").append(record.getPeerAddress()).append("]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(System.lineSeparator()).append(record);
+				msg.append(":").append(StringUtil.lineSeparator()).append(record);
 			}
 			LOGGER.debug(msg.toString());
 		}

@@ -32,6 +32,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
@@ -315,27 +316,27 @@ public final class ClientHello extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tVersion: ").append(clientVersion.getMajor()).append(", ").append(clientVersion.getMinor());
-		sb.append(System.lineSeparator()).append("\t\tRandom:").append(System.lineSeparator()).append(random);
+		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(StringUtil.lineSeparator()).append(random);
 		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append(System.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
-		sb.append(System.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
+		sb.append(StringUtil.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
-			sb.append(System.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
+			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
 		}
-		sb.append(System.lineSeparator()).append("\t\tCipher Suites Length: ").append(supportedCipherSuites.size() * 2);
-		sb.append(System.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size()).append(" suites)");
+		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites Length: ").append(supportedCipherSuites.size() * 2);
+		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size()).append(" suites)");
 		for (CipherSuite cipher : supportedCipherSuites) {
-			sb.append(System.lineSeparator()).append("\t\t\tCipher Suite: ").append(cipher);
+			sb.append(StringUtil.lineSeparator()).append("\t\t\tCipher Suite: ").append(cipher);
 		}
-		sb.append(System.lineSeparator()).append("\t\tCompression Methods Length: ").append(compressionMethods.size());
-		sb.append(System.lineSeparator()).append("\t\tCompression Methods (").append(compressionMethods.size()).append(" method)");
+		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Methods Length: ").append(compressionMethods.size());
+		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Methods (").append(compressionMethods.size()).append(" method)");
 		for (CompressionMethod method : compressionMethods) {
-			sb.append(System.lineSeparator()).append("\t\t\tCompression Method: ").append(method);
+			sb.append(StringUtil.lineSeparator()).append("\t\t\tCompression Method: ").append(method);
 		}
 		if (extensions != null) {
-			sb.append(System.lineSeparator()).append(extensions);
+			sb.append(StringUtil.lineSeparator()).append(extensions);
 		}
 
 		return sb.toString();

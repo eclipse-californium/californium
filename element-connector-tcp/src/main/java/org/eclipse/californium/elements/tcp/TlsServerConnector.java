@@ -27,6 +27,7 @@ import java.net.SocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,7 +145,7 @@ public class TlsServerConnector extends TcpServerConnector {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
 			LOGGER.info("Connection from inet {}", remote);
-			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
 			LOGGER.info("Connection from {}", remoteAddress);
 			return sslContext.createSSLEngine();

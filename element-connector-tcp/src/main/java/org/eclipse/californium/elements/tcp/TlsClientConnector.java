@@ -33,6 +33,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,7 +154,7 @@ public class TlsClientConnector extends TcpClientConnector {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
 			LOGGER.info("Connection to inet {}", remote);
-			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
 			LOGGER.info("Connection to {}", remoteAddress);
 			return sslContext.createSSLEngine();

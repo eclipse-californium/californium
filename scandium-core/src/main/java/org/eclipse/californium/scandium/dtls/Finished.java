@@ -22,16 +22,17 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Finished message is always sent immediately after a
@@ -111,8 +112,8 @@ public final class Finished extends HandshakeMessage {
 			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
 					.append("] FINISHED message failed");
 			if (LOG.isTraceEnabled()) {
-				msg.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
-				msg.append(System.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
+				msg.append(StringUtil.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
+				msg.append(StringUtil.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
 			}
 			LOG.debug(msg.toString());
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
@@ -144,7 +145,7 @@ public final class Finished extends HandshakeMessage {
 	@Override
 	public String toString() {
 		return new StringBuilder(super.toString())
-				.append("\t\tVerify Data: ").append(ByteArrayUtils.toHexString(verifyData)).append(System.lineSeparator())
+				.append("\t\tVerify Data: ").append(ByteArrayUtils.toHexString(verifyData)).append(StringUtil.lineSeparator())
 				.toString();
 	}
 
