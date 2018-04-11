@@ -24,6 +24,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * The key exchange message sent when using the preshared key key exchange
@@ -77,7 +78,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity Hint: ").append(hint).append(System.lineSeparator());
+		sb.append("\t\tPSK Identity Hint: ").append(hint).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

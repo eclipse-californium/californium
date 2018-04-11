@@ -38,11 +38,22 @@ import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+
+import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
+ * Depending on the environment, the configuration is stored and loaded from
+ * properties files. If file access is not possible, there are variants, which
+ * are marked as "WithoutFile" or variants, which use a {@link InputStream} to
+ * read the properties.
+ * 
+ * Note: For Android it's recommended to use the AssetManager and pass in the
+ * InputStream to the variants using that as parameter. Alternatively you may
+ * chose to use the "WithoutFile" variant and, if required, adjust the defaults
+ * in your code.
  */
 public final class NetworkConfig {
 
@@ -217,6 +228,12 @@ public final class NetworkConfig {
 	 * or server is created without a specific network configuration, it will
 	 * use this standard configuration.
 	 * 
+	 * For Android, please ensure, that either
+	 * {@link NetworkConfig#setStandard(NetworkConfig)},
+	 * {@link NetworkConfig#createStandardWithoutFile()}, or
+	 * {@link NetworkConfig#createStandardFromStream(InputStream)} is called
+	 * before!
+	 * 
 	 * @return the standard configuration
 	 */
 	public static NetworkConfig getStandard() {
@@ -268,7 +285,8 @@ public final class NetworkConfig {
 	 * @param customHandler custom defaults handler. Maybe {@code null}.
 	 * @return the configuration
 	 */
-	public static NetworkConfig createFromStream(InputStream inStream, final NetworkConfigDefaultHandler customHandler) {
+	public static NetworkConfig createFromStream(InputStream inStream,
+			final NetworkConfigDefaultHandler customHandler) {
 		LOGGER.info("Creating network configuration properties from stream");
 		NetworkConfig standard = new NetworkConfig();
 		if (customHandler != null) {
@@ -286,10 +304,15 @@ public final class NetworkConfig {
 	 * Creates the standard with a file. If the provided file exists, the
 	 * configuration reads the properties from this file. Otherwise it creates
 	 * the file.
+	 *
+	 * For Android, please use
+	 * {@link NetworkConfig#createStandardWithoutFile()}, or
+	 * {@link NetworkConfig#createStandardFromStream(InputStream)}.
 	 * 
 	 * @param file the configuration file
 	 * @return the network configuration
 	 */
+	@NotForAndroid
 	public static NetworkConfig createStandardWithFile(final File file) {
 		standard = createWithFile(file, DEFAULT_HEADER, null);
 		return standard;
@@ -300,12 +323,18 @@ public final class NetworkConfig {
 	 * configuration reads the properties from this file. Otherwise it creates
 	 * the file with the provided header.
 	 * 
+	 * For Android, please use {@link NetworkConfig#NetworkConfig()}, and load
+	 * the values using {@link NetworkConfig#load(InputStream)} or adjust the in
+	 * your code.
+	 * 
 	 * @param file the configuration file
 	 * @param header The header to write to the top of the file.
 	 * @param customHandler custom defaults handler. Maybe {@code null}.
 	 * @return the network configuration
 	 */
-	public static NetworkConfig createWithFile(final File file, final String header, final NetworkConfigDefaultHandler customHandler) {
+	@NotForAndroid
+	public static NetworkConfig createWithFile(final File file, final String header,
+			final NetworkConfigDefaultHandler customHandler) {
 		NetworkConfig standard = new NetworkConfig();
 		if (customHandler != null) {
 			customHandler.applyDefaults(standard);
@@ -330,9 +359,12 @@ public final class NetworkConfig {
 	/**
 	 * Loads properties from a file.
 	 *
+	 * For Android, please use {@link NetworkConfig#load(InputStream)}.
+	 * 
 	 * @param file the file
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void load(final File file) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
@@ -362,10 +394,13 @@ public final class NetworkConfig {
 
 	/**
 	 * Stores the configuration to a file.
+	 * 
+	 * For available for Android!
 	 *
 	 * @param file The file to write to.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void store(final File file) {
 		store(file, DEFAULT_HEADER);
 	}
@@ -373,10 +408,13 @@ public final class NetworkConfig {
 	/**
 	 * Stores the configuration to a file using a given header.
 	 * 
+	 * For available for Android!
+	 * 
 	 * @param file The file to write to.
 	 * @param header The header to write to the top of the file.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void store(File file, String header) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");

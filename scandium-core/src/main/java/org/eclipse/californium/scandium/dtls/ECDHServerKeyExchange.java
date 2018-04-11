@@ -31,17 +31,16 @@ import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -398,7 +397,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		sb.append("\t\tDiffie-Hellman public key: ");
 		sb.append(getPublicKey().toString());
 		// bug in ECPublicKey.toString() gives object pointer
-		sb.append(System.lineSeparator());
+		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

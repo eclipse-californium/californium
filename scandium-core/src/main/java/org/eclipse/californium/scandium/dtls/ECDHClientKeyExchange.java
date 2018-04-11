@@ -26,6 +26,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
@@ -124,7 +125,7 @@ public final class ECDHClientKeyExchange extends ClientKeyExchange {
 		sb.append(super.toString());
 		sb.append("\t\tDiffie-Hellman public value: ");
 		sb.append(ByteArrayUtils.toHexString(pointEncoded));
-		sb.append(System.lineSeparator());
+		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

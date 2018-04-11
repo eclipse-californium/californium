@@ -21,6 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -62,7 +63,7 @@ public final class ApplicationMessage extends AbstractMessage {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tApplication Data: ").append(ByteArrayUtils.toHexString(data)).append(System.lineSeparator());
+		sb.append("\tApplication Data: ").append(ByteArrayUtils.toHexString(data)).append(StringUtil.lineSeparator());
 		return sb.toString();
 	}
 

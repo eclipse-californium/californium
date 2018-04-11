@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 
 /**
@@ -68,11 +69,11 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(System.lineSeparator()).append("\t\t\t\tEC point formats length: ").append(getLength() - 5);
-		sb.append(System.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tEC point formats length: ").append(getLength() - 5);
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
 
 		for (ECPointFormat format : ecPointFormatList) {
-			sb.append(System.lineSeparator()).append("\t\t\t\t\tEC point format: ").append(format.toString());
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tEC point format: ").append(format.toString());
 		}
 
 		return sb.toString();

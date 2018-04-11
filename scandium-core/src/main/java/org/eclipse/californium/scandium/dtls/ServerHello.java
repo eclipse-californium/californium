@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
@@ -361,16 +362,16 @@ public final class ServerHello extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tServer Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor());
-		sb.append(System.lineSeparator()).append("\t\tRandom:").append(random);
-		sb.append(System.lineSeparator()).append("\t\tSession ID Length: ").append(sessionId.length());
+		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(random);
+		sb.append(StringUtil.lineSeparator()).append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append(System.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
 		}
-		sb.append(System.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
-		sb.append(System.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);
+		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
+		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);
 
 		if (extensions != null) {
-			sb.append(System.lineSeparator()).append(extensions);
+			sb.append(StringUtil.lineSeparator()).append(extensions);
 		}
 
 		return sb.toString();

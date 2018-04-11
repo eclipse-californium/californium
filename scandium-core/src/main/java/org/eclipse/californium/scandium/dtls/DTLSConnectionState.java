@@ -24,6 +24,7 @@ package org.eclipse.californium.scandium.dtls;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -201,11 +202,11 @@ class DTLSConnectionState {
 	@Override
 	public final String toString() {
 		StringBuilder b = new StringBuilder("DTLSConnectionState:");
-		b.append(System.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
-		b.append(System.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
-		b.append(System.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");
-		b.append(System.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
-		b.append(System.lineSeparator()).append("\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
+		b.append(StringUtil.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
+		b.append(StringUtil.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
+		b.append(StringUtil.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");
+		b.append(StringUtil.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
+		b.append(StringUtil.lineSeparator()).append("\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
 		return b.toString();
 	}
 }

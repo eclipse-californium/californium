@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.List;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 
 public class ServerCertificateTypeExtension extends CertificateTypeExtension {
 
@@ -55,7 +57,7 @@ public class ServerCertificateTypeExtension extends CertificateTypeExtension {
 		StringBuilder sb = new StringBuilder(super.toString());
 
 		for (CertificateType type : certificateTypes) {
-			sb.append("\t\t\t\tServer certificate type: ").append(type).append(System.lineSeparator());
+			sb.append("\t\t\t\tServer certificate type: ").append(type).append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();

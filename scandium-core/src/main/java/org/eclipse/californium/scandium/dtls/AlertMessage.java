@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * 
@@ -181,9 +182,9 @@ public final class AlertMessage extends AbstractMessage {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tAlert Protocol").append(System.lineSeparator());
-		sb.append("\tLevel: ").append(level).append(System.lineSeparator());
-		sb.append("\tDescription: ").append(description).append(System.lineSeparator());
+		sb.append("\tAlert Protocol").append(StringUtil.lineSeparator());
+		sb.append("\tLevel: ").append(level).append(StringUtil.lineSeparator());
+		sb.append("\tDescription: ").append(description).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

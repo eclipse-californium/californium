@@ -13,23 +13,12 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  ******************************************************************************/
-package org.eclipse.californium.elements;
-
-import java.net.InetSocketAddress;
+package org.eclipse.californium.elements.util;
 
 /**
- * A endpoint context for plain UDP.
+ * Methods or classes marked by this annotation are not intended to be used for
+ * Android! Please use the documented alternatives, if available.
  */
-public class UdpEndpointContext extends MapBasedEndpointContext {
+public @interface NotForAndroid {
 
-	public static final String KEY_PLAIN = "PLAIN";
-
-	public UdpEndpointContext(InetSocketAddress peerAddress) {
-		super(peerAddress, null, KEY_PLAIN, "");
-	}
-
-	@Override
-	public String toString() {
-		return String.format("UDP(%s)", getPeerAddressAsString());
-	}
 }

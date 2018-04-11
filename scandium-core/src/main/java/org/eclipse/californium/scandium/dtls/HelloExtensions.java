@@ -26,14 +26,15 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -97,7 +98,7 @@ public final class HelloExtensions {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\t\tExtensions Length: ").append(getLength());
 		for (HelloExtension ext : extensions) {
-			sb.append(System.lineSeparator()).append(ext);
+			sb.append(StringUtil.lineSeparator()).append(ext);
 		}
 		return sb.toString();
 	}

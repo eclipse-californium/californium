@@ -17,10 +17,52 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
 /**
  * String utils (as there are so many already out).
  */
 public class StringUtil {
+
+	/**
+	 * Workaround too support android API 16-18.
+	 * 
+	 * @see #lineSeparator()
+	 */
+	public static final String lineSeparator = System.getProperty("line.separator");
+
+	/**
+	 * Flag indicating, that InetSocketAddress supports "getHostString".
+	 */
+	public static final boolean SUPPORT_HOST_STRING;
+
+	static {
+		boolean support = false;
+		try {
+			Method method = InetSocketAddress.class.getMethod("getHostString");
+			support = method != null;
+		} catch (NoSuchMethodException e) {
+			// android before API 18
+		}
+		SUPPORT_HOST_STRING = support;
+	}
+
+	@NotForAndroid
+	private static String toHostString(InetSocketAddress address) {
+		return address.getHostString();
+	}
+
+	/**
+	 * Return line separator.
+	 * 
+	 * @return line separator
+	 * @see #lineSeparator
+	 */
+	public static String lineSeparator() {
+		return lineSeparator;
+	}
 
 	/**
 	 * Convert hexadecimal String into decoded character array. Intended to be
@@ -101,4 +143,35 @@ public class StringUtil {
 		return text;
 	}
 
+	/**
+	 * Get address as string for logging.
+	 * 
+	 * @param address address to be converted to string
+	 * @return the host address, or {@code null}, if address is {@code null}.
+	 */
+	public static String toString(InetAddress address) {
+		if (address == null) {
+			return null;
+		}
+		return address.getHostAddress();
+	}
+
+	/**
+	 * Get socket address as string for logging.
+	 * 
+	 * @param address socket address to be converted to string
+	 * @return the host string, if available, otherwise the host address
+	 *         appended with ":" and the port. Or {@code null}, if address is
+	 *         {@code null}.
+	 */
+	public static String toString(InetSocketAddress address) {
+		if (address == null) {
+			return null;
+		}
+		if (SUPPORT_HOST_STRING) {
+			return toHostString(address);
+		} else {
+			return address.getAddress().getHostAddress() + ":" + address.getPort();
+		}
+	}
 }

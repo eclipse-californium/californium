@@ -54,11 +54,11 @@ import java.security.cert.CertPath;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -72,6 +72,8 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedG
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
@@ -257,7 +259,7 @@ public class ServerHandshaker extends Handshaker {
 			StringBuilder msg = new StringBuilder();
 			msg.append("Processing {} message from peer [{}]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(System.lineSeparator()).append(message);
+				msg.append(":").append(StringUtil.lineSeparator()).append(message);
 			}
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
