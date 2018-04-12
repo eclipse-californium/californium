@@ -53,8 +53,8 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.elements,
-							org.eclipse.californium.elements.util
+							eu.javaspecialists.tjsn.concurrency.stripedexecutor,
+							org.eclipse.californium.elements*
 						</Export-Package>
 						<Import-Package>
 							*

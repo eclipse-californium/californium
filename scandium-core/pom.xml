@@ -130,18 +130,8 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.scandium,
-							org.eclipse.californium.scandium.auth,
-							org.eclipse.californium.scandium.config,
-							org.eclipse.californium.scandium.dtls,
-							org.eclipse.californium.scandium.dtls.cipher,
-							org.eclipse.californium.scandium.dtls.pskstore,
-							org.eclipse.californium.scandium.dtls.rpkstore,
-							org.eclipse.californium.scandium.dtls.x509
+							org.eclipse.californium.scandium*
 						</Export-Package>
-						<Private-Package>
-							org.eclipse.californium.scandium.util
-						</Private-Package>
 						<Import-Package>
 							*
 						</Import-Package>
