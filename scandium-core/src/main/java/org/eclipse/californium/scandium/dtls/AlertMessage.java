@@ -136,7 +136,8 @@ public final class AlertMessage extends AbstractMessage {
 		INTERNAL_ERROR(80, "internal_error"),
 		USER_CANCELED(90, "user_canceled"),
 		NO_RENEGOTIATION(100, "no_negotiation"),
-		UNSUPPORTED_EXTENSION(110, "unsupported_extension");
+		UNSUPPORTED_EXTENSION(110, "unsupported_extension"),
+		UNKNOWN_PSK_IDENTITY(115, "unknown_psk_identity");
 
 		private byte code;
 		private String description;
