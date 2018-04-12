@@ -79,6 +79,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
@@ -689,28 +690,43 @@ public class DTLSConnectorTest {
 		assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
 		assertNull("Server should not have established a session with client", serverConnectionStore.get(clientEndpoint));
 	}
-
+	
+	/**
+	 * Verifies that connector ignores CLIENT KEY EXCHANGE with unknown PSK identity.
+	 */
 	@Test
-	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
+	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
+		ensureConnectorIgnoresBadCredentials(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+	}
 
+	/**
+	 * Verifies that connector ignores FINISHED message with bad PSK.
+	 */
+	@Test
+	public void testConnectorIgnoresBadPsk() throws Exception {
+		ensureConnectorIgnoresBadCredentials(new StaticPskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
+	}
+
+	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
 		final CountDownLatch latch = new CountDownLatch(1);
 		clientConfig = new DtlsConnectorConfig.Builder(clientEndpoint)
-			.setPskStore(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()))
+			.setPskStore(pskStoreWithBadCredentials)
 			.build();
 		client = new DTLSConnector(clientConfig);
+		final AtomicReference<AlertDescription> alert = new AtomicReference<>();
 		client.setErrorHandler(new ErrorHandler() {
 			
 			@Override
 			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
 				latch.countDown();
-				assertThat(level, is(AlertLevel.FATAL));
-				assertThat(peerAddress, is(serverEndpoint));
+				alert.set(description);
 			}
 		});
 		client.start();
 		client.send(new RawData("Hello".getBytes(), serverEndpoint));
-		
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertThat(alert.get(), is(nullValue()));
 	}
 
 	/**
