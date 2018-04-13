@@ -19,6 +19,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -31,6 +32,7 @@ import java.util.List;
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -75,6 +77,11 @@ public class Record {
 			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
 
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+	
+	/**
+	 * Enable to init cipher for each message. Temporary intended for tests!
+	 */
+	private static final boolean CIPHER_INIT_ON_MESSAGE = false;
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -554,12 +561,15 @@ public class Record {
 		 * explanation of additional data or
 		 * http://tools.ietf.org/html/rfc5116#section-2.1
 		 */
-		byte[] iv = session.getWriteState().getIv().getIV();
+		DTLSConnectionState writeState = session.getWriteState();
+		byte[] iv = writeState.getIv().getIV();
 		byte[] nonce = generateNonce(iv);
-		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
 		byte[] additionalData = generateAdditionalData(byteArray.length);
-
-		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
+		Cipher cipher = writeState.getCipher();
+		if (CIPHER_INIT_ON_MESSAGE) {
+			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(writeState.getEncryptionKey().getEncoded(), "AES"));
+		}
+		byte[] encryptedFragment = CCMBlockCipher.encrypt(cipher, nonce, additionalData, byteArray, 8);
 
 		/*
 		 * Prepend the explicit nonce as specified in
@@ -591,8 +601,6 @@ public class Record {
 		}
 		// the "implicit" part of the nonce is the salt as exchanged during the session establishment
 		byte[] iv = currentReadState.getIv().getIV();
-		// the symmetric key exchanged during the DTLS handshake
-		byte[] key = currentReadState.getEncryptionKey().getEncoded();
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
 		 * http://tools.ietf.org/html/rfc5116#section-2.1 for an
@@ -617,7 +625,11 @@ public class Record {
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
-		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
+		Cipher cipher = currentReadState.getCipher();
+		if (CIPHER_INIT_ON_MESSAGE) {
+			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(currentReadState.getEncryptionKey().getEncoded(), "AES"));
+		}
+		return CCMBlockCipher.decrypt(cipher, nonce, additionalData, reader.readBytesLeft(), 8);
 	}
 
 	// Cryptography Helper Methods ////////////////////////////////////

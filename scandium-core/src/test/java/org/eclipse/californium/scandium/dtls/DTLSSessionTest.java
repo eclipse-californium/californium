@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creator
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -73,7 +74,7 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testMaxFragmentLengthIsAdjustedToCipherSuite() {
+	public void testMaxFragmentLengthIsAdjustedToCipherSuite() throws GeneralSecurityException {
 		// given a handshake over an ethernet connection (MTU 1500 bytes)
 		int mtu = 1500;
 		session.setMaxTransmissionUnit(mtu);
@@ -205,7 +206,11 @@ public class DTLSSessionTest {
 		}
 		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
 		IvParameterSpec iv = new IvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
-		return new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+		try {
+			return new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+		} catch (GeneralSecurityException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	private static byte[] getRandomBytes(int length) {

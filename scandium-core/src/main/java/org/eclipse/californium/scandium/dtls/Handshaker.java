@@ -38,6 +38,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -580,24 +581,38 @@ public abstract class Handshaker {
 		return premasterSecret;
 	}
 
-	protected final void setCurrentReadState() {
-		DTLSConnectionState connectionState;
-		if (isClient) {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
-		} else {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
+	protected final void setCurrentReadState() throws HandshakeException {
+		try {
+			DTLSConnectionState connectionState;
+			if (isClient) {
+				connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(),
+						serverWriteKey, serverWriteIV, serverWriteMACKey);
+			} else {
+				connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(),
+						clientWriteKey, clientWriteIV, clientWriteMACKey);
+			}
+			session.setReadState(connectionState);
+		} catch (GeneralSecurityException ex) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
+			throw new HandshakeException("Cannot process handshake message", alert, ex);
 		}
-		session.setReadState(connectionState);
 	}
 
-	protected final void setCurrentWriteState() {
-		DTLSConnectionState connectionState;
-		if (isClient) {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
-		} else {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
+	protected final void setCurrentWriteState() throws HandshakeException {
+		try {
+			DTLSConnectionState connectionState;
+			if (isClient) {
+				connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(),
+						clientWriteKey, clientWriteIV, clientWriteMACKey);
+			} else {
+				connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(),
+						serverWriteKey, serverWriteIV, serverWriteMACKey);
+			}
+			session.setWriteState(connectionState);
+		} catch (GeneralSecurityException ex) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
+			throw new HandshakeException("Cannot process handshake message", alert, ex);
 		}
-		session.setWriteState(connectionState);
 	}
 
 	/**
