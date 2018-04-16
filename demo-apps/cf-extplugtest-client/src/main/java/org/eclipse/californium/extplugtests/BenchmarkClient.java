@@ -345,23 +345,27 @@ public class BenchmarkClient {
 	public boolean test() {
 		Request post = Request.newPost();
 		post.setURI(client.getURI());
-		CoapResponse response = client.advanced(post);
-		if (response != null) {
-			if (response.isSuccess()) {
-				LOGGER.info("Received response: {}", response.advanced());
-				clientCounter.incrementAndGet();
-				requestsCounter.incrementAndGet();
-				overallRequestsDownCounter.countDown();
-				long c = overallRequestsDownCounter.getCount();
-				if (c == 0 && observerCounter.get() == 0) {
-					stop();
+		try {
+			CoapResponse response = client.advanced(post);
+			if (response != null) {
+				if (response.isSuccess()) {
+					LOGGER.info("Received response: {}", response.advanced());
+					clientCounter.incrementAndGet();
+					requestsCounter.incrementAndGet();
+					overallRequestsDownCounter.countDown();
+					long c = overallRequestsDownCounter.getCount();
+					if (c == 0 && observerCounter.get() == 0) {
+						stop();
+					}
+					return true;
+				} else {
+					LOGGER.warn("Received error response: {}", response.advanced());
 				}
-				return true;
 			} else {
-				LOGGER.warn("Received error response: {}", response.advanced());
+				LOGGER.warn("Received no response!");
 			}
-		} else {
-			LOGGER.warn("Received no response!");
+		} catch (Exception ex) {
+			LOGGER.warn("Test failed!", ex);
 		}
 		return false;
 	}
