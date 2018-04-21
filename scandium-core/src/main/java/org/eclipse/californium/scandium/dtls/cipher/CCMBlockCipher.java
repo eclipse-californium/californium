@@ -76,6 +76,7 @@ public class CCMBlockCipher {
 		 * </pre>
 		 * 
 		 * Return remaining bytes in number.
+		 * 
 		 * <pre>
 		 * blockSize = 16;
 		 * number = 0x20103
@@ -307,7 +308,7 @@ public class CCMBlockCipher {
 		 */
 
 		// instantiate the underlying block cipher
-		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
+		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
 		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
 
 		int lengthM = c.length - numAuthenticationBytes;
@@ -375,7 +376,7 @@ public class CCMBlockCipher {
 			throws GeneralSecurityException {
 
 		// instantiate the cipher
-		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
+		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
 		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
 		int blockSize = cipher.getBlockSize();
 		int lengthM = m.length;
