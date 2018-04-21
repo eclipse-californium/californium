@@ -34,6 +34,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
+import org.eclipse.californium.scandium.dtls.cipher.CipherManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CipherType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -444,9 +445,7 @@ public class Record {
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
-					
-		// TODO: check if we can re-use the cipher instance
-		Cipher blockCipher = Cipher.getInstance(session.getWriteState().getCipherSuite().getTransformation());
+		Cipher blockCipher = CipherManager.getInstance(session.getWriteState().getCipherSuite().getTransformation());
 		blockCipher.init(Cipher.ENCRYPT_MODE,
 				session.getWriteState().getEncryptionKey());
 
@@ -498,8 +497,7 @@ public class Record {
 		 */
 		DatagramReader reader = new DatagramReader(ciphertextFragment);
 		byte[] iv = reader.readBytes(currentReadState.getRecordIvLength());
-		// TODO: check if we can re-use the cipher instance
-		Cipher blockCipher = Cipher.getInstance(currentReadState.getCipherSuite().getTransformation());
+		Cipher blockCipher = CipherManager.getInstance(currentReadState.getCipherSuite().getTransformation());
 		blockCipher.init(Cipher.DECRYPT_MODE,
 				currentReadState.getEncryptionKey(),
 				new IvParameterSpec(iv));
