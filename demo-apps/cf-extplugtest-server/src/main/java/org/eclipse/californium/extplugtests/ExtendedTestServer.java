@@ -29,6 +29,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -124,9 +125,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
 				System.out.println("listen on " + ep.getUri());
-				// Eclipse IoT metrics
 				if (noBenchmark) {
+					// Eclipse IoT metrics
 					ep.addInterceptor(new OriginTracer());
+					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
+					ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
 				}
 				ep.addInterceptor(new MessageTracer());
 			}
