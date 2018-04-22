@@ -26,6 +26,8 @@ import java.net.InetSocketAddress;
  */
 public class StringUtil {
 
+	public static final char NO_SEPARATOR = 0;
+
 	/**
 	 * Workaround too support android API 16-18.
 	 * 
@@ -109,6 +111,19 @@ public class StringUtil {
 	 * @return hexadecimal string
 	 */
 	public static String byteArray2HexString(byte[] byteArray, int max) {
+		return byteArray2HexString(byteArray, ' ', max);
+	}
+
+	/**
+	 * Byte array to hexadecimal string.
+	 * 
+	 * @param byteArray byte array to be converted to string
+	 * @param sep separator. If {@link #NO_SEPARATOR}, then no separator is used
+	 *            between the bytes.
+	 * @param max maximum bytes to be converted.
+	 * @return hexadecimal string
+	 */
+	public static String byteArray2HexString(byte[] byteArray, char sep, int max) {
 
 		if (byteArray != null && byteArray.length != 0) {
 			if (max == 0 || max > byteArray.length) {
@@ -118,8 +133,8 @@ public class StringUtil {
 			for (int i = 0; i < max; i++) {
 				builder.append(String.format("%02X", 0xFF & byteArray[i]));
 
-				if (i < max - 1) {
-					builder.append(' ');
+				if (sep != NO_SEPARATOR && i < max - 1) {
+					builder.append(sep);
 				}
 			}
 			return builder.toString();
