@@ -216,7 +216,7 @@ public class ServerHandshaker extends Handshaker {
 
 			if (this.clientAuthenticationRequired) {
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				if (config.getCertificateVerifier().getAcceptedIssuers() != null) {
+				if (config.getCertificateVerifier() != null) {
 					int index = config.isSendRawKey() ? 1 : 0;
 					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 				}
@@ -638,7 +638,9 @@ public class ServerHandshaker extends Handshaker {
 			// TODO make this variable, reasonable values
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 			certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
-			certificateRequest.addCertificateAuthorities(certificateVerifier.getAcceptedIssuers());
+			if (certificateVerifier != null) {
+				certificateRequest.addCertificateAuthorities(certificateVerifier.getAcceptedIssuers());
+			}
 
 			flight.addMessage(wrapMessage(certificateRequest));
 			md.update(certificateRequest.toByteArray());

@@ -336,13 +336,12 @@ public abstract class Handshaker {
 			int epoch = candidate.getEpoch();
 			if (epoch < session.getReadEpoch()) {
 				// discard old message
-				LOGGER.debug(
-						"Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
-						new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
+				LOGGER.debug("Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
+						getPeerAddress(), epoch, session.getReadEpoch());
 				return null;
 			} else if (epoch == session.getReadEpoch()) {
 				DTLSMessage fragment = candidate.getFragment();
-				switch(fragment.getContentType()) {
+				switch (fragment.getContentType()) {
 				case ALERT:
 					return fragment;
 				case CHANGE_CIPHER_SPEC:
@@ -373,26 +372,23 @@ public abstract class Handshaker {
 					} else if (messageSeq > nextReceiveSeq) {
 						LOGGER.debug(
 								"Queued newer message from current epoch, message_seq [{}] > next_receive_seq [{}]",
-								new Object[]{messageSeq, nextReceiveSeq});
+								messageSeq, nextReceiveSeq);
 						queue.add(candidate);
 						return null;
 					} else {
-						LOGGER.debug(
-								"Discarding old message, message_seq [{}] < next_receive_seq [{}]",
-								new Object[]{messageSeq, nextReceiveSeq});
+						LOGGER.debug("Discarding old message, message_seq [{}] < next_receive_seq [{}]", messageSeq,
+								nextReceiveSeq);
 						return null;
 					}
 				default:
-					LOGGER.debug("Cannot process message of type [{}], discarding...",
-							fragment.getContentType());
+					LOGGER.debug("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
 				// newer epoch, queue message
 				queue.add(candidate);
-				LOGGER.debug(
-						"Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]",
-						new Object[]{epoch, getSession().getReadEpoch()});
+				LOGGER.debug("Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]", epoch,
+						getSession().getReadEpoch());
 				return null;
 			}
 		}
@@ -438,14 +434,15 @@ public abstract class Handshaker {
 				}
 				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
-				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]",
-						getSession().getPeer(), e.getMessage(), e);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
+				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+						e.getMessage(), e);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+						session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
 		} else {
-			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}",
-					new Object[]{record.getPeerAddress(), StringUtil.lineSeparator(), record});
+			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
+					StringUtil.lineSeparator(), record);
 		}
 	}
 
@@ -646,9 +643,8 @@ public abstract class Handshaker {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
 			// message needs to be fragmented
-			LOGGER.debug(
-					"Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength()});
+			LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
+					handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
 			// create N handshake messages, all with the
 			// same message_seq value as the original handshake message
 			int messageSeq = handshakeMessage.getMessageSeq();
@@ -724,10 +720,10 @@ public abstract class Handshaker {
 			LOGGER.debug("Successfully re-assembled {} message", reassembledMessage.getMessageType());
 			fragmentedMessages.remove(messageSeq);
 		}
-		
+
 		return reassembledMessage;
 	}
-	
+
 	/**
 	 * Reassembles handshake message fragments into the original message.
 	 * 
@@ -757,10 +753,10 @@ public abstract class Handshaker {
 		byte[] reassembly = new byte[] {};
 		int offset = 0;
 		for (FragmentedHandshakeMessage fragmentedHandshakeMessage : fragments) {
-			
+
 			int fragmentOffset = fragmentedHandshakeMessage.getFragmentOffset();
 			int fragmentLength = fragmentedHandshakeMessage.getFragmentLength();
-			
+
 			if (fragmentOffset == offset) { // eliminate duplicates
 				// case: no overlap
 				reassembly = ByteArrayUtils.concatenate(reassembly, fragmentedHandshakeMessage.fragmentToByteArray());
@@ -773,19 +769,19 @@ public abstract class Handshaker {
 				int newLength = fragmentLength - newOffset;
 				byte[] newBytes = new byte[newLength];
 				// take only the new bytes and add them
-				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);	
+				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);
 				reassembly = ByteArrayUtils.concatenate(reassembly, newBytes);
-				
+
 				offset = reassembly.length;
 			}
 		}
-		
+
 		if (reassembly.length == totalLength) {
 			// the reassembled fragment has the expected length
 			FragmentedHandshakeMessage wholeMessage =
 					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
 			reassembly = wholeMessage.toByteArray();
-			
+
 			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
 			boolean receiveRawPublicKey = false;
 			if (session != null) {
@@ -794,7 +790,7 @@ public abstract class Handshaker {
 			}
 			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 		}
-		
+
 		return message;
 	}
 
@@ -840,7 +836,7 @@ public abstract class Handshaker {
 	public final DTLSSession getSession() {
 		return session;
 	}
-	
+
 	/**
 	 * Gets the IP address and port of the peer this handshaker is used to
 	 * negotiate a session with.
@@ -850,8 +846,7 @@ public abstract class Handshaker {
 	public final InetSocketAddress getPeerAddress() {
 		return session.getPeer();
 	}
-	
-	
+
 	/**
 	 * Sets the message sequence number on an outbound handshake message.
 	 * 
@@ -879,7 +874,7 @@ public abstract class Handshaker {
 	 * 
 	 * @param listener The listener to add.
 	 */
-	public final void addSessionListener(SessionListener listener){
+	public final void addSessionListener(SessionListener listener) {
 		if (listener != null) {
 			sessionListeners.add(listener);
 		}
@@ -891,7 +886,7 @@ public abstract class Handshaker {
 	 * 
 	 * @param listener The listener to remove.
 	 */
-	public final void removeSessionListener(SessionListener listener){
+	public final void removeSessionListener(SessionListener listener) {
 		if (listener != null) {
 			sessionListeners.remove(listener);
 		}
@@ -957,7 +952,7 @@ public abstract class Handshaker {
 	protected final void expectChangeCipherSpecMessage() {
 		this.changeCipherSuiteMessageExpected = true;
 	}
-	
+
 	/**
 	 * Validates the X.509 certificate chain provided by the the peer as part of
 	 * this message, or the raw public key.
@@ -975,7 +970,14 @@ public abstract class Handshaker {
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
-			certificateVerifier.verifyCertificate(message, session);
+			if (certificateVerifier != null) {
+				certificateVerifier.verifyCertificate(message, session);
+			} else {
+				LOGGER.debug("Certificate validation failed: x509 could not be trusted!");
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+						session.getPeer());
+				throw new HandshakeException("Trust is not possible!", alert);
+			}
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
 			if (!rpkStore.isTrusted(rpk)) {

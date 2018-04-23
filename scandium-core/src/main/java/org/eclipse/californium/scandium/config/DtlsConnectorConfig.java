@@ -971,6 +971,9 @@ public final class DtlsConnectorConfig {
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
+			if (config.certificateVerifier == null && config.trustStore != null) {
+				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
+			}
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
 			}
@@ -979,9 +982,6 @@ public final class DtlsConnectorConfig {
 				// otherwise this would be interpreted for client only
 				// as ECDHE_ECDSA support!
 				config.trustedRPKs = new TrustAllRpks();
-			}
-			if (config.certificateVerifier == null) {
-				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
 			}
 
 			// check cipher consistency
@@ -1033,8 +1033,7 @@ public final class DtlsConnectorConfig {
 			List<CipherSuite> ciphers = new ArrayList<>();
 			boolean certificates = isConfiguredWithKeyPair();
 			if (!certificates && clientOnly) {
-				certificates = config.trustedRPKs != null
-						|| (config.trustStore != null && config.trustStore.length > 0);
+				certificates = config.trustedRPKs != null || (config.certificateVerifier != null);
 			}
 
 			if (certificates) {
