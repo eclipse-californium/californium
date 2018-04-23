@@ -170,7 +170,7 @@ public class ClientHandshaker extends Handshaker {
 
 			// we always support receiving a RawPublicKey from the server
 			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			if (certificateVerifier.getAcceptedIssuers() != null) {
+			if (certificateVerifier != null) {
 				int index = config.isSendRawKey() ? 1 : 0;
 				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
 			}
