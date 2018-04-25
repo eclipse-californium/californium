@@ -1008,6 +1008,15 @@ public class DTLSConnector implements Connector {
 			LOGGER.debug(msg.toString());
 		}
 
+		// We do not support re-negotiation as recommended in :
+		// https://tools.ietf.org/html/rfc7925#section-17
+		if (record.getEpoch() > 0) {
+			DTLSSession session = connection.getEstablishedSession();
+			send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, clientHello.getPeer()),
+					session);
+			return;
+		}
+
 		// before starting a new handshake or resuming an established session we need to make sure that the
 		// peer is in possession of the IP address indicated in the client hello message
 		if (isClientInControlOfSourceIpAddress(clientHello, record)) {
