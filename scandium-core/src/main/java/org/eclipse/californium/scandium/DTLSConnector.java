@@ -252,7 +252,7 @@ public class DTLSConnector implements Connector {
 	 * @param connectionStore The registry to use for managing connections to peers.
 	 * @throws NullPointerException if any of the parameters is <code>null</code>.
 	 */
-	DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
+	public DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
 
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
