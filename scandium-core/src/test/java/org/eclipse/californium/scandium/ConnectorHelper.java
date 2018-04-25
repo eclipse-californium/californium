@@ -66,6 +66,9 @@ public class ConnectorHelper {
 
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
+	static final String	SCOPED_CLIENT_IDENTITY				= "Scoped_Client_identity";
+	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "scopedSecretPSK";
+	static final String VIRTUAL_HOST						= "coap.eclipse.org";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
 	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 2;
 
@@ -106,6 +109,7 @@ public class ConnectorHelper {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), VIRTUAL_HOST);
 		serverConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(new CipherSuite[] {
@@ -157,6 +161,17 @@ public class ConnectorHelper {
 				.setAddress(bindAddress)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+	}
+
+	/**
+	 * Gets a session by client address.
+	 * 
+	 * @param clientAddress The address to get the session for.
+	 * @return The session or {@code null} if no session is established with the
+	 *         given client.
+	 */
+	DTLSSession getSession(InetSocketAddress clientAddress) {
+		return server.getSessionByAddress(clientAddress);
 	}
 
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client) throws Exception {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -83,7 +83,7 @@ public final class ServerNameExtension extends HelloExtension {
 	 * @throws NullPointerException if the host name is {@code null}.
 	 */
 	public static ServerNameExtension forHostName(final String hostName) {
-		return new ServerNameExtension(ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET))));
+		return new ServerNameExtension(ServerNames.newInstance(ServerName.fromHostName(hostName)));
 	}
 
 	/**

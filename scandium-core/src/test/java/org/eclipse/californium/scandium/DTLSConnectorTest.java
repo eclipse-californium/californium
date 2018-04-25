@@ -73,6 +73,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.scandium.category.Large;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -126,7 +127,7 @@ import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorServic
  * <p>
  * Mainly contains integration test cases verifying the correct interaction between a client and a server.
  */
-@Category(Medium.class)
+@Category(Large.class)
 public class DTLSConnectorTest {
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
@@ -137,6 +138,7 @@ public class DTLSConnectorTest {
 	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
+	private static final String VIRTUAL_HOST = "iot.eclipse.org";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 
 	private static DtlsConnectorConfig serverConfig;
@@ -183,6 +185,7 @@ public class DTLSConnectorTest {
 			}
 		};
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), VIRTUAL_HOST);
 		serverConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
@@ -317,6 +320,12 @@ public class DTLSConnectorTest {
 		assertThat(serverRawDataProcessor.getLatestInboundMessage().getBytes(), is(payload));
 	}
 
+	/**
+	 * Verifies that the connector negotiates a new secure DTLS session
+	 * when sending a message to the peer.
+	 * 
+	 * @throws Exception if the session cannot be established.
+	 */
 	@Test
 	public void testConnectorEstablishesSecureSession() throws Exception {
 		givenAnEstablishedSession();
@@ -1562,6 +1571,8 @@ public class DTLSConnectorTest {
 
 	/**
 	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
+	 * 
+	 * @throws Exception if connection establishment fails.
 	 */
 	@Test
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
@@ -1579,6 +1590,8 @@ public class DTLSConnectorTest {
 	 * Verifies that the connector includes a <code>RawPublicKeyIdentity</code> representing
 	 * the authenticated client in the <code>RawData</code> object passed to the application
 	 * layer.
+	 * 
+	 * @throws Exception if connection establishment fails.
 	 */
 	@Test
 	public void testProcessApplicationMessageAddsRawPublicKeyIdentity() throws Exception {
@@ -1592,25 +1605,36 @@ public class DTLSConnectorTest {
 	 * Verifies that the connector includes a <code>PreSharedKeyIdentity</code> representing
 	 * the authenticated client in the <code>RawData</code> object passed to the application
 	 * layer.
+	 * 
+	 * @throws Exception if connection establishment fails.
 	 */
 	@Test
 	public void testProcessApplicationMessageAddsPreSharedKeyIdentity() throws Exception {
 
-		// given an established session with a client using PSK authentication
+		// given a client using PSK authentication
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
 			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		givenAnEstablishedSession();
 
-		assertClientIdentity(PreSharedKeyIdentity.class);
+		// WHEN sending a message to a virtual host at the peer
+		RawData msg = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false, VIRTUAL_HOST);
+		givenAnEstablishedSession(msg, true);
+
+		// THEN the client identity on the peer's side is of type Pre-shared Key
+		// and is scoped to the virtual host that the connection has been established to
+		PreSharedKeyIdentity pskIdentity = (PreSharedKeyIdentity) serverRawDataProcessor.getClientIdentity();
+		assertThat(pskIdentity.getIdentity(), is(CLIENT_IDENTITY));
+		assertThat(pskIdentity.getVirtualHost(), is(VIRTUAL_HOST));
 	}
 
 	/**
 	 * Verifies that the connector includes an <code>X500Principal</code> representing
 	 * the authenticated client in the <code>RawData</code> object passed to the application
 	 * layer.
+	 * 
+	 * @throws Exception if connection establishment fails.
 	 */
 	@Test
 	public void testProcessApplicationMessageAddsX509CertPath() throws Exception {
@@ -1651,7 +1675,7 @@ public class DTLSConnectorTest {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private void assertClientIdentity(final Class principalType) {
+	private static void assertClientIdentity(final Class principalType) {
 
 		// assert that client identity is of given type
 		if (principalType == null) {
@@ -1661,7 +1685,7 @@ public class DTLSConnectorTest {
 		}
 	}
 
-	private void assertFlightRecordsRetransmitted(final List<Record> flight1, final List<Record> flight2) {
+	private static void assertFlightRecordsRetransmitted(final List<Record> flight1, final List<Record> flight2) {
 
 		// assert that flights contains the same number of records.
 		assertThat("retransmitted flight has different number of records", flight2.size(), is(flight1.size()));

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -64,7 +64,7 @@ public class TestUtilPskStore implements PskStore {
 
 	@Override
 	public synchronized byte[] getKey(ServerNames serverNames, String identity) {
-		return key;
+		return getKey(identity);
 	}
 
 	@Override
@@ -72,4 +72,8 @@ public class TestUtilPskStore implements PskStore {
 		return identity;
 	}
 
+	@Override
+	public synchronized String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
+		return getIdentity(peerAddress);
+	}
 }

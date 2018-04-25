@@ -23,7 +23,7 @@
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - add test case for bug 478538
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
- *    Bosch Software Innovations GmbH - add test cases for GitHub issue #1
+ *    Bosch Software Innovations GmbH - add test case for GitHub issue #511
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -174,4 +174,5 @@ public class HelloExtensionNegotiationTest {
 		// then the session on the server contains the virtual host name conveyed
 		// by the client in the DTLS handshake
 		assertThat(serverHelper.establishedServerSession.getVirtualHost(), is("iot.eclipse.org"));
-	}}
+	}
+}

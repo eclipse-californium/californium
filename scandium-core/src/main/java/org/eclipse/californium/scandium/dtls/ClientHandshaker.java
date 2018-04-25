@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -479,19 +480,24 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
-			String identity = pskStore.getIdentity(getPeerAddress());
+			ServerNames virtualHost = session.getVirtualHost() == null ? null : ServerNames.newInstance()
+				.add(ServerName.fromHostName(session.getVirtualHost()));
+			String identity = pskStore.getIdentity(session.getPeer(), virtualHost);
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
+				throw new HandshakeException(String.format("No Identity found for peer [virtual host: %s, address: %s]",
+						session.getVirtualHost(), session.getPeer()), alert);
 			}
-			byte[] psk = pskStore.getKey(identity);
+			byte[] psk = pskStore.getKey(virtualHost, identity);
 			if (psk == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
+				throw new HandshakeException(String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
+						session.getVirtualHost(), identity), alert);
 			}
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			PreSharedKeyIdentity pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost(), identity);
+			LOGGER.debug("Using PSK identity: {}", pskIdentity);
+			session.setPeerIdentity(pskIdentity);
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.debug("Using PSK identity: {}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 

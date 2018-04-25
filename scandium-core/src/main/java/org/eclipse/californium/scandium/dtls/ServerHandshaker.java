@@ -683,18 +683,24 @@ public class ServerHandshaker extends Handshaker {
 	private byte[] receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
 
 		clientKeyExchange = message;
-		byte[] psk = null;
 
-		// use the client's PSK identity to get right preshared key
+		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
-
-		LOGGER.debug("Client [{}] uses PSK identity [{}]",
-				new Object[]{getPeerAddress(), identity});
+		byte[] psk = pskStore.getKey(getIndicatedServerNames(), identity);
+		String virtualHost = null;
 
 		if (getIndicatedServerNames() == null) {
-			psk = pskStore.getKey(identity);
+			LOGGER.debug("Client [{}] uses PSK identity [{}]",
+					new Object[]{getPeerAddress(), identity});
 		} else {
-			psk = pskStore.getKey(getIndicatedServerNames(), identity);
+			ServerName serverName = getIndicatedServerNames().getServerName(NameType.HOST_NAME);
+			if (serverName == null) {
+				LOGGER.debug("client provided invalid SNI extension which doesn't include a hostname");
+			} else {
+				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
+				LOGGER.debug("Client [{}] uses PSK identity [{}] for server [{}]",
+						new Object[]{getPeerAddress(), identity, virtualHost});
+			}
 		}
 
 		if (psk == null) {
@@ -702,7 +708,7 @@ public class ServerHandshaker extends Handshaker {
 					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
 		} else {
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
 			return generatePremasterSecretFromPSK(psk);
 		}
 	}
