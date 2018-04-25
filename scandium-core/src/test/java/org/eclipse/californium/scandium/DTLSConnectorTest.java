@@ -1678,6 +1678,26 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
+	public void testNoRenegotiationAllowed() throws Exception {
+		givenAnEstablishedSession(false);
+		
+		// Catch alert receive by the client
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		client.setAlertHandler(alertCatcher);
+		
+		// send a CLIENT_HELLO message to the server to renegotiation connection
+		client.sendRecord(new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
+				establishedClientSession.getSequenceNumber(), createClientHello(),
+				establishedClientSession));
+
+		// ensure server answer with a NO_RENOGIATION alert
+		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertNotNull("Client does not receive alert as answer to renenotiation", alert);
+		assertEquals("Server must answer with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+	}
+
+	@Test
 	public void testNoRenegotiationOnHelloRequest() throws Exception {
 		givenAnEstablishedSession(false);
 		
