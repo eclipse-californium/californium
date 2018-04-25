@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -57,7 +57,7 @@ public class RawPublicKeyIdentityTest {
 		byte[] subjectInfo = key.getEncoded();
 
 		// WHEN creating a RawPublicKeyIdentity from it
-		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo);
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, key.getAlgorithm());
 
 		// THEN the principal contains the public key corresponding to the subject info
 		assertThat(principal.getKey(), is(key));

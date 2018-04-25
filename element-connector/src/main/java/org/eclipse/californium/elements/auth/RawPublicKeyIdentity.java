@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -54,17 +54,32 @@ public class RawPublicKeyIdentity implements Principal {
 
 	/**
 	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * <p>
+	 * The given subject info is expected to represent an EC public key.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @throws NullPointerException if the subject info is <code>null</code>
 	 * @throws GeneralSecurityException if the JVM does not support Elliptic Curve cryptography.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo) throws GeneralSecurityException {
+		this(subjectInfo, "EC");
+	}
+
+	/**
+	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * 
+	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
+	 * @param keyAlgorithm the algorithm name to use for getting the key factory that
+	 *                     is used to instantiate the public key from the subject info.
+	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
+	 */
+	public RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm) throws GeneralSecurityException {
 		if (subjectInfo == null) {
 			throw new NullPointerException("SubjectPublicKeyInfo must not be null");
 		} else {
 			X509EncodedKeySpec spec = new X509EncodedKeySpec(subjectInfo);
-			this.publicKey = KeyFactory.getInstance("EC").generatePublic(spec);
+			this.publicKey = KeyFactory.getInstance(keyAlgorithm).generatePublic(spec);
 			createNamedInformationUri(subjectInfo);
 		}
 	}
