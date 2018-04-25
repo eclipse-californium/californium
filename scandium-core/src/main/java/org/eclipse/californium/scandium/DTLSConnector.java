@@ -1471,7 +1471,7 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void sendRecord(Record record) throws IOException {
+	protected void sendRecord(Record record) throws IOException {
 		byte[] recordBytes = record.toByteArray();
 		DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
 		sendNextDatagramOverNetwork(datagram);

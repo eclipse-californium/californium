@@ -92,6 +92,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Handshaker;
+import org.eclipse.californium.scandium.dtls.HelloRequest;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
@@ -1676,6 +1677,26 @@ public class DTLSConnectorTest {
 		assertThat(clientConnectionStore.get(serverEndpoint), is(nullValue()));
 	}
 
+	@Test
+	public void testNoRenegotiationOnHelloRequest() throws Exception {
+		givenAnEstablishedSession(false);
+		
+		// Catch alert receive by the server
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		server.setAlertHandler(alertCatcher);
+		
+		// send a HELLO_REQUEST message to the client
+		server.sendRecord(new Record(ContentType.HANDSHAKE, establishedServerSession.getWriteEpoch(),
+				establishedServerSession.getSequenceNumber(), new HelloRequest(clientEndpoint),
+				establishedServerSession));
+
+		// ensure client answer with a NO_RENOGIATION alert
+		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertNotNull("Server does not receive alert as answer of HELLO_REQUEST", alert);
+		assertEquals("Client must answer to HELLO_REQUEST with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+	}
+
 	private ClientHello createClientHello() {
 		return createClientHello(null);
 	}
@@ -2057,6 +2078,32 @@ public class DTLSConnectorTest {
 
 			if (!socket.isClosed()) {
 				socket.send(datagram);
+			}
+		}
+	}
+
+	private class SingleAlertCatcher implements AlertHandler {
+
+		private CountDownLatch latch = new CountDownLatch(1);
+		private AlertMessage alert;
+
+		@Override
+		public void onAlert(InetSocketAddress peer, AlertMessage alert) {
+			if (latch.getCount() != 0) {
+				this.alert = alert;
+				latch.countDown();
+			}
+		}
+
+		/**
+		 * @return {@code AlertMessage} if the count reached zero and {@code n}
+		 *         if the waiting time elapsed before the count reached zero
+		 */
+		public AlertMessage waitForFirstAlert(long timeout, TimeUnit unit) throws InterruptedException {
+			if (latch.await(timeout, unit)) {
+				return alert;
+			} else {
+				return null;
 			}
 		}
 	}
