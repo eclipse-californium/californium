@@ -941,24 +941,23 @@ public class DTLSConnector implements Connector {
 	 * 
 	 * @param helloRequest
 	 * @param connection
-	 * @throws HandshakeException if the message to initiate the handshake with the peer cannot be created
+	 * @throws HandshakeException if the message to initiate the handshake with
+	 *             the peer cannot be created
 	 */
-	private void processHelloRequest(final HelloRequest helloRequest, final Connection connection) throws HandshakeException {
+	private void processHelloRequest(final HelloRequest helloRequest, final Connection connection)
+			throws HandshakeException {
 		if (connection.hasOngoingHandshake()) {
-			// TLS 1.2, Section 7.4 advises to ignore HELLO_REQUEST messages arriving while
-			// in an ongoing handshake (http://tools.ietf.org/html/rfc5246#section-7.4)
-			LOGGER.debug(
-					"Ignoring {} received from [{}] while already in an ongoing handshake with peer",
-					new Object[]{helloRequest.getMessageType(), helloRequest.getPeer()});
+			// TLS 1.2, Section 7.4 advises to ignore HELLO_REQUEST messages
+			// arriving while in an ongoing handshake
+			// (http://tools.ietf.org/html/rfc5246#section-7.4)
+			LOGGER.debug("Ignoring {} received from [{}] while already in an ongoing handshake with peer",
+					helloRequest.getMessageType(), helloRequest.getPeer());
 		} else {
+			// We do not support re-negotiation as recommended in :
+			// https://tools.ietf.org/html/rfc7925#section-17
 			DTLSSession session = connection.getEstablishedSession();
-			if (session == null) {
-				session = new DTLSSession(helloRequest.getPeer(), true);
-			}
-			Handshaker handshaker = new ClientHandshaker(session, getRecordLayerForPeer(connection), connection,
-					config, maximumTransmissionUnit);
-			addSessionCacheSynchronization(handshaker);
-			handshaker.startHandshake();
+			send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, helloRequest.getPeer()),
+					session);
 		}
 	}
 
