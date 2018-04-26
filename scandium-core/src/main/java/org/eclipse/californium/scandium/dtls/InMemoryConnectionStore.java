@@ -64,10 +64,12 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, SessionListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
+	private static final int DEFAULT_SESSION_LIFETIME = 24 * 60 * 60; // 24h
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
 	private final SessionCache sessionCache;
+	private final long sessionLifeTime; // in seconds
 
 	/**
 	 * Creates a store with a capacity of 500000 connections and
@@ -85,7 +87,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *                             connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(final SessionCache sessionCache) {
-		this(DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, sessionCache);
+		this(DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, sessionCache, DEFAULT_SESSION_LIFETIME);
 	}
 
 	/**
@@ -97,7 +99,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *            a new connection is to be added to the store
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold) {
-		this(capacity, threshold, null);
+		this(capacity, threshold, null, DEFAULT_SESSION_LIFETIME);
 	}
 
 	/**
@@ -111,8 +113,25 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *                     connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
+		this(capacity, threshold, sessionCache, DEFAULT_SESSION_LIFETIME);
+	}
+
+	/**
+	 * Creates a store based on given configuration parameters.
+	 * 
+	 * @param capacity the maximum number of connections the store can manage
+	 * @param threshold the period of time of inactivity (in seconds) after which a
+	 *            connection is considered stale and can be evicted from the store if
+	 *            a new connection is to be added to the store
+	 * @param sessionCache a second level cache to use for <em>current</em>
+	 *                     connection state of established DTLS sessions.
+	 * @param sessionLifeTime in seconds
+	 */
+	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache,
+			long sessionLifeTime) {
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
 		this.sessionCache = sessionCache;
+		this.sessionLifeTime = sessionLifeTime;
 
 		if (sessionCache != null) {
 			// make sure that session state for stale (evicted) connections is removed from second level cache
@@ -160,7 +179,10 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public synchronized Connection find(final SessionId id) {
+		return checkValidity(deepfind(id));
+	}
 
+	private synchronized Connection deepfind(final SessionId id) {
 		if (id == null) {
 			return null;
 		} else {
@@ -228,7 +250,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public synchronized Connection get(final InetSocketAddress peerAddress) {
-		return connections.get(peerAddress);
+		return checkValidity(connections.get(peerAddress));
 	}
 
 	@Override
@@ -271,5 +293,32 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	@Override
 	public void handshakeFailed(final InetSocketAddress peer, Throwable error) {
 		// nothing to do
+	}
+
+	/**
+	 * Check if the connection is expired, if this is the case remove it from
+	 * the store.
+	 * 
+	 * @return return the connection only if the connection has no session
+	 *         established or if the established session is not expired.
+	 */
+	private Connection checkValidity(Connection connection) {
+		if (connection == null) {
+			return null;
+		}
+		if (!connection.hasEstablishedSession()) {
+			if (!connection.hasSessionTicket()) {
+				return connection;
+			} else if (!connection.getSessionTicket().isExpired(sessionLifeTime)) {
+				return connection;
+			}
+		} else if (!connection.getEstablishedSession().isExpired(sessionLifeTime)) {
+			return connection;
+		}
+
+		// connection expired
+		connections.remove(connection.getPeerAddress(), connection);
+		removeSessionFromCache(connection);
+		return null;
 	}
 }

@@ -153,6 +153,10 @@ public final class DTLSSession {
 	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
+
+	/**
+	 * Time used to detect if the Session expired (in seconds).
+	 */
 	private long creationTime;
 
 	// Constructor ////////////////////////////////////////////////////
@@ -178,6 +182,7 @@ public final class DTLSSession {
 	 * used to resume the session.
 	 *
 	 * @param id The identifier of the session to be resumed.
+	 * @param creationTime the creationTime of the session in seconds.
 	 * @param peerAddress
 	 *            The IP address and port of the client that wants to resume the session.
 	 * @param ticket
@@ -198,6 +203,7 @@ public final class DTLSSession {
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		compressionMethod = ticket.getCompressionMethod();
+		creationTime = ticket.getTimestamp();
 	}
 
 	/**
@@ -221,7 +227,7 @@ public final class DTLSSession {
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
-			this.creationTime = System.currentTimeMillis();
+			this.creationTime = System.currentTimeMillis() / 1000;
 			this.peer = peerAddress;
 			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
@@ -812,9 +818,17 @@ public final class DTLSSession {
 					getWriteState().getCompressionMethod(),
 					getMasterSecret(),
 					getPeerIdentity(),
-					System.currentTimeMillis());
+					creationTime);
 		} else {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
+	}
+
+	/**
+	 * @param lifeTime in seconds of the session
+	 * @return true if the session expired
+	 */
+	public boolean isExpired(long lifeTime) {
+		return (creationTime + lifeTime) * 1000 < System.currentTimeMillis();
 	}
 }

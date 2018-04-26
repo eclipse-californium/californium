@@ -214,4 +214,12 @@ public final class SessionTicket {
 	public final long getTimestamp() {
 		return timestamp;
 	}
+
+	/**
+	 * @param lifeTime in seconds of the Ticket
+	 * @return true if the ticket expired
+	 */
+	public boolean isExpired(long lifeTime) {
+		return (timestamp + lifeTime) * 1000 < System.currentTimeMillis();
+	}
 }
