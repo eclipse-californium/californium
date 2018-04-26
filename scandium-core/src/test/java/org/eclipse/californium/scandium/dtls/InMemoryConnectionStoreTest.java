@@ -32,13 +32,14 @@ import org.junit.experimental.categories.Category;
 public class InMemoryConnectionStoreTest {
 
 	private static final int INITIAL_CAPACITY = 10;
+	private static final long SESSION_LIFETIME = 2; // 2s
 	InMemoryConnectionStore store;
 	Connection con;
 	SessionId sessionId;
 
 	@Before
 	public void setUp() throws Exception {
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, null, SESSION_LIFETIME);
 		con = newConnection(50L);
 		sessionId = con.getEstablishedSession().getSessionIdentifier();
 	}
@@ -130,6 +131,46 @@ public class InMemoryConnectionStoreTest {
 		// assert that the store is empty
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertThat(store.get(con.getPeerAddress()), is(nullValue()));
+	}
+
+	@Test
+	public void testGetExpiredConnectionByPeerAddress() throws Exception {
+		// Add a connection.
+		store.put(con);
+
+		// Ensure connection is stored
+		Connection conInStore = store.get(con.getPeerAddress());
+		assertNotNull("connection should be in the store", conInStore);
+
+		// Wait for session lifetime
+		Thread.sleep((SESSION_LIFETIME + 1) * 1000);
+
+		// Ensure connection is stored
+		conInStore = store.get(con.getPeerAddress());
+		assertNull("connection should not be in the store", conInStore);
+
+		// Assert that the store is empty
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
+	}
+
+	@Test
+	public void testGetExpiredConnectionBySessionId() throws Exception {
+		// Add a connection.
+		store.put(con);
+
+		// Ensure connection is stored
+		Connection conInStore = store.find(sessionId);
+		assertNotNull("connection should be in the store", conInStore);
+
+		// Wait for session lifetime
+		Thread.sleep((SESSION_LIFETIME + 1) * 1000);
+
+		// Ensure connection is stored
+		conInStore = store.find(sessionId);
+		assertNull("connection should not be in the store", conInStore);
+
+		// Assert that the store is empty
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 	}
 
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
