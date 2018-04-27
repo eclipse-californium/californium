@@ -13,7 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.auth;
+package org.eclipse.californium.elements.auth;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
@@ -21,46 +21,62 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
-@Category(Small.class)
+/**
+ * Verifies behavior of {@link RawPublicKeyIdentity}.
+ *
+ */
 public class RawPublicKeyIdentityTest {
 
 	private static final String URI_PREFIX = "ni:///sha-256;";
+	private static PublicKey publicKey;
+
+	/**
+	 * Creates a public key.
+	 */
+	@BeforeClass
+	public static void init() {
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+			KeyPair keyPair = generator.generateKeyPair();
+			publicKey = keyPair.getPublic();
+		} catch (NoSuchAlgorithmException e) {
+			// should not happen because every VM is required to support RSA
+		}
+	}
 
 	@Test
-	public void testGetNameReturnsNamedInterfaceUri() throws Exception {
-		PublicKey key = DtlsTestTools.getPublicKey();
-		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
+	public void testGetNameReturnsNamedInterfaceUri() {
+		RawPublicKeyIdentity id = new RawPublicKeyIdentity(publicKey);
 		assertThatNameIsValidNamedInterfaceUri(id.getName());
 	}
 
 	@Test
-	public void testGetSubjectInfoReturnsEncodedKey() throws Exception {
-		PublicKey key = DtlsTestTools.getPublicKey();
-		RawPublicKeyIdentity id = new RawPublicKeyIdentity(key);
+	public void testGetSubjectInfoReturnsEncodedKey() {
+		RawPublicKeyIdentity id = new RawPublicKeyIdentity(publicKey);
 		assertArrayEquals(id.getKey().getEncoded(), id.getSubjectInfo());
 	}
 
 	@Test
-	public void testConstructorCreatesPublicKeyFromSubjectInfo() throws IOException, GeneralSecurityException {
+	public void testConstructorCreatesPublicKeyFromSubjectInfo() throws GeneralSecurityException {
+
 		// GIVEN a SubjectPublicKeyInfo object
-		PublicKey key = DtlsTestTools.getPublicKey();
-		byte[] subjectInfo = key.getEncoded();
+		byte[] subjectInfo = publicKey.getEncoded();
 
 		// WHEN creating a RawPublicKeyIdentity from it
-		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, key.getAlgorithm());
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, publicKey.getAlgorithm());
 
 		// THEN the principal contains the public key corresponding to the subject info
-		assertThat(principal.getKey(), is(key));
+		assertThat(principal.getKey(), is(publicKey));
 	}
 
 	private static void assertThatNameIsValidNamedInterfaceUri(String name) {
