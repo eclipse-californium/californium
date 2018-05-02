@@ -303,13 +303,13 @@ public class UDPConnector implements Connector {
 
 		protected void work() throws IOException {
 			datagram.setLength(size);
-			DatagramSocket socket;
+			DatagramSocket currentSocket;
 			synchronized (this) {
-				socket = UDPConnector.this.socket;
+				currentSocket = UDPConnector.this.socket;
 			}
-			if (socket != null) {
-				socket.receive(datagram);
-				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", socket.getLocalSocketAddress(),
+			if (currentSocket != null) {
+				currentSocket.receive(datagram);
+				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", currentSocket.getLocalSocketAddress(),
 						datagram.getLength(), datagram.getAddress(), datagram.getPort());
 				byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 				RawData msg = RawData.inbound(bytes,
