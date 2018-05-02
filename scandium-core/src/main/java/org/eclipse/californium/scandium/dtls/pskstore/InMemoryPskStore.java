@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -36,7 +35,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * You are supposed to store your key in a secure way: 
  * keeping them in-memory is not a good idea.
  */
-public class InMemoryPskStore implements PskStore, ServerNameResolver {
+public class InMemoryPskStore implements PskStore {
 
 	private final Map<ServerName, Map<String, byte[]>> scopedKeys = new ConcurrentHashMap<>();
 	private final Map<String, byte[]> keys = new ConcurrentHashMap<>();
@@ -164,16 +163,6 @@ public class InMemoryPskStore implements PskStore, ServerNameResolver {
 			throw new NullPointerException("address must not be null");
 		} else {
 			return identitiesByAddress.get(inetAddress);
-		}
-	}
-
-	@Override
-	public ServerNames getServerNames(final InetSocketAddress peerAddress) {
-
-		if (peerAddress == null) {
-			return null;
-		} else {
-			return serverNamesByAddress.get(peerAddress);
 		}
 	}
 }

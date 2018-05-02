@@ -60,9 +60,11 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 *             size, or a key in the attributes list is reused.
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
-		super(peerAddress, peerIdentity);
+
+		super(peerAddress,peerIdentity);
+
 		if ((attributes.length & 1) == 0) {
-			Map<String, String> entries = new HashMap<>();
+			Map<String, String> newEntries = new HashMap<>();
 			for (int index = 0; index < attributes.length; ++index) {
 				String key = attributes[index];
 				String value = attributes[++index];
@@ -72,12 +74,12 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 				if (null == value) {
 					throw new NullPointerException((index / 2) + ". value is null");
 				}
-				String old = entries.put(key, value);
+				String old = newEntries.put(key, value);
 				if (null != old) {
 					throw new IllegalArgumentException((index / 2) + ". key '" + key + "' is provided twice");
 				}
 			}
-			this.entries = Collections.unmodifiableMap(entries);
+			this.entries = Collections.unmodifiableMap(newEntries);
 		} else {
 			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
 		}
@@ -94,12 +96,12 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
 			Map<String, String> attributes) {
+
 		super(peerAddress, peerIdentity);
 		if (attributes == null) {
 			throw new NullPointerException("missing attributes map, must not be null!");
 		}
-		Map<String, String> entries = new HashMap<>(attributes);
-		this.entries = Collections.unmodifiableMap(entries);
+		this.entries = Collections.unmodifiableMap(new HashMap<>(attributes));
 	}
 
 	@Override

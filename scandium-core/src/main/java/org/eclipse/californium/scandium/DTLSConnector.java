@@ -189,7 +189,6 @@ public class DTLSConnector implements Connector {
 	private DatagramSocket socket;
 
 	/** The timer daemon to schedule retransmissions. */
-	//private Timer timer;
 	private ScheduledExecutorService timer;
 
 	/** The thread that receives messages */
@@ -1258,7 +1257,7 @@ public class DTLSConnector implements Connector {
 	 * already established session with the peer. If no session exists yet, a
 	 * new handshake with the peer is initiated and the sending of the message is
 	 * deferred to after the handshake has been completed and a session is established.
-	 * </p>
+	 * <p>
 	 * 
 	 * @param message the data to send to the peer
 	 */
@@ -1283,8 +1282,12 @@ public class DTLSConnector implements Connector {
 			}
 			// no session with peer established yet, create new empty session &
 			// start handshake
-			Handshaker handshaker = new ClientHandshaker(new DTLSSession(peerAddress, true),
-					getRecordLayerForPeer(connection), connection, config, maximumTransmissionUnit);
+			Handshaker handshaker = new ClientHandshaker(
+					DTLSSession.newClientSession(peerAddress, message.getVirtualHost()),
+					getRecordLayerForPeer(connection),
+					connection,
+					config,
+					maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();
@@ -1310,32 +1313,39 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void sendMessage(final RawData message, final DTLSSession session) {
-		try {
-			final EndpointContext ctx = session.getConnectionWriteContext();
-			if (!checkOutboundEndpointContext(message, ctx)) {
-				return;
+
+		final EndpointContext ctx = session.getConnectionWriteContext();
+		if (!checkOutboundEndpointContext(message, ctx)) {
+			LOGGER.debug("discarding outbound message that doesn't match connection's endpoint context");
+		} else if (message.getVirtualHost() != null && !message.getVirtualHost().equals(session.getVirtualHost())) {
+			LOGGER.debug("cannot send message [Uri-Host: {}] over session established with virtual host [{}]",
+					message.getVirtualHost(), session.getVirtualHost());
+			message.onError(new IllegalStateException("cannot send message with different Uri-Host over existing connection"));
+		} else {
+
+			try {
+
+				message.onContextEstablished(ctx);
+				Record record = new Record(
+						ContentType.APPLICATION_DATA,
+						session.getWriteEpoch(),
+						session.getSequenceNumber(),
+						new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
+						session);
+
+				sendRecord(record);
+				message.onSent();
+				InetSocketAddress peerAddress = message.getInetSocketAddress();
+				Connection connection = connectionStore.get(peerAddress);
+				if (connection != null) {
+					connection.refreshAutoResumptionTime();
+				}
+			} catch (IOException e) {
+				message.onError(e);
+			} catch (GeneralSecurityException e) {
+				LOGGER.debug("Cannot send APPLICATION record to peer [{}]", message.getInetSocketAddress(), e);
+				message.onError(e);
 			}
-			
-			message.onContextEstablished(ctx);
-			Record record = new Record(
-					ContentType.APPLICATION_DATA,
-					session.getWriteEpoch(),
-					session.getSequenceNumber(),
-					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
-					session);
-			
-			sendRecord(record);
-			message.onSent();
-			InetSocketAddress peerAddress = message.getInetSocketAddress();
-			Connection connection = connectionStore.get(peerAddress);
-			if (connection != null) {
-				connection.refreshAutoResumptionTime();
-			}
-		} catch (IOException e) {
-			message.onError(e);
-		} catch (GeneralSecurityException e) {
-			LOGGER.debug("Cannot send APPLICATION record to peer [{}]", message.getInetSocketAddress(), e);
-			message.onError(e);
 		}
 	}
 
@@ -1478,10 +1488,10 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void sendNextDatagramOverNetwork(final DatagramPacket datagramPacket) throws IOException {
-		DatagramSocket socket = getSocket();
-		if (socket != null && !socket.isClosed()) {
+		DatagramSocket currentSocket = getSocket();
+		if (currentSocket != null && !currentSocket.isClosed()) {
 			try {
-				socket.send(datagramPacket);
+				currentSocket.send(datagramPacket);
 			} catch(IOException e) {
 				LOGGER.warn("Could not send record", e);
 				throw e;
@@ -1605,11 +1615,11 @@ public class DTLSConnector implements Connector {
 	 */
 	@Override
 	public final InetSocketAddress getAddress() {
-		DatagramSocket socket = getSocket();
-		if (socket == null) {
+		DatagramSocket currentSocket = getSocket();
+		if (currentSocket == null) {
 			return config.getAddress();
 		} else {
-			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+			return new InetSocketAddress(currentSocket.getLocalAddress(), currentSocket.getLocalPort());
 		}
 	}
 

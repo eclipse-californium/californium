@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -126,7 +126,6 @@ public class ClientHandshaker extends Handshaker {
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
-	protected final ServerNameResolver serverNameResolver;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
     
@@ -158,7 +157,6 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
-		this.serverNameResolver = config.getServerNameResolver();
 		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -666,8 +664,9 @@ public class ClientHandshaker extends Handshaker {
 
 	@Override
 	public void startHandshake() throws HandshakeException {
+
 		handshakeStarted();
-		
+
 		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
 				preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
@@ -699,11 +698,9 @@ public class ClientHandshaker extends Handshaker {
 
 	private void addServerNameIndication(final ClientHello helloMessage) {
 
-		if (serverNameResolver != null) {
-			indicatedServerNames = serverNameResolver.getServerNames(session.getPeer());
-			if (indicatedServerNames != null) {
-				helloMessage.addExtension(ServerNameExtension.forServerNames(indicatedServerNames));
-			}
+		if (session.getVirtualHost() != null) {
+			LOGGER.debug("adding SNI extension to hello message [{}]", session.getVirtualHost());
+			helloMessage.addExtension(ServerNameExtension.forHostName(session.getVirtualHost()));
 		}
 	}
 }

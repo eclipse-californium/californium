@@ -70,8 +70,12 @@ public interface Connector {
 
 	/**
 	 * Sends a raw message to a client via the network.
-	 * 
+	 * <p>
 	 * This should be a non-blocking operation.
+	 * <p>
+	 * The {@link MessageCallback} registered on the message will be
+	 * notified about the different stages that the message is going
+	 * through as part of being sent.
 	 * 
 	 * @param msg the message to be sent
 	 * @throws NullPointerException if the message is {@code null}.

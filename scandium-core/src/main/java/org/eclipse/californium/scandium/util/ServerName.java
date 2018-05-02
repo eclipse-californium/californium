@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -25,8 +25,12 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  *
  */
 public class ServerName {
+
+	/**
+	 * The character set to use for encoding host names.
+	 */
 	public static final Charset CHARSET = StandardCharsets.US_ASCII;
-	
+
 	private final NameType type;
 	private final byte[] name;
 
@@ -76,6 +80,15 @@ public class ServerName {
 	 */
 	public byte[] getName() {
 		return name;
+	}
+
+	/**
+	 * Gets the name as a string using ASCII encoding.
+	 * 
+	 * @return the name.
+	 */
+	public String getNameAsString() {
+		return new String(name, CHARSET);
 	}
 
 	/**

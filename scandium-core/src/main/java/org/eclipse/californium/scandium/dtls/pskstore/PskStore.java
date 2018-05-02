@@ -40,15 +40,16 @@ public interface PskStore {
 	 * <p>
 	 * The key is used for mutual authentication during a DTLS handshake.
 	 * 
-	 * @param serverNames The names of servers the client provided as part of
-	 *            the <em>Server Name Indication</em> hello extension during the
-	 *            DTLS handshake. The key returned for the given identity is
-	 *            being looked up in the context of these server names.
+	 * @param serverName The name of the host that the client wants to connect
+	 *            to as provided in the <em>Server Name Indication</em> HELLO
+	 *            extension during the DTLS handshake.
+	 *            The key returned for the given identity is being looked up
+	 *            in the context of this host name.
 	 * @param identity The identity to look up the key for.
 	 * @return The key or <code>null</code> if the given identity is unknown.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 */
-	byte[] getKey(ServerNames serverNames, String identity);
+	byte[] getKey(ServerNames serverName, String identity);
 
 	/**
 	 * Gets the Identity to use for a PSK based handshake with a given peer.

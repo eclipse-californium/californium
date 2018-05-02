@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -132,8 +131,6 @@ public final class DtlsConnectorConfig {
 
 	private Integer maxConnections;
 	private Long staleConnectionThreshold;
-
-	private ServerNameResolver serverNameResolver;
 
 	private Integer connectionThreadCount;;
 
@@ -271,22 +268,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public PskStore getPskStore() {
 		return pskStore;
-	}
-
-	/**
-	 * Gets the resolver to use for determining the server names to include
-	 * in a <em>Server Name Indication</em> extension when initiating a handshake
-	 * with a peer.
-	 * <p>
-	 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
-	 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
-	 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
-	 * returned server names.
-	 * 
-	 * @return The resolver or {@code null} if no server names should be indicated to peers.
-	 */
-	public ServerNameResolver getServerNameResolver() {
-		return serverNameResolver;
 	}
 
 	/**
@@ -454,6 +435,7 @@ public final class DtlsConnectorConfig {
 		 * Sets the IP address and port the connector should bind to
 		 * 
 		 * @param address the IP address and port the connector should bind to
+		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the given address is unresolved
 		 */
 		public Builder setAddress(InetSocketAddress address) {
@@ -467,10 +449,11 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Enables address reuse for the socket.
 		 * 
+		 * @param flag {@code true} if address reuse should be enabled.
 		 * @return this builder for command chaining
 		 */
-		public Builder setEnableAddressReuse(boolean enable) {
-			config.enableReuseAddress = enable;
+		public Builder setEnableAddressReuse(boolean flag) {
+			config.enableReuseAddress = flag;
 			return this;
 		}
 
@@ -674,24 +657,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the resolver to use for determining the server names to include
-		 * in a <em>Server Name Indication</em> extension when initiating a handshake
-		 * with a peer.
-		 * <p>
-		 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
-		 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
-		 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
-		 * returned server names.
-		 * 
-		 * @param resolver The resolver.
-		 * @return This builder for command chaining.
-		 */
-		public Builder setServerNameResolver(final ServerNameResolver resolver) {
-			config.serverNameResolver = resolver;
-			return this;
-		}
-
-		/**
 		 * Sets the connector's identifying properties by means of a private
 		 * and public key pair.
 		 * <p>
@@ -879,11 +844,12 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set the number of thread which should be used to handle DTLS
+		 * Sets the number of threads which should be used to handle DTLS
 		 * connection.
 		 * <p>
 		 * The default value is 6 * <em>#(CPU cores)</em>.
 		 * 
+		 * @param threadCount the number of threads to use.
 		 * @return this builder for command chaining.
 		 */
 		public Builder setConnectionThreadCount(int threadCount) {
@@ -892,13 +858,15 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set the timeout of automatic session resumption in milliseconds.
+		 * Sets the timeout of automatic session resumption in milliseconds.
 		 * <p>
 		 * The default value is {@code null}, no automatic session resumption.
 		 * 
+		 * @param timeoutInMillis the number of milliseconds or {@code null} to disable automatic
+		 *                        session resumption
 		 * @return this builder for command chaining.
 		 */
-		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
+		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
 			config.autoResumptionTimeoutMillis = timeoutInMillis;
 			return this;
 		}

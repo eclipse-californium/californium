@@ -84,14 +84,14 @@ public interface EndpointContext {
 	boolean inhibitNewConnection();
 
 	/**
-	 * Get identity of peer the message is for or from.
+	 * Gets the identity of the peer that the message is for or from.
 	 * 
 	 * @return identity of peer. {@code null}, if not available.
 	 */
 	Principal getPeerIdentity();
 
 	/**
-	 * Get inet address of peer the message is for or from.
+	 * Gets the inet address of the peer that the message is for or from.
 	 * 
 	 * @return address of peer
 	 */

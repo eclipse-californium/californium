@@ -224,7 +224,7 @@ public class DTLSConnectorTest {
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
 
-	public void autoResumeSetUp(int timeout) throws Exception {
+	public void autoResumeSetUp(long timeout) throws Exception {
 		cleanUp();
 		serverSessionCache.establishedSessionCounter.set(0);
 		pskStoreLatency = 0;
@@ -278,6 +278,43 @@ public class DTLSConnectorTest {
 		assertTrue(callback.isSent(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
 		assertThat(serverRawDataProcessor.getLatestInboundMessage().getEndpointContext(), is(notNullValue()));
+	}
+
+	/**
+	 * Verifies that the connector refuses to send an outbound message over an
+	 * established connection to a virtual host that does not match the message's Uri-Host.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testSendInvokesMessageCallbackOnErrorForNonMatchingVirtualHost() throws Exception {
+
+		// GIVEN an established message to virtual host iot.eclipse.org
+		byte[] payload = "Hello World".getBytes();
+		RawData msg = RawData.outbound(
+				payload,
+				new AddressEndpointContext(serverEndpoint),
+				null,
+				false,
+				"iot.eclipse.org");
+		givenAnEstablishedSession(msg, false);
+
+		// WHEN sending another message with a different Uri-Host
+		// to the same peer
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData outboundMessage = RawData.outbound(
+				new byte[]{0x01},
+				new AddressEndpointContext(serverEndpoint),
+				callback,
+				false,
+				"coap.eclipse.org");
+		client.send(outboundMessage);
+
+		// THEN the message is not sent and the callback has been
+		// invoked with an error
+		assertThat(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), instanceOf(IllegalStateException.class));
+		assertFalse(callback.isSent());
+		assertThat(serverRawDataProcessor.getLatestInboundMessage().getBytes(), is(payload));
 	}
 
 	@Test
