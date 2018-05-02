@@ -189,7 +189,7 @@ public class SslContextUtil {
 	 * @throws IllegalArgumentException if keys doesn't match
 	 *             keystore#hexstorepwd#hexkeypwd#alias or no matching trusts
 	 *             are found
-	 * @throws NullPointerException if trust is null.
+	 * @throws NullPointerException if credentials is null.
 	 * @see #PARAMETER_SEPARATOR
 	 */
 	public static Credentials loadCredentials(String credentials) throws IOException, GeneralSecurityException {
