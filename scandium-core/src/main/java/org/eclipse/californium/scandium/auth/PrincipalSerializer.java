@@ -138,11 +138,11 @@ public final class PrincipalSerializer {
 
 	private static X509CertPath deserializeCertChain(final DatagramReader reader) {
 		return X509CertPath.fromBytes(readBytes(reader, 24));
-	};
+	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
 		return new PreSharedKeyIdentity(new String(readBytes(reader, 16)));
-	};
+	}
 
 	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader) throws GeneralSecurityException {
 		byte code = reader.readNextByte();
@@ -157,6 +157,10 @@ public final class PrincipalSerializer {
 
 	private static byte[] readBytes(final DatagramReader reader, final int lengthBits) {
 		int length = reader.read(lengthBits);
+		int available = reader.bitsLeft() / Byte.SIZE;
+		if (available < length) {
+			throw new IllegalArgumentException(length + " exceeds available " + available + " bytes!");
+		}
 		return reader.readBytes(length);
 	}
 

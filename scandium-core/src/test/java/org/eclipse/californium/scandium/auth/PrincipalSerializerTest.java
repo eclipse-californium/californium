@@ -18,16 +18,20 @@ package org.eclipse.californium.scandium.auth;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -41,12 +45,15 @@ import org.junit.experimental.categories.Category;
 public class PrincipalSerializerTest {
 
 	private static PublicKey publicKey;
+	private static Certificate[] certificateChain;
 
 	/**
 	 * Creates a public key to be used in test cases.
+	 * @throws GeneralSecurityException 
+	 * @throws IOException 
 	 */
 	@BeforeClass
-	public static void init() {
+	public static void init() throws IOException, GeneralSecurityException {
 		try {
 			KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 			KeyPair keyPair = generator.generateKeyPair();
@@ -54,6 +61,7 @@ public class PrincipalSerializerTest {
 		} catch (NoSuchAlgorithmException e) {
 			// every VM is required to support RSA
 		}
+		certificateChain = DtlsTestTools.getServerCertificateChain();
 	}
 
 	/**
@@ -77,6 +85,30 @@ public class PrincipalSerializerTest {
 		RawPublicKeyIdentity identity = (RawPublicKeyIdentity) PrincipalSerializer.deserialize(new DatagramReader(writer.toByteArray()));
 		assertThat(identity.getKey(), is(publicKey));
 		assertThat(identity.getKey().getAlgorithm(), is(publicKey.getAlgorithm()));
+	}
+
+	/**
+	 * Verifies that a X509CertPath that has been serialized using the serialize
+	 * method can be re-instantiated properly using the deserialize method.
+	 * 
+	 * @throws GeneralSecurityException if the X509CertPath cannot be
+	 *             deserialized.
+	 */
+	@Test
+	public void testSerializedX509CertPathCanBeDeserialized() throws GeneralSecurityException {
+		X509CertPath x509Identity = X509CertPath.fromCertificatesChain(certificateChain);
+
+		// WHEN serializing the X509CertPath to a byte array
+		DatagramWriter writer = new DatagramWriter();
+		PrincipalSerializer.serialize(x509Identity, writer);
+
+		// THEN the resulting byte array can be used to re-instantiate
+		// the X509CertPath
+		X509CertPath identity = (X509CertPath) PrincipalSerializer
+				.deserialize(new DatagramReader(writer.toByteArray()));
+		assertThat(identity.getName(), is(x509Identity.getName()));
+		assertThat(identity.getTarget(), is(x509Identity.getTarget()));
+		assertThat(identity.getPath(), is(x509Identity.getPath()));
 	}
 
 }
