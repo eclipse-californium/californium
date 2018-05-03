@@ -549,7 +549,7 @@ public class ServerHandshaker extends Handshaker {
 			serverHelloExtensions.addExtension(maxFragmentLengthExt);
 			LOGGER.debug(
 					"Negotiated max. fragment length [{} bytes] with peer [{}]",
-					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer()});
+					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
 		}
 
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
@@ -690,8 +690,7 @@ public class ServerHandshaker extends Handshaker {
 		String virtualHost = null;
 
 		if (getIndicatedServerNames() == null) {
-			LOGGER.debug("Client [{}] uses PSK identity [{}]",
-					new Object[]{getPeerAddress(), identity});
+			LOGGER.debug("Client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
 		} else {
 			ServerName serverName = getIndicatedServerNames().getServerName(NameType.HOST_NAME);
 			if (serverName == null) {
@@ -699,7 +698,7 @@ public class ServerHandshaker extends Handshaker {
 			} else {
 				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
 				LOGGER.debug("Client [{}] uses PSK identity [{}] for server [{}]",
-						new Object[]{getPeerAddress(), identity, virtualHost});
+						getPeerAddress(), identity, virtualHost);
 			}
 		}
 
