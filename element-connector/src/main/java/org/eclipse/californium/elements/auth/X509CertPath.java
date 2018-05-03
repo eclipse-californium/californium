@@ -43,6 +43,7 @@ public class X509CertPath implements Principal {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(X509CertPath.class.getCanonicalName());
 	private static final String TYPE_X509 = "X.509";
+	private static final String ENCODING = "PkiPath";
 	private final CertPath path;
 	private final X509Certificate target;
 
@@ -76,7 +77,7 @@ public class X509CertPath implements Principal {
 
 		try {
 			CertificateFactory factory = CertificateFactory.getInstance(TYPE_X509);
-			CertPath certPath = factory.generateCertPath(new ByteArrayInputStream(encodedPath), "PkiPath");
+			CertPath certPath = factory.generateCertPath(new ByteArrayInputStream(encodedPath), ENCODING);
 			return new X509CertPath(certPath);
 		} catch (CertificateException e) {
 			throw new IllegalArgumentException("byte array does not contain X.509 certificate path");
@@ -158,7 +159,7 @@ public class X509CertPath implements Principal {
 	 */
 	public byte[] toByteArray() {
 		try {
-			return path.getEncoded("PkiPath");
+			return path.getEncoded(ENCODING);
 		} catch (CertificateEncodingException e) {
 			// should not happen because all Java 7 implementations are required
 			// to support PkiPath encoding of X.509 certificates
