@@ -31,7 +31,11 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * A helper for serializing and deserializing principals supported by Scandium.
  */
 public final class PrincipalSerializer {
-
+	
+	private static final int PSK_LENGTH_BITS = 16;
+	private static final int RPK_LENGTH_BITS = 24;
+	private static final int CERTPATH_LENGTH_BITS = 24;
+	
 	private PrincipalSerializer() {
 	}
 
@@ -86,7 +90,7 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		writeBytes(principal.getName().getBytes(StandardCharsets.UTF_8), writer);
+		writeBytesWithLength(PSK_LENGTH_BITS, principal.getName().getBytes(StandardCharsets.UTF_8), writer);
 	}
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
@@ -96,16 +100,16 @@ public final class PrincipalSerializer {
 			throw new IllegalArgumentException("public key uses unknown algorithm: " + principal.getKey().getAlgorithm());
 		}
 		writer.writeByte(algorithm.getCode());
-		writeBytes(principal.getSubjectInfo(), writer);
+		writeBytesWithLength(RPK_LENGTH_BITS, principal.getSubjectInfo(), writer);
 	}
 
 	private static void serializeCertChain(final X509CertPath principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.CERT.code);
-		writeBytes(principal.toByteArray(), writer);
+		writeBytesWithLength(CERTPATH_LENGTH_BITS, principal.toByteArray(), writer);
 	}
 
-	private static void writeBytes(final byte[] bytesToWrite, final DatagramWriter writer) {
-		writer.write(bytesToWrite.length, 16);
+	private static void writeBytesWithLength(final int lengthBits, final byte[] bytesToWrite, final DatagramWriter writer) {
+		writer.write(bytesToWrite.length, lengthBits);
 		writer.writeBytes(bytesToWrite);
 	}
 
@@ -137,11 +141,11 @@ public final class PrincipalSerializer {
 	}
 
 	private static X509CertPath deserializeCertChain(final DatagramReader reader) {
-		return X509CertPath.fromBytes(readBytes(reader, 24));
+		return X509CertPath.fromBytes(readBytesWithLength(CERTPATH_LENGTH_BITS, reader));
 	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
-		return new PreSharedKeyIdentity(new String(readBytes(reader, 16)));
+		return new PreSharedKeyIdentity(new String(readBytesWithLength(PSK_LENGTH_BITS, reader)));
 	}
 
 	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader) throws GeneralSecurityException {
@@ -150,12 +154,12 @@ public final class PrincipalSerializer {
 		if (algorithm == null) {
 			throw new NoSuchAlgorithmException("no key algorithm registered for code " + code);
 		} else {
-			byte[] subjectInfo = readBytes(reader, 16);
+			byte[] subjectInfo = readBytesWithLength(RPK_LENGTH_BITS, reader);
 			return new RawPublicKeyIdentity(subjectInfo, algorithm.getName());
 		}
 	}
 
-	private static byte[] readBytes(final DatagramReader reader, final int lengthBits) {
+	private static byte[] readBytesWithLength(final int lengthBits, final DatagramReader reader) {
 		int length = reader.read(lengthBits);
 		int available = reader.bitsLeft() / Byte.SIZE;
 		if (available < length) {
