@@ -18,14 +18,20 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add toString()
  *    Kai Hudalla (Bosch Software Innovations GmbH) - improve JavaDocs, add method for retrieving
  *                                                    maximum ciphertext expansion of cipher suite
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
+
+import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CipherType;
 
 /**
  * A set of algorithms and corresponding security parameters that together
@@ -49,7 +55,8 @@ class DTLSConnectionState {
 	private SecretKey encryptionKey;
 	private IvParameterSpec iv;
 	private SecretKey macKey;
-
+	private Cipher cipher;
+	
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -62,7 +69,8 @@ class DTLSConnectionState {
 	 * {@link CompressionMethod#NULL} and <code>null</code> for all other parameters.
 	 */
 	DTLSConnectionState() {
-		this(CipherSuite.TLS_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
+		this.cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
+		this.compressionMethod = CompressionMethod.NULL;
 	}
 
 	/**
@@ -79,9 +87,10 @@ class DTLSConnectionState {
 	 * @param macKey
 	 *            the key to use for creating/verifying message authentication codes (MAC)
 	 * @throws NullPointerException if any of cipher suite or compression method is <code>null</code>
+	 * @throws GeneralSecurityException if cipher could not be created successful
 	 */
 	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey,
-			IvParameterSpec iv, SecretKey macKey) {
+			IvParameterSpec iv, SecretKey macKey) throws GeneralSecurityException {
 		if (cipherSuite == null) {
 			throw new NullPointerException("Cipher suite must not be null");
 		} else if (compressionMethod == null) {
@@ -92,6 +101,9 @@ class DTLSConnectionState {
 		this.encryptionKey = encryptionKey;
 		this.iv = iv;
 		this.macKey = macKey;
+		if (cipherSuite.getCipherType() == CipherType.AEAD) {
+			this.cipher = CCMBlockCipher.createCipher(encryptionKey.getEncoded());
+		}
 	}
 
 	// Getters ////////////////////////////////////////////
@@ -126,6 +138,17 @@ class DTLSConnectionState {
 	 */
 	SecretKey getEncryptionKey() {
 		return encryptionKey;
+	}
+
+	/**
+	 * Gets the cipher.
+	 * 
+	 * Currently only available for AEAD.
+	 * 
+	 * @return cipher, or {@code null}, if not available.
+	 */
+	Cipher getCipher() {
+		return cipher;
 	}
 
 	/**

@@ -1,3 +1,19 @@
+/*******************************************************************************
+ * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch Software Innovations GmbH               - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
+ ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import static org.junit.Assert.assertTrue;
@@ -6,6 +22,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+
+import javax.crypto.Cipher;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
@@ -56,6 +74,8 @@ public class CCMBlockCipherTest {
 	int aLength = 13;
 	int nonceLength = 12;
 
+	Cipher cipher;
+
 	public CCMBlockCipherTest(int payloadLength, int aLength, int nonceLength) {
 		this.payloadLength = payloadLength;
 		this.aLength = aLength;
@@ -84,6 +104,7 @@ public class CCMBlockCipherTest {
 		// nonce used for encryption, "implicit" part + "explicit" part
 		nonce = ByteArrayUtils.concatenate(client_iv, explicitNonce);
 		nonce = adjustLength(nonce, nonceLength);
+		cipher = CCMBlockCipher.createCipher(aesKey);
 	}
 
 	private byte[] adjustLength(byte[] data, int len) {
@@ -98,9 +119,9 @@ public class CCMBlockCipherTest {
 		return data;
 	}
 
+	@SuppressWarnings( "deprecation" )
 	@Test
 	public void testSlowSlowCryption() throws Exception {
-
 		byte[] encryptedData = DeprecatesCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = DeprecatesCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
@@ -108,65 +129,65 @@ public class CCMBlockCipherTest {
 
 	@Test
 	public void testFastFastCryption() throws Exception {
-
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
+		byte[] decryptedData = CCMBlockCipher.decrypt(cipher, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 
+	@SuppressWarnings( "deprecation" )
 	@Test
 	public void testFastSlowCryption() throws Exception {
-
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = DeprecatesCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 
+	@SuppressWarnings( "deprecation" )
 	@Test
 	public void testSlowFastCryption() throws Exception {
-
 		byte[] encryptedData = DeprecatesCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
+		byte[] decryptedData = CCMBlockCipher.decrypt(cipher, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 
 	@Test(expected = InvalidMacException.class)
 	public void testDifferentNonce() throws Exception {
 
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 		byte[] nonce2 = Arrays.copyOf(nonce, nonce.length);
 		nonce2[0] ^= 0x55;
-		CCMBlockCipher.decrypt(aesKey, nonce2, additionalData, encryptedData, 8);
+		CCMBlockCipher.decrypt(cipher, nonce2, additionalData, encryptedData, 8);
 	}
 
 	@Test(expected = InvalidMacException.class)
 	public void testDifferentAdditionalData() throws Exception {
 
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 		byte[] additionalData2 = Arrays.copyOf(additionalData, additionalData.length + 1);
 		additionalData2[0] ^= 0x55;
-		CCMBlockCipher.decrypt(aesKey, nonce, additionalData2, encryptedData, 8);
+		CCMBlockCipher.decrypt(cipher, nonce, additionalData2, encryptedData, 8);
 	}
 
 	@Test(expected = InvalidMacException.class)
 	public void testDifferentKey() throws Exception {
 
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 		byte[] aesKey2 = Arrays.copyOf(aesKey, aesKey.length);
 		aesKey2[0] ^= 0x55;
-		CCMBlockCipher.decrypt(aesKey, nonce, aesKey2, encryptedData, 8);
+		Cipher cipher2 = CCMBlockCipher.createCipher(aesKey2);
+		CCMBlockCipher.decrypt(cipher2, nonce, additionalData, encryptedData, 8);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testTooShortNonce() throws Exception {
 		nonce = ByteArrayUtils.truncate(nonce, 6);
-		CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testTooLongNonce() throws Exception {
 		nonce = adjustLength(nonce, 14);
-		CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
+		CCMBlockCipher.encrypt(cipher, nonce, additionalData, payloadData, 8);
 	}
 
 }

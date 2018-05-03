@@ -18,6 +18,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesigned implementation
  *                                                    to improve performance
  *    Achim Kraus (Bosch Software Innovations GmbH) - use NoPadding for android support
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -76,6 +77,7 @@ public class CCMBlockCipher {
 		 * </pre>
 		 * 
 		 * Return remaining bytes in number.
+		 * 
 		 * <pre>
 		 * blockSize = 16;
 		 * number = 0x20103
@@ -284,10 +286,27 @@ public class CCMBlockCipher {
 	// Static methods /////////////////////////////////////////////////
 
 	/**
+	 * Create cipher for provide key.
+	 * 
+	 * Initialize it using encryption mode.
+	 * 
+	 * @param key key to be used as secret key
+	 * @return created and initialized cipher,
+	 * @throws GeneralSecurityException if cipher could not be created or
+	 *             initialized
+	 */
+	public final static Cipher createCipher(byte[] key) throws GeneralSecurityException {
+		// instantiate the underlying block cipher
+		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
+		return cipher;
+	}
+
+	/**
 	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5">RFC 3610</a>
 	 * for details.
 	 * 
-	 * @param key the encryption key K.
+	 * @param cipher cipher initialized with the encryption key.
 	 * @param nonce the nonce N.
 	 * @param a the additional authenticated data a.
 	 * @param c the encrypted and authenticated message c.
@@ -298,18 +317,14 @@ public class CCMBlockCipher {
 	 *             e.g. because the ciphertext's block size is not correct
 	 * @throws InvalidMacException if the message could not be authenticated
 	 */
-	public final static byte[] decrypt(byte[] key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
+	public final static byte[] decrypt(Cipher cipher, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
 			throws GeneralSecurityException {
+
 		/*
 		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-6.1:
 		 * "AEAD_AES_128_CCM_8 ciphertext is exactly 8 octets longer than its
 		 * corresponding plaintext"
 		 */
-
-		// instantiate the underlying block cipher
-		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
-
 		int lengthM = c.length - numAuthenticationBytes;
 		int blockSize = cipher.getBlockSize();
 
@@ -362,7 +377,7 @@ public class CCMBlockCipher {
 	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2">RFC 3610</a>
 	 * for details.
 	 * 
-	 * @param key the encryption key K.
+	 * @param cipher cipher initialized with the encryption key.
 	 * @param nonce the nonce N.
 	 * @param a the additional authenticated data a.
 	 * @param m the message to authenticate and encrypt.
@@ -371,12 +386,9 @@ public class CCMBlockCipher {
 	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
 	 *             because the JVM does not support the AES cipher algorithm
 	 */
-	public final static byte[] encrypt(byte[] key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
+	public final static byte[] encrypt(Cipher cipher, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
 			throws GeneralSecurityException {
 
-		// instantiate the cipher
-		Cipher cipher = Cipher.getInstance(CIPHER_NAME);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
 		int blockSize = cipher.getBlockSize();
 		int lengthM = m.length;
 

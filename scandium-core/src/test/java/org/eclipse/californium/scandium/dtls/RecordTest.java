@@ -14,6 +14,7 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test cases for verifying sequence number handling
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #609, reuse cipher
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -168,8 +169,7 @@ public class RecordTest {
 		byte[] explicitNonce = new byte[]{1, 2, 3, 4, 5, 6, 7, 8};
 		// nonce used for encryption, "implicit" part + "explicit" part
 		byte[] nonce = ByteArrayUtils.concatenate(client_iv, explicitNonce);
-		
-		byte[] encryptedData = CCMBlockCipher.encrypt(key.getEncoded(), nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(CCMBlockCipher.createCipher(key.getEncoded()), nonce, additionalData, payloadData, 8);
 		
 		// prepend the "explicit" part of nonce to the encrypted data to form the GenericAEADCipher struct
 		return ByteArrayUtils.concatenate(explicitNonce, encryptedData);
