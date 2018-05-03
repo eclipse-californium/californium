@@ -25,7 +25,6 @@ public final class PreSharedKeyIdentity implements Principal {
 
 	private final String virtualHost;
 	private final String identity;
-	private final int hash;
 	private final String name;
 
 	/**
@@ -51,12 +50,6 @@ public final class PreSharedKeyIdentity implements Principal {
 		} else {
 			this.identity = identity;
 			this.virtualHost = virtualHost;
-
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((identity == null) ? 0 : identity.hashCode());
-			result = prime * result + ((virtualHost == null) ? 0 : virtualHost.hashCode());
-			this.hash = result;
 
 			StringBuilder b = new StringBuilder();
 			if (virtualHost != null) {
@@ -117,14 +110,14 @@ public final class PreSharedKeyIdentity implements Principal {
 
 	@Override
 	public int hashCode() {
-		return hash;
+		return name.hashCode();
 	}
 
 	/**
 	 * Compares another object to this identity.
 	 * 
-	 * @return {@code true} if the other object is a RawPublicKey identity and
-	 *         contains the same identity and virtual host name.
+	 * @return {@code true} if the other object is a {@code PreSharedKeyIdentity} and
+	 *         its name property has the same value as this instance.
 	 */
 	@Override
 	public boolean equals(Object obj) {
@@ -138,18 +131,11 @@ public final class PreSharedKeyIdentity implements Principal {
 			return false;
 		}
 		PreSharedKeyIdentity other = (PreSharedKeyIdentity) obj;
-		if (identity == null) {
-			if (other.identity != null) {
+		if (name == null) {
+			if (other.name != null) {
 				return false;
 			}
-		} else if (!identity.equals(other.identity)) {
-			return false;
-		}
-		if (virtualHost == null) {
-			if (other.virtualHost != null) {
-				return false;
-			}
-		} else if (!virtualHost.equals(other.virtualHost)) {
+		} else if (!name.equals(other.name)) {
 			return false;
 		}
 		return true;
