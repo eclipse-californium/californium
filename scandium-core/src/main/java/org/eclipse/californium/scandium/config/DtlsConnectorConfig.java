@@ -858,15 +858,14 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the timeout of automatic session resumption in milliseconds.
+		 * Sets the timeout of automatic session resumption.
 		 * <p>
 		 * The default value is {@code null}, no automatic session resumption.
 		 * 
-		 * @param timeoutInMillis the number of milliseconds or {@code null} to disable automatic
-		 *                        session resumption
+		 * @param timeoutInMillis the timeout in milliseconds
 		 * @return this builder for command chaining.
 		 */
-		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
+		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
 			config.autoResumptionTimeoutMillis = timeoutInMillis;
 			return this;
 		}
