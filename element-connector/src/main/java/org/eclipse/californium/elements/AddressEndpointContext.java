@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -36,23 +36,9 @@ public class AddressEndpointContext implements EndpointContext {
 	private final Principal peerIdentity;
 
 	/**
-	 * Create endpoint context without principal.
+	 * Creates a context for an IP address and port.
 	 * 
-	 * @param peerAddress socket address of peer's service
-	 * @throws NullPointerException if provided peer address is {@code null}.
-	 */
-	public AddressEndpointContext(InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			throw new NullPointerException("missing peer socket address!");
-		}
-		this.peerAddress = peerAddress;
-		this.peerIdentity = null;
-	}
-
-	/**
-	 * Create endpoint context without principal.
-	 * 
-	 * @param address inet address of peer
+	 * @param address IP address of peer
 	 * @param port port of peer
 	 * @throws NullPointerException if provided address is {@code null}.
 	 */
@@ -65,7 +51,17 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	/**
-	 * Create endpoint context with principal.
+	 * Creates a context for a socket address.
+	 * 
+	 * @param peerAddress socket address of peer's service
+	 * @throws NullPointerException if provided peer address is {@code null}.
+	 */
+	public AddressEndpointContext(InetSocketAddress peerAddress) {
+		this(peerAddress, null);
+	}
+
+	/**
+	 * Creates a context for a socket address and an authenticated identity.
 	 * 
 	 * @param peerAddress socket address of peer's service
 	 * @param peerIdentity peer's principal
@@ -79,11 +75,21 @@ public class AddressEndpointContext implements EndpointContext {
 		this.peerIdentity = peerIdentity;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @return {@code null}
+	 */
 	@Override
 	public String get(String key) {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @return an empty map
+	 */
 	@Override
 	public Map<String, String> entries() {
 		return Collections.emptyMap();
@@ -95,45 +101,13 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
-	public Principal getPeerIdentity() {
+	public final Principal getPeerIdentity() {
 		return peerIdentity;
 	}
 
 	@Override
-	public InetSocketAddress getPeerAddress() {
+	public final InetSocketAddress getPeerAddress() {
 		return peerAddress;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = peerAddress.hashCode();
-		if (peerIdentity != null) {
-			result = peerIdentity.hashCode();
-		}
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (!(obj instanceof AddressEndpointContext)) {
-			return false;
-		}
-		AddressEndpointContext other = (AddressEndpointContext) obj;
-		if (!peerAddress.equals(other.getPeerAddress())) {
-			return false;
-		}
-		if (peerIdentity != null) {
-			if (!peerIdentity.equals(other.getPeerIdentity())) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	@Override

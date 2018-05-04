@@ -22,10 +22,10 @@ import java.net.InetSocketAddress;
  */
 public class UdpEndpointContext extends MapBasedEndpointContext {
 
-	static final String KEY_PLAIN = "PLAIN";
+	public static final String KEY_PLAIN = "PLAIN";
 
 	/**
-	 * Creates a new context for an IP address and port.
+	 * Creates a new context for a socket address.
 	 * 
 	 * @param peerAddress The peer's address.
 	 */
