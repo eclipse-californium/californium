@@ -19,6 +19,7 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A typed server name as defined by RFC 6066, Section 3.
@@ -41,6 +42,9 @@ public class ServerName {
 
 	/**
 	 * Creates a new instance for a type and name.
+	 * <p>
+	 * If the name is a host name then this method delegates
+	 * to {@link #fromHostName(String)}.
 	 * 
 	 * @param type The type of name.
 	 * @param name The name's byte encoding.
@@ -52,6 +56,8 @@ public class ServerName {
 			throw new NullPointerException("type must not be null");
 		} else if (name == null) {
 			throw new NullPointerException("name must not be null");
+		} else if (type == NameType.HOST_NAME) {
+			return fromHostName(new String(name, CHARSET));
 		} else {
 			return new ServerName(type, name);
 		}
@@ -60,16 +66,21 @@ public class ServerName {
 	/**
 	 * Creates a new instance for a host name.
 	 * 
-	 * @param hostName The host name. All non-ASCII characters will be replaced with the JRE's default
-	 *                 replacement character.
+	 * @param hostName The host name. All non-ASCII characters will be replaced
+	 *                 with the JRE's default replacement character. The name
+	 *                 will be converted to lower case.
 	 * @return The new instance.
 	 * @throws NullPointerException if the host name is {@code null}.
+	 * @throws IllegalArgumentException if the given name is not a valid host name
+	 *               as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
 	 */
 	public static ServerName fromHostName(final String hostName) {
 		if (hostName == null) {
 			throw new NullPointerException("host name must not be null");
+		} else if (StringUtil.isValidHostName(hostName)) {
+			return new ServerName(NameType.HOST_NAME, hostName.toLowerCase().getBytes(CHARSET));
 		} else {
-			return new ServerName(NameType.HOST_NAME, hostName.getBytes(CHARSET));
+			throw new IllegalArgumentException("not a valid host name");
 		}
 	}
 
