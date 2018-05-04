@@ -27,6 +27,15 @@ import org.junit.Test;
 public class PreSharedKeyIdentityTest {
 
 	/**
+	 * Verifies that the constructor rejects a host name containing
+	 * a colon character.
+	 */
+	@Test(expected = IllegalArgumentException.class)
+	public void testConstructorRejectsIllegalHostName() {
+		new PreSharedKeyIdentity("illegal.host:name", "acme");
+	}
+
+	/**
 	 * Verifies that two instances with the same identity but different
 	 * virtual host names are not considered equal.
 	 */

@@ -17,6 +17,8 @@ package org.eclipse.californium.elements.auth;
 
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 /**
  * A principal representing an authenticated peer's identity as used in a
  * <em>pre-shared key</em> handshake.
@@ -40,22 +42,29 @@ public final class PreSharedKeyIdentity implements Principal {
 	/**
 	 * Creates a new instance for an identity scoped to a virtual host.
 	 * 
-	 * @param virtualHost the virtual host name that the identity is scoped to.
+	 * @param virtualHost The virtual host name that the identity is scoped to.
+	 *                    The host name will be converted to lower case.
 	 * @param identity the identity.
 	 * @throws NullPointerException if the identity is <code>null</code>
+	 * @throws IllegalArgumentException if virtual host is not a valid host name
+	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
 	 */
 	public PreSharedKeyIdentity(String virtualHost, String identity) {
 		if (identity == null) {
 			throw new NullPointerException("Identity must not be null");
 		} else {
-			this.identity = identity;
-			this.virtualHost = virtualHost;
-
 			StringBuilder b = new StringBuilder();
-			if (virtualHost != null) {
-				b.append(virtualHost).append(":");
+			if (virtualHost == null) {
+				this.virtualHost = null;
+			} else if (StringUtil.isValidHostName(virtualHost)) {
+				this.virtualHost = virtualHost.toLowerCase();
+				b.append(this.virtualHost);
+			} else {
+				throw new IllegalArgumentException("virtual host is not a valid hostname");
 			}
-			b.append(identity);
+			this.identity = identity;
+
+			b.append(":").append(identity);
 			this.name = b.toString();
 		}
 	}

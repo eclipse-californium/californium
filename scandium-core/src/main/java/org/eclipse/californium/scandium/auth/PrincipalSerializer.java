@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 - 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -86,7 +86,10 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		writeBytes(principal.getName().getBytes(StandardCharsets.UTF_8), writer);
+		byte[] virtualHost = principal.getVirtualHost() == null ? new byte[0] :
+			principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
+		writeBytes(virtualHost, writer);
+		writeBytes(principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
 	}
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
@@ -141,7 +144,10 @@ public final class PrincipalSerializer {
 	};
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
-		return new PreSharedKeyIdentity(new String(readBytes(reader, 16)));
+		byte[] bytes = readBytes(reader, 16);
+		String virtualHost = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
+		bytes = readBytes(reader, 16);
+		return new PreSharedKeyIdentity(virtualHost, new String(bytes, StandardCharsets.UTF_8));
 	};
 
 	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader) throws GeneralSecurityException {

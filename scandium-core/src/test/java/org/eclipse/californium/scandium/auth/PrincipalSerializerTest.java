@@ -16,7 +16,7 @@
 package org.eclipse.californium.scandium.auth;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -24,20 +24,18 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.scandium.category.Small;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 
 /**
  * Verifies behavior of {@link PrincipalSerializer}.
  *
  */
-@Category(Small.class)
 public class PrincipalSerializerTest {
 
 	private static PublicKey publicKey;
@@ -77,6 +75,45 @@ public class PrincipalSerializerTest {
 		RawPublicKeyIdentity identity = (RawPublicKeyIdentity) PrincipalSerializer.deserialize(new DatagramReader(writer.toByteArray()));
 		assertThat(identity.getKey(), is(publicKey));
 		assertThat(identity.getKey().getAlgorithm(), is(publicKey.getAlgorithm()));
+	}
+
+	/**
+	 * Verifies that a pre-shared key identity that has been serialized using the
+	 * serialize method can be re-instantiated properly using the deserialize
+	 * method.
+	 */
+	@Test
+	public void testSerializedPSKIdentityCanBeDeserialized() {
+
+		testSerializedPSKIdentityCanBeDeserialized(new PreSharedKeyIdentity("iot.eclipse.org", "acme"));
+	}
+
+	/**
+	 * Verifies that a pre-shared key identity without a virtual host that has been
+	 * serialized using the serialize method can be re-instantiated properly using
+	 * the deserialize method.
+	 */
+	@Test
+	public void testSerializedPSKIdentityWithoutHostCanBeDeserialized() {
+
+		testSerializedPSKIdentityCanBeDeserialized(new PreSharedKeyIdentity("acme"));
+	}
+
+	private static void testSerializedPSKIdentityCanBeDeserialized(PreSharedKeyIdentity pskIdentity) {
+
+		try {
+			// WHEN serializing the identity to a byte array
+			DatagramWriter writer = new DatagramWriter();
+			PrincipalSerializer.serialize(pskIdentity, writer);
+
+			// THEN the resulting byte array can be used to re-instantiate
+			// the identity
+			PreSharedKeyIdentity identity = (PreSharedKeyIdentity) PrincipalSerializer.deserialize(new DatagramReader(writer.toByteArray()));
+			assertThat(identity, is(pskIdentity));
+		} catch (GeneralSecurityException e) {
+			// should not happen
+			fail(e.getMessage());
+		}
 	}
 
 }
