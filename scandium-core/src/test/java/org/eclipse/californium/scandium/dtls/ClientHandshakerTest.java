@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -37,7 +37,6 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
-import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -71,6 +70,13 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
 	}
+
+	/**
+	 * Verifies that the handshaker indicates preference of X509 certificates
+	 * when no trust store is configured.
+	 * 
+	 * @throws Exception if the handshaker cannot be created.
+	 */
 	@Test
 	public void testServerCertExtPrefersX509WithEmptyTrustStore() throws Exception {
 
@@ -125,7 +131,7 @@ public class ClientHandshakerTest {
 	@Test
 	public void testClientHelloContainsServerNameExtensionForRegisteredPeer() throws Exception {
 
-		givenAClientHandshaker(false);
+		givenAClientHandshaker(new String(serverName), false);
 
 		// WHEN a handshake is started
 		handshaker.startHandshake();
@@ -139,28 +145,29 @@ public class ClientHandshakerTest {
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
-		givenAClientHandshaker(localPeer, configureTrustStore, false);
+		givenAClientHandshaker(null, configureTrustStore);
 	}
 
-	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
+	private void givenAClientHandshaker(final String virtualHost, final boolean configureTrustStore) throws Exception {
+		givenAClientHandshaker(localPeer, virtualHost, configureTrustStore, false);
+	}
+
+	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore,
+			final boolean configureEmptyTrustStore) throws Exception {
+
+		givenAClientHandshaker(peer, null, configureTrustStore, configureEmptyTrustStore);
+	}
+
+	private void givenAClientHandshaker(final InetSocketAddress peer, final String virtualHost, final boolean configureTrustStore,
+			final boolean configureEmptyTrustStore) throws Exception {
+
 		DtlsConnectorConfig.Builder builder = 
 				new DtlsConnectorConfig.Builder()
 					.setAddress(new InetSocketAddress(InetAddress.getLocalHost(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
-						false)
-					.setServerNameResolver(new ServerNameResolver() {
-
-						@Override
-						public ServerNames getServerNames(final InetSocketAddress address) {
-							if (localPeer.equals(address)) {
-								return ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, serverName));
-							} else {
-								return null;
-							}
-						}
-					});
+						false);
 
 		if (configureTrustStore) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
@@ -170,7 +177,7 @@ public class ClientHandshakerTest {
 		}
 
 		handshaker = new ClientHandshaker(
-				new DTLSSession(peer, true),
+				DTLSSession.newClientSession(peer, virtualHost),
 				recordLayer,
 				null,
 				builder.build(),

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -1200,6 +1200,10 @@ public class PlugtestChecker {
 			return identity;
 		}
 
+		@Override
+		public String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
+			return getIdentity(peerAddress);
+		}
 	}
 
 	private static boolean ping(String address) {

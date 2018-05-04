@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -71,7 +71,9 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -547,7 +549,7 @@ public class ServerHandshaker extends Handshaker {
 			serverHelloExtensions.addExtension(maxFragmentLengthExt);
 			LOGGER.debug(
 					"Negotiated max. fragment length [{} bytes] with peer [{}]",
-					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer()});
+					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
 		}
 
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
@@ -556,8 +558,13 @@ public class ServerHandshaker extends Handshaker {
 			indicatedServerNames = serverNameExt.getServerNames();
 			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
 			LOGGER.debug(
-					"Using server name indication received from peer [{}]",
-					clientHello.getPeer());
+					"Peer [{}] has included Server Name Indication [{}] in its CLIENT_HELLO message",
+					clientHello.getPeer(), indicatedServerNames);
+			ServerName virtualHost = indicatedServerNames.getServerName(NameType.HOST_NAME);
+			if (virtualHost != null) {
+				// store the virtual host name "for the record"
+				session.setVirtualHost(virtualHost.getNameAsString());
+			}
 		}
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
@@ -676,18 +683,23 @@ public class ServerHandshaker extends Handshaker {
 	private byte[] receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
 
 		clientKeyExchange = message;
-		byte[] psk = null;
 
-		// use the client's PSK identity to get right preshared key
+		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
-
-		LOGGER.debug("Client [{}] uses PSK identity [{}]",
-				new Object[]{getPeerAddress(), identity});
+		byte[] psk = pskStore.getKey(getIndicatedServerNames(), identity);
+		String virtualHost = null;
 
 		if (getIndicatedServerNames() == null) {
-			psk = pskStore.getKey(identity);
+			LOGGER.debug("Client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
 		} else {
-			psk = pskStore.getKey(getIndicatedServerNames(), identity);
+			ServerName serverName = getIndicatedServerNames().getServerName(NameType.HOST_NAME);
+			if (serverName == null) {
+				LOGGER.debug("client provided invalid SNI extension which doesn't include a hostname");
+			} else {
+				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
+				LOGGER.debug("Client [{}] uses PSK identity [{}] for server [{}]",
+						getPeerAddress(), identity, virtualHost);
+			}
 		}
 
 		if (psk == null) {
@@ -695,7 +707,7 @@ public class ServerHandshaker extends Handshaker {
 					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
 		} else {
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
 			return generatePremasterSecretFromPSK(psk);
 		}
 	}

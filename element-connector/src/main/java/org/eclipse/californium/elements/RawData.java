@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -69,6 +69,8 @@ public final class RawData {
 	 */
 	private MessageCallback callback;
 
+	private String virtualHost;
+
 	/**
 	 * Instantiates a new raw data.
 	 * 
@@ -77,11 +79,16 @@ public final class RawData {
 	 *
 	 * @param data the data that is to be sent or has been received
 	 * @param endpointContext remote peers endpoint context.
+	 * @param callback the handler to call when this message has been sent (may
+	 *            be {@code null}).
 	 * @param multicast indicates whether the data represents a multicast
 	 *            message
+	 * @param virtualHost the name of the virtual host that the data is intended for
 	 * @throws NullPointerException if data or address is {@code null}
 	 */
-	private RawData(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback, boolean multicast) {
+	private RawData(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback,
+			boolean multicast, String virtualHost) {
+
 		if (data == null) {
 			throw new NullPointerException("Data must not be null");
 		} else if (peerEndpointContext == null) {
@@ -91,6 +98,7 @@ public final class RawData {
 			this.peerEndpointContext = peerEndpointContext;
 			this.callback = callback;
 			this.multicast = multicast;
+			this.virtualHost = virtualHost;
 		}
 	}
 
@@ -109,7 +117,7 @@ public final class RawData {
 	 * @throws NullPointerException if data or address is {@code null}.
 	 */
 	public static RawData inbound(byte[] data, EndpointContext peerEndpointContext, boolean isMulticast) {
-		return new RawData(data, peerEndpointContext, null, isMulticast);
+		return new RawData(data, peerEndpointContext, null, isMulticast, null);
 	}
 
 	/**
@@ -141,7 +149,41 @@ public final class RawData {
 	 */
 	public static RawData outbound(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback,
 			boolean useMulticast) {
-		return new RawData(data, peerEndpointContext, callback, useMulticast);
+		return outbound(data, peerEndpointContext, callback, useMulticast, null);
+	}
+
+	/**
+	 * Instantiates a new raw data for a message to be sent to a peer.
+	 * <p>
+	 * The given callback handler is notified when the message has been sent by
+	 * a <code>Connector</code>. The information contained in the
+	 * <code>MessageContext</code> object that is passed in to the handler may
+	 * be relevant for matching a response received via a
+	 * <code>RawDataChannel</code> to a request sent using this method, e.g.
+	 * when using a DTLS based connector the context may contain the DTLS
+	 * session ID and epoch number which is required to match a response to a
+	 * request as defined in the CoAP specification.
+	 * </p>
+	 * <p>
+	 * The message context is set via a callback in order to allow
+	 * <code>Connector</code> implementations to process (send) messages
+	 * asynchronously.
+	 * </p>
+	 * 
+	 * @param data the data to send.
+	 * @param peerEndpointContext remote peer's endpoint context to send data.
+	 * @param callback the handler to call when this message has been sent (may
+	 *            be {@code null}).
+	 * @param useMulticast indicates whether the data should be sent using a
+	 *            multicast message.
+	 * @param virtualHost the name of the (virtual) host that this message is
+	 *                 supposed to be sent to.
+	 * @return the raw data object containing the outbound message.
+	 * @throws NullPointerException if data or peerContext is {@code null}.
+	 */
+	public static RawData outbound(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback,
+			boolean useMulticast, String virtualHost) {
+		return new RawData(data, peerEndpointContext, callback, useMulticast, virtualHost);
 	}
 
 	/**
@@ -178,6 +220,16 @@ public final class RawData {
 	 */
 	public int getPort() {
 		return peerEndpointContext.getPeerAddress().getPort();
+	}
+
+	/**
+	 * The name of the virtual host that this message is intended for.
+	 * 
+	 * @return the host name or {@code null} if this is not a request or
+	 *         if the request is not targeted at a virtual host.
+	 */
+	public String getVirtualHost() {
+		return virtualHost;
 	}
 
 	/**

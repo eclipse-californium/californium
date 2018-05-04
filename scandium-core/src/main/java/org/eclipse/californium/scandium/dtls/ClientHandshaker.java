@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +127,6 @@ public class ClientHandshaker extends Handshaker {
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
-	protected final ServerNameResolver serverNameResolver;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
     
@@ -158,7 +158,6 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
-		this.serverNameResolver = config.getServerNameResolver();
 		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -481,19 +480,24 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
-			String identity = pskStore.getIdentity(getPeerAddress());
+			ServerNames virtualHost = session.getVirtualHost() == null ? null : ServerNames.newInstance()
+				.add(ServerName.fromHostName(session.getVirtualHost()));
+			String identity = pskStore.getIdentity(session.getPeer(), virtualHost);
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
+				throw new HandshakeException(String.format("No Identity found for peer [virtual host: %s, address: %s]",
+						session.getVirtualHost(), session.getPeer()), alert);
 			}
-			byte[] psk = pskStore.getKey(identity);
+			byte[] psk = pskStore.getKey(virtualHost, identity);
 			if (psk == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
+				throw new HandshakeException(String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
+						session.getVirtualHost(), identity), alert);
 			}
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			PreSharedKeyIdentity pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost(), identity);
+			LOGGER.debug("Using PSK identity: {}", pskIdentity);
+			session.setPeerIdentity(pskIdentity);
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.debug("Using PSK identity: {}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
@@ -666,8 +670,9 @@ public class ClientHandshaker extends Handshaker {
 
 	@Override
 	public void startHandshake() throws HandshakeException {
+
 		handshakeStarted();
-		
+
 		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
 				preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
@@ -699,11 +704,9 @@ public class ClientHandshaker extends Handshaker {
 
 	private void addServerNameIndication(final ClientHello helloMessage) {
 
-		if (serverNameResolver != null) {
-			indicatedServerNames = serverNameResolver.getServerNames(session.getPeer());
-			if (indicatedServerNames != null) {
-				helloMessage.addExtension(ServerNameExtension.forServerNames(indicatedServerNames));
-			}
+		if (session.getVirtualHost() != null) {
+			LOGGER.debug("adding SNI extension to hello message [{}]", session.getVirtualHost());
+			helloMessage.addExtension(ServerNameExtension.forHostName(session.getVirtualHost()));
 		}
 	}
 }

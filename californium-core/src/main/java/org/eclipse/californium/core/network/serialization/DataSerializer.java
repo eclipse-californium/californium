@@ -78,7 +78,8 @@ public abstract class DataSerializer {
 						request.getBytes(),
 						request.getDestinationContext(),
 						outboundCallback,
-						false);
+						false,
+						request.getOptions().getUriHost());
 	}
 
 	/**

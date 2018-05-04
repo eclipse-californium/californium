@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,7 +23,7 @@
  *    Achim Kraus, Kai Hudalla (Bosch Software Innovations GmbH) - add test case for bug 478538
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use DtlsTestTools' accessors to explicitly retrieve
  *                                                    client & server keys and certificate chains
- *    Bosch Software Innovations GmbH - add test cases for GitHub issue #1
+ *    Bosch Software Innovations GmbH - add test case for GitHub issue #511
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -35,6 +35,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -66,7 +68,6 @@ public class HelloExtensionNegotiationTest {
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
 	LatchDecrementingRawDataChannel clientRawDataChannel;
-	DTLSSession establishedServerSession;
 	DTLSSession establishedClientSession;
 	InMemoryConnectionStore clientConnectionStore;
 
@@ -145,5 +146,33 @@ public class HelloExtensionNegotiationTest {
 		assertThat(serverHelper.server.getMaximumFragmentLength(client.getAddress()), is(512));
 	}
 
+	/**
+	 * Verifies that the connector includes a Server Name Indication extension
+	 * in its CLIENT_HELLO message when negotiating a new DTLS session triggered
+	 * by a message that is targeted at a virtual host.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testConnectorIncludesServerNameIndication() throws Exception {
 
+		// given a client that indicates a virtual host to connect to using SNI
+		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+				.build();
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+
+		// when the client triggers negotiation of a session with the server
+		// by means of sending a message that includes a virtual host name
+		RawData msg = RawData.outbound(
+				"Hello World".getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint, null),
+				null,
+				false,
+				"iot.eclipse.org");
+		serverHelper.givenAnEstablishedSession(client, msg, false);
+
+		// then the session on the server contains the virtual host name conveyed
+		// by the client in the DTLS handshake
+		assertThat(serverHelper.establishedServerSession.getVirtualHost(), is("iot.eclipse.org"));
+	}
 }

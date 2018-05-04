@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -38,20 +38,6 @@ public class AddressEndpointContext implements EndpointContext {
 	/**
 	 * Create endpoint context without principal.
 	 * 
-	 * @param peerAddress socket address of peer's service
-	 * @throws NullPointerException if provided peer address is {@code null}.
-	 */
-	public AddressEndpointContext(InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			throw new NullPointerException("missing peer socket address!");
-		}
-		this.peerAddress = peerAddress;
-		this.peerIdentity = null;
-	}
-
-	/**
-	 * Create endpoint context without principal.
-	 * 
 	 * @param address inet address of peer
 	 * @param port port of peer
 	 * @throws NullPointerException if provided address is {@code null}.
@@ -62,6 +48,16 @@ public class AddressEndpointContext implements EndpointContext {
 		}
 		this.peerAddress = new InetSocketAddress(address, port);
 		this.peerIdentity = null;
+	}
+
+	/**
+	 * Create endpoint context without principal.
+	 * 
+	 * @param peerAddress socket address of peer's service
+	 * @throws NullPointerException if provided peer address is {@code null}.
+	 */
+	public AddressEndpointContext(InetSocketAddress peerAddress) {
+		this(peerAddress, null);
 	}
 
 	/**
@@ -95,24 +91,33 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
-	public Principal getPeerIdentity() {
+	public final Principal getPeerIdentity() {
 		return peerIdentity;
 	}
 
 	@Override
-	public InetSocketAddress getPeerAddress() {
+	public final InetSocketAddress getPeerAddress() {
 		return peerAddress;
 	}
 
 	@Override
 	public int hashCode() {
+		final int prime = 31;
 		int result = peerAddress.hashCode();
-		if (peerIdentity != null) {
-			result = peerIdentity.hashCode();
-		}
+		result = prime * result + ((peerIdentity == null) ? 0 : peerIdentity.hashCode());
 		return result;
 	}
 
+	/**
+	 * @return {@code true} if
+	 *         <ol>
+	 *         <li>the other object is an {@code AddressEndpointContext} and</li>
+	 *         <li>this instance's peerAddress property has the same value
+	 *         as the other instance and</li>
+	 *         <li>this instance's peerIdentity property is either {@code null} or
+	 *         has the same value as the other instance</li>
+	 *         </ol>
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
