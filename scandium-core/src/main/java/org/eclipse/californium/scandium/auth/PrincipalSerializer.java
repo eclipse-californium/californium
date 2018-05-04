@@ -12,17 +12,19 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ASN.1 DER encoding
+ *                                                    directly for serialization
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.auth;
 
 import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -31,11 +33,9 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * A helper for serializing and deserializing principals supported by Scandium.
  */
 public final class PrincipalSerializer {
-	
+
 	private static final int PSK_LENGTH_BITS = 16;
-	private static final int RPK_LENGTH_BITS = 24;
-	private static final int CERTPATH_LENGTH_BITS = 24;
-	
+
 	private PrincipalSerializer() {
 	}
 
@@ -57,13 +57,14 @@ public final class PrincipalSerializer {
 	 * struct {
 	 *   ClientAuthenticationType client_authentication_type;
 	 *   select (ClientAuthenticationType) {
-	 *     case anonymous: struct {};
-	 *     case certificate_based:
-	 *       ASN.1Cert certificate_list<0..2^24-1>;
+	 *     case anonymous: 
+	 *       struct {};
 	 *     case psk:
 	 *       opaque psk_identity<0..2^16-1>;
+	 *     case certificate_based:
+	 *       DER ASN.1Cert certificate_list<0..2^24-1>;
 	 *     case raw_public_key:
-	 *       opaque ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
+	 *       DER ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
 	 *   };
 	 * }
 	 * </pre>
@@ -95,17 +96,12 @@ public final class PrincipalSerializer {
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.RPK.code);
-		KeyAlgorithm algorithm = KeyAlgorithm.valueOf(principal.getKey().getAlgorithm());
-		if (algorithm == null) {
-			throw new IllegalArgumentException("public key uses unknown algorithm: " + principal.getKey().getAlgorithm());
-		}
-		writer.writeByte(algorithm.getCode());
-		writeBytesWithLength(RPK_LENGTH_BITS, principal.getSubjectInfo(), writer);
+		writer.writeBytes(principal.getSubjectInfo());
 	}
 
 	private static void serializeCertChain(final X509CertPath principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.CERT.code);
-		writeBytesWithLength(CERTPATH_LENGTH_BITS, principal.toByteArray(), writer);
+		writer.writeBytes(principal.toByteArray());
 	}
 
 	private static void writeBytesWithLength(final int lengthBits, final byte[] bytesToWrite, final DatagramWriter writer) {
@@ -127,7 +123,7 @@ public final class PrincipalSerializer {
 		}
 		int code = reader.read(8);
 		ClientAuthenticationType type = ClientAuthenticationType.fromCode((byte) code);
-		switch(type) {
+		switch (type) {
 		case CERT:
 			return deserializeCertChain(reader);
 		case PSK:
@@ -141,22 +137,18 @@ public final class PrincipalSerializer {
 	}
 
 	private static X509CertPath deserializeCertChain(final DatagramReader reader) {
-		return X509CertPath.fromBytes(readBytesWithLength(CERTPATH_LENGTH_BITS, reader));
+		byte[] certificatePath = Asn1DerDecoder.readSequenceEntity(reader);
+		return X509CertPath.fromBytes(certificatePath);
 	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
 		return new PreSharedKeyIdentity(new String(readBytesWithLength(PSK_LENGTH_BITS, reader)));
 	}
 
-	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader) throws GeneralSecurityException {
-		byte code = reader.readNextByte();
-		KeyAlgorithm algorithm = KeyAlgorithm.fromCode(code);
-		if (algorithm == null) {
-			throw new NoSuchAlgorithmException("no key algorithm registered for code " + code);
-		} else {
-			byte[] subjectInfo = readBytesWithLength(RPK_LENGTH_BITS, reader);
-			return new RawPublicKeyIdentity(subjectInfo, algorithm.getName());
-		}
+	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader)
+			throws GeneralSecurityException {
+		byte[] subjectInfo = Asn1DerDecoder.readSequenceEntity(reader);
+		return new RawPublicKeyIdentity(subjectInfo);
 	}
 
 	private static byte[] readBytesWithLength(final int lengthBits, final DatagramReader reader) {
@@ -188,39 +180,6 @@ public final class PrincipalSerializer {
 				}
 			}
 			throw new IllegalArgumentException("unknown ClientAuthenticationType: " + code);
-		}
-	}
-
-	private enum KeyAlgorithm {
-
-		DH("DiffieHellman", (byte) 0x01),
-		RSA("RSA", (byte) 0x02),
-		DSA("DSA", (byte) 0x03),
-		EC("EC", (byte) 0x04);
-
-		final byte code;
-		final String name;
-
-		private KeyAlgorithm(String name, byte code) {
-			this.name = name;
-			this.code = code;
-		}
-
-		public byte getCode() {
-			return code;
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public static KeyAlgorithm fromCode(byte code) {
-			for (KeyAlgorithm algorithm : values()) {
-				if (algorithm.getCode() == code) {
-					return algorithm;
-				}
-			}
-			return null;
 		}
 	}
 }

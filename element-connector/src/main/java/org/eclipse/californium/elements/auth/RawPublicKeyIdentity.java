@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - store PublicKey instead of <em>subjectInfo</em>
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ASN.1 DER decoder to determine
+ *                                                    key algorithm of PublicKey
  ******************************************************************************/
 package org.eclipse.californium.elements.auth;
 
@@ -26,6 +28,7 @@ import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Base64;
 
 /**
@@ -59,18 +62,22 @@ public class RawPublicKeyIdentity implements Principal {
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @throws NullPointerException if the subject info is <code>null</code>
-	 * @throws GeneralSecurityException if the JVM does not support Elliptic Curve cryptography.
+	 * @throws GeneralSecurityException if the JVM does not support the key
+	 *             algorithm used by the public key.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo) throws GeneralSecurityException {
-		this(subjectInfo, "EC");
+		this(subjectInfo, null);
 	}
 
 	/**
 	 * Creates a new instance for a given ASN.1 subject public key info structure.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
-	 * @param keyAlgorithm the algorithm name to use for getting the key factory that
-	 *                     is used to instantiate the public key from the subject info.
+	 * @param keyAlgorithm the algorithm name to verify, that the subject public
+	 *            key uses this key algorithm, or to support currently not
+	 *            supported key algorithms for serialization/deserialization. If
+	 *            {@code null}, use the to key algorithm provided by the ASN.1
+	 *            DER encoded subject public key.
 	 * @throws NullPointerException if the subject info is <code>null</code>
 	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
 	 */
@@ -78,8 +85,25 @@ public class RawPublicKeyIdentity implements Principal {
 		if (subjectInfo == null) {
 			throw new NullPointerException("SubjectPublicKeyInfo must not be null");
 		} else {
+			String specKeyAlgorithm = null;
+			try {
+				specKeyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(subjectInfo);
+			} catch (IllegalArgumentException ex) {
+				throw new GeneralSecurityException(ex.getMessage());
+			}
 			X509EncodedKeySpec spec = new X509EncodedKeySpec(subjectInfo);
-			this.publicKey = KeyFactory.getInstance(keyAlgorithm).generatePublic(spec);
+			if (keyAlgorithm != null) {
+				if (specKeyAlgorithm == null) {
+					// use the provided key algorithm
+					specKeyAlgorithm = keyAlgorithm;
+				} else if (!Asn1DerDecoder.equalKeyAlgorithmSynonyms(specKeyAlgorithm, keyAlgorithm)) {
+					throw new GeneralSecurityException(String.format("Provided key algorithm %s doesn't match %s!",
+							keyAlgorithm, specKeyAlgorithm));
+				}
+			} else if (specKeyAlgorithm == null) {
+				throw new GeneralSecurityException("Key algorithm could not be determined!");
+			}
+			this.publicKey = KeyFactory.getInstance(specKeyAlgorithm).generatePublic(spec);
 			createNamedInformationUri(subjectInfo);
 		}
 	}

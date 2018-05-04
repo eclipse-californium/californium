@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -331,14 +332,13 @@ public final class CertificateMessage extends HandshakeMessage {
 		if (rawPublicKeyBytes == null) {
 			if (certPath != null && !certPath.getCertificates().isEmpty()) {
 				publicKey = certPath.getCertificates().get(0).getPublicKey();
-			}// else : no public key in this certificate message
+			} // else : no public key in this certificate message
 		} else {
 			// get server's public key from Raw Public Key
 			EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(rawPublicKeyBytes);
 			try {
-				// TODO make instance variable
-				// TODO dynamically determine algorithm for KeyFactory creation
-				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
+				String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
+				publicKey = KeyFactory.getInstance(keyAlgorithm).generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
 				LOGGER.error("Could not reconstruct the peer's public key", e);
 			}
