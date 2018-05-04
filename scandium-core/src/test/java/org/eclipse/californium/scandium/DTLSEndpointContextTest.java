@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -202,9 +202,7 @@ public class DTLSEndpointContextTest {
 		client.send(outboundMessage);
 
 		// THEN assert that the EndpointContextMatcher is invoked
-		assertThat(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS), is(true));
-		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(endpointContext));
-		assertThat(endpointMatcher.getMessageEndpointContext(2), is(endpointContext));
+		assertTrue(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		// THEN wait for response from server before shutdown client
 		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",

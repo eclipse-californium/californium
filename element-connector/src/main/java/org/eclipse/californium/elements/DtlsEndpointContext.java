@@ -25,7 +25,7 @@ import java.security.Principal;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * A endpoint context that explicitly supports DTLS specific properties.
+ * An endpoint context that explicitly supports DTLS specific properties.
  */
 public class DtlsEndpointContext extends MapBasedEndpointContext {
 
@@ -34,15 +34,15 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
 
 	/**
-	 * Creates a new endpoint context from DTLS session parameters.
+	 * Creates a context for DTLS session parameters.
 	 * 
 	 * @param peerAddress peer address of endpoint context
 	 * @param peerIdentity peer identity of endpoint context
 	 * @param sessionId the session's ID.
 	 * @param epoch the session's current read/write epoch.
 	 * @param cipher the cipher suite of the session's current read/write state.
-	 * @throws NullPointerException if any of the params (except peerIdentity)
-	 *             is {@code null}.
+	 * @throws NullPointerException if any of the parameters other than peerIdentity
+	 *             are {@code null}.
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String sessionId, String epoch,
 			String cipher) {
