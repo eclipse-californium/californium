@@ -98,8 +98,7 @@ public class CC22 extends TestClientAbstract {
 					Utils.prettyPrint(response);
 				}
 
-				success &= checkInt(EXPECTED_RESPONSE_CODE_PREAMBLE.value,
-						response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE_PREAMBLE, response.getCode());
 				success &= hasEtag(response);
 				success &= hasNonEmptyPalyoad(response);
 				success &= hasContentType(response);
@@ -129,8 +128,7 @@ public class CC22 extends TestClientAbstract {
 							Utils.prettyPrint(response);
 						}
 
-						success &= checkInt(EXPECTED_RESPONSE_CODE_A.value,
-								response.getCode().value, "code");
+						success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 						success &= hasContentType(response);
 
 						// check new ETag
@@ -145,7 +143,7 @@ public class CC22 extends TestClientAbstract {
 
 							etag2 = response.getOptions().getETags().get(0);
 
-							success &= checkInt(EXPECTED_RESPONSE_CODE_PREAMBLE.value, response.getCode().value, "code");
+							success &= checkCode(EXPECTED_RESPONSE_CODE_PREAMBLE, response.getCode());
 							success &= hasEtag(response);
 							success &= hasNonEmptyPalyoad(response);
 							success &= hasContentType(response);
@@ -183,7 +181,7 @@ public class CC22 extends TestClientAbstract {
 									}
 
 									success &= checkType(Type.ACK, response.getType());
-									success &= checkInt(EXPECTED_RESPONSE_CODE_B.value, response.getCode().value, "code");
+									success &= checkCode(EXPECTED_RESPONSE_CODE_B, response.getCode());
 								}
 							}
 						}

@@ -46,6 +46,7 @@ public class CB02 extends TestClientAbstract {
         if (!success) {
             System.out.println("FAIL: no Block2 option");
         } else {
+			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
             success &= hasNonEmptyPalyoad(response);
             success &= hasContentType(response);
         }
