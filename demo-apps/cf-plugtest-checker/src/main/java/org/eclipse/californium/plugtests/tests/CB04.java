@@ -52,8 +52,7 @@ public class CB04 extends TestClientAbstract {
 			System.out.println("FAIL: no Block1 option");
 		} else {
 			int maxNUM = response.getOptions().getBlock1().getNum();
-			success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-					response.getCode().value, "code");
+			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 			success &= checkOption(new BlockOption(PlugtestChecker.PLUGTEST_BLOCK_SZX,
 					false, maxNUM), response.getOptions().getBlock1(),
 					"Block1");

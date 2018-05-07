@@ -30,8 +30,8 @@ import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 public class CC07 extends TestClientAbstract {
 
 	public static final String RESOURCE_URI = "/test";
-	private final int[] expectedResponseCodes = new int[] {
-			ResponseCode.CREATED.value, ResponseCode.CHANGED.value };
+	private final ResponseCode[] expectedResponseCodes = new ResponseCode[] {
+			ResponseCode.CREATED, ResponseCode.CHANGED };
 
 	public CC07(String serverURI) {
 		super(CC07.class.getSimpleName());
@@ -51,8 +51,8 @@ public class CC07 extends TestClientAbstract {
 
 		success &= checkType(Type.NON, response.getType());
 		// Code = 68 (2.04 Changed) or 65 (2.01 Created)
-		success &= checkInts(expectedResponseCodes,
-				response.getCode().value, "code");
+		success &= checkCodes(expectedResponseCodes,
+				response.getCode());
 
 		return success;
 	}

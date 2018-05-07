@@ -99,8 +99,7 @@ public class CC21 extends TestClientAbstract {
 				}
 
 				success &= checkType(Type.ACK, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE_A.value,
-						response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 				success &= hasEtag(response);
 				success &= hasNonEmptyPalyoad(response);
 				etagStep3 = response.getOptions().getETags().get(0);
@@ -126,8 +125,7 @@ public class CC21 extends TestClientAbstract {
 					}
 
 					success &= checkType(Type.ACK, response.getType());
-					success &= checkInt(EXPECTED_RESPONSE_CODE_B.value,
-							response.getCode().value, "code");
+					success &= checkCode(EXPECTED_RESPONSE_CODE_B, response.getCode());
 					success &= hasEtag(response);
 					success &= checkOption(etagStep3, response.getOptions()
 							.getETags().get(0), "ETag");
@@ -161,8 +159,7 @@ public class CC21 extends TestClientAbstract {
 						}
 
 						success &= checkType(Type.ACK, response.getType());
-						success &= checkInt(EXPECTED_RESPONSE_CODE_C.value,
-								response.getCode().value, "code");
+						success &= checkCode(EXPECTED_RESPONSE_CODE_C, response.getCode());
 						success &= hasEtag(response);
 						success &= checkDifferentOption(etagStep3, response
 								.getOptions().getETags().get(0), "ETag");

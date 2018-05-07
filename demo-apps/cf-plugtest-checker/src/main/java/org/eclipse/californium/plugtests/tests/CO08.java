@@ -96,7 +96,7 @@ public class CO08 extends TestClientAbstract {
 			response = request.waitForResponse(10000);
 
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkType(Type.ACK, response.getType());
 				success &= hasContentType(response);
 				success &= hasToken(response);
@@ -139,7 +139,7 @@ public class CO08 extends TestClientAbstract {
 
 				public void onResponse(Response response) {
 					if (response != null) {
-						checkInt(EXPECTED_RESPONSE_CODE_1.value, response.getCode().value, "code");
+						checkCode(EXPECTED_RESPONSE_CODE_1, response.getCode());
 					}
 				}
 			});
@@ -150,7 +150,7 @@ public class CO08 extends TestClientAbstract {
 			System.out.println("received " + response);
 
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE_2.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE_2, response.getCode());
 				success &= hasToken(response);
 				success &= hasObserve(response, true);
 			} else {
@@ -180,7 +180,7 @@ public class CO08 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

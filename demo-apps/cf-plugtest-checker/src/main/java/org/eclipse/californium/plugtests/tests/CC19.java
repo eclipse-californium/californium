@@ -52,8 +52,7 @@ public class CC19 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.ACK, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-				response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasLocationQuery(response);
 
 		// List<Option> options =

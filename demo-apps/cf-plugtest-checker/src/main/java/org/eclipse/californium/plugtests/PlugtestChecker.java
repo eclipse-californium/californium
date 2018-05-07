@@ -711,6 +711,51 @@ public class PlugtestChecker {
 		}
 
 		/**
+		 * Check code.
+		 * 
+		 * @param expected the expected code
+		 * @param actual the actual code
+		 * @return true, if successful
+		 */
+		protected boolean checkCode(CoAP.ResponseCode expected, CoAP.ResponseCode actual) {
+			boolean success = expected.equals(actual);
+
+			if (!success) {
+				System.out.println("FAIL: Expected code: " + expected + ", but was: " + actual);
+			} else {
+				System.out.println("PASS: Correct code: " + actual);
+			}
+
+			return success;
+		}
+
+		/**
+		 * Check codes.
+		 * 
+		 * @param expected the expected codec
+		 * @param actual the actual code
+		 * @return true, if successful
+		 */
+		protected boolean checkCodes(CoAP.ResponseCode[] expected, CoAP.ResponseCode actual) {
+			boolean success = false;
+			for (CoAP.ResponseCode code : expected) {
+				if (code.equals(actual)) {
+					success = true;
+					break;
+				}
+			}
+
+			if (!success) {
+				System.out.println("FAIL: Expected code: " + Arrays.toString(expected) + ", but was: " + actual);
+			} else {
+				System.out.println("PASS: Correct code: " + actual);
+			}
+
+			return success;
+		}
+
+
+		/**
 		 * Check String.
 		 * 
 		 * @param expected the expected
@@ -848,7 +893,7 @@ public class PlugtestChecker {
 		 * @return true, if not empty payload
 		 */
 		protected boolean hasNonEmptyPalyoad(Response response) {
-			boolean success = response.getPayload().length > 0;
+			boolean success = response.getPayloadSize() > 0;
 
 			if (!success) {
 				System.out.println("FAIL: Response with empty payload");

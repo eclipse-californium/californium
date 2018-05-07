@@ -87,7 +87,7 @@ public class CO02_05 extends TestClientAbstract {
 			response = request.waitForResponse(time);
 			if (response != null) {
 				success &= checkType(Type.NON, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= hasObserve(response);
@@ -151,7 +151,7 @@ public class CO02_05 extends TestClientAbstract {
 	protected boolean checkResponse(Request request, Response response) {
 		boolean success = true;
 
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

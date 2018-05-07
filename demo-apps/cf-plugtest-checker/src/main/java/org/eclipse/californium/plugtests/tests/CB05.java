@@ -44,7 +44,7 @@ public class CB05 extends TestClientAbstract {
 	protected boolean checkResponse(Request request, Response response) {
 		boolean success = true;
 		
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);
 		

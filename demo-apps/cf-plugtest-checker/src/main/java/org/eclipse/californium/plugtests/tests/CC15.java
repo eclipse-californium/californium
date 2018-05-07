@@ -46,8 +46,7 @@ public class CC15 extends TestClientAbstract {
 
 		success &= checkTypes(new Type[] { Type.ACK, Type.CON },
 				response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-				response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);
 
