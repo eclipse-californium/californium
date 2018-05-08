@@ -71,7 +71,9 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -204,7 +206,7 @@ public class ServerHandshaker extends Handshaker {
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
-
+		this.sniEnabled = config.isSniEnabled();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
 		this.supportedClientCertificateTypes = new ArrayList<>();
@@ -547,18 +549,23 @@ public class ServerHandshaker extends Handshaker {
 			serverHelloExtensions.addExtension(maxFragmentLengthExt);
 			LOGGER.debug(
 					"Negotiated max. fragment length [{} bytes] with peer [{}]",
-					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer()});
+					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
 		}
 
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
 		if (serverNameExt != null) {
-			// store the names indicated by peer for later reference during key exchange
-			indicatedServerNames = serverNameExt.getServerNames();
-			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
-			session.setSniSupported(true);
-			LOGGER.debug(
-					"Using server name indication received from peer [{}]",
-					clientHello.getPeer());
+			if (sniEnabled) {
+				// store the names indicated by peer for later reference during key exchange
+				indicatedServerNames = serverNameExt.getServerNames();
+				serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
+				session.setSniSupported(true);
+				LOGGER.debug(
+						"using server name indication received from peer [{}]",
+						clientHello.getPeer());
+			} else {
+				LOGGER.warn("client [{}] included SNI in HELLO but SNI support is disabled",
+						clientHello.getPeer());
+			}
 		}
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
@@ -677,26 +684,34 @@ public class ServerHandshaker extends Handshaker {
 	private byte[] receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
 
 		clientKeyExchange = message;
-		byte[] psk = null;
 
-		// use the client's PSK identity to get right preshared key
+		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
-
-		LOGGER.debug("Client [{}] uses PSK identity [{}]",
-				new Object[]{getPeerAddress(), identity});
+		byte[] psk = pskStore.getKey(getIndicatedServerNames(), identity);
+		String virtualHost = null;
 
 		if (getIndicatedServerNames() == null) {
-			psk = pskStore.getKey(identity);
+			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
 		} else {
-			psk = pskStore.getKey(getIndicatedServerNames(), identity);
+			// SNI is enabled and the client has indicated a virtual host
+			ServerName serverName = getIndicatedServerNames().getServerName(NameType.HOST_NAME);
+			if (serverName == null) {
+				LOGGER.debug("client [{}] provided invalid SNI extension which doesn't include a hostname",
+						getPeerAddress());
+			} else {
+				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
+				LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]",
+						getPeerAddress(), identity, virtualHost);
+			}
 		}
 
 		if (psk == null) {
 			throw new HandshakeException(
-					String.format("Cannot authenticate client, identity [%s] is unknown", identity),
+					String.format("cannot authenticate client, identity [%s] is unknown for server [%s]",
+							identity, virtualHost),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
 		} else {
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
 			return generatePremasterSecretFromPSK(psk);
 		}
 	}

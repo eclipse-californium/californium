@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,7 +129,6 @@ public class ClientHandshaker extends Handshaker {
 	protected final PskStore pskStore;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
-    protected boolean sniEnabled;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -482,19 +482,59 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
-			String identity = pskStore.getIdentity(getPeerAddress());
-			if (identity == null) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No Identity found for peer: "	+ getPeerAddress(), alert);
+			ServerNames virtualHost = session.getVirtualHost() == null ? null : ServerNames.newInstance()
+					.add(ServerName.fromHostName(session.getVirtualHost()));
+			String identity = null;
+			byte[] psk = null;
+			PreSharedKeyIdentity pskIdentity = null;
+
+			if (sniEnabled) {
+				if (!session.isSniSupported()) {
+					LOGGER.warn("client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
+				}
+				// look up identity in scope of virtual host
+				identity = pskStore.getIdentity(session.getPeer(), virtualHost);
+				if (identity == null) {
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+					throw new HandshakeException(
+							String.format(
+									"No Identity found for peer [address: %s, virtual host: %s]",
+									session.getPeer(), session.getVirtualHost()),
+							alert);
+				} else {
+					psk = pskStore.getKey(virtualHost, identity);
+					if (psk == null) {
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+						throw new HandshakeException(
+								String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
+								session.getVirtualHost(), identity),
+								alert);
+					} else {
+						pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost(), identity);
+					}
+				}
+			} else {
+				identity = pskStore.getIdentity(session.getPeer());
+				if (identity == null) {
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+					throw new HandshakeException(
+							String.format("No Identity found for peer [address: %s]", session.getPeer()),
+							alert);
+				} else {
+					psk = pskStore.getKey(identity);
+					if (psk == null) {
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+						throw new HandshakeException(
+								String.format("No pre-shared key found for [identity: %s]", identity),
+								alert);
+					} else {
+						pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost());
+					}
+				}
 			}
-			byte[] psk = pskStore.getKey(identity);
-			if (psk == null) {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-				throw new HandshakeException("No preshared secret found for identity: " + identity, alert);
-			}
-			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			LOGGER.debug("Using PSK identity: {}", pskIdentity);
+			session.setPeerIdentity(pskIdentity);
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.debug("Using PSK identity: {}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
