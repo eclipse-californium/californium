@@ -89,4 +89,28 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 		return Collections.unmodifiableSet(new CopyOnWriteArraySet<String>(Arrays.asList(keys)));
 	}
 
+
+	/**
+	 * Checks if two endpoint contexts have the same virtual host property value.
+	 * 
+	 * @param firstContext The first context.
+	 * @param secondContext The second context.
+	 * @return {@code true} if the second context is {@code null} of if both contexts'
+	 *         virtualHost properties have the same value.
+	 * @throws NullPointerException if the first context is {@code null}.
+	 */
+	public static final boolean isSameVirtualHost(EndpointContext firstContext, EndpointContext secondContext) {
+
+		if (firstContext == null) {
+			throw new NullPointerException("first context must not be null");
+		} else if (secondContext == null) {
+			return true;
+		} else {
+			String firstVirtualHost = firstContext.getVirtualHost();
+			String otherVirtualHost = secondContext.getVirtualHost();
+
+			return firstVirtualHost == otherVirtualHost ||
+					(firstVirtualHost != null && firstVirtualHost.equals(otherVirtualHost));
+		}
+	}
 }

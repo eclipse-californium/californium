@@ -294,13 +294,15 @@ public final class DTLSSession {
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
-		return new DtlsEndpointContext(peer, peerIdentity, sessionIdentifier.toString(),
-					String.valueOf(writeEpoch), cipherSuite.name());
+
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
+				String.valueOf(writeEpoch), cipherSuite.name());
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
-		return new DtlsEndpointContext(peer, peerIdentity, sessionIdentifier.toString(),
-					String.valueOf(readEpoch), cipherSuite.name());
+
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
+				String.valueOf(readEpoch), cipherSuite.name());
 	}
 
 	/**
