@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -84,16 +84,24 @@ public interface EndpointContext {
 	boolean inhibitNewConnection();
 
 	/**
-	 * Get identity of peer the message is for or from.
+	 * Gets the identity of the peer that the message is for or from.
 	 * 
 	 * @return identity of peer. {@code null}, if not available.
 	 */
 	Principal getPeerIdentity();
 
 	/**
-	 * Get inet address of peer the message is for or from.
+	 * Gets the inet address of the peer that the message is for or from.
 	 * 
 	 * @return address of peer
 	 */
 	InetSocketAddress getPeerAddress();
+
+	/**
+	 * Gets the name of the virtual host that this endpoint
+	 * is scoped to.
+	 * 
+	 * @return the name or {@code null} if no virtual host is set.
+	 */
+	String getVirtualHost();
 }
