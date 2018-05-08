@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -100,7 +100,7 @@ public final class ServerNames implements Iterable<ServerName> {
 	}
 
 	/**
-	 * Gets the server name of a particular type.
+	 * Gets the name value of a server name of a particular type.
 	 * 
 	 * @param type The name type.
 	 * @return The name or {@code null} if no name of the given type is part of the extension.
@@ -114,8 +114,37 @@ public final class ServerNames implements Iterable<ServerName> {
 		return null;
 	}
 
+	/**
+	 * Gets the server name of a particular type.
+	 * 
+	 * @param type The name type.
+	 * @return The server name or {@code null} if no server name of the given type is part of the extension.
+	 */
+	public ServerName getServerName(final ServerName.NameType type) {
+		for (ServerName name : names) {
+			if (name.getType().equals(type)) {
+				return name;
+			}
+		}
+		return null;
+	}
+
 	@Override
 	public Iterator<ServerName> iterator() {
 		return names.iterator();
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder b = new StringBuilder("ServerNames[");
+		Iterator<ServerName> iter = names.iterator();
+		while (iter.hasNext()) {
+			b.append(iter.next().getNameAsString());
+			if (iter.hasNext()) {
+				b.append(", ");
+			}
+		}
+		b.append("]");
+		return b.toString();
 	}
 }

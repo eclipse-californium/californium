@@ -80,6 +80,7 @@ public class SecureClient {
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setClientOnly();
+		builder.setSniEnabled(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK)) {
 			builder.setPskStore(new StaticPskStore(CredentialsUtil.PSK_IDENTITY, CredentialsUtil.PSK_SECRET));
