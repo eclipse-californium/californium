@@ -50,7 +50,27 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
 
-		super(peerAddress, peerIdentity);
+		this(peerAddress, null, peerIdentity, attributes);
+	}
+
+	/**
+	 * Creates a context for a socket address, authenticated identity and arbitrary
+	 * key/value pairs.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
+	 *            value_1, key_2, value_2 ...)
+	 * @throws NullPointerException if provided peer address is {@code null}, or
+	 *             one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd
+	 *             size or contains a duplicate key.
+	 */
+	public MapBasedEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
+			String... attributes) {
+
+		super(peerAddress, virtualHost, peerIdentity);
 
 		if ((attributes.length & 1) == 0) {
 			Map<String, String> newEntries = new HashMap<>();
@@ -85,7 +105,25 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
 			Map<String, String> attributes) {
-		super(peerAddress, peerIdentity);
+
+		this(peerAddress, null, peerIdentity, attributes);
+	}
+
+	/**
+	 * Creates a new endpoint context with correlation context support.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param attributes map of attributes
+	 * @throws NullPointerException if provided peer address, or attributes map
+	 *             is {@code null}.
+	 */
+	public MapBasedEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
+			Map<String, String> attributes) {
+
+		super(peerAddress, virtualHost, peerIdentity);
+
 		if (attributes == null) {
 			throw new NullPointerException("missing attributes map, must not be null!");
 		}

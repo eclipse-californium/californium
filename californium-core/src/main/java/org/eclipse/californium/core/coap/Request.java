@@ -357,12 +357,12 @@ public class Request extends Message {
 			}
 		}
 
-		String scheme = uri.getScheme().toLowerCase();
+		String uriScheme = uri.getScheme().toLowerCase();
 		// The Uri-Port is only for special cases where it differs from
 		// the UDP port, usually when Proxy-Scheme is used.
 		int port = uri.getPort();
 		if (port <= 0) {
-			port = CoAP.getDefaultPort(scheme);
+			port = CoAP.getDefaultPort(uriScheme);
 		}
 
 		EndpointContext destinationContext = getDestinationContext();
@@ -377,9 +377,9 @@ public class Request extends Message {
 		}
 
 		if (destinationContext == null) {
-			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), null));
+			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), getOptions().getUriHost(), null));
 		}
-		this.scheme = scheme;
+		this.scheme = uriScheme;
 		// do not set the Uri-Port option unless it is used for proxying
 		// (setting Uri-Scheme option)
 
@@ -537,8 +537,7 @@ public class Request extends Message {
 	 * 
 	 * @throws IllegalStateException if no destination endpoint context is
 	 *             available and the destination is missing
-	 * @deprecated
-	 * Note: intended to be removed with {@link #setDestination(InetAddress)} and 
+	 * @deprecated intended to be removed with {@link #setDestination(InetAddress)} and 
 	 * {@link #setDestinationPort(int)}
 	 */
 	public void prepareDestinationContext() {
@@ -547,7 +546,10 @@ public class Request extends Message {
 			if (destination == null) {
 				throw new IllegalStateException("missing destination!");
 			}
-			context = new AddressEndpointContext(destination, destinationPort);
+			context = new AddressEndpointContext(
+					new InetSocketAddress(destination, destinationPort),
+					getOptions().getUriHost(),
+					null);
 			super.setDestinationContext(context);
 		}
 	}

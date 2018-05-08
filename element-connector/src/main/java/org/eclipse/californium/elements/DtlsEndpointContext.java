@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -29,8 +29,19 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class DtlsEndpointContext extends MapBasedEndpointContext {
 
+	/**
+	 * The name of the attribute that contains the DTLS session ID.
+	 */
 	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
+	/**
+	 * The name of the attribute that contains the <em>epoch</em> of the
+	 * DTLS session.
+	 */
 	public static final String KEY_EPOCH = "DTLS_EPOCH";
+	/**
+	 * The name of the attribute that contains the cipher suite used with
+	 * the DTLS session.
+	 */
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
 
 	/**
@@ -44,20 +55,54 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @throws NullPointerException if any of the parameters other than peerIdentity
 	 *             are {@code null}.
 	 */
-	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String sessionId, String epoch,
-			String cipher) {
-		super(peerAddress, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch);
+	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
+			String sessionId, String epoch, String cipher) {
+
+		this(peerAddress, null, peerIdentity, sessionId, epoch, cipher);
 	}
 
-	public String getSessionId() {
+	/**
+	 * Creates a context for DTLS session parameters.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param sessionId the session's ID.
+	 * @param epoch the session's current read/write epoch.
+	 * @param cipher the cipher suite of the session's current read/write state.
+	 * @throws NullPointerException if any of the parameters other than peerIdentity
+	 *             are {@code null}.
+	 */
+	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
+			String sessionId, String epoch, String cipher) {
+
+		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch);
+	}
+
+	/**
+	 * Gets the identifier of the DTLS session.
+	 * 
+	 * @return The identifier.
+	 */
+	public final String getSessionId() {
 		return get(KEY_SESSION_ID);
 	}
 
-	public String getEpoch() {
+	/**
+	 * Gets the current epoch of the DTLS session.
+	 * 
+	 * @return The epoch number.
+	 */
+	public final String getEpoch() {
 		return get(KEY_EPOCH);
 	}
 
-	public String getCipher() {
+	/**
+	 * Gets the name of the cipher suite in use for the DTLS session.
+	 * 
+	 * @return The name.
+	 */
+	public final String getCipher() {
 		return get(KEY_CIPHER);
 	}
 

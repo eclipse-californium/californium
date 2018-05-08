@@ -35,6 +35,8 @@ public class AddressEndpointContext implements EndpointContext {
 
 	private final Principal peerIdentity;
 
+	private final String virtualHost;
+
 	/**
 	 * Creates a context for an IP address and port.
 	 * 
@@ -48,6 +50,7 @@ public class AddressEndpointContext implements EndpointContext {
 		}
 		this.peerAddress = new InetSocketAddress(address, port);
 		this.peerIdentity = null;
+		this.virtualHost = null;
 	}
 
 	/**
@@ -57,7 +60,7 @@ public class AddressEndpointContext implements EndpointContext {
 	 * @throws NullPointerException if provided peer address is {@code null}.
 	 */
 	public AddressEndpointContext(InetSocketAddress peerAddress) {
-		this(peerAddress, null);
+		this(peerAddress, null, null);
 	}
 
 	/**
@@ -68,10 +71,23 @@ public class AddressEndpointContext implements EndpointContext {
 	 * @throws NullPointerException if provided peer address is {@code null}.
 	 */
 	public AddressEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity) {
+		this(peerAddress, null, peerIdentity);
+	}
+
+	/**
+	 * Create endpoint context with principal.
+	 * 
+	 * @param peerAddress socket address of peer's service
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer's principal
+	 * @throws NullPointerException if provided peer address is {@code null}.
+	 */
+	public AddressEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity) {
 		if (peerAddress == null) {
 			throw new NullPointerException("missing peer socket address, must not be null!");
 		}
 		this.peerAddress = peerAddress;
+		this.virtualHost = virtualHost == null ? null : virtualHost.toLowerCase();
 		this.peerIdentity = peerIdentity;
 	}
 
@@ -111,11 +127,16 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
+	public final String getVirtualHost() {
+		return virtualHost;
+	}
+
+	@Override
 	public String toString() {
 		return String.format("IP(%s)", getPeerAddressAsString());
 	}
 
-	protected String getPeerAddressAsString() {
+	protected final String getPeerAddressAsString() {
 		return StringUtil.toString(peerAddress);
 	}
 }
