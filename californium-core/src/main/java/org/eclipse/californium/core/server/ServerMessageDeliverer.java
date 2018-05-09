@@ -171,6 +171,18 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	}
 
 	/**
+	 * Return root resource.
+	 * 
+	 * Intended to be used by custom {@link #findResource(List)}.
+	 * 
+	 * @return root resources
+	 * @see #root
+	 */
+	protected Resource getRootResource() {
+		return root;
+	}
+
+	/**
 	 * Searches in the resource tree for the specified path. A parent resource
 	 * may accept requests to subresources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
@@ -178,7 +190,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @param list the path as list of resource names
 	 * @return the resource or null if not found
 	 */
-	protected final Resource findResource(final List<String> list) {
+	protected Resource findResource(final List<String> list) {
 		Deque<String> path = new LinkedList<String>(list);
 		Resource current = root;
 		while (!path.isEmpty() && current != null) {
