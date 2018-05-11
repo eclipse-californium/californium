@@ -12,28 +12,40 @@
  *
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Vikram            - added Dtls server
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+
+import java.net.InetSocketAddress;
 
 public class ServerService extends Service {
 
     CoapServer server;
+    private static final int DTLS_PORT = 5684;
+    private static final int CoAP_PORT = 5683;
+    public static final String SERVER_NAME = "server";
 
     @Override
     public void onCreate() {
-        this.server = new CoapServer();
+        this.server = new CoapServer(CoAP_PORT);
+        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+        dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
+        ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
+        DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+        CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+        builder.setConnector(connector);
+        server.addEndpoint(builder.build());
         server.add(new HelloWorldResource());
     }
 
