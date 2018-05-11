@@ -12,6 +12,7 @@
  *
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Vikram - added dtls client
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
@@ -25,11 +26,18 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import org.eclipse.californium.examples.R;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class MainActivity extends AppCompatActivity {
+
+    public static final String CLIENT_NAME = "client";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,21 +60,25 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_sandbox) {
-            ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_sandbox);
-            return true;
-        } else if (id == R.id.action_local) {
-            ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_local);
-            return true;
-        } else if (id == R.id.action_start) {
-            if (!item.isChecked()) {
-                startService(new Intent(this, ServerService.class));
-                item.setChecked(true);
-            } else {
-                stopService(new Intent(this, ServerService.class));
-                item.setChecked(false);
-            }
-            return true;
+        switch(id){
+            case R.id.action_sandbox:
+                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_sandbox);
+                return true;
+            case R.id.action_local:
+                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_local);
+                return true;
+            case R.id.action_start:
+                if (!item.isChecked()) {
+                    startService(new Intent(this, ServerService.class));
+                    item.setChecked(true);
+                } else {
+                    stopService(new Intent(this, ServerService.class));
+                    item.setChecked(false);
+                }
+                return true;
+            case R.id.action_local_dtls:
+                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_dtls_local);
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -74,7 +86,15 @@ public class MainActivity extends AppCompatActivity {
 
     public void clickGet(View view) {
         String uri = ((EditText)findViewById(R.id.editUri)).getText().toString();
+        initCoapEndpoint(uri);
         new CoapGetTask().execute(uri);
+    }
+
+    @Override
+    public void onDestroy() {
+
+        super.onDestroy();
+        stopService(new Intent(this,ServerService.class));
     }
 
     class CoapGetTask extends AsyncTask<String, String, CoapResponse> {
@@ -102,5 +122,20 @@ public class MainActivity extends AppCompatActivity {
                 ((TextView)findViewById(R.id.textCodeName)).setText("No response");
             }
         }
+    }
+
+    private void initCoapEndpoint(String uri){
+        CoapEndpoint.CoapEndpointBuilder endpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+        if(uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME+"://")){
+            DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+            dtlsConfig.setClientOnly();
+            ConfigureDtls.loadCredentials(getApplicationContext(), dtlsConfig, CLIENT_NAME);
+            DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
+            endpointBuilder.setConnector(dtlsConnector);
+        }else if(uri.startsWith(CoAP.COAP_URI_SCHEME+"://")){
+            UDPConnector connector = new UDPConnector();
+            endpointBuilder.setConnector(connector);
+        }
+        EndpointManager.getEndpointManager().setDefaultEndpoint(endpointBuilder.build());
     }
 }
