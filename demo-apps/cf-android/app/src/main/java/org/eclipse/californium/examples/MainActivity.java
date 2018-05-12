@@ -29,6 +29,7 @@ import android.widget.TextView;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.UDPConnector;
@@ -43,6 +44,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        // this allows to run code in parallel without blocking UI thread.
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                initCoapEndpoint();
+            }
+        }).start();
     }
 
     @Override
@@ -58,7 +66,6 @@ public class MainActivity extends AppCompatActivity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
         //noinspection SimplifiableIfStatement
         switch(id){
             case R.id.action_sandbox:
@@ -86,9 +93,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void clickGet(View view) {
         String uri = ((EditText)findViewById(R.id.editUri)).getText().toString();
-        initCoapEndpoint(uri);
         new CoapGetTask().execute(uri);
     }
+
 
     @Override
     public void onDestroy() {
@@ -124,18 +131,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void initCoapEndpoint(String uri){
-        CoapEndpoint.CoapEndpointBuilder endpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
-        if(uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME+"://")){
-            DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-            dtlsConfig.setClientOnly();
-            ConfigureDtls.loadCredentials(getApplicationContext(), dtlsConfig, CLIENT_NAME);
-            DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
-            endpointBuilder.setConnector(dtlsConnector);
-        }else if(uri.startsWith(CoAP.COAP_URI_SCHEME+"://")){
-            UDPConnector connector = new UDPConnector();
-            endpointBuilder.setConnector(connector);
-        }
-        EndpointManager.getEndpointManager().setDefaultEndpoint(endpointBuilder.build());
+    /**
+     * method initCoapEndpoint.
+     * This method is used to setup EndpointpointManager with both plain
+     * and dtls connector.
+     */
+    private void initCoapEndpoint(){
+        CoapEndpoint.CoapEndpointBuilder dtlsEndpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+        // setup coap EndpointManager to dtls connector
+        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+        dtlsConfig.setClientOnly();
+        ConfigureDtls.loadCredentials(dtlsConfig, CLIENT_NAME);
+        DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
+        dtlsEndpointBuilder.setConnector(dtlsConnector);
+        EndpointManager.getEndpointManager().setDefaultEndpoint(dtlsEndpointBuilder.build());
+        // setup coap EndpointManager to udp connector
+        CoapEndpoint.CoapEndpointBuilder udpEndpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+        UDPConnector udpConnector = new UDPConnector();
+        udpEndpointBuilder.setConnector(udpConnector);
+        EndpointManager.getEndpointManager().setDefaultEndpoint(udpEndpointBuilder.build());
     }
 }

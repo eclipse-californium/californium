@@ -39,19 +39,19 @@ public class ServerService extends Service {
     @Override
     public void onCreate() {
         this.server = new CoapServer(CoAP_PORT);
+        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+        dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
+        ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
+        DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+        CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+        builder.setConnector(connector);
+        server.addEndpoint(builder.build());
         server.add(new HelloWorldResource());
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-    	
-        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-        dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
-        ConfigureDtls.loadCredentials(getApplicationContext(), dtlsConfig, SERVER_NAME);
-        DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-        CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
-        builder.setConnector(connector);
-        server.addEndpoint(builder.build());
+
         server.start();
 
         return START_STICKY;

@@ -18,6 +18,15 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 
+/**
+ * class ConfigureDTLS.
+ * This class is used to configure dtls connector for both client and server side conncetions.
+ * It allows to configure dtls connector in three different modes.
+ * PSK_MODE: Pre Shared Key Mode can be choosen for dtls connector by setting the boolean value to false.
+ * CERTIFICATE_MODE: for configuring dtls connector to support certificates during handshake.
+ * RPK_MODE: Raw Public Key mode to support raw public keys instead of certifcates.
+ * An endpoint can support all the three modes or atleast one mode.
+ */
 public class ConfigureDtls {
 
     private static final boolean PSK_MODE = false;
@@ -31,7 +40,7 @@ public class ConfigureDtls {
     private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
     private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 
-    public static void loadCredentials(Context context, DtlsConnectorConfig.Builder dtlsConfig,String alias){
+    public static void loadCredentials(DtlsConnectorConfig.Builder dtlsConfig, String alias){
 
         SslContextUtil.Credentials endpointCredentials = null;
         Certificate[] trustedCertificates = null;
@@ -56,6 +65,5 @@ public class ConfigureDtls {
             dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(),
                     endpointCredentials.getCertificateChain(), true);
         }
-
     }
 }
