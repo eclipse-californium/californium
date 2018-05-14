@@ -189,7 +189,6 @@ public class DTLSConnector implements Connector {
 	private DatagramSocket socket;
 
 	/** The timer daemon to schedule retransmissions. */
-	//private Timer timer;
 	private ScheduledExecutorService timer;
 
 	/** The thread that receives messages */
@@ -1291,8 +1290,12 @@ public class DTLSConnector implements Connector {
 			}
 			// no session with peer established yet, create new empty session &
 			// start handshake
-			Handshaker handshaker = new ClientHandshaker(new DTLSSession(peerAddress, true),
-					getRecordLayerForPeer(connection), connection, config, maximumTransmissionUnit);
+			Handshaker handshaker = new ClientHandshaker(
+					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
+					getRecordLayerForPeer(connection),
+					connection,
+					config,
+					maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();

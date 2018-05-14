@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,12 +14,14 @@
  *    Bosch Software Innovations GmbH - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add byteArray2HexString
  *                                                    and trunc
+ *    Bosch Software Innovations GmbH - add host name validator
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.regex.Pattern;
 
 /**
  * String utils (as there are so many already out).
@@ -27,6 +29,9 @@ import java.net.InetSocketAddress;
 public class StringUtil {
 
 	public static final char NO_SEPARATOR = 0;
+
+	private static final Pattern HOSTNAME_PATTERN = Pattern.compile(
+			"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
 
 	/**
 	 * Workaround too support android API 16-18.
@@ -189,4 +194,20 @@ public class StringUtil {
 			return address.getAddress().getHostAddress() + ":" + address.getPort();
 		}
 	}
+
+	/**
+	 * Checks if a given string is a valid host name as defined by
+	 * <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
+	 * 
+	 * @param name The name to check.
+	 * @return {@code true} if the name is a valid host name.
+	 */
+	public static boolean isValidHostName(final String name) {
+		if (name == null) {
+			return false;
+		} else {
+			return HOSTNAME_PATTERN.matcher(name).matches();
+		}
+	}
 }
+

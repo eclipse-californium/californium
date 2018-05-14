@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -555,6 +555,7 @@ public class ServerHandshaker extends Handshaker {
 			// store the names indicated by peer for later reference during key exchange
 			indicatedServerNames = serverNameExt.getServerNames();
 			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
+			session.setSniSupported(true);
 			LOGGER.debug(
 					"Using server name indication received from peer [{}]",
 					clientHello.getPeer());

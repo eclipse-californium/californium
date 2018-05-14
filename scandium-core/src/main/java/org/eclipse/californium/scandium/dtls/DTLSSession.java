@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -154,6 +154,8 @@ public final class DTLSSession {
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
+	private String virtualHost;
+	private boolean peerSupportsSni;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -228,6 +230,23 @@ public final class DTLSSession {
 		}
 	}
 
+	/**
+	 * Creates a new client session to be established with a peer.
+	 * <p>
+	 * 
+	 * @param peerAddress the peer's IP address and port.
+	 * @param virtualHostName the virtual host name at the peer (may be {@code null}).
+	 *                        If specified, the virtual host name is conveyed to the peer
+	 *                        as part of the SNI extension in the client's CLIENT_HELLO
+	 *                        message.
+	 * @return the new session.
+	 */
+	public static DTLSSession newClientSession(InetSocketAddress peerAddress, String virtualHostName) {
+		DTLSSession session = new DTLSSession(peerAddress, true);
+		session.virtualHost = virtualHostName;
+		return session;
+	}
+
 	// Getters and Setters ////////////////////////////////////////////
 
 	/**
@@ -241,6 +260,37 @@ public final class DTLSSession {
 
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		this.sessionIdentifier = sessionIdentifier;
+	}
+
+	/**
+	 * Gets the (virtual) host name at the server that this session
+	 * has been established for.
+	 * 
+	 * @return the host name or {@code null} if this session has not
+	 *         been established for a virtual host.
+	 */
+	public String getVirtualHost() {
+		return virtualHost;
+	}
+
+	void setVirtualHost(String hostname) {
+		this.virtualHost = hostname;
+	}
+
+	/**
+	 * Checks whether the peer (the server) supports
+	 * the Server Name Indication extension.
+	 * 
+	 * @return {@code true} if the server has included
+	 *         an empty SNI extension in its SERVER_HELLO
+	 *         message during handshake.
+	 */
+	public boolean isSniSupported() {
+		return peerSupportsSni;
+	}
+
+	void setSniSupported(boolean flag) {
+		this.peerSupportsSni = flag;
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
