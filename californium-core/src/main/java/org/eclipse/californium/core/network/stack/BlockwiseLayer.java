@@ -959,9 +959,9 @@ public class BlockwiseLayer extends AbstractLayer {
 	private static KeyUri getKey(final Exchange exchange, final Response response) {
 
 		if (exchange.isOfLocalOrigin()) {
-			return KeyUri.fromInboundResponse(exchange.getRequest().getURI(), response);
+			return KeyUri.fromInboundResponse(exchange.getRequest(), response);
 		} else {
-			return KeyUri.fromOutboundResponse(exchange.getRequest().getURI(), response);
+			return KeyUri.fromOutboundResponse(exchange.getRequest(), response);
 		}
 	}
 

@@ -103,6 +103,22 @@ public final class KeyUri {
 	}
 
 	/**
+	 * Get URI from request.
+	 * 
+	 * Contains URI path and URI query.
+	 * 
+	 * @param request request containing the URI.
+	 * @return URI string of request
+	 * @throws NullPointerException if request is {@code null}.
+	 */
+	private static String getUri(final Request request) {
+		if (request == null) {
+			throw new NullPointerException("request must not be null");
+		}
+		return request.getScheme() + ":" + request.getOptions().getUriString();
+	}
+
+	/**
 	 * Creates a new key for an incoming response scoped to the response's source endpoint address.
 	 * 
 	 * @param requestUri The URI of the requested resource.
@@ -110,14 +126,12 @@ public final class KeyUri {
 	 * @return The key.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 */
-	public static KeyUri fromInboundResponse(final String requestUri, final Response response) {
+	public static KeyUri fromInboundResponse(final Request request, final Response response) {
 		if (response == null) {
 			throw new NullPointerException("response must not be null");
-		} else if (requestUri == null) {
-			throw new NullPointerException("URI must not be null");
 		} else {
 			InetSocketAddress address = response.getSourceContext().getPeerAddress();
-			return new KeyUri(requestUri, address.getAddress().getAddress(), address.getPort());
+			return new KeyUri(getUri(request), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -129,14 +143,12 @@ public final class KeyUri {
 	 * @return The key.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 */
-	public static KeyUri fromOutboundResponse(final String requestUri, final Response response) {
+	public static KeyUri fromOutboundResponse(final Request request, final Response response) {
 		if (response == null) {
 			throw new NullPointerException("response must not be null");
-		} else if (requestUri == null) {
-			throw new NullPointerException("URI must not be null");
 		} else {
 			InetSocketAddress address = response.getDestinationContext().getPeerAddress();
-			return new KeyUri(requestUri, address.getAddress().getAddress(), address.getPort());
+			return new KeyUri(getUri(request), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 
@@ -148,12 +160,9 @@ public final class KeyUri {
 	 * @throws NullPointerException if the request is {@code null}.
 	 */
 	public static KeyUri fromInboundRequest(final Request request) {
-		if (request == null) {
-			throw new NullPointerException("request must not be null");
-		} else {
-			InetSocketAddress address = request.getSourceContext().getPeerAddress();
-			return new KeyUri(request.getURI(), address.getAddress().getAddress(), address.getPort());
-		}
+		String uri = getUri(request);
+		InetSocketAddress address = request.getSourceContext().getPeerAddress();
+		return new KeyUri(uri, address.getAddress().getAddress(), address.getPort());
 	}
 
 	/**
@@ -164,11 +173,8 @@ public final class KeyUri {
 	 * @throws NullPointerException if the request is {@code null}.
 	 */
 	public static KeyUri fromOutboundRequest(final Request request) {
-		if (request == null) {
-			throw new NullPointerException("request must not be null");
-		} else {
-			InetSocketAddress address = request.getDestinationContext().getPeerAddress();
-			return new KeyUri(request.getURI(), address.getAddress().getAddress(), address.getPort());
-		}
+		String uri = getUri(request);
+		InetSocketAddress address = request.getDestinationContext().getPeerAddress();
+		return new KeyUri(uri, address.getAddress().getAddress(), address.getPort());
 	}
 }
