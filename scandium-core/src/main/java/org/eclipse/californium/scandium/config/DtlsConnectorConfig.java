@@ -211,11 +211,13 @@ public final class DtlsConnectorConfig {
 	 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
 	 * Server Name Indication extension</a> in the DTLS handshake.
 	 * <p>
-	 * The default value of this property is {@code true}.
+	 * The default value of this property is {@code null}. If this property
+	 * is not set explicitly using {@link Builder#setSniEnabled(boolean)},
+	 * then the {@link Builder#build()} method will set it to {@code true}.
 	 * 
 	 * @return {@code true} if SNI should be used.
 	 */
-	public boolean isSniEnabled() {
+	public Boolean isSniEnabled() {
 		return sniEnabled;
 	}
 
@@ -452,6 +454,7 @@ public final class DtlsConnectorConfig {
 		 * Sets the IP address and port the connector should bind to
 		 * 
 		 * @param address the IP address and port the connector should bind to
+		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the given address is unresolved
 		 */
 		public Builder setAddress(InetSocketAddress address) {
@@ -465,6 +468,7 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Enables address reuse for the socket.
 		 * 
+		 * @param enable {@code true} if addresses should be reused.
 		 * @return this builder for command chaining
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
@@ -864,6 +868,7 @@ public final class DtlsConnectorConfig {
 		 * <p>
 		 * The default value is 6 * <em>#(CPU cores)</em>.
 		 * 
+		 * @param threadCount the number of threads.
 		 * @return this builder for command chaining.
 		 */
 		public Builder setConnectionThreadCount(int threadCount) {
@@ -876,6 +881,7 @@ public final class DtlsConnectorConfig {
 		 * <p>
 		 * The default value is {@code null}, no automatic session resumption.
 		 * 
+		 * @param timeoutInMillis the number of milliseconds.
 		 * @return this builder for command chaining.
 		 */
 		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
@@ -888,7 +894,9 @@ public final class DtlsConnectorConfig {
 		 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
 		 * Server Name Indication extension</a> in the DTLS handshake.
 		 * <p>
-		 * The default value of this property is {@code true}.
+		 * The default value of this property is {@code null}. If this property
+		 * is not set explicitly, then the {@link Builder#build()} method
+		 * will set it to {@code true}.
 		 * 
 		 * @param flag {@code true} if SNI should be used.
 		 * @return this builder for command chaining.
