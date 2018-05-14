@@ -156,7 +156,7 @@ public class Feed extends CoapResource {
 					length = Integer.parseInt(rlen);
 					if (length < 0) {
 						message = "URI-query-option " + query + " is negative number!";
-					} else if (length > maxResourceSize) {
+					} else if (length > maxResourceSize && maxResourceSize > 0) {
 						message = "URI-query-option " + query + " is too large (max. " + maxResourceSize + ")!";
 					}
 				} catch (NumberFormatException ex) {
