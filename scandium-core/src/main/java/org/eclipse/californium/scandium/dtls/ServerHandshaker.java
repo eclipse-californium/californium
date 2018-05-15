@@ -557,6 +557,9 @@ public class ServerHandshaker extends Handshaker {
 			if (sniEnabled) {
 				// store the names indicated by peer for later reference during key exchange
 				indicatedServerNames = serverNameExt.getServerNames();
+				// RFC6066, section 3 requires the server to respond with
+				// an empty SNI extension if it might make use of the value(s)
+				// provided by the client
 				serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
 				session.setSniSupported(true);
 				LOGGER.debug(
@@ -687,14 +690,14 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
-		byte[] psk = pskStore.getKey(getIndicatedServerNames(), identity);
+		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
 		String virtualHost = null;
 
-		if (getIndicatedServerNames() == null) {
+		if (indicatedServerNames == null) {
 			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
 		} else {
 			// SNI is enabled and the client has indicated a virtual host
-			ServerName serverName = getIndicatedServerNames().getServerName(NameType.HOST_NAME);
+			ServerName serverName = indicatedServerNames.getServerName(NameType.HOST_NAME);
 			if (serverName == null) {
 				LOGGER.debug("client [{}] provided invalid SNI extension which doesn't include a hostname",
 						getPeerAddress());

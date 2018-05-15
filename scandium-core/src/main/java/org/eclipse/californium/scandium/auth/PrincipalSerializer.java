@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
 public final class PrincipalSerializer {
 
 	private static final int PSK_LENGTH_BITS = 16;
+	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
 	}
@@ -91,7 +92,7 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		byte[] virtualHost = principal.getVirtualHost() == null ? new byte[0] :
+		byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY :
 			principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
 		writeBytesWithLength(PSK_LENGTH_BITS, virtualHost, writer);
 		writeBytesWithLength(PSK_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
