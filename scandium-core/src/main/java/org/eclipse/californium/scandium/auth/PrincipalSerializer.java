@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 - 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
 public final class PrincipalSerializer {
 
 	private static final int PSK_LENGTH_BITS = 16;
+	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
 	}
@@ -91,7 +92,10 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		writeBytesWithLength(PSK_LENGTH_BITS, principal.getName().getBytes(StandardCharsets.UTF_8), writer);
+		byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY :
+			principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
+		writeBytesWithLength(PSK_LENGTH_BITS, virtualHost, writer);
+		writeBytesWithLength(PSK_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
 	}
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
@@ -123,7 +127,7 @@ public final class PrincipalSerializer {
 		}
 		int code = reader.read(8);
 		ClientAuthenticationType type = ClientAuthenticationType.fromCode((byte) code);
-		switch (type) {
+		switch(type) {
 		case CERT:
 			return deserializeCertChain(reader);
 		case PSK:
@@ -142,7 +146,10 @@ public final class PrincipalSerializer {
 	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
-		return new PreSharedKeyIdentity(new String(readBytesWithLength(PSK_LENGTH_BITS, reader)));
+		byte[] bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
+		String virtualHost = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
+		bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
+		return new PreSharedKeyIdentity(virtualHost, new String(bytes, StandardCharsets.UTF_8));
 	}
 
 	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader)

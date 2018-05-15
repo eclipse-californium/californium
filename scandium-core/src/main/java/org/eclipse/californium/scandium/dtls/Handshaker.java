@@ -157,6 +157,11 @@ public abstract class Handshaker {
 	/** The chain of certificates asserting this handshaker's identity */
 	protected X509Certificate[] certificateChain;
 
+	/**
+	 * Support Server Name Indication TLS extension.
+	 */
+	protected boolean sniEnabled = true;
+
 	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
