@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection 
  *                                                    for isToBeSent.
+ *    Bosch Software Innovations GmbH - support matching of virtual host name
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -42,16 +43,33 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	 *      EndpointContext)
 	 */
 	private final Set<String> keys;
+	private final boolean compareHostname;
 
 	/**
-	 * Create new instance of key set based endpoint context matcher.
+	 * Creates a matcher for a set of keys to compare.
+	 * <p>
+	 * The new matcher will not compare the virtual host names of contexts.
 	 * 
 	 * @param name name (used for logging).
-	 * @param keys key set.
+	 * @param keys the names of the keys whose values will be compared when matching contexts.
 	 */
 	public KeySetEndpointContextMatcher(String name, String keys[]) {
+		this(name, keys, false);
+	}
+
+	/**
+	 * Creates a matcher for a set of keys to compare.
+	 * 
+	 * @param name name (used for logging).
+	 * @param keys the names of the keys whose values will be compared when matching contexts.
+	 * @param compareHostname {@code true} if the matcher should also
+	 *                 {@linkplain #isSameVirtualHost(EndpointContext, EndpointContext) compare
+	 *                 virtual host names} when matching contexts.
+	 */
+	public KeySetEndpointContextMatcher(String name, String keys[], boolean compareHostname) {
 		this.name = name;
 		this.keys = createKeySet(keys);
+		this.compareHostname = compareHostname;
 	}
 
 	@Override
@@ -61,7 +79,9 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
-		return internalMatch(requestContext, responseContext);
+
+		boolean result = compareHostname ? isSameVirtualHost(requestContext, responseContext) : true;
+		return result && internalMatch(requestContext, responseContext);
 	}
 
 	@Override
@@ -69,7 +89,8 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 		if (null == connectionContext) {
 			return !messageContext.inhibitNewConnection();
 		}
-		return internalMatch(messageContext, connectionContext);
+		boolean result = compareHostname ? isSameVirtualHost(messageContext, connectionContext) : true;
+		return result && internalMatch(messageContext, connectionContext);
 	}
 
 	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {

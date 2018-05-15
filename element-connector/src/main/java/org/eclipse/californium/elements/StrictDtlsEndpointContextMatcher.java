@@ -27,41 +27,18 @@ public class StrictDtlsEndpointContextMatcher extends KeySetEndpointContextMatch
 
 	/**
 	 * Creates a new matcher.
+	 * <p>
+	 * Two contexts will be considered <em>matching</em> if they have the same value
+	 * for properties
+	 * <ul>
+	 *   <li>{@link DtlsEndpointContext#KEY_SESSION_ID}</li>
+	 *   <li>{@link DtlsEndpointContext#KEY_EPOCH}</li>
+	 *   <li>{@link DtlsEndpointContext#KEY_CIPHER}</li>
+	 * </ul>
+	 * and have a matching virtualHost property according to
+	 * {@link KeySetEndpointContextMatcher#isSameVirtualHost(EndpointContext, EndpointContext)}.
 	 */
 	public StrictDtlsEndpointContextMatcher() {
-		super("strict context", KEYS);
-	}
-
-	/**
-	 * @return {@code true} if both contexts have the same value for properties
-	 *          <ul>
-	 *            <li>{@link DtlsEndpointContext#KEY_SESSION_ID}</li>
-	 *            <li>{@link DtlsEndpointContext#KEY_EPOCH}</li>
-	 *            <li>{@link DtlsEndpointContext#KEY_CIPHER}</li>
-	 *          </ul>
-	 *          and have a matching virtualHost property according to
-	 *          {@link KeySetEndpointContextMatcher#isSameVirtualHost(EndpointContext, EndpointContext)}.
-	 * @throws NullPointerException if the first context is {@code null}.
-	 */
-	@Override
-	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
-
-		return isSameVirtualHost(requestContext, responseContext) && super.isResponseRelatedToRequest(requestContext, responseContext);
-	}
-
-	/**
-	 * @return {@code true} if both contexts have the same value for properties
-	 *          <ul>
-	 *            <li>{@link DtlsEndpointContext#KEY_SESSION_ID}</li>
-	 *            <li>{@link DtlsEndpointContext#KEY_EPOCH}</li>
-	 *            <li>{@link DtlsEndpointContext#KEY_CIPHER}</li>
-	 *          </ul>
-	 *          and have a matching virtualHost property according to
-	 *          {@link KeySetEndpointContextMatcher#isSameVirtualHost(EndpointContext, EndpointContext)}.
-	 * @throws NullPointerException if the first context is {@code null}.
-	 */
-	@Override
-	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext) {
-		return isSameVirtualHost(messageContext, connectionContext) && super.isToBeSent(messageContext, connectionContext);
+		super("strict context", KEYS, true);
 	}
 }
