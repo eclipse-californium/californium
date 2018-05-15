@@ -39,6 +39,8 @@ public class SslContextUtilConfigurationTest {
 	public static final String ALIAS_SERVER = "server";
 	public static final String CUSTOM_SCHEME = "test://";
 	public static final String CUSTOM_SCHEME_KEY_STORE_LOCATION = CUSTOM_SCHEME + "keyStore.jks";
+	public static final String FILE_KEY_STORE_LOCATION = "../demo-certs/src/main/resources/keyStore.jks";
+	public static final String INVALID_FILE_KEY_STORE_LOCATION = "keyStore.jks";
 
 	public static final String CUSTOM_ENDING = ".cks";
 	public static final String CUSTOM_TYPE = "CKS";
@@ -65,6 +67,19 @@ public class SslContextUtilConfigurationTest {
 		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));
+	}
+
+	@Test
+	public void testValidKeyStoreWithoutScheme() throws IOException, GeneralSecurityException {
+		Credentials credentials = SslContextUtil.loadCredentials(FILE_KEY_STORE_LOCATION, ALIAS_SERVER,
+				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		assertThat(credentials, is(notNullValue()));
+	}
+
+	@Test(expected = IOException.class)
+	public void testInvalidKeyStoreWithoutScheme() throws IOException, GeneralSecurityException {
+		SslContextUtil.loadCredentials(INVALID_FILE_KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
 	}
 
 	@Test(expected = MalformedURLException.class)
