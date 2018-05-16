@@ -35,6 +35,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address 
+ *                                                    with enabled sni
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -482,13 +484,13 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
-			ServerNames virtualHost = session.getVirtualHost() == null ? null : ServerNames.newInstance()
-					.add(ServerName.fromHostName(session.getVirtualHost()));
+			String virtualHostName = session.getVirtualHost();
 			String identity = null;
 			byte[] psk = null;
 			PreSharedKeyIdentity pskIdentity = null;
 
-			if (sniEnabled) {
+			if (sniEnabled && virtualHostName != null) {
+				ServerNames virtualHost = ServerNames.newInstance().add(ServerName.fromHostName(virtualHostName));
 				if (!session.isSniSupported()) {
 					LOGGER.warn("client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
 				}
@@ -499,7 +501,7 @@ public class ClientHandshaker extends Handshaker {
 					throw new HandshakeException(
 							String.format(
 									"No Identity found for peer [address: %s, virtual host: %s]",
-									session.getPeer(), session.getVirtualHost()),
+									session.getPeer(), virtualHostName),
 							alert);
 				} else {
 					psk = pskStore.getKey(virtualHost, identity);
@@ -507,10 +509,10 @@ public class ClientHandshaker extends Handshaker {
 						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 						throw new HandshakeException(
 								String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
-								session.getVirtualHost(), identity),
+										virtualHostName, identity),
 								alert);
 					} else {
-						pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost(), identity);
+						pskIdentity = new PreSharedKeyIdentity(virtualHostName, identity);
 					}
 				}
 			} else {
@@ -518,17 +520,15 @@ public class ClientHandshaker extends Handshaker {
 				if (identity == null) {
 					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 					throw new HandshakeException(
-							String.format("No Identity found for peer [address: %s]", session.getPeer()),
-							alert);
+							String.format("No Identity found for peer [address: %s]", session.getPeer()), alert);
 				} else {
 					psk = pskStore.getKey(identity);
 					if (psk == null) {
 						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 						throw new HandshakeException(
-								String.format("No pre-shared key found for [identity: %s]", identity),
-								alert);
+								String.format("No pre-shared key found for [identity: %s]", identity), alert);
 					} else {
-						pskIdentity = new PreSharedKeyIdentity(session.getVirtualHost());
+						pskIdentity = new PreSharedKeyIdentity(identity);
 					}
 				}
 			}
