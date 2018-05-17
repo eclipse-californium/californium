@@ -31,7 +31,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
@@ -126,8 +125,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 			for (Endpoint ep : server.getEndpoints()) {
 				System.out.println("listen on " + ep.getUri());
 				if (noBenchmark) {
-					// Eclipse IoT metrics
-					ep.addInterceptor(new OriginTracer());
 					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
 					ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
 				}

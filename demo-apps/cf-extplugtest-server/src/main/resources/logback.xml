@@ -8,27 +8,10 @@
 		</encoder>
 	</appender>
 
-	<appender name="ORIGINFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>logs/origin.log</file>
-		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-			<!-- rollover monthly, or if filesize exceeds -->
-			<fileNamePattern>logs/origin-%d{yyyy-MM}.%i.log</fileNamePattern>
-			<!-- each file should be at most 10MB, keep 200 files worth of history, but at most 2GB -->
-			<maxFileSize>10MB</maxFileSize>
-			<maxHistory>200</maxHistory>
-			<totalSizeCap>2GB</totalSizeCap>
-		</rollingPolicy>
-
-		<encoder>
-			<!-- use tab to separate timestamp from message -->
-			<pattern>[%date{yyyy-MM-dd HH:mm:ss}]\t%msg%n</pattern>
-		</encoder>
-	</appender>
-
-	<appender name="ANONYMFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>logs/anonymorigin.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-			<!-- rollover monthly, or if filesize exceeds -->
+			<!-- roll-over monthly, or if filesize exceeds -->
 			<fileNamePattern>logs/anonymorigin-%d{yyyy-MM}.%i.log</fileNamePattern>
 			<!-- each file should be at most 10MB, keep 200 files worth of history, but at most 2GB -->
 			<maxFileSize>10MB</maxFileSize>
@@ -42,31 +25,9 @@
 		</encoder>
 	</appender>
 
-	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>logs/messages.log</file>
-		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-			<!-- rollover monthly, or if filesize exceeds -->
-			<fileNamePattern>logs/messages-%d{yyyy-MM}.%i.log</fileNamePattern>
-			<!-- each file should be at most 10MB, keep 200 files worth of history, but at most 2GB -->
-			<maxFileSize>10MB</maxFileSize>
-			<maxHistory>200</maxHistory>
-			<totalSizeCap>2GB</totalSizeCap>
-		</rollingPolicy>
-
-		<encoder>
-			<!-- use tab to separate timestamp from message -->
-			<pattern>%d{mm:ss.SSS} %level [%logger{0}]: %msg%n</pattern>
-		</encoder>
-	</appender>
-
-	<!-- ORIGIN to file -->
-	<logger name="org.eclipse.californium.core.network.interceptors.OriginTracer" level="TRACE" additivity="false">
-		<appender-ref ref="ORIGINFILE" />
-	</logger>
-
-	<!-- ANONYMIZED ORIGIN also to file -->
+	<!-- ORIGIN only to file -->
 	<logger name="org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer" level="TRACE" additivity="false">
-		<appender-ref ref="ANONYMFILE" />
+		<appender-ref ref="FILE" />
 	</logger>
 
 	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="DEBUG" additivity="false">

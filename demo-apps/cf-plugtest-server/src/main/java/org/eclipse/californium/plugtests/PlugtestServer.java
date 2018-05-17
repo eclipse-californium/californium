@@ -33,7 +33,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.network.interceptors.OriginTracer;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Large;
@@ -118,9 +117,7 @@ public class PlugtestServer extends AbstractTestServer {
 			for (Endpoint ep : server.getEndpoints()) {
 				System.out.println("listen on " + ep.getUri());
 				ep.addInterceptor(new MessageTracer());
-				// Eclipse IoT metrics
-				ep.addInterceptor(new OriginTracer());
-				// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
+				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
 			}
 
