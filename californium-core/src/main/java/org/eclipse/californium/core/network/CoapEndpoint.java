@@ -1448,4 +1448,5 @@ public class CoapEndpoint implements Endpoint {
 		defaultCoapStackFactory = newFactory;
 	}
 
+
 }
