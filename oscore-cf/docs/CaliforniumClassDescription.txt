@@ -1,0 +1,66 @@
+﻿Class descriptions
+The following paragraphs briefly describes the classes that represents OSCORE.
+
+OSCoreCoapStackFactory
+Extends the CoapStackFactory to provide and set the OSCoreStack.
+
+OSCoreCtx
+Implements the OSCore context, sequence numbering checking and nonce generation.
+
+HashMapCtxDB
+Implements the interface OSCoreCtxBD by using HashMaps for storage, thus it contains getters and setters for different kinds of circumstances.
+
+OSCoreStack
+Extends BaseCoapStack. Creates a new stack for UDP as the transport. It will contain the following layers: ExchangeCleanupLayer, ObserveLayer, BlockwiseLayer, ReliabilityLayer, ObjectSecurityLayer and OuterBlockwiseLayer.
+
+ObjectSecurityLayer
+Extends AbstractLayer. This class knits together the functionality of OSCore, i.e. decides if a request or response is sound (the presence of a OSCore option is necessary), only encrypts proper requests and only decrypts proper responses. Responsible to determine if a message is of OSCore or not. If any errors occur or if there is anything strange about the message, processing will terminate and the OSExceptionHandler will receive the thrown OSException. The OSException will decide if a reply is sent back to the sender.
+
+RequestEncryptor
+Extends Encryptor. Decides what to serialize. Encrypts and compresses requests, also increments the sequence number.
+
+RequestDecryptor
+Extends Decryptor. Decrypts and decompresses requests. Decides what to serialize. Also, manages outer observe options properly, thus it doesn’t get lost.
+
+ResponseEncryptor
+Extends Encryptor. Decides what to serialize. Encrypts and compresses responses, which includes managing sequence number in the case of observe.
+
+ResponseDecryptor
+Extends Decryptor. Serializes, decrypts and decompresses requests, which includes managing sequence number.
+
+OSSerializer
+Serializes and reads options bases on the situation (i.e. request or response). Also, creates the Additional Authenticated Data (AAD). 
+
+OSExceptionHandler
+Centralized exception handling. Creates the correct behavior when it is given an OSException.
+
+OSException
+Extends Exception. Implements a throwable exception during OSCore processing.
+
+ByteId
+Implements identification for byte arrays. Since, the hashcode method for a byte array is dependent of sequencing, thus equality checks are not working as we want.
+
+OptionJuggle
+Handler for Option management.
+
+
+Testing
+
+
+AllJUnitTests
+Running this class will run all the below JUnit test cases.
+
+ByteIdTest
+HashMapCtxDBTest
+OptionJuggleTest
+OSCoreCtxTest
+OSSerializerTest
+OSCoreTest (Runs more general test cases across the code)
+
+
+HelloWorld example
+Displays the basic behavior of the OSCore system, i.e. initiating contexts, adding contexts, initiating client and server, which input values are necessary, how to implement and create resources on the server. Run server and then client to test the HelloWorld example.
+
+
+HelloWorldServer
+HelloWorldClient
