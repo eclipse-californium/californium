@@ -135,6 +135,11 @@ public class NetworkConfigDefaults {
 	 */
 	public static final int DEFAULT_DTLS_AUTO_RESUME_TIMEOUT = 30000; // 30s [ms]
 
+	/**
+	 * The default health status interval in seconds.
+	 */
+	public static final int DEFAULT_HEALTH_STATUS_INTERVAL = 0; // 0s
+
 	/*
 	 * Accept other message versions than 1
 	 * Refuse unknown options
@@ -201,7 +206,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
 		config.setInt(Keys.HTTP_CACHE_SIZE, 32);
 
-		config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0); // s, 0 for disable
+		config.setInt(Keys.HEALTH_STATUS_INTERVAL, DEFAULT_HEALTH_STATUS_INTERVAL); // s, 0 for disable
 
 		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);

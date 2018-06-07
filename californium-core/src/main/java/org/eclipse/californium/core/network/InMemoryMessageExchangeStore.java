@@ -59,6 +59,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -116,7 +117,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void startStatusLogging() {
 
-		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {

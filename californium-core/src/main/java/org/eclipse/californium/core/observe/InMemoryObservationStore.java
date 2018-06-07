@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.slf4j.Logger;
@@ -151,7 +152,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 
 	@Override
 	public void start() {
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 0); // seconds
+		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			scheduler = Executors
