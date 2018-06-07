@@ -88,4 +88,8 @@ public interface ObservationStore {
 	 * @param endpointContext The context to set.
 	 */
 	void setContext(Token token, EndpointContext endpointContext);
+
+	void start();
+
+	void stop();
 }

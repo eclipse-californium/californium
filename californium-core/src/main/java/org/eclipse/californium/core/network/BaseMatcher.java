@@ -140,6 +140,7 @@ public abstract class BaseMatcher implements Matcher {
 	public synchronized void start() {
 		if (!running) {
 			exchangeStore.start();
+			observationStore.start();
 			running = true;
 		}
 	}
@@ -148,6 +149,7 @@ public abstract class BaseMatcher implements Matcher {
 	public synchronized void stop() {
 		if (running) {
 			exchangeStore.stop();
+			observationStore.stop();
 			clear();
 			running = false;
 		}
