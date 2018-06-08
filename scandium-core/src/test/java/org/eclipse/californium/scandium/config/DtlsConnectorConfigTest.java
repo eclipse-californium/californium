@@ -17,6 +17,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
  *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
  *                                                    getLoopbackAddress()
+ *    Vikram (University of Rostock) - add test to check ECDHE_PSK CipherSuite 
  ******************************************************************************/
 package org.eclipse.californium.scandium.config;
 
@@ -72,7 +73,7 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
 		assertTrue(config.getSupportedCipherSuites().length > 0);
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
-			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.PSK));
+			assertThat(suite.getKeyExchange(), either(is(KeyExchangeAlgorithm.PSK)).or(is(KeyExchangeAlgorithm.ECDHE_PSK)));
 		}
 	}
 
@@ -94,15 +95,19 @@ public class DtlsConnectorConfigTest {
 				.build();
 		int ecDhSuitesCount = 0;
 		int pskSuitesCount = 0;
+		int dhPskSuitesCount = 0;
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(suite.getKeyExchange())) {
 				ecDhSuitesCount++;
 			} else if (KeyExchangeAlgorithm.PSK.equals(suite.getKeyExchange())) {
 				pskSuitesCount++;
+			} else if (KeyExchangeAlgorithm.ECDHE_PSK.equals(suite.getKeyExchange())) {
+				dhPskSuitesCount++;
 			}
 		}
 		assertTrue(ecDhSuitesCount > 0);
 		assertTrue(pskSuitesCount > 0);
+		assertTrue(dhPskSuitesCount > 0);
 	}
 
 	@Test(expected = IllegalStateException.class)

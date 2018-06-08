@@ -38,6 +38,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
+ *    Vikram (University of Rostock) - generatePremasterSecertFromPSK with otherSecret from ECDHE_PSK
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -49,6 +50,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -63,6 +65,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -558,31 +561,30 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>:
 	 * The premaster secret is formed as follows: if the PSK is N octets long,
 	 * concatenate a uint16 with the value N, N zero octets, a second uint16
 	 * with the value N, and the PSK itself.
 	 * 
-	 * @param psk
-	 *            the preshared key as byte array.
-	 * @return the premaster secret.
+	 * @param psk - preshared key as byte array
+	 * @param otherSecret - either is zeroes (plain PSK case) or comes 
+	 * from the EC Diffie-Hellman exchange (ECDHE_PSK). 
+	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
+	 * @return
 	 */
-	protected final byte[] generatePremasterSecretFromPSK(byte[] psk) {
+	protected final byte[] generatePremasterSecretFromPSK(byte[] psk, byte[] otherSecret) {
 		/*
 		 * What we are building is the following with length fields in between:
 		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
 		 */
-		int length = psk.length;
-
-		byte[] lengthField = new byte[2];
-		lengthField[0] = (byte) (length >> 8);
-		lengthField[1] = (byte) (length);
-
-		byte[] zero = ByteArrayUtils.padArray(new byte[0], (byte) 0x00, length);
-
-		byte[] premasterSecret = ByteArrayUtils.concatenate(lengthField, ByteArrayUtils.concatenate(zero, ByteArrayUtils.concatenate(lengthField, psk)));
-
-		return premasterSecret;
+		int pskLength = psk.length;
+		
+		byte[] other = otherSecret == null ? new byte[pskLength] : otherSecret;
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(other.length, 16);
+		writer.writeBytes(other);
+		writer.write(pskLength, 16);
+		writer.writeBytes(psk);
+		return writer.toByteArray();	
 	}
 
 	protected final void setCurrentReadState() {

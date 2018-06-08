@@ -38,6 +38,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests to
  *                                                    DTLSCorrelationTest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for automatic resumption
+ *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite   
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -191,7 +192,8 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
+						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
@@ -1523,7 +1525,18 @@ public class DTLSConnectorTest {
 		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		assertThat(alert.get(), is(nullValue()));
 	}
-
+	
+	@Test
+	public void testConnectorEstablishSessionWithEcdhPskCBCSuite() throws Exception {
+		clientConfig = new DtlsConnectorConfig.Builder()
+				.setAddress(clientEndpoint)
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(new CipherSuite[] {CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
+				.build();
+			client = new DTLSConnector(clientConfig, clientConnectionStore);
+			givenAnEstablishedSession();
+	}
+	
 	/**
 	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
 	 */

@@ -16,6 +16,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -267,6 +268,8 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			return ECDHServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case PSK:
 			return PSKServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case ECDHE_PSK:
+			return EcdhPskServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		default:
 			throw new HandshakeException(
 					"Unsupported key exchange algorithm",
@@ -282,6 +285,8 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			return ECDHClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case PSK:
 			return PSKClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case ECDHE_PSK:
+			return EcdhPskClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case NULL:
 			return NULLClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		default:
