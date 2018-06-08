@@ -37,6 +37,7 @@
  *                                                    trustStore := [], enable x.509, trust all
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address 
  *                                                    with enabled sni
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode                                                
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -63,7 +63,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ServerName;
+import org.eclipse.californium.scandium.util.PskUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,6 +254,10 @@ public class ClientHandshaker extends Handshaker {
 
 				case PSK:
 					serverKeyExchange = (PSKServerKeyExchange) handshakeMsg;
+					break;
+				
+				case ECDHE_PSK:
+					receivedServerKeyExchange((EcdhPskServerKeyExchange) handshakeMsg);
 					break;
 					
 				case NULL:
@@ -450,6 +454,31 @@ public class ClientHandshaker extends Handshaker {
 				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
 		}
 	}
+	
+	/**
+	 * This method is called after receiving {@link ServerKeyExchange} message in ECDHE_PSK mode 
+	 * to extract the ServerDHEParams that includes the ephemeral public key.
+	 * 
+	 * @param message
+	 * @throws HandshakeException
+	 */
+	private void receivedServerKeyExchange(EcdhPskServerKeyExchange message) throws HandshakeException {
+		if (serverKeyExchange != null && (serverKeyExchange.getMessageSeq() == message.getMessageSeq())) {
+			// discard duplicate message
+			return;
+		}
+		serverKeyExchange = message;
+		ephemeralServerPublicKey = message.getPublicKey();
+		try {
+			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
+		} catch (GeneralSecurityException e) {
+			throw new HandshakeException(
+				String.format(
+					"Cannot create ephemeral keys from domain params provided by server: %s",
+					e.getMessage()),
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
+		}
+	}
 
 	/**
 	 * The ServerHelloDone message is sent by the server to indicate the end of
@@ -484,62 +513,22 @@ public class ClientHandshaker extends Handshaker {
 			generateKeys(premasterSecret);
 			break;
 		case PSK:
-			String virtualHostName = session.getVirtualHost();
-			String identity = null;
-			byte[] psk = null;
-			PreSharedKeyIdentity pskIdentity = null;
-
-			if (sniEnabled && virtualHostName != null) {
-				ServerNames virtualHost = ServerNames.newInstance().add(ServerName.fromHostName(virtualHostName));
-				if (!session.isSniSupported()) {
-					LOGGER.warn("client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
-				}
-				// look up identity in scope of virtual host
-				identity = pskStore.getIdentity(session.getPeer(), virtualHost);
-				if (identity == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-					throw new HandshakeException(
-							String.format(
-									"No Identity found for peer [address: %s, virtual host: %s]",
-									session.getPeer(), virtualHostName),
-							alert);
-				} else {
-					psk = pskStore.getKey(virtualHost, identity);
-					if (psk == null) {
-						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-						throw new HandshakeException(
-								String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
-										virtualHostName, identity),
-								alert);
-					} else {
-						pskIdentity = new PreSharedKeyIdentity(virtualHostName, identity);
-					}
-				}
-			} else {
-				identity = pskStore.getIdentity(session.getPeer());
-				if (identity == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-					throw new HandshakeException(
-							String.format("No Identity found for peer [address: %s]", session.getPeer()), alert);
-				} else {
-					psk = pskStore.getKey(identity);
-					if (psk == null) {
-						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-						throw new HandshakeException(
-								String.format("No pre-shared key found for [identity: %s]", identity), alert);
-					} else {
-						pskIdentity = new PreSharedKeyIdentity(identity);
-					}
-				}
-			}
-			LOGGER.debug("Using PSK identity: {}", pskIdentity);
-			session.setPeerIdentity(pskIdentity);
-			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			premasterSecret = generatePremasterSecretFromPSK(psk);
+			PskUtil pskUtilPlain = new PskUtil(sniEnabled, session, pskStore);
+			LOGGER.debug("Using PSK identity: {}", pskUtilPlain.getPskIdentity());
+			session.setPeerIdentity(pskUtilPlain.getPskIdentity());
+			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskIdentity().getIdentity(), session.getPeer());
+			premasterSecret = generatePremasterSecretFromPSK(pskUtilPlain.getPreSharedKey(), null);
 			generateKeys(premasterSecret);
-
 			break;
-
+		case ECDHE_PSK:
+			PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore);
+			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskIdentity());
+			session.setPeerIdentity(pskUtil.getPskIdentity());
+			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskIdentity().getIdentity(), ecdhe.getPublicKey(), session.getPeer());
+			byte[] otherSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
+			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
+			generateKeys(premasterSecret);
+			break;
 		case NULL:
 			clientKeyExchange = new NULLClientKeyExchange(session.getPeer());
 

@@ -44,6 +44,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -294,7 +295,12 @@ public class ServerHandshaker extends Handshaker {
 					premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) handshakeMsg);
 					generateKeys(premasterSecret);
 					break;
-
+					
+				case ECDHE_PSK:
+					premasterSecret = receivedClientKeyExchange((EcdhPskClientKeyExchange) handshakeMsg);
+					generateKeys(premasterSecret);
+					break;
+					
 				case EC_DIFFIE_HELLMAN:
 					premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) handshakeMsg);
 					generateKeys(premasterSecret);
@@ -627,7 +633,20 @@ public class ServerHandshaker extends Handshaker {
 			 */
 			// serverKeyExchange = new PSKServerKeyExchange("TODO");
 			break;
-
+		
+		case ECDHE_PSK:
+			
+			try {
+				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
+				serverKeyExchange = new EcdhPskServerKeyExchange(ecdhe, clientRandom, serverRandom,
+				negotiatedSupportedGroup.getId(), session.getPeer());
+				break;
+			} catch (GeneralSecurityException e) {
+				throw new HandshakeException(
+						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			}			
+			
 		default:
 			// NULL does not require the server's key exchange message
 			break;
@@ -691,32 +710,18 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
 		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
-		String virtualHost = null;
+		return configurePskCredentials(identity, psk, null);
+	}
+	
+	private byte[] receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
 
-		if (indicatedServerNames == null) {
-			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
-		} else {
-			// SNI is enabled and the client has indicated a virtual host
-			ServerName serverName = indicatedServerNames.getServerName(NameType.HOST_NAME);
-			if (serverName == null) {
-				LOGGER.debug("client [{}] provided invalid SNI extension which doesn't include a hostname",
-						getPeerAddress());
-			} else {
-				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
-				LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]",
-						getPeerAddress(), identity, virtualHost);
-			}
-		}
+		clientKeyExchange = message;
 
-		if (psk == null) {
-			throw new HandshakeException(
-					String.format("cannot authenticate client, identity [%s] is unknown for server [%s]",
-							identity, virtualHost),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
-		} else {
-			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
-			return generatePremasterSecretFromPSK(psk);
-		}
+		// use the client's PSK identity to look up the pre-shared key
+		String identity = message.getIdentity();
+		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
+		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
+		return configurePskCredentials(identity, psk, otherSecret);
 	}
 
 	/**
@@ -970,4 +975,33 @@ public class ServerHandshaker extends Handshaker {
 //		}
 //		return result;
 //	}
+	
+	private byte[] configurePskCredentials(String identity, byte[] psk, byte[] otherSecret) throws HandshakeException {
+		String virtualHost = null;
+
+		if (indicatedServerNames == null) {
+			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
+		} else {
+			// SNI is enabled and the client has indicated a virtual host
+			ServerName serverName = indicatedServerNames.getServerName(NameType.HOST_NAME);
+			if (serverName == null) {
+				LOGGER.debug("client [{}] provided invalid SNI extension which doesn't include a hostname",
+						getPeerAddress());
+			} else {
+				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
+				LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]",
+						getPeerAddress(), identity, virtualHost);
+			}
+		}
+
+		if (psk == null) {
+			throw new HandshakeException(
+					String.format("cannot authenticate client, identity [%s] is unknown for server [%s]",
+							identity, virtualHost),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
+		} else {
+			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
+			return generatePremasterSecretFromPSK(psk, otherSecret);
+		}
+	}
 }

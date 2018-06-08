@@ -26,6 +26,7 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Bosch Software Innovations GmbH - remove serverNameResolver property
+ *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256                        
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -113,10 +114,10 @@ public final class DtlsConnectorConfig {
 	/** store of the PSK */
 	private PskStore pskStore;
 
-	/** the private key for RPK and X509 mode */
+	/** the private key for RPK and X509 mode, right now only EC type is supported */
 	private PrivateKey privateKey;
 
-	/** the public key for both RPK and X.509 mode */
+	/** the public key for RPK and X.509 mode, right now only EC type is supported */
 	private PublicKey publicKey;
 
 	/** the certificate for RPK and X509 mode */
@@ -999,6 +1000,7 @@ public final class DtlsConnectorConfig {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 				case TLS_PSK_WITH_AES_128_CBC_SHA256:
+				case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256:
 					verifyPskBasedCipherConfig();
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
@@ -1050,6 +1052,7 @@ public final class DtlsConnectorConfig {
 			if (config.pskStore != null) {
 				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+				ciphers.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			}
 
 			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[0]);
