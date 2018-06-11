@@ -1,16 +1,35 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch Software Innovations GmbH - initial test, derived from RecordTest
+ ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
+import javax.crypto.Cipher;
+
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -27,6 +46,13 @@ public class CCMBlockCipherTest {
 	static final byte[] aesKey = new byte[]{(byte) 0xC9, 0x0E, 0x6A, (byte) 0xA2, (byte) 0xEF, 0x60, 0x34, (byte) 0x96,
 		(byte) 0x90, 0x54, (byte) 0xC4, (byte) 0x96, 0x65, (byte) 0xBA, 0x03, (byte) 0x9E};
 
+	static boolean strongEncryptionAvailable;
+	
+	@BeforeClass
+	public static void checksetUp() throws Exception {
+		strongEncryptionAvailable = Cipher.getMaxAllowedKeyLength("AES") > 128;
+	}
+	
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
 		// Trying different messages size to hit sharp corners in Coap-over-TCP
@@ -96,6 +122,57 @@ public class CCMBlockCipherTest {
 			return temp;
 		}
 		return data;
+	}
+
+	@Test
+	public void testAES128CCMCryption() throws Exception {
+
+		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 16);
+		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 16);
+		assertTrue(Arrays.equals(decryptedData, payloadData));
+	}
+
+	/**
+	 * Test, if using a 256 key fore encryption and 128 key for decryption fails with invalid MAC.
+	 * Check AES 256 with 1.8.0_144 requires strong encryption enabled
+	 * http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+	 * 1.8.0_171 seems to work out of box.
+	 */
+	@Test(expected = InvalidMacException.class)
+	public void testAES256and128CryptionFails() throws Exception {
+		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		byte[] aesKey256 = ByteArrayUtils.concatenate(aesKey, aesKey);
+		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
+		CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
+	}
+
+	/**
+	 * Check AES 256 with 1.8.0_144 requires strong encryption enabled
+	 * http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+	 * 1.8.0_171 seems to work out of box.
+	 */
+	@Test
+	public void testAES256CCM8Cryption() throws Exception {
+		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		byte[] aesKey256 = ByteArrayUtils.concatenate(aesKey, aesKey);
+		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
+		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 8);
+		assertTrue(Arrays.equals(decryptedData, payloadData));
+	}
+
+	/**
+	 * Check AES 256 with 1.8.0_144 requires strong encryption enabled
+	 * http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+	 * 1.8.0_171 seems to work out of box.
+	 */
+	@Test
+	public void testAES256CCMCryption() throws Exception {
+		// http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+		assumeTrue("requires strong encryption enabled", strongEncryptionAvailable);
+		byte[] aesKey256 = ByteArrayUtils.concatenate(aesKey, aesKey);
+		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 16);
+		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 16);
+		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 
 	@Test
