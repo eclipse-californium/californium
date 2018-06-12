@@ -24,6 +24,8 @@
  *                                                 and empty messages. issue #305
  * Achim Kraus (Bosch Software Innovations GmbH) - use Destination EndpointContext 
  *                                                 for RawData
+ * Achim Kraus (Bosch Software Innovations GmbH) - expose serializeOptionsAndPayload
+ *                                                 and adapt parameters
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -31,8 +33,6 @@ import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
-
-import java.util.List;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
@@ -42,6 +42,34 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 public abstract class DataSerializer {
 
 	/**
+	 * Serializes a message to the wire format.
+	 * <p>
+	 * This does <em>not</em> cache the byte array in the message's <em>bytes</em> property.
+	 * 
+	 * @param message The message to serialize.
+	 * @return The encoded message.
+	 * @throws NullPointerException if message is {@code null}
+	 */
+	public final byte[] getByteArray(final Message message) {
+		if (message == null) {
+			throw new NullPointerException("message must not be null!");
+		}
+		DatagramWriter optionsAndPayloadWriter = new DatagramWriter();
+		serializeOptionsAndPayload(optionsAndPayloadWriter, message.getOptions(), message.getPayload());
+		optionsAndPayloadWriter.writeCurrentByte();
+
+		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
+				message.getRawCode(), message.getMID(), optionsAndPayloadWriter.size());
+
+		DatagramWriter messageWriter = new DatagramWriter();
+		serializeHeader(messageWriter, header);
+		messageWriter.writeCurrentByte();
+		messageWriter.write(optionsAndPayloadWriter);
+
+		return messageWriter.toByteArray();
+	}
+
+	/**
 	 * Serializes a request and caches the result on the request object to skip future serializations.
 	 * <p>
 	 * This method simply invokes {@link #serializeRequest(Request, MessageCallback)} with
@@ -49,6 +77,7 @@ public abstract class DataSerializer {
 	 * 
 	 * @param request The request to serialize.
 	 * @return The object containing the serialized request.
+	 * @throws NullPointerException if request is {@code null}
 	 */
 	public final RawData serializeRequest(final Request request) {
 		return serializeRequest(request, null);
@@ -66,11 +95,14 @@ public abstract class DataSerializer {
 	 * byte array.
 	 * 
 	 * @param request The request to serialize.
-	 * @param outboundCallback The callback to invoke once the message is sent. 
+	 * @param outboundCallback The callback to invoke once the message is sent.
 	 * @return The object containing the serialized request and the callback.
+	 * @throws NullPointerException if request is {@code null}
 	 */
 	public final RawData serializeRequest(final Request request, final MessageCallback outboundCallback) {
-
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
 		if (request.getBytes() == null) {
 			request.setBytes(getByteArray(request));
 		}
@@ -82,56 +114,30 @@ public abstract class DataSerializer {
 	}
 
 	/**
-	 * Serializes a request to the wire format.
-	 * <p>
-	 * The main difference between this and the <em>serializeRequest</em> method is that this method
-	 * does <em>not</em> cache the byte array in the request's <em>bytes</em> property.
-	 * 
-	 * @param request The request to serialize.
-	 * @return The encoded request.
-	 */
-	public final byte[] getByteArray(final Request request) {
-
-		DatagramWriter writer = new DatagramWriter();
-		byte[] body = serializeOptionsAndPayload(request);
-
-		MessageHeader header = new MessageHeader(CoAP.VERSION, request.getType(), request.getToken(),
-				request.getRawCode(), request.getMID(), body.length);
-		serializeHeader(writer, header);
-		writer.writeBytes(body);
-
-		return writer.toByteArray();
-	}
-
-	/**
 	 * Serializes response and caches bytes on the request object to skip future serializations.
 	 * 
 	 * @param response The response to serialize.
 	 * @return The object containing the serialized response.
+	 * @throws NullPointerException if response is {@code null}
 	 */
 	public final RawData serializeResponse(final Response response) {
 		return serializeResponse(response, null);
 	}
-	
+
 	/**
 	 * Serializes response and caches bytes on the request object to skip future serializations.
 	 * 
 	 * @param response The response to serialize.
-	 * @param outboundCallback The callback to invoke once the message is sent. 
+	 * @param outboundCallback The callback to invoke once the message is sent.
 	 * @return The object containing the serialized response.
+	 * @throws NullPointerException if response is {@code null}
 	 */
 	public final RawData serializeResponse(final Response response, final MessageCallback outboundCallback) {
+		if (response == null) {
+			throw new NullPointerException("response must not be null!");
+		}
 		if (response.getBytes() == null) {
-			DatagramWriter writer = new DatagramWriter();
-			byte[] body = serializeOptionsAndPayload(response);
-
-			MessageHeader header = new MessageHeader(CoAP.VERSION, response.getType(), response.getToken(),
-					response.getCode().value, response.getMID(), body.length);
-			serializeHeader(writer, header);
-			writer.writeBytes(body);
-
-			byte[] bytes = writer.toByteArray();
-			response.setBytes(bytes);
+			response.setBytes(getByteArray(response));
 		}
 		return RawData.outbound(
 				response.getBytes(),
@@ -145,29 +151,26 @@ public abstract class DataSerializer {
 	 * 
 	 * @param emptyMessage The message to serialize.
 	 * @return The object containing the serialized message.
+	 * @throws NullPointerException if empty-message is {@code null}
 	 */
 	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage) {
 		return serializeEmptyMessage(emptyMessage, null);
 	}
+
 	/**
 	 * Serializes empty messages and caches bytes on the emptyMessage object to skip future serializations.
 	 * 
 	 * @param emptyMessage The message to serialize.
-	 * @param outboundCallback The callback to invoke once the message is sent. 
+	 * @param outboundCallback The callback to invoke once the message is sent.
 	 * @return The object containing the serialized message.
+	 * @throws NullPointerException if empty-message is {@code null}
 	 */
 	public final RawData serializeEmptyMessage(final EmptyMessage emptyMessage, final MessageCallback outboundCallback) {
+		if (emptyMessage == null) {
+			throw new NullPointerException("empty-message must not be null!");
+		}
 		if (emptyMessage.getBytes() == null) {
-			DatagramWriter writer = new DatagramWriter();
-			byte[] body = serializeOptionsAndPayload(emptyMessage);
-
-			MessageHeader header = new MessageHeader(CoAP.VERSION, emptyMessage.getType(), emptyMessage.getToken(), 0,
-					emptyMessage.getMID(), body.length);
-			serializeHeader(writer, header);
-			writer.writeBytes(body);
-
-			byte[] bytes = writer.toByteArray();
-			emptyMessage.setBytes(bytes);
+			emptyMessage.setBytes(getByteArray(emptyMessage));
 		}
 		return RawData.outbound(
 				emptyMessage.getBytes(),
@@ -184,19 +187,37 @@ public abstract class DataSerializer {
 	 */
 	protected abstract void serializeHeader(DatagramWriter writer, MessageHeader header);
 
-	private static byte[] serializeOptionsAndPayload(final Message message) {
-		DatagramWriter writer = new DatagramWriter();
-		List<Option> options = message.getOptions().asSortedList(); // already
-		// sorted
+	/**
+	 * Serialize options and payload. Append the serialized options and payload
+	 * to the writer.
+	 * 
+	 * @param writer writer to append the data
+	 * @param optionSet option set to be serialized
+	 * @param payload payload to be serialized. Maybe {@code null} for no
+	 *            payload.
+	 * @throws NullPointerException if either writer or options is {@code null}
+	 */
+	public static void serializeOptionsAndPayload(DatagramWriter writer, final OptionSet optionSet,
+			final byte[] payload) {
+		if (writer == null) {
+			throw new NullPointerException("writer must not be null!");
+		}
+		if (optionSet == null) {
+			throw new NullPointerException("option-set must not be null!");
+		}
+		
 		int lastOptionNumber = 0;
-		for (Option option : options) {
+		for (Option option : optionSet.asSortedList()) {
+			byte[] value = option.getValue();
+
 			// write 4-bit option delta
-			int optionDelta = option.getNumber() - lastOptionNumber;
+			int optionNumber = option.getNumber();
+			int optionDelta = optionNumber - lastOptionNumber;
 			int optionDeltaNibble = getOptionNibble(optionDelta);
 			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
 
 			// write 4-bit option length
-			int optionLength = option.getLength();
+			int optionLength = value.length;
 			int optionLengthNibble = getOptionNibble(optionLength);
 			writer.write(optionLengthNibble, OPTION_LENGTH_BITS);
 
@@ -215,13 +236,12 @@ public abstract class DataSerializer {
 			}
 
 			// write option value
-			writer.writeBytes(option.getValue());
+			writer.writeBytes(value);
 
 			// update last option number
-			lastOptionNumber = option.getNumber();
+			lastOptionNumber = optionNumber;
 		}
 
-		byte[] payload = message.getPayload();
 		if (payload != null && payload.length > 0) {
 			// if payload is present and of non-zero length, it is prefixed by
 			// an one-byte Payload Marker (0xFF) which indicates the end of
@@ -229,7 +249,6 @@ public abstract class DataSerializer {
 			writer.writeByte(PAYLOAD_MARKER);
 			writer.writeBytes(payload);
 		}
-		return writer.toByteArray();
 	}
 
 	/**

@@ -1220,7 +1220,7 @@ public class DTLSConnector implements Connector {
 			throw new NullPointerException("Message must not be null");
 		} else if (!running.get()) {
 			throw new IllegalStateException("connector must be started before sending messages is possible");
-		} else if (msg.getBytes().length > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+		} else if (msg.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {

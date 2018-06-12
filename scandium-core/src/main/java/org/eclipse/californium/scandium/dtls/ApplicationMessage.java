@@ -15,11 +15,11 @@
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove cloning of byte array
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -41,16 +41,18 @@ public final class ApplicationMessage extends AbstractMessage {
 
 	/**
 	 * Creates a new <em>APPLICATION_DATA</em> message containing specific data.
+	 * <p>
+	 * The given byte array will not be cloned/copied, i.e. any changes made to
+	 * the byte array after this method has been invoked will be exposed in the
+	 * message's payload.
 	 * 
-	 * @param data
-	 *            the application data.
-	 * @param peerAddress
-	 *            the IP address and port the message is to be sent to or has been
-	 *            received from
+	 * @param data byte array with the application data.
+	 * @param peerAddress the IP address and port the message is to be sent to
+	 *            or has been received from
 	 */
 	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.data = Arrays.copyOf(data, data.length);
+		this.data = data;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -74,6 +76,18 @@ public final class ApplicationMessage extends AbstractMessage {
 		return data;
 	}
 
+	/**
+	 * Create message from byte array.
+	 * <p>
+	 * The given byte array will not be cloned/copied, i.e. any changes made to
+	 * the byte array after this method has been invoked will be exposed in the
+	 * message's payload.
+	 * 
+	 * @param byteArray byte array with the application data.
+	 * @param peerAddress peer's address
+	 * @return created message
+	 * @see #ApplicationMessage(byte[], InetSocketAddress)
+	 */
 	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
 		return new ApplicationMessage(byteArray, peerAddress);
 	}

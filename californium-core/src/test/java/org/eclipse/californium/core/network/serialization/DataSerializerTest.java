@@ -45,7 +45,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-
 /**
  * Verifies behavior of the common functionality of data serializers.
  */
@@ -68,7 +67,7 @@ public class DataSerializerTest {
 	 */
 	@Parameters
 	public static DataSerializer[] getSerializers() {
-		return new DataSerializer[]{new UdpDataSerializer(), new TcpDataSerializer()};
+		return new DataSerializer[] { new UdpDataSerializer(), new TcpDataSerializer() };
 	}
 
 	/**
@@ -79,7 +78,7 @@ public class DataSerializerTest {
 
 		// GIVEN a CoAP request
 		Request req = Request.newGet();
-		req.setToken(new byte[]{0x00});
+		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
 
 		// WHEN serializing the request to a byte array
@@ -97,7 +96,7 @@ public class DataSerializerTest {
 
 		// GIVEN a CoAP request
 		Request req = Request.newGet();
-		req.setToken(new byte[]{0x00});
+		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
 		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 

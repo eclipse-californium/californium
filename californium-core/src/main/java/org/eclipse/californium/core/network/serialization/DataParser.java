@@ -22,6 +22,7 @@
  *                                                 to MessageFormatException
  * Achim Kraus (Bosch Software Innovations GmbH) - add EndpointContext when parsing
  *                                                 RawData. 
+ * Achim Kraus (Bosch Software Innovations GmbH) - expose parseOptionsAndPayload
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
@@ -30,6 +31,8 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * A base class for parsing CoAP messages from a byte array.
@@ -41,9 +44,14 @@ public abstract class DataParser {
 	 * 
 	 * @param raw contains the byte array to parse.
 	 * @return the message.
-	 * @throws MessageFormatException if the array cannot be parsed into a message.
+	 * @throws MessageFormatException if the raw-data byte array cannot be
+	 *             parsed into a message.
+	 * @throws NullPointerException if the raw-data is {@code null}.
 	 */
 	public final Message parseMessage(final RawData raw) {
+		if (raw == null) {
+			throw new NullPointerException("raw-data must not be null!");
+		}
 		Message message = parseMessage(raw.getBytes());
 		message.setSourceContext(raw.getEndpointContext());
 		return message;
@@ -59,7 +67,7 @@ public abstract class DataParser {
 	public final Message parseMessage(final byte[] msg) {
 
 		String errorMsg = "illegal message code";
-		DatagramReader reader = new DatagramReader(msg);
+		DatagramReader reader = new DatagramReader(new ByteArrayInputStream(msg));
 		MessageHeader header = parseHeader(reader);
 		try {
 			Message message = null;
@@ -94,18 +102,6 @@ public abstract class DataParser {
 
 	/**
 	 * Parses a byte array into a CoAP message header.
-	 * 
-	 * @param raw contains the byte array to parse.
-	 * @return the message header the array has been parsed into.
-	 * @throws MessageFormatException if the array cannot be parsed into a message header.
-	 */
-	public final MessageHeader parseHeader(RawData raw) {
-		DatagramReader reader = new DatagramReader(raw.getBytes());
-		return parseHeader(reader);
-	}
-
-	/**
-	 * Parses a byte array into a CoAP message header.
 	 * <p>
 	 * Subclasses need to override this method according to the concrete type of message
 	 * encoding to support.
@@ -130,7 +126,21 @@ public abstract class DataParser {
 		}
 	}
 
-	private static void parseOptionsAndPayload(DatagramReader reader, Message message) {
+	/**
+	 * Parse options and payload from reader.
+	 * 
+	 * @param reader reader that contains the bytes to parse
+	 * @param message message to set parsed options and payload
+	 * @throws NullPointerException if one of the provided parameters is
+	 *             {@code null}
+	 */
+	public static void parseOptionsAndPayload(DatagramReader reader, Message message) {
+		if (reader == null) {
+			throw new NullPointerException("reader must not be null!");
+		}
+		if (message == null) {
+			throw new NullPointerException("message must not be null!");
+		}
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
 
