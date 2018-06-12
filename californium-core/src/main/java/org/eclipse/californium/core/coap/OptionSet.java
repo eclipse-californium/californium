@@ -144,7 +144,9 @@ public final class OptionSet {
 	 * @param origin the origin to be copied
 	 */
 	public OptionSet(OptionSet origin) {
-		if (origin == null) throw new NullPointerException();
+		if (origin == null) {
+			throw new NullPointerException("option set must not be null!");
+		}
 		if_match_list       = copyList(origin.if_match_list);
 		uri_host            = origin.uri_host;
 		etag_list           = copyList(origin.etag_list);

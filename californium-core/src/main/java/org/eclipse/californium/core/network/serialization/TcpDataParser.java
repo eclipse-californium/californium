@@ -37,8 +37,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 public final class TcpDataParser extends DataParser {
 
 	@Override
-	public MessageHeader parseHeader(final DatagramReader reader) {
-
+	protected MessageHeader parseHeader(final DatagramReader reader) {
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
 		int lengthSize = 0;

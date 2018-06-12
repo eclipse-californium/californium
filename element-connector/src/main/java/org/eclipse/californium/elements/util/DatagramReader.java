@@ -14,6 +14,8 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add "mark" and "reset"
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add constructor without 
+ *                                                    cloning of the provided data.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -50,9 +52,21 @@ public final class DatagramReader {
 	 * @param byteArray The byte array to read from.
 	 */
 	public DatagramReader(final byte[] byteArray) {
+		this(new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length)));
+	}
 
+	/**
+	 * Creates a new reader for an bytes stream.
+	 * 
+	 * @param byteStream The byte stream to read from.
+	 * @throws NullPointerException, if byte stream is {@code null}
+	 */
+	public DatagramReader(final ByteArrayInputStream byteStream) {
+		if (byteStream == null) {
+			throw new NullPointerException("byte stream must not be null!");
+		}
 		// initialize underlying byte stream
-		byteStream = new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length));
+		this.byteStream = byteStream;
 
 		// initialize bit buffer
 		currentByte = 0;
