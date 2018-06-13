@@ -52,6 +52,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - workaround for open jdk URI bug
  *    Achim Kraus (Bosch Software Innovations GmbH) - add striped execution
  *                                                    based on exchange
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add coap-stack-factory
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -273,7 +274,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(new UDPConnector(address), true, config, null, null, null, null);
+		this(new UDPConnector(address), true, config, null, null, null, null, null);
 	}
 
 	/**
@@ -284,8 +285,9 @@ public class CoapEndpoint implements Endpoint {
 	 * @param exchangeStore The store to use for keeping track of message exchanges.
 	 */
 	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final MessageExchangeStore exchangeStore) {
-		this(new UDPConnector(address), true, config, null, null, exchangeStore, null);
+	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config,
+			final MessageExchangeStore exchangeStore) {
+		this(new UDPConnector(address), true, config, null, null, exchangeStore, null, null);
 	}
 
 	/**
@@ -299,7 +301,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, false, config, null, null, null, null);
+		this(connector, false, config, null, null, null, null, null);
 	}
 
 	/**
@@ -312,7 +314,7 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	@Deprecated
 	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(new UDPConnector(address), true, config, null, store, null, null);
+		this(new UDPConnector(address), true, config, null, store, null, null, null);
 	}
 
 	/**
@@ -330,7 +332,7 @@ public class CoapEndpoint implements Endpoint {
 	@Deprecated
 	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
 			MessageExchangeStore exchangeStore) {
-		this(connector, false, config, null, store, exchangeStore, null);
+		this(connector, false, config, null, store, exchangeStore, null, null);
 	}
 
 	/**
@@ -355,21 +357,25 @@ public class CoapEndpoint implements Endpoint {
 	 *            responses to requests. If <code>null</code>, the result of
 	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
 	 *            is used as matcher.
+	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher) {
+			EndpointContextMatcher endpointContextMatcher, CoapStackFactory coapStackFactory) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 
-		// when remove the deprecated constructors, this checks and defaults
-		// maybe removed also
+		// when remove the deprecated constructors,
+		// this checks and defaults maybe also removed
 		if (tokenGenerator == null) {
 			tokenGenerator = new RandomTokenGenerator(config);
+		}
+		if (coapStackFactory == null) {
+			coapStackFactory = getDefaultCoapStackFactory();
 		}
 		MessageExchangeStore localExchangeStore = (null != exchangeStore) ? exchangeStore
 				: new InMemoryMessageExchangeStore(config, tokenGenerator);
@@ -392,7 +398,7 @@ public class CoapEndpoint implements Endpoint {
 				throw new IllegalArgumentException("Connector must be a UDPConnector to use apply configuration!");
 			}
 		}
-		
+
 		Executor exchangeExecutionHandler = new Executor() {
 
 			@Override
@@ -410,16 +416,16 @@ public class CoapEndpoint implements Endpoint {
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{} uses {}", new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
 
+		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl());
+
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					localExchangeStore, exchangeExecutionHandler, endpointContextMatcher);
-			this.coapstack = createTcpStack(config, new OutboxImpl());
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					localExchangeStore, exchangeExecutionHandler, endpointContextMatcher);
-			this.coapstack = createUdpStack(config, new OutboxImpl());
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
@@ -1088,14 +1094,6 @@ public class CoapEndpoint implements Endpoint {
 		}
 	}
 
-	protected CoapStack createUdpStack(NetworkConfig config, Outbox outbox) {
-		return new CoapUdpStack(config, outbox);
-	}
-
-	protected CoapStack createTcpStack(NetworkConfig config, Outbox outbox) {
-		return new CoapTcpStack(config, outbox);
-	}
-
 	/**
 	 * Builder to create CoapEndpoints.
 	 */
@@ -1152,6 +1150,10 @@ public class CoapEndpoint implements Endpoint {
 		 * Token generator for endpoint.
 		 */
 		private TokenGenerator tokenGenerator;
+		/**
+		 * Coap-stack-factory to create coap-stack.
+		 */
+		private CoapStackFactory coapStackFactory;
 
 		/**
 		 * Create new builder.
@@ -1350,6 +1352,20 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		/**
+		 * Set coap-stack-factory.
+		 * 
+		 * Provides a fluent API to chain setters.
+		 * 
+		 * @param coapStackFactory factory for coap-stack
+		 * @return this
+		 * @see #coapStackFactory
+		 */
+		public CoapEndpointBuilder setCoapStackFactory(CoapStackFactory coapStackFactory) {
+			this.coapStackFactory = coapStackFactory;
+			return this;
+		}
+
+		/**
 		 * Create {@link CoapEndpoint} using the provided parameter or defaults.
 		 * 
 		 * @return new endpoint
@@ -1376,8 +1392,60 @@ public class CoapEndpoint implements Endpoint {
 			if (endpointContextMatcher == null) {
 				endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 			}
+			if (coapStackFactory == null) {
+				coapStackFactory = getDefaultCoapStackFactory();
+			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher);
+					exchangeStore, endpointContextMatcher, coapStackFactory);
 		}
 	}
+
+	/**
+	 * Default coap-stack-factory. Intended to be set only once.
+	 */
+	private static CoapStackFactory defaultCoapStackFactory;
+
+	/**
+	 * Get default coap-stack-factory. Setup default implementation, if factory
+	 * is not provided before.
+	 * 
+	 * @return default coap-stack-factory
+	 */
+	private static synchronized CoapStackFactory getDefaultCoapStackFactory() {
+		if (defaultCoapStackFactory == null) {
+			defaultCoapStackFactory = new CoapStackFactory() {
+
+				public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+					if (CoAP.isTcpProtocol(protocol)) {
+						return new CoapTcpStack(config, outbox);
+					} else {
+						return new CoapUdpStack(config, outbox);
+					}
+				}
+			};
+
+		}
+		return defaultCoapStackFactory;
+	}
+
+	/**
+	 * Setup default coap-stack-factory.
+	 * 
+	 * Intended to be setup initially. Therefore a {@link IllegalStateException}
+	 * will be caused, if called twice or after creating the first endpoint.
+	 * 
+	 * @param newFactory new coap-stack-factory
+	 * @throws NullPointerException if new factory is {@code null}
+	 * @throws IllegalStateException if factory is already set.
+	 */
+	public static synchronized void setDefaultCoapStackFactory(CoapStackFactory newFactory) {
+		if (defaultCoapStackFactory != null) {
+			throw new IllegalStateException("Default coap-stack-factory already set!");
+		}
+		if (newFactory == null) {
+			throw new NullPointerException("new coap-stack-factory must not be null!");
+		}
+		defaultCoapStackFactory = newFactory;
+	}
+
 }

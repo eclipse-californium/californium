@@ -28,10 +28,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.TestTools;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
@@ -113,7 +115,7 @@ public class MessageExchangeStoreTool {
 				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
-		assertTrue("endpoint still contains states", endpoint.isEmptyWithDump());
+		assertTrue("endpoint still contains states", isEmptyWithDump(endpoint));
 		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests() + " not terminated with an event",
 				endpoint.getRequestChecker().allRequestsTerminated());
 	}
@@ -129,6 +131,14 @@ public class MessageExchangeStoreTool {
 		}
 	}
 
+	private static boolean isEmptyWithDump(CoapTestEndpoint endpoint) {
+		boolean empty = endpoint.isEmpty();
+		if (!empty) {
+			endpoint.getExchangeStore().dump(5);
+		}
+		return empty;
+	}
+
 	private static boolean isEmptyWithDump(InMemoryMessageExchangeStore exchangeStore) {
 		boolean empty = exchangeStore.isEmpty();
 		if (!empty) {
@@ -136,6 +146,16 @@ public class MessageExchangeStoreTool {
 		}
 		return empty;
 	}
+
+	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
+
+		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+			if (CoAP.isTcpProtocol(protocol)) {
+				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
+			}
+			return new CoapUdpTestStack(config, outbox);
+		}
+	};
 
 	public static class CoapUdpTestStack extends CoapUdpStack {
 
@@ -164,14 +184,13 @@ public class MessageExchangeStoreTool {
 
 		private final InMemoryMessageExchangeStore exchangeStore;
 		private final InMemoryObservationStore observationStore;
-		private CoapUdpTestStack stack;
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				boolean checkAddress) {
 			super(new UDPConnector(bind), true, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, new UdpEndpointContextMatcher(checkAddress));
+					exchangeStore, new UdpEndpointContextMatcher(checkAddress), COAP_STACK_TEST_FACTORY);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
@@ -186,12 +205,6 @@ public class MessageExchangeStoreTool {
 			this(bind, config, true);
 		}
 
-		@Override
-		protected CoapStack createUdpStack(NetworkConfig config, Outbox outbox) {
-			stack = new CoapUdpTestStack(config, outbox);
-			return stack;
-		}
-
 		public InMemoryMessageExchangeStore getExchangeStore() {
 			return exchangeStore;
 		}
@@ -201,15 +214,11 @@ public class MessageExchangeStoreTool {
 		}
 
 		public CoapUdpTestStack getStack() {
-			return stack;
+			return (CoapUdpTestStack) coapstack;
 		}
 
 		public boolean isEmpty() {
-			return exchangeStore.isEmpty() && (stack == null || stack.isEmpty());
-		}
-
-		public boolean isEmptyWithDump() {
-			return MessageExchangeStoreTool.isEmptyWithDump(exchangeStore) && (stack == null || stack.isEmpty());
+			return exchangeStore.isEmpty() && getStack().isEmpty();
 		}
 
 		@Override
