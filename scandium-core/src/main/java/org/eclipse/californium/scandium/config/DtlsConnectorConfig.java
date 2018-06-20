@@ -41,6 +41,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsStore;
+import org.eclipse.californium.scandium.dtls.credentialsstore.DtlsConfigCredentialsStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -128,6 +130,8 @@ public final class DtlsConnectorConfig {
 
 	/** default is trust all RPKs **/
 	private TrustedRpkStore trustedRPKs;
+	
+	private CredentialsStore credentialsStore;
 
 	private Integer outboundMessageBufferSize;
 
@@ -402,6 +406,10 @@ public final class DtlsConnectorConfig {
 	 */
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
+	}
+
+	public CredentialsStore getCredentialsStore() {
+		return credentialsStore;
 	}
 
 	/**
@@ -1012,6 +1020,7 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
+			config.credentialsStore = new DtlsConfigCredentialsStore(config);
 			return config;
 		}
 

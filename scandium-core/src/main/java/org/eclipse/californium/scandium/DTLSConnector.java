@@ -138,6 +138,7 @@ import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
@@ -1097,8 +1098,10 @@ public class DTLSConnector implements Connector {
 		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), false, record.getSequenceNumber());
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
+		CredentialsConfiguration credConfig = config.getCredentialsStore()
+				.getCredentialsConfiguration(newSession.getPeer());
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
-				getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+				getRecordLayerForPeer(peerConnection), peerConnection, config, credConfig, maximumTransmissionUnit);
 		addSessionCacheSynchronization(handshaker);
 		handshaker.processMessage(record);
 	}
@@ -1129,8 +1132,10 @@ public class DTLSConnector implements Connector {
 			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
 					ticket, record.getSequenceNumber());
 
+			CredentialsConfiguration credConfig = config.getCredentialsStore()
+					.getCredentialsConfiguration(sessionToResume.getPeer());
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
-					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+					getRecordLayerForPeer(peerConnection), peerConnection, config, credConfig, maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 
 			if (previousConnection.hasEstablishedSession()) {
@@ -1290,11 +1295,13 @@ public class DTLSConnector implements Connector {
 			}
 			// no session with peer established yet, create new empty session &
 			// start handshake
+			CredentialsConfiguration credConfig = config.getCredentialsStore().getCredentialsConfiguration(peerAddress);
 			Handshaker handshaker = new ClientHandshaker(
 					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
 					getRecordLayerForPeer(connection),
 					connection,
 					config,
+					credConfig,
 					maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
@@ -1309,8 +1316,10 @@ public class DTLSConnector implements Connector {
 			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
 			terminateConnection(connection, null, null);
 			connectionStore.put(newConnection);
-			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
-					getRecordLayerForPeer(newConnection), newConnection, config, maximumTransmissionUnit);
+			CredentialsConfiguration credConfig = config.getCredentialsStore()
+					.getCredentialsConfiguration(session.getPeer());
+			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, getRecordLayerForPeer(newConnection),
+					newConnection, config, credConfig, maximumTransmissionUnit);
 			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();

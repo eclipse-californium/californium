@@ -37,6 +37,7 @@ import java.security.cert.Certificate;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -201,13 +202,11 @@ public class ClientHandshakerTest {
 		} else if (configureEmptyTrustStore) {
 			builder.setTrustStore(new Certificate[0]);
 		}
+		DtlsConnectorConfig config = builder.build();
+		CredentialsConfiguration credConfig = config.getCredentialsStore().getCredentialsConfiguration(peer);
 
-		handshaker = new ClientHandshaker(
-				DTLSSession.newClientSession(peer, virtualHost),
-				recordLayer,
-				null,
-				builder.build(),
-				MAX_TRANSMISSION_UNIT);
+		handshaker = new ClientHandshaker(DTLSSession.newClientSession(peer, virtualHost), recordLayer, null, config,
+				credConfig, MAX_TRANSMISSION_UNIT);
 	}
 
 	private static void assertPreferredServerCertificateExtension(final ClientHello msg, final CertificateType expectedType) {

@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +59,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Constructor ////////////////////////////////////////////////////
 
 	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+			DtlsConnectorConfig config, CredentialsConfiguration credConfig, int maxTransmissionUnit) {
+		super(sequenceNumber, session, recordLayer, sessionListener, config, credConfig, maxTransmissionUnit);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
