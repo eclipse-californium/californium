@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix 475112
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use ephemeral ports in endpoint addresses
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -62,7 +64,7 @@ public class ClientHandshakerTest {
 
 	private void givenAClientHandshaker(boolean configureTrustStore) throws Exception {
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setIdentity(
 						DtlsTestTools.getPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),

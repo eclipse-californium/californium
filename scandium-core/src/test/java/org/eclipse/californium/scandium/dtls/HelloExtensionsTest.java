@@ -13,6 +13,8 @@
  * Contributors:
  *    Kai Hudalla, Bosch Software Innovations GmbH
  *    Kai Hudalla (Bosch Software Innovations GmbH) - adapt to HelloExtensions changes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -43,7 +45,7 @@ public class HelloExtensionsTest {
 
 	@Before
 	public void setUp() throws UnknownHostException {
-		peerAddress = new InetSocketAddress(InetAddress.getLocalHost(), 5684);
+		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 	}
 
 	@Test
