@@ -21,6 +21,8 @@
  *                                                    add testServerCertExtPrefersX509WithEmptyTrustStore
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -187,7 +189,7 @@ public class ClientHandshakerTest {
 
 		DtlsConnectorConfig.Builder builder = 
 				new DtlsConnectorConfig.Builder()
-					.setAddress(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),

@@ -14,6 +14,8 @@
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add test cases for verifying sequence number handling
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -68,7 +70,7 @@ public class RecordTest {
 		for ( int i = 0; i < payloadLength; i++) {
 			payloadData[i] = 0x34;
 		}
-		session = new DTLSSession(new InetSocketAddress(InetAddress.getLocalHost(), 7000), true);
+		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7000), true);
 		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
 		session.setReadState(readState);
