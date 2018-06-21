@@ -15,6 +15,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add support for anonymous client-only
  *                                                    configuration
  *    Kai Hudalla (Bosch Software Innovations GmbH) - fix bug 483559
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.config;
 
@@ -46,7 +48,7 @@ public class DtlsConnectorConfigTest {
 
 	@Before
 	public void setUp() throws Exception {
-		endpoint =  new InetSocketAddress(InetAddress.getLocalHost(), 10000);
+		endpoint =  new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
 		builder = new DtlsConnectorConfig.Builder(endpoint);
 	}
 
