@@ -51,6 +51,11 @@ public class CountingHandler implements CoapHandler {
 		return waitForCalls(counter, timeout, unit, loadCalls);
 	}
 
+	public boolean waitForErrorCalls(final int counter, final long timeout, final TimeUnit unit)
+			throws InterruptedException {
+		return waitForCalls(counter, timeout, unit, errorCalls);
+	}
+
 	private synchronized boolean waitForCalls(final int counter, final long timeout, final TimeUnit unit,
 			AtomicInteger calls) throws InterruptedException {
 		if (0 < timeout) {

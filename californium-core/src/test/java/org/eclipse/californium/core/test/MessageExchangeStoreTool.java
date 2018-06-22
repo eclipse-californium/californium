@@ -43,6 +43,8 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 
@@ -186,23 +188,28 @@ public class MessageExchangeStoreTool {
 		private final InMemoryObservationStore observationStore;
 		private RequestEventChecker requestChecker;
 
-		private CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config,
+		private CoapTestEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
-				boolean checkAddress) {
-			super(new UDPConnector(bind), true, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, new UdpEndpointContextMatcher(checkAddress), COAP_STACK_TEST_FACTORY);
+				EndpointContextMatcher matcher) {
+			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
+					exchangeStore, matcher, COAP_STACK_TEST_FACTORY);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean checkAddress) {
-			this(bind, config, new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config),
-					checkAddress);
+			this(new UDPConnector(bind), true, config, new InMemoryObservationStore(config),
+					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config) {
 			this(bind, config, true);
+		}
+
+		public CoapTestEndpoint(Connector connector, NetworkConfig config, EndpointContextMatcher matcher) {
+			this(connector, false, config, new InMemoryObservationStore(config),
+					new InMemoryMessageExchangeStore(config), matcher);
 		}
 
 		public InMemoryMessageExchangeStore getExchangeStore() {
