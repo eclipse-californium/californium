@@ -16,47 +16,49 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A layer that reacts to user cancelled outgoing requests, and completes exchange, which causes state clean up.
+ * A layer that reacts to user cancelled outgoing requests or messages which
+ * failed to be send, and completes exchange, which causes state clean up.
  */
 public class ExchangeCleanupLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class.getName());
+	static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class.getName());
 
 	/**
-	 * Adds a message observer to the request to be sent which
-	 * completes the exchange if the request gets canceled.
+	 * Adds a message observer to the request to be sent which completes the
+	 * exchange if the request gets canceled or failed.
 	 * 
-	 * @param exchange The (locally originating) exchange that the request is part of.
+	 * @param exchange The (locally originating) exchange that the request is
+	 *            part of.
 	 * @param request The outbound request.
 	 */
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		request.addMessageObserver(new CancelledMessageObserver(exchange));
-		lower().sendRequest(exchange, request);
+		request.addMessageObserver(new CleanupMessageObserver(exchange));
+		super.sendRequest(exchange, request);
 	}
 
-	private static class CancelledMessageObserver extends MessageObserverAdapter {
+	/**
+	 * Adds a message observer to a confirmable response to be sent which
+	 * completes the exchange if the response gets canceled or failed.
+	 * 
+	 * @param exchange The (remotely originating) exchange that the response is
+	 *            part of.
+	 * @param response The outbound response.
+	 */
+	@Override
+	public void sendResponse(final Exchange exchange, final Response response) {
 
-		private final Exchange exchange;
-
-		CancelledMessageObserver(final Exchange exchange) {
-			this.exchange = exchange;
+		if (response.isConfirmable() && !response.isNotification()) {
+			response.addMessageObserver(new CleanupMessageObserver(exchange));
 		}
-
-		@Override
-		public void onCancel() {
-			if (exchange.executeComplete()) {
-				LOGGER.debug("{}, canceled request [MID={}, {}]", exchange,
-						exchange.getRequest().getMID(), exchange.getRequest().getToken());
-			}
-		}
+		super.sendResponse(exchange, response);
 	}
 }
