@@ -108,7 +108,7 @@ public class CoapClient {
 	private boolean detachExecutor;
 
 	/** The endpoint. */
-	private Endpoint endpoint;
+	protected Endpoint endpoint;
 
 	/**
 	 * Constructs a new CoapClient that has no destination URI yet.
