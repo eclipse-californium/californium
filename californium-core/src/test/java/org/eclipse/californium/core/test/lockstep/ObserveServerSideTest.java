@@ -38,7 +38,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
@@ -58,6 +58,8 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.ErrorInjector;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -512,6 +514,45 @@ public class ObserveServerSideTest {
 		// no leak.
 	}
 
+	@Test
+	public void testFailedToSendNonNotification() throws Exception {
+
+		System.out.println("Establish an observe relation and failed to send NON notification");
+		respPayload = generateRandomPayload(30);
+		Token tok = generateNextToken();
+		
+		ErrorInjector errorInjector = new ErrorInjector();
+		serverEndpoint.addInterceptor(errorInjector);
+
+		respType = null;
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse().type(ACK).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
+
+		Thread.sleep(100);
+		// First notification
+		testObsResource.change("First notification " + generateRandomPayload(10));
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID1").checkObs("A", "B").payload(respPayload).go();
+
+		Thread.sleep(100);
+		// Simulate error when we send response
+		errorInjector.setErrorOnReadyToSend();
+		testObsResource.change("Second notification " + generateRandomPayload(10));
+
+		Thread.sleep(100);
+		Assert.assertEquals("Resource has still its observe relation:", 1, testObsResource.getObserverCount());
+		
+		// Ensure we get the third notification
+		Thread.sleep(100);
+		testObsResource.change("Third notification " + generateRandomPayload(10));
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID3").checkObs("B", "C").payload(respPayload).go();
+
+		// Cancel observe relation 
+		System.out.println("Reject notification");
+		client.sendEmpty(RST).loadMID("MID3").go();
+	}
+
 	// All tests are made with this resource
 	private static class TestObserveResource extends CoapResource {
 
@@ -527,6 +568,7 @@ public class ObserveServerSideTest {
 			response.setType(respType); // respType is altered throughout the test cases
 			response.setPayload(respPayload); // payload is altered throughout the test cases
 			addEtag(response);
+			
 			exchange.respond(response);
 		}
 
