@@ -116,6 +116,7 @@ public final class UdpMatcher extends BaseMatcher {
 		}
 
 		try {
+			addCleaner(exchange, request);
 			if (exchangeStore.registerOutboundRequest(exchange)) {
 				exchange.setRemoveHandler(exchangeRemoveHandler);
 				LOGGER.debug("tracking open request [MID: {}, Token: {}]", request.getMID(), request.getToken());
@@ -142,6 +143,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// If this is a CON notification we now can forget
 			// all previous NON notifications
 			exchange.removeNotifications();
+			addCleaner(exchange, response);
 			exchangeStore.registerOutboundResponse(exchange);
 			ready = false;
 		} else if (response.getType() == Type.NON) {
@@ -151,6 +153,7 @@ public final class UdpMatcher extends BaseMatcher {
 				// by a peer that wants to cancel the observation
 				// these NON notifications will later be removed from the
 				// exchange store when Exchange.setComplete() is called
+				addCleaner(exchange, response);
 				exchangeStore.registerOutboundResponse(exchange);
 				ready = false;
 			} else {

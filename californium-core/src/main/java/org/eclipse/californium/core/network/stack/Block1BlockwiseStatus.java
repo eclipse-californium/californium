@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -31,9 +32,25 @@ import org.eclipse.californium.core.network.Exchange;
 public final class Block1BlockwiseStatus extends BlockwiseStatus {
 
 	private Request request;
+	private Request currentblockRequest;
 
-	private Block1BlockwiseStatus(final int bufferSize, final int contentFormat) {
+	private Block1BlockwiseStatus(final int bufferSize, final int contentFormat, Request request) {
 		super(bufferSize, contentFormat);
+		if (request != null) {
+			this.request = request;
+			// canceling parent request must cancel block request.
+			request.addMessageObserver(new MessageObserverAdapter() {
+
+				@Override
+				public void onCancel() {
+					synchronized (Block1BlockwiseStatus.this) {
+						if (currentblockRequest != null && !currentblockRequest.isCanceled()) {
+								currentblockRequest.setCanceled(true);
+						}
+					}
+				}
+			});
+		}
 	}
 
 	/**
@@ -45,8 +62,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @return The tracker.
 	 */
 	public static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
-		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat());
-		status.request = request;
+		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat(), request);
 		status.exchange = exchange;
 		status.setCurrentSzx(BlockOption.size2Szx(preferredBlockSize));
 		return status;
@@ -66,7 +82,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		if (block.getOptions().hasSize1()) {
 			bufferSize = block.getOptions().getSize1();
 		}
-		Block1BlockwiseStatus status = new Block1BlockwiseStatus(bufferSize, contentFormat);
+		Block1BlockwiseStatus status = new Block1BlockwiseStatus(bufferSize, contentFormat, null);
 		status.exchange = exchange;
 		status.setFirst(block);
 		return status;
@@ -140,6 +156,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		block.getOptions().setBlock1(szx, m, num);
 
 		setComplete(!m);
+		currentblockRequest = block;
 		return block;
 	}
 
