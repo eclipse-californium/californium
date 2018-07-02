@@ -26,12 +26,13 @@
  *                                                    reused by the cancel request. Therefore
  *                                                    rely on the cleanup of the cancel request.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Use remove to cleanup canceled tasks.
+ *                                                    fix issue #681
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -59,7 +60,7 @@ public class CoapObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
 
 	/** A executor service to schedule re-registrations */
-	private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(//
+	private static final ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, //
 			new DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
 
 	/** The endpoint. */
@@ -89,6 +90,17 @@ public class CoapObserveRelation {
 	private volatile ObserveNotificationOrderer orderer;
 
 	private volatile NotificationListener notificationListener;
+
+	/**
+	 * Task to schedule {@link CoapObserveRelation#reregister()}.
+	 */
+	private final Runnable reregister = new Runnable() {
+
+		@Override
+		public void run() {
+			reregister();
+		}
+	};
 
 	/**
 	 * Constructs a new CoapObserveRelation with the specified request.
@@ -162,7 +174,7 @@ public class CoapObserveRelation {
 		Request request = this.request;
 		EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
 				: request.getDestinationContext();
-		
+
 		Request cancel = Request.newGet();
 		cancel.setDestinationContext(destinationContext);
 		// use same Token
@@ -275,20 +287,18 @@ public class CoapObserveRelation {
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
 		ScheduledFuture<?> previousHandle = this.reregistrationHandle.getAndSet(reregistrationHandle);
 		if (previousHandle != null) {
-			previousHandle.cancel(false);
+			if (previousHandle instanceof Runnable) {
+				scheduler.remove((Runnable) previousHandle);
+			} else {
+				previousHandle.cancel(false);
+			}
 		}
 	}
 
 	private void prepareReregistration(CoapResponse response, long backoff) {
 		if (!isCanceled()) {
 			long timeout = response.getOptions().getMaxAge() * 1000 + backoff;
-			ScheduledFuture<?> f = scheduler.schedule(new Runnable() {
-	
-				@Override
-				public void run() {
-					reregister();
-				}
-			}, timeout, TimeUnit.MILLISECONDS);
+			ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
 			setReregistrationHandle(f);
 		}
 	}
