@@ -53,6 +53,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add striped execution
  *                                                    based on exchange
  *    Achim Kraus (Bosch Software Innovations GmbH) - add coap-stack-factory
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use checkMID to support
+ *                                                    rejection of previous notifications
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -932,6 +934,9 @@ public class CoapEndpoint implements Endpoint {
 
 						@Override
 						public void runStriped() {
+							// entered striped execution.
+							// recheck, if the response still match the exchange
+							// and the exchange is not changed in the meantime
 							if (exchange.checkCurrentResponse(response)) {
 								exchange.setEndpoint(CoapEndpoint.this);
 								response.setRTT(exchange.calculateRTT());
@@ -976,13 +981,10 @@ public class CoapEndpoint implements Endpoint {
 
 							@Override
 							public void runStriped() {
-								int mid;
-								if (exchange.getOrigin() == Origin.LOCAL) {
-									mid = exchange.getCurrentRequest().getMID();
-								} else {
-									mid = exchange.getCurrentResponse().getMID();
-								}
-								if (message.getMID() == mid) {
+								// entered striped execution.
+								// recheck, it the empty message still match the exchange
+								// and the exchange is not changed in the meantime
+								if (exchange.checkMID(message.getMID())) {
 									exchange.setEndpoint(CoapEndpoint.this);
 									coapstack.receiveEmptyMessage(exchange, message);
 								}

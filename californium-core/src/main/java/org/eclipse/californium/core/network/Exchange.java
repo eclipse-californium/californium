@@ -41,6 +41,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add checkMID to support
+ *                                                    rejection of previous notifications
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -586,6 +588,38 @@ public class Exchange {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Check, if message with provided MID (still) matches this exchange.
+	 * 
+	 * @param mid MID to check.
+	 * @return {@code true}, if the mid matches this exchange, {@code false},
+	 *         otherwise.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 */
+	public boolean checkMID(final int mid) {
+		assertOwner();
+		if (origin == Origin.LOCAL) {
+			return currentRequest.getMID() == mid;
+		}
+
+		if (currentResponse.getMID() == mid) {
+			return true;
+		}
+
+		ObserveRelation relation = this.relation;
+		if (relation != null) {
+			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+				Response previous = iterator.next();
+				if (previous.getMID() == mid) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
