@@ -105,6 +105,7 @@ public final class TcpMatcher extends BaseMatcher {
 			registerObserve(request);
 		}
 		exchange.setRemoveHandler(exchangeRemoveHandler);
+		addCleaner(exchange, request);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
 		LOGGER.debug("tracking open request using {}", request.getTokenString());
 	}

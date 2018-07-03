@@ -88,16 +88,11 @@ public class CoapUdpStack extends BaseCoapStack {
 	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
 		Layer layers[] = new Layer[] {
-				createExchangeCleanupLayer(config),
 				createObserveLayer(config),
 				createBlockwiseLayer(config),
 				createReliabilityLayer(config)};
 
 		setLayers(layers);
-	}
-
-	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
-		return new ExchangeCleanupLayer();
 	}
 
 	protected Layer createObserveLayer(NetworkConfig config) {

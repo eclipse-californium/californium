@@ -64,13 +64,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -81,6 +79,8 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -288,6 +288,34 @@ public abstract class BaseMatcher implements Matcher {
 			// the request.cancel() has already removed the observation
 			observationStore.remove(token);
 		}
+	}
+
+	protected void addCleaner(final Exchange exchange, final Message message) {
+		message.addMessageObserver(new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				complete("canceled");
+			}
+
+			@Override
+			public void failed() {
+				complete("failed");
+			}
+
+			private void complete(final String action) {
+				if (exchange.executeComplete()) {
+					if (exchange.isOfLocalOrigin()) {
+						LOG.debug("{}, {} request [MID={}, Token={}]", exchange, action, exchange.getRequest().getMID(),
+								exchange.getRequest().getToken());
+					} else {
+						LOG.debug("{}, {} request [MID={}, Token={}]", exchange, action, exchange.getResponse().getMID(),
+								exchange.getResponse().getToken());
+					}
+					message.removeMessageObserver(this);
+				}
+			}
+		});
 	}
 
 	/**

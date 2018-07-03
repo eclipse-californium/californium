@@ -39,9 +39,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -53,6 +51,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.test.CountingMessageObserver;
+import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1179,4 +1179,81 @@ public class ObserveClientSideTest {
 		
 	}
 
+	/**
+	 * Verify there is no leak if we failed before to sent the CoAP request.
+	 */
+	@Test
+	public void testObserveFailureBeforeToSend() throws Exception {
+		System.out.println("Observe fails before we send request:");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send the message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+		errorInjector.setErrorOnReadyToSend();
+
+		// Try to send request
+		Request request = createRequest(GET, path, server);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		CountingMessageObserver counter = new CountingMessageObserver();
+		request.addMessageObserver(counter);
+		request.setObserve();
+		client.sendRequest(request);
+
+		// Wait for error
+		counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+
+		// We should get a error
+		assertEquals("An error is expected", 1, counter.errorCalls.get());
+
+		// @after check there is no leak
+	}
+
+	/**
+	 * Verify there is no leak if we failed before to sent block request for a notification.
+	 */
+	@Test
+	public void testObserveFailureBeforeToSendDuringBlockNotification() throws Exception {
+		System.out.println("Observe fails before we send the next block2 request for a notification");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send the message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+
+		// establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		
+		// Simulate error before we send the next block2 request
+		errorInjector.setErrorOnReadyToSend();
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(notifyPayload.substring(16, 32)).go();
+
+		// TODO We would like to check if the block2 request failed but we have no API for a block2 request which failed to be sent
+
+		// @after check there is no leak
+	}
 }
