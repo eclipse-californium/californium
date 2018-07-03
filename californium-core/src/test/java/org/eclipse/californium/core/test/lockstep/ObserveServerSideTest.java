@@ -356,6 +356,39 @@ public class ObserveServerSideTest {
 	}
 
 	@Test
+	public void testRejectPreviousNON() throws Exception {
+
+		System.out.println("Establish an observe relation and receive NON notifications");
+		respPayload = generateRandomPayload(30);
+		Token tok = generateNextToken();
+
+		respType = null;
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse().type(ACK).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.log(System.lineSeparator() + "Observe relation established");
+
+		Thread.sleep(100);
+		// First notification
+		testObsResource.change("First notification " + generateRandomPayload(10));
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID1").checkObs("A", "B").payload(respPayload).go();
+
+		Thread.sleep(100);
+		testObsResource.change("Second notification " + generateRandomPayload(10));
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID2").checkObs("B", "C").payload(respPayload).go();
+
+		Thread.sleep(100);
+		testObsResource.change("Third notification " + generateRandomPayload(10));
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID3").checkObs("C", "D").payload(respPayload).go();
+
+		System.out.println("Reject 1. notification");
+		client.sendEmpty(RST).loadMID("MID1").go();
+
+		Thread.sleep(100);
+		Assert.assertEquals("Resource has not removed relation:", 0, testObsResource.getObserverCount());
+	}
+
+	@Test
 	public void testNONWithBlock() throws Exception {
 
 		System.out.println("Establish an observe relation and receive NON notifications");
