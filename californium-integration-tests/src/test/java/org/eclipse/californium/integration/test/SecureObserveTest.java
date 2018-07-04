@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -54,6 +53,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.CountingHandler;
 import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
@@ -502,53 +502,6 @@ public class SecureObserveTest {
 
 		public Response getCurrentResponse() {
 			return currentResponse;
-		}
-	}
-
-	private class CountingHandler implements CoapHandler {
-
-		public AtomicInteger loadCalls = new AtomicInteger();
-		public AtomicInteger errorCalls = new AtomicInteger();
-
-		@Override
-		public void onLoad(CoapResponse response) {
-			int counter;
-			synchronized (this) {
-				counter = loadCalls.incrementAndGet();
-				notifyAll();
-			}
-			System.out.println("Received " + counter + ". Notification: " + response.advanced());
-		}
-
-		@Override
-		public void onError() {
-			int counter;
-			synchronized (this) {
-				counter = errorCalls.incrementAndGet();
-				notifyAll();
-			}
-			System.out.println(counter + " Errors!");
-		}
-
-		public boolean waitForLoadCalls(final int counter, final long timeout, final TimeUnit unit)
-				throws InterruptedException {
-			return waitForCalls(counter, timeout, unit, loadCalls);
-		}
-
-		private synchronized boolean waitForCalls(final int counter, final long timeout, final TimeUnit unit,
-				AtomicInteger calls) throws InterruptedException {
-			if (0 < timeout) {
-				long end = System.nanoTime() + unit.toNanos(timeout);
-				while (calls.get() < counter) {
-					long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
-					if (0 < left) {
-						wait(left);
-					} else {
-						break;
-					}
-				}
-			}
-			return calls.get() >= counter;
 		}
 	}
 }

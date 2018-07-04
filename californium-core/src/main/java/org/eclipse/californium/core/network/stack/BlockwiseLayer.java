@@ -889,6 +889,9 @@ public class BlockwiseLayer extends AbstractLayer {
 					 */
 					if (!response.isNotification()) {
 						block.setToken(response.getToken());
+					} else if (exchange.isNotification()) {
+						// Recreate cleanup message observer 
+						request.addMessageObserver(new CleanupMessageObserver(exchange));
 					}
 
 					// copy options
@@ -904,6 +907,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					// add an observer that cleans up the block2 transfer tracker if the
 					// block request fails
 					addBlock2CleanUpObserver(block, key, status);
+					
 
 					status.setCurrentNum(nextNum);
 
