@@ -999,7 +999,7 @@ public class PlugtestChecker {
 			} else if (!invert) {
 				System.out.printf("PASS: Observe (%d)\n",
 						// response.getFirstOption(OptionNumberRegistry.OBSERVE).getIntValue());
-						response.getOptions().getObserve().intValue());
+						response.getOptions().getObserve());
 			} else {
 				System.out.println("PASS: No Observe");
 			}

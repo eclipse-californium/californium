@@ -150,7 +150,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 			InetSocketAddress source = request.getSourceContext().getPeerAddress();
 
-			if (request.getOptions().getObserve() == 0) {
+			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
 				LOGGER.debug("initiating an observe relation between {} and resource {}", source, resource.getURI());
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
@@ -160,7 +160,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
 
-			} else if (request.getOptions().getObserve() == 1) {
+			} else if (request.isObserveCancel()) {
 				// Observe defines 1 for canceling
 				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
 				if (relation != null) {

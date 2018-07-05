@@ -634,7 +634,7 @@ public class Request extends Message {
 	 *         0.
 	 */
 	public final boolean isObserve() {
-		return getOptions().hasObserve() && getOptions().getObserve() == 0;
+		return isObserveOption(0);
 	}
 
 	/**
@@ -649,6 +649,28 @@ public class Request extends Message {
 		}
 		getOptions().setObserve(1);
 		return this;
+	}
+
+	/**
+	 * Checks if this request is used to cancel an observe relation.
+	 * 
+	 * @return {@code true} if this request's <em>observe</em> option is set to
+	 *         1.
+	 */
+	public final boolean isObserveCancel() {
+		return isObserveOption(1);
+	}
+
+	/**
+	 * Checks if this request is used to manage an observe relation.
+	 * 
+	 * @param observe value for observe option
+	 * @return {@code true} if this request's <em>observe</em> option matches
+	 *         the observe parameter, {@code false}, otherwise.
+	 */
+	private final boolean isObserveOption(int observe) {
+		Integer optionObserver = getOptions().getObserve();
+		return optionObserver != null && optionObserver.intValue() == observe;
 	}
 
 	/**
