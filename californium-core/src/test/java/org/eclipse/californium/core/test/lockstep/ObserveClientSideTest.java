@@ -1306,4 +1306,144 @@ public class ObserveClientSideTest {
 		response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
+
+	/**
+	 * Test proactive cancel
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * (Established observe relation)
+	 * CON [MID=27914, T=[d5c120197ca1c3ce]], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=27914, T=[d5c120197ca1c3ce]], 2.05, observe(1)
+	 * (1st Notification)
+	 * <-----   CON [MID=8001, T=[d5c120197ca1c3ce]], 2.05, observe(3)
+	 * ACK [MID=8001]   ----->
+	 * (Send proactive cancel request)
+	 * CON [MID=27915, T=[d5c120197ca1c3ce]], GET, /test, observe(1)    ----->
+	 * <-----   ACK [MID=27915, T=[d5c120197ca1c3ce]], 2.05
+	 * (Next notifications are rejected) 
+	 * <-----   CON [MID=8002, T=[d5c120197ca1c3ce]], 2.05, observe(4)
+	 * RST [MID=8002]   ----->
+	 * <-----   NON [MID=8003, T=[d5c120197ca1c3ce]], 2.05, observe(5)
+	 * RST [MID=8003]   ----->
+	 * </pre>
+	 */
+	@Test
+	public void testProactiveCancel() throws Exception {
+		System.out.println("Proactive cancel");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New CON notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Send pro active cancel
+		client.cancelObservation(request.getToken());
+		Request proactiveCancel = createRequest(GET, path, server);
+		proactiveCancel.setToken(request.getToken());
+		proactiveCancel.setObserveCancel();
+		client.sendRequest(proactiveCancel);
+		server.expectRequest(CON, GET, path).storeBoth("OBSCANCEL").go();
+
+		// Send response to proactive cancel
+		String cancelPayload = generateRandomPayload(32);
+		server.sendResponse(ACK, CONTENT).loadBoth("OBSCANCEL").payload(cancelPayload).go();
+		
+		// Ensure we get the right response
+		Response cancelResponse = proactiveCancel.waitForResponse(1000);
+		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+				
+		// Ensure notification is rejected
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+	}
+
+	/**
+	 * Ensure that a notification is not handled as a proactive cancel response
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * (Established observe relation)
+	 * CON [MID=48159, T=[8b34820a2c98fc19]], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=48159, T=[8b34820a2c98fc19]], 2.05, observe(1)
+	 * (1st Notification)
+	 * <-----   CON [MID=8001, T=[8b34820a2c98fc19]], 2.05, observe(3)
+	 * ACK [MID=8001]   ----->
+	 * (Send proactive cancel request)
+	 * CON [MID=48160, T=[8b34820a2c98fc19]], GET, /test, observe(1)    ----->
+	 * (ignored notifications)
+	 * <-----   CON [MID=8002, T=[8b34820a2c98fc19]], 2.05, observe(4)
+	 * RST [MID=8002]   ----->
+	 * <-----   NON [MID=8003, T=[8b34820a2c98fc19]], 2.05, observe(5)
+	 * RST [MID=8002]   ----->
+	 * (Response for proactive cancel request)
+	 * <-----   ACK [MID=48160, T=[8b34820a2c98fc19]], 2.05
+	 * </pre>
+	 */
+	@Test
+	public void testNotificationIsNotHandledAsProactiveCancelResponse() throws Exception {
+		System.out.println("Notification is not consider as a response of proactive cancel");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New CON notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Send pro active cancel
+		client.cancelObservation(request.getToken());
+		Request proactiveCancel = createRequest(GET, path, server);
+		proactiveCancel.setToken(request.getToken());
+		proactiveCancel.setObserveCancel();
+		client.sendRequest(proactiveCancel);
+		server.expectRequest(CON, GET, path).storeBoth("OBSCANCEL").go();
+
+		// New CON notification
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		// New NON notification
+		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		// Ensure the 2 notifications above was not consider as response for the proactive cancel request
+		Response cancelResponse = proactiveCancel.waitForResponse(500);
+		assertNull("We should not consider notification as response", cancelResponse);
+
+		// Send response to proactive cancel
+		String cancelPayload = generateRandomPayload(32);
+		server.sendResponse(ACK, CONTENT).loadBoth("OBSCANCEL").payload(cancelPayload).go();
+
+		// Ensure we get the right response
+		cancelResponse = proactiveCancel.waitForResponse(1000);
+		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+	}
 }
