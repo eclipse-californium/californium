@@ -1256,4 +1256,54 @@ public class ObserveClientSideTest {
 
 		// @after check there is no leak
 	}
+
+	/**
+	 * This is a bit out of specification but to improve compatibility with
+	 * "buggy" server we would like to ensure that if a server answer to a
+	 * simple GET (without observe) by adding an unexpected observe option we
+	 * will handle it anyway.
+	 */
+	@Test
+	public void testSimpleGetAcceptResponseWithObserveOption() throws Exception {
+		System.out.println("Response with observe option is accepted as response for a GET");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Send simple get request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		// Send a piggyback response with unexpected observe option
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(3).payload(respPayload).go();
+
+		// Ensure we get the response
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("B").go();
+		// We don't send ACK to simulate it is lost
+		// Send a separated CON response with unexpected observe option
+		server.sendResponse(CON, CONTENT).loadToken("B").mid(mid).observe(4).payload(respPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("C").go();
+
+		// Send NON response with unexpected observe option
+		server.sendResponse(NON, CONTENT).loadBoth("C").observe(5).payload(respPayload).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+	}
 }
