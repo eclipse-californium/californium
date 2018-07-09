@@ -1327,4 +1327,52 @@ public class ObserveClientSideTest {
 		assertEquals(mid, cancelResponse.getMID());
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
 	}
+
+	/**
+	 * Ensure that response with unexpected observe option is not ignored
+	 */
+	@Test
+	public void testSimpleGetAcceptResponseWithObserveOption() throws Exception {
+		System.out.println("Response with observe option is accepted as response for a GET");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Send simple get request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		// Send a piggyback response with observe option
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(3).payload(respPayload).go();
+
+		// Ensure we get the response
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("B").go();
+
+		// Send a separated CON response with observe option but ACK is lost
+		server.sendResponse(CON, CONTENT).loadToken("B").mid(mid).observe(4).payload(respPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("C").go();
+
+		// Send NON response with observe option
+		server.sendResponse(NON, CONTENT).loadBoth("C").observe(5).payload(respPayload).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+	}
 }
