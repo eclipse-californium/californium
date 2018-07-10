@@ -66,6 +66,8 @@ public class ClientSynchronousTest {
 	private static final String CONTENT_3 = "three";
 	private static final String CONTENT_4 = "four";
 	private static final String QUERY_UPPER_CASE = "uppercase";
+	private static final String OVERLOAD = "overload";
+	private static final int OVERLOAD_TIME = 123;
 
 	private static CoapServer server;
 	private static Endpoint serverEndpoint;
@@ -229,6 +231,18 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
 	}
 
+	@Test
+	public void testOverloadResponse() throws Exception {
+
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
+		CoapClient client = new CoapClient(uri).useExecutor();
+
+		CoapResponse resp = client.post(OVERLOAD, MediaTypeRegistry.TEXT_PLAIN);
+
+		Assert.assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
+		Assert.assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
+	}
+
 	private static void createServer() {
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
@@ -269,8 +283,13 @@ public class ClientSynchronousTest {
 
 		@Override
 		public void handlePOST(CoapExchange exchange) {
+			String requestText = exchange.getRequestText();
+			if (requestText.equals(OVERLOAD)) {
+				exchange.respondOverload(OVERLOAD_TIME);
+				return;
+			}
 			String old = this.content;
-			this.content = exchange.getRequestText();
+			this.content = requestText;
 			exchange.respond(ResponseCode.CHANGED, old);
 			changed();
 		}
