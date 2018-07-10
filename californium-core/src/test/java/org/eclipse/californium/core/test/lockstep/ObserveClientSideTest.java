@@ -1375,4 +1375,87 @@ public class ObserveClientSideTest {
 		assertResponseContainsExpectedPayload(response, respPayload);
 
 	}
+
+	/**
+	 * Ensure that a notification is not handled as a proactive cancel response
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * </pre>
+	 */
+	@Test
+	public void testNotificationAfterSuccessfulProactiveCancel() throws Exception {
+		System.out.println("Notification is not consider as a response of proactive cancel");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// establish observe relation 
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New CON notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// check, if notification is received
+		assertEquals(1, notificationListener.getNotificationCount());
+
+		// Send pro active cancel
+		Request proactiveCancel = createRequest(GET, path, server);
+		proactiveCancel.setToken(request.getToken());
+		proactiveCancel.setObserveCancel();
+		client.sendRequest(proactiveCancel);
+		server.expectRequest(CON, GET, path).storeBoth("OBSCANCEL").go();
+
+		// New CON notification
+		notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid).go();
+
+		// notification should not be processed
+		assertEquals(1, notificationListener.getNotificationCount());
+
+		// New NON notification
+		notifyPayload = generateRandomPayload(32);
+		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid).go();
+
+		// notification should not be processed
+		assertEquals(1, notificationListener.getNotificationCount());
+
+		// ensure retransmission of the request 
+		server.expectRequest(CON, GET, path).sameBoth("OBSCANCEL").go();
+
+		Response cancelResponse = proactiveCancel.waitForResponse(100);
+		assertNull("We should not consider notification as response", cancelResponse);
+
+		// Send response to proactive cancel
+		String cancelPayload = generateRandomPayload(32);
+		server.sendResponse(ACK, CONTENT).loadBoth("OBSCANCEL").payload(cancelPayload).go();
+
+		cancelResponse = proactiveCancel.waitForResponse(500);
+		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertEquals(proactiveCancel.getMID(), cancelResponse.getMID());
+		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+
+		// and response is also processed as notification
+		assertEquals(2, notificationListener.getNotificationCount());
+
+		// New CON notification
+		notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(6).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid).go();
+
+		// and notifications still not longer be processed
+		assertEquals(2, notificationListener.getNotificationCount());
+	}
 }
