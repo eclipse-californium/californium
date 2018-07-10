@@ -113,9 +113,8 @@ public abstract class BaseMatcher implements Matcher {
 	 *            jobs with a striped executor.
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,
-			 TokenGenerator tokenGenerator,  ObservationStore observationStore,
-			 MessageExchangeStore exchangeStore, Executor executor) {
+	public BaseMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
@@ -166,47 +165,51 @@ public abstract class BaseMatcher implements Matcher {
 	}
 
 	/**
-	 * Register observe request.
+	 * Register observe request or cancel observe request.
 	 * 
 	 * Add observe request to the {@link #observationStore} and set a message
 	 * observer.
 	 * 
-	 * @param request observe request.
+	 * @param request observe or cancel observe request request.
 	 */
 	protected final void registerObserve(final Request request) {
 
 		// Ignore follow-up blockwise request
 		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0) {
-			// add request to the store
-			LOG.debug("registering observe request {}", request);
-			Token token = request.getToken();
-			if (token == null) {
-				do {
-					token = tokenGenerator.createToken(true);
-					request.setToken(token);
-				} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
-			} else {
-				observationStore.put(token, new Observation(request, null));
+			if (request.isObserve()) {
+				// add request to the store
+				LOG.debug("registering observe request {}", request);
+				Token token = request.getToken();
+				if (token == null) {
+					do {
+						token = tokenGenerator.createToken(true);
+						request.setToken(token);
+					} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
+				} else {
+					observationStore.put(token, new Observation(request, null));
+				}
+				// Add observer to remove observation, if the request is
+				// cancelled, rejected, timed out, or send error is reported
+				request.addMessageObserver(new ObservationObserverAdapter(token) {
+
+					@Override
+					public void onCancel() {
+						remove();
+					}
+
+					@Override
+					protected void failed() {
+						remove();
+					}
+
+					@Override
+					public void onContextEstablished(EndpointContext endpointContext) {
+						observationStore.setContext(token, endpointContext);
+					}
+				});
+			} else if (request.isObserveCancel()) {
+				request.addMessageObserver(new NotificationObserverAdapter(request));
 			}
-			// Add observer to remove observation, if the request is cancelled,
-			// rejected, timed out, or send error is reported
-			request.addMessageObserver(new ObservationObserverAdapter(token) {
-
-				@Override
-				public void onCancel() {
-					remove();
-				}
-
-				@Override
-				protected void failed() {
-					remove();
-				}
-
-				@Override
-				public void onContextEstablished(EndpointContext endpointContext) {
-					observationStore.setContext(token, endpointContext);
-				}
-			});
 		}
 	}
 
@@ -220,41 +223,22 @@ public abstract class BaseMatcher implements Matcher {
 	 */
 	protected final Exchange matchNotifyResponse(final Response response) {
 
-		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
 			Token token = response.getToken();
 			Observation obs = observationStore.get(token);
 			if (obs != null) {
 				// there is an observation for the token from the response
-				// re-create a corresponding Exchange object for it so
-				// that the "upper" layers can correctly process the
-				// notification response
+				// re-create a corresponding Exchange object for it so that the
+				// "upper" layers can correctly process the notification
+				// response
 				final Request request = obs.getRequest();
-				exchange = new Exchange(request, Origin.LOCAL, executor, obs.getContext(), true);
+				final Exchange exchange = new Exchange(request, Origin.LOCAL, executor, obs.getContext(), true);
 				LOG.debug("re-created exchange from original observe request: {}", request);
-				request.addMessageObserver(new ObservationObserverAdapter(token) {
-
-					@Override
-					public void onResponse(Response response) {
-						try {
-							notificationListener.onNotification(request, response);
-						} finally {
-							if (!response.isNotification()) {
-								// Observe response received with no observe
-								// option set. It could be that the Client was
-								// not able to establish the observe. So remove
-								// the observe relation from observation store,
-								// which was stored earlier when the request was
-								// sent.
-								LOG.debug("observation with token {} removed, removing from observation store", token);
-								remove();
-							}
-						}
-					}
-				});
+				request.addMessageObserver(new NotificationObserverAdapter(request));
+				return exchange;
 			}
 		}
-		return exchange;
+		return null;
 	}
 
 	/**
@@ -331,6 +315,41 @@ public abstract class BaseMatcher implements Matcher {
 		protected void remove() {
 			if (removed.compareAndSet(false, true)) {
 				observationStore.remove(token);
+			}
+		}
+	}
+
+	/**
+	 * Notification observer removing observations.
+	 */
+	private class NotificationObserverAdapter extends ObservationObserverAdapter {
+
+		final Request request;
+
+		/**
+		 * Create observer.
+		 * 
+		 * @param request observe or cancel request
+		 */
+		public NotificationObserverAdapter(Request request) {
+			super(request.getToken());
+			this.request = request;
+		}
+
+		@Override
+		public void onResponse(Response response) {
+			try {
+				notificationListener.onNotification(request, response);
+			} finally {
+				if (!response.isNotification()) {
+					// Observe response received with no observe option set.
+					// It could be that the Client was not able to establish the
+					// observe. So remove the observe relation from observation
+					// store, which was stored earlier when the request was
+					// sent.
+					LOG.debug("observation with token {} removed, removing from observation store", token);
+					remove();
+				}
 			}
 		}
 	}
