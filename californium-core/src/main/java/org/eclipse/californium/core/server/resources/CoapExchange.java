@@ -213,6 +213,20 @@ public class CoapExchange {
 	}
 
 	/**
+	 * Respond a overload.
+	 * 
+	 * Current implementation use 5.03. May be changed, if RFC
+	 * "https://draft-ietf-core-too-many-reqs" gets adopted.
+	 *
+	 * @param seconds estimated time in seconds after which the client may retry
+	 *            to send requests.
+	 */
+	public void respondOverload(int seconds) {
+		setMaxAge(seconds);
+		respond(ResponseCode.SERVICE_UNAVAILABLE);
+	}
+
+	/**
 	 * Respond the specified response code and no payload. Allowed response
 	 * codes are:
 	 * <ul>
