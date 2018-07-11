@@ -39,13 +39,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - call Message.setReadyToSend() to fix
  *                                                    rare race condition in block1wise
  *                                                    when the generated token was copied
- *                                                    too late (after sending). 
+ *                                                    too late (after sending).
  *    Achim Kraus (Bosch Software Innovations GmbH) - call Exchange.setComplete() for all
  *                                                    canceled messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Achim Kraus (Bosch Software Innovations GmbH) - use connectors protocol
  *    Bosch Software Innovations GmbH - migrate to SLF4J
- *    Achim Kraus (Bosch Software Innovations GmbH) - add Builder and deprecate 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add Builder and deprecate
  *                                                    constructors
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator
@@ -55,6 +55,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add coap-stack-factory
  *    Achim Kraus (Bosch Software Innovations GmbH) - use checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorUtils and check,
+ *                                                    if really a new executor is set.
+ *                                                    Create default executor using
+ *                                                    PROTOCOL_STAGE_THREAD_COUNT
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -66,9 +70,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -82,6 +87,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -105,10 +111,9 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -193,14 +198,14 @@ public class CoapEndpoint implements Endpoint {
 	private final DataParser parser;
 
 	/** The executor to run tasks for this endpoint and its layers */
-	private ScheduledExecutorService executor;
+	private ExecutorService executor;
 	/**
 	 * Striped executor facade based on the {@link #executor}.
 	 */
-	private volatile Executor exchangeExecutor;
+	private volatile ExecutorService exchangeExecutor;
 
-	/** Indicates if the endpoint has been started */
-	private boolean started;
+	/** Indicates if the endpoint has been started and wasn't stopped */
+	private volatile boolean running;
 
 	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
 	private List<EndpointObserver> observers = new CopyOnWriteArrayList<>();
@@ -405,7 +410,7 @@ public class CoapEndpoint implements Endpoint {
 
 			@Override
 			public void execute(Runnable command) {
-				Executor executor = exchangeExecutor;
+				final Executor executor = exchangeExecutor;
 				if (executor == null) {
 					LOGGER.error("Executor not ready for exchanges!",
 							new Throwable("exchange execution failed!"));
@@ -435,7 +440,7 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void start() throws IOException {
-		if (started) {
+		if (running) {
 			LOGGER.debug("Endpoint at {} is already started", getUri());
 			return;
 		}
@@ -445,12 +450,12 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		if (this.executor == null) {
-			LOGGER.info("Endpoint [{}] requires an executor to start, using default single-threaded daemon executor", getUri());
+			int threadCount = config.getInt(Keys.PROTOCOL_STAGE_THREAD_COUNT);
+			ThreadFactory factory = new DaemonThreadFactory("CoapEndpoint-" + connector + '#'); //$NON-NLS-1$
+			LOGGER.info("Endpoint [{}] requires an executor to start, using default daemon {} thread executor",
+					getUri(), threadCount);
+			setExecutor(ExecutorsUtil.newScheduledThreadPool(threadCount, factory));
 
-			// in production environments the executor should be set to a multi threaded version
-			// in order to utilize all cores of the processor
-			setExecutor(Executors.newSingleThreadScheduledExecutor(
-					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
 				public void started(final Endpoint endpoint) {
@@ -462,16 +467,17 @@ public class CoapEndpoint implements Endpoint {
 				}
 				@Override
 				public void destroyed(final Endpoint endpoint) {
-					executor.shutdown();
+					exchangeExecutor.shutdown();
 				}
 			});
 		}
-		exchangeExecutor = new StripedExecutorService(executor);
+
+		exchangeExecutor = ExecutorsUtil.stripes(executor);
 
 		try {
 			LOGGER.debug("Starting endpoint at {}", getUri());
 
-			started = true;
+			running = true;
 			matcher.start();
 			connector.start();
 			for (EndpointObserver obs : observers) {
@@ -505,24 +511,23 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void stop() {
-		if (!started) {
+		if (!running) {
 			LOGGER.info("Endpoint at {} is already stopped", getUri());
 		} else {
 			LOGGER.info("Stopping endpoint at {}", getUri());
-			started = false;
-			connector.stop();
+			running = false;
 			matcher.stop();
+			connector.stop();
 			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
-			matcher.clear();
 		}
 	}
 
 	@Override
 	public synchronized void destroy() {
 		LOGGER.info("Destroying endpoint at {}", getUri());
-		if (started) {
+		if (running) {
 			stop();
 		}
 		connector.destroy();
@@ -538,15 +543,19 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public synchronized boolean isStarted() {
-		return started;
+	public synchronized boolean isRunning() {
+		return running;
 	}
 
 	@Override
 	public synchronized void setExecutor(final ScheduledExecutorService executor) {
-		// TODO: don't we need to stop and shut down the previous executor?
-		this.executor = executor;
-		this.coapstack.setExecutor(executor);
+		if (this.executor != executor) {
+			if (running) {
+				throw new IllegalStateException("endpoint already started!");
+			}
+			this.executor = executor;
+			this.coapstack.setExecutor(executor);
+		}
 	}
 
 	@Override
@@ -586,6 +595,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendRequest(final Request request) {
+		if (!running) {
+			request.cancel();
+			return;
+		}
 		// create context, if not already set
 		request.prepareDestinationContext();
 		Exchange exchange = new Exchange(request, Origin.LOCAL, exchangeExecutor);
@@ -600,6 +613,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
+		if (!running) {
+			response.cancel();
+			return;
+		}
 		exchange.execute(new StripedExchangeJob(exchange) {
 
 			@Override
@@ -611,6 +628,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+		if (!running) {
+			message.cancel();
+			return;
+		}
 		exchange.execute(new StripedExchangeJob(exchange) {
 
 			@Override
@@ -713,19 +734,24 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			request.setReadyToSend();
+			if (!running) {
+				request.cancel();
+			}
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
 			if (request.isCanceled()) {
-
-				// make sure we do necessary house keeping, e.g. removing the exchange from
-				// ExchangeStore to avoid memory leak
-				// The Exchange may already have been completed implicitly by client code
-				// invoking Request.cancel().
-				// However, that might have happened BEFORE the exchange got registered with the
-				// ExchangeStore. So, to make sure that we do not leak memory we complete the
-				// Exchange again here, triggering the "housekeeping" functionality in the Matcher
-				exchange.setComplete();
-
+				if (!exchange.isComplete()) {
+					// make sure we do necessary house keeping, e.g. removing
+					// the exchange from ExchangeStore to avoid memory leak.
+					// The Exchange may already have been completed implicitly
+					// by client code invoking Request.cancel().
+					// However, that might have happened BEFORE the exchange got
+					// registered with the ExchangeStore. So, to make sure that
+					// we do not leak memory we complete the Exchange again
+					// here, triggering the "housekeeping" functionality in the
+					// Matcher
+					exchange.setComplete();
+				}
 			} else {
 				RawData message = serializer.serializeRequest(request, new ExchangeCallback(exchange, request));
 				connector.send(message);
@@ -749,9 +775,13 @@ public class CoapEndpoint implements Endpoint {
 			}
 			response.setReadyToSend();
 
+			if (!running) {
+				response.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (response.isCanceled()) {
-				if (null != exchange) {
+				if (null != exchange && !exchange.isComplete()) {
 					exchange.setComplete();
 				}
 			} else {
@@ -774,9 +804,14 @@ public class CoapEndpoint implements Endpoint {
 				interceptor.sendEmptyMessage(message);
 			}
 			message.setReadyToSend();
+
+			if (!running) {
+				message.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (message.isCanceled()) {
-				if (null != exchange) {
+				if (null != exchange && !exchange.isComplete()) {
 					exchange.setComplete();
 				}
 			} else if (exchange != null) {
@@ -811,7 +846,6 @@ public class CoapEndpoint implements Endpoint {
 			} else if (raw.getEndpointContext().getPeerAddress().getPort() == 0) {
 				throw new IllegalArgumentException("received message that does not have a source port");
 			} else {
-
 				// Create a new task to process this message
 				runInProtocolStage(new Runnable() {
 					@Override
@@ -886,9 +920,13 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		private void receiveRequest(final Request request) {
-
 			// set request attributes from raw data
 			request.setScheme(scheme);
+
+			if (!running) {
+				LOGGER.debug("not running, drop request {}", request);
+				return;
+			}
 
 			/* 
 			 * Logging here causes significant performance loss.

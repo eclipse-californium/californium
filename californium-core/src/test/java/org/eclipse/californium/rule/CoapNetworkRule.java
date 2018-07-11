@@ -14,6 +14,8 @@
  *    Bosch Software Innovations - initial implementation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add support for subclassing
+ *    Achim Kraus (Bosch Software Innovations GmbH) - setup PROTOCOL_STAGE_THREAD_COUNT
+ *                                                    using messageThreads
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
@@ -222,6 +224,7 @@ public class CoapNetworkRule extends NetworkRule {
 		NetworkConfig config = new NetworkConfig();
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, threads);
 		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, threads);
+		config.setInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT, threads);
 		return config;
 	}
 }

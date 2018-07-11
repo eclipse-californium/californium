@@ -21,11 +21,10 @@ package org.eclipse.californium.core.server.resources;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
@@ -101,10 +100,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * @param name the name
 	 */
 	public ConcurrentCoapResource(String name) {
-		super(name);
-		this.threads = getAvailableProcessors();
-		setExecutor(Executors.newFixedThreadPool(threads,
-				new NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
+		this(name, getAvailableProcessors());
 	}
 	
 	/**
@@ -117,7 +113,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	public ConcurrentCoapResource(String name, int threads) {
 		super(name);
 		this.threads = threads;
-		setExecutor(Executors.newFixedThreadPool(threads,
+		setExecutor(ExecutorsUtil.newFixedThreadPool(threads,
 				new NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
 	}
 	
@@ -145,7 +141,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * @return the maximum number of processors available to the virtual
      *          machine; never smaller than one
 	 */
-	protected int getAvailableProcessors() {
+	protected static int getAvailableProcessors() {
 		return Runtime.getRuntime().availableProcessors();
 	}
 	

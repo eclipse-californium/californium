@@ -175,7 +175,7 @@ public class EndpointManager {
 		if (null != oldEndpoint) {
 			oldEndpoint.destroy();
 		}
-		if (!newEndpoint.isStarted()) {
+		if (!newEndpoint.isRunning()) {
 			try {
 				newEndpoint.start();
 			} catch (IOException e) {

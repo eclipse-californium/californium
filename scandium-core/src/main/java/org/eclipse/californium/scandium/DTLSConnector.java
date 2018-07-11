@@ -96,7 +96,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -114,6 +113,7 @@ import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -188,17 +188,16 @@ public class DTLSConnector implements Connector {
 	private final ResumptionSupportingConnectionStore connectionStore;
 
 	/**
-	 * (Down-)counter for pending outbound messages. Initialized with
-	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
+	 * Counter for pending outbound messages.
 	 */
-	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
-	
+	private final AtomicInteger pendingOutboundMessagesCounter = new AtomicInteger();
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
-	private Object allertHandlerLock= new Object();
+	private Object alertHandlerLock = new Object();
 
 	private DatagramSocket socket;
 
@@ -225,7 +224,7 @@ public class DTLSConnector implements Connector {
 	private AlertHandler alertHandler;
 	private SessionListener sessionCacheSynchronization;
 	private ExecutorService executor;
-	private boolean hasInternalExecutor;
+	private ExecutorService externalExecutor;
 
 	/**
 	 * Creates a DTLS connector from a given configuration object
@@ -273,7 +272,6 @@ public class DTLSConnector implements Connector {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
 			this.config = configuration;
-			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
@@ -295,12 +293,12 @@ public class DTLSConnector implements Connector {
 	 * @param executor The executor.
 	 * @throws IllegalStateException if his connector is already running.
 	 */
-	public final synchronized void setExecutor(StripedExecutorService executor) {
+	public final synchronized void setExecutor(ExecutorService executor) {
 
 		if (running.get()) {
 			throw new IllegalStateException("cannot set executor while connector is running");
 		} else {
-			this.executor = executor;
+			this.externalExecutor = executor;
 		}
 	}
 
@@ -352,26 +350,30 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 
-		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
+		pendingOutboundMessagesCounter.set(0);
 
-		timer = Executors.newSingleThreadScheduledExecutor(
-				new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+		if (externalExecutor instanceof ScheduledExecutorService) {
+			timer = (ScheduledExecutorService) externalExecutor;
+		} else {
+			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(
+					new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+		}
 
-		if (executor == null) {
-			int threadCount; 
+		if (externalExecutor != null) {
+			executor = ExecutorsUtil.stripes(externalExecutor);
+		} else {
+			int threadCount;
 			if (config.getConnectionThreadCount() == null) {
 				threadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
 			} else {
 				threadCount = config.getConnectionThreadCount();
 			}
-			if (threadCount == 1) {
-				// Scheduling Striped task is costly so if user require only 1 Thread, we use a simple SingleThreadExecutor
-				executor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
-			} else {
-				executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));	
+			ExecutorService simpleExecutor = timer;
+			if (threadCount > 1) {
+				simpleExecutor = ExecutorsUtil.newFixedThreadPool(threadCount,
+						new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
 			}
-			
-			this.hasInternalExecutor = true;
+			executor = ExecutorsUtil.stripes(simpleExecutor);
 		}
 		socket = new DatagramSocket(null);
 		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
@@ -403,9 +405,9 @@ public class DTLSConnector implements Connector {
 			MaxFragmentLengthExtension.Length lengthCode = MaxFragmentLengthExtension.Length.fromCode(
 					config.getMaxFragmentLengthCode());
 			// reduce inbound buffer size accordingly
-			inboundDatagramBufferSize = lengthCode.length()
-					+ MAX_CIPHERTEXT_EXPANSION
-					+ 25; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
+			// 12 bytes DTLS message headers,
+			// 13 bytes DTLS record headers
+			inboundDatagramBufferSize = lengthCode.length() + MAX_CIPHERTEXT_EXPANSION + 25;
 		}
 
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
@@ -462,19 +464,6 @@ public class DTLSConnector implements Connector {
 		connectionStore.clear();
 	}
 
-	/**
-	 * Stops the sender and receiver threads and closes the socket
-	 * used for sending and receiving datagrams.
-	 */
-	final synchronized void releaseSocket() {
-		running.set(false);
-		if (socket != null) {
-			socket.close();
-			socket = null;
-		}
-		maximumTransmissionUnit = 0;
-	}
-
 	private final synchronized DatagramSocket getSocket() {
 		return socket;
 	}
@@ -484,17 +473,23 @@ public class DTLSConnector implements Connector {
 		ExecutorService shutdown = null;
 		List<Runnable> pending = null;
 		synchronized (this) {
-			if (running.get()) {
+			if (running.compareAndSet(true, false)) {
 				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
-				timer.shutdownNow();
-				if (hasInternalExecutor) {
+				receiver.interrupt();
+				if (socket != null) {
+					socket.close();
+					socket = null;
+				}
+				maximumTransmissionUnit = 0;
+				if (externalExecutor == null) {
 					pending = executor.shutdownNow();
 					shutdown = executor;
 					executor = null;
-					hasInternalExecutor = false;
 				}
-				releaseSocket();
-				receiver.interrupt();
+				if (externalExecutor != timer) {
+					timer.shutdownNow();
+					timer = null;
+				}
 			}
 		}
 		if (shutdown != null) {
@@ -531,7 +526,7 @@ public class DTLSConnector implements Connector {
 	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
 		DatagramSocket currentSocket = getSocket();
-		if (currentSocket == null) {
+		if (currentSocket == null || currentSocket.isClosed()) {
 			// very unlikely race condition.
 			return;
 		}
@@ -827,7 +822,7 @@ public class DTLSConnector implements Connector {
 				// non-fatal alerts do not require any special handling
 			}
 
-			synchronized (allertHandlerLock) {
+			synchronized (alertHandlerLock) {
 				if (alertHandler != null) {
 					alertHandler.onAlert(alert.getPeer(), alert);
 				}
@@ -1269,8 +1264,8 @@ public class DTLSConnector implements Connector {
 			msg.onError(error);
 			throw error;
 		}
-
-		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
+		final Integer limit = config.getOutboundMessageBufferSize();
+		if (pendingOutboundMessagesCounter.incrementAndGet() < limit) {
 			executor.execute(new StripedRunnable() {
 
 				@Override
@@ -1293,14 +1288,15 @@ public class DTLSConnector implements Connector {
 						}
 						msg.onError(e);
 					} finally {
-						pendingOutboundMessagesCountdown.incrementAndGet();
+						pendingOutboundMessagesCounter.decrementAndGet();
 					}
 				}
 			});
 		} else {
-			pendingOutboundMessagesCountdown.incrementAndGet();
-			LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
-					msg.getInetSocketAddress());
+			pendingOutboundMessagesCounter.decrementAndGet();
+			LOGGER.warn(
+					"Outbound message overflow! Exceeds {} pending messages, dropping outbound message to peer [{}]",
+					limit, msg.getInetSocketAddress());
 			msg.onError(new IllegalStateException("Outbound message overflow!"));
 		}
 	}
@@ -1713,20 +1709,22 @@ public class DTLSConnector implements Connector {
 
 		@Override
 		public void run() {
-			executor.execute(new StripedRunnable() {
-
-				@Override
-				public Object getStripe() {
-					return flight.getPeerAddress();
-				}
-
-				@Override
-				public void run() {
-					if (!flight.isRetransmissionCancelled()) {
-						handleTimeout(flight);
+			if (running.get()) {
+				executor.execute(new StripedRunnable() {
+	
+					@Override
+					public Object getStripe() {
+						return flight.getPeerAddress();
 					}
-				}
-			});
+	
+					@Override
+					public void run() {
+						if (!flight.isRetransmissionCancelled()) {
+							handleTimeout(flight);
+						}
+					}
+				});
+			}
 		}
 	}
 
@@ -1810,7 +1808,7 @@ public class DTLSConnector implements Connector {
 	 * @param handler The handler to notify.
 	 */
 	public final void setAlertHandler(AlertHandler handler) {
-		synchronized (allertHandlerLock) {
+		synchronized (alertHandlerLock) {
 			this.alertHandler = handler;
 		}
 	}

@@ -65,7 +65,7 @@ public class EndpointManagerTest {
 		assertThat(endpoint, is(notNullValue()));
 		assertThat(endpoint.getUri(), is(notNullValue()));
 		assertThat(endpoint.getUri().getScheme(), is(CoAP.COAP_URI_SCHEME));
-		assertThat(endpoint.isStarted(), is(true));
+		assertThat(endpoint.isRunning(), is(true));
 	}
 
 	@Test
@@ -79,7 +79,7 @@ public class EndpointManagerTest {
 
 		// THEN get the same new default endpoint and the old is stopped
 		assertThat(EndpointManager.getEndpointManager().getDefaultEndpoint(), is(sameInstance(endpoint)));
-		assertThat(oldEndpoint.isStarted(), is(false));
+		assertThat(oldEndpoint.isRunning(), is(false));
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -102,7 +102,7 @@ public class EndpointManagerTest {
 		assertThat(endpoint, is(notNullValue()));
 		assertThat(endpoint.getUri(), is(notNullValue()));
 		assertThat(endpoint.getUri().getScheme(), is(CoAP.COAP_URI_SCHEME));
-		assertThat(endpoint.isStarted(), is(true));
+		assertThat(endpoint.isRunning(), is(true));
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -129,7 +129,7 @@ public class EndpointManagerTest {
 		assertThat(endpoint, is(notNullValue()));
 		assertThat(endpoint.getUri(), is(notNullValue()));
 		assertThat(endpoint.getUri().getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
-		assertThat(endpoint.isStarted(), is(true));
+		assertThat(endpoint.isRunning(), is(true));
 	}
 
 	@Test

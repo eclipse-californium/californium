@@ -35,6 +35,8 @@
  *                                                    Add exchange dump to status.
  *    Achim Kraus (Bosch Software Innovations GmbH) - check for modified current requests
  *                                                    or responses.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    for health status instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -46,12 +48,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
@@ -62,7 +61,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -79,11 +80,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
-	private boolean running = false;
+	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
 	private ScheduledFuture<?> statusLogger;
-	private ScheduledExecutorService scheduler;
 
 	/**
 	 * Creates a new store for configuration values.
@@ -117,13 +117,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private void startStatusLogging() {
 
-		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL,
+				NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			this.scheduler = Executors
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
-			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
+			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -397,16 +396,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public synchronized void stop() {
 		if (running) {
+			running = false;
+			for (Exchange exchange : exchangesByMID.values()) {
+				exchange.getRequest().setCanceled(true);
+			}
 			if (statusLogger != null) {
 				statusLogger.cancel(false);
-			}
-			if (scheduler != null) {
-				scheduler.shutdownNow();
+				statusLogger = null;
 			}
 			deduplicator.stop();
 			exchangesByMID.clear();
 			exchangesByToken.clear();
-			running = false;
 		}
 	}
 
@@ -442,14 +442,13 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Request current = exchange.getCurrentRequest();
 			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
 			if (origin != current && !origin.getToken().equals(current.getToken())) {
-				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
-						exchange, exchange.getFailedTransmissionCount(), pending, origin.getToken(),
-						current, exchange.getCurrentResponse());
+				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(), exchange,
+						exchange.getFailedTransmissionCount(), pending, origin.getToken(), current,
+						exchange.getCurrentResponse());
 			} else {
 				String mark = origin == null ? "(missing origin request) " : "";
-				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, {}{}, {}", exchangeEntry.getKey(),
-						exchange, exchange.getFailedTransmissionCount(), pending, mark, current,
-						exchange.getCurrentResponse());
+				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, {}{}, {}", exchangeEntry.getKey(), exchange,
+						exchange.getFailedTransmissionCount(), pending, mark, current, exchange.getCurrentResponse());
 			}
 			Throwable caller = exchange.getCaller();
 			if (caller != null) {
