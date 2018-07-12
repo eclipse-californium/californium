@@ -101,7 +101,7 @@ public final class TcpMatcher extends BaseMatcher {
 	public void sendRequest(Exchange exchange) {
 
 		Request request = exchange.getCurrentRequest();
-		if (request.isObserve()) {
+		if (request.getOptions().hasObserve()) {
 			registerObserve(request);
 		}
 		exchange.setRemoveHandler(exchangeRemoveHandler);

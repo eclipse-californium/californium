@@ -109,9 +109,9 @@ public final class UdpMatcher extends BaseMatcher {
 	@Override
 	public void sendRequest(final Exchange exchange) {
 
-		// for observe request.
 		Request request = exchange.getCurrentRequest();
-		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
+		if (request.getOptions().hasObserve() && 0 == exchange.getFailedTransmissionCount()) {
+			// for observe and cancel observe request.
 			registerObserve(request);
 		}
 
