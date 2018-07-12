@@ -131,12 +131,12 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
 			@Override
 			public void testStarted(Description description) throws Exception {
-				logInfo("test", "[loop={}] started {}.", loop, description);
+				logInfo("test", "[loop={0}] started {1}.", loop, description);
 			}
 
 			@Override
 			public void testFinished(Description description) throws Exception {
-				logInfo("test", "[loop={}] finished {}.", loop, description);
+				logInfo("test", "[loop={0}] finished {1}.", loop, description);
 			}
 
 			@Override
@@ -151,13 +151,13 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 		});
 
 		while ((loop.incrementAndGet() <= maximumRepeats) || (0 == maximumRepeats)) {
-			logInfo("while", "[loop={}] begin", loop);
+			logInfo("while", "[loop={0}] begin", loop);
 			super.run(notifier);
 			if (0 < failureCounter.get()) {
-				logInfo("while", "[loop={}] failed!", loop);
+				logInfo("while", "[loop={0}] failed!", loop);
 				break;
 			}
-			logInfo("while", "[loop={}] ready", loop);
+			logInfo("while", "[loop={0}] ready", loop);
 		}
 
 		if (null != alive) {
@@ -194,7 +194,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	private Thread startAliveLogging() {
 		Thread live = null;
 		if (0 < aliveIntervalInMilliseconds && LOGGER.isLoggable(Level.INFO)) {
-			LOGGER.log(Level.INFO,"start alife logging every {}ms!", aliveIntervalInMilliseconds);
+			LOGGER.log(Level.INFO, "start alife logging every {0}ms!", aliveIntervalInMilliseconds);
 			live = new Thread(new Runnable() {
 
 				@Override
@@ -206,7 +206,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 							Thread.sleep(aliveIntervalInMilliseconds);
 							++count;
 							long time = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - start) / count);
-							logInfo("alive", "{}. {}ms", count, time);
+							logInfo("alive", "{0}. {1}ms", count, time);
 						}
 					} catch (InterruptedException e) {
 					}
