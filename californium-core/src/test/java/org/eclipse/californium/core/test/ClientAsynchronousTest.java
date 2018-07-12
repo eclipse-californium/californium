@@ -20,6 +20,8 @@
  *                                      wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix race condition with
+ *                                                    reordered notifications
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -29,9 +31,12 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.category.Medium;
@@ -135,40 +140,51 @@ public class ClientAsynchronousTest {
 
 	@Test
 	public void testAsyncObserveTriggersOnLoad() throws Exception {
-		final CountDownLatch latch = new CountDownLatch(1);
-		final CountDownLatch expectedNotifications = new CountDownLatch(3);
-		final AtomicInteger receivedNotifications = new AtomicInteger();
+		final CyclicBarrier barrier = new CyclicBarrier(2);
+		final AtomicInteger onLoadCounter = new AtomicInteger();
 
 		// Observe the resource
 		CoapObserveRelation obs1 = client.observe(new TestHandler("Test Observe") {
-			@Override public void onLoad(final CoapResponse response) {
-				System.err.format("onLoad(%d)%n", receivedNotifications.get());
-				if (CONTENT_1.equals(response.getResponseText())
-					&& response.advanced().getOptions().hasObserve()) {
-					if (latch.getCount() > 0) {
-						System.err.format("Response onLoad(%d)%n", receivedNotifications.get());
-						latch.countDown();
-					} else {
-						expectedNotifications.countDown();
-						receivedNotifications.incrementAndGet();
-						System.err.format("Notification onLoad(%d)%n", receivedNotifications.get());
+
+			@Override
+			public void onLoad(final CoapResponse response) {
+				String responseDescription = String.format("onLoad(%d) '%s'", onLoadCounter.incrementAndGet(),
+						response.getResponseText());
+				System.err.println(responseDescription);
+				if (response.getResponseText().startsWith(CONTENT_1) && response.advanced().getOptions().hasObserve()) {
+					try {
+						assertAwait("assert missing", barrier, 2000, TimeUnit.MILLISECONDS);
+					} catch (InterruptedException e) {
 					}
 				}
 			}
 		});
-		assertTrue(latch.await(1500, TimeUnit.MILLISECONDS));
+
+		assertAwait("response missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
 		System.err.println("changed 1");
+		resource.setContent(CONTENT_1 + " - 1");
 		resource.changed();
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
 		System.err.println("changed 2");
+		resource.setContent(CONTENT_1 + " - 2");
 		resource.changed();
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
 		System.err.println("changed 3");
+		resource.setContent(CONTENT_1 + " - 3");
 		resource.changed();
-		expectedNotifications.await(1500, TimeUnit.MILLISECONDS);
-		assertThat(expectedNotifications.getCount(), is(0L));
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
+		assertThat("missing notifications", onLoadCounter.get(), is(4));
 		obs1.reactiveCancel();
 		resource.changed();
 		Thread.sleep(50);
-		assertThat(receivedNotifications.get(), is(3));
+		assertThat("unexpected notifications", onLoadCounter.get(), is(4));
 	}
 
 	@Test
@@ -243,6 +259,17 @@ public class ClientAsynchronousTest {
 		}, request);
 
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
+	}
+
+	private static void assertAwait(String description, CyclicBarrier barrier, long time, TimeUnit unit)
+			throws InterruptedException {
+		try {
+			barrier.await(time, unit);
+		} catch (TimeoutException e) {
+			fail(description + ": " + e);
+		} catch (BrokenBarrierException e) {
+			fail(description + ": " + e);
+		}
 	}
 
 	private static void createServer() {
