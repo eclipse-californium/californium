@@ -232,7 +232,7 @@ public class ObserveRelation {
 	
 	public void addNotification(Response notification) {
 		notifications.add(notification);
-		LOGGER.trace("{} add notification {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
+		LOGGER.trace("{} add notification MID {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
 	}
 	
 	public Iterator<Response> getNotificationIterator() {
