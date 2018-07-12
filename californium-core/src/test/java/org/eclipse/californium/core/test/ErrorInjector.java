@@ -23,6 +23,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.IntendedTestException;
 
 public class ErrorInjector extends MessageInterceptorAdapter {
 
@@ -63,7 +64,7 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		@Override
 		public void onReadyToSend() {
 			if (errorOnReadyToSend.getAndSet(false)) {
-				RuntimeException exception = new IllegalStateException("Simulate error before to sent");
+				RuntimeException exception = new IntendedTestException("Simulate error before to sent");
 				message.setSendError(exception);
 				throw exception;
 			}
@@ -72,7 +73,7 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		@Override
 		public void onSent() {
 			if (errorOnReadyToSend.getAndSet(false)) {
-				RuntimeException exception = new IllegalStateException("Simulate error on sent");
+				RuntimeException exception = new IntendedTestException("Simulate error on sent");
 				message.setSendError(exception);
 				throw exception;
 			}
@@ -81,7 +82,7 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		@Override
 		public void onContextEstablished(EndpointContext endpointContext) {
 			if (errorOnEstablishedContext.getAndSet(false)) {
-				RuntimeException exception = new IllegalStateException("Simulate error on context established");
+				RuntimeException exception = new IntendedTestException("Simulate error on context established");
 				message.setSendError(exception);
 				throw exception;
 			}
