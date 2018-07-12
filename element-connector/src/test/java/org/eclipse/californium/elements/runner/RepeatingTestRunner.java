@@ -14,6 +14,8 @@
  *    Bosch Software Innovations - initial implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add logging of test description
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix typo "alife" with "alive"
+ *                                                    cleanup logging
  ******************************************************************************/
 package org.eclipse.californium.elements.runner;
 
@@ -38,22 +40,28 @@ import org.junit.runners.model.InitializationError;
  * <pre>
  * "org.eclipse.californium.elements.runner.RepeatingTestRunner.repeats", maximum number of repeats for test.
  * 0 := repeat test until failure. Default 100.
- * "org.eclipse.californium.elements.runner.RepeatingTestRunner.alife", interval in milliseconds.
+ * "org.eclipse.californium.elements.runner.RepeatingTestRunner.alive", interval in milliseconds.
  * 0 := disabled. Default: 1000
+ * </pre>
+ * 
+ * To use, add runner to JUni test with
+ * 
+ * <pre>
+ * &#64;RunWith(RepeatingTestRunner.class)
+ * public class SomeTests {
  * </pre>
  * 
  * For execution with maven {@code -Dtest="XyzAbcTest" -DfailIfNoTests=false}
  * may be used.
  * 
- * Note:
- * If used with "maven-surefire-plugin", parallel testing can not be used!
+ * Note: If used with "maven-surefire-plugin", parallel testing can not be used!
  */
 public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(RepeatingTestRunner.class.getName());
 
 	/**
-	 * Final for logging mega bytes.
+	 * Final divisor for logging memory in mega bytes.
 	 */
 	private static final int MEGA_BYTE = 1024 * 1024;
 	/**
@@ -63,9 +71,9 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	 */
 	private static final int DEFAULT_MAXIMUM_REPEATS = 100;
 	/**
-	 * Default interval for alife logging in milliseconds. Current value 1000.
+	 * Default interval for alive logging in milliseconds. Current value 1000.
 	 */
-	private static final int DEFAULT_ALIFE_INTERVAL_IN_MILLISECONDS = 1000;
+	private static final int DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS = 1000;
 	/**
 	 * Maximum number of repeats.
 	 * 
@@ -74,22 +82,21 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	 * {@link #DEFAULT_MAXIMUM_REPEATS}.
 	 */
 	private final long maximumRepeats;
-
 	/**
-	 * Interval for alife logging in milliseconds.
+	 * Interval for alive logging in milliseconds.
 	 * 
 	 * 0 := disabled. May be set via property
-	 * "org.eclipse.californium.runner.RepeatingTestRunner.alife". Default
-	 * {@link #DEFAULT_ALIFE_INTERVAL_IN_MILLISECONDS}.
+	 * "org.eclipse.californium.runner.RepeatingTestRunner.alive". Default
+	 * {@link #DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS}.
 	 */
-	private final int alifeIntervalInMilliseconds;
+	private final int aliveIntervalInMilliseconds;
 
 	public RepeatingTestRunner(Class<?> klass) throws InitializationError {
 		super(klass);
 		Integer value = getProperty(RepeatingTestRunner.class.getName() + ".repeats");
 		maximumRepeats = null == value ? DEFAULT_MAXIMUM_REPEATS : value;
-		value = getProperty(RepeatingTestRunner.class.getName() + ".alife");
-		alifeIntervalInMilliseconds = null == value ? DEFAULT_ALIFE_INTERVAL_IN_MILLISECONDS : value;
+		value = getProperty(RepeatingTestRunner.class.getName() + ".alive");
+		aliveIntervalInMilliseconds = null == value ? DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS : value;
 	}
 
 	/**
@@ -105,7 +112,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 			try {
 				return Integer.valueOf(value);
 			} catch (NumberFormatException ex) {
-				LOGGER.error("value for ''{}'' := ''{}'' is no number!", new Object[] { name, value });
+				LOGGER.error("value for ''{}'' := ''{}'' is no number!", name, value);
 			}
 		}
 		return null;
@@ -118,21 +125,21 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 		} else {
 			LOGGER.info("maximum repeats: {}", maximumRepeats);
 		}
-		// start alife logging
-		Thread alife = startAliveLogging();
+		// start alive logging
+		Thread alive = startAliveLogging();
 		// setup failure detection
-		final AtomicInteger loop = new AtomicInteger(1);
+		final AtomicInteger loop = new AtomicInteger();
 		final AtomicInteger failureCounter = new AtomicInteger();
 		notifier.addListener(new RunListener() {
 
 			@Override
 			public void testStarted(Description description) throws Exception {
-				log("test [loop=" + loop +"] " + description + " started.");
+				logInfo("test", "[loop={}] started {}.", loop, description);
 			}
 
 			@Override
 			public void testFinished(Description description) throws Exception {
-				log("test [loop=" + loop +"] " + description + " finished.");
+				logInfo("test", "[loop={}] finished {}.", loop, description);
 			}
 
 			@Override
@@ -148,19 +155,19 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 		});
 
 		while ((loop.incrementAndGet() <= maximumRepeats) || (0 == maximumRepeats)) {
-			log("loop: " + loop);
+			logInfo("while", "[loop={}] begin", loop);
 			super.run(notifier);
 			if (0 < failureCounter.get()) {
-				log("failed at loop: " + loop);
+				logInfo("while", "[loop={}] failed!", loop);
 				break;
 			}
-			log("ready with loop: " + loop);
+			logInfo("while", "[loop={}] ready", loop);
 		}
 
-		if (null != alife) {
+		if (null != alive) {
 			// try to stop alive logging
 			try {
-				alife.join(200);
+				alive.join(200);
 			} catch (InterruptedException e) {
 			}
 		}
@@ -169,15 +176,15 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	/**
 	 * Write a logging with provided message and memory statistic.
 	 * 
-	 * @param message message to be logged
+	 * @param format format for message to be logged
+	 * @param parameters parameters to be formatted for logging
 	 */
-	private void log(String message) {
+	private void logInfo(String tag, String format, Object... parameters) {
 		if (LOGGER.isInfoEnabled()) {
 			Runtime runtime = Runtime.getRuntime();
-			LOGGER.info(message);
-			LOGGER.info("mem: free {} MByte, total {} MByte, max {} MByte",
-					new Object[] { runtime.freeMemory() / MEGA_BYTE, runtime.totalMemory() / MEGA_BYTE,
-							runtime.maxMemory() / MEGA_BYTE });
+			LOGGER.info(tag + ": " + format, parameters);
+			LOGGER.info(tag + ": memory free {} MByte, total {} MByte, max {} MByte", runtime.freeMemory() / MEGA_BYTE,
+					runtime.totalMemory() / MEGA_BYTE, runtime.maxMemory() / MEGA_BYTE);
 		}
 	}
 
@@ -185,13 +192,13 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 	 * Start alive logging.
 	 * 
 	 * @return thread, or null, if alive logging is not started.
-	 * @see #alifeIntervalInMilliseconds
+	 * @see #aliveIntervalInMilliseconds
 	 */
 	private Thread startAliveLogging() {
-		Thread life = null;
-		if (0 < alifeIntervalInMilliseconds && LOGGER.isInfoEnabled()) {
-			LOGGER.info("start alife logging every {}ms!", alifeIntervalInMilliseconds);
-			life = new Thread(new Runnable() {
+		Thread live = null;
+		if (0 < aliveIntervalInMilliseconds && LOGGER.isInfoEnabled()) {
+			LOGGER.info("start alife logging every {}ms!", aliveIntervalInMilliseconds);
+			live = new Thread(new Runnable() {
 
 				@Override
 				public void run() {
@@ -199,18 +206,18 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 						int count = 0;
 						long start = System.nanoTime();
 						while (true) {
-							Thread.sleep(alifeIntervalInMilliseconds);
+							Thread.sleep(aliveIntervalInMilliseconds);
 							++count;
 							long time = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - start) / count);
-							log("alife " + count + ". " + time + "ms");
+							logInfo("alive", "{}. {}ms", count, time);
 						}
 					} catch (InterruptedException e) {
 					}
 				}
-			}, "life");
-			life.setDaemon(true);
-			life.start();
+			}, "live");
+			live.setDaemon(true);
+			live.start();
 		}
-		return life;
+		return live;
 	}
 }
