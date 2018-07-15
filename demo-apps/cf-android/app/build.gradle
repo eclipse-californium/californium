@@ -9,7 +9,6 @@ repositories {
 
 android {
     compileSdkVersion 22
-    buildToolsVersion '26.0.2'
 
     defaultConfig {
         applicationId "org.eclipse.californium.examples.android"
@@ -49,4 +48,5 @@ dependencies {
     implementation 'org.eclipse.californium:element-connector-tcp:2.0.0-SNAPSHOT'
     implementation 'org.eclipse.californium:scandium:2.0.0-SNAPSHOT'
     implementation 'org.eclipse.californium:demo-certs:2.0.0-SNAPSHOT'
+    implementation 'com.github.tony19:logback-android:1.1.1-11'
 }
