@@ -27,7 +27,8 @@ package org.eclipse.californium.core.coap;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * CoAP defines several constants.
@@ -367,7 +368,13 @@ public final class CoAP {
 		PUT(3),
 
 		/** The DELETE code. */
-		DELETE(4);
+		DELETE(4),
+		
+		/** The FETCH code. */
+		FETCH(5),
+		
+		/** The PATCH code. */
+		PATCH(6);
 
 		/** The code value. */
 		public final int value;
@@ -399,6 +406,8 @@ public final class CoAP {
 				case 2: return POST;
 				case 3: return PUT;
 				case 4: return DELETE;
+				case 5: return FETCH;
+				case 6: return PATCH;
 				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
 			}
 		}
@@ -427,9 +436,11 @@ public final class CoAP {
 		METHOD_NOT_ALLOWED(CodeClass.ERROR_RESPONSE, 5),
 		NOT_ACCEPTABLE(CodeClass.ERROR_RESPONSE, 6),
 		REQUEST_ENTITY_INCOMPLETE(CodeClass.ERROR_RESPONSE, 8),
+		CONFLICT(CodeClass.ERROR_RESPONSE, 9),
 		PRECONDITION_FAILED(CodeClass.ERROR_RESPONSE, 12),
 		REQUEST_ENTITY_TOO_LARGE(CodeClass.ERROR_RESPONSE, 13),
 		UNSUPPORTED_CONTENT_FORMAT(CodeClass.ERROR_RESPONSE, 15),
+		UNPROCESSABLE_ENTITY(CodeClass.ERROR_RESPONSE, 22),
 
 		// Server error: 5.00 - 5.31
 		INTERNAL_SERVER_ERROR(CodeClass.SERVER_ERROR_RESPONSE, 0),
@@ -500,9 +511,11 @@ public final class CoAP {
 			case 5: return METHOD_NOT_ALLOWED;
 			case 6: return NOT_ACCEPTABLE;
 			case 8: return REQUEST_ENTITY_INCOMPLETE;
+			case 9: return CONFLICT;
 			case 12: return PRECONDITION_FAILED;
 			case 13: return REQUEST_ENTITY_TOO_LARGE;
 			case 15: return UNSUPPORTED_CONTENT_FORMAT;
+			case 22: return UNPROCESSABLE_ENTITY;
 			default:
 				return BAD_REQUEST;
 			}

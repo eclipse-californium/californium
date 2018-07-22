@@ -32,15 +32,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -148,21 +149,21 @@ public final class CertificateRequest extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 		if (!certificateTypes.isEmpty()) {
-			sb.append("\t\tClient certificate type:").append(System.lineSeparator());
+			sb.append("\t\tClient certificate type:").append(StringUtil.lineSeparator());
 			for (ClientCertificateType type : certificateTypes) {
-				sb.append(THREE_TABS).append(type).append(System.lineSeparator());
+				sb.append(THREE_TABS).append(type).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!supportedSignatureAlgorithms.isEmpty()) {
-			sb.append("\t\tSignature and hash algorithm:").append(System.lineSeparator());
+			sb.append("\t\tSignature and hash algorithm:").append(StringUtil.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append(THREE_TABS).append(algo.jcaName()).append(System.lineSeparator());
+				sb.append(THREE_TABS).append(algo.jcaName()).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
-			sb.append("\t\tCertificate authorities:").append(System.lineSeparator());
+			sb.append("\t\tCertificate authorities:").append(StringUtil.lineSeparator());
 			for (X500Principal subject : certificateAuthorities) {
-				sb.append(THREE_TABS).append(subject.getName()).append(System.lineSeparator());
+				sb.append(THREE_TABS).append(subject.getName()).append(StringUtil.lineSeparator());
 			}
 		}
 		return sb.toString();

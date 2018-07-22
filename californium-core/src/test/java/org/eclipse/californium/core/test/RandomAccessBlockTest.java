@@ -29,7 +29,6 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.eclipse.californium.category.Medium;
@@ -38,6 +37,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -81,13 +81,23 @@ public class RandomAccessBlockTest {
 		System.out.println(System.lineSeparator() + "Start " + RandomAccessBlockTest.class.getName());
 		NetworkConfig config = network.getStandardTestConfig()
 			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+
+		CoapEndpoint endpoint = builder.build();
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
 		server.add(new BlockwiseResource(TARGET, RESP_PAYLOAD));
 		server.start();
 		serverAddress = endpoint.getAddress();
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		
+		clientEndpoint = builder.build();
 	}
 
 	@After
@@ -128,7 +138,7 @@ public class RandomAccessBlockTest {
 		String uri = getUri(serverAddress, TARGET);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(clientEndpoint);
-		client.setTimeout(1000);
+		client.setTimeout(1000L);
 
 		for (int i = 0; i < blockOrder.length; i++) {
 			int num = blockOrder[i];
@@ -158,7 +168,7 @@ public class RandomAccessBlockTest {
 		private BlockwiseResource(String name, String responsePayload) {
 			super(name);
 			this.responsePayload = responsePayload;
-			buf = ByteBuffer.wrap(responsePayload.getBytes(StandardCharsets.US_ASCII));
+			buf = ByteBuffer.wrap(responsePayload.getBytes(CoAP.UTF8_CHARSET));
 		}
 
 		@Override

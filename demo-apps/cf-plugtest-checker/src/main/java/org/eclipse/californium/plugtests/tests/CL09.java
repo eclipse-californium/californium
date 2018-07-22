@@ -95,7 +95,7 @@ public class CL09 extends TestClientAbstract {
 				}
 
 				success &= checkType(Type.ACK, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkOption(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat(), "Content-Format");
 				success &= checkDiscovery(RESOURCE_URI_2, response.getPayloadString());
 				
@@ -125,7 +125,7 @@ public class CL09 extends TestClientAbstract {
 					}
 
 					success &= checkType(Type.ACK, response.getType());
-					success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+					success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 					success &= checkOption(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat(), "Content-Format");
 					success &= checkDiscovery(RESOURCE_URI_3, response.getPayloadString());
 					
@@ -155,7 +155,7 @@ public class CL09 extends TestClientAbstract {
 						}
 
 						success &= checkType(Type.ACK, response.getType());
-						success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+						success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 					}
 				}
 			}

@@ -21,6 +21,7 @@
  *                                                    from BlockwiseStatus
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -36,11 +37,10 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 
-
 /**
  * A tracker for the blockwise transfer of a response body.
  */
-final class Block2BlockwiseStatus extends BlockwiseStatus {
+public final class Block2BlockwiseStatus extends BlockwiseStatus {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Block2BlockwiseStatus.class.getName());
 
@@ -74,7 +74,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 *                           option is used as the block size.
 	 * @return The tracker.
 	 */
-	static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
+	public static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
 		status.response = response;
 		status.exchange = exchange;
@@ -92,7 +92,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param maxBodySize The maximum body size that can be buffered.
 	 * @return The tracker.
 	 */
-	static Block2BlockwiseStatus forInboundResponse(final Exchange exchange, final Response block, final int maxBodySize) {
+	public static Block2BlockwiseStatus forInboundResponse(final Exchange exchange, final Response block, final int maxBodySize) {
 		int contentFormat = block.getOptions().getContentFormat();
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize2()) {
@@ -123,7 +123,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return The tracker.
 	 * @throws IllegalArgumentException if the request does not contain a block2 option.
 	 */
-	static Block2BlockwiseStatus forRandomAccessRequest(final Exchange exchange, final Request request) {
+	public static Block2BlockwiseStatus forRandomAccessRequest(final Exchange exchange, final Request request) {
 
 		BlockOption block2 = request.getOptions().getBlock2();
 		if (block2 == null) {
@@ -156,7 +156,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true} if this tracker has been created for a transferring
 	 *                      the body of a notification.
 	 */
-	final synchronized boolean isNotification() {
+	public final synchronized boolean isNotification() {
 		return orderer != null;
 	}
 
@@ -178,7 +178,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true}, if response is newer than the current transfer,
 	 *         {@code false}, otherwise.
 	 */
-	final synchronized boolean isNew(final Response response) {
+	public final synchronized boolean isNew(final Response response) {
 		if (response == null) {
 			throw new NullPointerException("response block must not be null");
 		} else {
@@ -197,7 +197,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return {@code true}, if exchange matches this transfer, {@code false},
 	 *         otherwise.
 	 */
-	final synchronized boolean matchTransfer(Exchange exchange) {
+	public final synchronized boolean matchTransfer(Exchange exchange) {
 		Integer notification = exchange.getNotificationNumber();
 		if (notification != null && orderer != null) {
 			return orderer.getCurrent() == notification;
@@ -216,7 +216,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @throws NullPointerException if response block is {@code null}.
 	 * @throws IllegalArgumentException if the response block has no block2 option.
 	 */
-	synchronized boolean addBlock(final Response responseBlock) {
+	public synchronized boolean addBlock(final Response responseBlock) {
 
 		if (responseBlock == null) {
 			throw new NullPointerException("response block must not be null");
@@ -259,7 +259,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return The response block.
 	 * @throws IllegalStateException if this tracker does not contain a response.
 	 */
-	synchronized Response getNextResponseBlock(final BlockOption block2) {
+	public synchronized Response getNextResponseBlock(final BlockOption block2) {
 
 		if (response == null) {
 			throw new IllegalStateException("no response to track");
@@ -285,28 +285,36 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			throw new IllegalStateException("no response to track");
 		}
 
-		Response block = null;
-		if (response.isNotification() && getCurrentNum() == 0) {
-			block = response;
-
-		} else {
-
-			block = new Response(response.getCode());
-			block.setDestinationContext(response.getDestinationContext());
-			block.setOptions(new OptionSet(response.getOptions()));
+		final Response block = new Response(response.getCode());
+		block.setDestinationContext(response.getDestinationContext());
+		block.setOptions(new OptionSet(response.getOptions()));
+		block.addMessageObservers(response.getMessageObservers());
+		if (getCurrentNum() != 0) {
 			// observe option must only be included in first block
 			block.getOptions().removeObserve();
+		} else {
 			block.addMessageObserver(new MessageObserverAdapter() {
+
 				@Override
-				public void onTimeout() {
-					response.setTimedOut(true);
+				public void onReadyToSend() {
+					// when the request for transferring the first block
+					// has been sent out, we copy the token to the
+					// original request so that at the end of the
+					// blockwise transfer the Matcher can correctly
+					// close the overall exchange
+					if (response.getToken() == null) {
+						response.setToken(block.getToken());
+					}
+					if (!response.hasMID()) {
+						response.setMID(block.getMID());
+					}
 				}
 			});
-		}
-
-		if (getCurrentNum() == 0 && response.getOptions().getSize2() == null) {
-			// indicate overall size to peer
-			block.getOptions().setSize2(response.getPayloadSize());
+			block.setType(response.getType());
+			if (response.getOptions().getSize2() == null) {
+				// indicate overall size to peer
+				block.getOptions().setSize2(response.getPayloadSize());
+			}
 		}
 
 		int bodySize = getBufferSize();
@@ -324,17 +332,9 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			buf.position(from);
 			buf.get(blockPayload, 0, length);
 			block.setPayload(blockPayload);
-
-			// do not complete notifications
-			block.setLast(!m && !response.getOptions().hasObserve());
-
-			setComplete(!m);
-
-		} else {
-
-			block.setLast(true);
-			setComplete(true);
 		}
+		setComplete(!m);
+
 		block.getOptions().setBlock2(getCurrentSzx(), m, getCurrentNum());
 		return block;
 	}
@@ -347,27 +347,27 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * 
 	 * @param newExchange new exchange
 	 */
-	final void completeOldTransfer(Exchange newExchange) {
-		Exchange exchange;
+	public final void completeOldTransfer(Exchange newExchange) {
+		Exchange oldExchange;
 		synchronized (this) {
-			exchange = this.exchange;
+			oldExchange = this.exchange;
 			// stop old cleanup task
 			setBlockCleanupHandle(null);
 			this.exchange = null;
 		}
-		if (exchange != null) {
-			if (newExchange != exchange) {
+		if (oldExchange != null) {
+			if (newExchange != oldExchange) {
 				// complete old exchange
-				if (!exchange.getRequest().isObserve()) {
-					exchange.getRequest().setCanceled(true);
+				if (oldExchange.isNotification()) {
+					// no pending observe request to cancel
+					oldExchange.executeComplete();
+				} else {
+					// cancel pending observe request
+					oldExchange.getRequest().setCanceled(true);
 				}
-				exchange.setComplete();
-			}
-			else {
-				// complete current exchange
-				exchange.completeCurrentRequest();
+			} else {
 				// reset to origin request
-				exchange.setCurrentRequest(exchange.getRequest());
+				oldExchange.setCurrentRequest(oldExchange.getRequest());
 			}
 		}
 	}
@@ -375,24 +375,47 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */
-	final void completeNewTranfer(Exchange newExchange) {
-		Exchange exchange;
+	public final void completeNewTranfer(Exchange newExchange) {
+		Exchange oldExchange;
 		synchronized (this) {
-			exchange = this.exchange;
+			oldExchange = this.exchange;
 		}
-		if (newExchange != exchange) {
-			// complete exchange
-			newExchange.setComplete();
+		if (newExchange != oldExchange) {
+			if (newExchange.isNotification()) {
+				// no pending observe request to cancel
+				newExchange.setComplete();
+			} else {
+				// cancel pending observe request
+				newExchange.getRequest().setCanceled(true);
+			}
 		}
+	}
+
+	final boolean completeResponse() {
+		Response response;
+		synchronized (this) {
+			response = this.response;
+		}
+		if (response != null) {
+			setComplete(true);
+			response.onComplete();
+			return true;
+		}
+		return false;
 	}
 
 	@Override
 	public synchronized String toString() {
 		String result = super.toString();
-		if (orderer != null) {
+		if (orderer != null || response != null) {
 			StringBuilder builder = new StringBuilder(result);
-			builder.setLength(result.length()-1);
-			builder.append(", observe=").append(orderer.getCurrent()).append("]");
+			if (orderer != null) {
+				builder.setLength(result.length() - 1);
+				builder.append(", observe=").append(orderer.getCurrent()).append("]");
+			}
+			if (response != null) {
+				builder.append(", ").append(response);
+			}
 			result = builder.toString();
 		}
 		return result;
@@ -408,7 +431,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 *            can check whether a message contains a particular block using the
 	 *            {@link Response#hasBlock(BlockOption)} method.
 	 */
-	static final void crop(final Response responseToCrop, final BlockOption requestedBlock) {
+	public static final void crop(final Response responseToCrop, final BlockOption requestedBlock) {
 
 		if (responseToCrop == null) {
 			throw new NullPointerException("response message must not be null");
@@ -423,7 +446,7 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 			int to = Math.min((requestedBlock.getNum() + 1) * requestedBlock.getSize(), bodySize);
 			int length = to - from;
 
-			LOGGER.debug("cropping response body [size={}] to block {}", new Object[]{ bodySize, requestedBlock });
+			LOGGER.debug("cropping response body [size={}] to block {}", bodySize, requestedBlock);
 
 			byte[] blockPayload = new byte[length];
 			boolean m = to < bodySize;

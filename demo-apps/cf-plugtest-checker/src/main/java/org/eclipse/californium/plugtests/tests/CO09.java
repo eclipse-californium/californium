@@ -64,8 +64,7 @@ public class CO09 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
@@ -84,7 +83,7 @@ public class CO09 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -92,16 +91,20 @@ public class CO09 extends TestClientAbstract {
 
 			response = request.waitForResponse(6000);
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkType(Type.ACK, response.getType());
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= hasObserve(response);
 			}
+			else {
+				System.out.println("FAIL: No notification after registration");
+				success = false;
+			}
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(6000);
+				response = waitForNotification(6000);
 
 				// checking the response
 				if (response != null) {
@@ -110,16 +113,19 @@ public class CO09 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
-					
+
 					success &= checkResponse(request, response);
 
 					if (!hasObserve(response)) {
 						break;
 					}
+				}
+				else {
+					System.out.println("FAIL: missing notification");
+					success = false;
 				}
 			}
 
@@ -135,16 +141,24 @@ public class CO09 extends TestClientAbstract {
 
 			// checking the response
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE_1.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE_1, response.getCode());
+			}
+			else {
+				System.out.println("FAIL: missing response");
+				success = false;
 			}
 
-			response = request.waitForResponse(6000);
+			response = waitForNotification(6000);
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= hasObserve(response);
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= checkString(newValue, response.getPayloadString(), "payload");
+			}
+			else {
+				System.out.println("FAIL: missing notification after PUT");
+				success = false;
 			}
 
 			if (success) {
@@ -156,10 +170,12 @@ public class CO09 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
@@ -167,7 +183,7 @@ public class CO09 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

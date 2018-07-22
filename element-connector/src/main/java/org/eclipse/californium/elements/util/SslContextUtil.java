@@ -15,9 +15,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce configurable 
  *                                                    key store type and 
  *                                                    InputStreamFactory. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use file system, if 
+ *                                                    no scheme is provided in URI 
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -189,7 +193,7 @@ public class SslContextUtil {
 	 * @throws IllegalArgumentException if keys doesn't match
 	 *             keystore#hexstorepwd#hexkeypwd#alias or no matching trusts
 	 *             are found
-	 * @throws NullPointerException if trust is null.
+	 * @throws NullPointerException if credentials is null.
 	 * @see #PARAMETER_SEPARATOR
 	 */
 	public static Credentials loadCredentials(String credentials) throws IOException, GeneralSecurityException {
@@ -470,18 +474,17 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Get input stream factory from URI scheme.
+	 * Get scheme from URI.
+	 * 
+	 * Use {@link #SCHEME_DELIMITER} to split scheme from URI.
 	 * 
 	 * @param uri URI starting with scheme.
-	 * @return input stream factory
-	 *         {@link #configure(String, InputStreamFactory)} for the scheme, or
-	 *         {@code null} otherwise.
+	 * @return scheme, or {@code null}, if no scheme is provided.
 	 */
-	private static InputStreamFactory getInputStreamFactoryFromUri(String uri) {
+	private static String getSchemeFromUri(String uri) {
 		int schemeIndex = uri.indexOf(SCHEME_DELIMITER);
 		if (0 < schemeIndex) {
-			String scheme = uri.substring(0, schemeIndex + SCHEME_DELIMITER.length()).toLowerCase();
-			return INPUT_STREAM_FACTORIES.get(scheme);
+			return uri.substring(0, schemeIndex + SCHEME_DELIMITER.length()).toLowerCase();
 		}
 		return null;
 	}
@@ -556,11 +559,32 @@ public class SslContextUtil {
 		if (null == storePassword) {
 			throw new NullPointerException("storePassword must be provided!");
 		}
-		InputStream inStream;
-		InputStreamFactory streamFactory = getInputStreamFactoryFromUri(keyStoreUri);
-		if (streamFactory != null) {
-			inStream = streamFactory.create(keyStoreUri);
-		} else {
+		InputStream inStream = null;
+		String scheme = getSchemeFromUri(keyStoreUri);
+		if (scheme == null) {
+			// no scheme, fall-back to local file
+			String errorMessage = null;
+			File file = new File(keyStoreUri);
+			if (!file.exists()) {
+				errorMessage = " doesn't exists!";
+			} else if (!file.isFile()) {
+				errorMessage = " is not a file!";
+			} else if (!file.canRead()) {
+				errorMessage = " could not be read!";
+			}
+			if (errorMessage == null) {
+				inStream = new FileInputStream(file);
+			} else {
+				throw new IOException("URI: " + keyStoreUri + ", file: " + file.getAbsolutePath() + errorMessage);
+			}
+		}
+		if (scheme != null) {
+			InputStreamFactory streamFactory = INPUT_STREAM_FACTORIES.get(scheme);
+			if (streamFactory != null) {
+				inStream = streamFactory.create(keyStoreUri);
+			}
+		}
+		if (inStream == null) {
 			URL url = new URL(keyStoreUri);
 			inStream = url.openStream();
 		}

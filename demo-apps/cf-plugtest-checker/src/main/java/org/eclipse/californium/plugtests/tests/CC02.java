@@ -43,8 +43,7 @@ public class CC02 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.ACK, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-				response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkInt(request.getMID(), response.getMID(), "MID");
 
 		return success;

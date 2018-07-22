@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -20,35 +20,27 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
+
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * A endpoint context providing the inet socket address and a optional principal.
+ * A endpoint context providing the inet socket address and a optional
+ * principal.
  */
 public class AddressEndpointContext implements EndpointContext {
+
+	protected static final int ID_TRUNC_LENGTH = 6;
 
 	private final InetSocketAddress peerAddress;
 
 	private final Principal peerIdentity;
 
-	/**
-	 * Create endpoint context without principal.
-	 * 
-	 * @param peerAddress socket address of peer's service
-	 * @throws NullPointerException if provided peer address is {@code null}.
-	 */
-	public AddressEndpointContext(InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			throw new NullPointerException("missing peer socket address!");
-		}
-		this.peerAddress = peerAddress;
-		this.peerIdentity = null;
-	}
+	private final String virtualHost;
 
 	/**
-	 * Create endpoint context without principal.
+	 * Creates a context for an IP address and port.
 	 * 
-	 * @param address inet address of peer
+	 * @param address IP address of peer
 	 * @param port port of peer
 	 * @throws NullPointerException if provided address is {@code null}.
 	 */
@@ -58,31 +50,65 @@ public class AddressEndpointContext implements EndpointContext {
 		}
 		this.peerAddress = new InetSocketAddress(address, port);
 		this.peerIdentity = null;
+		this.virtualHost = null;
 	}
 
 	/**
-	 * Create endpoint context with principal.
+	 * Creates a context for a socket address.
+	 * 
+	 * @param peerAddress socket address of peer's service
+	 * @throws NullPointerException if provided peer address is {@code null}.
+	 */
+	public AddressEndpointContext(InetSocketAddress peerAddress) {
+		this(peerAddress, null, null);
+	}
+
+	/**
+	 * Creates a context for a socket address and an authenticated identity.
 	 * 
 	 * @param peerAddress socket address of peer's service
 	 * @param peerIdentity peer's principal
 	 * @throws NullPointerException if provided peer address is {@code null}.
 	 */
 	public AddressEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity) {
+		this(peerAddress, null, peerIdentity);
+	}
+
+	/**
+	 * Create endpoint context with principal.
+	 * 
+	 * @param peerAddress socket address of peer's service
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer's principal
+	 * @throws NullPointerException if provided peer address is {@code null}.
+	 */
+	public AddressEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity) {
 		if (peerAddress == null) {
-			throw new NullPointerException("missing peer socket address!");
+			throw new NullPointerException("missing peer socket address, must not be null!");
 		}
 		this.peerAddress = peerAddress;
+		this.virtualHost = virtualHost == null ? null : virtualHost.toLowerCase();
 		this.peerIdentity = peerIdentity;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @return {@code null}
+	 */
 	@Override
 	public String get(String key) {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @return an empty map
+	 */
 	@Override
-	public Set<Map.Entry<String, String>> entrySet() {
-		return Collections.emptySet();
+	public Map<String, String> entries() {
+		return Collections.emptyMap();
 	}
 
 	@Override
@@ -91,50 +117,26 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
-	public Principal getPeerIdentity() {
+	public final Principal getPeerIdentity() {
 		return peerIdentity;
 	}
 
 	@Override
-	public InetSocketAddress getPeerAddress() {
+	public final InetSocketAddress getPeerAddress() {
 		return peerAddress;
 	}
 
 	@Override
-	public int hashCode() {
-		int result = peerAddress.hashCode();
-		if (peerIdentity != null) {
-			result = peerIdentity.hashCode();
-		}
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (!(obj instanceof AddressEndpointContext)) {
-			return false;
-		}
-		AddressEndpointContext other = (AddressEndpointContext) obj;
-		if (!peerAddress.equals(other.getPeerAddress())) {
-			return false;
-		}
-		if (peerIdentity != null) {
-			if (!peerIdentity.equals(other.getPeerIdentity())) {
-				return false;
-			}
-		}
-		return true;
+	public final String getVirtualHost() {
+		return virtualHost;
 	}
 
 	@Override
 	public String toString() {
-		return String.format("IP(%s:%d)", peerAddress.getHostString(), peerAddress.getPort());
+		return String.format("IP(%s)", getPeerAddressAsString());
 	}
 
+	protected final String getPeerAddressAsString() {
+		return StringUtil.toString(peerAddress);
+	}
 }

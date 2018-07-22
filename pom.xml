@@ -137,32 +137,6 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>junit</groupId>
-				<artifactId>junit</artifactId>
-				<version>${junit.version}</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>demo-certs</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.hamcrest</groupId>
-				<artifactId>hamcrest-library</artifactId>
-				<version>${hamcrest.version}</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>element-connector</artifactId>
-				<version>${project.version}</version>
-				<classifier>tests</classifier>
-				<scope>test</scope>
-				<type>test-jar</type>
-			</dependency>
-			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
 				<version>${project.version}</version>
@@ -173,21 +147,73 @@
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>org.mockito</groupId>
-				<artifactId>mockito-all</artifactId>
-				<version>${mockito.version}</version>
-				<scope>test</scope>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>scandium</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>californium-core</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>californium-proxy</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>cf-nat</artifactId>
+				<version>${project.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
 				<version>${slf4j.version}</version>
 			</dependency>
+			
+			<!--  tests & runtime -->
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>demo-certs</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
 				<artifactId>logback-classic</artifactId>
 				<version>${logback.version}</version>
-				<scope>provided</scope>
+			</dependency>
+			
+			<!--  tests -->
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>element-connector</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+				<type>test-jar</type>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>californium-core</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+				<type>test-jar</type>
+			</dependency>
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>${junit.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-all</artifactId>
+				<version>${mockito.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.hamcrest</groupId>
+				<artifactId>hamcrest-library</artifactId>
+				<version>${hamcrest.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -197,6 +223,7 @@
 		<module>scandium-core</module>
 		<module>element-connector-tcp</module>
 		<module>californium-core</module>
+		<module>californium-integration-tests</module>
 		<module>californium-proxy</module>
 		<module>californium-osgi</module>
 		<module>demo-apps</module>
@@ -207,9 +234,32 @@
 		<pluginManagement>
 			<plugins>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.0.0</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-deploy-plugin</artifactId>
+					<version>2.8.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-install-plugin</artifactId>
+					<version>2.5.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>3.0.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-site-plugin</artifactId>
+					<version>3.7</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-dependency-plugin</artifactId>
+					<version>3.0.2</version>
+				</plugin>
+				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.3</version>
+					<version>3.7.0</version>
 					<configuration>
 						<source>${project.build.javaVersion}</source>
 						<target>${project.build.javaVersion}</target>
@@ -217,9 +267,8 @@
 					</configuration>
 				</plugin>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-source-plugin</artifactId>
-					<version>2.4</version>
+					<version>3.0.1</version>
 					<executions>
 						<execution>
 							<id>attach-sources</id>
@@ -231,9 +280,8 @@
 					</executions>
 				</plugin>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.18.1</version>
+					<version>2.20.1</version>
 					<configuration>
 						<systemPropertyVariables>
 							<!--
@@ -250,12 +298,11 @@
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
-					<version>3.0.1</version>
+					<version>3.5.0</version>
 				</plugin>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>2.10.3</version>
+					<version>3.0.0</version>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -266,22 +313,21 @@
 					</executions>
 				</plugin>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-assembly-plugin</artifactId>
-					<version>2.5.5</version>
+					<version>3.1.0</version>
 					<inherited>true</inherited>
 					<configuration>
 						<appendAssemblyId>false</appendAssemblyId>
+						<attach>false</attach>
 						<archive>
 							<manifest>
-								<addClasspath>true</addClasspath>
 								<mainClass>${assembly.mainClass}</mainClass>
 								<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							</manifest>
 						</archive>
-						<descriptorRefs>
-							<descriptorRef>jar-with-dependencies</descriptorRef>
-						</descriptorRefs>
+						<descriptors>
+							<descriptor>enhanced-jar-with-dependencies.xml</descriptor>
+						</descriptors>
 					</configuration>
 					<executions>
 						<execution>
@@ -294,19 +340,57 @@
 					</executions>
 				</plugin>
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-jar-plugin</artifactId>
 					<version>3.0.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-enforcer-plugin</artifactId>
+					<version>1.4.1</version>
+				</plugin>
+				<plugin>
+					<groupId>org.sonatype.plugins</groupId>
+					<artifactId>nexus-staging-maven-plugin</artifactId>
+					<version>1.6.8</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-gpg-plugin</artifactId>
+					<version>1.6</version>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>animal-sniffer-maven-plugin</artifactId>
+					<version>1.16</version>
+					<configuration>
+						<signature>
+							<groupId>net.sf.androidscents.signature</groupId>
+							<artifactId>android-api-level-16</artifactId>
+							<version>4.1.2_r5</version>
+						</signature>
+						<annotations>
+							<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
+						</annotations>
+					</configuration>
 				</plugin>
 			</plugins>
 		</pluginManagement>
 
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.4.1</version>
 				<executions>
+					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>3.0.5</version>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
 					<execution>
 						<!-- Make sure that only non-snapshot versions are used for the dependencies. 
 							Only active when property 'snapshotDependencyAllowed' is false. -->
@@ -329,7 +413,6 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
 			<plugin>
@@ -348,7 +431,6 @@
 				 -->
 				<groupId>org.sonatype.plugins</groupId>
 				<artifactId>nexus-staging-maven-plugin</artifactId>
-				<version>1.6.5</version>
 				<extensions>true</extensions>
 				<configuration>
 					<serverId>ossrh</serverId>
@@ -376,7 +458,6 @@
 			<build>
 				<plugins>
 					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 					</plugin>
 				</plugins>
@@ -409,7 +490,7 @@
 					<plugin>
 						<groupId>org.eclipse.cbi.maven.plugins</groupId>
 						<artifactId>eclipse-jarsigner-plugin</artifactId>
-						<version>1.1.2</version>
+						<version>1.1.3</version>
 						<executions>
 							<execution>
 								<id>sign-jars</id>
@@ -435,9 +516,7 @@
 			<build>
 				<plugins>
 					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>

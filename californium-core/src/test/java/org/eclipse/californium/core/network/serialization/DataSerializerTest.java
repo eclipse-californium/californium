@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -43,7 +44,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-
 
 /**
  * Verifies behavior of the common functionality of data serializers.
@@ -67,7 +67,7 @@ public class DataSerializerTest {
 	 */
 	@Parameters
 	public static DataSerializer[] getSerializers() {
-		return new DataSerializer[]{new UdpDataSerializer(), new TcpDataSerializer()};
+		return new DataSerializer[] { new UdpDataSerializer(), new TcpDataSerializer() };
 	}
 
 	/**
@@ -78,7 +78,7 @@ public class DataSerializerTest {
 
 		// GIVEN a CoAP request
 		Request req = Request.newGet();
-		req.setToken(new byte[]{0x00});
+		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
 
 		// WHEN serializing the request to a byte array
@@ -96,7 +96,7 @@ public class DataSerializerTest {
 
 		// GIVEN a CoAP request
 		Request req = Request.newGet();
-		req.setToken(new byte[]{0x00});
+		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
 		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 
@@ -139,7 +139,7 @@ public class DataSerializerTest {
 		request.setMID(1);
 
 		EmptyMessage ack = EmptyMessage.newACK(request);
-		ack.setToken(new byte[0]);
+		ack.setToken(Token.EMPTY);
 		RawData data = serializer.serializeEmptyMessage(ack, null);
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));

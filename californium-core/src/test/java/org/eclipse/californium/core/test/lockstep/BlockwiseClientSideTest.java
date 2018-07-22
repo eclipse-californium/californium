@@ -56,6 +56,8 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.test.CountingMessageObserver;
+import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -195,14 +197,97 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).size2(respPayload.length())
 			.etag(etag).payload(respPayload.substring(0, 128)).go();
-		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).hasEtag(etag).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).etag(etag).payload(respPayload.substring(128, 256)).go();
-		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).hasEtag(etag).go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).etag(etag).payload(respPayload.substring(256, 300)).go();
 
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
 	}
+
+	/**
+	 * Shows 2 successful complete transfers. The second one should not
+	 * terminate before TEST_BLOCKWISE_STATUS_LIFETIME. The idea is to ensure
+	 * than cleaning task is well canceled at the end of the first block
+	 * transfer.
+	 * 
+	 * <pre>
+	 * CON [MID=1620, T=[2a7b3c2bcdb8b5d8]], GET, /test    ----->
+	 * <-----   ACK [MID=1620, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:0/1/128
+	 * CON [MID=1621, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:1/0/128    ----->
+	 * CON [MID=1621, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=1621, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:1/1/128
+	 * CON [MID=1622, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:2/0/128    ----->
+	 * CON [MID=1622, T=[2a7b3c2bcdb8b5d8]], GET, /test, 2:2/0/128    ----->
+	 * <-----   ACK [MID=1622, T=[2a7b3c2bcdb8b5d8]], 2.05, 2:2/0/128
+	 * // next transfer 
+	 * CON [MID=1623, T=[ce9a89078049f125]], GET, /test    ----->
+	 * <-----   ACK [MID=1623, T=[ce9a89078049f125]], 2.05, 2:0/1/128
+	 * CON [MID=1624, T=[ce9a89078049f125]], GET, /test, 2:1/0/128    ----->
+	 * CON [MID=1624, T=[ce9a89078049f125]], GET, /test, 2:1/0/128    ----->
+	 * <-----   ACK [MID=1624, T=[ce9a89078049f125]], 2.05, 2:1/1/128
+	 * CON [MID=1625, T=[ce9a89078049f125]], GET, /test, 2:2/0/128    ----->
+	 * CON [MID=1625, T=[ce9a89078049f125]], GET, /test, 2:2/0/128    ----->
+	 * <-----   ACK [MID=1625, T=[ce9a89078049f125]], 2.05, 2:2/0/128
+	 * </pre>
+	 */
+	@Test
+	public void test2ConsecutiveCompleteGET() throws Exception {
+
+		System.out.println("2 consecutive complete GET with block2 transfers:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Send GET request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256, 300))
+				.go();
+
+		// We get the response the transfer is complete : BlockwiseLayer should
+		// be empty
+		request.waitForResponse();
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+
+		clientInterceptor.log(System.lineSeparator() + "// next transfer");
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
+		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+
+		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 128).payload(respPayload.substring(256, 300))
+				.go();
+
+		// We get the response the transfer is complete : BlockwiseLayer should
+		// be empty
+		request.waitForResponse();
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+
+		printServerLog(clientInterceptor);
+	}
+
 
 	/**
 	 * In the second example, the client anticipates the blockwise transfer
@@ -675,13 +760,13 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).size2(respPayload.length())
 				.etag(tag).payload(respPayload.substring(0, 128)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("D").hasEtag(tag).block2(1, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("D").block2(1, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("D").block2(1, true, 128).etag(tag).payload(respPayload.substring(128, 256)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("E").hasEtag(tag).block2(2, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("E").block2(2, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("E").block2(2, true, 128).etag(tag).payload(respPayload.substring(256, 384)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("F").hasEtag(tag).block2(3, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("F").block2(3, false, 128).go();
 		server.sendResponse(ACK, CHANGED).loadBoth("F").block2(3, false, 128).etag(tag).payload(respPayload.substring(384, 500)).go();
 
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
@@ -1030,8 +1115,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
-
+		assertAllExchangesAreCompleted(config, client.getExchangeStore());
 	}
 
 	/**
@@ -1058,8 +1142,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertTrue("ExchangeStore must be empty", client.getExchangeStore().isEmpty());
-
+		assertAllExchangesAreCompleted(config, client.getExchangeStore());
 	}
 
 	/**
@@ -1117,5 +1200,82 @@ public class BlockwiseClientSideTest {
 		// there is no leak.
 
 		printServerLog(clientInterceptor);
+	}
+
+	/**
+	 * Verify there is no leak if we failed before to sent block1 request
+	 */
+	@Test
+	public void testBlock1FailureBeforeToSend() throws Exception {
+		System.out.println("blockwise PUT failed before to send a block1 request");
+		reqtPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send a message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+
+		// Start block 1 transfer
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		CountingMessageObserver counter = new CountingMessageObserver();
+		request.addMessageObserver(counter);
+		client.sendRequest(request);
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128)
+				.payload(reqtPayload.substring(128, 256)).go();
+
+		// Simulate error before we send the next block1 request
+		errorInjector.setErrorOnReadyToSend();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
+
+		// Wait for error
+		counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+
+		// We should get a error
+		assertEquals("An error is expected", 1, counter.errorCalls.get());
+
+		// @after check there is no leak
+	}
+
+	/**
+	 * Verify there is no leak if we failed before to sent block2 request
+	 */
+	@Test
+	public void testBlock2FailureBeforeToSend() throws Exception {
+		System.out.println("blockwise GET failed before to send a block2 request:");
+		respPayload = generateRandomPayload(300);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send a message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+
+		// Start block 2 transfer
+		Request request = createRequest(GET, path, server);
+		CountingMessageObserver counter = new CountingMessageObserver();
+		request.addMessageObserver(counter);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).size2(respPayload.length())
+				.payload(respPayload.substring(0, 128)).go();
+		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
+
+		// Simulate error before we send the next block2 request
+		errorInjector.setErrorOnReadyToSend();
+		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
+				.go();
+
+		// Wait for error
+		counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+
+		// We should get a error
+		assertEquals("An error is expected", 1, counter.errorCalls.get());
+
+		// @after check there is no leak
 	}
 }

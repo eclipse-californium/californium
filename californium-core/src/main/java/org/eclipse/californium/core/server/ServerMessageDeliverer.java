@@ -18,6 +18,7 @@
  *    Kai Hudalla - logging
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
@@ -66,14 +67,15 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	/**
 	 * Delivers an inbound CoAP request to an appropriate resource.
 	 * <p>
-	 * This method first invokes {@link #preDeliverRequest(Exchange)}.
-	 * The request is considered <em>processed</em> if the
+	 * This method first invokes {@link #preDeliverRequest(Exchange)}. The
+	 * request is considered <em>processed</em> if the
 	 * <em>preDeliverRequest</em> method returned {@code true}.
 	 * <p>
 	 * Otherwise, this method
 	 * <ol>
-	 * <li>tries to {@linkplain #findResource(List) find a matching resource},</li>
-	 * <li>handle a GET request's observe option and </li>
+	 * <li>tries to {@linkplain #findResource(List) find a matching
+	 * resource},</li>
+	 * <li>handle a GET request's observe option and</li>
 	 * <li>deliver the request to the resource for processing.</li>
 	 * </ol>
 	 * 
@@ -96,17 +98,18 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				// Get the executor and let it process the request
 				Executor executor = resource.getExecutor();
 				if (executor != null) {
-					exchange.setCustomExecutor();
 					executor.execute(new Runnable() {
+
 						public void run() {
 							resource.handleRequest(exchange);
-						} });
+						}
+					});
 				} else {
 					resource.handleRequest(exchange);
 				}
 			} else {
-				LOGGER.info("did not find resource {} requested by {}:{}",
-						new Object[]{path, request.getSource(), request.getSourcePort()});
+				LOGGER.info("did not find resource {} requested by {}", path,
+						request.getSourceContext().getPeerAddress());
 				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 			}
 		}
@@ -115,14 +118,16 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	/**
 	 * Invoked by the <em>deliverRequest</em> before the request gets processed.
 	 * <p>
-	 * Subclasses may override this method in order to replace the default request handling logic
-	 * or to modify or add headers etc before the request gets processed.
+	 * Subclasses may override this method in order to replace the default
+	 * request handling logic or to modify or add headers etc before the request
+	 * gets processed.
 	 * <p>
 	 * This default implementation returns {@code false}.
 	 * 
 	 * @param exchange The exchange for the incoming request.
-	 * @return {@code true} if the request has already been processed by this method and thus
-	 *         should not be delivered to a matching resource anymore.
+	 * @return {@code true} if the request has already been processed by this
+	 *         method and thus should not be delivered to a matching resource
+	 *         anymore.
 	 */
 	protected boolean preDeliverRequest(final Exchange exchange) {
 		return false;
@@ -132,26 +137,22 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * Checks whether an observe relationship has to be established or canceled.
 	 * <p>
 	 * This is done here to have a server-global observeManager that holds the
-	 * set of remote endpoints for all resources. This global knowledge is required
-	 * for efficient orphan handling.
+	 * set of remote endpoints for all resources. This global knowledge is
+	 * required for efficient orphan handling.
 	 * 
-	 * @param exchange
-	 *            the exchange of the current request
-	 * @param resource
-	 *            the target resource
+	 * @param exchange the exchange of the current request
+	 * @param resource the target resource
 	 */
 	protected final void checkForObserveOption(final Exchange exchange, final Resource resource) {
 
 		Request request = exchange.getRequest();
 		if (request.getCode() == Code.GET && request.getOptions().hasObserve() && resource.isObservable()) {
 
-			InetSocketAddress source = new InetSocketAddress(request.getSource(), request.getSourcePort());
+			InetSocketAddress source = request.getSourceContext().getPeerAddress();
 
-			if (request.getOptions().getObserve() == 0) {
+			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.debug(
-						"initiating an observe relation between {}:{} and resource {}",
-						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
+				LOGGER.debug("initiating an observe relation between {} and resource {}", source, resource.getURI());
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
@@ -159,7 +160,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
 
-			} else if (request.getOptions().getObserve() == 1) {
+			} else if (request.isObserveCancel()) {
 				// Observe defines 1 for canceling
 				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
 				if (relation != null) {
@@ -170,6 +171,18 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	}
 
 	/**
+	 * Return root resource.
+	 * 
+	 * Intended to be used by custom {@link #findResource(List)}.
+	 * 
+	 * @return root resources
+	 * @see #root
+	 */
+	protected Resource getRootResource() {
+		return root;
+	}
+
+	/**
 	 * Searches in the resource tree for the specified path. A parent resource
 	 * may accept requests to subresources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
@@ -177,7 +190,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @param list the path as list of resource names
 	 * @return the resource or null if not found
 	 */
-	protected final Resource findResource(final List<String> list) {
+	protected Resource findResource(final List<String> list) {
 		Deque<String> path = new LinkedList<String>(list);
 		Resource current = root;
 		while (!path.isEmpty() && current != null) {
@@ -190,18 +203,19 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	/**
 	 * Delivers an inbound CoAP response message to its corresponding request.
 	 * <p>
-	 * This method first invokes {@link #preDeliverResponse(Exchange, Response)}.
-	 * The response is considered <em>processed</em> if the
-	 * <em>preDeliverResponse</em> method returned {@code true}.
+	 * This method first invokes
+	 * {@link #preDeliverResponse(Exchange, Response)}. The response is
+	 * considered <em>processed</em> if the <em>preDeliverResponse</em> method
+	 * returned {@code true}.
 	 * <p>
-* 	 * Otherwise, this method delivers the response to the corresponding request.
+	 * * Otherwise, this method delivers the response to the corresponding
+	 * request.
 	 * 
-	 * @param exchange
-	 *            The exchange containing the originating CoAP request.
-	 * @param response
-	 *            The inbound CoAP response message.
+	 * @param exchange The exchange containing the originating CoAP request.
+	 * @param response The inbound CoAP response message.
 	 * @throws NullPointerException if exchange or response are {@code null}.
-	 * @throws IllegalArgumentException if the exchange does not contain a request.
+	 * @throws IllegalArgumentException if the exchange does not contain a
+	 *             request.
 	 */
 	@Override
 	public final void deliverResponse(final Exchange exchange, final Response response) {
@@ -220,21 +234,24 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	}
 
 	/**
-	 * Invoked by the <em>deliverResponse</em> method before the response is delivered to the
-	 * corresponding request.
+	 * Invoked by the <em>deliverResponse</em> method before the response is
+	 * delivered to the corresponding request.
 	 * <p>
-	 * Subclasses may override this method in order to replace the default response handling logic
-	 * or to modify or add headers etc before the response is delivered to the request.
+	 * Subclasses may override this method in order to replace the default
+	 * response handling logic or to modify or add headers etc before the
+	 * response is delivered to the request.
 	 * <p>
-	 * The response is delivered to the request if and only if the exchange's request does not
-	 * contain a <em>response</em> when this method returns.
+	 * The response is delivered to the request if and only if the exchange's
+	 * request does not contain a <em>response</em> when this method returns.
 	 * <p>
 	 * This default implementation returns {@code false}.
 	 * 
-	 * @param exchange The exchange containing the request that the incoming response belongs to.
+	 * @param exchange The exchange containing the request that the incoming
+	 *            response belongs to.
 	 * @param response The incoming response.
-	 * @return {@code true} if the response has been processed by this method and thus should
-	 *         not be delivered to the corresponding request anymore.
+	 * @return {@code true} if the response has been processed by this method
+	 *         and thus should not be delivered to the corresponding request
+	 *         anymore.
 	 */
 	protected boolean preDeliverResponse(final Exchange exchange, final Response response) {
 		return false;

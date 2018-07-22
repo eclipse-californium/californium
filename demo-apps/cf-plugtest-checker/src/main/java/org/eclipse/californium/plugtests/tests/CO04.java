@@ -59,65 +59,66 @@ public class CO04 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
 
-        // for observing
-        int observeLoop = 10;
+		// for observing
+		int observeLoop = 10;
 
-        // print request info
-        if (verbose) {
-            System.out.println("Request for test " + this.testName + " sent");
+		// print request info
+		if (verbose) {
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
-        }
+		}
 
-        // execute the request
-        try {
-            Response response = null;
-            boolean success = true;
-            long time = 5000;
-            boolean timedOut = false;
+		// execute the request
+		try {
+			Response response = null;
+			boolean success = true;
+			long time = 5000;
+			boolean timedOut = false;
 
-			request.send();
-            
-            System.out.println();
-            System.out.println("**** TEST: " + testName + " ****");
-            System.out.println("**** BEGIN CHECK ****");
+			startObserve(request);
+
+			System.out.println();
+			System.out.println("**** TEST: " + testName + " ****");
+			System.out.println("**** BEGIN CHECK ****");
 
 			response = request.waitForResponse(time);
-            if (response != null) {
+			if (response != null) {
 				success &= checkType(Type.ACK, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasContentType(response);
 				success &= hasNonEmptyPalyoad(response);
 				success &= hasObserve(response);
-                
-                if (success) {
 
-                	time = response.getOptions().getMaxAge() * 1000;
-    				System.out.println("+++++ Max-Age: "+time+" +++++");
-    				if (time==0) time = 5000;
-	            
-		            for (int l = 0; success && (l < observeLoop); ++l) {
-		
-						response = request.waitForResponse(time + 1000);
-		                
+				if (success) {
+
+					time = response.getOptions().getMaxAge() * 1000;
+					System.out.println("+++++ Max-Age: " + time + " +++++");
+					if (time == 0) {
+						time = 5000;
+					}
+
+					for (int l = 0; success && (l < observeLoop); ++l) {
+
+						response = waitForNotification(time + 1000);
+
 						// checking the response
 						if (response != null) {
 							System.out.println("+++++++ Received notification " + l + " +++++++");
-		                	
-		                    // print response info
-		                    if (verbose) {
-		                        System.out.println("Response received");
-		                        System.out.println("Time elapsed (ms): " + response.getRTT());
-		                        Utils.prettyPrint(response);
-		                    }
-		
-		                    success &= checkResponse(request, response);
+
+							// print response info
+							if (verbose) {
+								System.out.println("Response received");
+								System.out.println("Time elapsed (ms): " + response.getRTT());
+								Utils.prettyPrint(response);
+							}
+
+							success &= checkResponse(request, response);
 
 							// update timeout
 							time = response.getOptions().getMaxAge() * 1000;
@@ -132,13 +133,14 @@ public class CO04 extends TestClientAbstract {
 								asyncRequest.setPayload("sesame");
 								asyncRequest.setURI(serverURI + "/obs-reset");
 								asyncRequest.addMessageObserver(new MessageObserverAdapter() {
-										public void onResponse(Response response) {
-												if (response != null) {
-													System.out.println("Received: " + response.getCode());
-													System.out.println("+++++++++++++++++++++++");
-												}
-											}
-										});
+
+									public void onResponse(Response response) {
+										if (response != null) {
+											System.out.println("Received: " + response.getCode());
+											System.out.println("+++++++++++++++++++++++");
+										}
+									}
+								});
 								asyncRequest.send();
 							}
 
@@ -146,83 +148,87 @@ public class CO04 extends TestClientAbstract {
 							timedOut = true;
 							l = observeLoop / 2;
 							System.out.println("PASS: Max-Age timed out");
-							
-							// automatic re-registration is done through CoapClient
-							// with "advanced" (i.e., raw) Requests we need to do it manually
+
+							// automatic re-registration is done through
+							// CoapClient
+							// with "advanced" (i.e., raw) Requests we need to
+							// do it manually
 							System.out.println("+++++ Re-registering +++++");
 							Request reregister = Request.newGet();
 							reregister.setURI(uri);
 							reregister.setToken(request.getToken());
 							reregister.setObserve();
 							request = reregister;
-							request.send();
-							
+							startObserve(request);
+
 							response = request.waitForResponse(time);
-				            if (response != null) {
+							if (response != null) {
 								success &= checkType(Type.ACK, response.getType());
-								success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+								success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 								success &= checkToken(request.getToken(), response.getToken());
 								success &= hasContentType(response);
 								success &= hasNonEmptyPalyoad(response);
 								success &= hasObserve(response);
-				            } else {
-				            	System.out.println("FAIL: Re-registration failed");
+							} else {
+								System.out.println("FAIL: Re-registration failed");
 								success = false;
 								break;
-				            }
+							}
 						} else {
 							System.out.println("+++++++++++++++++++++++");
 							System.out.println("++++ START SERVER +++++");
 							System.out.println("+++++++++++++++++++++++");
 						} // response != null
 					} // observeLoop
-		            
-		            if (!timedOut) {
-		            	System.out.println("FAIL: Server not rebooted");
+
+					if (!timedOut) {
+						System.out.println("FAIL: Server not rebooted");
 						success = false;
-		            }
-					
-					if (response!=null) {
-		            
-			            // RST to cancel
-			            System.out.println("+++++++ Canceling +++++++");
-			            
-			            request.cancel();
-			            
-			            // wait here and let ReliabilityLayer send RST for canceled request
-						Thread.sleep(time + time/2);
+					}
+
+					if (response != null) {
+
+						// RST to cancel
+						System.out.println("+++++++ Canceling +++++++");
+
+						request.cancel();
+
+						// wait here and let ReliabilityLayer send RST for
+						// canceled request
+						Thread.sleep(time + time / 2);
 						response = request.getResponse();
-	
+
 						if (response != null) {
 							System.out.println("FAIL: Notification after canceling");
 							success = false;
 						} else {
-				            System.out.println("+++++++ No notification +++++++");
+							System.out.println("+++++++ No notification +++++++");
 						}
 					} else {
-	                    System.out.println("FAIL: No notification after re-registration");
+						System.out.println("FAIL: No notification after re-registration");
 						success = false;
 					}
-                }
-            } else {
-            	System.out.println("FAIL: No notification after registration");
+				}
+			} else {
+				System.out.println("FAIL: No notification after registration");
 				success = false;
-            }
-			
-            if (success) {
-                System.out.println("**** TEST PASSED ****");
-                addSummaryEntry(testName + ": PASSED");
-            } else {
-                System.out.println("**** TEST FAILED ****");
-                addSummaryEntry(testName + ": --FAILED--");
-            }
+			}
 
-            tickOffTest();
-			
+			if (success) {
+				System.out.println("**** TEST PASSED ****");
+				addSummaryEntry(testName + ": PASSED");
+			} else {
+				System.out.println("**** TEST FAILED ****");
+				addSummaryEntry(testName + ": --FAILED--");
+			}
+
+			tickOffTest();
+
 		} catch (InterruptedException e) {
-			System.err.println("Interupted during receive: "
-					+ e.getMessage());
+			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
@@ -230,7 +236,7 @@ public class CO04 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

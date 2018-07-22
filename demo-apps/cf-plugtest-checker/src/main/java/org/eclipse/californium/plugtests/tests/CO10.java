@@ -58,20 +58,18 @@ public class CO10 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
 
 		// for observing
 		int observeLoop = 4;
-        long time = 5000;
+		long time = 5000;
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -80,7 +78,7 @@ public class CO10 extends TestClientAbstract {
 			Response response = null;
 			boolean success = true;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -89,19 +87,21 @@ public class CO10 extends TestClientAbstract {
 			response = request.waitForResponse(time);
 			if (response != null) {
 				success &= checkType(Type.ACK, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= hasContentType(response);
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasObserve(response);
 
 				time = response.getOptions().getMaxAge() * 1000;
-				System.out.println("+++++ Max-Age: "+time+" +++++");
-				if (time==0) time = 5000;
+				System.out.println("+++++ Max-Age: " + time + " +++++");
+				if (time == 0) {
+					time = 5000;
+				}
 			}
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(time + 1000);
+				response = waitForNotification(time + 1000);
 
 				// checking the response
 				if (response != null) {
@@ -110,31 +110,30 @@ public class CO10 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
 
 					success &= checkResponse(request, response);
-					
-					if (l==1) {
-			            System.out.println("+++++ Unrelated GET +++++");
+
+					if (l == 1) {
+						System.out.println("+++++ Unrelated GET +++++");
 						// GET with different Token
 						Request asyncRequest = Request.newGet();
 						asyncRequest.setURI(uri);
 						asyncRequest.send();
-						response = asyncRequest.waitForResponse(time/2);
-						if (response!=null) {
+						response = asyncRequest.waitForResponse(time / 2);
+						if (response != null) {
 							success &= checkToken(asyncRequest.getToken(), response.getToken());
 							success &= hasObserve(response, true); // inverted
-			                System.out.println("+++++ OK +++++");
+							System.out.println("+++++ OK +++++");
 						} else {
-			                System.out.println("FAIL: No response to unrelated GET");
+							System.out.println("FAIL: No response to unrelated GET");
 							success = false;
 						}
 					}
-				} else if (l>1) {
-	                System.out.println("FAIL: No notifications after unrelated GET");
+				} else if (l > 1) {
+					System.out.println("FAIL: No notifications after unrelated GET");
 					success = false;
 				}
 			}
@@ -150,9 +149,10 @@ public class CO10 extends TestClientAbstract {
 			tickOffTest();
 
 		} catch (InterruptedException e) {
-			System.err.println("Interupted during receive: "
-					+ e.getMessage());
+			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
@@ -160,7 +160,7 @@ public class CO10 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

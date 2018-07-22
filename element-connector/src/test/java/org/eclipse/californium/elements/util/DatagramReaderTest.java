@@ -31,13 +31,13 @@ public class DatagramReaderTest {
 
 	@Test
 	public void testBitsLeftWorksForEmptyBuffer() {
-		givenABuffer(new byte[]{});
+		givenABuffer(new byte[] {});
 		assertThat(reader.bitsLeft(), is(0));
 	}
 
 	@Test
 	public void testBitsLeftWorksForByteWiseReading() {
-		givenABuffer(new byte[]{0x01, 0x02, 0x03});
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03 });
 		assertThat(reader.bitsLeft(), is(24));
 
 		reader.readBytes(1);
@@ -51,7 +51,7 @@ public class DatagramReaderTest {
 
 	@Test
 	public void testBitsLeftWorksForBitWiseReading() {
-		givenABuffer(new byte[]{0x01, 0x02, 0x03});
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03 });
 
 		reader.read(6);
 		assertThat(reader.bitsLeft(), is(18));
@@ -61,6 +61,51 @@ public class DatagramReaderTest {
 
 		reader.read(10);
 		assertThat(reader.bitsLeft(), is(0));
+	}
+
+	@Test
+	public void testMarkAndResetBits() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03 });
+
+		int value = reader.read(6);
+		assertThat(value, is(0));
+		assertThat(reader.bitsLeft(), is(18));
+
+		reader.mark();
+
+		value = reader.readBytes(1)[0] & 0xff;
+		assertThat(value, is(0x40));
+		assertThat(reader.bitsLeft(), is(10));
+
+		reader.reset();
+		assertThat(reader.bitsLeft(), is(18));
+
+		value = reader.readBytes(1)[0] & 0xff;
+		assertThat(value, is(0x40));
+		assertThat(reader.bitsLeft(), is(10));
+	}
+
+	@Test
+	public void testMarkAndResetBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		int value = reader.read(Byte.SIZE);
+		assertThat(value, is(1));
+
+		value = reader.read(Byte.SIZE);
+		assertThat(value, is(2));
+
+		reader.mark();
+
+		value = reader.read(Byte.SIZE);
+		assertThat(value, is(3));
+
+		value = reader.read(Byte.SIZE);
+		assertThat(value, is(4));
+
+		reader.reset();
+		byte[] bytes = reader.readBytes(4);
+		assertThat(bytes, is(new byte[] { 0x03, 0x04, 0x05, 0x06 }));
 	}
 
 	private void givenABuffer(byte[] buffer) {

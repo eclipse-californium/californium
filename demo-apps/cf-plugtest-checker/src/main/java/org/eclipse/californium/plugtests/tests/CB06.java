@@ -48,8 +48,7 @@ public class CB06 extends TestClientAbstract {
 		} else {
 			int maxNUM = response.getOptions().getBlock2().getNum();
 			success &= checkType(Type.ACK, response.getType());
-			success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-					response.getCode().value, "code");
+			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 			success &= checkOption(new BlockOption(EXPECTED_BLOCK_SIZE,
 					false, maxNUM), response.getOptions().getBlock2(),
 					"Block2");

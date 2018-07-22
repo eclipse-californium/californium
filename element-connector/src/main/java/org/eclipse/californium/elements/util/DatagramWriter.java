@@ -13,10 +13,13 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add methods to reduce
+ *                                                    required clones.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 /**
  * This class describes the functionality to write raw network-ordered datagrams
@@ -175,12 +178,21 @@ public final class DatagramWriter {
 		return byteArray;
 	}
 
-	// Utilities ///////////////////////////////////////////////////////////////
+	public void write(DatagramWriter data) {
+		try {
+			data.byteStream.writeTo(byteStream);
+		} catch (IOException e) {
+		}
+	}
+
+	public int size() {
+		return byteStream.size();
+	}
 
 	/**
 	 * Writes pending bits to the stream.
 	 */
-	private void writeCurrentByte() {
+	public void writeCurrentByte() {
 
 		if (currentBitIndex < Byte.SIZE - 1) {
 
@@ -190,6 +202,8 @@ public final class DatagramWriter {
 			currentBitIndex = Byte.SIZE - 1;
 		}
 	}
+
+	// Utilities ///////////////////////////////////////////////////////////////
 
 	@Override
 	public String toString() {

@@ -17,13 +17,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * The key exchange message sent when using the preshared key key exchange
@@ -38,8 +39,6 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int IDENTITY_HINT_LENGTH_BITS = 16;
-	
-	private static final Charset CHAR_SET_UTF8 = Charset.forName("UTF8");
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -58,13 +57,13 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	public PSKServerKeyExchange(String hint, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.hint = hint;
-		this.hintEncoded = hint.getBytes(CHAR_SET_UTF8);
+		this.hintEncoded = hint.getBytes(UTF_8);
 	}
 	
 	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.hintEncoded = Arrays.copyOf(hintEncoded, hintEncoded.length);
-		this.hint = new String(this.hintEncoded, CHAR_SET_UTF8);
+		this.hint = new String(this.hintEncoded, UTF_8);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -79,7 +78,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity Hint: ").append(hint).append(System.lineSeparator());
+		sb.append("\t\tPSK Identity Hint: ").append(hint).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

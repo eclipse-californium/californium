@@ -62,7 +62,9 @@ public class TlsEndpointContext extends TcpEndpointContext {
 
 	@Override
 	public String toString() {
-		return String.format("TLS(%s,%s,%s)", getConnectionId(), StringUtil.trunc(getSessionId(), 15), getCipher());
+		return String.format("TLS(%s,%s,%s,%s)", getPeerAddressAsString(),
+				StringUtil.trunc(getConnectionId(), ID_TRUNC_LENGTH), StringUtil.trunc(getSessionId(), ID_TRUNC_LENGTH),
+				getCipher());
 	}
 
 }

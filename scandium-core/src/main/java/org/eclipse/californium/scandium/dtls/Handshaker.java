@@ -35,6 +35,10 @@
  *    Ludwig Seitz (RISE SICS) - Moved certificate validation here from CertificateMessage
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
+ *    Vikram (University of Rostock) - generatePremasterSecertFromPSK with otherSecret from ECDHE_PSK
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -44,36 +48,36 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.CertPathValidator;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -114,8 +118,11 @@ public abstract class Handshaker {
 
 	protected final DTLSSession session;
 	protected final RecordLayer recordLayer;
-	/** list of trusted self-signed root certificates */
-	protected final X509Certificate[] rootCertificates;
+	/**
+	 * The logic in charge of verifying the chain of certificates asserting this
+	 * handshaker's identity
+	 */
+	protected final CertificateVerifier certificateVerifier;
 
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
@@ -153,6 +160,11 @@ public abstract class Handshaker {
 	/** The chain of certificates asserting this handshaker's identity */
 	protected X509Certificate[] certificateChain;
 
+	/**
+	 * Support Server Name Indication TLS extension.
+	 */
+	protected boolean sniEnabled = true;
+
 	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
@@ -169,7 +181,8 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certVerifier the verifier in charge of validating the peer's
+	 *            certificate chain
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -179,9 +192,9 @@ public abstract class Handshaker {
 	 *             <code>null</code>.
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
-		this(isClient, 0, session, recordLayer, sessionListener, rootCertificates, maxTransmissionUnit, rpkStore);
+		this(isClient, 0, session, recordLayer, sessionListener, certVerifier, maxTransmissionUnit, rpkStore);
 	}
 
 	/**
@@ -201,7 +214,8 @@ public abstract class Handshaker {
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param sessionListener the listener to notify about the session's
 	 *            life-cycle events.
-	 * @param rootCertificates the trusted root certificates.
+	 * @param certVerifier the verifier in charge of validating the peer's
+	 *            certificate chain
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
 	 * @param rpkStore the store containing the trusted raw public keys.
@@ -213,7 +227,7 @@ public abstract class Handshaker {
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, X509Certificate[] rootCertificates, int maxTransmissionUnit,
+			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
 			TrustedRpkStore rpkStore) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
@@ -228,7 +242,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		addSessionListener(sessionListener);
-		this.rootCertificates = rootCertificates == null ? new X509Certificate[0] : rootCertificates;
+		this.certificateVerifier = certVerifier;
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -330,13 +344,12 @@ public abstract class Handshaker {
 			int epoch = candidate.getEpoch();
 			if (epoch < session.getReadEpoch()) {
 				// discard old message
-				LOGGER.debug(
-						"Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
-						new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
+				LOGGER.debug("Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
+						getPeerAddress(), epoch, session.getReadEpoch());
 				return null;
 			} else if (epoch == session.getReadEpoch()) {
 				DTLSMessage fragment = candidate.getFragment();
-				switch(fragment.getContentType()) {
+				switch (fragment.getContentType()) {
 				case ALERT:
 					return fragment;
 				case CHANGE_CIPHER_SPEC:
@@ -367,26 +380,23 @@ public abstract class Handshaker {
 					} else if (messageSeq > nextReceiveSeq) {
 						LOGGER.debug(
 								"Queued newer message from current epoch, message_seq [{}] > next_receive_seq [{}]",
-								new Object[]{messageSeq, nextReceiveSeq});
+								messageSeq, nextReceiveSeq);
 						queue.add(candidate);
 						return null;
 					} else {
-						LOGGER.debug(
-								"Discarding old message, message_seq [{}] < next_receive_seq [{}]",
-								new Object[]{messageSeq, nextReceiveSeq});
+						LOGGER.debug("Discarding old message, message_seq [{}] < next_receive_seq [{}]", messageSeq,
+								nextReceiveSeq);
 						return null;
 					}
 				default:
-					LOGGER.debug("Cannot process message of type [{}], discarding...",
-							fragment.getContentType());
+					LOGGER.debug("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
 				// newer epoch, queue message
 				queue.add(candidate);
-				LOGGER.debug(
-						"Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]",
-						new Object[]{epoch, getSession().getReadEpoch()});
+				LOGGER.debug("Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]", epoch,
+						getSession().getReadEpoch());
 				return null;
 			}
 		}
@@ -432,14 +442,15 @@ public abstract class Handshaker {
 				}
 				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
-				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]",
-						getSession().getPeer(), e.getMessage(), e);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer());
+				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+						e.getMessage(), e);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+						session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
 		} else {
-			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}",
-					new Object[]{record.getPeerAddress(), System.lineSeparator(), record});
+			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
+					StringUtil.lineSeparator(), record);
 		}
 	}
 
@@ -550,31 +561,30 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>:
 	 * The premaster secret is formed as follows: if the PSK is N octets long,
 	 * concatenate a uint16 with the value N, N zero octets, a second uint16
 	 * with the value N, and the PSK itself.
 	 * 
-	 * @param psk
-	 *            the preshared key as byte array.
-	 * @return the premaster secret.
+	 * @param psk - preshared key as byte array
+	 * @param otherSecret - either is zeroes (plain PSK case) or comes 
+	 * from the EC Diffie-Hellman exchange (ECDHE_PSK). 
+	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
+	 * @return
 	 */
-	protected final byte[] generatePremasterSecretFromPSK(byte[] psk) {
+	protected final byte[] generatePremasterSecretFromPSK(byte[] psk, byte[] otherSecret) {
 		/*
 		 * What we are building is the following with length fields in between:
 		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
 		 */
-		int length = psk.length;
-
-		byte[] lengthField = new byte[2];
-		lengthField[0] = (byte) (length >> 8);
-		lengthField[1] = (byte) (length);
-
-		byte[] zero = ByteArrayUtils.padArray(new byte[0], (byte) 0x00, length);
-
-		byte[] premasterSecret = ByteArrayUtils.concatenate(lengthField, ByteArrayUtils.concatenate(zero, ByteArrayUtils.concatenate(lengthField, psk)));
-
-		return premasterSecret;
+		int pskLength = psk.length;
+		
+		byte[] other = otherSecret == null ? new byte[pskLength] : otherSecret;
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(other.length, 16);
+		writer.writeBytes(other);
+		writer.write(pskLength, 16);
+		writer.writeBytes(psk);
+		return writer.toByteArray();	
 	}
 
 	protected final void setCurrentReadState() {
@@ -640,9 +650,8 @@ public abstract class Handshaker {
 			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
 		} else {
 			// message needs to be fragmented
-			LOGGER.debug(
-					"Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength()});
+			LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
+					handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
 			// create N handshake messages, all with the
 			// same message_seq value as the original handshake message
 			int messageSeq = handshakeMessage.getMessageSeq();
@@ -718,10 +727,10 @@ public abstract class Handshaker {
 			LOGGER.debug("Successfully re-assembled {} message", reassembledMessage.getMessageType());
 			fragmentedMessages.remove(messageSeq);
 		}
-		
+
 		return reassembledMessage;
 	}
-	
+
 	/**
 	 * Reassembles handshake message fragments into the original message.
 	 * 
@@ -751,10 +760,10 @@ public abstract class Handshaker {
 		byte[] reassembly = new byte[] {};
 		int offset = 0;
 		for (FragmentedHandshakeMessage fragmentedHandshakeMessage : fragments) {
-			
+
 			int fragmentOffset = fragmentedHandshakeMessage.getFragmentOffset();
 			int fragmentLength = fragmentedHandshakeMessage.getFragmentLength();
-			
+
 			if (fragmentOffset == offset) { // eliminate duplicates
 				// case: no overlap
 				reassembly = ByteArrayUtils.concatenate(reassembly, fragmentedHandshakeMessage.fragmentToByteArray());
@@ -767,19 +776,19 @@ public abstract class Handshaker {
 				int newLength = fragmentLength - newOffset;
 				byte[] newBytes = new byte[newLength];
 				// take only the new bytes and add them
-				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);	
+				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);
 				reassembly = ByteArrayUtils.concatenate(reassembly, newBytes);
-				
+
 				offset = reassembly.length;
 			}
 		}
-		
+
 		if (reassembly.length == totalLength) {
 			// the reassembled fragment has the expected length
 			FragmentedHandshakeMessage wholeMessage =
 					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
 			reassembly = wholeMessage.toByteArray();
-			
+
 			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
 			boolean receiveRawPublicKey = false;
 			if (session != null) {
@@ -788,7 +797,7 @@ public abstract class Handshaker {
 			}
 			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
 		}
-		
+
 		return message;
 	}
 
@@ -834,7 +843,7 @@ public abstract class Handshaker {
 	public final DTLSSession getSession() {
 		return session;
 	}
-	
+
 	/**
 	 * Gets the IP address and port of the peer this handshaker is used to
 	 * negotiate a session with.
@@ -844,8 +853,7 @@ public abstract class Handshaker {
 	public final InetSocketAddress getPeerAddress() {
 		return session.getPeer();
 	}
-	
-	
+
 	/**
 	 * Sets the message sequence number on an outbound handshake message.
 	 * 
@@ -867,22 +875,36 @@ public abstract class Handshaker {
 		this.nextReceiveSeq++;
 	}
 
-	public void addSessionListener(SessionListener listener){
-		if (listener != null)
+	/**
+	 * Adds a listener to the list of listeners to be notified
+	 * about session life cycle events.
+	 * 
+	 * @param listener The listener to add.
+	 */
+	public final void addSessionListener(SessionListener listener) {
+		if (listener != null) {
 			sessionListeners.add(listener);
+		}
 	}
-	
-	public void removeSessionListener(SessionListener listener){
-		if (listener != null)
+
+	/**
+	 * Removes a listener from the list of listeners to be notified
+	 * about session life cycle events.
+	 * 
+	 * @param listener The listener to remove.
+	 */
+	public final void removeSessionListener(SessionListener listener) {
+		if (listener != null) {
 			sessionListeners.remove(listener);
+		}
 	}
-	
+
 	protected final void handshakeStarted() throws HandshakeException {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeStarted(this);
 		}
 	}
-	
+
 	protected final void sessionEstablished() throws HandshakeException {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.sessionEstablished(this, this.getSession());
@@ -895,9 +917,15 @@ public abstract class Handshaker {
 		}
 	}
 
-	public final void handshakeFailed(Throwable error) {
+	/**
+	 * Notifies all registered session listeners about a handshake
+	 * failure.
+	 * 
+	 * @param cause The reason for the failure.
+	 */
+	public final void handshakeFailed(Throwable cause) {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeFailed(getPeerAddress(), error);
+			sessionListener.handshakeFailed(getPeerAddress(), cause);
 		}
 	}
 
@@ -931,58 +959,31 @@ public abstract class Handshaker {
 	protected final void expectChangeCipherSpecMessage() {
 		this.changeCipherSuiteMessageExpected = true;
 	}
-	
-	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
-		Set<TrustAnchor> result = new HashSet<>();
-		if (trustedCertificates != null) {
-			for (X509Certificate cert : trustedCertificates) {
-				result.add(new TrustAnchor((X509Certificate) cert, null));
-			}
-		}
-		return result;
-	}
-	
+
 	/**
 	 * Validates the X.509 certificate chain provided by the the peer as part of
 	 * this message, or the raw public key.
-	 * 
-	 * This method checks
-	 * <ol>
-	 * <li>that each certificate's issuer DN equals the subject DN of the next
-	 * certiciate in the chain</li>
-	 * <li>that each certificate is currently valid according to its validity
-	 * period</li>
-	 * <li>that the chain is rooted at a trusted CA</li>
-	 * </ol>
-	 * 
-	 * OR that the raw public key is in the raw public key trust store.
-	 * 
+	 *
+	 * This method delegates the certificate chain validation to the
+	 * {@link CertificateVerifier}
+	 *
+	 * OR
+	 *
+	 * checks that the raw public key is in the raw public key trust store.
+	 *
 	 * @param message the certificate message
-	 * 
+	 *
 	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
-
-			Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
-
-			try {
-				PKIXParameters params = new PKIXParameters(trustAnchors);
-				// TODO: implement alternative means of revocation checking
-				params.setRevocationEnabled(false);
-
-				CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-				validator.validate(message.getCertificateChain(), params);
-
-			} catch (GeneralSecurityException e) {
-				if (LOGGER.isTraceEnabled()) {
-					LOGGER.trace("Certificate validation failed", e);
-				} else if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
-				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+			if (certificateVerifier != null) {
+				certificateVerifier.verifyCertificate(message, session);
+			} else {
+				LOGGER.debug("Certificate validation failed: x509 could not be trusted!");
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
 						session.getPeer());
-				throw new HandshakeException("Certificate chain could not be validated", alert);
+				throw new HandshakeException("Trust is not possible!", alert);
 			}
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());

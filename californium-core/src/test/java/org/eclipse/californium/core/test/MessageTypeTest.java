@@ -65,7 +65,9 @@ public class MessageTypeTest {
 		System.out.println(System.lineSeparator() + "Start " + MessageTypeTest.class.getSimpleName());
 		EndpointManager.clear();
 
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint endpoint = builder.build();
 
 		server = new CoapServer();
 		server.addEndpoint(endpoint);

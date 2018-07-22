@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -14,6 +14,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests from
  *                                                    DTLSConnectorTest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timeout for await
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix unintended PortUnreachableException
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -24,6 +25,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -50,8 +52,11 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TestName;
+import org.junit.runner.Description;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -61,8 +66,19 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class DTLSEndpointContextTest {
+
 	@ClassRule
-	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
+			DtlsNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public TestName names = new TestName() {
+
+		@Override
+		protected void starting(Description d) {
+			System.out.println("Test " + d.getMethodName());
+		}
+	};
 
 	private static final long TIMEOUT_IN_MILLIS = 2000;
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
@@ -123,10 +139,11 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointContextMatcher = new TestEndpointContextMatcher(1);
 		client.setEndpointContextMatcher(endpointContextMatcher);
 		// GIVEN a message to send
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), callback,
-				false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
 
-		// WHEN sending the initial message, but being blocked by EndpointContextMatcher
+		// WHEN sending the initial message, but being blocked by
+		// EndpointContextMatcher
 		CountDownLatch latch = new CountDownLatch(1);
 		givenAStartedSession(outboundMessage, latch);
 
@@ -142,8 +159,8 @@ public class DTLSEndpointContextTest {
 
 	/**
 	 * Test invoking of EndpointContextMatcher on initial send. The
-	 * EndpointContextMatcher is called twice, first without a connector
-	 * context and a second time after the DTLS session was established.
+	 * EndpointContextMatcher is called twice, first without a connector context
+	 * and a second time after the DTLS session was established.
 	 */
 	@Test
 	public void testInitialSendingInvokesEndpointContextMatcher() throws Exception {
@@ -170,26 +187,31 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(3);
 		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
-		serverHelper.givenAnEstablishedSession(client, false);
+		LatchDecrementingRawDataChannel channel = serverHelper.givenAnEstablishedSession(client, false);
 
 		EndpointContext endpointContext = endpointMatcher.getConnectionEndpointContext(1);
 
 		// GIVEN a message with endpoint context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext,
-				null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext, null, false);
+
+		// prepare waiting for response
+		CountDownLatch latch = new CountDownLatch(1);
+		channel.setLatch(latch);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
 
 		// THEN assert that the EndpointContextMatcher is invoked
-		assertThat(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS), is(true));
-		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(endpointContext));
-		assertThat(endpointMatcher.getMessageEndpointContext(2), is(endpointContext));
+		assertTrue(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
+		// THEN wait for response from server before shutdown client
+		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
+				latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	/**
-	 * Test invoking of EndpointContextMatcher when sending with resuming
-	 * DTLS Session.
+	 * Test invoking of EndpointContextMatcher when sending with resuming DTLS
+	 * Session.
 	 */
 	@Test
 	public void testSendingWhileResumingInvokesEndpointContextMatcher() throws Exception {
@@ -198,12 +220,17 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(3);
 		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
-		serverHelper.givenAnEstablishedSession(client, false);
+		LatchDecrementingRawDataChannel channel = serverHelper.givenAnEstablishedSession(client, false);
 
 		client.forceResumeAllSessions();
 
 		// GIVEN a message with endpoint context
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+
+		// prepare waiting for response
+		CountDownLatch latch = new CountDownLatch(1);
+		channel.setLatch(latch);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -211,22 +238,28 @@ public class DTLSEndpointContextTest {
 		// THEN assert that the EndpointContextMatcher is invoked
 		assertThat(endpointMatcher.await(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS), is(true));
 		assertThat(endpointMatcher.getConnectionEndpointContext(2), is(notNullValue()));
+
+		// THEN wait for response from server before shutdown client
+		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
+				latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	@Test
 	public void testConnectorAddsEndpointContextToReceivedApplicationMessage() throws Exception {
 		// GIVEN a message to be sent to the server
-		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// WHEN a session has been established and the message has been sent to
 		// the server
 		serverHelper.givenAnEstablishedSession(client, outboundMessage, true);
 
 		assertEstablishedClientSession();
-		
+
 		assertThat(serverHelper.serverRawDataProcessor.getLatestInboundMessage(), is(notNullValue()));
-		// THEN assert that the message delivered to the server side application layer
-		// contains a endpoint context containing the established session's ID, epoch and cipher
+		// THEN assert that the message delivered to the server side application
+		// layer contains a endpoint context containing the established
+		// session's ID, epoch and cipher
 		DtlsEndpointContext context = (DtlsEndpointContext) serverHelper.serverRawDataProcessor
 				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
@@ -286,8 +319,7 @@ public class DTLSEndpointContextTest {
 		}
 
 		@Override
-		public boolean isResponseRelatedToRequest(EndpointContext requestContext,
-				EndpointContext responseContext) {
+		public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 			return false;
 		}
 

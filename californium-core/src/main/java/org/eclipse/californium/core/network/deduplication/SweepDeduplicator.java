@@ -20,10 +20,13 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use nanoTime instead of 
  *                                                    currentTimeMillis
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix used milliseconds calculation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add size() for test-logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - use timestamp of add for deduplication 
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging for empty deduplicator.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - change logging level for removed entries
+ *                                                    from debug to trace
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
@@ -153,6 +156,11 @@ public final class SweepDeduplicator implements Deduplicator {
 		return incomingMessages.isEmpty();
 	}
 
+	@Override
+	public int size() {
+		return incomingMessages.size();
+	}
+
 	/**
 	 * The sweep algorithm periodically iterates over all exchanges and removes
 	 * obsolete entries.
@@ -205,9 +213,9 @@ public final class SweepDeduplicator implements Deduplicator {
 				// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
 				for (Map.Entry<?, DedupExchange> entry : incomingMessages.entrySet()) {
 					DedupExchange exchange = entry.getValue();
-					if (exchange.nanoTimestamp < oldestAllowed) {
+					if ((exchange.nanoTimestamp - oldestAllowed) < 0) {
 						//TODO check if exchange of observe relationship is periodically created and sweeped
-						LOGGER.debug("Mark-And-Sweep removes {}", entry.getKey());
+						LOGGER.trace("Mark-And-Sweep removes {}", entry.getKey());
 						incomingMessages.remove(entry.getKey());
 					}
 				}

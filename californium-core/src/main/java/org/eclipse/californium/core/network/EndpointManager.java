@@ -24,6 +24,9 @@
  *    Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getDefaultEndpoint(String scheme)
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - getDefaultEndpoint throws 
+ *                                                    IllegalStateException
+ *                                                    instead of returning null
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -47,15 +50,15 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
 /**
- * A factory for {@link Endpoint}s that can be used by clients for sending
+ * A manager and coap-factory for {@link Endpoint}s that can be used by clients for sending
  * outbound CoAP requests.
  *
  * The EndpointManager contains the default endpoint for coap (on port 5683) and
  * endpoint for other schemes (coaps, CoAP over DTLS, coap+tcp, COAP over TCP,
- * coaps+tcp, COAPS over TCP,). When an application serves only as client but
- * not server it can just use the default endpoint to send requests. When the
- * application sends a request by calling {@link Request#send()} the send method
- * sends itself over the default endpoint.
+ * coaps+tcp, COAPS over TCP,), if these additional endpoints are previously set. 
+ * When an application serves only as client but not as server it can just use the
+ * default endpoint to send requests. When the application sends a request by calling
+ * {@link Request#send()} the send method sends itself over the default endpoint.
  * <p>
  * To make a server listen for requests on the default endpoint, call
  * 
@@ -98,13 +101,15 @@ public class EndpointManager {
 	private final Map<String, Endpoint> endpoints = new ConcurrentHashMap<String, Endpoint>();
 
 	/**
-	 * Get default endpoint for provided scheme. If not available, try to create
-	 * one.
+	 * Get default endpoint for provided scheme. 
+	 * 
+	 * If not available, try to create one, if the provide uriScheme is simple "coap".
 	 * 
 	 * @param uriScheme scheme to select endpoint
-	 * @return the default endpoint for the provided scheme, or null, if not
-	 *         available
-	 * @throws IllegalArgumentException if uriScheme is not supported
+	 * @return the default endpoint for the provided scheme
+	 * @throws IllegalArgumentException if uriScheme is not generally not supported
+	 * @throws IllegalStateException if uriScheme requires a preset connector but no 
+	 *                               connector was set previously
 	 * 
 	 * @see #getDefaultEndpoint()
 	 * @see #setDefaultEndpoint(Endpoint)
@@ -121,7 +126,22 @@ public class EndpointManager {
 		uriScheme = uriScheme.toLowerCase();
 		Endpoint endpoint = endpoints.get(uriScheme);
 		if (null == endpoint) {
-			endpoint = createDefaultEndpoint(uriScheme);
+			if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+				throw new IllegalStateException("URI scheme " + uriScheme + " requires a previous set connector!");
+			} else if (CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+				throw new IllegalStateException("URI scheme " + uriScheme + " requires a previous set connector!");
+			} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
+				throw new IllegalStateException("URI scheme " + uriScheme + " requires a previous set connector!");
+			} else {
+				endpoint = new CoapEndpoint.CoapEndpointBuilder().build();
+			}
+			try {
+				endpoint.start();
+				LOGGER.info("created implicit endpoint {} for {}", new Object[] { endpoint.getUri(), uriScheme });
+			} catch (IOException e) {
+				LOGGER.error("could not create {} endpoint", uriScheme, e);
+			}
+			endpoints.put(uriScheme, endpoint);
 		}
 		return endpoint;
 	}
@@ -162,39 +182,6 @@ public class EndpointManager {
 				LOGGER.error("could not start new {} endpoint", uriScheme, e);
 			}
 		}
-	}
-
-	/**
-	 * Create the default endpoint for the provided uri scheme.
-	 * 
-	 * @param uriScheme uri scheme
-	 * @return create endpoint, or null, if endpoint would require more
-	 *         information (e.g. security context)
-	 */
-	private Endpoint createDefaultEndpoint(String uriScheme) {
-		Endpoint endpoint;
-
-		if (CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.info("secure endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
-			return null;
-		} else if (CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.info("tcp endpoint must be injected via setDefaultEndpoint(Endpoint)");
-			return null;
-		} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
-			LOGGER.info("secure tcp endpoint must be injected via setDefaultEndpoint(Endpoint) to use the proper credentials");
-			return null;
-		} else {
-			endpoint = new CoapEndpoint();
-		}
-		try {
-			endpoint.start();
-			LOGGER.info("created implicit endpoint {} for {}", new Object[] { endpoint.getUri(), uriScheme });
-		} catch (IOException e) {
-			LOGGER.error("could not create {} endpoint", uriScheme, e);
-		}
-		endpoints.put(uriScheme, endpoint);
-
-		return endpoint;
 	}
 
 	/**
@@ -246,7 +233,8 @@ public class EndpointManager {
 	// Needed for JUnit Tests to ensure, that the defaults endpoints are reseted
 	// to their initial values.
 	/**
-	 * Reset default endpoints. Destroy all default endpoints and clear their set.
+	 * Reset default endpoints. Destroy all default endpoints and clear their
+	 * set.
 	 */
 	public static void reset() {
 		EndpointManager it = getEndpointManager();

@@ -46,8 +46,7 @@ public class CC09 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-				response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);
 

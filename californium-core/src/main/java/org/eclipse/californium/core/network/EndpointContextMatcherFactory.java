@@ -20,6 +20,8 @@
  *                                                    to EndpointContextMatcherFactroy.
  *                                                    Add PRINCIPAL mode.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TlsEndpointContextMatcher
+ *    Achim Kraus (Bosch Software Innovations GmbH) - extend strict/relaxed modes for
+ *                                                    plain coap. 
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -38,54 +40,70 @@ import org.eclipse.californium.elements.UdpEndpointContextMatcher;
  * Factory for endpoint context matcher.
  */
 public class EndpointContextMatcherFactory {
-	
-	public enum DtlsMode {
+
+	public enum MatcherMode {
 		STRICT, RELAXED, PRINCIPAL
 	}
 
 	/**
 	 * Create endpoint context matcher related to connector according the
-	 * configuration. If connector supports "coaps:", DTLS_RESPONSE_MATCHING is
-	 * used to determine, if {@link StrictDtlsEndpointContextMatcher},
+	 * configuration.
+	 * 
+	 * If connector supports "coaps:", RESPONSE_MATCHING is used to determine,
+	 * if {@link StrictDtlsEndpointContextMatcher},
 	 * {@link RelaxedDtlsEndpointContextMatcher}, or
-	 * {@link PrincipalEndpointContextMatcher} is used. For other protocol
-	 * flavors the corresponding matcher is used.
+	 * {@link PrincipalEndpointContextMatcher} is used.
+	 * 
+	 * If connector supports "coap:", RESPONSE_MATCHING is used to determine, if
+	 * {@link UdpEndpointContextMatcher} is used with disabled
+	 * ({@link MatcherMode#RELAXED}) or enabled address check (otherwise).
+	 * 
+	 * For other protocol flavors the corresponding matcher is used.
 	 * 
 	 * @param connector connector to create related endpoint context matcher.
 	 * @param config configuration.
 	 * @return endpoint context matcher
 	 */
 	public static EndpointContextMatcher create(Connector connector, NetworkConfig config) {
+		String protocol = null;
 		if (null != connector) {
-			String protocol = connector.getProtocol();
-			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
-				return new UdpEndpointContextMatcher();
-			}
-			else if (CoAP.PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
+			protocol = connector.getProtocol();
+			if (CoAP.PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
 				return new TcpEndpointContextMatcher();
-			}
-			else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
+			} else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
 				return new TlsEndpointContextMatcher();
 			}
 		}
 		String textualMode = "???";
-		DtlsMode mode = DtlsMode.STRICT;
+		MatcherMode mode = MatcherMode.STRICT;
 		try {
-			textualMode = config.getString(NetworkConfig.Keys.DTLS_RESPONSE_MATCHING);
-			mode = DtlsMode.valueOf(textualMode);
+			textualMode = config.getString(NetworkConfig.Keys.RESPONSE_MATCHING);
+			mode = MatcherMode.valueOf(textualMode);
 		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("DTLS response matching mode '" + textualMode + "' not supported!");
+			throw new IllegalArgumentException("Response matching mode '" + textualMode + "' not supported!");
 		} catch (NullPointerException e) {
-			throw new IllegalArgumentException("DTLS response matching mode not provided/configured!");
+			throw new IllegalArgumentException("Response matching mode not provided/configured!");
 		}
-		switch(mode) {
-		case STRICT: 
-			break;
+		switch (mode) {
 		case RELAXED:
-			return new RelaxedDtlsEndpointContextMatcher();
+			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+				return new UdpEndpointContextMatcher(false);
+			} else {
+				return new RelaxedDtlsEndpointContextMatcher();
+			}
 		case PRINCIPAL:
-			return new PrincipalEndpointContextMatcher();
+			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+				return new UdpEndpointContextMatcher(false);
+			} else {
+				return new PrincipalEndpointContextMatcher();
+			}
+		case STRICT:
+		default:
+			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+				return new UdpEndpointContextMatcher(true);
+			} else {
+				return new StrictDtlsEndpointContextMatcher();
+			}
 		}
-		return new StrictDtlsEndpointContextMatcher();
 	}
 }

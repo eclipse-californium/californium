@@ -24,6 +24,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
  *                                                    by DTLS_RESPONSE_MATCHING
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add clone method
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for custom defaults
+ *                                                    remove clone method
  *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
@@ -36,11 +39,22 @@ import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+
+import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
+ * Depending on the environment, the configuration is stored and loaded from
+ * properties files. If file access is not possible, there are variants, which
+ * are marked as "WithoutFile" or variants, which use a {@link InputStream} to
+ * read the properties.
+ * 
+ * Note: For Android it's recommended to use the AssetManager and pass in the
+ * InputStream to the variants using that as parameter. Alternatively you may
+ * chose to use the "WithoutFile" variant and, if required, adjust the defaults
+ * in your code.
  */
 public final class NetworkConfig {
 
@@ -183,7 +197,7 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
-		public static final String DTLS_RESPONSE_MATCHING = "DTLS_RESPONSE_MATCHING";
+		public static final String RESPONSE_MATCHING = "RESPONSE_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
 		public static final String HTTP_SERVER_SOCKET_TIMEOUT = "HTTP_SERVER_SOCKET_TIMEOUT";
@@ -204,12 +218,29 @@ public final class NetworkConfig {
 		 * receiving of BERT message is always enabled while using TCP connector.
 		 */
 		public static final String TCP_NUMBER_OF_BULK_BLOCKS = "TCP_NUMBER_OF_BULK_BLOCKS";
+
+		/** Properties for encryption */
+		/**
+		 * (D)TLS session timeout in seconds.
+		 */
+		public static final String SECURE_SESSION_TIMEOUT = "SECURE_SESSION_TIMEOUT";
+		/**
+		 * DTLS auto resumption timeout in milliseconds. After that period
+		 * without exchanged messages, the session is forced to resume.
+		 */
+		public static final String DTLS_AUTO_RESUME_TIMEOUT = "DTLS_AUTO_RESUME_TIMEOUT";
 	}
 
 	/**
 	 * Gives access to the standard network configuration. When a new endpoint
 	 * or server is created without a specific network configuration, it will
 	 * use this standard configuration.
+	 * 
+	 * For Android, please ensure, that either
+	 * {@link NetworkConfig#setStandard(NetworkConfig)},
+	 * {@link NetworkConfig#createStandardWithoutFile()}, or
+	 * {@link NetworkConfig#createStandardFromStream(InputStream)} is called
+	 * before!
 	 * 
 	 * @return the standard configuration
 	 */
@@ -249,8 +280,26 @@ public final class NetworkConfig {
 	 * @return the configuration
 	 */
 	public static NetworkConfig createStandardFromStream(InputStream inStream) {
-		LOGGER.info("Creating standard network configuration properties from stream");
-		standard = new NetworkConfig();
+		standard = createFromStream(inStream, null);
+		return standard;
+	}
+
+	/**
+	 * Creates a network configuration from stream.
+	 *
+	 * Support environments without file access.
+	 * 
+	 * @param inStream input stream to read properties.
+	 * @param customHandler custom defaults handler. Maybe {@code null}.
+	 * @return the configuration
+	 */
+	public static NetworkConfig createFromStream(InputStream inStream,
+			final NetworkConfigDefaultHandler customHandler) {
+		LOGGER.info("Creating network configuration properties from stream");
+		NetworkConfig standard = new NetworkConfig();
+		if (customHandler != null) {
+			customHandler.applyDefaults(standard);
+		}
 		try {
 			standard.load(inStream);
 		} catch (IOException e) {
@@ -260,19 +309,48 @@ public final class NetworkConfig {
 	}
 
 	/**
-	 * Creates the standard with a file. If the file with the name
-	 * {@link #DEFAULT_FILE_NAME} exists, the configuration reads the properties
-	 * from this file. Otherwise it creates the file.
+	 * Creates the standard with a file. If the provided file exists, the
+	 * configuration reads the properties from this file. Otherwise it creates
+	 * the file.
+	 *
+	 * For Android, please use
+	 * {@link NetworkConfig#createStandardWithoutFile()}, or
+	 * {@link NetworkConfig#createStandardFromStream(InputStream)}.
 	 * 
 	 * @param file the configuration file
 	 * @return the network configuration
 	 */
+	@NotForAndroid
 	public static NetworkConfig createStandardWithFile(final File file) {
-		standard = new NetworkConfig();
+		standard = createWithFile(file, DEFAULT_HEADER, null);
+		return standard;
+	}
+
+	/**
+	 * Creates the standard with a file. If the provided file exists, the
+	 * configuration reads the properties from this file. Otherwise it creates
+	 * the file with the provided header.
+	 * 
+	 * For Android, please use {@link NetworkConfig#NetworkConfig()}, and load
+	 * the values using {@link NetworkConfig#load(InputStream)} or adjust the in
+	 * your code.
+	 * 
+	 * @param file the configuration file
+	 * @param header The header to write to the top of the file.
+	 * @param customHandler custom defaults handler. Maybe {@code null}.
+	 * @return the network configuration
+	 */
+	@NotForAndroid
+	public static NetworkConfig createWithFile(final File file, final String header,
+			final NetworkConfigDefaultHandler customHandler) {
+		NetworkConfig standard = new NetworkConfig();
+		if (customHandler != null) {
+			customHandler.applyDefaults(standard);
+		}
 		if (file.exists()) {
 			standard.load(file);
 		} else {
-			standard.store(file);
+			standard.store(file, header);
 		}
 		return standard;
 	}
@@ -289,9 +367,12 @@ public final class NetworkConfig {
 	/**
 	 * Loads properties from a file.
 	 *
+	 * For Android, please use {@link NetworkConfig#load(InputStream)}.
+	 * 
 	 * @param file the file
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void load(final File file) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
@@ -321,10 +402,13 @@ public final class NetworkConfig {
 
 	/**
 	 * Stores the configuration to a file.
+	 * 
+	 * For available for Android!
 	 *
 	 * @param file The file to write to.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void store(final File file) {
 		store(file, DEFAULT_HEADER);
 	}
@@ -332,10 +416,13 @@ public final class NetworkConfig {
 	/**
 	 * Stores the configuration to a file using a given header.
 	 * 
+	 * For available for Android!
+	 * 
 	 * @param file The file to write to.
 	 * @param header The header to write to the top of the file.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
+	@NotForAndroid
 	public void store(File file, String header) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");

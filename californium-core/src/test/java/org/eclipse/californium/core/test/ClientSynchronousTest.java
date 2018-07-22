@@ -66,6 +66,8 @@ public class ClientSynchronousTest {
 	private static final String CONTENT_3 = "three";
 	private static final String CONTENT_4 = "four";
 	private static final String QUERY_UPPER_CASE = "uppercase";
+	private static final String OVERLOAD = "overload";
+	private static final int OVERLOAD_TIME = 123;
 
 	private static CoapServer server;
 	private static Endpoint serverEndpoint;
@@ -162,7 +164,7 @@ public class ClientSynchronousTest {
 
 		// Try to use the builder and add a query
 		String resp8 = new CoapClient.Builder("localhost", serverPort)
-			.path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
+			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
 		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
 
 		// Check that we indeed received 5 notifications
@@ -175,7 +177,9 @@ public class ClientSynchronousTest {
 	@Test
 	public void testSynchronousPing() throws Exception {
 		final AtomicBoolean sent = new AtomicBoolean();
-		CoapEndpoint clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint clientEndpoint = builder.build();
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
 			
 			@Override
@@ -227,9 +231,22 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
 	}
 
-	private static void createServer() {
+	@Test
+	public void testOverloadResponse() throws Exception {
 
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		String uri = TestTools.getUri(serverEndpoint, TARGET);
+		CoapClient client = new CoapClient(uri).useExecutor();
+
+		CoapResponse resp = client.post(OVERLOAD, MediaTypeRegistry.TEXT_PLAIN);
+
+		Assert.assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
+		Assert.assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
+	}
+
+	private static void createServer() {
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();
@@ -266,8 +283,13 @@ public class ClientSynchronousTest {
 
 		@Override
 		public void handlePOST(CoapExchange exchange) {
+			String requestText = exchange.getRequestText();
+			if (requestText.equals(OVERLOAD)) {
+				exchange.respondOverload(OVERLOAD_TIME);
+				return;
+			}
 			String old = this.content;
-			this.content = exchange.getRequestText();
+			this.content = requestText;
 			exchange.respond(ResponseCode.CHANGED, old);
 			changed();
 		}

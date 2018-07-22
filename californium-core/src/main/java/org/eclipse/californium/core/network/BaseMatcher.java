@@ -45,22 +45,42 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward error notifies
  *                                                    issue 465
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
+ *                                                    remove not longer required
+ *                                                    releaseToken
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add token generator 
+ *                                                    retry-loop for observes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't remove observe 
+ *                                                    on cancel of notify
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reduce multiple calls of
+ *                                                    observation store remove.
+ *                                                    Remove observation, if response
+ *                                                    doesn't contain an observe option 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - striped exchange execution
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -72,6 +92,8 @@ public abstract class BaseMatcher implements Matcher {
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
+	protected final TokenGenerator tokenGenerator;
+	protected final Executor executor;
 	protected boolean running = false;
 	private final NotificationListener notificationListener;
 
@@ -81,19 +103,25 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param config the configuration to use.
 	 * @param notificationListener the callback to invoke for notifications
 	 *            received from peers.
+	 * @param tokenGenerator token generator to create tokens for observations
+	 *            created by the endpoint this matcher is part of.
 	 * @param observationStore the object to use for keeping track of
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
-	 * @throws NullPointerException if the configuration, notification listener,
-	 *             or the observation store is {@code null}.
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
+	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
-	public BaseMatcher(final NetworkConfig config, final NotificationListener notificationListener,
-			final ObservationStore observationStore, final MessageExchangeStore exchangeStore) {
+	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,
+			 TokenGenerator tokenGenerator,  ObservationStore observationStore,
+			 MessageExchangeStore exchangeStore, Executor executor) {
 		if (config == null) {
 			throw new NullPointerException("Config must not be null");
 		} else if (notificationListener == null) {
 			throw new NullPointerException("NotificationListener must not be null");
+		} else if (tokenGenerator == null) {
+			throw new NullPointerException("TokenGenerator must not be null");
 		} else if (exchangeStore == null) {
 			throw new NullPointerException("MessageExchangeStore must not be null");
 		} else if (observationStore == null) {
@@ -103,6 +131,8 @@ public abstract class BaseMatcher implements Matcher {
 			this.notificationListener = notificationListener;
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
+			this.tokenGenerator = tokenGenerator;
+			this.executor = executor;
 		}
 	}
 
@@ -110,6 +140,7 @@ public abstract class BaseMatcher implements Matcher {
 	public synchronized void start() {
 		if (!running) {
 			exchangeStore.start();
+			observationStore.start();
 			running = true;
 		}
 	}
@@ -118,6 +149,7 @@ public abstract class BaseMatcher implements Matcher {
 	public synchronized void stop() {
 		if (running) {
 			exchangeStore.stop();
+			observationStore.stop();
 			clear();
 			running = false;
 		}
@@ -143,25 +175,36 @@ public abstract class BaseMatcher implements Matcher {
 	 */
 	protected final void registerObserve(final Request request) {
 
-		// We ignore blockwise request, except when this is an early negotiation
-		// (num and M is set to 0)
-		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0
-				&& !request.getOptions().getBlock2().isM()) {
+		// Ignore follow-up blockwise request
+		if (!request.getOptions().hasBlock2() || request.getOptions().getBlock2().getNum() == 0) {
 			// add request to the store
-			final KeyToken idByToken = KeyToken.fromOutboundMessage(request);
 			LOG.debug("registering observe request {}", request);
-			observationStore.add(new Observation(request, null));
-			// remove it if the request is cancelled, rejected, timedout, or send error
-			request.addMessageObserver(new MessageObserverAdapter() {
+			Token token = request.getToken();
+			if (token == null) {
+				do {
+					token = tokenGenerator.createToken(true);
+					request.setToken(token);
+				} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
+			} else {
+				observationStore.put(token, new Observation(request, null));
+			}
+			// Add observer to remove observation, if the request is cancelled,
+			// rejected, timed out, or send error is reported
+			request.addMessageObserver(new ObservationObserverAdapter(token) {
+
 				@Override
 				public void onCancel() {
-					failed();
+					remove();
 				}
-				
+
 				@Override
 				protected void failed() {
-					observationStore.remove(request.getToken());
-					exchangeStore.releaseToken(idByToken);
+					remove();
+				}
+
+				@Override
+				public void onContextEstablished(EndpointContext endpointContext) {
+					observationStore.setContext(token, endpointContext);
 				}
 			});
 		}
@@ -179,60 +222,34 @@ public abstract class BaseMatcher implements Matcher {
 
 		Exchange exchange = null;
 		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
-			final Exchange.KeyToken idByToken = Exchange.KeyToken.fromInboundMessage(response);
-
-			final Observation obs = observationStore.get(response.getToken());
+			Token token = response.getToken();
+			Observation obs = observationStore.get(token);
 			if (obs != null) {
 				// there is an observation for the token from the response
 				// re-create a corresponding Exchange object for it so
 				// that the "upper" layers can correctly process the
-				// notification
-				// response
+				// notification response
 				final Request request = obs.getRequest();
-				exchange = new Exchange(request, Origin.LOCAL, obs.getContext());
-				exchange.setRequest(request);
+				exchange = new Exchange(request, Origin.LOCAL, executor, obs.getContext(), true);
 				LOG.debug("re-created exchange from original observe request: {}", request);
-				request.addMessageObserver(new MessageObserverAdapter() {
+				request.addMessageObserver(new ObservationObserverAdapter(token) {
 
 					@Override
-					public void onResponse(Response resp) {
-						// check whether the client has established the observe requested
+					public void onResponse(Response response) {
 						try {
-							notificationListener.onNotification(request, resp);
+							notificationListener.onNotification(request, response);
 						} finally {
-							if (!resp.getOptions().hasObserve()) {
-								// Observe response received with no observe option
-								// set. It could be that the Client was not able to
-								// establish the observe. So remove the observe
-								// relation from observation store, which was stored
-								// earlier when the request was sent.
-								LOG.debug(
-										"response to observe request with token {} does not contain observe option, removing request from observation store",
-										idByToken);
-								observationStore.remove(request.getToken());
-								exchangeStore.releaseToken(idByToken);
+							if (!response.isNotification()) {
+								// Observe response received with no observe
+								// option set. It could be that the Client was
+								// not able to establish the observe. So remove
+								// the observe relation from observation store,
+								// which was stored earlier when the request was
+								// sent.
+								LOG.debug("observation with token {} removed, removing from observation store", token);
+								remove();
 							}
 						}
-					}
-					
-					@Override
-					public void onTimeout() {
-						// Ignore timeout, don't remove observation!
-						// The notify is already received for this exchange. 
-						// This should only occur, if the notify triggers 
-						// a blockwise get of the rest, where a timeout
-						// should be ignored and not remove the observe.
-					}
-
-					@Override
-					public void onCancel() {
-						failed();
-					}
-
-					@Override
-					protected void failed() {
-						observationStore.remove(request.getToken());
-						exchangeStore.releaseToken(idByToken);
 					}
 				});
 			}
@@ -248,22 +265,73 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(final byte[] token) {
-		// we do not know the destination endpoint the requests have been sent
-		// to therefore we need to find them by token only
-		// Note: observe exchanges are not longer stored, so this almost in vain,
-		// except, when a blockwise notify is pending.
+	public void cancelObserve(Token token) {
+		// Note: the initial observe exchanges is not longer stored with
+		// the original token but a pending blockwise notifies may still
+		// have a request with that token.
+		boolean found = false;
 		for (Exchange exchange : exchangeStore.findByToken(token)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
-				// cancel only observe requests, 
+				// cancel only observe requests,
 				// not "token" related proactive cancel observe request!
-				// Message.cancel() releases the token in the MessageObserver
 				request.cancel();
-				exchange.setComplete();
+				if (!exchange.isNotification()) {
+					// Message.cancel() already released the token
+					found = true;
+				}
+				exchange.executeComplete();
 			}
 		}
-		observationStore.remove(token);
+		if (!found) {
+			// if a exchange was found,
+			// the request.cancel() has already removed the observation
+			observationStore.remove(token);
+		}
 	}
 
+	/**
+	 * Message observer removing observations. May be shared by multiple (block)
+	 * request and will call {@link ObservationStore#remove(Token)} only once.
+	 */
+	private class ObservationObserverAdapter extends MessageObserverAdapter {
+
+		/**
+		 * Flag to suppress multiple observation store remove calls.
+		 */
+		protected final AtomicBoolean removed = new AtomicBoolean();
+		/**
+		 * Token to remove.
+		 */
+		protected final Token token;
+
+		/**
+		 * Create observer.
+		 * 
+		 * @param token token to remove
+		 */
+		public ObservationObserverAdapter(Token token) {
+			this.token = token;
+		}
+
+		@Override
+		public void onResponse(Response response) {
+			Observation observation = observationStore.get(token);
+			if (observation != null) {
+				if (response.isError() || !response.isNotification()) {
+					LOG.debug("observation with token {} not established, removing from observation store", token);
+					remove();
+				}
+			}
+		}
+
+		/**
+		 * Remove token from observation store. Mostly called once.
+		 */
+		protected void remove() {
+			if (removed.compareAndSet(false, true)) {
+				observationStore.remove(token);
+			}
+		}
+	}
 }

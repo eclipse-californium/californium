@@ -19,6 +19,10 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use configuration from
+ *                                                    related exchange endpoint
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add canceled to suppress adding
+ *                                                    already canceled relations again.
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -43,8 +47,8 @@ public class ObserveRelation {
 	/** The logger. */
 	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class.getCanonicalName());
 	
-	private final long CHECK_INTERVAL_TIME = NetworkConfig.getStandard().getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
-	private final int CHECK_INTERVAL_COUNT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
+	private final long checkIntervalTime;
+	private final int checkIntervalCount;
 	
 	private final ObservingEndpoint endpoint;
 
@@ -64,8 +68,10 @@ public class ObserveRelation {
 	 * it accepts the observe relation (the response code must be successful).
 	 */
 	/** Indicates if the relation is established */
-	private boolean established;
-	
+	private volatile boolean established;
+	/** Indicates if the relation is canceled */
+	private volatile boolean canceled;
+
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
 
@@ -89,7 +95,9 @@ public class ObserveRelation {
 		this.endpoint = endpoint;
 		this.resource = resource;
 		this.exchange = exchange;
-		this.established = false;
+		NetworkConfig config = exchange.getEndpoint().getConfig();
+		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
+		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
 		
 		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
 	}
@@ -104,25 +112,48 @@ public class ObserveRelation {
 	
 	/**
 	 * Sets the established field.
-	 *
-	 * @param established true if the relation has been established
+	 * @throws IllegalStateException if the relation was already canceled.
 	 */
-	public void setEstablished(boolean established) {
-		this.established = established;
+	public void setEstablished() {
+		if (canceled) {
+			throw new IllegalStateException(
+					String.format("Could not establish observe relation %s with %s, already canceled (%s)!", getKey(),
+							resource.getURI(), exchange));
+		}
+		this.established = true;
+	}
+
+	/**
+	 * Check, if this relation is canceled.
+	 * @return {@code true}, if relation was canceled, {@code false}, otherwise.
+	 */
+	public boolean isCanceled() {
+		return canceled;
 	}
 	
 	/**
 	 * Cancel this observe relation. This methods invokes the cancel methods of
 	 * the resource and the endpoint.
+	 * @throws IllegalStateException, if relation wasn't established.
 	 */
 	public void cancel() {
-		LOGGER.debug("Canceling observe relation {} with {}", new Object[]{getKey(), resource.getURI()});
-		// stop ongoing retransmissions
-		if (exchange.getResponse()!=null) exchange.getResponse().cancel();
-		setEstablished(false);
-		resource.removeObserveRelation(this);
-		endpoint.removeObserveRelation(this);
-		exchange.setComplete();
+		if (!canceled) {
+			if (!established) {
+				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+						resource.getURI(), exchange));
+			}
+			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
+			// stop ongoing retransmissions
+			canceled = true;
+			established = false;
+			Response reponse = exchange.getResponse();
+			if (reponse != null) {
+				reponse.cancel();
+			}
+			resource.removeObserveRelation(this);
+			endpoint.removeObserveRelation(this);
+			exchange.executeComplete();
+		}
 	}
 	
 	/**
@@ -170,8 +201,8 @@ public class ObserveRelation {
 
 	public boolean check() {
 		boolean check = false;
-		check |= this.interestCheckTimer + CHECK_INTERVAL_TIME < System.currentTimeMillis();
-		check |= (++interestCheckCounter >= CHECK_INTERVAL_COUNT);
+		check |= this.interestCheckTimer + checkIntervalTime < System.currentTimeMillis();
+		check |= (++interestCheckCounter >= checkIntervalCount);
 		if (check) {
 			this.interestCheckTimer = System.currentTimeMillis();
 			this.interestCheckCounter = 0;
@@ -192,11 +223,16 @@ public class ObserveRelation {
 	}
 
 	public void setNextControlNotification(Response nextControlNotification) {
+		if (this.nextControlNotification != null && nextControlNotification != null) {
+			// complete deprecated response
+			this.nextControlNotification.onComplete();
+		}
 		this.nextControlNotification = nextControlNotification;
 	}
 	
 	public void addNotification(Response notification) {
 		notifications.add(notification);
+		LOGGER.trace("{} add notification MID {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
 	}
 	
 	public Iterator<Response> getNotificationIterator() {

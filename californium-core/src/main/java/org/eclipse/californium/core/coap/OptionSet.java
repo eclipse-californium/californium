@@ -75,6 +75,7 @@ public final class OptionSet {
 	private Integer      size1;
 	private Integer      size2;
 	private Integer      observe;
+	private byte[]		 oscore;
 	
 	// Arbitrary options
 	private List<Option> others;
@@ -104,6 +105,7 @@ public final class OptionSet {
 		size1               = null;
 		size2               = null;
 		observe             = null;
+		oscore				= null;
 		
 		others              = null; // new LinkedList<>();
 	}
@@ -132,6 +134,7 @@ public final class OptionSet {
 		block1 = null;
 		block2 = null;
 		observe = null;
+		oscore = null;
 		if (others != null)
 			others.clear();
 	}
@@ -141,7 +144,9 @@ public final class OptionSet {
 	 * @param origin the origin to be copied
 	 */
 	public OptionSet(OptionSet origin) {
-		if (origin == null) throw new NullPointerException();
+		if (origin == null) {
+			throw new NullPointerException("option set must not be null!");
+		}
 		if_match_list       = copyList(origin.if_match_list);
 		uri_host            = origin.uri_host;
 		etag_list           = copyList(origin.etag_list);
@@ -163,6 +168,8 @@ public final class OptionSet {
 			block2          = new BlockOption(origin.block2);
 		
 		observe = origin.observe;
+		if(origin.oscore != null)
+			oscore	= origin.oscore.clone();
 		
 		others              = copyList(origin.others);
 	}
@@ -454,11 +461,11 @@ public final class OptionSet {
 	 */
 	public String getLocationString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("/");
-		builder.append(getLocationPathString());
-		if (getLocationQueryCount()>0) {
-			builder.append("?");
-			builder.append(getLocationQueryString());
+		builder.append('/');
+		appendMultiOption(builder, getLocationPath(), '/');
+		if (getLocationQueryCount() > 0) {
+			builder.append('?');
+			appendMultiOption(builder, getLocationQuery(), '&');
 		}
 		return builder.toString();
 	}
@@ -468,12 +475,7 @@ public final class OptionSet {
 	 * @return the Location-Path as string
 	 */
 	public String getLocationPathString() {
-		StringBuilder builder = new StringBuilder();
-		for (String segment:getLocationPath())
-			builder.append(segment).append("/");
-		if (builder.length() > 0)
-			builder.delete(builder.length() - 1, builder.length());
-		return builder.toString();
+		return getMultiOptionString(getLocationPath(), '/');
 	}
 
 	/**
@@ -533,6 +535,21 @@ public final class OptionSet {
 	}
 
 	/**
+	 * Returns the URI-Path and URI-Query options as relative URI string.
+	 * @return the URI-* as string
+	 */
+	public String getUriString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append('/');
+		appendMultiOption(builder, getUriPath(), '/');
+		if (getURIQueryCount() > 0) {
+			builder.append('?');
+			appendMultiOption(builder, getUriQuery(), '&');
+		}
+		return builder.toString();
+	}
+
+	/**
 	 * Returns the list of Uri-Path segment strings.
 	 * The OptionSet uses lazy initialization for this list.
 	 * @return the list of Uri-Path segments
@@ -551,11 +568,7 @@ public final class OptionSet {
 	 * @return the Uri-Path as string
 	 */
 	public String getUriPathString() {
-		StringBuilder buffer = new StringBuilder();
-		for (String element:getUriPath())
-			buffer.append(element).append("/");
-		if (buffer.length()==0) return "";
-		else return buffer.substring(0, buffer.length()-1);
+		return getMultiOptionString(getUriPath(), '/');
 	}
 	
 	/**
@@ -734,14 +747,9 @@ public final class OptionSet {
 	 * @return the Uri-Query as string
 	 */
 	public String getUriQueryString() {
-		StringBuilder builder = new StringBuilder();
-		for (String query:getUriQuery())
-			builder.append(query).append("&");
-		if (builder.length() > 0)
-			builder.delete(builder.length() - 1, builder.length());
-		return builder.toString();
+		return getMultiOptionString(getUriQuery(), '&');
 	}
-	
+
 	/**
 	 * Sets the complete Uri-Query through a &amp;-separated list of arguments.
 	 * Returns the current OptionSet object for a fluent API.
@@ -875,12 +883,7 @@ public final class OptionSet {
 	 * @return the Location-Query as string
 	 */
 	public String getLocationQueryString() {
-		StringBuilder builder = new StringBuilder();
-		for (String query:getLocationQuery())
-			builder.append(query).append("&");
-		if (builder.length() > 0)
-			builder.delete(builder.length() - 1, builder.length());
-		return builder.toString();
+		return getMultiOptionString(getLocationQuery(), '&');
 	}
 
 	/**
@@ -1270,7 +1273,50 @@ public final class OptionSet {
 	public static boolean isValidObserveOption(final int value) {
 		return value >= 0 && value <= MAX_OBSERVE_NO;
 	}
-
+	
+	/**
+	 * Returns the byte array value of the OSCore option.
+	 * @return the OSCore value or null if the option is not present
+	 */
+	public byte[] getOscore() {
+		return oscore;
+	}
+	
+	/**
+	 * Checks if the OSCore option is present.
+	 * @return true if present
+	 */
+	public boolean hasOscore() {
+		return oscore != null;
+	}
+	
+	/**
+	 * Replaces the Oscore option with oscore.
+	 * Returns the current OptionSet object for a fluent API.
+	 * 
+	 * @param oscore the new Oscore value
+	 * @return this OptionSet
+	 * @throws NullPointerException if oscore is null
+	 */
+	public OptionSet setOscore(byte[] oscore){
+		if(oscore != null){
+			this.oscore = oscore.clone();
+		}else{
+			throw new NullPointerException("Oscore cannot be null.");
+		}
+		return this;
+	}
+	
+	/**
+	 * Removes the OSCore options.
+	 * Returns the current OptionSet object for a fluent API.
+	 * @return this OptionSet
+	 */
+	public OptionSet removeOscore(){
+		oscore = null;
+		return this;
+	}
+	
 	/**
 	 * Checks if an arbitrary option is present.
 	 * @param number the option number
@@ -1352,6 +1398,8 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.SIZE1, getSize1()));
 		if (hasSize2())
 			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
+		if(hasOscore())
+			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
 		
 		if (others != null)
 			options.addAll(others);
@@ -1386,6 +1434,7 @@ public final class OptionSet {
 			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
 			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
 			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
+			case OptionNumberRegistry.OSCORE:		  setOscore(option.getValue()); break;
 			default: getOthersInternal().add(option);
 		}
 		return this;
@@ -1430,4 +1479,34 @@ public final class OptionSet {
 		
 		return sb.toString();
 	}
+
+	/**
+	 * Get multiple option as string.
+	 * 
+	 * @param multiOption multiple option as list of strings
+	 * @param separator separator for options
+	 * @return multiple option as string
+	 */
+	private String getMultiOptionString(List<String> multiOption, char separator) {
+		StringBuilder builder = new StringBuilder();
+		appendMultiOption(builder, multiOption, separator);
+		return builder.toString();
+	}
+
+	/**
+	 * Append multiple option to string builder.
+	 * 
+	 * @param builder builder to append the multiple options.
+	 * @param multiOption multiple option as list of strings
+	 * @param separator separator for options
+	 */
+	private void appendMultiOption(StringBuilder builder, List<String> multiOption, char separator) {
+		if (!multiOption.isEmpty()) {
+			for (String optionText : multiOption) {
+				builder.append(optionText).append(separator);
+			}
+			builder.setLength(builder.length() - 1);
+		}
+	}
+
 }

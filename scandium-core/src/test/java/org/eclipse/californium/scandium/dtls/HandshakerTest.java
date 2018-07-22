@@ -28,7 +28,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -42,10 +42,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -87,7 +88,9 @@ public class HandshakerTest {
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		rpkStore = new InMemoryRpkTrustStore(Collections.singleton(new RawPublicKeyIdentity(serverPublicKey)));
-		handshaker = new Handshaker(false, session, recordLayer, null, null, 1500, rpkStore) {
+		handshaker = new Handshaker(false, session, recordLayer, null, new StaticCertificateVerifier(null), 1500,
+				rpkStore) {
+
 			@Override
 			public void startHandshake() {
 			}
@@ -101,19 +104,21 @@ public class HandshakerTest {
 			}
 		};
 		
-		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null, trustAnchor, 1500, rpkStore) {
-            @Override
-            public void startHandshake() {
-            }
+		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null,
+				new StaticCertificateVerifier(trustAnchor), 1500, rpkStore) {
 
-            @Override
-            protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
-                if (message instanceof HandshakeMessage) {
-                    receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
-                    incrementNextReceiveSeq();
-                }
-            }
-        };
+			@Override
+			public void startHandshake() {
+			}
+
+			@Override
+			protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+				if (message instanceof HandshakeMessage) {
+					receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
+					incrementNextReceiveSeq();
+				}
+			}
+		};
 	}
 
 	@Test

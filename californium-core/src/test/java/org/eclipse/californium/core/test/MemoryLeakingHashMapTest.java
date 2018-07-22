@@ -49,8 +49,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
@@ -66,7 +64,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.MessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -78,6 +75,8 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests verifying that the {@code MessageExchangeStore} gets cleared correctly during all kinds
@@ -114,8 +113,8 @@ public class MemoryLeakingHashMapTest {
 	// The server endpoint that we test
 	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
-	private static MessageExchangeStore clientExchangeStore;
-	private static MessageExchangeStore serverExchangeStore;
+	private static InMemoryMessageExchangeStore clientExchangeStore;
+	private static InMemoryMessageExchangeStore serverExchangeStore;
 
 	private static volatile String currentRequestText;
 	private static TestResource resource;
@@ -376,11 +375,19 @@ public class MemoryLeakingHashMapTest {
 
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, serverExchangeStore);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setMessageExchangeStore(serverExchangeStore);
+		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(new MessageTracer());
 
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
-		clientEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config,  clientExchangeStore);
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setMessageExchangeStore(clientExchangeStore);
+		clientEndpoint = builder.build();
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed

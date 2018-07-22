@@ -15,3 +15,12 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+-keep class org.eclipse.** { *; }
+-keep interface org.eclipse.** { *; }
+-keep enum org.eclipse.** { *; }
+-keep class io.netty.** { *; }
+-keep interface io.netty.** { *; }
+-keep enum io.netty.** { *; }
+-dontwarn org.eclipse.**
+-dontwarn org.slf4j.**
+-dontwarn io.netty.**

@@ -16,11 +16,13 @@
  *                                                    (fix GitHub issue #104)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext and
  *                                                    EndpointContextMatcher mocks
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.eclipse.californium.core.network.MatcherTestUtils.*;
@@ -31,7 +33,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange.KeyToken;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -52,7 +54,7 @@ public class UdpMatcherTest {
 	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 
 	private InMemoryObservationStore observationStore;
-	private InMemoryRandomTokenProvider tokenProvider; 
+	private RandomTokenGenerator tokenProvider; 
 	private InMemoryMessageExchangeStore messageExchangeStore;
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
@@ -61,9 +63,9 @@ public class UdpMatcherTest {
 	@Before
 	public void before(){
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		tokenProvider = new InMemoryRandomTokenProvider(config);
+		tokenProvider = new RandomTokenGenerator(config);
 		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
-		observationStore =  new InMemoryObservationStore();
+		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
@@ -114,12 +116,13 @@ public class UdpMatcherTest {
 		// GIVEN a request without token sent
 		UdpMatcher matcher = newUdpMatcher();
 		Exchange exchange = sendRequest(dest, matcher, null);
-				// WHEN request gets completed
-		exchange.completeCurrentRequest();
+		// WHEN request gets completed
+		exchange.setComplete();
 
-		// THEN assert that token got released
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(false));
+		// THEN assert that token got released in both stores
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		assertThat(observationStore.get(token), is(nullValue()));
 	}
 
 	@Test
@@ -129,11 +132,13 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN observe request gets completed
-		exchange.completeCurrentRequest();
+		exchange.setComplete();
 
-		// THEN assert that token got not released
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(true));
+		// THEN assert that token got released in message exchange store
+		// THEN assert that token got not released in observation store
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		assertThat(observationStore.get(token), is(notNullValue()));
 	}
 
 	@Test
@@ -147,8 +152,9 @@ public class UdpMatcherTest {
 		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
 
 		// THEN the token has been released for re-use
-		KeyToken keyToken = KeyToken.fromOutboundMessage(exchange.getCurrentRequest());
-		assertThat(tokenProvider.isTokenInUse(keyToken), is(false));
+		Token token = exchange.getCurrentRequest().getToken();
+		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		assertThat(observationStore.get(token), is(nullValue()));
 	}
 
 	/**
@@ -161,8 +167,7 @@ public class UdpMatcherTest {
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL);
-		exchange.setRequest(request);
+		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
@@ -170,12 +175,12 @@ public class UdpMatcherTest {
 		UdpMatcher matcher = MatcherTestUtils.newUdpMatcher(exchangeStore, observationStore, endpointContextMatcher);
 
 		// WHEN the request is being sent
-		matcher.sendRequest(exchange, request);
+		matcher.sendRequest(exchange);
 
 		// THEN the request has no MID and token assigned and the exchange has not observer registered
 		assertThat(request.getToken(), is(nullValue()));
 		assertFalse(request.hasMID());
-		assertFalse(exchange.hasObserver());
+		assertFalse(exchange.hasRemoveHandler());
 	}
 
 	private UdpMatcher newUdpMatcher() {

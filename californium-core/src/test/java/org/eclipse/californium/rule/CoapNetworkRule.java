@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial implementation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for subclassing
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
@@ -128,7 +129,19 @@ public class CoapNetworkRule extends NetworkRule {
 	 *            supported datagram socket implementation modes.
 	 */
 	public CoapNetworkRule(Mode... modes) {
-		super(FORMATTER, modes);
+		this(FORMATTER, modes);
+	}
+
+	/**
+	 * Create rule supporting provided modes.
+	 * 
+	 * Intended to be called from subclasses.
+	 * 
+	 * @param formatter datagram formatter to be used
+	 * @param modes supported datagram socket implementation modes.
+	 */
+	protected CoapNetworkRule(DatagramFormatter formatter, Mode... modes) {
+		super(formatter, modes);
 		this.messageThreads.set(DEFAULT_MESSAGE_THREADS);
 	}
 

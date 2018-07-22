@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix NullPointer accessing
+ *                                                    response, when notifies 
+ *                                                    are missing
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
@@ -20,6 +23,7 @@ import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -63,19 +67,17 @@ public class CO08 extends TestClientAbstract {
 		try {
 			uri = new URI(serverURI + resourceUri);
 		} catch (URISyntaxException use) {
-			throw new IllegalArgumentException("Invalid URI: "
-					+ use.getMessage());
+			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
 		request.setURI(uri);
-		
+
 		// for observing
 		int observeLoop = 2;
 
 		// print request info
 		if (verbose) {
-			System.out.println("Request for test " + this.testName
-					+ " sent");
+			System.out.println("Request for test " + this.testName + " sent");
 			Utils.prettyPrint(request);
 		}
 
@@ -83,8 +85,9 @@ public class CO08 extends TestClientAbstract {
 		try {
 			Response response = null;
 			boolean success = true;
-
-			request.send();
+			long maxAge = OptionNumberRegistry.Defaults.MAX_AGE;
+			
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -93,17 +96,17 @@ public class CO08 extends TestClientAbstract {
 			response = request.waitForResponse(10000);
 
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value,
-						response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkType(Type.ACK, response.getType());
 				success &= hasContentType(response);
 				success &= hasToken(response);
 				success &= hasObserve(response);
+				maxAge = response.getOptions().getMaxAge();
 			}
 
 			// receive multiple responses
 			for (int l = 0; success && l < observeLoop; ++l) {
-				response = request.waitForResponse(10000);
+				response = waitForNotification(10000);
 
 				// checking the response
 				if (response != null) {
@@ -112,12 +115,12 @@ public class CO08 extends TestClientAbstract {
 					// print response info
 					if (verbose) {
 						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+						System.out.println("Time elapsed (ms): " + response.getRTT());
 						Utils.prettyPrint(response);
 					}
-					
+
 					success &= checkResponse(request, response);
+					maxAge = response.getOptions().getMaxAge();
 
 					if (!hasObserve(response)) {
 						break;
@@ -133,23 +136,21 @@ public class CO08 extends TestClientAbstract {
 			asyncRequest.getOptions().setContentFormat((int) Math.random() * 0xFFFF + 1);
 			asyncRequest.setPayload("Random");
 			asyncRequest.addMessageObserver(new MessageObserverAdapter() {
+
 				public void onResponse(Response response) {
 					if (response != null) {
-						checkInt(EXPECTED_RESPONSE_CODE_1.value,
-								response.getCode().value, "code");
+						checkCode(EXPECTED_RESPONSE_CODE_1, response.getCode());
 					}
 				}
 			});
 			// enable response queue for synchronous I/O
 			asyncRequest.send();
 
-			long time = response.getOptions().getMaxAge() * 1000;
-
-			response = request.waitForResponse(time + 1000);
+			response = waitForNotification(maxAge * 1000 + 1000);
 			System.out.println("received " + response);
 
 			if (response != null) {
-				success &= checkInt(EXPECTED_RESPONSE_CODE_2.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE_2, response.getCode());
 				success &= hasToken(response);
 				success &= hasObserve(response, true);
 			} else {
@@ -166,10 +167,12 @@ public class CO08 extends TestClientAbstract {
 			}
 
 			tickOffTest();
-			
+
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
@@ -177,7 +180,7 @@ public class CO08 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

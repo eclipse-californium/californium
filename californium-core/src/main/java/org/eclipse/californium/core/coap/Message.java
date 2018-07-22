@@ -34,6 +34,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -102,7 +106,7 @@ public abstract class Message {
 	 * empty array would not work here because it is already a valid token
 	 * according to the CoAP spec.
 	 */
-	private volatile byte[] token = null;
+	private volatile Token token = null;
 
 	/** The set of options of this message. */
 	private OptionSet options;
@@ -111,14 +115,12 @@ public abstract class Message {
 	private byte[] payload;
 
 	/**
-	 * Destination endpoint context.
-	 * Used for outgoing messages.
+	 * Destination endpoint context. Used for outgoing messages.
 	 */
 	private volatile EndpointContext destinationContext;
 
 	/**
-	 * Source endpoint context.
-	 * Used for incoming messages.
+	 * Source endpoint context. Used for incoming messages.
 	 */
 	private volatile EndpointContext sourceContext;
 
@@ -153,11 +155,12 @@ public abstract class Message {
 	 * and from then on must never again become null.
 	 */
 	private final AtomicReference<List<MessageObserver>> messageObservers = new AtomicReference<List<MessageObserver>>();
-	
+
 	/**
 	 * A unmodifiable facade for the list of all {@link ObserveManager}.
+	 * 
 	 * @see #messageObservers
-	 * @see #getMessageObservers() 
+	 * @see #getMessageObservers()
 	 */
 	private volatile List<MessageObserver> unmodifiableMessageObserversFacade = null;
 
@@ -257,7 +260,9 @@ public abstract class Message {
 
 	/**
 	 * Sets the 16-bit message identification.
-	 * 
+	 *
+	 * Reset {@link #bytes} to force new serialization.
+	 *
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param mid the new mid
@@ -269,6 +274,7 @@ public abstract class Message {
 			throw new IllegalArgumentException("The MID must be an unsigned 16-bit number but was " + mid);
 		}
 		this.mid = mid;
+		bytes = null;
 		return this;
 	}
 
@@ -286,7 +292,16 @@ public abstract class Message {
 	 *         length 0.
 	 */
 	public boolean hasEmptyToken() {
-		return token == null || token.length == 0;
+		return token == null || token.isEmpty();
+	}
+
+	/**
+	 * Gets this message's token.
+	 *
+	 * @return the token
+	 */
+	public Token getToken() {
+		return token;
 	}
 
 	/**
@@ -294,8 +309,8 @@ public abstract class Message {
 	 *
 	 * @return the token
 	 */
-	public byte[] getToken() {
-		return token;
+	public byte[] getTokenBytes() {
+		return token == null ? null : token.getBytes();
 	}
 
 	/**
@@ -304,22 +319,53 @@ public abstract class Message {
 	 * @return the token as string
 	 */
 	public String getTokenString() {
-		return Utils.toHexString(getToken());
+		return token == null ? "null" : token.getAsString();
 	}
 
 	/**
-	 * Sets the token, which can be 0--8 bytes.
+	 * Sets the token bytes, which can be 0--8 bytes.
+	 * 
+	 * Note: 
+	 * To support address changes, the provided tokens must be unique for
+	 * all clients and not only for the client the message is sent to. This
+	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
+	 * "system-local".
+	 * 
+	 * Reset {@link #bytes} to force new serialization.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 *
+	 * @param tokenBytes the new token bytes
+	 * @return this Message
+	 * @see #setToken(Token)
+	 */
+	public Message setToken(byte[] tokenBytes) {
+		Token token = null;
+		if (tokenBytes != null) {
+			token = new Token(tokenBytes);
+		}
+		return setToken(token);
+	}
+
+	/**
+	 * Sets the token.
+	 * 
+	 * Note: 
+	 * To support address changes, the provided tokens must be unique for
+	 * all clients and not only for the client the message is sent to. This
+	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
+	 * "system-local".
+	 * 
+	 * Reset {@link #bytes} to force new serialization.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param token the new token
 	 * @return this Message
 	 */
-	public Message setToken(byte[] token) {
-		if (token != null && token.length > 8) {
-			throw new IllegalArgumentException("Token length must be between 0 and 8 inclusive");
-		}
+	public Message setToken(Token token) {
 		this.token = token;
+		bytes = null;
 		return this;
 	}
 
@@ -447,7 +493,7 @@ public abstract class Message {
 		this.payload = payload;
 		return this;
 	}
-	
+
 	/**
 	 * Gets the destination address.
 	 *
@@ -708,6 +754,31 @@ public abstract class Message {
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onSendError(sendError);
 			}
+		}
+	}
+
+	/**
+	 * Report resulting endpoint context.
+	 * 
+	 * The {@link #destinationContext} may not contain all information, but the
+	 * connector will fill these information and report it. This method doesn't
+	 * change the {@link #destinationContext} but calls
+	 * {@link MessageObserver#onContextEstablished(EndpointContext)}.
+	 * 
+	 * @param endpointContext resulting endpoint context.
+	 */
+	public void onContextEstablished(EndpointContext endpointContext) {
+		if (endpointContext != null) {
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onContextEstablished(endpointContext);
+			}
+		}
+	}
+
+	public void onComplete() {
+		LOGGER.trace("Message completed {}", this);
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onComplete();
 		}
 	}
 

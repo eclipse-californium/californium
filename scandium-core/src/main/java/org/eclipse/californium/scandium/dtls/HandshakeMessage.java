@@ -16,19 +16,21 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for message type
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -133,12 +135,12 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tHandshake Protocol");
-		sb.append(System.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(System.lineSeparator()).append("\tPeer: ").append(getPeer());
-		sb.append(System.lineSeparator()).append("\tMessage Sequence No: ").append(messageSeq);
-		sb.append(System.lineSeparator()).append("\tFragment Offset: ").append(fragmentOffset);
-		sb.append(System.lineSeparator()).append("\tFragment Length: ").append(fragmentLength);
-		sb.append(System.lineSeparator()).append("\tLength: ").append(getMessageLength()).append(System.lineSeparator());
+		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
+		sb.append(StringUtil.lineSeparator()).append("\tPeer: ").append(getPeer());
+		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(messageSeq);
+		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(fragmentOffset);
+		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(fragmentLength);
+		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength()).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
@@ -266,6 +268,8 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			return ECDHServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case PSK:
 			return PSKServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case ECDHE_PSK:
+			return EcdhPskServerKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		default:
 			throw new HandshakeException(
 					"Unsupported key exchange algorithm",
@@ -281,6 +285,8 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			return ECDHClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case PSK:
 			return PSKClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
+		case ECDHE_PSK:
+			return EcdhPskClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		case NULL:
 			return NULLClientKeyExchange.fromByteArray(bytesLeft, peerAddress);
 		default:

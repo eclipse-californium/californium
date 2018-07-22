@@ -17,12 +17,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 
 /**
@@ -37,8 +39,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int IDENTITY_LENGTH_BITS = 16;
-
-	private static final Charset CHAR_SET_UTF8 = Charset.forName("UTF8");
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -56,14 +56,14 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 	public PSKClientKeyExchange(String identity, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.identityEncoded = identity.getBytes(CHAR_SET_UTF8);
+		this.identityEncoded = identity.getBytes(UTF_8);
 		this.identity = identity;
 	}
 	
 	private PSKClientKeyExchange(byte[] identityEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.identityEncoded = Arrays.copyOf(identityEncoded, identityEncoded.length);
-		this.identity = new String(this.identityEncoded, CHAR_SET_UTF8);
+		this.identity = new String(this.identityEncoded, UTF_8);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -78,7 +78,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity: ").append(identity).append(System.lineSeparator());
+		sb.append("\t\tPSK Identity: ").append(identity).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

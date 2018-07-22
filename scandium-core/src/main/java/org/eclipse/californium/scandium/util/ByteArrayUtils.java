@@ -62,7 +62,7 @@ public class ByteArrayUtils {
 	 * @return the truncated array.
 	 */
 	public static byte[] truncate(byte[] array, int newLength) {
-		if (array.length < newLength) {
+		if (array.length <= newLength) {
 			return array;
 		} else {
 			byte[] truncated = new byte[newLength];

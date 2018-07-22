@@ -16,13 +16,13 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**

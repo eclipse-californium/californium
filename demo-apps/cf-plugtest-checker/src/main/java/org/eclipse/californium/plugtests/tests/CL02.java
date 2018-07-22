@@ -47,7 +47,7 @@ public class CL02 extends TestClientAbstract {
 	protected boolean checkResponse(Request request, Response response) {
 		boolean success = true;
 
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkOption(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat(), "Content-Format");
 		success &= checkDiscoveryAttributes(EXPECTED_RT, response.getPayloadString());
 

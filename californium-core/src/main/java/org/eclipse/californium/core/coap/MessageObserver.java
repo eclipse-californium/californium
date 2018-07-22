@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -22,21 +22,29 @@
  *                                                    race condition in block1wise
  *                                                    when the generated token was 
  *                                                    copied too late (after sending). 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
- * A callback that gets invoked on a message's lifecycle events.
+ * A callback that gets invoked on a message's life cycle events.
  * <p>
  * The following methods are called
  * <ul>
- * <li> {@link #onResponse(Response)} when a response arrives</li>
- * <li> {@link #onAcknowledgement()} when the message has been acknowledged</li>
- * <li> {@link #onReject()} when the message has been rejected</li>
- * <li> {@link #onTimeout()} when the client stops retransmitting the message and
+ * <li>{@link #onResponse(Response)} when a response arrives</li>
+ * <li>{@link #onAcknowledgement()} when the message has been acknowledged</li>
+ * <li>{@link #onReject()} when the message has been rejected</li>
+ * <li>{@link #onTimeout()} when the client stops retransmitting the message and
  * still has not received anything from the remote endpoint</li>
- * <li> {@link #onCancel()} when the message has been canceled</li>
+ * <li>{@link #onCancel()} when the message has been canceled</li>
+ * <li>{@link #onReadyToSend()} right before the message is being sent</li>
+ * <li>{@link #onSent()} right after the message has been sent
+ * (successfully)</li>
+ * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
  * </ul>
  * <p>
  * The class that is interested in processing a message event either implements
@@ -88,31 +96,49 @@ public interface MessageObserver {
 	/**
 	 * Invoked when the message has been canceled.
 	 * <p>
-	 * For instance, a user might cancel a request or a CoAP resource that is being
-	 * observed might cancel a response to send another one instead.
+	 * For instance, a user might cancel a request or a CoAP resource that is
+	 * being observed might cancel a response to send another one instead.
 	 */
 	void onCancel();
 
 	/**
-	 * Invoked when the message was built and is ready to send.
+	 * Invoked when the message was built and is ready to be sent.
 	 * <p>
-	 * Triggered, before the message was sent by a connector. 
-	 * MID and token is prepared.
+	 * Triggered, before the message was sent by a connector. MID and token is
+	 * prepared.
 	 */
 	void onReadyToSend();
 
 	/**
-	 * Invoked when the message has been sent.
+	 * Invoked right after the message has been sent.
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
 	 */
 	void onSent();
-	
+
 	/**
 	 * Invoked when sending the message caused an error.
 	 * <p>
-	 * For instance, if the message is not sent, because the endpoint context has changed.
+	 * For instance, if the message is not sent, because the endpoint context
+	 * has changed.
+	 * 
+	 * @param error The cause of the failure to send the message.
 	 */
 	void onSendError(Throwable error);
-	
+
+	/**
+	 * Invoked when the resulting endpoint context is reported by the connector.
+	 * 
+	 * Note: usually this callback must be processed in a synchronous manner,
+	 * because if it returns, the message is sent. Therefore take special care
+	 * in methods called on this callback.
+	 * 
+	 * @param endpointContext resulting endpoint context
+	 */
+	void onContextEstablished(EndpointContext endpointContext);
+
+	/**
+	 * Invoked, when transfer is successfully complete.
+	 */
+	void onComplete();
 }

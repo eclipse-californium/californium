@@ -18,8 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
-import java.nio.charset.StandardCharsets;
-
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.junit.Before;

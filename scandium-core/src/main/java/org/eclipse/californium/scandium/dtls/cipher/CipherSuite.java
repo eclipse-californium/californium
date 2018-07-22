@@ -25,6 +25,7 @@
  *                                                    support for certificate-based,
  *                                                    none ECC-based cipher suites is
  *                                                    still missing!
+ *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -53,6 +54,8 @@ public enum CipherSuite {
 
 	TLS_NULL_WITH_NULL_NULL(0x0000, KeyExchangeAlgorithm.NULL, Cipher.NULL, MACAlgorithm.NULL),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2">RFC 5489</a> for details*/
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, KeyExchangeAlgorithm.ECDHE_PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
 	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CCM_8, MACAlgorithm.NULL),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CCM_8, MACAlgorithm.NULL);
@@ -160,6 +163,7 @@ public enum CipherSuite {
 	public boolean requiresServerCertificateMessage() {
 		return !(KeyExchangeAlgorithm.DH_ANON.equals(keyExchange) ||
 				KeyExchangeAlgorithm.PSK.equals(keyExchange) ||
+				KeyExchangeAlgorithm.ECDHE_PSK.equals(keyExchange)||
 				KeyExchangeAlgorithm.NULL.equals(keyExchange));
 	}
 
@@ -169,7 +173,8 @@ public enum CipherSuite {
 	 * @return <code>true</code> if ECC is used
 	 */
 	public boolean isEccBased() {
-		return KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange);
+		return KeyExchangeAlgorithm.ECDHE_PSK.equals(keyExchange)|| 
+				KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(keyExchange);
 	}
 
 	/**
@@ -515,7 +520,7 @@ public enum CipherSuite {
 	 *
 	 */
 	public enum KeyExchangeAlgorithm {
-		NULL, DHE_DSS, DHE_RSA, DH_ANON, RSA, DH_DSS, DH_RSA, PSK, EC_DIFFIE_HELLMAN;
+		NULL, DHE_DSS, DHE_RSA, DH_ANON, RSA, DH_DSS, DH_RSA, PSK, ECDHE_PSK, EC_DIFFIE_HELLMAN;
 	}
 
 	private enum PRFAlgorithm {

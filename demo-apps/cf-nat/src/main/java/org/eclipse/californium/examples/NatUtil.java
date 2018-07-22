@@ -13,6 +13,7 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add message dropping.
  ******************************************************************************/
 
 package org.eclipse.californium.examples;
@@ -24,11 +25,14 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +60,10 @@ public class NatUtil implements Runnable {
 	 * NAT timeout. Checked, when socket timeout occurs.
 	 */
 	private static final int NAT_TIMEOUT_MS = 1000 * 60;
+	/**
+	 * Message dropping log interval.
+	 */
+	private static final int MESSAGE_DROPPING_LOG_INTERVAL_MS = 1000 * 10;
 	/**
 	 * The name of the proxy interface address.
 	 */
@@ -88,6 +96,97 @@ public class NatUtil implements Runnable {
 	private volatile boolean running = true;
 
 	/**
+	 * Nano time for next message dropping statistic log.
+	 * 
+	 * @see #dumpMessageDroppingStatistic()
+	 */
+	private AtomicLong messageDroppingLogTime = new AtomicLong();
+
+	/**
+	 * Message dropping configuration.
+	 */
+	private static class MessageDropping {
+
+		/**
+		 * Title for statistic.
+		 */
+		private final String title;
+		/**
+		 * Random for message dropping.
+		 */
+		private final Random random = new Random();
+		/**
+		 * Threshold in percent. 0 := no message dropping.
+		 */
+		private final int threshold;
+		/**
+		 * Counter for sent messages.
+		 */
+		private final AtomicInteger sentMessages = new AtomicInteger();
+		/**
+		 * Counter for dropped messages.
+		 */
+		private final AtomicInteger droppedMessages = new AtomicInteger();
+
+		/**
+		 * Create instance.
+		 * 
+		 * @param title title for statistic dump
+		 * @param threshold threshold in percent
+		 */
+		public MessageDropping(String title, int threshold) {
+			this.title = title;
+			this.threshold = threshold;
+			this.random.setSeed(threshold);
+		}
+
+		/**
+		 * Check, if message should be dropped.
+		 * 
+		 * @return {@code true}, if message should be dropped, {@code false}, if
+		 *         message should be sent.
+		 */
+		public boolean dropMessage() {
+			if (threshold == 0) {
+				return false;
+			}
+			if (threshold == 1000) {
+				return true;
+			}
+			if (threshold > random.nextInt(100)) {
+				droppedMessages.incrementAndGet();
+				return true;
+			} else {
+				sentMessages.incrementAndGet();
+				return false;
+			}
+		}
+
+		/**
+		 * Dump message dropping statistic to log.
+		 */
+		public void dumpStatistic() {
+			int sent = sentMessages.get();
+			int dropped = droppedMessages.get();
+			if (sent > 0) {
+				LOGGER.warn("dropped {} {}/{}%, sent {} {}.",
+						new Object[] { title, dropped, dropped * 100 / (dropped + sent), title, sent });
+			} else {
+				LOGGER.warn("dropped {} {}/100%, no {} sent!.", new Object[] { title, dropped, title });
+			}
+		}
+	}
+
+	/**
+	 * Message dropping configuration for forwarded messages.
+	 */
+	private volatile MessageDropping forward;
+	/**
+	 * Message dropping configuration for messages sent backwards.
+	 */
+	private volatile MessageDropping backward;
+
+	/**
 	 * Create a new NAT util.
 	 * 
 	 * @param bindAddress address to bind to, or {@code null}, if any should be
@@ -113,9 +212,14 @@ public class NatUtil implements Runnable {
 
 	@Override
 	public void run() {
+		messageDroppingLogTime.set(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(MESSAGE_DROPPING_LOG_INTERVAL_MS));
 		LOGGER.info("starting NAT {} to {}.", new Object[] { proxyName, destinationName });
 		while (running) {
 			try {
+				if (messageDroppingLogTime.get() - System.nanoTime() < 0) {
+					dumpMessageDroppingStatistic();
+				}
+
 				proxyPacket.setLength(DATAGRAM_SIZE);
 				proxySocket.receive(proxyPacket);
 				if (running) {
@@ -186,8 +290,7 @@ public class NatUtil implements Runnable {
 		NatEntry entry = new NatEntry(incoming);
 		NatEntry old = nats.put(incoming, entry);
 		if (null != old) {
-			LOGGER.info("changed NAT for {} from {} to {}.",
-					new Object[] { incoming, old.getPort(), entry.getPort() });
+			LOGGER.info("changed NAT for {} from {} to {}.", new Object[] { incoming, old.getPort(), entry.getPort() });
 			old.stop();
 		} else {
 			LOGGER.info("add NAT for {} to {}.", new Object[] { incoming, entry.getPort() });
@@ -219,6 +322,88 @@ public class NatUtil implements Runnable {
 	 */
 	public InetSocketAddress getProxySocketAddress() {
 		return (InetSocketAddress) proxySocket.getLocalSocketAddress();
+	}
+
+	/**
+	 * Set message dropping level in percent.
+	 * 
+	 * Set both forward and backward dropping.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 */
+	public void setMessageDropping(int percent) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message dropping " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (forward != null || backward != null) {
+				forward = null;
+				backward = null;
+				LOGGER.info("NAT stops message dropping.");
+			}
+		} else {
+			forward = new MessageDropping("request", percent);
+			backward = new MessageDropping("responses", percent);
+			LOGGER.info("NAT message dropping {}%.", percent);
+		}
+	}
+
+	/**
+	 * Set message dropping level in percent for forwarded messages.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 */
+	public void setForwardMessageDropping(int percent) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message dropping " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (forward != null) {
+				forward = null;
+				LOGGER.info("NAT stops forward message dropping.");
+			}
+		} else {
+			forward = new MessageDropping("request", percent);
+			LOGGER.info("NAT forward message dropping {}%.", percent);
+		}
+	}
+
+	/**
+	 * Set message dropping level in percent for messages sent backwards.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 */
+	public void setBackwardMessageDropping(int percent) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message dropping " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (backward != null) {
+				backward = null;
+				LOGGER.info("NAT stops backward message dropping.");
+			}
+		} else {
+			backward = new MessageDropping("response", percent);
+			LOGGER.info("NAT backward message dropping {}%.", percent);
+		}
+	}
+
+	/**
+	 * Dump message dropping statistics to log.
+	 */
+	public void dumpMessageDroppingStatistic() {
+		messageDroppingLogTime.set(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(MESSAGE_DROPPING_LOG_INTERVAL_MS));
+		MessageDropping drops = this.forward;
+		if (drops != null) {
+			drops.dumpStatistic();
+		}
+		drops = this.backward;
+		if (drops != null) {
+			drops.dumpStatistic();
+		}
 	}
 
 	/**
@@ -260,9 +445,15 @@ public class NatUtil implements Runnable {
 						outgoingSocket.receive(packet);
 						lastUsage.set(System.nanoTime());
 						packet.setSocketAddress(incoming);
-						LOGGER.info("backward {} bytes from {} to {} via {}",
-								new Object[] { packet.getLength(), destinationName, incomingName, natName });
-						proxySocket.send(packet);
+						MessageDropping dropping = backward;
+						if (dropping != null && dropping.dropMessage()) {
+							LOGGER.info("backward drops {} bytes from {} to {} via {}",
+									new Object[] { packet.getLength(), destinationName, incomingName, natName });
+						} else {
+							LOGGER.info("backward {} bytes from {} to {} via {}",
+									new Object[] { packet.getLength(), destinationName, incomingName, natName });
+							proxySocket.send(packet);
+						}
 					} catch (SocketTimeoutException e) {
 						if (running) {
 							if (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastUsage.get()) > NAT_TIMEOUT_MS) {
@@ -270,8 +461,7 @@ public class NatUtil implements Runnable {
 								LOGGER.info("expired listen on {} for incoming {}",
 										new Object[] { natName, incomingName });
 							} else {
-								LOGGER.debug("listen on {} for incoming {}",
-										new Object[] { natName, incomingName });
+								LOGGER.debug("listen on {} for incoming {}", new Object[] { natName, incomingName });
 							}
 						}
 					} catch (IOException e) {
@@ -300,11 +490,17 @@ public class NatUtil implements Runnable {
 		}
 
 		public void forward(DatagramPacket packet) throws IOException {
-			LOGGER.info("forward {} bytes from {} to {} via {}",
-					new Object[] { packet.getLength(), incomingName, destinationName, natName });
-			packet.setSocketAddress(destination);
-			lastUsage.set(System.nanoTime());
-			outgoingSocket.send(packet);
+			MessageDropping dropping = forward;
+			if (dropping != null && dropping.dropMessage()) {
+				LOGGER.info("forward drops {} bytes from {} to {} via {}",
+						new Object[] { packet.getLength(), incomingName, destinationName, natName });
+			} else {
+				LOGGER.info("forward {} bytes from {} to {} via {}",
+						new Object[] { packet.getLength(), incomingName, destinationName, natName });
+				packet.setSocketAddress(destination);
+				lastUsage.set(System.nanoTime());
+				outgoingSocket.send(packet);
+			}
 		}
 	}
 }

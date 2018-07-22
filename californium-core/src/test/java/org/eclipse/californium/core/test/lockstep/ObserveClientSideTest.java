@@ -39,21 +39,20 @@ import static org.eclipse.californium.core.coap.CoAP.Type.*;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Large;
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.test.CountingMessageObserver;
+import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -100,10 +99,8 @@ public class ObserveClientSideTest {
 
 	@Before
 	public void setupEndpoints() throws Exception {
-		//exchangeStore = new InMemoryMessageExchangeStore(CONFIG, new InMemoryRandomTokenProvider(CONFIG));
-		// bind to loopback address using an ephemeral port
-	    //CoapEndpoint udpEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, exchangeStore);
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		// don't check address, tests explicitly change it!
+		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, false);
 		client.addInterceptor(clientInterceptor);
 		client.addInterceptor(new MessageTracer());
 		client.start();
@@ -390,9 +387,8 @@ public class ObserveClientSideTest {
 		// During block transfer send a complete (none blockwise) response
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).payload(notifyPayload).go();
 		server.expectEmpty(ACK, mid).go();
-		// Check that we get the most recent response (with the higher observe
-		// option value)
-		Response response = request.waitForResponse();
+		// Check that we get the most recent response (with the higher observe option value)
+		Response response = request.waitForResponse(2000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
 
 		// Send next block
@@ -1027,7 +1023,7 @@ public class ObserveClientSideTest {
 		printServerLog(clientInterceptor);
 
 		client.cancelObservation(server.getToken("A"));
-		System.out.println("Cancel observation " + Utils.toHexString(server.getToken("A")));
+		System.out.println("Cancel observation " + server.getToken("A").getAsString());
 
 		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
 
@@ -1144,7 +1140,7 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
 				.payload(respPayload.substring(16, 32)).go();
 		// Check that we get the response
-		Response response = request.waitForResponse();
+		Response response = request.waitForResponse(2000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 
 		String notifyPayload = generateRandomPayload(2 * 16);
@@ -1183,4 +1179,271 @@ public class ObserveClientSideTest {
 		
 	}
 
+	/**
+	 * Verify there is no leak if we failed before to sent the CoAP request.
+	 */
+	@Test
+	public void testObserveFailureBeforeToSend() throws Exception {
+		System.out.println("Observe fails before we send request:");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send the message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+		errorInjector.setErrorOnReadyToSend();
+
+		// Try to send request
+		Request request = createRequest(GET, path, server);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		CountingMessageObserver counter = new CountingMessageObserver();
+		request.addMessageObserver(counter);
+		request.setObserve();
+		client.sendRequest(request);
+
+		// Wait for error
+		counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+
+		// We should get a error
+		assertEquals("An error is expected", 1, counter.errorCalls.get());
+
+		// @after check there is no leak
+	}
+
+	/**
+	 * Verify there is no leak if we failed before to sent block request for a notification.
+	 */
+	@Test
+	public void testObserveFailureBeforeToSendDuringBlockNotification() throws Exception {
+		System.out.println("Observe fails before we send the next block2 request for a notification");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Add error injector to client endpoint to be able to simulate error
+		// before we really send the message.
+		ErrorInjector errorInjector = new ErrorInjector();
+		client.addInterceptor(errorInjector);
+
+		// establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).block2(0, true, 16)
+				.payload(notifyPayload.substring(0, 16)).go();
+		// Expect ACK and Next Block request for the notification
+		server.startMultiExpectation();
+		server.expectEmpty(ACK, mid).go();
+		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
+		server.goMultiExpectation();
+		
+		// Simulate error before we send the next block2 request
+		errorInjector.setErrorOnReadyToSend();
+		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(notifyPayload.substring(16, 32)).go();
+
+		// TODO We would like to check if the block2 request failed but we have no API for a block2 request which failed to be sent
+
+		// @after check there is no leak
+	}
+
+	/**
+	 * This is a bit out of specification but to improve compatibility with
+	 * "buggy" server we would like to ensure that if a server answer to a
+	 * simple GET (without observe) by adding an unexpected observe option we
+	 * will handle it anyway.
+	 */
+	@Test
+	public void testSimpleGetAcceptResponseWithObserveOption() throws Exception {
+		System.out.println("Response with observe option is accepted as response for a GET");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Send simple get request
+		Request request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+
+		// Send a piggyback response with unexpected observe option
+		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(3).payload(respPayload).go();
+
+		// Ensure we get the response
+		Response response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("B").go();
+		// We don't send ACK to simulate it is lost
+		// Send a separated CON response with unexpected observe option
+		server.sendResponse(CON, CONTENT).loadToken("B").mid(mid).observe(4).payload(respPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// Send another simple get request
+		request = createRequest(GET, path, server);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("C").go();
+
+		// Send NON response with unexpected observe option
+		server.sendResponse(NON, CONTENT).loadBoth("C").observe(5).payload(respPayload).go();
+
+		// Ensure we get the response
+		response = request.waitForResponse(1000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+	}
+
+	/**
+	 * Test proactive cancel
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * (Established observe relation)
+	 * CON [MID=27914, T=[d5c120197ca1c3ce]], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=27914, T=[d5c120197ca1c3ce]], 2.05, observe(1)
+	 * (1st Notification)
+	 * <-----   CON [MID=8001, T=[d5c120197ca1c3ce]], 2.05, observe(3)
+	 * ACK [MID=8001]   ----->
+	 * (Send proactive cancel request)
+	 * CON [MID=27915, T=[d5c120197ca1c3ce]], GET, /test, observe(1)    ----->
+	 * <-----   ACK [MID=27915, T=[d5c120197ca1c3ce]], 2.05
+	 * (Next notifications are rejected) 
+	 * <-----   CON [MID=8002, T=[d5c120197ca1c3ce]], 2.05, observe(4)
+	 * RST [MID=8002]   ----->
+	 * <-----   NON [MID=8003, T=[d5c120197ca1c3ce]], 2.05, observe(5)
+	 * RST [MID=8003]   ----->
+	 * </pre>
+	 */
+	@Test
+	public void testProactiveCancel() throws Exception {
+		System.out.println("Proactive cancel");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New CON notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Send pro active cancel
+		client.cancelObservation(request.getToken());
+		Request proactiveCancel = createRequest(GET, path, server);
+		proactiveCancel.setToken(request.getToken());
+		proactiveCancel.setObserveCancel();
+		client.sendRequest(proactiveCancel);
+		server.expectRequest(CON, GET, path).storeBoth("OBSCANCEL").go();
+
+		// Send response to proactive cancel
+		String cancelPayload = generateRandomPayload(32);
+		server.sendResponse(ACK, CONTENT).loadBoth("OBSCANCEL").payload(cancelPayload).go();
+		
+		// Ensure we get the right response
+		Response cancelResponse = proactiveCancel.waitForResponse(1000);
+		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+				
+		// Ensure notification is rejected
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+	}
+
+	/**
+	 * Ensure that a notification is not handled as a proactive cancel response
+	 * 
+	 * <pre>
+	 * (actual used MIDs and Tokens my vary!)
+	 * (Established observe relation)
+	 * CON [MID=48159, T=[8b34820a2c98fc19]], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=48159, T=[8b34820a2c98fc19]], 2.05, observe(1)
+	 * (1st Notification)
+	 * <-----   CON [MID=8001, T=[8b34820a2c98fc19]], 2.05, observe(3)
+	 * ACK [MID=8001]   ----->
+	 * (Send proactive cancel request)
+	 * CON [MID=48160, T=[8b34820a2c98fc19]], GET, /test, observe(1)    ----->
+	 * (ignored notifications)
+	 * <-----   CON [MID=8002, T=[8b34820a2c98fc19]], 2.05, observe(4)
+	 * RST [MID=8002]   ----->
+	 * <-----   NON [MID=8003, T=[8b34820a2c98fc19]], 2.05, observe(5)
+	 * RST [MID=8002]   ----->
+	 * (Response for proactive cancel request)
+	 * <-----   ACK [MID=48160, T=[8b34820a2c98fc19]], 2.05
+	 * </pre>
+	 */
+	@Test
+	public void testNotificationIsNotHandledAsProactiveCancelResponse() throws Exception {
+		System.out.println("Notification is not consider as a response of proactive cancel");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+
+		// Establish observe relation
+		Request request = createRequest(GET, path, server);
+		request.setObserve();
+		respPayload = generateRandomPayload(16);
+		client.sendRequest(request);
+		server.expectRequest(CON, GET, path).storeBoth("OBS").go();
+		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
+		Response response = request.waitForResponse(2000);
+		assertResponseContainsExpectedPayload(response, respPayload);
+
+		// New CON notification
+		String notifyPayload = generateRandomPayload(32);
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(ACK, mid).go();
+
+		// Send pro active cancel
+		client.cancelObservation(request.getToken());
+		Request proactiveCancel = createRequest(GET, path, server);
+		proactiveCancel.setToken(request.getToken());
+		proactiveCancel.setObserveCancel();
+		client.sendRequest(proactiveCancel);
+		server.expectRequest(CON, GET, path).storeBoth("OBSCANCEL").go();
+
+		// New CON notification
+		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		// New NON notification
+		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
+		server.expectEmpty(RST, mid);
+
+		// Ensure the 2 notifications above was not consider as response for the proactive cancel request
+		Response cancelResponse = proactiveCancel.waitForResponse(500);
+		assertNull("We should not consider notification as response", cancelResponse);
+
+		// Send response to proactive cancel
+		String cancelPayload = generateRandomPayload(32);
+		server.sendResponse(ACK, CONTENT).loadBoth("OBSCANCEL").payload(cancelPayload).go();
+
+		// Ensure we get the right response
+		cancelResponse = proactiveCancel.waitForResponse(1000);
+		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+	}
 }

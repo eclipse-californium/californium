@@ -13,6 +13,9 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add "mark" and "reset"
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add constructor without 
+ *                                                    cloning of the provided data.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -32,25 +35,69 @@ public final class DatagramReader {
 	private byte currentByte;
 	private int currentBitIndex;
 
+	/**
+	 * Copy of {@link #currentByte}, when {@link #mark()} is called.
+	 */
+	private byte markByte;
+	/**
+	 * Copy of {@link #currentBitIndex}, when {@link #mark()} is called.
+	 */
+	private int markBitIndex;
+
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new reader for an array of bytes.
 	 * 
-	 * @param byteArray
-	 *            The byte array to read from.
+	 * @param byteArray The byte array to read from.
 	 */
 	public DatagramReader(final byte[] byteArray) {
+		this(new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length)));
+	}
 
+	/**
+	 * Creates a new reader for an bytes stream.
+	 * 
+	 * @param byteStream The byte stream to read from.
+	 * @throws NullPointerException, if byte stream is {@code null}
+	 */
+	public DatagramReader(final ByteArrayInputStream byteStream) {
+		if (byteStream == null) {
+			throw new NullPointerException("byte stream must not be null!");
+		}
 		// initialize underlying byte stream
-		byteStream = new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length));
+		this.byteStream = byteStream;
 
 		// initialize bit buffer
 		currentByte = 0;
 		currentBitIndex = -1; // indicates that no byte read yet
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
 	}
 
 	// Methods /////////////////////////////////////////////////////////////////
+
+	/**
+	 * Mark current position to be reseted afterwards.
+	 * 
+	 * @see #reset()
+	 */
+	public void mark() {
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
+		byteStream.mark(0);
+	}
+
+	/**
+	 * Reset reader to last mark.
+	 * 
+	 * @see #mark()
+	 */
+	public void reset() {
+		byteStream.reset();
+		currentByte = markByte;
+		currentBitIndex = markBitIndex;
+	}
 
 	/**
 	 * 

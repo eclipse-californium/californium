@@ -19,37 +19,63 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection
  *                                                    to distinguish from 
  *                                                    none plain UDP contexts.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use UdpEndpointContext to prevent
+ *                                                    matching with a DtlsEndpointContext
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.net.InetSocketAddress;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Endpoint context matcher for UDP.
+ * 
+ * Optionally checks address for request-response matching.
  */
-public class UdpEndpointContextMatcher implements EndpointContextMatcher {
+public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpEndpointContextMatcher.class.getName());
+
+	private static final String KEYS[] = { UdpEndpointContext.KEY_PLAIN };
+
+	/**
+	 * Enable address check for request-response matching.
+	 */
+	private final boolean checkAddress;
+
+	/**
+	 * Create new instance of udp endpoint context matcher with enabled address
+	 * check.
+	 */
+	public UdpEndpointContextMatcher() {
+		this(true);
+	}
 
 	/**
 	 * Create new instance of udp endpoint context matcher.
+	 * 
+	 * @param checkAddress {@code true} with address check, {@code false},
+	 *            without
 	 */
-	public UdpEndpointContextMatcher() {
-	}
-
-	@Override
-	public String getName() {
-		return "udp plain";
+	public UdpEndpointContextMatcher(boolean checkAddress) {
+		super("udp plain", KEYS);
+		this.checkAddress = checkAddress;
 	}
 
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
-		return internalMatch(requestContext, responseContext);
+		if (checkAddress) {
+			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
+			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
+			if (peerAddress1.getPort() != peerAddress2.getPort()
+					|| !peerAddress1.getAddress().equals(peerAddress2.getAddress())) {
+				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
+						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
+				return false;
+			}
+		}
+		return super.isResponseRelatedToRequest(requestContext, responseContext);
 	}
-
-	@Override
-	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectorContext) {
-		return internalMatch(messageContext, connectorContext);
-	}
-
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		return (null == requestedContext) || !requestedContext.inhibitNewConnection() || (null != availableContext);
-	}
-
 }

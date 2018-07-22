@@ -121,14 +121,12 @@ public class TcpEndpointContextTest {
 
 		EndpointContext serverContext = serverCallback.getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 		assertThat("Serverside no TCP Endpoint Context", serverContext, is(instanceOf(TcpEndpointContext.class)));
-		assertThat(serverContext, is(receivingServerContext));
 		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID),
 				is(receivingServerContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 
 		// check response endpoint context
 		EndpointContext responseContext = clientCatcher.getMessage(0).getEndpointContext();
 		assertThat("no response TCP Endpoint Context", responseContext, is(instanceOf(TcpEndpointContext.class)));
-		assertThat(responseContext, is(clientContext));
 		assertThat(responseContext.get(TcpEndpointContext.KEY_CONNECTION_ID),
 				is(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 
@@ -140,7 +138,6 @@ public class TcpEndpointContextTest {
 
 		EndpointContext context2 = clientCallback.getEndpointContext(ConnectorTestUtil.CONTEXT_TIMEOUT_IN_MS);
 		assertThat("no TCP Endpoint Context", context2, is(instanceOf(TcpEndpointContext.class)));
-		assertThat(context2, is(clientContext));
 		assertThat(context2.get(TcpEndpointContext.KEY_CONNECTION_ID),
 				is(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 	}
@@ -487,7 +484,6 @@ public class TcpEndpointContextTest {
 			EndpointContext context1 = callbacks.get(index).getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 			EndpointContext context2 = followupCallbacks.get(index).getEndpointContext(CONTEXT_TIMEOUT_IN_MS);
 			// same connection id used for follow up message
-			assertThat(context1, is(context2));
 			assertThat(context1.get(TcpEndpointContext.KEY_CONNECTION_ID),
 					is(context2.get(TcpEndpointContext.KEY_CONNECTION_ID)));
 		}

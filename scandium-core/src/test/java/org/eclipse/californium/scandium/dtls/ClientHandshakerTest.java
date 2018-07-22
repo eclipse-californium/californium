@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -17,6 +17,12 @@
  *                                                    client & server keys and certificate chains
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    add testServerCertExtPrefersX509WithEmptyTrustStore
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -25,15 +31,13 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
-import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
-import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -48,7 +52,7 @@ public class ClientHandshakerTest {
 
 	final InetSocketAddress localPeer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	final SimpleRecordLayer recordLayer = new SimpleRecordLayer();
-	final byte[] serverName = "iot.eclipse.org".getBytes(StandardCharsets.US_ASCII);
+	final String serverName = "iot.eclipse.org";
 
 	ClientHandshaker handshaker;
 
@@ -57,7 +61,7 @@ public class ClientHandshakerTest {
 	 * contains a preference for X.509 certificates if <em>trusted root certificates</em>
 	 * have been configured.
 	 * 
-	 * @throws Exception if the test fails.
+	 * @throws Exception if the handshake cannot be started.
 	 */
 	@Test
 	public void testServerCertExtPrefersX509WithTrustStore() throws Exception {
@@ -69,11 +73,27 @@ public class ClientHandshakerTest {
 	}
 
 	/**
+	 * Verifies that the <em>CLIENT_HELLO</em> message created by the handshaker
+	 * includes a server certificate extension which indicates a preference for
+	 * X.509 certificates when an empty trust store is configured.
+	 * 
+	 * @throws Exception if the handshake cannot be started.
+	 */
+	@Test
+	public void testServerCertExtPrefersX509WithEmptyTrustStore() throws Exception {
+
+		givenAClientHandshaker(localPeer, false, true);
+		handshaker.startHandshake();
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
+	}
+
+	/**
 	 * Assert that the <em>CLIENT_HELLO</em> message created by the handshaker
 	 * contains a preference for RawPublicKeys if no <em>trusted root certificates</em>
 	 * have been configured.
 	 * 
-	 * @throws Exception if the test fails.
+	 * @throws Exception if the handshake cannot be started.
 	 */
 	@Test
 	public void testServerCertExtPrefersRawPublicKeysWithoutTrustStore() throws Exception {
@@ -86,15 +106,36 @@ public class ClientHandshakerTest {
 
 	/**
 	 * Asserts that the <em>Client_HELLO</em> message created by the handshaker does not contain
-	 * a <em>Server Name Indication</em> extension when no server names have been configured
-	 * for a peer.
+	 * a <em>Server Name Indication</em> extension when the negotiating a session with a
+	 * peer identified by socket address only.
 	 * 
-	 * @throws Exception if test fails.
+	 * @throws Exception if the handshake cannot be started.
 	 */
 	@Test
-	public void testClientHelloLacksServerNameExtensionForNonRegisteredPeer() throws Exception {
+	public void testClientHelloLacksServerNameExtensionForMessageWithoutVirtualHost() throws Exception {
 
-		givenAClientHandshaker(new InetSocketAddress(InetAddress.getByAddress(new byte[]{10, 0, 0, 1}), 10000), false);
+		givenAClientHandshaker(null, false);
+
+		// WHEN a handshake is started with the peer
+		handshaker.startHandshake();
+
+		// THEN assert that the sent client hello does not contain an SNI extension
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertNull(clientHello.getServerNameExtension());
+	}
+
+	/**
+	 * Asserts that the <em>Client_HELLO</em> message created by the handshaker does not contain
+	 * a <em>Server Name Indication</em> extension when negotiating a session with a virtual host
+	 * but with SNI disabled.
+	 * 
+	 * @throws Exception if the handshake cannot be started.
+	 */
+	@Test
+	public void testClientHelloLacksServerNameExtensionForDisabledSni() throws Exception {
+
+		// GIVEN a handshaker for a virtual host but with SNI disabled
+		givenAClientHandshaker(localPeer, serverName, false, false, false);
 
 		// WHEN a handshake is started with the peer
 		handshaker.startHandshake();
@@ -106,14 +147,15 @@ public class ClientHandshakerTest {
 
 	/**
 	 * Asserts that the <em>Client_HELLO</em> message created by the handshaker contains
-	 * a <em>Server Name Indication</em> extension when server names have been configured
-	 * for a peer.
-	 * @throws Exception 
+	 * a <em>Server Name Indication</em> extension when negotiating a session with a virtual host
+	 * at the peer.
+	 * 
+	 * @throws Exception if the handshake cannot be started.
 	 */
 	@Test
-	public void testClientHelloContainsServerNameExtensionForRegisteredPeer() throws Exception {
+	public void testClientHelloContainsServerNameExtensionForMessageWithVirtualHost() throws Exception {
 
-		givenAClientHandshaker(false);
+		givenAClientHandshaker(serverName, false);
 
 		// WHEN a handshake is started
 		handshaker.startHandshake();
@@ -122,40 +164,46 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertNotNull(clientHello.getServerNameExtension());
 		assertThat(
-				clientHello.getServerNameExtension().getServerNames().get(NameType.HOST_NAME),
+				clientHello.getServerNameExtension().getServerNames().getServerName(NameType.HOST_NAME).getNameAsString(),
 				is(serverName));
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
-		givenAClientHandshaker(localPeer, configureTrustStore);
+		givenAClientHandshaker(null, configureTrustStore);
 	}
 
-	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore) throws Exception {
+	private void givenAClientHandshaker(final String virtualHost, final boolean configureTrustStore) throws Exception {
+		givenAClientHandshaker(localPeer, virtualHost, configureTrustStore, false, true);
+	}
+
+	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
+		givenAClientHandshaker(peer, serverName, configureTrustStore, configureEmptyTrustStore, true);
+	}
+
+	private void givenAClientHandshaker(
+			final InetSocketAddress peer,
+			final String virtualHost,
+			final boolean configureTrustStore,
+			final boolean configureEmptyTrustStore,
+			final boolean sniEnabled) throws Exception {
+
 		DtlsConnectorConfig.Builder builder = 
 				new DtlsConnectorConfig.Builder()
-					.setAddress(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
 						false)
-					.setServerNameResolver(new ServerNameResolver() {
-
-						@Override
-						public ServerNames getServerNames(final InetSocketAddress address) {
-							if (localPeer.equals(address)) {
-								return ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, serverName));
-							} else {
-								return null;
-							}
-						}
-					});
+					.setSniEnabled(sniEnabled);
 
 		if (configureTrustStore) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
+		} else if (configureEmptyTrustStore) {
+			builder.setTrustStore(new Certificate[0]);
 		}
 
 		handshaker = new ClientHandshaker(
-				new DTLSSession(peer, true),
+				DTLSSession.newClientSession(peer, virtualHost),
 				recordLayer,
 				null,
 				builder.build(),

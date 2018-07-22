@@ -20,7 +20,10 @@ public class TcpThroughputServer {
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 10000);
 
 		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT), 1, 100);
-		CoapEndpoint endpoint = new CoapEndpoint(serverConnector, net);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setConnector(serverConnector);
+		builder.setNetworkConfig(net);
+		CoapEndpoint endpoint = builder.build();
 
 		CoapServer server = new CoapServer(net);
 		server.addEndpoint(endpoint);

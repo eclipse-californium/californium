@@ -21,6 +21,7 @@ package org.eclipse.californium.core;
 
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * The WebLink class can be used to programmatically browse a remote CoAP endoint.
@@ -60,19 +61,19 @@ public class WebLink implements Comparable<WebLink> {
 		builder.append('>');
 		builder.append(' ').append(this.attributes.getTitle());
 		if (this.attributes.containsAttribute(LinkFormat.RESOURCE_TYPE)) {
-			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.RESOURCE_TYPE).append(":\t").append(this.attributes.getResourceTypes());
+			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.RESOURCE_TYPE).append(":\t").append(this.attributes.getResourceTypes());
 		}
 		if (this.attributes.containsAttribute(LinkFormat.INTERFACE_DESCRIPTION)) {
-			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.INTERFACE_DESCRIPTION).append(":\t").append(this.attributes.getInterfaceDescriptions());
+			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.INTERFACE_DESCRIPTION).append(":\t").append(this.attributes.getInterfaceDescriptions());
 		}
 		if (this.attributes.containsAttribute(LinkFormat.CONTENT_TYPE)) {
-			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.CONTENT_TYPE).append(":\t").append(this.attributes.getContentTypes());
+			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.CONTENT_TYPE).append(":\t").append(this.attributes.getContentTypes());
 		}
 		if (this.attributes.containsAttribute(LinkFormat.MAX_SIZE_ESTIMATE)) {
-			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.MAX_SIZE_ESTIMATE).append(":\t").append(this.attributes.getMaximumSizeEstimate());
+			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.MAX_SIZE_ESTIMATE).append(":\t").append(this.attributes.getMaximumSizeEstimate());
 		}
 		if (this.attributes.hasObservable()) {
-			builder.append(System.lineSeparator()).append("\t").append(LinkFormat.OBSERVABLE);
+			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.OBSERVABLE);
 		}
 		return builder.toString();
 	}

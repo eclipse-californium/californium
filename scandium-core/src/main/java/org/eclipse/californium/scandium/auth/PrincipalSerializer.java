@@ -1,16 +1,41 @@
+/*******************************************************************************
+ * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ASN.1 DER encoding
+ *                                                    directly for serialization
+ *******************************************************************************/
+
 package org.eclipse.californium.scandium.auth;
 
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * A helper for serializing and deserializing principals supported by Scandium.
  */
 public final class PrincipalSerializer {
+
+	private static final int PSK_LENGTH_BITS = 16;
+	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
 	}
@@ -33,13 +58,14 @@ public final class PrincipalSerializer {
 	 * struct {
 	 *   ClientAuthenticationType client_authentication_type;
 	 *   select (ClientAuthenticationType) {
-	 *     case anonymous: struct {};
-	 *     case certificate_based:
-	 *       ASN.1Cert certificate_list<0..2^24-1>;
+	 *     case anonymous: 
+	 *       struct {};
 	 *     case psk:
 	 *       opaque psk_identity<0..2^16-1>;
+	 *     case certificate_based:
+	 *       DER ASN.1Cert certificate_list<0..2^24-1>;
 	 *     case raw_public_key:
-	 *       opaque ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
+	 *       DER ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
 	 *   };
 	 * }
 	 * </pre>
@@ -66,21 +92,24 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		writeBytes(principal.getName().getBytes(StandardCharsets.UTF_8), writer);
+		byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY :
+			principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
+		writeBytesWithLength(PSK_LENGTH_BITS, virtualHost, writer);
+		writeBytesWithLength(PSK_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
 	}
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.RPK.code);
-		writeBytes(principal.getSubjectInfo(), writer);
+		writer.writeBytes(principal.getSubjectInfo());
 	}
 
 	private static void serializeCertChain(final X509CertPath principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.CERT.code);
-		writeBytes(principal.toByteArray(), writer);
+		writer.writeBytes(principal.toByteArray());
 	}
 
-	private static void writeBytes(final byte[] bytesToWrite, final DatagramWriter writer) {
-		writer.write(bytesToWrite.length, 16);
+	private static void writeBytesWithLength(final int lengthBits, final byte[] bytesToWrite, final DatagramWriter writer) {
+		writer.write(bytesToWrite.length, lengthBits);
 		writer.writeBytes(bytesToWrite);
 	}
 
@@ -112,20 +141,29 @@ public final class PrincipalSerializer {
 	}
 
 	private static X509CertPath deserializeCertChain(final DatagramReader reader) {
-		return X509CertPath.fromBytes(readBytes(reader, 24));
-	};
+		byte[] certificatePath = Asn1DerDecoder.readSequenceEntity(reader);
+		return X509CertPath.fromBytes(certificatePath);
+	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
-		return new PreSharedKeyIdentity(new String(readBytes(reader, 16)));
-	};
+		byte[] bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
+		String virtualHost = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
+		bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
+		return new PreSharedKeyIdentity(virtualHost, new String(bytes, StandardCharsets.UTF_8));
+	}
 
-	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader) throws GeneralSecurityException {
-		byte[] subjectInfo = readBytes(reader, 16);
+	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader)
+			throws GeneralSecurityException {
+		byte[] subjectInfo = Asn1DerDecoder.readSequenceEntity(reader);
 		return new RawPublicKeyIdentity(subjectInfo);
 	}
 
-	private static byte[] readBytes(final DatagramReader reader, final int lengthBits) {
+	private static byte[] readBytesWithLength(final int lengthBits, final DatagramReader reader) {
 		int length = reader.read(lengthBits);
+		int available = reader.bitsLeft() / Byte.SIZE;
+		if (available < length) {
+			throw new IllegalArgumentException(length + " exceeds available " + available + " bytes!");
+		}
 		return reader.readBytes(length);
 	}
 

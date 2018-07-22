@@ -98,8 +98,9 @@ public class BlockwiseTransferTest {
 
 	@Before
 	public void createClient() throws IOException {
-
-		clientEndpoint = new CoapEndpoint(config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setNetworkConfig(config);
+		clientEndpoint = builder.build();
 		clientEndpoint.start();
 	}
 
@@ -157,7 +158,13 @@ public class BlockwiseTransferTest {
 	@Test
 	public void test_GET_long_cancel() throws Exception {
 		System.out.println("-- GET long, cancel --");
-		executeGETRequest(false, true);
+		executeGETRequest(false, true, false);
+
+	}
+	@Test
+	public void test_GETlong_M1() throws Exception {
+		System.out.println("-- GET long, accidently set M to 1 --");
+		executeGETRequest(false, false, true);
 	}
 
 	@Test
@@ -178,16 +185,20 @@ public class BlockwiseTransferTest {
 	}
 
 	private void executeGETRequest(final boolean respondShort) throws Exception {
-		executeGETRequest(respondShort, false);
+		executeGETRequest(respondShort, false, false);
 	}
 
-	private void executeGETRequest(final boolean respondShort, final boolean cancelRequest) throws Exception {
+	private void executeGETRequest(final boolean respondShort, final boolean cancelRequest, final boolean m) throws Exception {
 		String payload = "nothing";
 		try {
 			interceptor.clear();
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
 			request.setURI(getUri(serverEndpoint, RESOURCE_TEST));
+			if (m) {
+				// set BLOCK 2 with wrong m
+				request.getOptions().setBlock2(2, m, 0);
+			}
 			if (respondShort) {
 				request.getOptions().addUriQuery(PARAM_SHORT_RESP);
 			}
@@ -263,7 +274,11 @@ public class BlockwiseTransferTest {
 
 		CoapServer result = new CoapServer();
 
-		serverEndpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+
+		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(interceptor);
 		result.addEndpoint(serverEndpoint);
 		result.add(new CoapResource(RESOURCE_TEST) {

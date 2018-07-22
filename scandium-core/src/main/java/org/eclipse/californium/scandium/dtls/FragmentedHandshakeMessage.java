@@ -20,6 +20,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 
@@ -106,8 +107,8 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		sb.append("\t\t\tFragmented Handshake Message: ").append(fragmentedBytes.length).append(" bytes").append(System.lineSeparator());
-		sb.append("\t\t\t\t").append(ByteArrayUtils.toHexString(fragmentedBytes)).append(System.lineSeparator());
+		sb.append("\t\t\tFragmented Handshake Message: ").append(fragmentedBytes.length).append(" bytes").append(StringUtil.lineSeparator());
+		sb.append("\t\t\t\t").append(ByteArrayUtils.toHexString(fragmentedBytes)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

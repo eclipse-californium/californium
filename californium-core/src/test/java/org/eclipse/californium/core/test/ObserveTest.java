@@ -35,6 +35,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -112,7 +113,7 @@ public class ObserveTest {
 	private MyResource resourceY;
 	private ClientMessageInterceptor interceptor;
 
-	private boolean waitforit = true;
+	private final CountDownLatch waitforit = new CountDownLatch(1);
 
 	private int serverPort;
 	private String uriX;
@@ -171,9 +172,7 @@ public class ObserveTest {
 		// (which will go lost, see ClientMessageInterceptor)
 
 		// wait for the server to timeout, see ClientMessageInterceptor.
-		while (waitforit) {
-			Thread.sleep(1000);
-		}
+		waitforit.await(1000, TimeUnit.MILLISECONDS);
 
 		Thread.sleep(500);
 
@@ -275,12 +274,11 @@ public class ObserveTest {
 		resourceX.setObserveType(Type.NON);
 		resourceX.delayNextGet(100);
 		CoapClient client = new CoapClient(uriX);
-		long timeout = client.getTimeout();
-		client.setTimeout(1);
+		client.setTimeout(1L);
 		CountingHandler handler = new CountingHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 		assertTrue("No timeout", rel.isCanceled());
-		client.setTimeout(timeout);
+		client.setTimeout(null);
 		rel.reregister();
 	}
 
@@ -376,7 +374,10 @@ public class ObserveTest {
 		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
 
 		server = new CoapServer();
 		server.addEndpoint(endpoint);
@@ -430,7 +431,7 @@ public class ObserveTest {
 				// endpoint 5683 which are request A to resource X and request B
 				// to resource Y.
 
-				waitforit = false;
+				waitforit.countDown();
 				break;
 			default:
 				throw new IllegalStateException("Should not receive " + counter + " responses");

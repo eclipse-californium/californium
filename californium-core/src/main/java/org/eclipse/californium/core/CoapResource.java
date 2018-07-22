@@ -24,6 +24,8 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use Logger's message formatting instead of
  *                                                    explicit String concatenation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - don't add canceled
+ *                                                    observation-relations again.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -217,6 +219,8 @@ public  class CoapResource implements Resource {
 			case POST:	handlePOST(new CoapExchange(exchange, this)); break;
 			case PUT:	handlePUT(new CoapExchange(exchange, this)); break;
 			case DELETE: handleDELETE(new CoapExchange(exchange, this)); break;
+			case FETCH: handleFETCH(new CoapExchange(exchange, this)); break;
+			case PATCH: handlePATCH(new CoapExchange(exchange, this)); break;
 		}
 	}
 	
@@ -269,6 +273,30 @@ public  class CoapResource implements Resource {
 	}
 	
 	/**
+	 * Handles the FETCH request in the given CoAPExchange. By default it
+	 * responds with a 4.05 (Method Not Allowed). Override this method to
+	 * respond differently to FETCH requests. The response code to a FETCH
+	 * request should be a Content (2.05).
+	 *
+	 * @param exchange the CoapExchange for the simple API
+	 */
+	public void handleFETCH(CoapExchange exchange) {
+		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+	}
+	
+	/**
+	 * Handles the PATCH request in the given CoAPExchange. By default it
+	 * responds with a 4.05 (Method Not Allowed). Override this method to
+	 * respond differently to PATCH requests. The response code to a PATCH
+	 * requests are Created (2.01) and Changed (2.04).
+	 *
+	 * @param exchange the CoapExchange for the simple API
+	 */
+	public void handlePATCH(CoapExchange exchange) {
+		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+	}
+	
+	/**
 	 * This method is used to apply resource-specific knowledge on the exchange.
 	 * If the request was successful, it sets the Observe option for the
 	 * response. It is important to use the notificationOrderer of the resource
@@ -292,13 +320,14 @@ public  class CoapResource implements Resource {
 		 */
 		
 		ObserveRelation relation = exchange.getRelation();
-		if (relation == null) return; // because request did not try to establish a relation
-		
+		if (relation == null || relation.isCanceled()) {
+			return; // because request did not try to establish a relation
+		}
 		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
 			response.getOptions().setObserve(notificationOrderer.getCurrent());
 			
 			if (!relation.isEstablished()) {
-				relation.setEstablished(true);
+				relation.setEstablished();
 				addObserveRelation(relation);
 			} else if (observeType != null) {
 				// The resource can control the message type of the notification
@@ -687,9 +716,11 @@ public  class CoapResource implements Resource {
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
 		if (observeRelations.add(relation)) {
-			LOGGER.info("replacing observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("replacing observe relation between {} and resource {} (new {}, size {})", relation.getKey(),
+					getURI(), relation.getExchange(), observeRelations.getSize());
 		} else {
-			LOGGER.info("successfully established observe relation between {} and resource {}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
+					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
 		}
 		for (ResourceObserver obs:observers)
 			obs.addedObserveRelation(relation);
@@ -700,9 +731,13 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public void removeObserveRelation(ObserveRelation relation) {
-		observeRelations.remove(relation);
-		for (ResourceObserver obs:observers)
-			obs.removedObserveRelation(relation);
+		if (observeRelations.remove(relation)) {
+			LOGGER.info("remove observe relation between {} and resource {} ({}, size {})", relation.getKey(), getURI(),
+					relation.getExchange(), observeRelations.getSize());
+			for (ResourceObserver obs : observers) {
+				obs.removedObserveRelation(relation);
+			}
+		}
 	}
 	
 	/**

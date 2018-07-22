@@ -197,6 +197,29 @@ public class RequestTest {
 		assertThat(req.getOptions().getUriHost(), is("localhost"));
 	}
 
+	/**
+	 * Verifies that the destination context contains the Uri-Host
+	 * option value.
+	 */
+	@Test
+	public void testSetURISetsVirtualHostOnDestinationContext() {
+
+		assumeTrue(dnsIsWorking());
+		Request req = Request.newGet().setURI("coap://localhost");
+		assertThat(req.getDestinationContext().getVirtualHost(), is("localhost"));
+	}
+
+	/**
+	 * Verifies that the destination context does not contain a virtual
+	 * host if a literal IP address is used as the target.
+	 */
+	@Test
+	public void testSetURIDoesNotSetVirtualHostOnDestinationContextForLiteralIP() {
+
+		Request req = Request.newGet().setURI("coap://127.0.0.1");
+		assertThat(req.getDestinationContext().getVirtualHost(), is(nullValue()));
+	}
+
 	@Test
 	public void testSetURISetsDestinationPortBasedOnUriScheme() {
 		Request req = Request.newGet().setURI("coap://127.0.0.1");
@@ -233,7 +256,7 @@ public class RequestTest {
 	@Test
 	public void setObserveFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {
@@ -252,7 +275,7 @@ public class RequestTest {
 	@Test
 	public void setObserveCancelFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {

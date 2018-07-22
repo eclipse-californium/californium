@@ -10,6 +10,9 @@
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
+ * Contributors:
+ *    initial implementation please refer gitlog
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add toString
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
@@ -64,5 +67,10 @@ public final class Observation {
 	 */
 	public EndpointContext getContext() {
 		return context;
+	}
+	
+	@Override
+	public String toString() {
+		return request.toString();
 	}
 }

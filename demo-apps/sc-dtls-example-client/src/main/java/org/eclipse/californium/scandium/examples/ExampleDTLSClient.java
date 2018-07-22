@@ -17,6 +17,7 @@
  *                                                    exchange multiple messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - add client statistics
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add argument for payload length
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
 
@@ -59,6 +60,8 @@ public class ExampleDTLSClient {
 
 	private static CountDownLatch messageCounter;
 
+	private static String payload = "HELLO WORLD";
+	
 	private DTLSConnector dtlsConnector;
 	private AtomicInteger clientMessageCounter = new AtomicInteger();
 	
@@ -125,7 +128,7 @@ public class ExampleDTLSClient {
 		if (0 < c) {
 			clientMessageCounter.incrementAndGet();
 			try {
-				RawData data = RawData.outbound(("HELLO WORLD " + c + ".").getBytes(), raw.getEndpointContext(), null, false);
+				RawData data = RawData.outbound((payload + c + ".").getBytes(), raw.getEndpointContext(), null, false);
 				dtlsConnector.send(data);
 			} catch (IllegalStateException e) {
 				LOG.debug("send failed after {} messages", (c - 1), e);
@@ -145,7 +148,7 @@ public class ExampleDTLSClient {
 	}
 
 	private void startTest(InetSocketAddress peer) {
-		RawData data = RawData.outbound("HELLO WORLD".getBytes(), new AddressEndpointContext(peer), null, false);
+		RawData data = RawData.outbound(payload.getBytes(), new AddressEndpointContext(peer), null, false);
 		dtlsConnector.send(data);
 	}
 
@@ -159,14 +162,23 @@ public class ExampleDTLSClient {
 	public static void main(String[] args) throws InterruptedException {
 		int clients = 1;
 		int messages = 100;
+		int length = 64;
 		if (0 < args.length) {
 			clients = Integer.parseInt(args[0]);
 			if (1 < args.length) {
 				messages = Integer.parseInt(args[1]);
+				if (2 < args.length) {
+					length = Integer.parseInt(args[2]);
+				}
 			}
 		}
 		int maxMessages = (messages * clients);
 		messageCounter = new CountDownLatch(maxMessages);
+		while (payload.length() < length) {
+			payload += payload;
+		}
+		payload = payload.substring(0, length);
+		
 		List<ExampleDTLSClient> clientList = new ArrayList<>(clients);
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
 				new DaemonThreadFactory("Aux#"));
@@ -193,8 +205,8 @@ public class ExampleDTLSClient {
 
 		// Get peer address
 		InetSocketAddress peer;
-		if (args.length == 4) {
-			peer = new InetSocketAddress(args[2], Integer.parseInt(args[3]));
+		if (args.length == 5) {
+			peer = new InetSocketAddress(args[3], Integer.parseInt(args[4]));
 		} else {
 			peer = new InetSocketAddress(InetAddress.getLoopbackAddress(), DEFAULT_PORT);
 		}

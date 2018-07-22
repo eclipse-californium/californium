@@ -39,15 +39,16 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.security.auth.x500.X500Principal;
-
+import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The server MUST send a Certificate message whenever the agreed-upon key
@@ -166,28 +167,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *                                  the certificates do not form a chain.
 	 */
 	private void setCertificateChain(final X509Certificate[] chain) {
-		List<X509Certificate> certificates = new ArrayList<>();
-		X500Principal issuer = null;
-		try {
-			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
-			for (X509Certificate cert : chain) {
-				LOGGER.debug("Current Subject DN: {}", cert.getSubjectX500Principal().getName());
-				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-					LOGGER.debug("Actual Issuer DN: {}", cert.getSubjectX500Principal().getName());
-					throw new IllegalArgumentException("Given certificates do not form a chain");
-				}
-				if (!cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
-					// not a self-signed certificate
-					certificates.add(cert);
-					issuer = cert.getIssuerX500Principal();
-					LOGGER.debug("Expected Issuer DN: {}", issuer.getName());
-				}
-			}
-			this.certPath = factory.generateCertPath(certificates);
-		} catch (CertificateException e) {
-			// should not happen because all Java 7 implementation MUST support X.509 certificates
-			LOGGER.error("could not create X.509 certificate factory", e);
-		}
+		this.certPath = X509CertPath.generateCertPath(false, chain);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -228,17 +208,17 @@ public final class CertificateMessage extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		if (rawPublicKeyBytes == null && certPath != null) {
-			sb.append("\t\tCertificate chain length: ").append(getMessageLength() - 3).append(System.lineSeparator());
+			sb.append("\t\tCertificate chain length: ").append(getMessageLength() - 3).append(StringUtil.lineSeparator());
 			int index = 0;
 			for (Certificate cert : certPath.getCertificates()) {
-				sb.append("\t\t\tCertificate Length: ").append(encodedChain.get(index).length).append(System.lineSeparator());
-				sb.append("\t\t\tCertificate: ").append(cert).append(System.lineSeparator());
+				sb.append("\t\t\tCertificate Length: ").append(encodedChain.get(index).length).append(StringUtil.lineSeparator());
+				sb.append("\t\t\tCertificate: ").append(cert).append(StringUtil.lineSeparator());
 				index++;
 			}
 		} else if (rawPublicKeyBytes != null && certPath == null) {
 			sb.append("\t\tRaw Public Key: ");
 			sb.append(getPublicKey().toString());
-			sb.append(System.lineSeparator());
+			sb.append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();
@@ -352,14 +332,13 @@ public final class CertificateMessage extends HandshakeMessage {
 		if (rawPublicKeyBytes == null) {
 			if (certPath != null && !certPath.getCertificates().isEmpty()) {
 				publicKey = certPath.getCertificates().get(0).getPublicKey();
-			}// else : no public key in this certificate message
+			} // else : no public key in this certificate message
 		} else {
 			// get server's public key from Raw Public Key
 			EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(rawPublicKeyBytes);
 			try {
-				// TODO make instance variable
-				// TODO dynamically determine algorithm for KeyFactory creation
-				publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
+				String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
+				publicKey = KeyFactory.getInstance(keyAlgorithm).generatePublic(publicKeySpec);
 			} catch (GeneralSecurityException e) {
 				LOGGER.error("Could not reconstruct the peer's public key", e);
 			}

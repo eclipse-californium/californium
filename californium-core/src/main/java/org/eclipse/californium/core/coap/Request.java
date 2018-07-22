@@ -32,10 +32,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce source and destination
  *                                                    EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check endpoint context for 
+ *                                                    setURI
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -44,8 +47,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -284,10 +285,12 @@ public class Request extends Message {
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 
 		try {
-			InetAddress destAddress = InetAddress.getByName(host);
-			setDestination(destAddress);
+			if (getDestinationContext() == null) {
+				InetAddress destAddress = InetAddress.getByName(host);
+				setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destAddress, 0), null));
+			}
 
-			return setOptions(new URI(uri.getScheme(), null, host, uri.getPort(), uri.getPath(), uri.getQuery(),
+			return setOptions(new URI(uri.getScheme(), uri.getUserInfo(), host, uri.getPort(), uri.getPath(), uri.getQuery(),
 					uri.getFragment()));
 
 		} catch (UnknownHostException e) {
@@ -319,14 +322,14 @@ public class Request extends Message {
 	 * @throws IllegalStateException if the destination is not set.
 	 */
 	public Request setOptions(final URI uri) {
-
+		InetAddress destination = getDestination();
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
-		} else if (getDestination() == null) {
+		} else if (destination == null) {
 			throw new IllegalStateException("destination address must be set");
 		}
 
@@ -338,9 +341,9 @@ public class Request extends Message {
 					// host is a literal IP address, so we should be able
 					// to "wrap" it without invoking the resolver
 					InetAddress hostAddress = InetAddress.getByName(host);
-					if (!hostAddress.equals(getDestination())) {
-						throw new IllegalArgumentException(
-								"URI's literal host IP address does not match request's destination address");
+					if (!hostAddress.equals(destination)) {
+						throw new IllegalArgumentException("URI's literal host IP address '" + hostAddress
+								+ "' does not match request's destination address '" + destination + "'");
 					}
 				} catch (UnknownHostException e) {
 					// this should not happen because we do not need to resolve
@@ -354,15 +357,29 @@ public class Request extends Message {
 			}
 		}
 
-		scheme = uri.getScheme().toLowerCase();
+		String uriScheme = uri.getScheme().toLowerCase();
 		// The Uri-Port is only for special cases where it differs from
 		// the UDP port, usually when Proxy-Scheme is used.
 		int port = uri.getPort();
 		if (port <= 0) {
-			port = CoAP.getDefaultPort(scheme);
+			port = CoAP.getDefaultPort(uriScheme);
 		}
 
-		setDestinationPort(port);
+		EndpointContext destinationContext = getDestinationContext();
+		if (destinationContext != null) {
+			int destPort = destinationContext.getPeerAddress().getPort();
+			if (destPort == 0) {
+				destinationContext = null;
+			} else if (destPort != port) {
+				throw new IllegalArgumentException(
+						"URI's port '" + port + "' does not match request's destination port '" + destPort + "'");
+			}
+		}
+
+		if (destinationContext == null) {
+			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), getOptions().getUriHost(), null));
+		}
+		this.scheme = uriScheme;
 		// do not set the Uri-Port option unless it is used for proxying
 		// (setting Uri-Scheme option)
 
@@ -520,8 +537,7 @@ public class Request extends Message {
 	 * 
 	 * @throws IllegalStateException if no destination endpoint context is
 	 *             available and the destination is missing
-	 * @deprecated
-	 * Note: intended to be removed with {@link #setDestination(InetAddress)} and 
+	 * @deprecated intended to be removed with {@link #setDestination(InetAddress)} and 
 	 * {@link #setDestinationPort(int)}
 	 */
 	public void prepareDestinationContext() {
@@ -530,7 +546,10 @@ public class Request extends Message {
 			if (destination == null) {
 				throw new IllegalStateException("missing destination!");
 			}
-			context = new AddressEndpointContext(destination, destinationPort);
+			context = new AddressEndpointContext(
+					new InetSocketAddress(destination, destinationPort),
+					getOptions().getUriHost(),
+					null);
 			super.setDestinationContext(context);
 		}
 	}
@@ -615,7 +634,7 @@ public class Request extends Message {
 	 *         0.
 	 */
 	public final boolean isObserve() {
-		return getOptions().hasObserve() && getOptions().getObserve() == 0;
+		return isObserveOption(0);
 	}
 
 	/**
@@ -630,6 +649,28 @@ public class Request extends Message {
 		}
 		getOptions().setObserve(1);
 		return this;
+	}
+
+	/**
+	 * Checks if this request is used to cancel an observe relation.
+	 * 
+	 * @return {@code true} if this request's <em>observe</em> option is set to
+	 *         1.
+	 */
+	public final boolean isObserveCancel() {
+		return isObserveOption(1);
+	}
+
+	/**
+	 * Checks if this request is used to manage an observe relation.
+	 * 
+	 * @param observe value for observe option
+	 * @return {@code true} if this request's <em>observe</em> option matches
+	 *         the observe parameter, {@code false}, otherwise.
+	 */
+	private final boolean isObserveOption(int observe) {
+		Integer optionObserver = getOptions().getObserve();
+		return optionObserver != null && optionObserver.intValue() == observe;
 	}
 
 	/**

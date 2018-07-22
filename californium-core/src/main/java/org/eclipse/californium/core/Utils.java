@@ -27,6 +27,7 @@ package org.eclipse.californium.core;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Auxiliary helper methods for Californium.
@@ -51,9 +52,11 @@ public final class Utils {
 		if (bytes == null) {
 			sb.append("null");
 		} else {
+			sb.append("[");
 			for(byte b : bytes) {
 				sb.append(String.format("%02x", b & 0xFF));
 			}
+			sb.append("]");
 		}
 		return sb.toString();
 	}
@@ -72,11 +75,11 @@ public final class Utils {
 		if (bytes == null) return "null";
 		if (length > bytes.length) length = bytes.length;
 		StringBuilder sb = new StringBuilder();
-		if (16 < length) sb.append(System.lineSeparator());
+		if (16 < length) sb.append(StringUtil.lineSeparator());
 		for(int index = 0; index < length; ++index) {
 			sb.append(String.format("%02x", bytes[index] & 0xFF));
 			if (31 == (31 & index)) {
-				sb.append(System.lineSeparator());
+				sb.append(StringUtil.lineSeparator());
 			} else {
 				sb.append(' ');
 			}
@@ -97,17 +100,17 @@ public final class Utils {
 
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Request ]=============================================").append(System.lineSeparator());
-		sb.append(String.format("MID    : %d", r.getMID())).append(System.lineSeparator());
-		sb.append(String.format("Token  : %s", r.getTokenString())).append(System.lineSeparator());
-		sb.append(String.format("Type   : %s", r.getType().toString())).append(System.lineSeparator());
-		sb.append(String.format("Method : %s", r.getCode().toString())).append(System.lineSeparator());
-		sb.append(String.format("Options: %s", r.getOptions().toString())).append(System.lineSeparator());
-		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(System.lineSeparator());
+		sb.append("==[ CoAP Request ]=============================================").append(StringUtil.lineSeparator());
+		sb.append(String.format("MID    : %d", r.getMID())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Method : %s", r.getCode().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
 		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------").append(System.lineSeparator());
+			sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
 			sb.append(r.getPayloadString());
-			sb.append(System.lineSeparator());
+			sb.append(StringUtil.lineSeparator());
 		}
 		sb.append("===============================================================");
 
@@ -133,20 +136,20 @@ public final class Utils {
 	public static String prettyPrint(Response r) {
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Response ]============================================").append(System.lineSeparator());
-		sb.append(String.format("MID    : %d", r.getMID())).append(System.lineSeparator());
-		sb.append(String.format("Token  : %s", r.getTokenString())).append(System.lineSeparator());
-		sb.append(String.format("Type   : %s", r.getType().toString())).append(System.lineSeparator());
-		sb.append(String.format("Status : %s", r.getCode().toString())).append(System.lineSeparator());
-		sb.append(String.format("Options: %s", r.getOptions().toString())).append(System.lineSeparator());
+		sb.append("==[ CoAP Response ]============================================").append(StringUtil.lineSeparator());
+		sb.append(String.format("MID    : %d", r.getMID())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Status : %s", r.getCode().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
 		if (r.getRTT() != null) {
-			sb.append(String.format("RTT    : %d ms", r.getRTT())).append(System.lineSeparator());
+			sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
 		}
-		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(System.lineSeparator());
+		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
 		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------").append(System.lineSeparator());
+			sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
 			sb.append(r.getPayloadString());
-			sb.append(System.lineSeparator());
+			sb.append(StringUtil.lineSeparator());
 		}
 		sb.append("===============================================================");
 

@@ -21,6 +21,12 @@
  *    Ludwig Seitz (RISE SICS) - Added support for raw public key validation
  *    Achim Kraus (Bosch Software Innovations GmbH) - include trustedRPKs in
  *                                                    determineCipherSuitesFromConfig
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
+ *                                                    trustStore := null, disable x.509
+ *                                                    trustStore := [], enable x.509, trust all
+ *    Bosch Software Innovations GmbH - remove serverNameResolver property
+ *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256                        
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -34,11 +40,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.ServerNameResolver;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 
 /**
  * A container for all configuration options of a <code>DTLSConnector</code>.
@@ -72,6 +79,7 @@ public final class DtlsConnectorConfig {
 
 	private InetSocketAddress address;
 	private X509Certificate[] trustStore;
+	private CertificateVerifier certificateVerifier;
 
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
@@ -106,10 +114,10 @@ public final class DtlsConnectorConfig {
 	/** store of the PSK */
 	private PskStore pskStore;
 
-	/** the private key for RPK and X509 mode */
+	/** the private key for RPK and X509 mode, right now only EC type is supported */
 	private PrivateKey privateKey;
 
-	/** the public key for both RPK and X.509 mode */
+	/** the public key for RPK and X.509 mode, right now only EC type is supported */
 	private PublicKey publicKey;
 
 	/** the certificate for RPK and X509 mode */
@@ -124,11 +132,20 @@ public final class DtlsConnectorConfig {
 	private Integer outboundMessageBufferSize;
 
 	private Integer maxConnections;
+
 	private Long staleConnectionThreshold;
 
-	private ServerNameResolver serverNameResolver;
+	private Integer connectionThreadCount;
 
-	private Integer connectionThreadCount;;
+	/**
+	 * Automatic session resumption timeout. Triggers session resumption
+	 * automatically, if no messages are exchanged for this timeout. Intended to
+	 * be used, if traffic is routed through a NAT. If {@code null}, no
+	 * automatic session resumption is used. Value is in milliseconds.
+	 */
+	private Long autoResumptionTimeoutMillis;
+
+	private Boolean sniEnabled;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -188,6 +205,21 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean isAddressReuseEnabled() {
 		return enableReuseAddress;
+	}
+
+	/**
+	 * Checks whether the connector should support the use of the TLS
+	 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
+	 * Server Name Indication extension</a> in the DTLS handshake.
+	 * <p>
+	 * The default value of this property is {@code null}. If this property
+	 * is not set explicitly using {@link Builder#setSniEnabled(boolean)},
+	 * then the {@link Builder#build()} method will set it to {@code true}.
+	 * 
+	 * @return {@code true} if SNI should be used.
+	 */
+	public Boolean isSniEnabled() {
+		return sniEnabled;
 	}
 
 	/**
@@ -259,22 +291,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the resolver to use for determining the server names to include
-	 * in a <em>Server Name Indication</em> extension when initiating a handshake
-	 * with a peer.
-	 * <p>
-	 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
-	 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
-	 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
-	 * returned server names.
-	 * 
-	 * @return The resolver or {@code null} if no server names should be indicated to peers.
-	 */
-	public ServerNameResolver getServerNameResolver() {
-		return serverNameResolver;
-	}
-
-	/**
 	 * Gets the public key to send to peers during the DTLS handshake
 	 * for authentication purposes.
 	 * 
@@ -292,6 +308,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public X509Certificate[] getTrustStore() {
 		return trustStore;
+	}
+
+	/**
+	 * Gets the verifier in charge of validating the peer's certificate chain
+	 * during the DTLS handshake.
+	 *
+	 * @return the certificate chain verifier
+	 */
+	public CertificateVerifier getCertificateVerifier() {
+		return certificateVerifier;
 	}
 
 	/**
@@ -357,6 +383,20 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get the timeout for automatic session resumption.
+	 * 
+	 * If no messages are exchanged for this timeout, the next message will
+	 * trigger a session resumption automatically. Intended to be used, if
+	 * traffic is routed over a NAT.
+	 * 
+	 * @return timeout in milliseconds, or {@code null}, if no automatic resumption
+	 *         is intended.
+	 */
+	public Long getAutoResumptionTimeoutMillis() {
+		return autoResumptionTimeoutMillis;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
@@ -415,7 +455,8 @@ public final class DtlsConnectorConfig {
 		 * Sets the IP address and port the connector should bind to
 		 * 
 		 * @param address the IP address and port the connector should bind to
-		 * @throws IllegalArgumentException if the given addess is unresolved
+		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the given address is unresolved
 		 */
 		public Builder setAddress(InetSocketAddress address) {
 			if (address.isUnresolved()) {
@@ -428,6 +469,7 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Enables address reuse for the socket.
 		 * 
+		 * @param enable {@code true} if addresses should be reused.
 		 * @return this builder for command chaining
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
@@ -635,24 +677,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the resolver to use for determining the server names to include
-		 * in a <em>Server Name Indication</em> extension when initiating a handshake
-		 * with a peer.
-		 * <p>
-		 * When a DTLS handshake is initiated with a peer and the {@link ServerNameResolver#getServerNames(InetSocketAddress)}
-		 * method returns a non-null value for the peer's address, the <em>CLIENT_HELLO</em> message
-		 * sent to the peer will include a <em>Server Name Indication</em> extension containing the
-		 * returned server names.
-		 * 
-		 * @param resolver The resolver.
-		 * @return This builder for command chaining.
-		 */
-		public Builder setServerNameResolver(final ServerNameResolver resolver) {
-			config.serverNameResolver = resolver;
-			return this;
-		}
-
-		/**
 		 * Sets the connector's identifying properties by means of a private
 		 * and public key pair.
 		 * <p>
@@ -716,19 +740,51 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the root certificates the connector should use as the trust anchor when verifying
-		 * a peer's identity based on an X.509 certificate chain.
+		 * Sets the root certificates the connector should use:
+		 * <ul>
+		 * <li>as the trust anchor when verifying a peer's identity based on an
+		 * X.509 certificate chain. This is default behavior, which can be
+		 * overridden when passing a custom {@link CertificateVerifier} to this
+		 * builder.</li>
+		 * <li>as the list of certificate authorities when the server is
+		 * requesting a client certificate during the DTLS handshake.</li>
+		 * </ul>
 		 * 
 		 * @param trustedCerts the trusted root certificates
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the array contains a non-X.509 certificate
+		 * @throws IllegalArgumentException if the array contains a non-X.509
+		 *             certificate
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			} else {
 				config.trustStore = toX509Certificates(trustedCerts);
+				return this;
+			}
+		}
+
+		/**
+		 * Sets the logic in charge of validating a X.509 certificate chain.
+		 * </br>
+		 *
+		 * Here are a few use cases where a custom implementation would be
+		 * needed:
+		 * <ul>
+		 * <li>client certificate authentication based on a dynamic trusted CA
+		 * <li>revocation not provided by the default implementation (e.g. OCSP)
+		 * <li>cipher suites restriction per client
+		 * </ul>
+		 *
+		 * @param verifier
+		 * @return this builder for command chaining
+		 */
+		public Builder setCertificateVerifier(CertificateVerifier verifier) {
+			if (verifier == null) {
+				throw new NullPointerException("CertificateVerifier must not be null");
+			} else {
+				config.certificateVerifier = verifier;
 				return this;
 			}
 		}
@@ -813,10 +869,41 @@ public final class DtlsConnectorConfig {
 		 * <p>
 		 * The default value is 6 * <em>#(CPU cores)</em>.
 		 * 
+		 * @param threadCount the number of threads.
 		 * @return this builder for command chaining.
 		 */
 		public Builder setConnectionThreadCount(int threadCount) {
 			config.connectionThreadCount = threadCount;
+			return this;
+		}
+
+		/**
+		 * Set the timeout of automatic session resumption in milliseconds.
+		 * <p>
+		 * The default value is {@code null}, no automatic session resumption.
+		 * 
+		 * @param timeoutInMillis the number of milliseconds.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
+			config.autoResumptionTimeoutMillis = timeoutInMillis;
+			return this;
+		}
+
+		/**
+		 * Sets whether the connector should support the use of the TLS
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
+		 * Server Name Indication extension</a> in the DTLS handshake.
+		 * <p>
+		 * The default value of this property is {@code null}. If this property
+		 * is not set explicitly, then the {@link Builder#build()} method
+		 * will set it to {@code true}.
+		 * 
+		 * @param flag {@code true} if SNI should be used.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setSniEnabled(boolean flag) {
+			config.sniEnabled = flag;
 			return this;
 		}
 
@@ -864,9 +951,6 @@ public final class DtlsConnectorConfig {
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;
 			}
-			if (config.trustStore == null) {
-				config.trustStore = new X509Certificate[0];
-			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = true;
 			}
@@ -891,6 +975,9 @@ public final class DtlsConnectorConfig {
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
+			if (config.certificateVerifier == null && config.trustStore != null) {
+				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
+			}
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
 			}
@@ -899,6 +986,9 @@ public final class DtlsConnectorConfig {
 				// otherwise this would be interpreted for client only
 				// as ECDHE_ECDSA support!
 				config.trustedRPKs = new TrustAllRpks();
+			}
+			if (config.sniEnabled == null) {
+				config.sniEnabled = Boolean.TRUE;
 			}
 
 			// check cipher consistency
@@ -910,6 +1000,7 @@ public final class DtlsConnectorConfig {
 				switch (suite) {
 				case TLS_PSK_WITH_AES_128_CCM_8:
 				case TLS_PSK_WITH_AES_128_CBC_SHA256:
+				case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256:
 					verifyPskBasedCipherConfig();
 					break;
 				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
@@ -950,8 +1041,7 @@ public final class DtlsConnectorConfig {
 			List<CipherSuite> ciphers = new ArrayList<>();
 			boolean certificates = isConfiguredWithKeyPair();
 			if (!certificates && clientOnly) {
-				certificates = config.trustedRPKs != null
-						|| (config.trustStore != null && config.trustStore.length > 0);
+				certificates = config.trustedRPKs != null || (config.certificateVerifier != null);
 			}
 
 			if (certificates) {
@@ -962,6 +1052,7 @@ public final class DtlsConnectorConfig {
 			if (config.pskStore != null) {
 				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+				ciphers.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			}
 
 			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[0]);

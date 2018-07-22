@@ -127,7 +127,7 @@ public class StartStopTest {
 		System.out.println();
 		Thread.sleep(100);
 		Request request = Request.newGet();
-		request.setURI("localhost:"+serverPort+"/res");
+		request.setURI("coap://localhost:"+serverPort+"/res");
 		String response = request.send().waitForResponse(1000).getPayloadString();
 		Assert.assertEquals(expected, response);
 	}

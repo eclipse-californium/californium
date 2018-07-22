@@ -18,13 +18,13 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - delay sending message after complete
  *                                                 TLS handshake.
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - add handshake timeout
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
-import io.netty.channel.Channel;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.concurrent.CancellationException;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -33,15 +33,13 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
-
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.CancellationException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.channel.Channel;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 /**
  * A TLS client connector that establishes outbound TLS connections.
@@ -49,30 +47,47 @@ import org.slf4j.LoggerFactory;
 public class TlsClientConnector extends TcpClientConnector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TlsClientConnector.class.getName());
-
-	private final SSLContext sslContext;
+	private static final int DEFAULT_HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
 	/**
-	 * Creates TLS client connector with custom SSL context. Useful for using client keys, or custom trust stores. The
-	 * context must be initialized by the caller.
+	 * Context to be used to for connections.
+	 */
+	private final SSLContext sslContext;
+	/**
+	 * Handshake timeout in milliseconds.
+	 */
+	private final int handshakeTimeoutMillis;
+
+	/**
+	 * Creates TLS client connector with custom SSL context. Useful for using
+	 * client keys, or custom trust stores. The context must be initialized by
+	 * the caller.
+	 * 
+	 * @param sslContext ssl context
+	 * @param numberOfThreads number of thread used by connector
+	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
+	 * @param idleTimeout idle timeout in seconds to close unused connection.
 	 */
 	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		super(numberOfThreads, connectTimeoutMillis, idleTimeout);
-		this.sslContext = sslContext;
+		this(sslContext, numberOfThreads, connectTimeoutMillis, DEFAULT_HANDSHAKE_TIMEOUT_MILLIS, idleTimeout);
 	}
 
 	/**
-	 * Creates new TLS client connector that uses default JVM SSL configuration.
+	 * Creates TLS client connector with custom SSL context. Useful for using
+	 * client keys, or custom trust stores. The context must be initialized by
+	 * the caller.
+	 * 
+	 * @param sslContext ssl context
+	 * @param numberOfThreads number of thread used by connector
+	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
+	 * @param handshakeTimeoutMillis handshake timeout in milliseconds
+	 * @param idleTimeout idle timeout in seconds to close unused connection
 	 */
-	public TlsClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		super(numberOfThreads, connectTimeoutMillis, idleTimeout);
-
-		try {
-			this.sslContext = SSLContext.getInstance("TLS");
-			this.sslContext.init(null, null, null);
-		} catch (NoSuchAlgorithmException | KeyManagementException e) {
-			throw new RuntimeException("Unable to initialize SSL context", e);
-		}
+	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis,
+			int handshakeTimeoutMillis, int idleTimeout) {
+		super(numberOfThreads, connectTimeoutMillis, idleTimeout, new TlsContextUtil(true));
+		this.sslContext = sslContext;
+		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
 	}
 
 	/**
@@ -81,23 +96,28 @@ public class TlsClientConnector extends TcpClientConnector {
 	 * Delay message sending after TLS handshake is completed.
 	 */
 	@Override
-	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg)
-	{
+	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg) {
 		SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
 		if (sslHandler == null) {
 			throw new RuntimeException("Missing SslHandler");
 		} else {
+			/*
+			 * Trigger handshake.
+			 */
 			Future<Channel> handshakeFuture = sslHandler.handshakeFuture();
 			handshakeFuture.addListener(new GenericFutureListener<Future<Channel>>() {
 
 				@Override
 				public void operationComplete(Future<Channel> future) throws Exception {
 					if (future.isSuccess()) {
-						EndpointContext context = NettyContextUtils.buildEndpointContext(channel);
+						EndpointContext context = contextUtil.buildEndpointContext(channel);
 						if (context == null || context.get(TlsEndpointContext.KEY_SESSION_ID) == null) {
 							throw new RuntimeException("Missing TlsEndpointContext " + context);
 						}
-						/* success, call super.send() to actually send the message */ 
+						/*
+						 * Handshake succeeded! Call super.send() to actually
+						 * send the message.
+						 */
 						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
 					} else if (future.isCancelled()) {
 						msg.onError(new CancellationException());
@@ -113,7 +133,9 @@ public class TlsClientConnector extends TcpClientConnector {
 	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 		SSLEngine sslEngine = createSllEngine(remote);
 		sslEngine.setUseClientMode(true);
-		ch.pipeline().addFirst(new SslHandler(sslEngine));
+		SslHandler sslHandler = new SslHandler(sslEngine);
+		sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMillis);
+		ch.pipeline().addFirst(sslHandler);
 	}
 
 	@Override
@@ -131,7 +153,7 @@ public class TlsClientConnector extends TcpClientConnector {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
 			LOGGER.info("Connection to inet {}", remote);
-			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
 			LOGGER.info("Connection to {}", remoteAddress);
 			return sslContext.createSSLEngine();

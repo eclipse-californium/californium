@@ -78,7 +78,7 @@ public class CO06 extends TestClientAbstract {
 			boolean success = true;
 			long time = 5000;
 
-			request.send();
+			startObserve(request);
 
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
@@ -87,7 +87,7 @@ public class CO06 extends TestClientAbstract {
 			response = request.waitForResponse(time);
 			if (response != null) {
 				success &= checkType(Type.ACK, response.getType());
-				success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasContentType(response);
 				success &= hasNonEmptyPalyoad(response);
@@ -97,12 +97,13 @@ public class CO06 extends TestClientAbstract {
 
 					time = response.getOptions().getMaxAge() * 1000;
 					System.out.println("+++++ Max-Age: " + time + " +++++");
-					if (time == 0)
+					if (time == 0) {
 						time = 5000;
+					}
 
 					for (int l = 0; success && (l < observeLoop); ++l) {
 
-						response = request.waitForResponse(time + 1000);
+						response = waitForNotification(time + 1000);
 
 						// checking the response
 						if (response != null) {
@@ -154,6 +155,8 @@ public class CO06 extends TestClientAbstract {
 		} catch (InterruptedException e) {
 			System.err.println("Interupted during receive: " + e.getMessage());
 			System.exit(-1);
+		} finally {
+			stopObservation();
 		}
 	}
 
@@ -161,7 +164,7 @@ public class CO06 extends TestClientAbstract {
 		boolean success = true;
 
 		success &= checkType(Type.CON, response.getType());
-		success &= checkInt(EXPECTED_RESPONSE_CODE.value, response.getCode().value, "code");
+		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
 		success &= hasNonEmptyPalyoad(response);

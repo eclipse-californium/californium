@@ -18,14 +18,6 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-all</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>element-connector</artifactId>
 		</dependency>
@@ -33,9 +25,27 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
+		
+		<!-- test dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -71,21 +81,8 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.core,
-							org.eclipse.californium.core.coap,
-							org.eclipse.californium.core.network,
-							org.eclipse.californium.core.network.config,
-							org.eclipse.californium.core.network.interceptors,
-							org.eclipse.californium.core.network.stack,
-							org.eclipse.californium.core.observe,
-							org.eclipse.californium.core.server,
-							org.eclipse.californium.core.server.resources
+							org.eclipse.californium.core*
 						</Export-Package>
-						<Private-Package>
-							org.eclipse.californium.core.network.deduplication,
-							org.eclipse.californium.core.network.serialization,
-							org.eclipse.californium.core.network.stack.*
-						</Private-Package>
 						<Import-Package>
 							*
 						</Import-Package>
@@ -94,7 +91,6 @@
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<!-- 
@@ -147,13 +143,23 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
 					<execution>
 						<goals>
 							<!-- export CoapNetworkRule for tests -->
 							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>animal-sniffer-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
 						</goals>
 					</execution>
 				</executions>

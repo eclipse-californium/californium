@@ -27,8 +27,6 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -36,11 +34,15 @@ import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
+import org.eclipse.californium.scandium.dtls.cipher.CipherManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An object representation of the DTLS <em>Record</em> layer data structure(s).
@@ -309,7 +311,7 @@ public class Record {
 		byte[] encryptedFragment = plaintextFragment;
 
 		CipherSuite cipherSuite = session.getWriteState().getCipherSuite();
-		LOGGER.trace("Encrypting record fragment using current write state{}{}", System.lineSeparator(), session.getWriteState());
+		LOGGER.trace("Encrypting record fragment using current write state{}{}", StringUtil.lineSeparator(), session.getWriteState());
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -358,7 +360,7 @@ public class Record {
 		byte[] result = ciphertextFragment;
 
 		CipherSuite cipherSuite = currentReadState.getCipherSuite();
-		LOGGER.trace("Decrypting record fragment using current read state{}{}", System.lineSeparator(), currentReadState);
+		LOGGER.trace("Decrypting record fragment using current read state{}{}", StringUtil.lineSeparator(), currentReadState);
 		
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
@@ -444,9 +446,7 @@ public class Record {
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
-					
-		// TODO: check if we can re-use the cipher instance
-		Cipher blockCipher = Cipher.getInstance(session.getWriteState().getCipherSuite().getTransformation());
+		Cipher blockCipher = CipherManager.getInstance(session.getWriteState().getCipherSuite().getTransformation());
 		blockCipher.init(Cipher.ENCRYPT_MODE,
 				session.getWriteState().getEncryptionKey());
 
@@ -498,8 +498,7 @@ public class Record {
 		 */
 		DatagramReader reader = new DatagramReader(ciphertextFragment);
 		byte[] iv = reader.readBytes(currentReadState.getRecordIvLength());
-		// TODO: check if we can re-use the cipher instance
-		Cipher blockCipher = Cipher.getInstance(currentReadState.getCipherSuite().getTransformation());
+		Cipher blockCipher = CipherManager.getInstance(currentReadState.getCipherSuite().getTransformation());
 		blockCipher.init(Cipher.DECRYPT_MODE,
 				currentReadState.getEncryptionKey(),
 				new IvParameterSpec(iv));
@@ -610,8 +609,8 @@ public class Record {
 		byte[] explicitNonceUsed = reader.readBytes(8);
 		if (LOGGER.isDebugEnabled() && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
-			b.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
+			b.append(StringUtil.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
+			b.append(StringUtil.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
 			LOGGER.debug(b.toString());
 		}
 
@@ -896,7 +895,7 @@ public class Record {
 		//  are encapsulated within one or more TLSPlaintext structures, which
 		//  are processed and transmitted as specified by the current active session state."
 		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", System.lineSeparator(),
+			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", StringUtil.lineSeparator(),
 				ByteArrayUtils.toHexString(fragmentBytes));
 		}
 		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
@@ -914,7 +913,7 @@ public class Record {
 					"Parsing HANDSHAKE message plaintext using KeyExchange [{}] and receiveRawPublicKey [{}]");
 			Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(System.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
+				msg.append(":").append(StringUtil.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
 			}
 			LOGGER.debug(msg.toString(), params);
 		}
@@ -962,19 +961,19 @@ public class Record {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("==[ DTLS Record ]==============================================");
-		sb.append(System.lineSeparator()).append("Content Type: ").append(type.toString());
-		sb.append(System.lineSeparator()).append("Peer address: ").append(getPeerAddress());
-		sb.append(System.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
-		sb.append(System.lineSeparator()).append("Epoch: ").append(epoch);
-		sb.append(System.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
-		sb.append(System.lineSeparator()).append("Length: ").append(length);
-		sb.append(System.lineSeparator()).append("Fragment:");
+		sb.append(StringUtil.lineSeparator()).append("Content Type: ").append(type.toString());
+		sb.append(StringUtil.lineSeparator()).append("Peer address: ").append(getPeerAddress());
+		sb.append(StringUtil.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
+		sb.append(StringUtil.lineSeparator()).append("Epoch: ").append(epoch);
+		sb.append(StringUtil.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
+		sb.append(StringUtil.lineSeparator()).append("Length: ").append(length);
+		sb.append(StringUtil.lineSeparator()).append("Fragment:");
 		if (fragment != null) {
-			sb.append(System.lineSeparator()).append(fragment);
+			sb.append(StringUtil.lineSeparator()).append(fragment);
 		} else {
-			sb.append(System.lineSeparator()).append("fragment is not decrypted yet");
+			sb.append(StringUtil.lineSeparator()).append("fragment is not decrypted yet");
 		}
-		sb.append(System.lineSeparator()).append("===============================================================");
+		sb.append(StringUtil.lineSeparator()).append("===============================================================");
 
 		return sb.toString();
 	}

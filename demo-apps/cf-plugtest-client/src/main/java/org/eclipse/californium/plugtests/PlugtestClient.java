@@ -13,24 +13,20 @@
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Achim Kraus (Bosch Software Innovations GmbH) - add TCP and encryption support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - split creating connectors into
+ *                                                    ClientInitializer.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
+ *                                                    for configuration
  ******************************************************************************/
 /**
  * 
  */
 package org.eclipse.californium.plugtests;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.Set;
-
-import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -38,24 +34,14 @@ import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.WebLink;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.UDPConnector;
-import org.eclipse.californium.elements.tcp.TcpClientConnector;
-import org.eclipse.californium.elements.tcp.TlsClientConnector;
-import org.eclipse.californium.elements.util.SslContextUtil;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
 /**
  * The PlugtestClient uses the developer API of Californium to test if the test
@@ -67,15 +53,27 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * -Djava.util.logging.config.file=../run/Californium-logging.properties
  */
 public class PlugtestClient {
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Client";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
+	private static final int DEFAULT_BLOCK_SIZE = 64;
 
-	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-	private static final String CLIENT_NAME = "client";
-	private static final String PSK_IDENTITY_PREFIX = "cali.";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
-	private static final int MAX_RESOURCE_SIZE = 8192;
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			// adjust defaults for plugtest
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
+			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+		}
+		
+	};
+
 	
 	/**
 	 * Main entry point.
@@ -89,141 +87,37 @@ public class PlugtestClient {
 			System.out.println("\nCalifornium (Cf) Plugtest Client");
 			System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
 			System.out.println();
-			System.out.println("Usage: " + PlugtestClient.class.getSimpleName() + " [-s] [-v] [-r|-x] URI");
+			System.out.println("Usage: " + PlugtestClient.class.getSimpleName() + " [-s] [-v] [-r|-x|-i id pw] URI");
 			System.out.println("  -s        : Skip the ping in case the remote does not implement it");
 			System.out.println("  -v        : verbose. Enable message tracing.");
 			System.out.println("  -r        : use raw public certificate. Default PSK.");
 			System.out.println("  -x        : use x.509 certificate");
+			System.out.println("  -i id pw  : use PSK with id and password");
 			System.out.println("  URI       : The CoAP URI of the Plugtest server to test (coap://...)");
 			System.exit(-1);
 		}
+
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		
-		// Config used for plugtest
-		NetworkConfig config = NetworkConfig.getStandard().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 64);
-		if (config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE) < MAX_RESOURCE_SIZE) {
-			config.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_SIZE);
-		}
-		int index = 0;
-		boolean verbose = false;
-		boolean ping[] = {true};
-		boolean rpc = false;
-		boolean x509 = false;
-		if (args[index].equals("-s")) {
-			++index;
-			ping[0] = false;
-		}
-		if (args[index].equals("-v")) {
-			++index;
-			verbose = true;
-		}
-		if (args[index].equals("-r")) {
-			++index;
-			rpc = true;
-		} else if (args[index].equals("-x")) {
-			++index;
-			x509 = true;
-		}
+		Arguments arguments = ClientInitializer.init(config, args);
 
-		String uri = args[index];
-
-		// allow quick hostname as argument
-
-		if (uri.indexOf("://") == -1) {
-			uri = "coap://" + uri;
-		}
-		if (uri.endsWith("/")) {
-			uri = uri.substring(-1);
-		}
-
-		setupEndpoint(uri, verbose, rpc, x509, ping);
-
-		if (ping[0]) {
-			CoapClient clientPing = new CoapClient(uri);
+		if (arguments.ping) {
+			CoapClient clientPing = new CoapClient(arguments.uri);
 			System.out.println("===============\nCC31\n---------------");
 			if (!clientPing.ping(2000)) {
-				System.out.println(uri + " does not respond to ping, exiting...");
+				System.out.println(arguments.uri + " does not respond to ping, exiting...");
 				System.exit(-1);
 			} else {
-				System.out.println(uri + " reponds to ping");
+				System.out.println(arguments.uri + " reponds to ping");
 			}
 		}
 
-		testCC(uri);
-		testCB(uri);
-		testCO(uri);
-		testCL(uri);
+		testCC(arguments.uri);
+		testCB(arguments.uri);
+		testCO(arguments.uri);
+		testCL(arguments.uri);
 
 		System.exit(0);
-	}
-	
-	private static void setupEndpoint(String uri, boolean verbose, boolean rpc, boolean x509, boolean ping[]) {
-		NetworkConfig config = NetworkConfig.getStandard();
-		Connector connector = null;
-
-		if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
-			SslContextUtil.Credentials clientCredentials = null;
-			Certificate[] trustedCertificates = null;
-			SSLContext serverSslContext = null;
-			try {
-				clientCredentials = SslContextUtil.loadCredentials(
-						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
-						KEY_STORE_PASSWORD);
-				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				serverSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
-						clientCredentials.getCertificateChain(), trustedCertificates);
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
-				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				if (rpc || x509) {
-					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							rpc);
-					dtlsConfig.setTrustStore(trustedCertificates);
-				} else {
-					byte[] id =null;
-					try {
-						Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-						if (nets.hasMoreElements()) {
-							id = nets.nextElement().getHardwareAddress();
-						}
-					} catch (Throwable e) {
-					}
-					if (id == null) {
-						id = new byte[8];
-						SecureRandom random = new SecureRandom();
-						random.nextBytes(id);
-					}					
-					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
-				}
-				connector = new DTLSConnector(dtlsConfig.build());
-			} else if (uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-				int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-				int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-				connector = new TlsClientConnector(serverSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-				ping[0] = false;
-			}
-		} else if (uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
-			int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-			int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-			int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-			ping[0] = false;
-		} else if (uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
-			connector = new UDPConnector();
-		}
-
-		CoapEndpoint endpoint = new CoapEndpoint(connector, config);
-		if (verbose) {
-			endpoint.addInterceptor(new MessageTracer());
-		}
-		EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
 	}
 
 	public static void testCC(String uri) {
@@ -297,7 +191,7 @@ public class PlugtestClient {
 		System.out.println("===============\nCC12");
 		System.out.println("---------------\nGET /test w/o Token\n---------------");
 		Request req12 = Request.newGet(); // never re-use a Request object
-		req12.setToken(new byte[0]);
+		req12.setToken(Token.EMPTY);
 		response = client.advanced(req12);
 		System.out.println(response.advanced().getType() + "-" + response.getCode());
 		System.out.println(response.getResponseText());
@@ -319,7 +213,7 @@ public class PlugtestClient {
 		System.out.println(response.getResponseText());
 
 		client.setURI(uri + "/separate");
-		client.setTimeout(10000);
+		client.setTimeout(10000L);
 		client.useNONs();
 
 		System.out.println("===============\nCC17");
@@ -329,7 +223,7 @@ public class PlugtestClient {
 		System.out.println(response.getResponseText());
 
 		client.setURI(uri + "/test");
-		client.setTimeout(0);
+		client.setTimeout(0L);
 		client.useCONs();
 
 		System.out.println("===============\nCC18");
@@ -763,34 +657,4 @@ public class PlugtestClient {
 				.append("|               [each line contains 64 bytes]                 |\n")
 				.append("\\-------------------------------------------------------------/\n").toString();
 	}
-
-	private static class PlugPskStore implements PskStore {
-
-		private final String identity;
-		
-		public PlugPskStore(String id) {
-			identity = PSK_IDENTITY_PREFIX + id;
-			System.out.println("DTLS-PSK-Identity: " + identity + " (" + (id.length()/2) + " bytes)");
-		}
-		
-		@Override
-		public byte[] getKey(String identity) {
-			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
-			}
-			return null;
-		}
-
-		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
-			return getKey(identity);
-		}
-
-		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
-			return identity;
-		}
-
-	}
-
 }

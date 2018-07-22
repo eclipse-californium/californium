@@ -19,7 +19,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -27,6 +26,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.junit.Test;
 
 public class HttpTranslatorTest {

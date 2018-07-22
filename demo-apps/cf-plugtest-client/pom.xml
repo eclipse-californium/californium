@@ -27,14 +27,13 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
-			<version>${project.version}</version>
-			<type>jar</type>
 		</dependency>
+		
+		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
@@ -45,7 +44,6 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<!-- inherit configuration from parent POM -->
 			</plugin>

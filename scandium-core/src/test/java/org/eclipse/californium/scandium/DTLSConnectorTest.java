@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -37,6 +37,8 @@
  *                                                    testConnectorAbortsHandshakeOnUnknownPskIdentity
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests to
  *                                                    DTLSCorrelationTest.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for automatic resumption
+ *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite   
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -64,12 +66,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
-import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.scandium.auth.X509CertPath;
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -89,6 +93,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Handshaker;
+import org.eclipse.californium.scandium.dtls.HelloRequest;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
@@ -103,6 +108,7 @@ import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
@@ -186,7 +192,8 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
+						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
@@ -220,6 +227,21 @@ public class DTLSConnectorTest {
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
 
+	public void autoResumeSetUp(int timeout) throws Exception {
+		cleanUp();
+		serverSessionCache.establishedSessionCounter.set(0);
+		pskStoreLatency = 0;
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
+		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
+		clientConfig = clientConfigBuilder.build();
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(stripedExecutor);
+
+		clientRawDataChannel = new LatchDecrementingRawDataChannel();
+	}
+
 	@After
 	public void cleanUp() {
 		if (client != null) {
@@ -227,7 +249,7 @@ public class DTLSConnectorTest {
 		}
 		serverConnectionStore.clear();
 		serverRawDataChannel.setProcessor(serverRawDataProcessor);
-		server.setErrorHandler(null);
+		server.setAlertHandler(null);
 	}
 
 	private static DtlsConnectorConfig newStandardConfig(InetSocketAddress bindAddress) throws Exception {
@@ -296,13 +318,14 @@ public class DTLSConnectorTest {
 		assertConnectionTerminatedOnAlert(alert);
 	}
 
-	private void assertConnectionTerminatedOnAlert(final AlertMessage alert) throws Exception {
+	private void assertConnectionTerminatedOnAlert(final AlertMessage alertToSend) throws Exception {
+
 		final CountDownLatch alertReceived = new CountDownLatch(1);
-		server.setErrorHandler(new ErrorHandler() {
+		server.setAlertHandler(new AlertHandler() {
 			
 			@Override
-			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
-				if (alert.getDescription().equals(description) && peerAddress.equals(clientEndpoint)) {
+			public void onAlert(InetSocketAddress peerAddress, AlertMessage alert) {
+				if (alertToSend.getDescription().equals(alert.getDescription()) && peerAddress.equals(clientEndpoint)) {
 					alertReceived.countDown();
 				}
 			}
@@ -311,7 +334,7 @@ public class DTLSConnectorTest {
 		givenAnEstablishedSession(false);
 
 		// WHEN sending a CLOSE_NOTIFY alert to the server
-		client.send(alert, establishedClientSession);
+		client.send(alertToSend, establishedClientSession);
 
 		// THEN assert that the server has removed all connection state with client
 		assertTrue(alertReceived.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -1024,6 +1047,14 @@ public class DTLSConnectorTest {
 			assertNotNull("timeout", drops); // check there is no timeout
 			assertEquals(3, drops.size());
 
+			// create server session listener to ensure, that server finish also the handshake
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker handshaker = con.getOngoingHandshake();
+			assertNotNull(handshaker);
+			LatchSessionListener serverSessionListener = new LatchSessionListener();
+			handshaker.addSessionListener(serverSessionListener);
+			
 			// drop it, force retransmission (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
 			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
@@ -1035,9 +1066,11 @@ public class DTLSConnectorTest {
 			}
 
 			// Ensure handshake is successfully done
-			assertTrue("handshake failed",
+			assertTrue("client handshake failed",
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		} finally {
 			rawClient.stop();
 		}
@@ -1113,6 +1146,71 @@ public class DTLSConnectorTest {
 		connection = clientConnectionStore.get(serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
 		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testConnectorAutoResumesSession() throws Exception {
+
+		autoResumeSetUp(1000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+
+		Thread.sleep(2000);
+
+		assertThat(connection.isAutoResumptionRequired(), is(true));
+		
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(2));
+	}
+
+	@Test
+	public void testConnectorNoAutoResumesSession() throws Exception {
+
+		autoResumeSetUp(2000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+		Thread.sleep(1500);
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		Thread.sleep(1500);
+
+		assertThat(connection.isAutoResumptionRequired(), is(false));
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
 	}
 
 	@Test
@@ -1363,8 +1461,8 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverConnectionStore.clear();
 		assertTrue(serverConnectionStore.remainingCapacity() == SERVER_CONNECTION_STORE_CAPACITY);
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))));
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050))));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), null)));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), null)));
 
 		CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);
@@ -1378,33 +1476,67 @@ public class DTLSConnectorTest {
 		assertNull("Server should not have established a session with client", serverConnectionStore.get(clientEndpoint));
 	}
 
+	/**
+	 * Verifies that connector ignores CLIENT KEY EXCHANGE with unknown PSK identity.
+	 */
 	@Test
-	public void testConnectorAbortsHandshakeOnUnknownPskIdentity() throws Exception {
+	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
+		ensureConnectorIgnoresBadCredentials(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+	}
 
+	/**
+	 * Verifies that connector ignores FINISHED message with bad PSK.
+	 */
+	@Test
+	public void testConnectorIgnoresBadPsk() throws Exception {
+		ensureConnectorIgnoresBadCredentials(new StaticPskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
+	}
+
+	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
 		final CountDownLatch latch = new CountDownLatch(1);
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
-			.setPskStore(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()))
+			.setPskStore(pskStoreWithBadCredentials)
 			.build();
 		client = new DTLSConnector(clientConfig);
-		client.setErrorHandler(new ErrorHandler() {
+		client.start();
+		final AtomicReference<AlertMessage> alert = new AtomicReference<>();
+		MessageCallback callback = new MessageCallback() {
 
 			@Override
-			public void onError(InetSocketAddress peerAddress, AlertLevel level, AlertDescription description) {
-				latch.countDown();
-				assertThat(level, is(AlertLevel.FATAL));
-				assertThat(peerAddress, is(serverEndpoint));
+			public void onSent() {
 			}
-		});
-		client.start();
-		SimpleMessageCallback callback = new SimpleMessageCallback();
+
+			@Override
+			public void onError(Throwable error) {
+				if (error instanceof HandshakeException) {
+					alert.set(((HandshakeException) error).getAlert());
+					latch.countDown();
+				}
+			}
+
+			@Override
+			public void onContextEstablished(EndpointContext context) {
+			}
+		};
 		RawData data = RawData.outbound("Hello".getBytes(), new AddressEndpointContext(serverEndpoint), callback, false);
 		client.send(data);
 
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-		assertThat("Error callback missing", callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
+		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertThat(alert.get(), is(nullValue()));
 	}
-
+	
+	@Test
+	public void testConnectorEstablishSessionWithEcdhPskCBCSuite() throws Exception {
+		clientConfig = new DtlsConnectorConfig.Builder()
+				.setAddress(clientEndpoint)
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(new CipherSuite[] {CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
+				.build();
+			client = new DTLSConnector(clientConfig, clientConnectionStore);
+			givenAnEstablishedSession();
+	}
+	
 	/**
 	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
 	 */
@@ -1558,6 +1690,46 @@ public class DTLSConnectorTest {
 		assertThat(clientConnectionStore.get(serverEndpoint), is(nullValue()));
 	}
 
+	@Test
+	public void testNoRenegotiationAllowed() throws Exception {
+		givenAnEstablishedSession(false);
+		
+		// Catch alert receive by the client
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		client.setAlertHandler(alertCatcher);
+		
+		// send a CLIENT_HELLO message to the server to renegotiation connection
+		client.sendRecord(new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
+				establishedClientSession.getSequenceNumber(), createClientHello(),
+				establishedClientSession));
+
+		// ensure server answer with a NO_RENOGIATION alert
+		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertNotNull("Client does not receive alert as answer to renenotiation", alert);
+		assertEquals("Server must answer with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+	}
+
+	@Test
+	public void testNoRenegotiationOnHelloRequest() throws Exception {
+		givenAnEstablishedSession(false);
+		
+		// Catch alert receive by the server
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		server.setAlertHandler(alertCatcher);
+		
+		// send a HELLO_REQUEST message to the client
+		server.sendRecord(new Record(ContentType.HANDSHAKE, establishedServerSession.getWriteEpoch(),
+				establishedServerSession.getSequenceNumber(), new HelloRequest(clientEndpoint),
+				establishedServerSession));
+
+		// ensure client answer with a NO_RENOGIATION alert
+		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertNotNull("Server does not receive alert as answer of HELLO_REQUEST", alert);
+		assertEquals("Client must answer to HELLO_REQUEST with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+	}
+
 	private ClientHello createClientHello() {
 		return createClientHello(null);
 	}
@@ -1606,12 +1778,7 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			synchronized (client) {
-				client.releaseSocket();
-				// in order to prevent sporadic BindExceptions during test execution
-				// give OS some time before allowing test cases to re-bind to same port
-				client.wait(200);
-			}
+			client.releaseSocket();
 		}
 	}
 
@@ -1944,6 +2111,32 @@ public class DTLSConnectorTest {
 
 			if (!socket.isClosed()) {
 				socket.send(datagram);
+			}
+		}
+	}
+
+	private class SingleAlertCatcher implements AlertHandler {
+
+		private CountDownLatch latch = new CountDownLatch(1);
+		private AlertMessage alert;
+
+		@Override
+		public void onAlert(InetSocketAddress peer, AlertMessage alert) {
+			if (latch.getCount() != 0) {
+				this.alert = alert;
+				latch.countDown();
+			}
+		}
+
+		/**
+		 * @return {@code AlertMessage} if the count reached zero and {@code n}
+		 *         if the waiting time elapsed before the count reached zero
+		 */
+		public AlertMessage waitForFirstAlert(long timeout, TimeUnit unit) throws InterruptedException {
+			if (latch.await(timeout, unit)) {
+				return alert;
+			} else {
+				return null;
 			}
 		}
 	}

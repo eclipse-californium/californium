@@ -17,21 +17,21 @@
  *                                                 remove scheme
  * Achim Kraus (Bosch Software Innovations GmbH) - add client authentication mode.
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - add handshake timeout
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
-import io.netty.channel.Channel;
-import io.netty.handler.ssl.SslHandler;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.channel.Channel;
+import io.netty.handler.ssl.SslHandler;
 
 /**
  * A TLS server connector that accepts inbound TLS connections.
@@ -39,49 +39,74 @@ import org.slf4j.LoggerFactory;
 public class TlsServerConnector extends TcpServerConnector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TlsServerConnector.class.getName());
+	/**
+	 * Default handshake timeout.
+	 */
+	private static final int DEFAULT_HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
 	public static enum ClientAuthMode {
 		NONE, WANTED, NEEDED
 	}
 
-	private final SSLContext sslContext;
+	/**
+	 * Client authentication mode.
+	 */
 	private final ClientAuthMode clientAuthMode;
+	/**
+	 * SSL context.
+	 */
+	private final SSLContext sslContext;
+	/**
+	 * Handshake timeout in milliseconds.
+	 */
+	private final long handshakeTimeoutMillis;
+
+	/**
+	 * Initializes SSLEngine with specified SSL engine, client authentication
+	 * mode, and handshake timeout.
+	 * 
+	 * @param sslContext ssl context.
+	 * @param clientAuthMode client authentication mode
+	 * @param socketAddress local server socket address
+	 * @param numberOfThreads number of thread for connection
+	 * @param handshakeTimeoutMillis handshake timeout in milliseconds
+	 * @param idleTimeout idle timeout in seconds to close unused connection
+	 */
+	public TlsServerConnector(SSLContext sslContext, ClientAuthMode clientAuthMode, InetSocketAddress socketAddress,
+			int numberOfThreads, int handshakeTimeoutMillis, int idleTimeout) {
+		super(socketAddress, numberOfThreads, idleTimeout, new TlsContextUtil(clientAuthMode == ClientAuthMode.NEEDED));
+		this.sslContext = sslContext;
+		this.clientAuthMode = clientAuthMode;
+		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
+	}
 
 	/**
 	 * Initializes SSLEngine with specified SSL engine and client authentication
 	 * mode.
+	 * 
+	 * @param sslContext ssl context.
+	 * @param clientAuthMode client authentication mode
+	 * @param socketAddress local server socket address
+	 * @param numberOfThreads number of thread for connection
+	 * @param idleTimeout idle timeout in seconds to close unused connection
 	 */
 	public TlsServerConnector(SSLContext sslContext, ClientAuthMode clientAuthMode, InetSocketAddress socketAddress,
 			int numberOfThreads, int idleTimeout) {
-		super(socketAddress, numberOfThreads, idleTimeout);
-		this.sslContext = sslContext;
-		this.clientAuthMode = clientAuthMode;
+		this(sslContext, clientAuthMode, socketAddress, numberOfThreads, DEFAULT_HANDSHAKE_TIMEOUT_MILLIS, idleTimeout);
 	}
 
 	/**
 	 * Initializes SSLEngine with specified SSL engine.
+	 * 
+	 * @param sslContext ssl context.
+	 * @param socketAddress local server socket address
+	 * @param numberOfThreads number of thread for connection
+	 * @param idleTimeout idle timeout in seconds to close unused connection
 	 */
 	public TlsServerConnector(SSLContext sslContext, InetSocketAddress socketAddress, int numberOfThreads,
 			int idleTimeout) {
-		super(socketAddress, numberOfThreads, idleTimeout);
-		this.sslContext = sslContext;
-		this.clientAuthMode = ClientAuthMode.NONE;
-	}
-
-	/**
-	 * Initializes SSLEngine with specified SSL key management factory.
-	 */
-	public TlsServerConnector(KeyManagerFactory keyManagerFactory, InetSocketAddress socketAddress, int numberOfThreads,
-			int idleTimeout) {
-		super(socketAddress, numberOfThreads, idleTimeout);
-		this.clientAuthMode = ClientAuthMode.NONE;
-
-		try {
-			this.sslContext = SSLContext.getInstance("TLS");
-			this.sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
-		} catch (KeyManagementException | NoSuchAlgorithmException e) {
-			throw new RuntimeException("Unable to initialize SSL engine", e);
-		}
+		this(sslContext, ClientAuthMode.NONE, socketAddress, numberOfThreads, DEFAULT_HANDSHAKE_TIMEOUT_MILLIS,
+				idleTimeout);
 	}
 
 	@Override
@@ -98,7 +123,9 @@ public class TlsServerConnector extends TcpServerConnector {
 			break;
 		}
 		sslEngine.setUseClientMode(false);
-		ch.pipeline().addFirst(new SslHandler(sslEngine));
+		SslHandler sslHandler = new SslHandler(sslEngine);
+		sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMillis);
+		ch.pipeline().addFirst(sslHandler);
 	}
 
 	@Override
@@ -117,7 +144,7 @@ public class TlsServerConnector extends TcpServerConnector {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
 			LOGGER.info("Connection from inet {}", remote);
-			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
+			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
 			LOGGER.info("Connection from {}", remoteAddress);
 			return sslContext.createSSLEngine();

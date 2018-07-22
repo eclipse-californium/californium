@@ -16,6 +16,7 @@
  *                                                    sending to "any" doesn't work on windows
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -83,10 +84,14 @@ public class ClusteringTest {
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
-		store = new InMemoryObservationStore();
+		store = new InMemoryObservationStore(config);
 
 		notificationListener1 = new SynchronousNotificationListener();
-		client1 = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, store);
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setObservationStore(store);
+		client1 = builder.build();
 		client1.addNotificationListener(notificationListener1);
 		client1.addInterceptor(clientInterceptor);
 		client1.addInterceptor(new MessageTracer());
@@ -95,7 +100,11 @@ public class ClusteringTest {
 		System.out.println("Client 1 binds to port " + clientPort1);
 
 		notificationListener2 = new SynchronousNotificationListener();
-		client2 = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config, store);
+		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setNetworkConfig(config);
+		builder.setObservationStore(store);
+		client2 = builder.build();
 		client2.addNotificationListener(notificationListener2);
 		client2.addInterceptor(clientInterceptor);
 		client2.addInterceptor(new MessageTracer());

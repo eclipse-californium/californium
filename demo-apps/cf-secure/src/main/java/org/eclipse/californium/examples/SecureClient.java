@@ -27,7 +27,6 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -50,7 +49,10 @@ public class SecureClient {
 		try {
 			URI uri = new URI(SERVER_URI);
 			CoapClient client = new CoapClient(uri);
-			client.setEndpoint(new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard()));
+			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			builder.setConnector(dtlsConnector);
+			
+			client.setEndpoint(builder.build());
 			response = client.get();
 			client.shutdown();
 		} catch (URISyntaxException e) {
@@ -78,6 +80,7 @@ public class SecureClient {
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setClientOnly();
+		builder.setSniEnabled(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK)) {
 			builder.setPskStore(new StaticPskStore(CredentialsUtil.PSK_IDENTITY, CredentialsUtil.PSK_SECRET));

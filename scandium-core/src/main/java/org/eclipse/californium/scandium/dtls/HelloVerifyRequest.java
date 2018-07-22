@@ -22,6 +22,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
@@ -111,9 +112,9 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\tServer Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor())
-			.append(System.lineSeparator());
-		sb.append("\t\tCookie Length: ").append(cookie.length).append(System.lineSeparator());
-		sb.append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie)).append(System.lineSeparator());
+			.append(StringUtil.lineSeparator());
+		sb.append("\t\tCookie Length: ").append(cookie.length).append(StringUtil.lineSeparator());
+		sb.append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

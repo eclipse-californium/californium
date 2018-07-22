@@ -20,6 +20,8 @@
  *                                      wait cycles
  *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule for
  *                                                    setup of test-network
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix race condition with
+ *                                                    reordered notifications
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
@@ -29,9 +31,12 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.category.Medium;
@@ -135,33 +140,51 @@ public class ClientAsynchronousTest {
 
 	@Test
 	public void testAsyncObserveTriggersOnLoad() throws Exception {
-		final CountDownLatch latch = new CountDownLatch(1);
-		final CountDownLatch expectedNotifications = new CountDownLatch(3);
-		final AtomicInteger receivedNotifications = new AtomicInteger();
+		final CyclicBarrier barrier = new CyclicBarrier(2);
+		final AtomicInteger onLoadCounter = new AtomicInteger();
 
 		// Observe the resource
 		CoapObserveRelation obs1 = client.observe(new TestHandler("Test Observe") {
-			@Override public void onLoad(final CoapResponse response) {
-				if (CONTENT_1.equals(response.getResponseText())
-					&& response.advanced().getOptions().hasObserve()) {
-					if (latch.getCount() > 0) {
-						latch.countDown();
-					} else {
-						expectedNotifications.countDown();
-						receivedNotifications.incrementAndGet();
+
+			@Override
+			public void onLoad(final CoapResponse response) {
+				String responseDescription = String.format("onLoad(%d) '%s'", onLoadCounter.incrementAndGet(),
+						response.getResponseText());
+				System.err.println(responseDescription);
+				if (response.getResponseText().startsWith(CONTENT_1) && response.advanced().getOptions().hasObserve()) {
+					try {
+						assertAwait("assert missing", barrier, 2000, TimeUnit.MILLISECONDS);
+					} catch (InterruptedException e) {
 					}
 				}
 			}
 		});
-		assertTrue(latch.await(1, TimeUnit.SECONDS));
+
+		assertAwait("response missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
+		System.err.println("changed 1");
+		resource.setContent(CONTENT_1 + " - 1");
 		resource.changed();
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
+		System.err.println("changed 2");
+		resource.setContent(CONTENT_1 + " - 2");
 		resource.changed();
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
+		System.err.println("changed 3");
+		resource.setContent(CONTENT_1 + " - 3");
 		resource.changed();
-		assertTrue(expectedNotifications.await(1, TimeUnit.SECONDS));
+
+		assertAwait("notify missing", barrier, 2000, TimeUnit.MILLISECONDS);
+
+		assertThat("missing notifications", onLoadCounter.get(), is(4));
 		obs1.reactiveCancel();
 		resource.changed();
 		Thread.sleep(50);
-		assertThat(receivedNotifications.get(), is(3));
+		assertThat("unexpected notifications", onLoadCounter.get(), is(4));
 	}
 
 	@Test
@@ -186,15 +209,15 @@ public class ClientAsynchronousTest {
 
 		// Try to use the builder and add a query
 		new CoapClient.Builder(serverAddress.getHostString(), serverAddress.getPort())
-			.path(TARGET).query(QUERY_UPPER_CASE).create()
-			.get(new TestHandler("Test 8") {
-				@Override public void onLoad(CoapResponse response) {
-					if (CONTENT_1.toUpperCase().equals(response.getResponseText())) {
-						latch.countDown();
+				.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create()
+				.get(new TestHandler("Test 8") {
+					@Override
+					public void onLoad(CoapResponse response) {
+						if (CONTENT_1.toUpperCase().equals(response.getResponseText())) {
+							latch.countDown();
+						}
 					}
-				}
-			}
-		);
+				});
 
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
 	}
@@ -238,8 +261,21 @@ public class ClientAsynchronousTest {
 		assertTrue(latch.await(1, TimeUnit.SECONDS));
 	}
 
+	private static void assertAwait(String description, CyclicBarrier barrier, long time, TimeUnit unit)
+			throws InterruptedException {
+		try {
+			barrier.await(time, unit);
+		} catch (TimeoutException e) {
+			fail(description + ": " + e);
+		} catch (BrokenBarrierException e) {
+			fail(description + ": " + e);
+		}
+	}
+
 	private static void createServer() {
-		CoapEndpoint endpoint = new CoapEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		CoapEndpoint endpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
 		server = new CoapServer();

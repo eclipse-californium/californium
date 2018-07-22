@@ -32,13 +32,30 @@
  *                                                    completeCurrentRequest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename CorrelationContext to
  *                                                    EndpointContext.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove KeyToken,
+ *                                                    replaced by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use new ExchangeObserver.remove
+ *                                                    for house-keeping. Introduce
+ *                                                    keepRequestInStore for flexible
+ *                                                    blockwise observe support.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
+ *                                                    to MessageObserver.
+ *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add checkMID to support
+ *                                                    rejection of previous notifications
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.Utils;
@@ -48,12 +65,14 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An exchange represents the complete state of an exchange of one request and
@@ -67,7 +86,20 @@ import org.eclipse.californium.elements.EndpointContext;
  * {@link Request}s and {@link Response}s. The Exchange only contains state, no
  * functionality. The CoAP Stack contains the functionality of the CoAP protocol
  * and modifies the exchange appropriately. The class Exchange and its fields
- * are <em>NOT</em> thread-safe.
+ * are <em>NOT</em> thread-safe. The setter methods must be called within a
+ * {@link StripedExchangeJob}, which must be executed using
+ * {@link #execute(StripedExchangeJob)}. For convenience the
+ * {@link #executeComplete()} is provided to execute {@link #setComplete()}
+ * accordingly. Methods, which are documented to throw a
+ * {@link ConcurrentModificationException}MUST comply to this execution pattern!
+ * <p>
+ * If the exchange represents a "blockwise" transfer and if the transparent mode
+ * is used, the exchange keeps also the (original) request and use the current
+ * request for transfer the blocks. A request not using observe use the same
+ * token for easier tracking. A request using observe keeps the origin request
+ * with the origin token in store, but use a different token for the transfer of
+ * the left blocks. This enables to catch new notifies while a transfer is
+ * ongoing.
  * <p>
  * The class {@link CoapExchange} provides the corresponding API for developers.
  * Proceed with caution when using this class directly, e.g., through
@@ -88,7 +120,15 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public class Exchange {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(Exchange.class.getName());
+	
+	static final boolean DEBUG = LOGGER.isTraceEnabled();
+
 	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
+	/**
+	 * ID generator for logging messages.
+	 */
+	private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
 
 	/**
 	 * The origin of an exchange.
@@ -111,27 +151,61 @@ public class Exchange {
 	}
 
 	/**
+	 * ID for logging.
+	 */
+	private final int id;
+	/**
+	 * Executor to ensure, that the exchange is executed with a
+	 * {@link StripedExchangeJob}.
+	 * 
+	 * Note: for unit tests this may be {@code null} to escape the owner checking.
+	 * Otherwise many change in the tests would be required.
+	 */
+	private final Executor executor;
+	/**
+	 * Current owner of the this exchange.
+	 */
+	private final AtomicReference<Thread> owner = new AtomicReference<Thread>();
+	/**
+	 * Caller of {@link #setComplete()}. Intended for debug logging.
+	 */
+	private Throwable caller;
+
+	/**
 	 * The endpoint that processes this exchange.
 	 * 
 	 * Set on receiving a message.
 	 */
 	private volatile Endpoint endpoint;
 
-	/** An observer to be called when a request is complete */
-	private volatile ExchangeObserver observer;
+	/** An remove handler to be called when a exchange must be removed from the exchange store */
+	private volatile RemoveHandler removeHandler;
 
 	/** Indicates if the exchange is complete */
-	private volatile boolean complete = false;
+	private final AtomicBoolean complete = new AtomicBoolean();
 
 	/** The nano timestamp when this exchange has been created */
 	private final long nanoTimestamp;
+
+	/**
+	 * Enable to keep the original request in the exchange store. Intended to be
+	 * used for observe request with blockwise response to be able to react on
+	 * newer notifies during an ongoing transfer.
+	 */
+	private final boolean keepRequestInStore;
+
+	/**
+	 * Mark exchange as notification.
+	 */
+	private final boolean notification;
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
 	 * while layers above should work with the {@link #request}.
 	 */
-	private volatile Request request; // the initial request we have to exchange
+	// the initial request we have to exchange
+	private volatile Request request;
 
 	/**
 	 * The current block of the request that is being processed. This is a
@@ -167,7 +241,7 @@ public class Exchange {
 	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private final AtomicReference<ScheduledFuture<?>> retransmissionHandle = new AtomicReference<ScheduledFuture<?>>();
+	private ScheduledFuture<?> retransmissionHandle;
 
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
@@ -178,22 +252,40 @@ public class Exchange {
 	// The relation that the target resource has established with the source
 	private volatile ObserveRelation relation;
 
-	// When the request is handled by an executor different than the protocol
-	// stage set to true. The endpoint will hand sending responses over to the
-	// protocol stage executor
-	private volatile boolean customExecutor = false;
-
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
+	//If object security option is used, the Cryptographic context identifier is stored here
+    // for request/response mapping of contexts
+    private byte[] cryptoContextId;
+	
 	/**
 	 * Creates a new exchange with the specified request and origin.
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
+	 * @throws NullPointerException, if request is {@code null}
 	 */
-	public Exchange(final Request request, final Origin origin) {
-		// might only be the first block of the whole request
-		this(request, origin, null);
+	public Exchange(Request request, Origin origin, Executor executor) {
+		this(request, origin, executor, null, request != null && request.isObserve(), false);
+	}
+
+	/**
+	 * Creates a new exchange with the specified request, origin, context, and
+	 * notification marker.
+	 * 
+	 * @param request the request that starts the exchange
+	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
+	 * @param ctx the endpoint context of this exchange
+	 * @param notification {@code true} for notification exchange, {@code false}
+	 *            otherwise
+	 * @throws NullPointerException, if request is {@code null}
+	 */
+	public Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
+		this(request, origin, executor, ctx, request != null && request.isObserve() && !notification, notification);
 	}
 
 	/**
@@ -201,14 +293,48 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
+	 * @param executor executor to be used for exchanges. Intended to execute
+	 *            jobs with a striped executor.
 	 * @param ctx the endpoint context of this exchange
+	 * @param keepRequestInStore {@code true}, to keep the original request in
+	 *            store until completed, {@code false} otherwise.
+	 * @param notification {@code true} for notification exchange, {@code false}
+	 *            otherwise
+	 * @throws NullPointerException, if request is {@code null}
 	 */
-	public Exchange(Request request, Origin origin, EndpointContext ctx) {
+	private Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean keepRequestInStore,
+			boolean notification) {
 		// might only be the first block of the whole request
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
+		this.id = INSTANCE_COUNTER.incrementAndGet();
+		this.executor = executor;
 		this.currentRequest = request;
+		this.request = request;
 		this.origin = origin;
 		this.endpointContext.set(ctx);
+		this.keepRequestInStore = keepRequestInStore;
+		this.notification = notification;
 		this.nanoTimestamp = System.nanoTime();
+	}
+
+	/**
+	 * Object to be used as stripe for striped execution. Reduce the heap
+	 * consumption of larger stripe keys in the striped executor.
+	 */
+	Object getStripe() {
+		return complete;
+	}
+
+	@Override
+	public String toString() {
+		char originMarker = origin == Origin.LOCAL ? 'L' : 'R';
+		if (complete.get()) {
+			return "Exchange[" + originMarker + id + ", complete]";
+		} else {
+			return "Exchange[" + originMarker + id + "]";
+		}
 	}
 
 	/**
@@ -218,9 +344,10 @@ public class Exchange {
 	 */
 	public void sendAccept() {
 		assert (origin == Origin.REMOTE);
-		if (request.getType() == Type.CON && !request.isAcknowledged()) {
-			request.setAcknowledged(true);
-			EmptyMessage ack = EmptyMessage.newACK(request);
+		Request current = currentRequest;
+		if (current.getType() == Type.CON && !current.isAcknowledged()) {
+			current.setAcknowledged(true);
+			EmptyMessage ack = EmptyMessage.newACK(current);
 			endpoint.sendEmptyMessage(this, ack);
 		}
 	}
@@ -231,8 +358,9 @@ public class Exchange {
 	 */
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
-		request.setRejected(true);
-		EmptyMessage rst = EmptyMessage.newRST(request);
+		Request current = currentRequest;
+		current.setRejected(true);
+		EmptyMessage rst = EmptyMessage.newRST(current);
 		endpoint.sendEmptyMessage(this, rst);
 	}
 
@@ -243,8 +371,8 @@ public class Exchange {
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
-		response.setDestinationContext(request.getSourceContext());
-		setResponse(response);
+		Request current = currentRequest;
+		response.setDestinationContext(current.getSourceContext());
 		endpoint.sendResponse(this, response);
 	}
 
@@ -254,6 +382,27 @@ public class Exchange {
 
 	public boolean isOfLocalOrigin() {
 		return origin == Origin.LOCAL;
+	}
+
+	/**
+	 * Indicate to keep the original request in the exchange store. Intended to
+	 * be used for observe request with blockwise response to be able to react
+	 * on newer notifies during an ongoing transfer.
+	 * 
+	 * @return {@code true} to keep it, {@code false}, otherwise
+	 */
+	public boolean keepsRequestInStore() {
+		return keepRequestInStore;
+	}
+
+	/**
+	 * Indicate a notification exchange.
+	 * 
+	 * @return {@code true} if notification is exchanged, {@code false},
+	 *         otherwise
+	 */
+	public boolean isNotification() {
+		return notification;
 	}
 
 	/**
@@ -271,11 +420,23 @@ public class Exchange {
 	/**
 	 * Sets the request that this exchange is associated with.
 	 * 
-	 * @param request the request
+	 * @param newRequest the request
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 * @see #setCurrentRequest(Request)
 	 */
-	public void setRequest(Request request) {
-		this.request = request; // by blockwise layer
+	public void setRequest(Request newRequest) {
+		assertOwner();
+		if (request != newRequest) {
+			if (keepRequestInStore) {
+				Token token = request.getToken();
+				if (token != null && !token.equals(newRequest.getToken())) {
+					throw new IllegalArgumentException(
+							this + " token missmatch (" + token + "!=" + newRequest.getToken() + ")!");
+				}
+			}
+			request = newRequest;
+		}
 	}
 
 	/**
@@ -294,10 +455,36 @@ public class Exchange {
 	 * Sets the current request block. If a request is not being sent blockwise,
 	 * the origin request (equal to getRequest()) should be set.
 	 * 
-	 * @param currentRequest the current request block
+	 * @param newCurrentRequest the current request block
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
-	public void setCurrentRequest(Request currentRequest) {
-		this.currentRequest = currentRequest;
+	public void setCurrentRequest(Request newCurrentRequest) {
+		assertOwner();
+		if (currentRequest != newCurrentRequest) {
+			setRetransmissionHandle(null);
+			failedTransmissionCount = 0;
+			Token token = currentRequest.getToken();
+			if (token != null) {
+				if (token.equals(newCurrentRequest.getToken())) {
+					token = null;
+				} else if (keepRequestInStore && token.equals(request.getToken())) {
+					token = null;
+				}
+			}
+			KeyMID key = null;
+			if (currentRequest.hasMID() && currentRequest.getMID() != newCurrentRequest.getMID()) {
+				key = KeyMID.fromOutboundMessage(currentRequest);
+			}
+			if (token != null || key != null) {
+				LOGGER.info("{} replace {} by {}", this, currentRequest, newCurrentRequest);
+				RemoveHandler obs = this.removeHandler;
+				if (obs != null) {
+					obs.remove(this, token, key);
+				}
+			}
+			currentRequest = newCurrentRequest;
+		}
 	}
 
 	/**
@@ -315,8 +502,11 @@ public class Exchange {
 	 * Sets the response.
 	 * 
 	 * @param response the response
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
 	public void setResponse(Response response) {
+		assertOwner();
 		this.response = response;
 	}
 
@@ -336,10 +526,100 @@ public class Exchange {
 	 * Sets the current response block. If a response is not being sent
 	 * blockwise, the origin request (equal to getResponse()) should be set.
 	 * 
-	 * @param currentResponse the current response block
+	 * @param newCurrentResponse the current response block
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
-	public void setCurrentResponse(Response currentResponse) {
-		this.currentResponse = currentResponse;
+	public void setCurrentResponse(Response newCurrentResponse) {
+		assertOwner();
+		if (currentResponse != newCurrentResponse) {
+			if (currentResponse != null && currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
+				RemoveHandler handler = this.removeHandler;
+				if (handler != null) {
+					KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
+					handler.remove(this, null, key);
+				}
+			}
+			currentResponse = newCurrentResponse;
+		}
+	}
+
+	/**
+	 * Check, if response (still) matches this exchange.
+	 * 
+	 * @param checkResponse response to check.
+	 * @return {@code true}, if the response must be processed using this
+	 *         exchange, {@code false}, otherwise.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 */
+	public boolean checkCurrentResponse(Response checkResponse) {
+		assertOwner();
+		if (origin == Origin.REMOTE) {
+			return false;
+		}
+
+		if (!checkResponse.isDuplicate() && complete.get()) {
+			return false;
+		}
+
+		Request currentRequest = getCurrentRequest();
+		if (!currentRequest.getToken().equals(checkResponse.getToken())) {
+			if (!keepRequestInStore || !getRequest().getToken().equals(checkResponse.getToken())) {
+				// token not longer matching
+				return false;
+			}
+		}
+
+		int mid = currentRequest.getMID();
+		if (checkResponse.getType() == Type.ACK && mid != checkResponse.getMID()) {
+			// The token matches but not the MID.
+			LOGGER.warn("possible MID reuse before lifetime end for token [{}], expected MID {} but received {}",
+					checkResponse.getToken(), mid, checkResponse.getMID());
+			// when nested blockwise request/responses occurs (e.g. caused
+			// by retransmission), a old response may stop the
+			// retransmission of the current blockwise request. This seems
+			// to be a side effect of reusing the token. If the response to
+			// this current request is lost, the blockwise transfer times
+			// out, because the retransmission is stopped too early.
+			// Therefore don't return a exchange when the MID doesn't match.
+			// See issue #275
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check, if message with provided MID (still) matches this exchange.
+	 * 
+	 * @param mid MID to check.
+	 * @return {@code true}, if the mid matches this exchange, {@code false},
+	 *         otherwise.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 */
+	public boolean checkMID(final int mid) {
+		assertOwner();
+		if (origin == Origin.LOCAL) {
+			return currentRequest.getMID() == mid;
+		}
+
+		if (currentResponse.getMID() == mid) {
+			return true;
+		}
+
+		ObserveRelation relation = this.relation;
+		if (relation != null) {
+			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+				Response previous = iterator.next();
+				if (previous.getMID() == mid) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -394,24 +674,29 @@ public class Exchange {
 	/**
 	 * Report transmission timeout for provided message to exchange.
 	 * <p>
-	 * This method also cleans up the Matcher state by calling the
-	 * exchange observer {@link #setComplete()}. The timeout is forward to the
-	 * provided message, and, for the {@link #currentRequest}, it is also
-	 * forwarded to the {@link #request} to timeout the blockwise transfer
-	 * itself.
+	 * This method also cleans up the Matcher state by calling the exchange
+	 * observer {@link #setComplete()}. The timeout is forward to the provided
+	 * message, and, for the {@link #currentRequest}, it is also forwarded to
+	 * the {@link #request} to timeout the blockwise transfer itself. If the
+	 * exchange was already completed, this method doesn't forward the timeout
+	 * calls to the requests.
 	 * 
 	 * @param message message, which transmission has reached the timeout.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
 	public void setTimedOut(Message message) {
-		this.timedOut = true;
-		// clean up
-		this.setComplete();
-		// forward timeout to message
-		message.setTimedOut(true);
-		Request request = this.request;
-		if (request != null && currentRequest == message && request != message  ) {
-			// forward timeout to request
-			request.setTimedOut(true);
+		assertOwner();
+		LOGGER.debug("{} timed out {}!", this, message);
+		if (!isComplete()) {
+			setComplete();
+			this.timedOut = true;
+			// forward timeout to message
+			message.setTimedOut(true);
+			if (request != null && request != message && currentRequest == message) {
+				// forward timeout to request
+				request.setTimedOut(true);
+			}
 		}
 	}
 
@@ -432,14 +717,42 @@ public class Exchange {
 	}
 
 	public ScheduledFuture<?> getRetransmissionHandle() {
-		return retransmissionHandle.get();
+		return retransmissionHandle;
 	}
 
-	public void setRetransmissionHandle(ScheduledFuture<?> retransmissionHandle) {
-		// avoid race condition of multiple responses (e.g., notifications)
-		ScheduledFuture<?> previous = this.retransmissionHandle.getAndSet(retransmissionHandle);
-		if (previous != null) {
-			previous.cancel(false);
+	/**
+	 * Set retransmission handle.
+	 * 
+	 * @param newRetransmissionHandle
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 */
+	public void setRetransmissionHandle(ScheduledFuture<?> newRetransmissionHandle) {
+		assertOwner();
+		if (!complete.get() || newRetransmissionHandle == null) {
+			// avoid race condition of multiple responses (e.g., notifications)
+			ScheduledFuture<?> previous = retransmissionHandle;
+			retransmissionHandle = newRetransmissionHandle;
+			if (previous != null) {
+				previous.cancel(false);
+			}
+		}
+	}
+
+	/**
+	 * Prepare exchange for retransmit a response.
+	 * 
+	 * @throws IllegalStateException if exchange is not a REMOTE exchange.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 */
+	public void retransmitResponse() {
+		assertOwner();
+		if (origin == Origin.REMOTE) {
+			caller = null;
+			complete.set(false);
+		} else {
+			throw new IllegalStateException(this + " retransmit on local exchange not allowed!");
 		}
 	}
 
@@ -455,7 +768,7 @@ public class Exchange {
 	 */
 	public void setNotificationNumber(final int notificationNo) {
 		if (notificationNo < 0 || notificationNo > MAX_OBSERVE_NO) {
-			throw new IllegalArgumentException("illegal observe number");
+			throw new IllegalArgumentException(this + " illegal observe number");
 		}
 		this.notificationNumber = notificationNo;
 	}
@@ -474,22 +787,22 @@ public class Exchange {
 	}
 
 	/**
-	 * Sets an observer to be invoked when this exchange completes.
+	 * Sets an remove handler to be invoked when this exchange completes.
 	 * 
-	 * @param observer The observer.
+	 * @param removeHandler The remove handler.
 	 */
-	public void setObserver(ExchangeObserver observer) {
-		this.observer = observer;
+	public void setRemoveHandler(RemoveHandler removeHandler) {
+		this.removeHandler = removeHandler;
 	}
 
 	/**
-	 * Checks whether this exchange has an observer registered.
+	 * Checks whether this exchange has an remove handler set.
 	 * 
-	 * @return {@code true} if an observer is registered.
-	 * @see #setObserver(ExchangeObserver)
+	 * @return {@code true} if an remove handler is set.
+	 * @see #setRemoveHandler(RemoveHandler)
 	 */
-	public boolean hasObserver() {
-		return observer != null;
+	public boolean hasRemoveHandler() {
+		return removeHandler != null;
 	}
 
 	/**
@@ -498,7 +811,14 @@ public class Exchange {
 	 * @return {@code true} if this exchange has been completed.
 	 */
 	public boolean isComplete() {
-		return complete;
+		return complete.get();
+	}
+
+	/**
+	 * Get caller
+	 */
+	public Throwable getCaller() {
+		return caller;
 	}
 
 	/**
@@ -506,40 +826,109 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain ExchangeObserver#completed(Exchange)
+	 * This method invokes the {@linkplain RemoveHandler#completed(Exchange)
 	 * completed} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching
 	 * the StackTopAdapter in the {@link CoapStack}, when timing out, when
 	 * rejecting a response, or when sending the (last) response.
+	 * 
+	 * @return {@code true}, if complete is set the first time, {@code false},
+	 *         if it is repeated.
+	 * @throws ExchangeCompleteException, if exchange was already completed.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
-	public void setComplete() {
-		setRetransmissionHandle(null);
-		this.complete = true;
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.completed(this);
+	public boolean setComplete() {
+		assertOwner();
+		if (complete.compareAndSet(false, true)) {
+			if (DEBUG) {
+				caller = new Throwable(toString());
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}!", this, caller);
+				} else {
+					LOGGER.debug("{}!", this);
+				}
+			} else {
+				LOGGER.debug("{}!", this);
+			}
+			setRetransmissionHandle(null);
+			RemoveHandler handler = this.removeHandler;
+			if (handler != null) {
+				if (origin == Origin.LOCAL) {
+					Request currrentRequest = getCurrentRequest();
+					Token token = currrentRequest.getToken();
+					KeyMID key = currrentRequest.hasMID() ? KeyMID.fromOutboundMessage(currrentRequest) : null;
+					if (token != null || key != null) {
+						handler.remove(this, token, key);
+					}
+					Request request = getRequest();
+					if (keepRequestInStore) {
+						if (request != currrentRequest) {
+							token = request.getToken();
+							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
+							if (token != null || key != null) {
+								handler.remove(this, token, key);
+							}
+						}
+					}
+					if (request == currrentRequest) {
+						LOGGER.debug("local {} completed {}!", this, request);
+					} else {
+						LOGGER.debug("local {} completed {} -/- {}!", this, request, currrentRequest);
+					}
+				} else {
+					Response currentResponse = getCurrentResponse();
+					if (currentResponse == null) {
+						LOGGER.debug("remote {} rejected (without response)!", this);
+					} else {
+						if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
+							KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
+							handler.remove(this, null, key);
+						}
+						removeNotifications();
+						Response response = getResponse();
+						if (response == currentResponse || response == null) {
+							LOGGER.debug("Remote {} completed {}!", this, currentResponse);
+						} else {
+							LOGGER.debug("Remote {} completed {} -/- {}!", this, response, currentResponse);
+						}
+					}
+				}
+			}
+			return true;
+		} else {
+			throw new ExchangeCompleteException(this + " already complete!", caller);
 		}
 	}
 
 	/**
-	 * Complete exchange using the current request and response.
+	 * Execute complete.
 	 * 
-	 * This method is only needed when the same {@link Exchange} instance uses
-	 * different tokens or MIDs during its lifetime, e.g., when using a different
-	 * token for retrieving the rest of a blockwise notification (when not altered,
-	 * Californium reuses the same token for this). Or when different CON notifies
-	 * are sent with different MIDs. 
-	 * <p>
-	 * See {@link BlockwiseLayer} or {@link ObserveLayer} for an example use case.
+	 * Schedules stripe exchange job, if current thread is not already owner.
+	 * 
+	 * @return {@code true}, if exchange was not already completed,
+	 *         {@code false}, if exchange is already completed.
 	 */
-	public void completeCurrentRequest() {
-		setRetransmissionHandle(null);
-		ExchangeObserver obs = this.observer;
-		if (obs != null) {
-			obs.completed(this);
+	public boolean executeComplete() {
+		if (complete.get()) {
+			return false;
 		}
+		if (executor == null || checkOwner()) {
+			setComplete();
+		} else {
+			execute(new StripedExchangeJob(this) {
+
+				@Override
+				public void runStriped() {
+					if (!complete.get()) {
+						setComplete();
+					}
+				}
+			});
+		}
+		return true;
 	}
 
 	/**
@@ -582,25 +971,41 @@ public class Exchange {
 	}
 
 	/**
-	 * Checks if this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own
-	 * Executor. Otherwise the exchange was handled directly by a protocol stage
-	 * thread.
+	 * Remove past notifications from message exchange store.
 	 * 
-	 * @return true if for handler with custom executor
+	 * To be able to react on RST for notifications, the NON notifications are
+	 * also kept in the message exchange store. This method removes the
+	 * notification message from the store.
+	 * 
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
 	 */
-	public boolean hasCustomExecutor() {
-		return customExecutor;
-	}
-
-	/**
-	 * Marks that this exchange was delivered to a handler with custom Executor.
-	 * If so, the protocol stage must hand the processing over to its own
-	 * Executor. Otherwise the exchange was handled directly by a protocol stage
-	 * thread.
-	 */
-	public void setCustomExecutor() {
-		this.customExecutor = true;
+	public void removeNotifications() {
+		assertOwner();
+		ObserveRelation relation = this.relation;
+		RemoveHandler handler = this.removeHandler;
+		if (relation != null) {
+			boolean removed = false;
+			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
+				Response previous = iterator.next();
+				LOGGER.debug("{} removing NON notification: {}", this, previous);
+				// notifications are local MID namespace
+				if (previous.hasMID()) {
+					if (handler != null) {
+						KeyMID key = KeyMID.fromOutboundMessage(previous);
+						handler.remove(this, null, key);
+					}
+				} else {
+					previous.cancel();
+				}
+				iterator.remove();
+				removed = true;
+			}
+			if (removed) {
+				LOGGER.debug("{} removing all remaining NON-notifications of observe relation with {}", this,
+						relation.getSource());
+			}
+		}
 	}
 
 	/**
@@ -618,10 +1023,7 @@ public class Exchange {
 	 */
 	public void setEndpointContext(final EndpointContext ctx) {
 		if (endpointContext.compareAndSet(null, ctx)) {
-			ExchangeObserver obs = this.observer;
-			if (obs != null) {
-				obs.contextEstablished(this);
-			}
+			getCurrentRequest().onContextEstablished(ctx);
 		} else {
 			endpointContext.set(ctx);
 		}
@@ -636,6 +1038,109 @@ public class Exchange {
 	 */
 	public EndpointContext getEndpointContext() {
 		return endpointContext.get();
+	}
+
+	/**
+	 * Execute a striped job.
+	 * 
+	 * If exchange is already owned by the current thread, execute it
+	 * synchronous. Otherwise schedule the execution.
+	 * 
+	 * @param command striped job
+	 * @throws IllegalArgumentException if exchange of provided job is not this
+	 *             exchange
+	 */
+	public void execute(final StripedExchangeJob command) {
+		if (command.exchange != this) {
+			throw new IllegalArgumentException(this + " can not execute job for " + command.exchange);
+		}
+		try {
+			if (executor == null || checkOwner()) {
+				command.runStriped();
+			} else {
+				executor.execute(command);
+			}
+		} catch (RejectedExecutionException e) {
+			LOGGER.debug("{} execute:", this, e);
+		} catch (Throwable t) {
+			LOGGER.error("{} execute:", this, t);
+		}
+	}
+
+	/**
+	 * Assert, that the exchange is not complete and new messages could be send
+	 * using this exchange.
+	 * 
+	 * @param message message to be send using this exchange.
+	 * @throws ConcurrentModificationException, if not executed within the
+	 *             {@link StripedExchangeJob}.
+	 * @throws ExchangeCompleteException, if exchange is already completed
+	 */
+	public void assertIncomplete(Object message) {
+		assertOwner();
+		if (complete.get()) {
+			throw new ExchangeCompleteException(this + " is already complete! " + message, caller);
+		}
+	}
+
+	/**
+	 * Set current thread as owner.
+	 * 
+	 * @throws ConcurrentModificationException, if owner is already set.
+	 */
+	void setOwner() {
+		Thread thread = owner.get();
+		if (!owner.compareAndSet(null, Thread.currentThread())) {
+			if (thread == null) {
+				throw new ConcurrentModificationException(this + " was already owned!");
+			} else {
+				throw new ConcurrentModificationException(this + " already owned by " + thread.getName() + "!");
+			}
+		}
+	}
+
+	/**
+	 * Remove current thread as owner.
+	 * 
+	 * @throws ConcurrentModificationException, if the current thread is not the
+	 *             owner.
+	 */
+	void clearOwner() {
+		if (!owner.compareAndSet(Thread.currentThread(), null)) {
+			Thread thread = owner.get();
+			if (thread == null) {
+				throw new ConcurrentModificationException(this + " is not owned, clear failed!");
+			} else {
+				throw new ConcurrentModificationException(this + " owned by " + thread.getName() + ", clear failed!");
+			}
+		}
+	}
+
+	/**
+	 * Assert, that the current thread owns this exchange.
+	 */
+	private void assertOwner() {
+		if (executor != null) {
+			Thread me = Thread.currentThread();
+			if (owner.get() != me) {
+				Thread thread = owner.get();
+				if (thread == null) {
+					throw new ConcurrentModificationException(this + " is not owned!");
+				} else {
+					throw new ConcurrentModificationException(this + " owned by " + thread.getName() + "!");
+				}
+			}
+		}
+	}
+
+	/**
+	 * Check, if current thread owns this exchange.
+	 * 
+	 * @return {@code true}, if current thread owns this exchange,
+	 *         {@code false}, otherwise.
+	 */
+	private boolean checkOwner() {
+		return owner.get() == Thread.currentThread();
 	}
 
 	/**
@@ -739,115 +1244,20 @@ public class Exchange {
 			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
+	
+    /**
+     * Sets cryptoContextId
+     * @param cryptoContextId a byte array used for mapping cryptographic contexts
+     */
+    public void setCryptographicContextID(byte[] cryptoContextId){
+        this.cryptoContextId = cryptoContextId;
+    }
 
-	/**
-	 * A CoAP message token scoped to a remote endpoint.
-	 * <p>
-	 * This class is used by the matcher to correlate messages by their token
-	 * and endpoint address.
-	 */
-	public static final class KeyToken {
-
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
-		private final byte[] token;
-		private final byte[] address;
-		private final int port;
-		private final int hash;
-
-		private KeyToken(byte[] token, byte[] address, int port) {
-			if (token == null) {
-				throw new NullPointerException("token bytes must not be null");
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("port must be a 16 bit unsigned int");
-			}
-			this.token = Arrays.copyOf(token, token.length);
-			this.address = address;
-			this.port = port;
-			this.hash = createHash();
-		}
-
-		/**
-		 * Creates a new key for an inbound CoAP message.
-		 * <p>
-		 * The key will be scoped to the message's source endpoint.
-		 * 
-		 * @param message the message.
-		 * @return the key.
-		 */
-		public static KeyToken fromInboundMessage(final Message message) {
-			InetSocketAddress address = message.getSourceContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a new key for an outbound CoAP message.
-		 * <p>
-		 * The key will be scoped to the message's destination endpoint.
-		 * 
-		 * @param message the message.
-		 * @return the key.
-		 */
-		public static KeyToken fromOutboundMessage(final Message message) {
-			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-			return new KeyToken(message.getToken(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a new key for a token and an endpoint address.
-		 * 
-		 * @param token the token.
-		 * @param address the endpoint's address.
-		 * @param port the endpoint's port.
-		 * @return the key.
-		 * @throws NullPointerException if token or address is {@code null}
-		 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
-		 */
-		public static KeyToken fromValues(byte[] token, byte[] address, int port) {
-			return new KeyToken(token, address, port);
-		}
-
-		private int createHash() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + port;
-			result = prime * result + Arrays.hashCode(address);
-			result = prime * result + Arrays.hashCode(token);
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return new StringBuilder("KeyToken[").append(Utils.toHexString(token)).append(", ")
-					.append(Utils.toHexString(address)).append(":").append(port).append("]").toString();
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			KeyToken other = (KeyToken) obj;
-			if (!Arrays.equals(address, other.address))
-				return false;
-			if (port != other.port)
-				return false;
-			if (!Arrays.equals(token, other.token))
-				return false;
-			return true;
-		}
-
-		public byte[] getToken() {
-			return Arrays.copyOf(token, token.length);
-		}
-	}
+    /**
+     * Gets cryptoContextId
+     * @return
+     */
+    public byte[] getCryptographicContextID(){
+        return this.cryptoContextId;
+    }
 }
