@@ -16,6 +16,7 @@
  *    Dominique Im Obersteg - parsers and initial implementation
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
+ *    Rokwoon Kim - add onError method
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -86,4 +87,12 @@ public interface MessageObserver {
 	 * observed might cancel a response to send another one instead.
 	 */
 	void onCancel();
+	
+	/**
+	 * Invoked when an error occurs while sending a message.
+	 * 
+	 * For instance, a circumstances where the endpoint is shutdown and can not send messages.
+	 * @param e the exception that occured
+	 */
+	void onError(Exception e);
 }

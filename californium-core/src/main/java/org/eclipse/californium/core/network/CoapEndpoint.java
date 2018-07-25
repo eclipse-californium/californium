@@ -48,6 +48,7 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
@@ -546,12 +547,23 @@ public class CoapEndpoint implements Endpoint {
 			} else {
 				// create callback for setting correlation context
 				MessageCallback callback = new MessageCallback() {
+					
+					private List<MessageObserver> messageObservers = request.getMessageObservers();
 
 					@Override
 					public void onContextEstablished(final CorrelationContext context) {
 						exchange.setCorrelationContext(context);
 					}
+
+					@Override
+					public void onError(Exception e) {
+						for (MessageObserver messageObserver : messageObservers) {
+							messageObserver.onError(e);
+						}
+					}
+					
 				};
+				
 				RawData message = serializer.serializeRequest(request, callback);
 				connector.send(message);
 			}

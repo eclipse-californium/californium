@@ -15,7 +15,8 @@
  *                                      additional information to application layer for
  *                                      matching messages (fix GitHub issue #1)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add comment on processing
- *                                                    onContextEstablished. issue #311 
+ *                                                    onContextEstablished. issue #311
+ *    Rokwoon Kim - add onError method                                                 
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -38,4 +39,12 @@ public interface MessageCallback {
 	 *                   which the message is sent
 	 */
 	void onContextEstablished(CorrelationContext context);
+	
+	/**
+	 * Called when an error occurs while sending a message.
+	 * 
+	 * For instance, a circumstances where the endpoint is shutdown and can not send messages.
+	 * @param e the exception that occured
+	 */
+	void onError(Exception e);
 }
