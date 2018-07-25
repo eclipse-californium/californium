@@ -22,6 +22,7 @@
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -186,7 +187,10 @@ public class UDPConnector implements Connector {
 			receiverThreads.clear();
 			receiverThreads = null;
 		}
-		outgoing.clear();
+        while (!outgoing.isEmpty()) {
+		    RawData rawData = outgoing.poll();
+			rawData.getMessageCallback().onError(new InterruptedIOException("Interrupted by shutdown connector."));
+		}
 		
 		String address = localAddr.toString();
 		if (socket != null) {

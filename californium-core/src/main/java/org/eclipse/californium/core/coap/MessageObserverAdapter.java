@@ -62,4 +62,10 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	public void onTimeout() {
 		// empty default implementation
 	}
+
+	@Override
+	public void onError(Exception e) {
+		// empty default implementation
+	}
+	
 }

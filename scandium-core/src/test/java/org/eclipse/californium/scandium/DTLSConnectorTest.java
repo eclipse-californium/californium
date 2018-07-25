@@ -235,6 +235,11 @@ public class DTLSConnectorTest {
 					public void onContextEstablished(CorrelationContext context) {
 						isCallbackInvoked.set(context != null);
 					}
+
+                    @Override
+                    public void onError(Exception e) {
+                    }
+					
 				},
 				false);
 
