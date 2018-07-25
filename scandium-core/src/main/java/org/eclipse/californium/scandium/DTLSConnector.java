@@ -77,6 +77,7 @@
 package org.eclipse.californium.scandium;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -1219,7 +1220,9 @@ public class DTLSConnector implements Connector {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
 		} else if (!running.get()) {
-			throw new IllegalStateException("connector must be started before sending messages is possible");
+			RuntimeException e = new IllegalStateException("connector must be started before sending messages is possible");
+			msg.onError(e);
+			throw e;
 		} else if (msg.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			throw new IllegalArgumentException("Message data must not exceed "
 					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
@@ -1238,12 +1241,15 @@ public class DTLSConnector implements Connector {
 							pendingOutboundMessages.incrementAndGet();
 							if (running.get()) {
 								sendMessage(msg);
+							} else {
+								msg.onError(new InterruptedIOException("Connector is not running."));
 							}
 						} catch (Exception e) {
 							if (running.get()) {
 								LOGGER.debug("Exception thrown by executor thread [{}]",
 										Thread.currentThread().getName(), e);
 							}
+							msg.onError(e);
 						} finally {
 							pendingOutboundMessages.incrementAndGet();
 						}

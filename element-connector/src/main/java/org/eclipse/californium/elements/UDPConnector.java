@@ -33,6 +33,7 @@
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -207,7 +208,9 @@ public class UDPConnector implements Connector {
 			receiverThreads.clear();
 			receiverThreads = null;
 		}
-		outgoing.clear();
+		while (!outgoing.isEmpty()) {
+			notifyMsgAsInterrupted(outgoing.poll());
+		}
 
 		String address = localAddr.toString();
 		if (socket != null) {
@@ -227,6 +230,8 @@ public class UDPConnector implements Connector {
 	public void send(RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
+		} else if (!running) {
+			notifyMsgAsInterrupted(msg);
 		} else {
 			outgoing.add(msg);
 		}
@@ -247,6 +252,10 @@ public class UDPConnector implements Connector {
 			return localAddr;
 		else
 			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+	}
+	
+	private void notifyMsgAsInterrupted(RawData msg) {
+		msg.onError(new InterruptedIOException("Connector is not running."));
 	}
 
 	private abstract class NetworkStageThread extends Thread {
