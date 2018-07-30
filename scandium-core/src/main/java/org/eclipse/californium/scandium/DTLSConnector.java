@@ -73,6 +73,8 @@
  *                                                    daemon
  *    Achim Kraus (Bosch Software Innovations GmbH) - response with alert, if 
  *                                                    connection store is exhausted.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix double incrementing 
+ *                                                    pending outgoing message downcounter.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -178,7 +180,11 @@ public class DTLSConnector implements Connector {
 
 	private final ResumptionSupportingConnectionStore connectionStore;
 
-	private final AtomicInteger pendingOutboundMessages = new AtomicInteger();
+	/**
+	 * (Down-)counter for pending outbound messages. Initialized with
+	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
+	 */
+	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
 	
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = 1280; // min. IPv6 MTU
@@ -260,7 +266,7 @@ public class DTLSConnector implements Connector {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
 			this.config = configuration;
-			this.pendingOutboundMessages.set(config.getOutboundMessageBufferSize());
+			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
 			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
 		}
@@ -339,7 +345,7 @@ public class DTLSConnector implements Connector {
 			return;
 		}
 
-		pendingOutboundMessages.set(config.getOutboundMessageBufferSize());
+		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 
 		timer = Executors.newSingleThreadScheduledExecutor(
 				new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
@@ -1219,48 +1225,52 @@ public class DTLSConnector implements Connector {
 	public final void send(final RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
-		} else if (!running.get()) {
-			RuntimeException e = new IllegalStateException("connector must be started before sending messages is possible");
-			msg.onError(e);
-			throw e;
+		}
+		RuntimeException error = null;
+
+		if (!running.get()) {
+			error = new IllegalStateException("connector must be started before sending messages is possible");
 		} else if (msg.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
-			throw new IllegalArgumentException("Message data must not exceed "
-					+ MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
-		} else {
-			if (pendingOutboundMessages.decrementAndGet() >= 0) {
-				executor.execute(new StripedRunnable() {
-	
-					@Override
-					public Object getStripe() {
-						return msg.getEndpointContext().getPeerAddress();
-					}
-	
-					@Override
-					public void run() {
-						try {
-							pendingOutboundMessages.incrementAndGet();
-							if (running.get()) {
-								sendMessage(msg);
-							} else {
-								msg.onError(new InterruptedIOException("Connector is not running."));
-							}
-						} catch (Exception e) {
-							if (running.get()) {
-								LOGGER.debug("Exception thrown by executor thread [{}]",
-										Thread.currentThread().getName(), e);
-							}
-							msg.onError(e);
-						} finally {
-							pendingOutboundMessages.incrementAndGet();
+			error = new IllegalArgumentException(
+					"Message data must not exceed " + MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
+		}
+		if (error != null) {
+			msg.onError(error);
+			throw error;
+		}
+
+		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
+			executor.execute(new StripedRunnable() {
+
+				@Override
+				public Object getStripe() {
+					return msg.getEndpointContext().getPeerAddress();
+				}
+
+				@Override
+				public void run() {
+					try {
+						if (running.get()) {
+							sendMessage(msg);
+						} else {
+							msg.onError(new InterruptedIOException("Connector is not running."));
 						}
+					} catch (Exception e) {
+						if (running.get()) {
+							LOGGER.debug("Exception thrown by executor thread [{}]", Thread.currentThread().getName(),
+									e);
+						}
+						msg.onError(e);
+					} finally {
+						pendingOutboundMessagesCountdown.incrementAndGet();
 					}
-				});
-			}
-			else {
-				pendingOutboundMessages.incrementAndGet();
-				LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
-						msg.getInetSocketAddress());
-			}
+				}
+			});
+		} else {
+			pendingOutboundMessagesCountdown.incrementAndGet();
+			LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
+					msg.getInetSocketAddress());
+			msg.onError(new IllegalStateException("Outbound message overflow!"));
 		}
 	}
 
