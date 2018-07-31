@@ -94,6 +94,7 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 		} catch (NoSuchAlgorithmException e) {
 		}
 		HMAC = mac;
+		CLIENT_CACHE.setEvictingOnReadAccess(true);
 	}
 
 	/**

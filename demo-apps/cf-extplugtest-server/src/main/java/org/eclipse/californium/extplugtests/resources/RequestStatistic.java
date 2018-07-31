@@ -126,7 +126,7 @@ public class RequestStatistic extends CoapResource {
 	private static final long START_TIME = System.currentTimeMillis();
 	private static final int MAX_HISTORY = 8;
 
-	private LeastRecentlyUsedCache<String, List<RequestInformation>> requests = new LeastRecentlyUsedCache<String, List<RequestInformation>>(
+	private final LeastRecentlyUsedCache<String, List<RequestInformation>> requests = new LeastRecentlyUsedCache<String, List<RequestInformation>>(
 			1024 * 16, 0);
 
 	public RequestStatistic() {
@@ -134,6 +134,7 @@ public class RequestStatistic extends CoapResource {
 		getAttributes().setTitle("Resource that collects requests for client staistics");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_JSON);
+		requests.setEvictingOnReadAccess(false);
 	}
 
 	@Override

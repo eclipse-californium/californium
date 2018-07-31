@@ -199,8 +199,10 @@ public class BlockwiseLayer extends AbstractLayer {
 				NetworkConfigDefaults.DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		int maxActivePeers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS,
 				NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
-		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
-		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, blockTimeout / 1000);
+		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
+		block1Transfers.setEvictingOnReadAccess(false);
+		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
+		block2Transfers.setEvictingOnReadAccess(false);
 
 		LOGGER.info(
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={} and MAX_RESOURCE_BODY_SIZE={}",

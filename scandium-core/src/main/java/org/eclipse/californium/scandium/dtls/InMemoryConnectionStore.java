@@ -16,6 +16,9 @@
  *                                                    for handshakeFailed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use final for collections
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to return 
+ *                                                    expired entries on read access.
+ *                                                    See issue #707
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -112,6 +115,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
+		connections.setEvictingOnReadAccess(false);
 		this.sessionCache = sessionCache;
 
 		if (sessionCache != null) {

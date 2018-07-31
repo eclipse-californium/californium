@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for find and 
+ *                                                    evict on access
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -25,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 import org.junit.Test;
 
 /**
@@ -37,16 +40,91 @@ public class LeastRecentlyUsedCacheTest {
 
 	@Test
 	public void testGetFailsWhenExpired() throws InterruptedException {
-		long threshold =  1; // second
+		long threshold = 1; // second
 		int capacity = 5;
 		int numberOfSessions = 1;
 
 		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		cache.setEvictingOnReadAccess(true);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
 		assertNotNull(cache.get(key));
 		Thread.sleep(threshold * 1100);
 		assertNull(cache.get(key));
+	}
+
+	@Test
+	public void testGetSucceedsEvenExpired() throws InterruptedException {
+		long threshold = 1; // second
+		int capacity = 5;
+		int numberOfSessions = 1;
+
+		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertNotNull(cache.get(key));
+		Thread.sleep(threshold * 1100);
+		assertNotNull(cache.get(key));
+	}
+
+	@Test
+	public void testFindUniqueFailsWhenExpired() throws InterruptedException {
+		long threshold = 1; // second
+		int capacity = 5;
+		int numberOfSessions = 3;
+
+		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		cache.setEvictingOnReadAccess(true);
+		final String eldest = cache.getEldest();
+		Predicate<String> predicate = new Predicate<String>() {
+
+			@Override
+			public boolean accept(String value) {
+				return eldest.equals(value);
+			}
+
+		};
+		assertNotNull(cache.find(predicate));
+		Thread.sleep(threshold * 1100);
+		assertNull(cache.find(predicate));
+	}
+
+	@Test
+	public void testFindUniqueSucceedsEvenExpired() throws InterruptedException {
+		long threshold = 1; // second
+		int capacity = 5;
+		int numberOfSessions = 3;
+
+		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		final String eldest = cache.getEldest();
+		Predicate<String> predicate = new Predicate<String>() {
+
+			@Override
+			public boolean accept(String value) {
+				return eldest.equals(value);
+			}
+
+		};
+		assertNotNull(cache.find(predicate));
+		Thread.sleep(threshold * 1100);
+		assertNotNull(cache.find(predicate));
+	}
+
+	@Test
+	public void testFindNoneUniqueSucceedsEvenFirstEvicted() throws InterruptedException {
+		long threshold = 1; // second
+		int capacity = 5;
+		int numberOfSessions = 3;
+
+		givenACacheWithEntries(capacity, threshold, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		SimplePredicate predicate = new SimplePredicate(2);
+		assertNotNull(cache.find(predicate));
+		Thread.sleep(threshold * 1100);
+		predicate = new SimplePredicate(2);
+		assertNotNull(cache.find(predicate));
 	}
 
 	@Test
@@ -78,7 +156,7 @@ public class LeastRecentlyUsedCacheTest {
 
 	@Test
 	public void testStoreFailsIfCapacityReached() {
-		long threshold =  10; // seconds
+		long threshold = 10; // seconds
 		int capacity = 10;
 		int numberOfSessions = 10;
 
@@ -111,7 +189,7 @@ public class LeastRecentlyUsedCacheTest {
 
 		int noOfSessions = 1000;
 		for (int i = 0; i < noOfSessions; i++) {
-			Integer key = i +1000;
+			Integer key = i + 1000;
 			String value = String.valueOf(key);
 			assertTrue(cache.put(key, value));
 		}
@@ -132,4 +210,20 @@ public class LeastRecentlyUsedCacheTest {
 			cache.put(i, String.valueOf(i));
 		}
 	}
+
+	private static class SimplePredicate implements Predicate<String> {
+
+		int count = 2;
+
+		private SimplePredicate(int count) {
+			this.count = count;
+		}
+
+		@Override
+		public boolean accept(String value) {
+			--count;
+			return count <= 0;
+		}
+	};
+
 }
