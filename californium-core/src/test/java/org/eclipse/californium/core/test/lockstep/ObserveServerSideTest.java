@@ -509,32 +509,32 @@ public class ObserveServerSideTest {
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
-		ErrorInjector errorInjector = new ErrorInjector();
-		serverEndpoint.addInterceptor(errorInjector);
-
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
 		client.expectResponse().type(ACK).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
 		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
-		serverInterceptor.logNewLine("Observe relation established");
+		serverInterceptor.logNewLine("// Observe relation established");
 
 		// First notification
 		testObsResource.change("First notification " + generateRandomPayload(10));
 		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID1").checkObs("A", "B").payload(respPayload).go();
 
 		// Simulate error when we send response
+		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
+		serverInterceptor.setErrorInjector(errorInjector);
 		testObsResource.change("Second notification " + generateRandomPayload(10));
 
 		Thread.sleep(100);
 		Assert.assertEquals("Resource has still its observe relation:", 1, testObsResource.getObserverCount());
 
+		serverInterceptor.setErrorInjector(null);
 		// Ensure we get the third notification
 		testObsResource.change("Third notification " + generateRandomPayload(10));
 		client.expectResponse().type(NON).code(CONTENT).token(tok).storeMID("MID3").checkObs("B", "C").payload(respPayload).go();
 
 		// Cancel observe relation
-		serverInterceptor.log("// Reject 1. notification (cancel observe)");
+		serverInterceptor.logNewLine("// Reject 1. notification (cancel observe)");
 		client.sendEmpty(RST).loadMID("MID1").go();
 
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
@@ -547,14 +547,11 @@ public class ObserveServerSideTest {
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
-		ErrorInjector errorInjector = new ErrorInjector();
-		serverEndpoint.addInterceptor(errorInjector);
-
 		respType = null;
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
 		client.expectResponse().type(ACK).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
 		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
-		serverInterceptor.logNewLine("Observe relation established");
+		serverInterceptor.logNewLine("// Observe relation established");
 
 		// First notification
 		testObsResource.change("First notification " + generateRandomPayload(10));
@@ -562,12 +559,14 @@ public class ObserveServerSideTest {
 				.payload(respPayload).go();
 
 		// Simulate error when we send response
+		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
+		serverInterceptor.setErrorInjector(errorInjector);
 		testObsResource.change("Second notification " + generateRandomPayload(10));
 
 		Thread.sleep(100);
 
-		serverInterceptor.log("// Reject 1. notification (cancel observe)");
+		serverInterceptor.logNewLine("// Reject 1. notification (cancel observe)");
 		client.sendEmpty(RST).loadMID("MID1").go();
 
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));

@@ -20,9 +20,11 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ReceiveRequestHandler;
+import org.eclipse.californium.elements.util.IntendedTestException;
 
 /**
- * A message interceptor for tracing messages from the viewpoint of a CoAP server.
+ * A message interceptor for tracing messages from the viewpoint of a CoAP
+ * server.
  *
  */
 public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor implements MessageInterceptor {
@@ -40,8 +42,25 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 
 	@Override
 	public synchronized void sendResponse(final Response response) {
-		logNewLine("<-----   ");
-		appendResponseDetails(response);
+		if (errorInjector != null) {
+			logNewLine("(should be dropped by error)   ");
+			appendResponseDetails(response);
+			response.addMessageObserver(new LoggingMessageObserver(errorInjector, response) {
+
+				@Override
+				public void log(IntendedTestException exception) {
+					if (exception == null) {
+						logNewLine("(sent!) <-----   ");
+					} else {
+						logNewLine("(dropped) <---   ");
+					}
+					appendResponseDetails(response);
+				};
+			});
+		} else {
+			logNewLine("<-----   ");
+			appendResponseDetails(response);
+		}
 	}
 
 	@Override
