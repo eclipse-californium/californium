@@ -91,6 +91,7 @@ public final class IntegrationTestTools {
 
 	public static void printServerLog(ClientBlockwiseInterceptor interceptor) {
 		System.out.println(interceptor.toString());
+		System.out.println();
 		interceptor.clear();
 	}
 

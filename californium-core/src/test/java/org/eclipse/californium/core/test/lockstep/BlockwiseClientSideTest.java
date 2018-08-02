@@ -262,7 +262,7 @@ public class BlockwiseClientSideTest {
 		request.waitForResponse();
 		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
 
-		clientInterceptor.log(System.lineSeparator() + "// next transfer");
+		clientInterceptor.logNewLine("// next transfer");
 		request = createRequest(GET, path, server);
 		client.sendRequest(request);
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
@@ -823,7 +823,7 @@ public class BlockwiseClientSideTest {
 		notificationListener.resetNotificationCount();
 
 		System.out.println("Server sends first notification...");
-		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
+		clientInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(280);
 
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(62354).block2(0, true, 128).size2(respPayload.length())
@@ -843,7 +843,7 @@ public class BlockwiseClientSideTest {
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
 		System.out.println("Server sends second notification...");
-		clientInterceptor.log(System.lineSeparator() + "... time passes ...");
+		clientInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(290);
 
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(17).block2(0, true, 128).size2(respPayload.length())

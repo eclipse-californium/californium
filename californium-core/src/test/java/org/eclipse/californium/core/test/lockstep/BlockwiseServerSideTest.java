@@ -345,7 +345,7 @@ public class BlockwiseServerSideTest {
 		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 		
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
-		serverInterceptor.log(System.lineSeparator() + "//////// Missing last GET ////////");
+		serverInterceptor.logNewLine("//////// Missing last GET ////////");
 	}
 
 	/**
@@ -384,7 +384,7 @@ public class BlockwiseServerSideTest {
 		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
-		serverInterceptor.log(System.lineSeparator() + "//////// Missing last PUT ////////");
+		serverInterceptor.logNewLine("//////// Missing last PUT ////////");
 	}
 
 	/**
@@ -440,7 +440,7 @@ public class BlockwiseServerSideTest {
 
 		// Try another BlockwiseLayer transfer from same peer, same URL, same
 		// option.
-		serverInterceptor.log(System.lineSeparator() + "// next transfer");
+		serverInterceptor.logNewLine("// next transfer");
 		reqtPayload = generateRandomPayload(300);
 		tok = generateNextToken();
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
@@ -541,7 +541,7 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
 		client.expectResponse(ACK, CONTINUE, tok, mid).block1(1, true, 128).payload("").go();
 
-		serverInterceptor.log(System.lineSeparator() + "... client crashes or whatever and restarts transfer");
+		serverInterceptor.logNewLine("... client crashes or whatever and restarts transfer");
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload.substring(0, 128)).go();
 		client.expectResponse(ACK, CONTINUE, tok, mid).block1(0, true, 128).payload("").go();
@@ -851,7 +851,7 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok1, ++mid).path(RESOURCE_PATH).block2(2, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok1, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 300)).go();
 
-		serverInterceptor.log(System.lineSeparator() + "... time passes ...");
+		serverInterceptor.logNewLine("... time passes ...");
 		System.out.println("Send first notification");
 		respPayload = generateRandomPayload(280);
 		testResource.changed();
@@ -868,7 +868,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 280)).go();
 
 		System.out.println("Send second notification");
-		serverInterceptor.log(System.lineSeparator() + "... time passes ...");
+		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(290);
 		testResource.changed();
 
@@ -903,7 +903,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 150)).go();
 
 		System.out.println("Send first notification");
-		serverInterceptor.log(System.lineSeparator() + "... time passes ...");
+		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(140);
 		testResource.changed(); // First notification
 
@@ -919,7 +919,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 140)).go();
 
 		System.out.println("Send second notification");
-		serverInterceptor.log(System.lineSeparator() + "... time passes ...");
+		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(145);
 		testResource.changed(); // Second notification
 

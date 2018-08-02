@@ -13,8 +13,11 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add CANCELED to log
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add time to log
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
+
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -22,6 +25,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A base class for implementing message interceptors.
@@ -29,10 +33,31 @@ import org.eclipse.californium.core.coap.Response;
  */
 public abstract class BlockwiseInterceptor {
 
-	protected StringBuilder buffer = new StringBuilder();
+	private final long startNano = System.nanoTime();
+
+	protected final StringBuilder buffer = new StringBuilder();
 
 	protected BlockwiseInterceptor() {
 		// do nothing
+	}
+
+	/**
+	 * Adds a new line with timestamp to the buffer.
+	 */
+	public final synchronized void logNewLine() {
+		buffer.append(StringUtil.lineSeparator());
+		final long deltaMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNano);
+		buffer.append(String.format("%04d: ", deltaMillis));
+	}
+
+	/**
+	 * Adds a new line with timestamp and provided message to the buffer.
+	 * 
+	 * @param str The message to add.
+	 */
+	public final synchronized void logNewLine(final String str) {
+		logNewLine();
+		buffer.append(str);
 	}
 
 	/**
@@ -82,6 +107,7 @@ public abstract class BlockwiseInterceptor {
 			buffer.append(")");
 		}
 	}
+
 	protected final void appendRequestDetails(final Request request) {
 		if (request.isCanceled()) {
 			buffer.append("CANCELED ");
@@ -120,14 +146,14 @@ public abstract class BlockwiseInterceptor {
 
 	@Override
 	public final String toString() {
-		return buffer.append(System.lineSeparator()).substring(1);
+		return buffer.toString();
 	}
 
 	/**
 	 * Clears the buffer.
 	 */
 	public final void clear() {
-		buffer = new StringBuilder();
+		buffer.setLength(0);
 	}
 
 }
