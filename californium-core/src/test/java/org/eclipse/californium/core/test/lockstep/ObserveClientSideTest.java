@@ -232,7 +232,7 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 
-		clientInterceptor.log(System.lineSeparator() + "//////// Overriding notification ////////");
+		clientInterceptor.logNewLine("//////// Overriding notification ////////");
 		String respPayload3 = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn";
 
 		//
@@ -272,7 +272,7 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("F").block2(1, false, 16).go();
 		server.goMultiExpectation();
 
-		clientInterceptor.log(System.lineSeparator() + "//////// Overriding notification (4) ////////");
+		clientInterceptor.logNewLine("//////// Overriding notification (4) ////////");
 		String respPayload4 = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN";
 
 		// start new block
@@ -286,7 +286,7 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 
 		// old block from notification 4 transfer
-		clientInterceptor.log(System.lineSeparator() + "//////// Conflicting notification block ////////");
+		clientInterceptor.logNewLine("//////// Conflicting notification block ////////");
 		// this block should be discarded by client
 		server.sendResponse(ACK, CONTENT).loadBoth("F").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 
@@ -303,7 +303,7 @@ public class ObserveClientSideTest {
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
 		// cancel
-		clientInterceptor.log(System.lineSeparator() + "//////// Notification after cancellation ////////");
+		clientInterceptor.logNewLine("//////// Notification after cancellation ////////");
 		respPayload = generateRandomPayload(34);
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(6).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
 		server.startMultiExpectation();

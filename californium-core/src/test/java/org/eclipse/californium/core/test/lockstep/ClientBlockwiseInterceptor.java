@@ -32,37 +32,39 @@ public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor imple
 
 	@Override
 	public synchronized void sendRequest(final Request request) {
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendRequestDetails(request);
 		buffer.append("    ----->");
 	}
 
 	@Override
 	public synchronized void sendResponse(final Response response) {
-		buffer.append("ERROR: Server received ").append(response).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server received ").append(response);
 	}
 
 	@Override
 	public synchronized void sendEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendEmptyMessageDetails(message);
 		buffer.append("   ----->");
 	}
 
 	@Override
 	public synchronized void receiveRequest(final Request request) {
-		buffer.append(System.lineSeparator()).append("ERROR: Server sent ").append(request).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server sent ").append(request);
 	}
 
 	@Override
 	public synchronized void receiveResponse(Response response) {
-		buffer.append(System.lineSeparator()).append("<-----   ");
+		logNewLine("<-----   ");
 		appendResponseDetails(response);
 	}
 
 	@Override
 	public synchronized void receiveEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator()).append("<-----   ");
+		logNewLine("<-----   ");
 		appendEmptyMessageDetails(message);
 	}
 }
