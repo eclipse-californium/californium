@@ -50,7 +50,6 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -102,7 +101,6 @@ public class ObserveClientSideTest {
 		// don't check address, tests explicitly change it!
 		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, false);
 		client.addInterceptor(clientInterceptor);
-		client.addInterceptor(new MessageTracer());
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress());
@@ -1188,11 +1186,11 @@ public class ObserveClientSideTest {
 		respPayload = generateRandomPayload(10);
 		String path = "test";
 
-		// Add error injector to client endpoint to be able to simulate error
-		// before we really send the message.
+		// Simulate error before we send the block2 request
 		ErrorInjector errorInjector = new ErrorInjector();
-		client.addInterceptor(errorInjector);
 		errorInjector.setErrorOnReadyToSend();
+		clientInterceptor.setErrorInjector(errorInjector);
+		clientInterceptor.setExpectedErrors(1);
 
 		// Try to send request
 		Request request = createRequest(GET, path, server);
@@ -1204,11 +1202,10 @@ public class ObserveClientSideTest {
 		client.sendRequest(request);
 
 		// Wait for error
-		counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+		clientInterceptor.awaitErrors(1000, TimeUnit.MILLISECONDS);
 
 		// We should get a error
 		assertEquals("An error is expected", 1, counter.errorCalls.get());
-
 		// @after check there is no leak
 	}
 
@@ -1220,11 +1217,6 @@ public class ObserveClientSideTest {
 		System.out.println("Observe fails before we send the next block2 request for a notification");
 		respPayload = generateRandomPayload(10);
 		String path = "test";
-
-		// Add error injector to client endpoint to be able to simulate error
-		// before we really send the message.
-		ErrorInjector errorInjector = new ErrorInjector();
-		client.addInterceptor(errorInjector);
 
 		// establish observe relation
 		Request request = createRequest(GET, path, server);
@@ -1249,7 +1241,9 @@ public class ObserveClientSideTest {
 		server.goMultiExpectation();
 		
 		// Simulate error before we send the next block2 request
+		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
+		clientInterceptor.setErrorInjector(errorInjector);
 		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, true, 16).payload(notifyPayload.substring(16, 32)).go();
 
 		// TODO We would like to check if the block2 request failed but we have no API for a block2 request which failed to be sent

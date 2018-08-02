@@ -1211,11 +1211,6 @@ public class BlockwiseClientSideTest {
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
-		// Add error injector to client endpoint to be able to simulate error
-		// before we really send a message.
-		ErrorInjector errorInjector = new ErrorInjector();
-		client.addInterceptor(errorInjector);
-
 		// Start block 1 transfer
 		Request request = createRequest(PUT, path, server);
 		request.setPayload(reqtPayload);
@@ -1229,7 +1224,9 @@ public class BlockwiseClientSideTest {
 				.payload(reqtPayload.substring(128, 256)).go();
 
 		// Simulate error before we send the next block1 request
+		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
+		clientInterceptor.setErrorInjector(errorInjector);
 		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
 
 		// Wait for error
@@ -1250,11 +1247,6 @@ public class BlockwiseClientSideTest {
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
-		// Add error injector to client endpoint to be able to simulate error
-		// before we really send a message.
-		ErrorInjector errorInjector = new ErrorInjector();
-		client.addInterceptor(errorInjector);
-
 		// Start block 2 transfer
 		Request request = createRequest(GET, path, server);
 		CountingMessageObserver counter = new CountingMessageObserver();
@@ -1266,7 +1258,9 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 128).go();
 
 		// Simulate error before we send the next block2 request
+		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
+		clientInterceptor.setErrorInjector(errorInjector);
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 128).payload(respPayload.substring(128, 256))
 				.go();
 
