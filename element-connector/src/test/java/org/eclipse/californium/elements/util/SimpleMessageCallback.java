@@ -18,6 +18,9 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 
@@ -27,6 +30,15 @@ import org.eclipse.californium.elements.MessageCallback;
  */
 public class SimpleMessageCallback implements MessageCallback {
 
+	/**
+	 * Number of expected calls to await.
+	 */
+	private final CountDownLatch latchCalls;
+	/**
+	 * Enable {@link #onContextEstablished(EndpointContext)} calls to be counted
+	 * also.
+	 */
+	private final boolean countContextEstablished;
 	/**
 	 * endpoint context of sent message.
 	 */
@@ -40,29 +52,79 @@ public class SimpleMessageCallback implements MessageCallback {
 	 */
 	private boolean sent;
 
+	/**
+	 * Create new message callback.
+	 */
+	public SimpleMessageCallback() {
+		this(0, false);
+	}
+
+	/**
+	 * Create new message callback.
+	 * 
+	 * @param calls number of expected callbacks.
+	 * @param countContextEstablished {@code true}, if
+	 *            {@link #onContextEstablished(EndpointContext)} is counted,
+	 *            {@code false}, otherwise
+	 */
+	public SimpleMessageCallback(int calls, boolean countContextEstablished) {
+		latchCalls = new CountDownLatch(calls);
+		this.countContextEstablished = countContextEstablished;
+	}
+
 	@Override
 	public synchronized void onContextEstablished(EndpointContext context) {
 		this.context = context;
-		notifyAll();
+		notify();
+		if (countContextEstablished) {
+			latchCalls.countDown();
+		}
 	}
 
 	@Override
 	public synchronized void onSent() {
-		sent = true;
-		notifyAll();
+		this.sent = true;
+		notify();
+		latchCalls.countDown();
 	}
 
 	@Override
-	public synchronized void onError(Throwable error) {
-		this.sendError = error;
-		notifyAll();
+	public synchronized void onError(Throwable sendError) {
+		this.sendError = sendError;
+		notify();
+		latchCalls.countDown();
+	}
+
+	public synchronized String toString() {
+		if (sent) {
+			return String.format("sent %s", context);
+		} else if (sendError != null) {
+			return String.format("error %s, %s", sendError, context);
+		} else if (context != null) {
+			return String.format("context %s", context);
+		} else {
+			return "waiting ...";
+		}
+	}
+
+	/**
+	 * Await that the provided number of calls has occurred.
+	 * 
+	 * @param timeoutMillis timeout in milliseconds.
+	 * @return {@code true} if the count reached zero and {@code false} if the
+	 *         waiting time elapsed before the count reached zero
+	 * @throws InterruptedException if the current thread is interrupted while
+	 *             waiting
+	 */
+	public boolean await(long timeoutMillis) throws InterruptedException {
+		return latchCalls.await(timeoutMillis, TimeUnit.MILLISECONDS);
 	}
 
 	/**
 	 * Get endpoint context of sent message.
 	 * 
-	 * @return endpoint context of sent message, or null, if not jet sent or
-	 *         no endpoint context is available.
+	 * @return endpoint context of sent message, or null, if not jet sent or no
+	 *         endpoint context is available.
 	 * @see #getEndpointContext(long)
 	 */
 	public synchronized EndpointContext getEndpointContext() {
