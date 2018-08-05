@@ -119,6 +119,8 @@ public class ConnectorHelper {
 			.setPskStore(pskStore)
 			.setMaxTransmissionUnit(1024)
 			.setClientAuthenticationRequired(true)
+			.setReceiverThreadCount(1)
+			.setConnectionThreadCount(2)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -157,6 +159,8 @@ public class ConnectorHelper {
 	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
@@ -186,7 +190,7 @@ public class ConnectorHelper {
 		assertNotNull(establishedServerSession);
 		if (releaseSocket) {
 			synchronized (client) {
-				client.releaseSocket();
+				client.stop();
 				// in order to prevent sporadic BindExceptions during test execution
 				// give OS some time before allowing test cases to re-bind to same port
 				client.wait(200);

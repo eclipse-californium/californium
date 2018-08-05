@@ -145,6 +145,7 @@ public class ClientInitializer {
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
 		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
 		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
+		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 
 		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			SslContextUtil.Credentials clientCredentials = null;
@@ -186,6 +187,7 @@ public class ClientInitializer {
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setConnectionThreadCount(senderThreads);
+				dtlsConfig.setReceiverThreadCount(receiverThreads);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 				if (executor != null) {

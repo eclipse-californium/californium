@@ -26,7 +26,9 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Bosch Software Innovations GmbH - remove serverNameResolver property
- *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256                        
+ *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
+ *                                                    move default thread numbers to this configuration.
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -75,6 +77,19 @@ public final class DtlsConnectorConfig {
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
+	/**
+	 * The default size of the executor's thread pool which is used for processing records.
+	 * <p>
+	 * The value of this property is 6 * <em>#(CPU cores)</em>.
+	 */
+	private static final int DEFAULT_EXECUTOR_THREAD_POOL_SIZE = 6 * Runtime.getRuntime().availableProcessors();
+	/**
+	 * The default number of receiver threads.
+	 * <p>
+	 * The value of this property is (<em>#(CPU cores)</em> + 1) / 2.
+	 */
+	private static final int DEFAULT_RECEIVER_THREADS = (Runtime.getRuntime().availableProcessors() + 1) / 2;
+
 	private static final String EC_ALGORITHM_NAME = "EC";
 
 	private InetSocketAddress address;
@@ -141,6 +156,8 @@ public final class DtlsConnectorConfig {
 	private Long staleConnectionThreshold;
 
 	private Integer connectionThreadCount;
+
+	private Integer receiverThreadCount;
 
 	/**
 	 * Automatic session resumption timeout. Triggers session resumption
@@ -396,6 +413,18 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getConnectionThreadCount() {
 		return connectionThreadCount;
+	}
+
+	/**
+	 * Gets the number of threads which should be use to receive datagrams
+	 * from the socket.
+	 * <p>
+	 * The default value is half of <em>#(CPU cores)</em>.
+	 * 
+	 * @return the number of threads.
+	 */
+	public Integer getReceiverThreadCount() {
+		return receiverThreadCount;
 	}
 
 	/**
@@ -946,6 +975,20 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Set the number of thread which should be used to receive
+		 * datagrams from the socket.
+		 * <p>
+		 * The default value is half of <em>#(CPU cores)</em>.
+		 * 
+		 * @param threadCount the number of threads.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setReceiverThreadCount(int threadCount) {
+			config.receiverThreadCount = threadCount;
+			return this;
+		}
+
+		/**
 		 * Set the timeout of automatic session resumption in milliseconds.
 		 * <p>
 		 * The default value is {@code null}, no automatic session resumption.
@@ -1039,6 +1082,12 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
+			}
+			if (config.connectionThreadCount == null) {
+				config.connectionThreadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
+			}
+			if (config.receiverThreadCount == null) {
+				config.receiverThreadCount = DEFAULT_RECEIVER_THREADS;
 			}
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
