@@ -100,6 +100,8 @@
  *                                                    on old to trigger sent error for pending messages.
  *                                                    Reuse ongoing handshaker instead of creating a new
  *                                                    one.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
+ *                                                    move default thread numbers to configuration.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -116,6 +118,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -205,12 +208,6 @@ public class DTLSConnector implements Connector {
 			+ 12 // DTLS message headers
 			+ 13 // DTLS record headers
 			+ MAX_CIPHERTEXT_EXPANSION;
-	/**
-	 * The default size of the striped executor's thread pool which is used for processing records.
-	 * <p>
-	 * The value of this property is 6 * <em>#(CPU cores)</em>.
-	 */
-	private static final int DEFAULT_EXECUTOR_THREAD_POOL_SIZE = 6 * Runtime.getRuntime().availableProcessors();
 
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
@@ -223,6 +220,8 @@ public class DTLSConnector implements Connector {
 	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
 	 */
 	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
+
+	private final List<Thread> receiverThreads = new LinkedList<Thread>();
 	
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
@@ -235,9 +234,6 @@ public class DTLSConnector implements Connector {
 
 	/** The timer daemon to schedule retransmissions. */
 	private ScheduledExecutorService timer;
-
-	/** The thread that receives messages */
-	private Worker receiver;
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
@@ -466,12 +462,7 @@ public class DTLSConnector implements Connector {
 		}
 
 		if (executor == null) {
-			int threadCount; 
-			if (config.getConnectionThreadCount() == null) {
-				threadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
-			} else {
-				threadCount = config.getConnectionThreadCount();
-			}
+			int threadCount = config.getConnectionThreadCount();
 			if (threadCount > 1) {
 				executor = ExecutorsUtil.newFixedThreadPool(threadCount - 1,
 						new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
@@ -542,19 +533,24 @@ public class DTLSConnector implements Connector {
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 		running.set(true);
 
-		receiver = new Worker("DTLS-Receiver-" + lastBindAddress) {
+		int receiverThreadCount = config.getReceiverThreadCount();
+		for (int i = 0; i < receiverThreadCount; i++) {
+			Worker receiver = new Worker("DTLS-Receiver-" + i + "-" + lastBindAddress) {
 
-			private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
-			private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
+				private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
+				private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
 
-			@Override
-			public void doWork() throws Exception {
-				packet.setData(receiverBuffer);
-				receiveNextDatagramFromNetwork(packet);
-			}
-		};
-		receiver.setDaemon(true);
-		receiver.start();
+				@Override
+				public void doWork() throws Exception {
+					packet.setData(receiverBuffer);
+					receiveNextDatagramFromNetwork(packet);
+				}
+			};
+			receiver.setDaemon(true);
+			receiver.start();
+			receiverThreads.add(receiver);
+		}
+
 		LOGGER.info(
 				"DTLS connector listening on [{}] with MTU [{}] using (inbound) datagram buffer size [{} bytes]",
 				lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize);
@@ -593,19 +589,6 @@ public class DTLSConnector implements Connector {
 		connectionStore.clear();
 	}
 
-	/**
-	 * Stops the sender and receiver threads and closes the socket
-	 * used for sending and receiving datagrams.
-	 */
-	final synchronized void releaseSocket() {
-		running.set(false);
-		if (socket != null) {
-			socket.close();
-			socket = null;
-		}
-		maximumTransmissionUnit = 0;
-	}
-
 	private final synchronized DatagramSocket getSocket() {
 		return socket;
 	}
@@ -618,8 +601,15 @@ public class DTLSConnector implements Connector {
 		synchronized (this) {
 			if (running.compareAndSet(true, false)) {
 				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
-				receiver.interrupt();
-				releaseSocket();
+				for (Thread t : receiverThreads) {
+					t.interrupt();
+				}
+				receiverThreads.clear();
+				if (socket != null) {
+					socket.close();
+					socket = null;
+				}
+				maximumTransmissionUnit = 0;
 				synchronized (connectionExecutors) {
 					for (SerialExecutor executors : connectionExecutors.values()) {
 						executors.shutdownNow(pending);

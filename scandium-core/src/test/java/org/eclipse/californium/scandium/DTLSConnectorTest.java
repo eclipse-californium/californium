@@ -165,7 +165,7 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
-		executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		executor = Executors.newFixedThreadPool(2);
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -201,6 +201,7 @@ public class DTLSConnectorTest {
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
+			.setReceiverThreadCount(1)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore, serverSessionCache);
@@ -264,6 +265,8 @@ public class DTLSConnectorTest {
 	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
@@ -2074,7 +2077,7 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			client.releaseSocket();
+			client.stop();
 		}
 	}
 
