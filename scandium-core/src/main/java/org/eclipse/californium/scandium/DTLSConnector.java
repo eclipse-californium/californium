@@ -1504,7 +1504,7 @@ public class DTLSConnector implements Connector {
 		sendNextDatagramOverNetwork(datagram);
 	}
 
-	private void sendNextDatagramOverNetwork(final DatagramPacket datagramPacket) throws IOException {
+	protected void sendNextDatagramOverNetwork(final DatagramPacket datagramPacket) throws IOException {
 		DatagramSocket socket = getSocket();
 		if (socket != null && !socket.isClosed()) {
 			try {
