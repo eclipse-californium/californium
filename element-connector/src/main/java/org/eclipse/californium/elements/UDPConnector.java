@@ -212,11 +212,7 @@ public class UDPConnector implements Connector {
 				receiverThreads.clear();
 				receiverThreads = null;
 			}
-			RawData data;
-			while ((data = outgoing.poll()) != null) {
-				pending.add(data);
-			}
-
+			outgoing.drainTo(pending);
 			if (socket != null) {
 				socket.close();
 				socket = null;
