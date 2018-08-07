@@ -290,10 +290,21 @@ public class StripedExecutorService extends AbstractExecutorService {
         try {
             shutdown();
             List<Runnable> result = new ArrayList<>();
-            for (SerialExecutor ser_ex : executors.values()) {
-                ser_ex.tasks.drainTo(result);
+            for (Runnable job : executor.shutdownNow()) {
+                if (job instanceof SerialJob) {
+                    // unwrap serial jobs 
+                    SerialJob serialJob = (SerialJob)job; 
+                    result.add(serialJob.job);
+                    serialJob.executor.drainTo(result);
+                    removeEmptySerialExecutor(serialJob.executor.stripe, serialJob.executor);
+                }
+                else {
+                    result.add(job);
+                }
             }
-            result.addAll(executor.shutdownNow());
+            for (SerialExecutor ser_ex : executors.values()) {
+                ser_ex.drainTo(result);
+            }
             return result;
         } finally {
             lock.unlock();
@@ -337,23 +348,22 @@ public class StripedExecutorService extends AbstractExecutorService {
      */
     public boolean awaitTermination(long timeout, TimeUnit unit)
             throws InterruptedException {
+        long remainingTime = unit.toNanos(timeout);
         lock.lock();
         try {
-            long waitUntil = System.nanoTime() + unit.toNanos(timeout);
-            long remainingTime;
-            while ((remainingTime = waitUntil - System.nanoTime()) > 0
-                    && !executors.isEmpty()) {
-                terminating.awaitNanos(remainingTime);
+            while (!executors.isEmpty()) {
+                if (remainingTime <= 0) {
+                    return false;
+                }
+                remainingTime = terminating.awaitNanos(remainingTime);
             }
-            if (remainingTime <= 0) return false;
-            if (executors.isEmpty()) {
-                return executor.awaitTermination(
-                        remainingTime, TimeUnit.NANOSECONDS);
-            }
-            return false;
         } finally {
             lock.unlock();
         }
+        if (remainingTime <= 0) {
+            return false;
+        }
+        return executor.awaitTermination(remainingTime, TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -369,9 +379,9 @@ public class StripedExecutorService extends AbstractExecutorService {
         assert ser_ex.isEmpty();
 
         executors.remove(stripe);
-        terminating.signalAll();
         if (state == State.SHUTDOWN && executors.isEmpty()) {
-            executor.shutdown();
+           executor.shutdown();
+           terminating.signalAll();
         }
     }
 
@@ -409,7 +419,7 @@ public class StripedExecutorService extends AbstractExecutorService {
         /**
          * The queue of unexecuted tasks.
          */
-        private final BlockingQueue<Runnable> tasks =
+        private final BlockingQueue<SerialJob> tasks =
                 new LinkedBlockingQueue<>();
         /**
          * The runnable that we are currently busy with.
@@ -454,15 +464,7 @@ public class StripedExecutorService extends AbstractExecutorService {
         public void execute(final Runnable r) {
             lock.lock();
             try {
-                tasks.add(new Runnable() {
-                    public void run() {
-                        try {
-                            r.run();
-                        } finally {
-                            scheduleNext();
-                        }
-                    }
-                });
+                tasks.add(new SerialJob(this, r));
                 if (active == null) {
                     scheduleNext();
                 }
@@ -481,7 +483,6 @@ public class StripedExecutorService extends AbstractExecutorService {
             try {
                 if ((active = tasks.poll()) != null) {
                     executor.execute(active);
-                    terminating.signalAll();
                 } else {
                     removeEmptySerialExecutor(stripe, this);
                 }
@@ -507,6 +508,47 @@ public class StripedExecutorService extends AbstractExecutorService {
             assert lock.isHeldByCurrentThread();
             return "SerialExecutor: active=" + active + ", " +
                     "tasks=" + tasks;
+        }
+
+        /**
+         * Drain job queue of this executor.
+         * 
+         * Add all inner jobs of the {@link SerialJob}s in {@link #tasks}.
+         * 
+         * @param jobs collection to add the inner jobs.
+         * @return number of added jobs.
+         */
+        public int drainTo(final Collection<Runnable> jobs) {
+            lock.lock();
+            try {
+                final int result = tasks.size();
+                for (SerialJob job : tasks) {
+                    jobs.add(job.job);
+                }
+                tasks.clear();
+                return result;
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+
+    private class SerialJob implements Runnable {
+        private final SerialExecutor executor;
+        private final Runnable job;
+
+        private SerialJob(SerialExecutor executor, Runnable job) {
+            this.executor=executor;
+            this.job = job;
+        }
+
+        @Override
+        public void run() {
+            try {
+                job.run();
+            } finally {
+                executor.scheduleNext();
+            }
         }
     }
 }
