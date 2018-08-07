@@ -22,6 +22,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to update
  *                                                    connection only, if access
  *                                                    is validated with the MAC 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix session resumption with 
+ *                                                    session cache. issue #712
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -198,7 +200,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 					if (conFromLocalCache != null) {
 						// remove corresponding connection from this store
-						remove(conFromLocalCache.getPeerAddress());
+						remove(conFromLocalCache, false);
 						// TODO: should we send a fatal alert to peer in this case?
 					}
 
@@ -246,10 +248,31 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	}
 
 	@Override
-	public synchronized Connection remove(final InetSocketAddress peerAddress) {
-		Connection removedConnection = connections.remove(peerAddress);
-		removeSessionFromCache(removedConnection);
-		return removedConnection;
+	public Connection remove(final InetSocketAddress peerAddress) {
+		return remove(peerAddress, true);
+	}
+
+	@Override
+	public synchronized Connection remove(final InetSocketAddress peerAddress, final boolean removeFromSessionCache) {
+		Connection connection = connections.remove(peerAddress);
+		if (connection != null && removeFromSessionCache) {
+			removeSessionFromCache(connection);
+		}
+		return connection;
+	}
+
+	@Override
+	public boolean remove(final Connection connection) {
+		return remove(connection, true);
+	}
+
+	@Override
+	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
+		boolean removed = connections.remove(connection.getPeerAddress(), connection) == connection;
+		if (removed && removeFromSessionCache) {
+			removeSessionFromCache(connection);
+		}
+		return removed;
 	}
 
 	private synchronized void removeSessionFromCache(final Connection connection) {
