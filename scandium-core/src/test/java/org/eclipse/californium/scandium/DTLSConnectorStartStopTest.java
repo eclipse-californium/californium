@@ -144,7 +144,7 @@ public class DTLSConnectorStartStopTest {
 			SimpleMessageCallback callback = new SimpleMessageCallback(pending, false);
 			RawData message = RawData.outbound(data, context, callback, false);
 			client.send(message);
-			assertTrue("loop: " + loop + ", DTLS handshake timed out after " + ConnectorHelper.MAX_TIME_TO_WAIT_SECS
+			assertTrue("loop: " + loop + ", " + pending + " msgs, DTLS handshake timed out after " + ConnectorHelper.MAX_TIME_TO_WAIT_SECS
 					+ " seconds", latch.await(ConnectorHelper.MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 			for (int i = 1; i < pending; ++i) {
