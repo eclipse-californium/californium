@@ -250,7 +250,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		final DatagramExchange exchange = new DatagramExchange(local, port, packet);
 		final DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
 		if (null == destination) {
-			String message = String.format("destination port {} not available!", exchange.destinationPort);
+			String message = String.format("destination port %s not available!", exchange.destinationPort);
 			if (LOGGER.isErrorEnabled()) {
 				LOGGER.error("{} {}", message, exchange.format(currentSetup));
 			}
