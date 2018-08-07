@@ -20,6 +20,8 @@
  *                                                    DatagramSocket to use the erroneous
  *                                                    internal "old implementation mode".
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup logging.
+ *                                                    add port to exception message.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -159,10 +161,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			addr = this.localAddress;
 			this.closed = true;
 		}
-		LOGGER.debug("closing port {}, address {}", new Object[] { port, addr });
+		LOGGER.debug("closing port {}, address {}", port, addr);
 		if (!isClosed) {
 			if (!map.remove(port, this)) {
-				LOGGER.info("cannot close unknown port {}, address {}", new Object[] { port, addr });
+				LOGGER.info("cannot close unknown port {}, address {}", port, addr);
 			}
 		}
 	}
@@ -182,7 +184,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (0 < timeout) {
 				exchange = incomingQueue.poll(timeout, TimeUnit.MILLISECONDS);
 				if (null == exchange) {
-					throw new SocketTimeoutException("no data available");
+					throw new SocketTimeoutException("no data available for port " + port);
 				}
 			} else {
 				exchange = incomingQueue.take();
@@ -205,7 +207,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug("socket already closed {}", exchange.format(currentSetup));
 			}
-			throw new SocketException("Socket " + addr + ":" + port + " closed!");
+			throw new SocketException("Socket " + addr + ":" + port + " already closed!");
 		} else if (LOGGER.isDebugEnabled()) {
 			LOGGER.debug("incoming {}", exchange.format(currentSetup));
 		}
@@ -214,13 +216,13 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		byte[] destPacketData = destPacket.getData();
 		if (destPacketLength < receivedLength) {
 			if (destPacketData.length > destPacketLength) {
-				LOGGER.debug("increasing receive buffer from {} to full buffer capacity [{}]",
-						new Object[] { destPacketLength, destPacketData.length });
+				LOGGER.debug("increasing receive buffer from {} to full buffer capacity [{}]", destPacketLength,
+						destPacketData.length);
 				destPacketLength = destPacketData.length;
 			}
 			if (destPacketLength < receivedLength) {
-				LOGGER.debug("truncating data [length: {}] to fit into receive buffer [size: {}]",
-						new Object[] { receivedLength, destPacketLength });
+				LOGGER.debug("truncating data [length: {}] to fit into receive buffer [size: {}]", receivedLength,
+						destPacketLength);
 				receivedLength = destPacketLength;
 			}
 		}
@@ -248,11 +250,11 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		final DatagramExchange exchange = new DatagramExchange(local, port, packet);
 		final DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
 		if (null == destination) {
+			String message = String.format("destination port {} not available!", exchange.destinationPort);
 			if (LOGGER.isErrorEnabled()) {
-				LOGGER.error("destination (port {}) not available! {}",
-						new Object[] { exchange.destinationPort, exchange.format(currentSetup) });
+				LOGGER.error("{} {}", message, exchange.format(currentSetup));
 			}
-			throw new PortUnreachableException("destination not available");
+			throw new PortUnreachableException(message);
 		} else if (isClosed) {
 			if (LOGGER.isWarnEnabled()) {
 				LOGGER.warn("closed/packet dropped! {}", exchange.format(currentSetup));
@@ -353,8 +355,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (!sourceAddress.equals(destinationAddress)) {
 				destination = destinationAddress.getHostAddress();
 			}
-			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", new Object[] { id, tid,
-					sourceAddress.getHostAddress(), sourcePort, delay, destination, destinationPort, content });
+			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", id, tid,
+					sourceAddress.getHostAddress(), sourcePort, delay, destination, destinationPort, content);
 		}
 	}
 
