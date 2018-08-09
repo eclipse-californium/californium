@@ -75,6 +75,8 @@
  *                                                    connection store is exhausted.
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix double incrementing 
  *                                                    pending outgoing message downcounter.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - update dtls session timestamp only,
+ *                                                    if access is validated with the MAC 
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -691,8 +693,8 @@ public class DTLSConnector implements Connector {
 	}
 
 	private void processApplicationDataRecord(final Record record) {
-		DTLSSession session = null;
-		Connection connection = connectionStore.get(record.getPeerAddress());
+		final DTLSSession session;
+		final Connection connection = connectionStore.get(record.getPeerAddress());
 		if (connection != null && (session = connection.getEstablishedSession()) != null) {
 			RawData receivedApplicationMessage = null;
 			synchronized (session) {
@@ -711,7 +713,6 @@ public class DTLSConnector implements Connector {
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 						// create application message.
 						receivedApplicationMessage = RawData.inbound(message.getData(), session.getConnectionReadContext(), false);
-						connection.refreshAutoResumptionTime();
 					} catch (HandshakeException | GeneralSecurityException e) {
 						// this means that we could not parse or decrypt the message
 						discardRecord(record, e);
@@ -721,10 +722,15 @@ public class DTLSConnector implements Connector {
 							record.getPeerAddress());
 				}
 			}
-			RawDataChannel channel = messageHandler;
-			// finally, forward de-crypted message to application layer outside the synchronized block
-			if (channel != null && receivedApplicationMessage != null) {
-				channel.receiveData(receivedApplicationMessage);
+			if (receivedApplicationMessage != null) {
+				connection.refreshAutoResumptionTime();
+				connectionStore.update(connection);
+				RawDataChannel channel = messageHandler;
+				// finally, forward de-crypted message to application layer
+				// outside the synchronized block
+				if (channel != null) {
+					channel.receiveData(receivedApplicationMessage);
+				}
 			}
 		} else {
 			LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}] without an active session",
