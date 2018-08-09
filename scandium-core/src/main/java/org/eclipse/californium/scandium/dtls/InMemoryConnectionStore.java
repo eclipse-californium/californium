@@ -19,6 +19,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to return 
  *                                                    expired entries on read access.
  *                                                    See issue #707
+ *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to update
+ *                                                    connection only, if access
+ *                                                    is validated with the MAC 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -115,6 +118,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
 		connections.setEvictingOnReadAccess(false);
+		connections.setUpdatingOnReadAccess(false);
 		this.sessionCache = sessionCache;
 
 		if (sessionCache != null) {
@@ -128,7 +132,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			});
 		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
-				new Object[]{capacity, threshold});
+				capacity, threshold);
 	}
 
 	/**
@@ -156,6 +160,16 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 		if (connection != null) {
 			return connections.put(connection.getPeerAddress(), connection);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public synchronized boolean update(final Connection connection) {
+
+		if (connection != null) {
+			return connections.update(connection.getPeerAddress());
 		} else {
 			return false;
 		}

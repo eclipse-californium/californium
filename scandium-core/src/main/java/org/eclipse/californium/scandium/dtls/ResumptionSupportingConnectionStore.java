@@ -19,6 +19,16 @@ public interface ResumptionSupportingConnectionStore {
 	boolean put(Connection connection);
 
 	/**
+	 * Update a connection in the store.
+	 * 
+	 * Update the last-access time to prevent connection from being evicted.
+	 * 
+	 * @param connection the connection to update.
+	 * @return <code>true</code>, if updated, <code>false</code>, otherwise.
+	 */
+	boolean update(Connection connection);
+
+	/**
 	 * Gets the number of additional connection this store can manage.
 	 * 
 	 * @return the remaining capacity
@@ -62,5 +72,5 @@ public interface ResumptionSupportingConnectionStore {
 	 * 
 	 */
 	void markAllAsResumptionRequired();
-	
+
 }
