@@ -23,12 +23,11 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Iterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An in-memory <code>ConnectionStore</code> with a configurable maximum capacity
@@ -217,11 +216,8 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public synchronized void markAllAsResumptionRequired() {
-		for (Iterator<Connection> iterator = connections.values(); iterator.hasNext(); ) {
-			Connection c = iterator.next();
-			if (c != null){
-				c.setResumptionRequired(true);
-			}
+		for (Connection connection : connections.values()) {
+			connection.setResumptionRequired(true);
 		}
 	}
 

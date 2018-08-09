@@ -17,11 +17,22 @@
  *                                                    from system time changes
  *    Achim Kraus (Bosch Software Innovations GmbH) - add save remove with value
  *                                                    parameter
- *    Achim Kraus (Bosch Software Innovations GmbH) - add parameter for 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add parameter for
  *                                                    "evict on access"
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add parameter for
+ *                                                    "update last-access time on read-access".
+ *                                                    change return type of values()
+ *                                                    from Iterator to Collection to
+ *                                                    support "for(V v : values()".
+ *                                                    remove evicted entries via iterator
+ *                                                    to prevent ConcurrentModificationException.
+ *                                                    use nanoseconds for expirationThreshold
+ *                                                    mainly to speedup tests.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.util.AbstractCollection;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -36,6 +47,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * The cache keeps track of the values' last-access time automatically. Every
  * time a value is read from or put to the store, the access-time is updated.
+ * This update may be suppressed for read access by {@link #updateOnReadAccess}.
  * </p>
  * <p>
  * A value can be successfully added to the cache if any of the following
@@ -50,7 +62,8 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  * <p>
  * Depending on {@link #evictOnReadAccess} the read access may evict expired
- * entries or returns them and updates the last-access time.
+ * entries or returns them and updates the last-access time, if not suppressed
+ * by {@link #updateOnReadAccess}.
  * </p>
  * <p>
  * This implementation uses a {@link java.util.HashMap} as its backing store. In
@@ -89,19 +102,26 @@ public class LeastRecentlyUsedCache<K, V> {
 	 */
 	public static final int DEFAULT_CAPACITY = 150000;
 
-	private Map<K, CacheEntry<K, V>> cache;
+	private Collection<V> values;
+	private final Map<K, CacheEntry<K, V>> cache;
 	private volatile int capacity;
 	private CacheEntry<K, V> header;
 	/**
-	 * Threshold for expiration in seconds.
+	 * Threshold for expiration in nanoseconds.
 	 */
-	private volatile long expirationThreshold;
+	private volatile long expirationThresholdNanos;
 	/**
 	 * Enables eviction on read access ({@link #get(Object)} and
 	 * {@link #find(Predicate)}). Default is {@code true}.
 	 */
 	private volatile boolean evictOnReadAccess = true;
-	private List<EvictionListener<V>> evictionListeners = new LinkedList<>();
+	/**
+	 * Enables update last-access time on read access ({@link #get(Object)} and
+	 * {@link #find(Predicate)}). Default is {@code true}.
+	 */
+	private volatile boolean updateOnReadAccess = true;
+
+	private final List<EvictionListener<V>> evictionListeners = new LinkedList<>();
 
 	/**
 	 * Creates a cache with an initial capacity of
@@ -147,8 +167,8 @@ public class LeastRecentlyUsedCache<K, V> {
 			throw new IllegalArgumentException("initial capacity must be <= max capacity");
 		} else {
 			this.capacity = maxCapacity;
-			this.expirationThreshold = threshold;
 			this.cache = new HashMap<>(initialCapacity);
+			setExpirationThreshold(threshold);
 			initLinkedList();
 		}
 	}
@@ -191,13 +211,33 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	/**
+	 * Get update last-access time mode on read access.
+	 * 
+	 * @return {@code true}, if entries last-access time is updated on read
+	 *         access, {@code false}, if not.
+	 */
+	public boolean isUpdatingOnReadAccess() {
+		return updateOnReadAccess;
+	}
+
+	/**
+	 * Set update last-access time mode on read access.
+	 * 
+	 * @param update {@code true},if entries last-access time is updated on read
+	 *            access, {@code false}, if not.
+	 */
+	public void setUpdatingOnReadAccess(boolean update) {
+		updateOnReadAccess = update;
+	}
+
+	/**
 	 * Gets the period of time after which an entry is considered <em>stale</em>
 	 * if it hasn't be accessed.
 	 * 
 	 * @return the threshold in seconds
 	 */
 	public final long getExpirationThreshold() {
-		return expirationThreshold;
+		return TimeUnit.NANOSECONDS.toSeconds(expirationThresholdNanos);
 	}
 
 	/**
@@ -215,7 +255,26 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * @see #find(Predicate)
 	 */
 	public final void setExpirationThreshold(long newThreshold) {
-		this.expirationThreshold = newThreshold;
+		setExpirationThreshold(newThreshold, TimeUnit.SECONDS);
+	}
+
+	/**
+	 * Sets the period of time after which an entry is to be considered stale if
+	 * it hasn't be accessed.
+	 * 
+	 * <em>NB</em>: invoking this method after creation of the cache does
+	 * <em>not</em> have an immediate effect, i.e. no (now stale) entries are
+	 * purged from the cache. This happens only when a new entry is put to the
+	 * cache or a stale entry is read from the cache.
+	 * 
+	 * @param newThreshold the threshold
+	 * @param unit TimeUnit for threshold
+	 * @see #put(Object, Object)
+	 * @see #get(Object)
+	 * @see #find(Predicate)
+	 */
+	public final void setExpirationThreshold(long newThreshold, TimeUnit unit) {
+		this.expirationThresholdNanos = unit.toNanos(newThreshold);
 	}
 
 	/**
@@ -307,7 +366,7 @@ public class LeastRecentlyUsedCache<K, V> {
 				return true;
 			} else {
 				CacheEntry<K, V> eldest = header.after;
-				if (eldest.isStale(expirationThreshold)) {
+				if (eldest.isStale(expirationThresholdNanos)) {
 					eldest.remove();
 					cache.remove(eldest.getKey());
 					add(key, value);
@@ -358,19 +417,48 @@ public class LeastRecentlyUsedCache<K, V> {
 		if (entry == null) {
 			return null;
 		}
-		return access(entry);
+		return access(entry, null);
 	}
 
-	private final V access(CacheEntry<K, V> entry) {
-		if (evictOnReadAccess && expirationThreshold > 0 && entry.isStale(expirationThreshold)) {
-			cache.remove(entry.getKey());
+	private final V access(CacheEntry<K, V> entry, Iterator<CacheEntry<K, V>> iterator) {
+		if (evictOnReadAccess && expirationThresholdNanos > 0 && entry.isStale(expirationThresholdNanos)) {
+			if (iterator != null) {
+				// remove via iterator to prevent
+				// ConcurrentModificationException
+				iterator.remove();
+			} else {
+				cache.remove(entry.getKey());
+			}
 			entry.remove();
 			notifyEvictionListeners(entry.getValue());
 			return null;
 		} else {
-			entry.recordAccess(header);
+			if (updateOnReadAccess) {
+				entry.recordAccess(header);
+			}
 			return entry.getValue();
 		}
+	}
+
+	/**
+	 * Update the last-access time.
+	 * 
+	 * Intended to be used, if automatic updating the last-access time on
+	 * read-access is suppressed by {@link #updateOnReadAccess}.
+	 * 
+	 * @param key the key to update the last-access time.
+	 * @return {@code true}, if updated, {@code false}, otherwise.
+	 */
+	public final boolean update(K key) {
+		if (key == null) {
+			return false;
+		}
+		CacheEntry<K, V> entry = cache.get(key);
+		if (entry == null) {
+			return false;
+		}
+		entry.recordAccess(header);
+		return true;
 	}
 
 	/**
@@ -446,9 +534,11 @@ public class LeastRecentlyUsedCache<K, V> {
 	 */
 	public final V find(Predicate<V> predicate, boolean unique) {
 		if (predicate != null) {
-			for (CacheEntry<K, V> entry : cache.values()) {
+			final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
+			while (iterator.hasNext()) {
+				CacheEntry<K, V> entry = iterator.next();
 				if (predicate.accept(entry.getValue())) {
-					V value = access(entry);
+					V value = access(entry, iterator);
 					if (unique || value != null) {
 						return value;
 					}
@@ -473,7 +563,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		 * @return {@code true} if the cache entry containing the value is part
 		 *         of the result set.
 		 */
-		public boolean accept(V value);
+		boolean accept(V value);
 	}
 
 	/**
@@ -489,11 +579,11 @@ public class LeastRecentlyUsedCache<K, V> {
 		 * 
 		 * @param evictedValue The evicted entry.
 		 */
-		public void onEviction(V evictedValue);
+		void onEviction(V evictedValue);
 	}
 
 	/**
-	 * Gets all connections contained in this cache.
+	 * Gets iterator over all connections contained in this cache.
 	 * <p>
 	 * The iterator returned is directly backed by this cache's underlying map.
 	 * If the cache is modified while an iteration over the values is in
@@ -505,28 +595,34 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @return an iterator over all connections backed by the underlying map.
 	 */
-	public final Iterator<V> values() {
-		final Iterator<CacheEntry<K, V>> iter = cache.values().iterator();
+	public final Iterator<V> valuesIterator() {
+		final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
 
 		return new Iterator<V>() {
 
+			private boolean hasNextCalled;
 			private CacheEntry<K, V> nextEntry;
 
 			@Override
 			public boolean hasNext() {
-				nextEntry = null;
-				while (iter.hasNext()) {
-					CacheEntry<K, V> entry = iter.next();
-					if (access(entry) != null) {
-						nextEntry = entry;
-						break;
+				if (!hasNextCalled) {
+					nextEntry = null;
+					while (iterator.hasNext()) {
+						CacheEntry<K, V> entry = iterator.next();
+						if (access(entry, iterator) != null) {
+							nextEntry = entry;
+							break;
+						}
 					}
+					hasNextCalled = true;
 				}
 				return nextEntry != null;
 			}
 
 			@Override
 			public V next() {
+				hasNext();
+				hasNextCalled = false;
 				if (nextEntry == null) {
 					throw new NoSuchElementException();
 				}
@@ -538,6 +634,65 @@ public class LeastRecentlyUsedCache<K, V> {
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	/**
+	 * Gets all connections contained in this cache.
+	 * 
+	 * The returned collection is intended to be used as read access, therefore
+	 * the modifying methods will throw a {@link UnsupportedOperationException}.
+	 * 
+	 * Note: the {@link #evictOnReadAccess} feature may alter the underlying map
+	 * even for read access. Therefore the clients should explicitly serialize
+	 * access to the returned collection from multiple threads. The returned
+	 * size doesn't reflect potential eviction on read-access.
+	 * 
+	 * @return an collection of all connections backed by the underlying map.
+	 */
+	public final Collection<V> values() {
+		Collection<V> vs = values;
+		if (vs == null) {
+			vs = new AbstractCollection<V>() {
+
+				@Override
+				public final int size() {
+					return cache.size();
+				}
+
+				@Override
+				public final boolean contains(final Object o) {
+					return null != find(new Predicate<V>() {
+
+						@Override
+						public boolean accept(final V value) {
+							return value.equals(o);
+						}
+					}, false);
+				}
+
+				@Override
+				public final Iterator<V> iterator() {
+					return valuesIterator();
+				}
+
+				@Override
+				public final boolean add(Object o) {
+					throw new UnsupportedOperationException();
+				}
+
+				@Override
+				public final boolean remove(Object o) {
+					throw new UnsupportedOperationException();
+				}
+
+				@Override
+				public final void clear() {
+					throw new UnsupportedOperationException();
+				}
+			};
+			values = vs;
+		}
+		return vs;
 	}
 
 	private static class CacheEntry<K, V> {
@@ -568,8 +723,8 @@ public class LeastRecentlyUsedCache<K, V> {
 			return value;
 		}
 
-		private boolean isStale(long threshold) {
-			return System.nanoTime() - lastUpdate >= TimeUnit.SECONDS.toNanos(threshold);
+		private boolean isStale(long thresholdNanos) {
+			return System.nanoTime() - lastUpdate >= thresholdNanos;
 		}
 
 		private void recordAccess(CacheEntry<K, V> header) {
