@@ -219,7 +219,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					if (enableStatus) {
 						{
 							HEALTH_LOGGER.debug("{} block1 transfers", block1Transfers.size());
-							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.values();
+							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.valuesIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block1 {}", iterator.next());
@@ -231,7 +231,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						}
 						{
 							HEALTH_LOGGER.debug("{} block2 transfers", block2Transfers.size());
-							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.values();
+							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.valuesIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block2 {}", iterator.next());
