@@ -22,7 +22,7 @@ import java.io.File;
 import java.net.SocketException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Endpoint;
@@ -62,7 +62,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10000);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
@@ -107,7 +107,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				protocols = Arrays.asList(Protocol.DTLS);
 			}
 
-			ScheduledExecutorService executor = Executors.newScheduledThreadPool(//
+			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 

@@ -145,7 +145,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public boolean isStarted() {
+		public boolean isRunning() {
 			return false;
 		}
 

@@ -183,12 +183,7 @@ public class ConnectorHelper {
 		establishedServerSession = con.getEstablishedSession();
 		assertNotNull(establishedServerSession);
 		if (releaseSocket) {
-			synchronized (client) {
-				client.releaseSocket();
-				// in order to prevent sporadic BindExceptions during test execution
-				// give OS some time before allowing test cases to re-bind to same port
-				client.wait(200);
-			}
+			client.stop();
 		}
 		return clientChannel;
 	}
@@ -205,10 +200,12 @@ public class ConnectorHelper {
 		}
 
 		@Override
-		public synchronized void receiveData(RawData raw) {
+		public void receiveData(RawData raw) {
 			super.receiveData(raw);
-			if (latch != null) {
-				latch.countDown();
+			synchronized (this) {
+				if (latch != null) {
+					latch.countDown();
+				}
 			}
 		}
 	}
@@ -221,14 +218,18 @@ public class ConnectorHelper {
 			setProcessor(processor);
 		}
 
-		public void setProcessor(final RawDataProcessor processor) {
+		public synchronized void setProcessor(final RawDataProcessor processor) {
 			this.processor = processor;
 		}
 
 		@Override
 		public void receiveData(final RawData raw) {
+			RawDataProcessor processor;
+			synchronized (this) {
+				processor = this.processor;
+			}
 			if (processor != null) {
-				RawData response = this.processor.process(raw);
+				RawData response = processor.process(raw);
 				if (response != null) {
 					server.send(response);
 				}

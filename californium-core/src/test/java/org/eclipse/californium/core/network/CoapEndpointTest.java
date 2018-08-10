@@ -19,6 +19,8 @@
  *                                                    adjust MessageCallback test to
  *                                                    testSendRequestCallsMessageCallbackOnSent
  *                                                    issue #305
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use CoapNetworkRule to
+ *                                                    get NetworkConfig for tests
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -51,25 +53,36 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class CoapEndpointTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
 	static final int MESSAGE_ID = 4711;
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 	static final InetSocketAddress CONNECTOR_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 13000);
+	static NetworkConfig config;
+	
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
 	CountDownLatch latch;
 	CountDownLatch sentLatch;
 	EndpointContext establishedContext;
+
+	@BeforeClass
+	public static void prepare() {
+		config = network.getStandardTestConfig();
+	}
 
 	@Before
 	public void setUp() throws Exception {
@@ -78,7 +91,7 @@ public class CoapEndpointTest {
 		connector = new SimpleConnector();
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(connector);
-		builder.setNetworkConfig(CONFIG);
+		builder.setNetworkConfig(config);
 
 		endpoint = builder.build();
 		sentLatch = new CountDownLatch(1);
@@ -163,7 +176,7 @@ public class CoapEndpointTest {
 		SimpleConnector connector = new SimpleSecureConnector();
 		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(connector);
-		builder.setNetworkConfig(CONFIG);
+		builder.setNetworkConfig(config);
 		Endpoint endpoint = builder.build();
 		MessageDeliverer deliverer = new MessageDeliverer() {
 

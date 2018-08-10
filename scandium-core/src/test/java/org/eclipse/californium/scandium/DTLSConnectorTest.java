@@ -1778,7 +1778,7 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			client.releaseSocket();
+			client.stop();
 		}
 	}
 

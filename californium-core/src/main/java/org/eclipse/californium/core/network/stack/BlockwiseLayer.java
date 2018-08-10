@@ -53,16 +53,14 @@
  *                                                    sendResponse
  *                                                    add health status logging
  *                                                    for blockwise transfers
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    for health status instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.util.Iterator;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -76,8 +74,10 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides transparent handling of the blockwise transfer of a large <em>resource body</em>.
@@ -151,6 +151,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private volatile boolean enableStatus;
+	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
 	private int preferredBlockSize;
 	private int preferredBlockSzx;
@@ -210,9 +211,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			ScheduledExecutorService scheduler = Executors
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("BlockwiseLayer"));
-			scheduler.scheduleAtFixedRate(new Runnable() {
+			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -244,6 +243,14 @@ public class BlockwiseLayer extends AbstractLayer {
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		}
+	}
+
+	@Override
+	public void destroy() {
+		if (statusLogger != null) {
+			statusLogger.cancel(false);
+			statusLogger = null;
 		}
 	}
 

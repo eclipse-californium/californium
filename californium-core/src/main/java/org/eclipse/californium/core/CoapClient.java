@@ -45,7 +45,6 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -66,6 +65,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
@@ -244,7 +244,7 @@ public class CoapClient {
 	 */
 	public CoapClient useExecutor() {
 		boolean failed = true;
-		ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		ExecutorService executor = ExecutorsUtil.newFixedThreadPool(1, new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
 		synchronized (this) {
 			if (this.executor == null) {
 				this.executor = executor;
@@ -336,7 +336,7 @@ public class CoapClient {
 		synchronized (this) {
 			this.endpoint = endpoint;
 		}
-		if (!endpoint.isStarted()) {
+		if (!endpoint.isRunning()) {
 			try {
 				endpoint.start();
 				LOGGER.info("started set client endpoint {}", endpoint.getAddress());

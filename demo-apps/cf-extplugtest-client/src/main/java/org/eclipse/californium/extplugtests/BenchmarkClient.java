@@ -26,8 +26,6 @@ import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,6 +51,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.plugtests.ClientInitializer;
@@ -116,6 +115,21 @@ public class BenchmarkClient {
 	private static final int DEFAULT_NOTIFIES = 0;
 
 	/**
+	 * NetworkConfig key for number of threads used per client. {@code 0} to use
+	 * a shared thread pool.
+	 * <p>
+	 * Default: {@code 0}, use shared thread pool
+	 * <p>
+	 * Note: unfortunately the currently used synchronous socket requires at
+	 * least it's own receiver thread. So the number of threads is considered to
+	 * be used for the other components used by a client.
+	 */
+	private static final String KEY_BENCHMARK_CLIENT_THREADS = "BENCHMARK_CLIENT_THREADS";
+
+	private static final ThreadGroup CLIENT_THREAD_GROUP = new ThreadGroup("Client"); //$NON-NLS-1$
+
+	private static final NamedThreadFactory threadFactory = new DaemonThreadFactory("Client#", CLIENT_THREAD_GROUP);
+	/**
 	 * Special network configuration defaults handler.
 	 */
 	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
@@ -134,6 +148,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
 			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 1);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0);
+			config.setInt(KEY_BENCHMARK_CLIENT_THREADS, 0);
 		}
 
 	};
@@ -267,6 +282,10 @@ public class BenchmarkClient {
 	 */
 	private static boolean noneStop;
 	/**
+	 * Shutdown executor.
+	 */
+	private final boolean shutdown;
+	/**
 	 * Executor service for this client.
 	 */
 	private final ScheduledExecutorService executorService;
@@ -307,11 +326,21 @@ public class BenchmarkClient {
 	 * @param intervalMax maximum notifies interval in milliseconds
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
+	 * @param executor
 	 */
-	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint) {
+	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
+			ScheduledExecutorService executor) {
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
-		executorService = Executors.newScheduledThreadPool(2, new NamedThreadFactory("Client-" + index + "#"));
+		int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
+		if (threads > 0) {
+			executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
+			shutdown = true;
+		} else {
+			executorService = executor;
+			shutdown = false;
+		}
 		endpoint.addInterceptor(new MessageTracer());
+		endpoint.setExecutor(executorService);
 		client = new CoapClient(uri);
 		server = new CoapServer(endpoint.getConfig());
 		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
@@ -322,8 +351,7 @@ public class BenchmarkClient {
 				overallNotifiesDownCounter, notifiesCompleteTimeouts);
 		feed.addObserver(feedObserver);
 		server.add(feed);
-		server.setExecutor(executorService);
-		endpoint.setExecutor(executorService);
+		server.setExecutor(executorService, true);
 		this.endpoint = endpoint;
 	}
 
@@ -381,7 +409,7 @@ public class BenchmarkClient {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
-			Request post = Request.newPost();
+			final Request post = Request.newPost();
 			post.setURI(client.getURI());
 			post.addMessageObserver(retransmissionDetector);
 			client.advanced(new CoapHandler() {
@@ -389,7 +417,9 @@ public class BenchmarkClient {
 				@Override
 				public void onLoad(CoapResponse response) {
 					if (response.isSuccess()) {
-						next();
+						if (!stop.get()) {
+							next();
+						}
 						long c = overallRequestsDownCounter.getCount();
 						LOGGER.info("Received response: {} {}", response.advanced(), c);
 					} else {
@@ -400,14 +430,17 @@ public class BenchmarkClient {
 
 				@Override
 				public void onError() {
-					long c = requestsCounter.get();
-					if (noneStop) {
-						transmissionErrorCounter.incrementAndGet();
-						LOGGER.info("Error after {} requests.", c);
-						next();
-					} else {
-						LOGGER.error("failed after {} requests!", c);
-						stop();
+					if (!stop.get()) {
+						long c = requestsCounter.get();
+						String msg = post.getSendError() == null ? "" : post.getSendError().getMessage();
+						if (noneStop) {
+							transmissionErrorCounter.incrementAndGet();
+							LOGGER.info("Error after {} requests. {}", c, msg);
+							next();
+						} else {
+							LOGGER.error("failed after {} requests! {}", c, msg);
+							stop();
+						}
 					}
 				}
 
@@ -439,8 +472,10 @@ public class BenchmarkClient {
 			clientCounter.decrementAndGet();
 			endpoint.stop();
 			server.stop();
+			if (shutdown) {
+				executorService.shutdownNow();
+			}
 			client.shutdown();
-			executorService.shutdownNow();
 			server.destroy();
 			endpoint.destroy();
 		}
@@ -539,8 +574,8 @@ public class BenchmarkClient {
 		overallNotifiesDownCounter = new CountDownLatch(overallNotifies);
 
 		List<BenchmarkClient> clientList = new ArrayList<>(clients);
-		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
-				new DaemonThreadFactory("Aux#"));
+		ScheduledExecutorService executor = ExecutorsUtil
+				.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new DaemonThreadFactory("Aux#"));
 
 		boolean plain = uri.getScheme().equals(CoAP.COAP_URI_SCHEME);
 
@@ -557,6 +592,7 @@ public class BenchmarkClient {
 		}
 
 		final CountDownLatch start = new CountDownLatch(clients);
+		final int threads = config.getInt(KEY_BENCHMARK_CLIENT_THREADS);
 
 		// Create & start clients
 		for (int index = 0; index < clients; ++index) {
@@ -569,12 +605,16 @@ public class BenchmarkClient {
 				DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 				dtlsBuilder.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
 				dtlsBuilder.setClientOnly();
-				dtlsBuilder.setConnectionThreadCount(1);
-				dtlsBuilder.setMaxConnections(10);
-				endpointBuilder.setConnector(new DTLSConnector(dtlsBuilder.build()));
+				dtlsBuilder.setConnectionThreadCount(config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT));
+				dtlsBuilder.setMaxConnections(config.getInt(Keys.MAX_ACTIVE_PEERS));
+				DTLSConnector connector = new DTLSConnector(dtlsBuilder.build());
+				if (threads == 0) {
+					connector.setExecutor(executor);
+				}
+				endpointBuilder.setConnector(connector);
 			}
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
-					endpointBuilder.build());
+					endpointBuilder.build(), executor);
 			clientList.add(client);
 			if (index == 0) {
 				// first client, so test request
@@ -584,6 +624,7 @@ public class BenchmarkClient {
 					System.out.format("Request %s POST failed, exit Benchmark.%n", uri);
 					System.exit(-1);
 				}
+				System.out.println("Benchmark clients, first request successful.");
 			} else {
 				executor.execute(new Runnable() {
 
@@ -678,9 +719,10 @@ public class BenchmarkClient {
 			BenchmarkClient client = clientList.get(index);
 			statistic[index] = client.stop();
 		}
+		executor.shutdown();
 
 		System.out.format("%d requests sent, %d expected%n", overallSentRequests, overallRequests);
-		System.out.format("%d requests in %dms%s%n", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
+		System.out.format("%d requests in %d ms%s%n", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
 				formatPerSecond("reqs", overallSentRequests, requestNanos));
 		if (overallNotifies > 0) {
 			System.out.format("%d notifies sent, %d expected, %d observe requests%n", overallSentNotifies,

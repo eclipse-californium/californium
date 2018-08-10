@@ -197,7 +197,7 @@ public class NetworkConfigDefaults {
 
 		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
 		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
-		config.setInt(Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setLong(Keys.CROP_ROTATION_PERIOD, DEFAULT_EXCHANGE_LIFETIME);
 		config.setString(Keys.RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 
 		config.setInt(Keys.HTTP_PORT, 8080);
