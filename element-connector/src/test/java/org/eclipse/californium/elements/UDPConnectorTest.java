@@ -16,6 +16,7 @@
  *                                                    CorrelationContextMatcher
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for MessageCallback
  *                                                    add tests for start/stop
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use Logger and NetworkRule
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -30,12 +31,20 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UDPConnectorTest {
+	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnectorTest.class.getName());
+
+	@ClassRule
+	public static NetworkRule network = new NetworkRule(NetworkRule.Mode.DIRECT, NetworkRule.Mode.NATIVE);
 
 	UDPConnector connector;
 	UDPConnector destination;
@@ -138,7 +147,7 @@ public class UDPConnectorTest {
 		EndpointContext context = new UdpEndpointContext(dest);
 
 		for (int loop = 0; loop < loops; ++loop) {
-			System.out.format("start/stop: %d/%d loops, %d msgs%n", loop, loops, pending);
+			LOGGER.info("start/stop: {}/{} loops, {} msgs", loop, loops, pending);
 			TestEndpointContextMatcher matcher = new TestEndpointContextMatcher(pending, pending);
 			connector.setEndpointContextMatcher(matcher);
 
