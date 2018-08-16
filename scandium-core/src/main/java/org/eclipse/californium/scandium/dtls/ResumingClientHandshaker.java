@@ -24,6 +24,10 @@
  *                                                    APPLICATION messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix NullPointerException, if ccs is processed 
+ *                                                    before the SERVER_HELLO.
+ *                                                    move expectChangeCipherSpecMessage after
+ *                                                    receiving SERVER_HELLO.
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -87,7 +91,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
-		expectChangeCipherSpecMessage();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -169,6 +172,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				} else {
 					this.serverHello = serverHello;
 					serverRandom = serverHello.getRandom();
+					expectChangeCipherSpecMessage();
 				}
 				break;
 
