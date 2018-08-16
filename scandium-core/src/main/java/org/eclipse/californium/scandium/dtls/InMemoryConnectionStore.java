@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * Storing and reading to/from the store is thread safe.
  * </p>
  */
-public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, SessionListener {
+public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
 	private static final int DEFAULT_CACHE_SIZE = 150000;
@@ -285,28 +285,5 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	public final synchronized void clear() {
 		connections.clear();
 		// TODO: does it make sense to clear the SessionCache as well?
-	}
-
-	@Override
-	public void handshakeStarted(final Handshaker handshaker) throws HandshakeException {
-		// nothing to do
-	}
-
-	@Override
-	public void sessionEstablished(final Handshaker handshaker, final DTLSSession establishedSession) throws HandshakeException {
-		if (sessionCache != null) {
-			// put current connection state to second level cache
-			sessionCache.put(establishedSession);
-		}
-	}
-
-	@Override
-	public void handshakeCompleted(final InetSocketAddress peer) {
-		// nothing to do
-	}
-
-	@Override
-	public void handshakeFailed(final InetSocketAddress peer, Throwable error) {
-		// nothing to do
 	}
 }

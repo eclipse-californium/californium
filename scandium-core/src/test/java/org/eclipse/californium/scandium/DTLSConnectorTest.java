@@ -200,7 +200,7 @@ public class DTLSConnectorTest {
 			.setClientAuthenticationRequired(true)
 			.build();
 
-		server = new DTLSConnector(serverConfig, serverConnectionStore);
+		server = new DTLSConnector(serverConfig, serverConnectionStore, serverSessionCache);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.setExecutor(stripedExecutor);
 		server.start();
@@ -221,7 +221,7 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		client.setExecutor(stripedExecutor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
@@ -236,7 +236,7 @@ public class DTLSConnectorTest {
 		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
 		clientConfig = clientConfigBuilder.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		client.setExecutor(stripedExecutor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
@@ -568,7 +568,7 @@ public class DTLSConnectorTest {
 
 		// WHEN starting a new handshake (epoch 0) reusing the same client IP
 		clientConfig = newStandardConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 
 		// THEN assert that the handshake succeeds and a session is established
 		givenAnEstablishedSession();
@@ -1127,7 +1127,7 @@ public class DTLSConnectorTest {
 		// create a new client with different inetAddress but with the same session store.
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
 		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
@@ -1533,7 +1533,7 @@ public class DTLSConnectorTest {
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setSupportedCipherSuites(new CipherSuite[] {CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
 				.build();
-			client = new DTLSConnector(clientConfig, clientConnectionStore);
+			client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 			givenAnEstablishedSession();
 	}
 	
@@ -1548,7 +1548,7 @@ public class DTLSConnectorTest {
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		givenAnEstablishedSession();
 	}
 
@@ -1578,7 +1578,7 @@ public class DTLSConnectorTest {
 			.setAddress(clientEndpoint)
 			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		givenAnEstablishedSession();
 
 		assertClientIdentity(PreSharedKeyIdentity.class);
@@ -1598,7 +1598,7 @@ public class DTLSConnectorTest {
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
 		givenAnEstablishedSession();
 
 		assertClientIdentity(X509CertPath.class);
