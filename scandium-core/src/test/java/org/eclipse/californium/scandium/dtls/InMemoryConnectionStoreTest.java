@@ -103,21 +103,6 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	@Test
-	public void testSessionEstablishedPutsSessionToSessionCache() throws Exception {
-		// GIVEN a connection store with an empty session cache
-		SessionCache sessionCache = new InMemorySessionCache();
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
-
-		// WHEN a session is established as part of a successful handshake
-		store.sessionEstablished(null, con.getEstablishedSession());
-
-		// THEN assert that the established session has been put to the session cache
-		SessionTicket ticketFromCache = sessionCache.get(sessionId);
-		assertThat(ticketFromCache, is(notNullValue()));
-		assertThat(ticketFromCache.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
-	}
-
-	@Test
 	public void testClearRemovesAllConnectionsFromStore() throws Exception {
 		// given a non-empty connection store
 		store.put(con);

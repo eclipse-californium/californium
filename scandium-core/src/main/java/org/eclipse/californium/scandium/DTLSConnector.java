@@ -81,6 +81,9 @@
  *                                                    issue #712
  *                                                    execute jobs after shutdown to ensure, 
  *                                                    onError is called for all pending messages. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix issues #716 and #717
+ *                                                    change scopes to protected to support
+ *                                                    subclass specific implementations.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -256,7 +259,8 @@ public class DTLSConnector implements Connector {
 				new InMemoryConnectionStore(
 						configuration.getMaxConnections(),
 						configuration.getStaleConnectionThreshold(),
-						sessionCache));
+						sessionCache),
+				sessionCache);
 	}
 
 	/**
@@ -266,7 +270,33 @@ public class DTLSConnector implements Connector {
 	 * @param connectionStore The registry to use for managing connections to peers.
 	 * @throws NullPointerException if any of the parameters is <code>null</code>.
 	 */
-	DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
+	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
+		this(configuration, connectionStore, null);
+	}
+
+	/**
+	 * Creates a DTLS connector for a given set of configuration options.
+	 * 
+	 * @param configuration The configuration options.
+	 * @param connectionStore The registry to use for managing connections to
+	 *            peers. For backwards compatibility, if no session cache is
+	 *            provided and the connection store is also a
+	 *            {@link SessionListener}, that listener is sued to synchronize
+	 *            the session cache with the established sessions.
+	 * @param sessionCache An (optional) cache for <code>DTLSSession</code>
+	 *            objects that can be used for persisting and/or sharing of
+	 *            session state among multiple instances of
+	 *            <code>DTLSConnector</code>. Whenever a handshake with a client
+	 *            is finished the negotiated session is put to this cache.
+	 *            Similarly, whenever a client wants to perform an abbreviated
+	 *            handshake based on an existing session the connection store
+	 *            will try to retrieve the session from this cache if it is not
+	 *            available from the connection store's in-memory (first-level)
+	 *            cache.
+	 * @throws NullPointerException if the configuration or connectionStore is
+	 *             <code>null</code>.
+	 */
+	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore, final SessionCache sessionCache) {
 
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
@@ -276,8 +306,46 @@ public class DTLSConnector implements Connector {
 			this.config = configuration;
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
-			this.sessionCacheSynchronization = (SessionListener) this.connectionStore;
+			if (sessionCache != null) {
+				this.sessionCacheSynchronization = new SessionAdapter() {
+
+					@Override
+					public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+							throws HandshakeException {
+						sessionCache.put(establishedSession);
+					}
+				};
+			} else if (connectionStore instanceof SessionListener) {
+				// backwards compatibility
+				this.sessionCacheSynchronization = (SessionListener) connectionStore;
+			} else {
+				this.sessionCacheSynchronization = null;
+			}
 		}
+	}
+
+	/**
+	 * Called after initialization of new create handshaker.
+	 * 
+	 * Intended to be used for subclass specific handshaker initialization.
+	 * 
+	 * @param handshaker new create handshaker
+	 */
+	protected void onInitializeHandshaker(final Handshaker handshaker) {
+	}
+
+	/**
+	 * Initialize new create handshaker.
+	 * 
+	 * Add {@link #sessionCacheSynchronization}, if session cache is used.
+	 * 
+	 * @param handshaker new create handshaker
+	 */
+	private final void initializeHandshaker(final Handshaker handshaker) {
+		if (sessionCacheSynchronization != null) {
+			handshaker.addSessionListener(sessionCacheSynchronization);
+		}
+		onInitializeHandshaker(handshaker);
 	}
 
 	/**
@@ -1147,7 +1215,7 @@ public class DTLSConnector implements Connector {
 		// for the case that multiple cookie exchanges have taken place)
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
 				getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
-		addSessionCacheSynchronization(handshaker);
+		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
 	}
 
@@ -1179,7 +1247,7 @@ public class DTLSConnector implements Connector {
 
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
-			addSessionCacheSynchronization(handshaker);
+			initializeHandshaker(handshaker);
 
 			if (previousConnection.hasEstablishedSession()) {
 				// client wants to resume a session that has been negotiated by this node
@@ -1356,7 +1424,7 @@ public class DTLSConnector implements Connector {
 					connection,
 					config,
 					maximumTransmissionUnit);
-			addSessionCacheSynchronization(handshaker);
+			initializeHandshaker(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();
 		}
@@ -1371,7 +1439,7 @@ public class DTLSConnector implements Connector {
 			connectionStore.put(newConnection);
 			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
 					getRecordLayerForPeer(newConnection), newConnection, config, maximumTransmissionUnit);
-			addSessionCacheSynchronization(handshaker);
+			initializeHandshaker(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();
 		} else {
@@ -1431,12 +1499,6 @@ public class DTLSConnector implements Connector {
 			return false;
 		}
 		return true;
-	}
-	
-	private void addSessionCacheSynchronization(final Handshaker handshaker) {
-		if (sessionCacheSynchronization != null) {
-			handshaker.addSessionListener(sessionCacheSynchronization);
-		}
 	}
 
 	private SessionListener newDeferredMessageSender(final RawData message) {
