@@ -70,6 +70,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -157,6 +158,8 @@ public class ServerHandshaker extends Handshaker {
 	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
 	 *            the DTLS configuration.
+	 * @param credConfig
+	 *            the credentials configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws HandshakeException if the handshaker cannot be initialized
@@ -164,8 +167,9 @@ public class ServerHandshaker extends Handshaker {
 	 *            if session or recordLayer is <code>null</code>.
 	 */
 	public ServerHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
-		this(0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+			DtlsConnectorConfig config, CredentialsConfiguration credConfig, int maxTransmissionUnit)
+			throws HandshakeException {
+		this(0, session, recordLayer, sessionListener, config, credConfig, maxTransmissionUnit);
 	}
 	
 	/**
@@ -196,17 +200,17 @@ public class ServerHandshaker extends Handshaker {
 	 *            if session, recordLayer or config is <code>null</code>.
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) { 
+			DtlsConnectorConfig config, CredentialsConfiguration credConfig, int maxTransmissionUnit) { 
 		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getCertificateVerifier(),
-				maxTransmissionUnit, config.getRpkTrustStore());
+				maxTransmissionUnit, credConfig.getRpkTrustStore());
 
-		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		this.supportedCipherSuites = Arrays.asList(credConfig.getSupportedCipherSuites());
 
-		this.pskStore = config.getPskStore();
+		this.pskStore = credConfig.getPskStore();
 
-		this.privateKey = config.getPrivateKey();
-		this.certificateChain = config.getCertificateChain();
-		this.publicKey = config.getPublicKey();
+		this.privateKey = credConfig.getPrivateKey();
+		this.certificateChain = credConfig.getCertificateChain();
+		this.publicKey = credConfig.getPublicKey();
 		this.sniEnabled = config.isSniEnabled();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
@@ -220,7 +224,7 @@ public class ServerHandshaker extends Handshaker {
 			if (this.clientAuthenticationRequired) {
 				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 				if (config.getCertificateVerifier() != null) {
-					int index = config.isSendRawKey() ? 1 : 0;
+					int index = credConfig.isSendRawKey() ? 1 : 0;
 					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
 				}
 			}
@@ -228,7 +232,7 @@ public class ServerHandshaker extends Handshaker {
 			if (privateKey != null && publicKey != null) {
 				if (certificateChain == null || certificateChain.length == 0) {
 					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
+				} else if (credConfig.isSendRawKey()) {
 					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 					this.supportedServerCertificateTypes.add(CertificateType.X_509);
 				} else {

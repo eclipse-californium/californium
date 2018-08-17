@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.PskUtil;
@@ -145,6 +146,8 @@ public class ClientHandshaker extends Handshaker {
 	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
 	 *            the DTLS configuration.
+	 * @param credConfig
+	 *            the credentials configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws IllegalStateException
@@ -153,14 +156,14 @@ public class ClientHandshaker extends Handshaker {
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getCertificateVerifier(), maxTransmissionUnit,
-				config.getRpkTrustStore());
-		this.privateKey = config.getPrivateKey();
-		this.certificateChain = config.getCertificateChain();
-		this.publicKey = config.getPublicKey();
-		this.pskStore = config.getPskStore();
-		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+			DtlsConnectorConfig config, CredentialsConfiguration credConfig, int maxTransmissionUnit) {
+		super(true, session, recordLayer, sessionListener, credConfig.getCertificateVerifier(), maxTransmissionUnit,
+				credConfig.getRpkTrustStore());
+		this.privateKey = credConfig.getPrivateKey();
+		this.certificateChain = credConfig.getCertificateChain();
+		this.publicKey = credConfig.getPublicKey();
+		this.pskStore = credConfig.getPskStore();
+		this.preferredCipherSuites = Arrays.asList(credConfig.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.sniEnabled = config.isSniEnabled();
 		this.supportedServerCertificateTypes = new ArrayList<>();
@@ -173,14 +176,14 @@ public class ClientHandshaker extends Handshaker {
 			// we always support receiving a RawPublicKey from the server
 			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 			if (certificateVerifier != null) {
-				int index = config.isSendRawKey() ? 1 : 0;
+				int index = credConfig.isSendRawKey() ? 1 : 0;
 				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
 			}
 
 			if (privateKey != null && publicKey != null) {
 				if (certificateChain == null || certificateChain.length == 0) {
 					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
+				} else if (credConfig.isSendRawKey()) {
 					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 					this.supportedClientCertificateTypes.add(CertificateType.X_509);
 				} else {

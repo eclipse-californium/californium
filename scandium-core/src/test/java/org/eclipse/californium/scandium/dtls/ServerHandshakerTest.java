@@ -43,6 +43,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -114,7 +115,9 @@ public class ServerHandshakerTest {
 		int networkMtu = ETHERNET_MTU;
 
 		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(session, recordLayer, null, config, networkMtu);
+		CredentialsConfiguration credConfig = config.getCredentialsStore()
+				.getCredentialsConfiguration(session.getPeer());
+		handshaker = new ServerHandshaker(session, recordLayer, null, config, credConfig, networkMtu);
 
 		// then a fragment created under the session's current write state should
 		// fit into a single unfragmented UDP datagram
@@ -351,7 +354,9 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
-		return new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
+		CredentialsConfiguration credConfig = config.getCredentialsStore()
+				.getCredentialsConfiguration(session.getPeer());
+		return new ServerHandshaker(session, recordLayer, null, config, credConfig, ETHERNET_MTU);
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {

@@ -39,6 +39,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.credentialsstore.CredentialsConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +77,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the listener to notify about the session's life-cycle events.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
+	 * @param credConfig
+	 *            the credentials configuration.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws IllegalArgumentException
@@ -86,8 +89,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(session, recordLayer, sessionListener, config, maxTransmissionUnit);
+			DtlsConnectorConfig config, CredentialsConfiguration credConfig, int maxTransmissionUnit) {
+		super(session, recordLayer, sessionListener, config, credConfig, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
