@@ -19,6 +19,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use handshake parameter and
+ *                                                    generic handshake messages to
+ *                                                    process reordered handshake messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -38,7 +41,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
@@ -900,24 +902,21 @@ public class Record {
 		}
 		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
 
-		KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
-		boolean receiveRawPublicKey = false;
+		HandshakeParameter parameter = null;
 		if (session != null) {
-			keyExchangeAlgorithm = session.getKeyExchange();
-			receiveRawPublicKey = session.receiveRawPublicKey();
+			parameter = session.getParameter();
 		} else {
 			LOGGER.debug("Parsing message without a session");
 		}
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder(
-					"Parsing HANDSHAKE message plaintext using KeyExchange [{}] and receiveRawPublicKey [{}]");
-			Object[] params = new Object[]{keyExchangeAlgorithm, receiveRawPublicKey, null};
+					"Parsing HANDSHAKE message plaintext [{}]");
 			if (LOGGER.isTraceEnabled()) {
 				msg.append(":").append(StringUtil.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
 			}
-			LOGGER.debug(msg.toString(), params);
+			LOGGER.debug(msg.toString(), parameter);
 		}
-		return HandshakeMessage.fromByteArray(decryptedMessage, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
+		return HandshakeMessage.fromByteArray(decryptedMessage, parameter, getPeerAddress());
 	}
 
 	/**

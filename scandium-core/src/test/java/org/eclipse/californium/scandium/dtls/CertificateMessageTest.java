@@ -136,22 +136,23 @@ public class CertificateMessageTest {
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), true);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
 		CertificateMessage msg = (CertificateMessage) HandshakeMessage.fromByteArray(
-				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true, peerAddress);
+				serializedMessage, parameter, peerAddress);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 
 	@Test
 	public void testSerializationUsingX509() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		message = (CertificateMessage) HandshakeMessage.fromByteArray(
-				serializedMessage, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false, peerAddress);
+		message = (CertificateMessage) HandshakeMessage.fromByteArray(serializedMessage, parameter, peerAddress);
 		assertThat(message.getPublicKey(), is(pk));
 	}
 

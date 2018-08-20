@@ -26,7 +26,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
- *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for
  *                                                    supportedServerCertificateTypes
  *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
  *    Bosch Software Innovations GmbH - migrate to SLF4J
@@ -35,9 +35,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address
  *                                                    with enabled sni
- *    Vikram (University of Rostock) - added ECDHE_PSK mode                                                
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
+ *                                                    process reordered handshake messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -394,6 +396,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
 		session.setSniSupported(serverHello.hasServerNameExtension());
+		session.setParameterAvailable();
 	}
 
 	/**

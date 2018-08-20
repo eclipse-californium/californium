@@ -56,8 +56,8 @@ public class EcdhPskClientKeyExchangeTest {
 	@Test
 	public void testDeserializedMsg() throws HandshakeException {
 		byte[] serializedMsg = msg.toByteArray();
-		HandshakeMessage handshakeMsg = HandshakeMessage.fromByteArray(
-				serializedMsg, KeyExchangeAlgorithm.ECDHE_PSK, false, peerAddress);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.ECDHE_PSK, false);
+		HandshakeMessage handshakeMsg = HandshakeMessage.fromByteArray(serializedMsg, parameter, peerAddress);
 		assertTrue(((EcdhPskClientKeyExchange)handshakeMsg).getIdentity().equals(identity));
 		assertNotNull(ephemeralKeyPointEncoded);
 		assertTrue((Arrays.equals(((EcdhPskClientKeyExchange)handshakeMsg).getEncodedPoint(), ephemeralKeyPointEncoded)));

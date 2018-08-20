@@ -45,6 +45,8 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Vikram (University of Rostock) - added ECDHE_PSK mode
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
+ *                                                    process reordered handshake messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -821,8 +823,9 @@ public class ServerHandshaker extends Handshaker {
 					negotiatedSupportedGroup = group;
 					session.setCipherSuite(cipherSuite);
 					addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
+					session.setParameterAvailable();
 					LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]",
-							new Object[]{cipherSuite.name(), getPeerAddress()});
+							cipherSuite.name(), getPeerAddress());
 					return;
 				}
 			}
