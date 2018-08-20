@@ -17,6 +17,9 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Vikram (University of Rostock) - added ECDHE_PSK mode
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use handshake parameter and
+ *                                                    generic handshake messages to
+ *                                                    process reordered handshake messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -181,8 +184,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, KeyExchangeAlgorithm keyExchange,
-			boolean useRawPublicKey, InetSocketAddress peerAddress) throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray, HandshakeParameter parameter, InetSocketAddress peerAddress) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		HandshakeType type = HandshakeType.getTypeByCode(reader.read(MESSAGE_TYPE_BITS));
 		LOGGER.trace("Parsing HANDSHAKE message of type [{}]", type);
@@ -220,11 +222,19 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			break;
 
 		case CERTIFICATE:
-			body = CertificateMessage.fromByteArray(bytesLeft, useRawPublicKey, peerAddress);
+			if (parameter == null) {
+				body = GenericHandshakeMessage.fromByteArray(type, byteArray, peerAddress);
+			} else {
+				body = CertificateMessage.fromByteArray(bytesLeft, parameter.useRawPublicKey(), peerAddress);
+			}
 			break;
 
 		case SERVER_KEY_EXCHANGE:
-			body = readServerKeyExchange(bytesLeft, keyExchange, peerAddress);
+			if (parameter == null) {
+				body = GenericHandshakeMessage.fromByteArray(type, byteArray, peerAddress);
+			} else {
+				body = readServerKeyExchange(bytesLeft, parameter.getKeyExchangeAlgorithm(), peerAddress);
+			}
 			break;
 
 		case CERTIFICATE_REQUEST:
@@ -240,7 +250,14 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
-			body = readClientKeyExchange(bytesLeft, keyExchange, peerAddress);
+			if (parameter == null) {
+				// handshake parameter are available after flight 4, so in flight 5 it's an error
+				throw new HandshakeException(
+						"Unexpected client key exchange message",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, peerAddress));
+			} else {
+				body = readClientKeyExchange(bytesLeft, parameter.getKeyExchangeAlgorithm(), peerAddress);
+			}
 			break;
 
 		case FINISHED:

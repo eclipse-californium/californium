@@ -39,6 +39,11 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Vikram (University of Rostock) - generatePremasterSecertFromPSK with otherSecret from ECDHE_PSK
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use handshake parameter and
+ *                                                    generic handshake messages to
+ *                                                    process reordered handshake messages
+ *                                                    and create the specific, when the parameters
+ *                                                    are available.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,7 +55,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -434,6 +438,14 @@ public abstract class Handshaker {
 						// messageToProcess is fragmented and not all parts have been received yet
 					} else {
 						// continue with the now fully re-assembled message
+						if (messageToProcess instanceof GenericHandshakeMessage) {
+							HandshakeParameter parameter = session.getParameter();
+							if (parameter == null) {
+								throw new IllegalStateException("handshake parameter are required!");
+							}
+							messageToProcess = ((GenericHandshakeMessage) messageToProcess)
+									.getSpecificHandshakeMessage(parameter);
+						}
 						doProcessMessage(messageToProcess);
 					}
 
@@ -789,13 +801,11 @@ public abstract class Handshaker {
 					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
 			reassembly = wholeMessage.toByteArray();
 
-			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
-			boolean receiveRawPublicKey = false;
+			HandshakeParameter parameter = null;
 			if (session != null) {
-				keyExchangeAlgorithm = session.getKeyExchange();
-				receiveRawPublicKey = session.receiveRawPublicKey();
+				parameter = session.getParameter();
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
+			message = HandshakeMessage.fromByteArray(reassembly, parameter, getPeerAddress());
 		}
 
 		return message;

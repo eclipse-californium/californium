@@ -102,6 +102,7 @@ public class HandshakerTest {
 
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
+		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
 		certificateMessage = createCertificateMessage(1);

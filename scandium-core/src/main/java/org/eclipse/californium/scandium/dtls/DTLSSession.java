@@ -33,6 +33,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - preserve creation time of session.
  *                                                    update time on set master secret.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter and
+ *                                                    handshake parameter available to
+ *                                                    process reordered handshake messages
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -153,6 +156,12 @@ public final class DTLSSession {
 	 * If <code>true</code> expect a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
 	private boolean receiveRawPublicKey = false;
+
+	/**
+	 * Indicates, that the handshake parameters are available.
+	 * @see HandshakeParameter
+	 */
+	private boolean parameterAvailable = false;
 
 	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 	private volatile long receiveWindowLowerBoundary = 0;
@@ -585,6 +594,27 @@ public final class DTLSSession {
 	 */
 	synchronized public String getWriteStateCipher() {
 		return writeState.getCipherSuite().name();
+	}
+
+	/**
+	 * Set parameter available. Enables {@link #getParameter()} to return the
+	 * handshake parameter.
+	 */
+	public void setParameterAvailable() {
+		parameterAvailable = true;
+	}
+
+	/**
+	 * Return the handshake parameter, if set available.
+	 * 
+	 * @return the handshake parameter, or {@code null}, if
+	 *         {@link #setParameterAvailable()} wasn't called before.
+	 */
+	public HandshakeParameter getParameter() {
+		if (parameterAvailable) {
+			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveRawPublicKey);
+		}
+		return null;
 	}
 
 	final KeyExchangeAlgorithm getKeyExchange() {
