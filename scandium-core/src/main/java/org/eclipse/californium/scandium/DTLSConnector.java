@@ -111,7 +111,6 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -129,6 +128,7 @@ import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -450,8 +450,12 @@ public class DTLSConnector implements Connector {
 
 		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 
-		timer = Executors.newSingleThreadScheduledExecutor(
-				new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+		if (executor instanceof ScheduledExecutorService) {
+			timer = (ScheduledExecutorService) executor;
+		} else {
+			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(
+					new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+		}
 
 		if (executor == null) {
 			int threadCount; 
@@ -460,7 +464,13 @@ public class DTLSConnector implements Connector {
 			} else {
 				threadCount = config.getConnectionThreadCount();
 			}
-			executor = Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));	
+			if (threadCount > 1) {
+				executor = ExecutorsUtil.newFixedThreadPool(threadCount - 1,
+						new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+			}
+			else {
+				executor = timer;
+			}
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
@@ -594,12 +604,14 @@ public class DTLSConnector implements Connector {
 
 	@Override
 	public final void stop() {
+		ExecutorService shutdownTimer = null;
 		ExecutorService shutdown = null;
 		List<Runnable> pending = new ArrayList<>();
 		synchronized (this) {
 			if (running.compareAndSet(true, false)) {
 				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
-				timer.shutdownNow();
+				receiver.interrupt();
+				releaseSocket();
 				synchronized (connectionExecutors) {
 					for (SerialExecutor executors : connectionExecutors.values()) {
 						executors.shutdownNow(pending);
@@ -607,19 +619,30 @@ public class DTLSConnector implements Connector {
 					connectionExecutors.clear();
 				}
 				if (hasInternalExecutor) {
+					if (executor != timer) {
+						pending.addAll(timer.shutdownNow());
+						shutdownTimer = timer;
+						timer = null;
+					}
 					pending.addAll(executor.shutdownNow());
 					shutdown = executor;
 					executor = null;
 					hasInternalExecutor = false;
 				}
-				releaseSocket();
-				receiver.interrupt();
+			}
+		}
+		if (shutdownTimer != null) {
+			try {
+				if (!shutdownTimer.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+					LOGGER.warn("Shutdown DTLS connector on [{}] timer not terminated in time!", lastBindAddress);
+				}
+			} catch (InterruptedException e) {
 			}
 		}
 		if (shutdown != null) {
 			try {
 				if (!shutdown.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-					LOGGER.warn("Shutdown DTLS connector on [{}] not terminated in time!", lastBindAddress);
+					LOGGER.warn("Shutdown DTLS connector on [{}] executor not terminated in time!", lastBindAddress);
 				}
 			} catch (InterruptedException e) {
 			}
@@ -1714,39 +1737,41 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleTimeout(DTLSFlight flight) {
+	private void handleTimeout(DTLSFlight flight, boolean resend) {
 
 		Connection connection = connectionStore.get(flight.getPeerAddress());
 		if (null != connection) {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
 
+				if (resend) {
 				// set DTLS retransmission maximum
-				final int max = config.getMaxRetransmissions();
-
-				// check if limit of retransmissions reached
-				if (flight.getTries() < max) {
-					LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
-							flight.getPeerAddress(), max - flight.getTries() - 1);
-
-					try {
-						flight.incrementTries();
-						flight.setNewSequenceNumbers();
-						sendFlight(flight);
-
-						// schedule next retransmission
-						scheduleRetransmission(flight);
-						handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
-						return;
-					} catch (IOException e) {
-						// stop retransmission on IOExceptions
-						LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-					} catch (GeneralSecurityException e) {
-						LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+					final int max = config.getMaxRetransmissions();
+	
+					// check if limit of retransmissions reached
+					if (flight.getTries() < max) {
+						LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
+								flight.getPeerAddress(), max - flight.getTries() - 1);
+	
+						try {
+							flight.incrementTries();
+							flight.setNewSequenceNumbers();
+							sendFlight(flight);
+	
+							// schedule next retransmission
+							scheduleRetransmission(flight);
+							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
+							return;
+						} catch (IOException e) {
+							// stop retransmission on IOExceptions
+							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+						} catch (GeneralSecurityException e) {
+							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+						}
+					} else {
+						LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
+								flight.getPeerAddress(), max);
 					}
-				} else {
-					LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-							flight.getPeerAddress(), max);
 				}
 				// inform handshaker
 				handshaker.handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " timeout!"));
@@ -1886,24 +1911,27 @@ public class DTLSConnector implements Connector {
 			if (running.get()) {
 				final SerialExecutor executor = getSerialExecutor(flight.getPeerAddress());
 				if (executor == null) {
-					LOGGER.debug("Execution cache is full while retransmission of flight [peer: {}]", flight.getPeerAddress());
-					return;
-				}
-				try {
-					executor.execute(new Runnable() {
-	
-						@Override
-						public void run() {
-							if (!flight.isRetransmissionCancelled()) {
-								handleTimeout(flight);
+					LOGGER.debug("Execution cache is full while retransmission of flight [peer: {}]",
+							flight.getPeerAddress());
+				} else {
+					try {
+						executor.execute(new Runnable() {
+
+							@Override
+							public void run() {
+								if (!flight.isRetransmissionCancelled()) {
+									handleTimeout(flight, true);
+								}
 							}
-						}
-					});
-				} catch (RejectedExecutionException e) {
-					LOGGER.debug("Execution rejected while retransmission of flight [peer: {}]",
-							flight.getPeerAddress(), e);
+						});
+						return;
+					} catch (RejectedExecutionException e) {
+						LOGGER.debug("Execution rejected while retransmission of flight [peer: {}]",
+								flight.getPeerAddress(), e);
+					}
 				}
 			}
+			handleTimeout(flight, false);
 		}
 	}
 

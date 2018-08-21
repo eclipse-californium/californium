@@ -28,6 +28,7 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - Use remove to cleanup canceled tasks.
  *                                                    fix issue #681
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -36,8 +37,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -46,7 +45,9 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A CoapObserveRelation is a client-side control handle. It represents a CoAP
@@ -60,8 +61,7 @@ public class CoapObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
 
 	/** A executor service to schedule re-registrations */
-	private static final ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, //
-			new DaemonThreadFactory("CoapObserveRelation#")); //$NON-NLS-1$
+	private static final ScheduledThreadPoolExecutor scheduler = ExecutorsUtil.getScheduledExecutor(); 
 
 	/** The endpoint. */
 	private final Endpoint endpoint;

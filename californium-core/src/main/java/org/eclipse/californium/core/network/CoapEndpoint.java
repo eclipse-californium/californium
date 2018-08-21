@@ -61,6 +61,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - forward onConnecting and onDtlsRetransmission
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
  *                                                    with serial executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util and only
+ *                                                    report errors, when a different
+ *                                                    executor is set after the endpoint
+ *                                                    was started.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -73,7 +77,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -112,6 +115,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -450,7 +454,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
-			setExecutor(Executors.newSingleThreadScheduledExecutor(
+			setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(
 					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
@@ -477,30 +481,12 @@ public class CoapEndpoint implements Endpoint {
 			for (EndpointObserver obs : observers) {
 				obs.started(this);
 			}
-			startExecutor();
 			LOGGER.info("Started endpoint at {}", getUri());
 		} catch (IOException e) {
 			// free partially acquired resources
 			stop();
 			throw e;
 		}
-	}
-
-	/**
-	 * Makes sure that the executor has started, i.e., a thread has been
-	 * created. This is necessary for the server because it makes sure a
-	 * non-daemon thread is running. Otherwise the program might find that only
-	 * daemon threads are running and exit.
-	 */
-	private void startExecutor() {
-		// Run a task that does nothing but make sure at least one thread of
-		// the executor has started.
-		runInProtocolStage(new Runnable() {
-			@Override
-			public void run() {
-				// do nothing
-			}
-		});
 	}
 
 	@Override
@@ -515,7 +501,6 @@ public class CoapEndpoint implements Endpoint {
 			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
-			matcher.clear();
 		}
 	}
 

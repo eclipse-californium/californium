@@ -26,6 +26,7 @@ import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
@@ -121,7 +122,7 @@ public class ClientInitializer {
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
 		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, leftArgs);
-		CoapEndpoint coapEndpoint = createEndpoint(config, arguments);
+		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
 
 		return arguments;
@@ -130,11 +131,12 @@ public class ClientInitializer {
 	/**
 	 * Create endpoint from arguments.
 	 * 
-	 * @param config network configuation to use
+	 * @param config network configuration to use
 	 * @param arguments arguments
+	 * @param executor executor service. {@code null}, if no external executor should be used.
 	 * @return created endpoint.
 	 */
-	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments) {
+	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor) {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
@@ -142,6 +144,7 @@ public class ClientInitializer {
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
 		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
+		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 
 		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			SslContextUtil.Credentials clientCredentials = null;
@@ -182,9 +185,13 @@ public class ClientInitializer {
 				}
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
-				dtlsConfig.setConnectionThreadCount(1);
+				dtlsConfig.setConnectionThreadCount(senderThreads);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
-				connector = new DTLSConnector(dtlsConfig.build());
+				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
+				if (executor != null) {
+					dtlsConnector.setExecutor(executor);
+				}
+				connector = dtlsConnector;
 			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
 				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
 			}

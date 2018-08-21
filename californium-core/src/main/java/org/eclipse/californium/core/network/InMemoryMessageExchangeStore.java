@@ -37,6 +37,8 @@
  *                                                    or responses.
  *    Achim Kraus (Bosch Software Innovations GmbH) - move retransmitResponse to
  *                                                    CoapEndpoint to support tcp.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    for health status instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -48,8 +50,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -64,7 +64,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -81,11 +81,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
-	private boolean running = false;
+	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
 	private ScheduledFuture<?> statusLogger;
-	private ScheduledExecutorService scheduler;
 
 	/**
 	 * Creates a new store for configuration values.
@@ -123,9 +122,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			this.scheduler = Executors
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("MessageExchangeStore"));
-			statusLogger = scheduler.scheduleAtFixedRate(new Runnable() {
+			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -398,16 +395,14 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public synchronized void stop() {
 		if (running) {
+			running = false;
 			if (statusLogger != null) {
 				statusLogger.cancel(false);
-			}
-			if (scheduler != null) {
-				scheduler.shutdownNow();
+				statusLogger = null;
 			}
 			deduplicator.stop();
 			exchangesByMID.clear();
 			exchangesByToken.clear();
-			running = false;
 		}
 	}
 
