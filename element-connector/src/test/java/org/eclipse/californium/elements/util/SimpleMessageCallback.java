@@ -15,6 +15,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onError. issue #305
  *    Achim Kraus (Bosch Software Innovations GmbH) - add javadoc for parameter
  *                                                    timeout
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add chain for MessageCallback
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -40,6 +41,10 @@ public class SimpleMessageCallback implements MessageCallback {
 	 */
 	private final boolean countContextEstablished;
 	/**
+	 * Chained message callback. Forward calls also to this chained callback.
+	 */
+	private final MessageCallback chained;
+	/**
 	 * endpoint context of sent message.
 	 */
 	private EndpointContext context;
@@ -56,7 +61,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * Create new message callback.
 	 */
 	public SimpleMessageCallback() {
-		this(0, false);
+		this(0, false, null);
 	}
 
 	/**
@@ -68,8 +73,23 @@ public class SimpleMessageCallback implements MessageCallback {
 	 *            {@code false}, otherwise
 	 */
 	public SimpleMessageCallback(int calls, boolean countContextEstablished) {
+		this(calls, countContextEstablished, null);
+	}
+
+	/**
+	 * Create new message callback.
+	 * 
+	 * @param calls number of expected callbacks.
+	 * @param countContextEstablished {@code true}, if
+	 *            {@link #onContextEstablished(EndpointContext)} is counted,
+	 *            {@code false}, otherwise
+	 * @param chained message callback to forward all callbacks after
+	 *            processing.
+	 */
+	public SimpleMessageCallback(int calls, boolean countContextEstablished, MessageCallback chained) {
 		latchCalls = new CountDownLatch(calls);
 		this.countContextEstablished = countContextEstablished;
+		this.chained = chained;
 	}
 
 	@Override
@@ -79,6 +99,9 @@ public class SimpleMessageCallback implements MessageCallback {
 		if (countContextEstablished) {
 			latchCalls.countDown();
 		}
+		if (chained != null) {
+			chained.onContextEstablished(context);
+		}
 	}
 
 	@Override
@@ -86,6 +109,9 @@ public class SimpleMessageCallback implements MessageCallback {
 		this.sent = true;
 		notify();
 		latchCalls.countDown();
+		if (chained != null) {
+			chained.onSent();
+		}
 	}
 
 	@Override
@@ -93,6 +119,9 @@ public class SimpleMessageCallback implements MessageCallback {
 		this.sendError = sendError;
 		notify();
 		latchCalls.countDown();
+		if (chained != null) {
+			chained.onError(sendError);
+		}
 	}
 
 	public synchronized String toString() {
@@ -118,6 +147,15 @@ public class SimpleMessageCallback implements MessageCallback {
 	 */
 	public boolean await(long timeoutMillis) throws InterruptedException {
 		return latchCalls.await(timeoutMillis, TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Get number of awaited pending calls.
+	 * 
+	 * @return number of still pending calls.
+	 */
+	public long getPendingCalls() {
+		return latchCalls.getCount();
 	}
 
 	/**
