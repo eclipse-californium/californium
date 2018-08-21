@@ -12,18 +12,19 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
- *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation
  *                                                    for handshakeFailed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use final for collections
  *    Bosch Software Innovations GmbH - migrate to SLF4J
- *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to return 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to return
  *                                                    expired entries on read access.
  *                                                    See issue #707
  *    Achim Kraus (Bosch Software Innovations GmbH) - configure LRU to update
  *                                                    connection only, if access
- *                                                    is validated with the MAC 
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix session resumption with 
+ *                                                    is validated with the MAC
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix session resumption with
  *                                                    session cache. issue #712
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add more logging
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -76,6 +77,8 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	private final LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
 	private final SessionCache sessionCache;
 
+	private String tag = "";
+
 	/**
 	 * Creates a store with a capacity of 500000 connections and
 	 * a connection expiration threshold of 36 hours.
@@ -89,7 +92,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 * expiration threshold of 36 hours.
 	 * 
 	 * @param sessionCache a second level cache to use for <em>current</em>
-	 *                             connection state of established DTLS sessions.
+	 *            connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(final SessionCache sessionCache) {
 		this(DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, sessionCache);
@@ -115,7 +118,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *            connection is considered stale and can be evicted from the store if
 	 *            a new connection is to be added to the store
 	 * @param sessionCache a second level cache to use for <em>current</em>
-	 *                     connection state of established DTLS sessions.
+	 *            connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
@@ -135,6 +138,19 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
+	}
+
+	/**
+	 * Set tag for logging outputs.
+	 * 
+	 * @param tag tag for logging
+	 */
+	public synchronized void setTag(final String tag) {
+		if (tag.endsWith(" ")) {
+			this.tag = tag;
+		} else {
+			this.tag = tag + " ";
+		}
 	}
 
 	/**
@@ -161,7 +177,14 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	public synchronized boolean put(final Connection connection) {
 
 		if (connection != null) {
-			return connections.put(connection.getPeerAddress(), connection);
+			if (connections.put(connection.getPeerAddress(), connection)) {
+				LOG.debug("{}connection: add {}", tag, connection.getPeerAddress());
+				return true;
+			} else {
+				LOG.debug("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+				dump();
+				return false;
+			}
 		} else {
 			return false;
 		}
@@ -208,9 +231,9 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 				} else if (conFromLocalCache == null) {
 					// this probably means that we are taking over the session from a failed node
-						return new Connection(ticket);
-						// connection will be put to first level cache as part of
-						// the abbreviated handshake
+					return new Connection(ticket);
+					// connection will be put to first level cache as part of
+					// the abbreviated handshake
 				} else {
 					// resume connection found in local cache (i.e. this store)
 					return conFromLocalCache;
@@ -222,6 +245,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	private synchronized Connection findLocally(final SessionId id) {
 
 		return connections.find(new Predicate<Connection>() {
+
 			@Override
 			public boolean accept(final Connection connection) {
 				DTLSSession session = connection.getEstablishedSession();
@@ -234,6 +258,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	public synchronized void markAllAsResumptionRequired() {
 		for (Connection connection : connections.values()) {
 			connection.setResumptionRequired(true);
+			LOG.debug("{}connection: mark for resumption {}!", tag, connection.getPeerAddress());
 		}
 	}
 
@@ -255,8 +280,16 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	@Override
 	public synchronized Connection remove(final InetSocketAddress peerAddress, final boolean removeFromSessionCache) {
 		Connection connection = connections.remove(peerAddress);
-		if (connection != null && removeFromSessionCache) {
-			removeSessionFromCache(connection);
+		if (connection != null) {
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("{}connection: remove {}:{}", tag, connection, peerAddress,
+						new Throwable("connection removed!"));
+			} else {
+				LOG.debug("{}connection: remove {}", tag, peerAddress);
+			}
+			if (removeFromSessionCache) {
+				removeSessionFromCache(connection);
+			}
 		}
 		return connection;
 	}
@@ -269,8 +302,16 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	@Override
 	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
 		boolean removed = connections.remove(connection.getPeerAddress(), connection) == connection;
-		if (removed && removeFromSessionCache) {
-			removeSessionFromCache(connection);
+		if (removed) {
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("{}connection: remove {}:{}", tag, connection, connection.getPeerAddress(),
+						new Throwable("connection removed!"));
+			} else {
+				LOG.debug("{}connection: remove {}", tag, connection.getPeerAddress());
+			}
+			if (removeFromSessionCache) {
+				removeSessionFromCache(connection);
+			}
 		}
 		return removed;
 	}
@@ -285,5 +326,18 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	public final synchronized void clear() {
 		connections.clear();
 		// TODO: does it make sense to clear the SessionCache as well?
+	}
+
+	/**
+	 * Dump connections to logger. Intended to be used for unit tests.
+	 */
+	public synchronized void dump() {
+		if (connections.size() == 0) {
+			LOG.debug("  {}connections empty!", tag);
+		} else {
+			for (Connection connection : connections.values()) {
+				LOG.debug("  {}connection: {}", tag, connection.getPeerAddress());
+			}
+		}
 	}
 }

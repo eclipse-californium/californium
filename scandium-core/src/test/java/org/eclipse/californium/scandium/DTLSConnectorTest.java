@@ -74,6 +74,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -118,6 +119,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -132,6 +134,9 @@ import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorServic
 public class DTLSConnectorTest {
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
@@ -218,6 +223,7 @@ public class DTLSConnectorTest {
 	public void setUp() throws Exception {
 		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore.setTag("client");
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
@@ -232,6 +238,7 @@ public class DTLSConnectorTest {
 		serverSessionCache.establishedSessionCounter.set(0);
 		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore.setTag("client");
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);

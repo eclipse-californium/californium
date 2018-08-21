@@ -24,12 +24,15 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
@@ -44,30 +47,26 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.TestName;
-import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
  * <p>
- * Focus on start and stop the DTLSConnector.
- * Currently it only tests the stop, if the DTLS session is successful established.
+ * Focus on start and stop the DTLSConnector. Currently it only tests the stop,
+ * if the DTLS session is successful established.
  */
 @Category(Medium.class)
 public class DTLSConnectorStartStopTest {
+
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorStartStopTest.class.getName());
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
 
 	@Rule
-	public TestName names = new TestName() {
-
-		@Override
-		protected void starting(Description d) {
-			System.out.println("Test " + d.getMethodName());
-		}
-	};
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
@@ -103,12 +102,12 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = serverHelper.new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
-		client.start();
 	}
 
 	@After
@@ -135,29 +134,52 @@ public class DTLSConnectorStartStopTest {
 		EndpointContext context = new AddressEndpointContext(dest);
 
 		for (int loop = 0; loop < loops; ++loop) {
+			try {
+				client.start();
+			} catch (IOException e) {
+			}
 			Thread.sleep(100);
-			System.out.format("start/stop: %d/%d loops, %d msgs server %s, client %s%n", loop, loops, pending, dest, client.getAddress());
+			clientConnectionStore.dump();
+			serverHelper.serverConnectionStore.dump();
+			LOGGER.info("start/stop: {}/{} loops, {} msgs server {}, client {}", loop, loops, pending, dest,
+					client.getAddress());
+
+			List<SimpleMessageCallback> callbacks = new ArrayList<>();
 
 			CountDownLatch latch = new CountDownLatch(1);
 			clientChannel.setLatch(latch);
 
 			SimpleMessageCallback callback = new SimpleMessageCallback(pending, false);
-			RawData message = RawData.outbound(data, context, callback, false);
+			SimpleMessageCallback messageCallback = new SimpleMessageCallback(0, true, callback);
+			callbacks.add(messageCallback);
+			RawData message = RawData.outbound(data, context, messageCallback, false);
 			client.send(message);
-			assertTrue("loop: " + loop + ", " + pending + " msgs, DTLS handshake timed out after " + ConnectorHelper.MAX_TIME_TO_WAIT_SECS
-					+ " seconds", latch.await(ConnectorHelper.MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+			assertTrue(
+					"loop: " + loop + ", " + pending + " msgs, DTLS handshake timed out after "
+							+ ConnectorHelper.MAX_TIME_TO_WAIT_SECS + " seconds",
+					latch.await(ConnectorHelper.MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
-			for (int i = 1; i < pending; ++i) {
-				message = RawData.outbound(data, context, callback, false);
+			for (int index = 1; index < pending; ++index) {
+				LOGGER.info("loop: {}, send {}", loop, index);
+				messageCallback = new SimpleMessageCallback(0, true, callback);
+				callbacks.add(messageCallback);
+				message = RawData.outbound(data, context, messageCallback, false);
 				client.send(message);
 			}
 
 			client.stop();
-			assertThat("loop: " + loop + ", " + callback.toString(), callback.await(200), is(true));
-			try {
-				client.start();
-			} catch (IOException e) {
+			boolean complete = callback.await(200);
+			if (!complete) {
+				LOGGER.info("loop: {}, still miss {} calls!", loop, callback.getPendingCalls());
+				for (int index = 0; index < callbacks.size(); ++index) {
+					SimpleMessageCallback calls = callbacks.get(index);
+					if (!calls.isSent() && calls.getError() == null) {
+						LOGGER.info("loop: {}, call {} {}", loop, index, calls);
+					}
+				}
 			}
+			assertThat("loop: " + loop + ", " + callback.toString(), callback.await(200), is(true));
 		}
+		Thread.sleep(100);
 	}
 }

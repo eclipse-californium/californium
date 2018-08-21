@@ -102,6 +102,7 @@ public class ConnectorHelper {
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore.setTag("server");
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
