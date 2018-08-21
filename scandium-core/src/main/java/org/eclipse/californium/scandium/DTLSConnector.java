@@ -129,7 +129,9 @@ import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -165,10 +167,6 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedRunnable;
-
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
@@ -209,6 +207,7 @@ public class DTLSConnector implements Connector {
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
+	private final LeastRecentlyUsedCache<InetSocketAddress, SerialExecutor> connectionExecutors;
 	private final ResumptionSupportingConnectionStore connectionStore;
 
 	/**
@@ -341,6 +340,9 @@ public class DTLSConnector implements Connector {
 			} else {
 				this.sessionCacheSynchronization = null;
 			}
+			int maxConnections = configuration.getMaxConnections();
+			// create cache slightly larger than max connections for new CLIENT_HELLOs
+			this.connectionExecutors = new LeastRecentlyUsedCache<>(maxConnections + (maxConnections / 16), 20);
 		}
 	}
 
@@ -369,11 +371,11 @@ public class DTLSConnector implements Connector {
 	}
 
 	/**
-	 * Sets the executor to use for processing records.
+	 * Sets the executor to be used for processing records.
 	 * <p>
-	 * If this property is not set before invoking the {@linkplain #start() start method},
-	 * a new {@link StripedExecutorService} is created with a thread pool of
-	 * {@linkplain #DEFAULT_EXECUTOR_THREAD_POOL_SIZE default size}.
+	 * If this property is not set before invoking the {@linkplain #start()
+	 * start method}, a new {@link ExecutorService} is created with a thread
+	 * pool of {@linkplain #DEFAULT_EXECUTOR_THREAD_POOL_SIZE default size}.
 	 * 
 	 * This helps with performing multiple handshakes in parallel, in particular if the key exchange
 	 * requires a look up of identities, e.g. in a database or using a web service.
@@ -382,14 +384,15 @@ public class DTLSConnector implements Connector {
 	 * by the {@linkplain #stop() stop method}.
 	 * 
 	 * @param executor The executor.
-	 * @throws IllegalStateException if his connector is already running.
+	 * @throws IllegalStateException if a new executor is set and this connector is already running.
 	 */
-	public final synchronized void setExecutor(StripedExecutorService executor) {
-
-		if (running.get()) {
-			throw new IllegalStateException("cannot set executor while connector is running");
-		} else {
-			this.executor = executor;
+	public final synchronized void setExecutor(ExecutorService executor) {
+		if (this.executor != executor) {
+			if (running.get()) {
+				throw new IllegalStateException("cannot set new executor while connector is running");
+			} else {
+				this.executor = executor;
+			}
 		}
 	}
 
@@ -457,13 +460,7 @@ public class DTLSConnector implements Connector {
 			} else {
 				threadCount = config.getConnectionThreadCount();
 			}
-			if (threadCount == 1) {
-				// Scheduling Striped task is costly so if user require only 1 Thread, we use a simple SingleThreadExecutor
-				executor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
-			} else {
-				executor = new StripedExecutorService(Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)));	
-			}
-			
+			executor = Executors.newFixedThreadPool(threadCount, new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP));	
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
@@ -542,7 +539,7 @@ public class DTLSConnector implements Connector {
 		receiver.start();
 		LOGGER.info(
 				"DTLS connector listening on [{}] with MTU [{}] using (inbound) datagram buffer size [{} bytes]",
-				new Object[]{lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize});
+				lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize);
 	}
 
 	/**
@@ -598,13 +595,19 @@ public class DTLSConnector implements Connector {
 	@Override
 	public final void stop() {
 		ExecutorService shutdown = null;
-		List<Runnable> pending = null;
+		List<Runnable> pending = new ArrayList<>();
 		synchronized (this) {
-			if (running.get()) {
+			if (running.compareAndSet(true, false)) {
 				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
 				timer.shutdownNow();
+				synchronized (connectionExecutors) {
+					for (SerialExecutor executors : connectionExecutors.values()) {
+						executors.shutdownNow(pending);
+					}
+					connectionExecutors.clear();
+				}
 				if (hasInternalExecutor) {
-					pending = executor.shutdownNow();
+					pending.addAll(executor.shutdownNow());
 					shutdown = executor;
 					executor = null;
 					hasInternalExecutor = false;
@@ -621,10 +624,8 @@ public class DTLSConnector implements Connector {
 			} catch (InterruptedException e) {
 			}
 		}
-		if (pending != null) {
-			for (Runnable job : pending) {
-				job.run();
-			}
+		for (Runnable job : pending) {
+			job.run();
 		}
 	}
 
@@ -642,6 +643,27 @@ public class DTLSConnector implements Connector {
 	public final synchronized void destroy() {
 		stop();
 		connectionStore.clear();
+	}
+
+	/**
+	 * Get serial executor for peer.
+	 * 
+	 * @param peerAddress socket address of peer
+	 * @return serial executor. {@ocde null}, if {@link #connectionExecutors} is
+	 *         full.
+	 */
+	private final SerialExecutor getSerialExecutor(InetSocketAddress peerAddress) {
+		Executor executor = getExecutor();
+		synchronized (connectionExecutors) {
+			SerialExecutor serialExecutor = connectionExecutors.get(peerAddress);
+			if (serialExecutor == null) {
+				serialExecutor = new SerialExecutor(executor);
+				if (!connectionExecutors.put(peerAddress, serialExecutor)) {
+					serialExecutor = null;
+				}
+			}
+			return serialExecutor;
+		}
 	}
 
 	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
@@ -663,11 +685,16 @@ public class DTLSConnector implements Connector {
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data, peerAddress);
 		LOGGER.debug("Received {} DTLS records using a {} byte datagram buffer",
-				new Object[]{records.size(), inboundDatagramBufferSize});
+				records.size(), inboundDatagramBufferSize);
 
-		final Executor executor = getExecutor();
-		if (executor == null) {
+		if (!running.get()) {
 			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}", peerAddress);
+			return;
+		}
+
+		SerialExecutor executor = getSerialExecutor(peerAddress);
+		if (executor == null) {
+			LOGGER.debug("Execution cache is full while processing incoming records from peer: {}", peerAddress);
 			return;
 		}
 
@@ -679,24 +706,21 @@ public class DTLSConnector implements Connector {
 				case APPLICATION_DATA:
 				case ALERT:
 				case CHANGE_CIPHER_SPEC:
-					
-					executor.execute(new StripedRunnable() {
 
-						@Override
-						public Object getStripe() {
-							return record.getPeerAddress();
-						}
+					executor.execute(new Runnable() {
 
 						@Override
 						public void run() {
-							processRecord(record);
+							if (running.get()) {
+								processRecord(record);
+							}
 						}
 					});
 					break;
 				default:
 					LOGGER.debug(
 						"Discarding unsupported record [type: {}, peer: {}]",
-						new Object[]{record.getType(), record.getPeerAddress()});
+						record.getType(), record.getPeerAddress());
 				}
 			} catch (RejectedExecutionException e) {
 				// dont't terminate connection on shutdown!
@@ -733,7 +757,7 @@ public class DTLSConnector implements Connector {
 			default:
 				LOGGER.debug(
 					"Discarding record of unsupported type [{}] from peer [{}]",
-					new Object[]{record.getType(), record.getPeerAddress()});
+					record.getType(), record.getPeerAddress());
 			}
 		} catch (RuntimeException e) {
 			LOGGER.info("Unexpected error occurred while processing record from peer [{}]",
@@ -1383,14 +1407,19 @@ public class DTLSConnector implements Connector {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
 		}
+		SerialExecutor executor = null;
 		RuntimeException error = null;
 
-		final Executor executor = getExecutor();
-		if (!running.get() || executor == null) {
+		if (!running.get()) {
 			error = new IllegalStateException("connector must be started before sending messages is possible");
 		} else if (msg.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			error = new IllegalArgumentException(
 					"Message data must not exceed " + MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
+		} else {
+			executor = getSerialExecutor(msg.getInetSocketAddress());
+			if (executor == null) {
+				error = new IllegalStateException("connector executors cache is full");
+			}
 		}
 		if (error != null) {
 			msg.onError(error);
@@ -1398,32 +1427,33 @@ public class DTLSConnector implements Connector {
 		}
 
 		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
-			executor.execute(new StripedRunnable() {
-
-				@Override
-				public Object getStripe() {
-					return msg.getEndpointContext().getPeerAddress();
-				}
-
-				@Override
-				public void run() {
-					try {
-						if (running.get()) {
-							sendMessage(msg);
-						} else {
-							msg.onError(new InterruptedIOException("Connector is not running."));
+			try {
+				executor.execute(new Runnable() {
+	
+					@Override
+					public void run() {
+						try {
+							if (running.get()) {
+								sendMessage(msg);
+							} else {
+								msg.onError(new InterruptedIOException("Connector is not running."));
+							}
+						} catch (Exception e) {
+							if (running.get()) {
+								LOGGER.debug("Exception thrown by executor thread [{}]", Thread.currentThread().getName(),
+										e);
+							}
+							msg.onError(e);
+						} finally {
+							pendingOutboundMessagesCountdown.incrementAndGet();
 						}
-					} catch (Exception e) {
-						if (running.get()) {
-							LOGGER.debug("Exception thrown by executor thread [{}]", Thread.currentThread().getName(),
-									e);
-						}
-						msg.onError(e);
-					} finally {
-						pendingOutboundMessagesCountdown.incrementAndGet();
 					}
-				}
-			});
+				});
+			} catch (RejectedExecutionException e) {
+				LOGGER.debug("Execution rejected while sending application record [peer: {}]",
+						msg.getInetSocketAddress(), e);
+				msg.onError(new InterruptedIOException("Connector is not running."));
+			}
 		} else {
 			pendingOutboundMessagesCountdown.incrementAndGet();
 			LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
@@ -1853,22 +1883,26 @@ public class DTLSConnector implements Connector {
 
 		@Override
 		public void run() {
-			final Executor executor = getExecutor();
-			if (executor != null) {
-				executor.execute(new StripedRunnable() {
+			if (running.get()) {
+				final SerialExecutor executor = getSerialExecutor(flight.getPeerAddress());
+				if (executor == null) {
+					LOGGER.debug("Execution cache is full while retransmission of flight [peer: {}]", flight.getPeerAddress());
+					return;
+				}
+				try {
+					executor.execute(new Runnable() {
 	
-					@Override
-					public Object getStripe() {
-						return flight.getPeerAddress();
-					}
-	
-					@Override
-					public void run() {
-						if (!flight.isRetransmissionCancelled()) {
-							handleTimeout(flight);
+						@Override
+						public void run() {
+							if (!flight.isRetransmissionCancelled()) {
+								handleTimeout(flight);
+							}
 						}
-					}
-				});
+					});
+				} catch (RejectedExecutionException e) {
+					LOGGER.debug("Execution rejected while retransmission of flight [peer: {}]",
+							flight.getPeerAddress(), e);
+				}
 			}
 		}
 	}

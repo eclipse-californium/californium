@@ -87,8 +87,7 @@ public final class TcpMatcher extends BaseMatcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
-	 * @param executor executor to be used for exchanges. Intended to execute
-	 *            jobs with a striped executor.
+	 * @param executor executor to be used for exchanges.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.

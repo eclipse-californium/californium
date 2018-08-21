@@ -63,11 +63,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10000);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
+			int processors = Runtime.getRuntime().availableProcessors();
+			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors/2);
+			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
 		}
 
 	};
