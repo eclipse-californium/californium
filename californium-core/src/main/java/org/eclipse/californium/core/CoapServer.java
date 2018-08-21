@@ -21,6 +21,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove duplicated
  *                                                    endpoints destroy
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util and
+ *                                                    add a detached executor
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -28,7 +30,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -44,6 +45,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
@@ -101,6 +103,7 @@ public class CoapServer implements ServerInterface {
 	/** The root resource. */
 	private final Resource root;
 
+	/** The network configuration used by this server. */
 	private final NetworkConfig config;
 
 	/** The message deliverer. */
@@ -111,6 +114,11 @@ public class CoapServer implements ServerInterface {
 
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
+	/**
+	 * Indicate, it the server-specific executor service is detached, or
+	 * shutdown with this server.
+	 */
+	private boolean detachExecutor;
 
 	private boolean running;
 
@@ -161,10 +169,6 @@ public class CoapServer implements ServerInterface {
 		
 		// endpoints
 		this.endpoints = new ArrayList<>();
-		// sets the central thread pool for the protocol stage over all endpoints
-		this.executor = Executors.newScheduledThreadPool(//
-				this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-				new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 		// create endpoint for each port
 		for (int port : ports) {
 			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
@@ -178,16 +182,35 @@ public class CoapServer implements ServerInterface {
 	 * Sets the executor service to use for running tasks in the protocol stage.
 	 * 
 	 * @param executor The thread pool to use.
-	 * @throws IllegalStateException if this server is running.
+	 * @throws IllegalStateException if this server is running and a new
+	 *             executor is provided.
 	 */
-	public synchronized void setExecutor(final ScheduledExecutorService executor) {
+	public void setExecutor(final ScheduledExecutorService executor) {
+		setExecutor(executor, false);
+	}
 
-		if (running) {
-			throw new IllegalStateException("executor service can not be set on running server");
-		} else {
-			this.executor = executor;
-			for (Endpoint ep : endpoints) {
-				ep.setExecutor(executor);
+	/**
+	 * Sets the executor service to use for running tasks in the protocol stage.
+	 * 
+	 * @param executor The thread pool to use.
+	 * @param detach {@code true}, if the executor is not shutdown on
+	 *            {@link #destroy()}, {@code false}, otherwise.
+	 * @throws IllegalStateException if this server is running and a new
+	 *             executor is provided.
+	 */
+	public synchronized void setExecutor(final ScheduledExecutorService executor, final boolean detach) {
+		if (this.executor != executor) {
+			if (running) {
+				throw new IllegalStateException("executor service can not be set on running server");
+			} else {
+				if (!this.detachExecutor && this.executor != null) {
+					this.executor.shutdownNow();
+				}
+				this.executor = executor;
+				this.detachExecutor = detach;
+				for (Endpoint ep : endpoints) {
+					ep.setExecutor(executor);
+				}
 			}
 		}
 	}
@@ -205,6 +228,13 @@ public class CoapServer implements ServerInterface {
 		}
 
 		LOGGER.info("Starting server");
+
+		if (executor == null) {
+			// sets the central thread pool for the protocol stage over all endpoints
+			setExecutor(ExecutorsUtil.newScheduledThreadPool(//
+				this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
+				new NamedThreadFactory("CoapServer#"))); //$NON-NLS-1$
+		}
 
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
@@ -254,27 +284,30 @@ public class CoapServer implements ServerInterface {
 	 */
 	@Override
 	public synchronized void destroy() {
-
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
-		executor.shutdown(); // cannot be started again
 		try {
-			// wait for currently executing tasks to complete
-			if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-				// cancel still executing tasks
-				// and ignore all remaining tasks scheduled for later
-				List<Runnable> runningTasks = executor.shutdownNow();
-				if (runningTasks.size() > 0) {
-					// this is e.g. the case if we have performed an incomplete blockwise transfer
-					// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-					LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+			if (!detachExecutor) {
+				executor.shutdown(); // cannot be started again
+				try {
+					// wait for currently executing tasks to complete
+					if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+						// cancel still executing tasks
+						// and ignore all remaining tasks scheduled for later
+						List<Runnable> runningTasks = executor.shutdownNow();
+						if (runningTasks.size() > 0) {
+							// this is e.g. the case if we have performed an incomplete blockwise transfer
+							// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
+							LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+						}
+						// wait for executing tasks to respond to being cancelled
+						executor.awaitTermination(1, TimeUnit.SECONDS);
+					}
+				} catch (InterruptedException e) {
+					executor.shutdownNow();
+					Thread.currentThread().interrupt();
 				}
-				// wait for executing tasks to respond to being cancelled
-				executor.awaitTermination(1, TimeUnit.SECONDS);
 			}
-		} catch (InterruptedException e) {
-			executor.shutdownNow();
-			Thread.currentThread().interrupt();
 		} finally {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();

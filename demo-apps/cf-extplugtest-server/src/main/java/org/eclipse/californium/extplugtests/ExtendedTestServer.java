@@ -15,6 +15,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
  *                                                    for configuration
  *    Achim Kraus (Bosch Software Innovations GmbH) - add benchmark
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util.
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
@@ -23,7 +24,7 @@ import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Endpoint;
@@ -111,7 +112,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				protocols = Arrays.asList(Protocol.DTLS);
 			}
 
-			ScheduledExecutorService executor = Executors.newScheduledThreadPool(//
+			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 

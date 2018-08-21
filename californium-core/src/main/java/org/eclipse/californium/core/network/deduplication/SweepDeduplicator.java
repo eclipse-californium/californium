@@ -27,23 +27,23 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - change logging level for removed entries
  *                                                    from debug to trace
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This deduplicator uses an in-memory map to store incoming messages.
@@ -84,8 +84,9 @@ public final class SweepDeduplicator implements Deduplicator {
 	/** The hash map with all incoming messages. */
 	private final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
 	private final SweepAlgorithm algorithm;
-	private ScheduledExecutorService scheduler;
-	private boolean running = false;
+	private final long sweepInterval;
+	private final long exchangeLifetime;
+	private volatile ScheduledFuture<?> jobStatus;
 
 	/**
 	 * Creates a new deduplicator from configuration values.
@@ -103,27 +104,25 @@ public final class SweepDeduplicator implements Deduplicator {
 	 * @param config the configuration to use.
 	 */
 	public SweepDeduplicator(final NetworkConfig config) {
-		algorithm = new SweepAlgorithm(config);
+		algorithm = new SweepAlgorithm();
+		sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 	}
 
 	@Override
 	public synchronized void start() {
-		if (!running) {
-			if (scheduler == null || scheduler.isShutdown()) {
-				scheduler = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("Deduplicator"));
-			}
-			algorithm.schedule();
-			running = true;
+		if (jobStatus == null) {
+			jobStatus = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(algorithm, sweepInterval, sweepInterval,
+					TimeUnit.MILLISECONDS);
 		}
 	}
 
 	@Override
 	public synchronized void stop() {
-		if (running) {
-			algorithm.cancel();
-			scheduler.shutdown();
+		if (jobStatus != null) {
+			jobStatus.cancel(false);
+			jobStatus = null;
 			clear();
-			running = false;
 		}
 	}
 
@@ -167,18 +166,6 @@ public final class SweepDeduplicator implements Deduplicator {
 	 */
 	private class SweepAlgorithm implements Runnable {
 
-		private final long sweepInterval;
-		private final long exchangeLifetime;
-		private ScheduledFuture<?> future;
-
-		/**
-		 * @param config
-		 */
-		public SweepAlgorithm(final NetworkConfig config) {
-			this.exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-			this.sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
-		}
-
 		/**
 		 * This method wraps the method sweep() to catch any Exceptions that
 		 * might be thrown.
@@ -191,13 +178,6 @@ public final class SweepDeduplicator implements Deduplicator {
 
 			} catch (Throwable t) {
 				LOGGER.warn("Exception in Mark-and-Sweep algorithm", t);
-
-			} finally {
-				try {
-					schedule();
-				} catch (Throwable t) {
-					LOGGER.warn("Exception while scheduling Mark-and-Sweep algorithm", t);
-				}
 			}
 		}
 
@@ -220,24 +200,6 @@ public final class SweepDeduplicator implements Deduplicator {
 					}
 				}
 				LOGGER.debug("Sweep run took {}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
-			}
-		}
-
-		/**
-		 * Reschedule this task again.
-		 */
-		private void schedule() {
-			if (!scheduler.isShutdown()) {
-				future = scheduler.schedule(this, sweepInterval, TimeUnit.MILLISECONDS);
-			}
-		}
-
-		/**
-		 * Cancels sweep-run scheduled next.
-		 */
-		private void cancel() {
-			if (future != null) {
-				future.cancel(false);
 			}
 		}
 	}
