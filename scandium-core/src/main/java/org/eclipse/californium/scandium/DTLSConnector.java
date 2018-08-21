@@ -199,7 +199,7 @@ public class DTLSConnector implements Connector {
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
-	private Object allertHandlerLock= new Object();
+	private Object alertHandlerLock= new Object();
 
 	private volatile DatagramSocket socket;
 
@@ -839,7 +839,7 @@ public class DTLSConnector implements Connector {
 				// non-fatal alerts do not require any special handling
 			}
 
-			synchronized (allertHandlerLock) {
+			synchronized (alertHandlerLock) {
 				if (alertHandler != null) {
 					alertHandler.onAlert(alert.getPeer(), alert);
 				}
@@ -1826,7 +1826,7 @@ public class DTLSConnector implements Connector {
 	 * @param handler The handler to notify.
 	 */
 	public final void setAlertHandler(AlertHandler handler) {
-		synchronized (allertHandlerLock) {
+		synchronized (alertHandlerLock) {
 			this.alertHandler = handler;
 		}
 	}
