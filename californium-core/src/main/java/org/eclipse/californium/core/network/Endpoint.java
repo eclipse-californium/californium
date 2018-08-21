@@ -84,7 +84,12 @@ public interface Endpoint {
 	/**
 	 * Sets the executor for this endpoint and all its components.
 	 *
+	 * The executor is not managed by the endpoint, it must be shutdown
+	 * externally, if the resource should be freed.
+	 *
 	 * @param executor the new executor
+	 * @throws IllegalStateException if the endpoint is already started and a
+	 *             new executor is provided.
 	 */
 	void setExecutor(ScheduledExecutorService executor);
 

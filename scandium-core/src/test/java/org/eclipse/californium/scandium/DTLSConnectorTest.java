@@ -60,6 +60,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -123,8 +125,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
-
 /**
  * Verifies behavior of {@link DTLSConnector}.
  * <p>
@@ -151,7 +151,7 @@ public class DTLSConnectorTest {
 	private static InMemorySessionCache serverSessionCache;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
-	private static StripedExecutorService stripedExecutor;
+	private static ExecutorService executor;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -165,7 +165,7 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
-		stripedExecutor = new StripedExecutorService(Runtime.getRuntime().availableProcessors());
+		executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -205,7 +205,7 @@ public class DTLSConnectorTest {
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore, serverSessionCache);
 		server.setRawDataReceiver(serverRawDataChannel);
-		server.setExecutor(stripedExecutor);
+		server.setExecutor(executor);
 		server.start();
 		serverEndpoint = server.getAddress();
 		assertTrue(server.isRunning());
@@ -213,7 +213,7 @@ public class DTLSConnectorTest {
 
 	@AfterClass
 	public static void tearDown() {
-		stripedExecutor.shutdownNow();
+		executor.shutdownNow();
 		server.destroy();
 	}
 
@@ -226,7 +226,7 @@ public class DTLSConnectorTest {
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
-		client.setExecutor(stripedExecutor);
+		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -242,7 +242,7 @@ public class DTLSConnectorTest {
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
 		clientConfig = clientConfigBuilder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
-		client.setExecutor(stripedExecutor);
+		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}

@@ -19,6 +19,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - Move isNotification and getObserve
  *                                                    to Block2BlockwiseStatus
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
+ *                                                    with serial executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -31,7 +33,6 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.StripedExchangeJob;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -294,16 +295,16 @@ public abstract class BlockwiseStatus {
 	 * Complete current transfer.
 	 */
 	public void timeoutCurrentTranfer() {
-		Exchange exchange;
+		final Exchange exchange;
 		synchronized (this) {
 			exchange = this.exchange;
 		}
 		if (exchange != null && !exchange.isComplete()) {
-			exchange.execute(new StripedExchangeJob(exchange) {
+			exchange.execute(new Runnable() {
 
 				@Override
-				public void runStriped() {
-					this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+				public void run() {
+					exchange.setTimedOut(exchange.getCurrentRequest());
 				}
 			});
 		}
