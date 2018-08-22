@@ -340,7 +340,7 @@ public class OSSerializer {
 	 * @return the processed partialIV
 	 */
 	public static byte[] processPartialIV(int value) {
-		byte[] partialIV = ByteBuffer.allocate(Integer.BYTES).putInt(value).array();
+		byte[] partialIV = ByteBuffer.allocate(Decryptor.INTEGER_BYTES).putInt(value).array();
 		return stripZeroes(partialIV);
 	}
 

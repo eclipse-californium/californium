@@ -43,6 +43,10 @@ import COSE.HeaderKeys;
  *
  */
 public abstract class Decryptor {
+	/**
+	 * Java 1.6 compatibility.
+	 */
+	public static final int INTEGER_BYTES = Integer.SIZE / Byte.SIZE;
 
 	/**
 	 * The logger
@@ -100,7 +104,7 @@ public abstract class Decryptor {
 				// this should use the partialIV that arrived in the request and
 				// not the response
 				seq = seqByToken;
-				nonce = OSSerializer.nonceGeneration(ByteBuffer.allocate(Integer.BYTES).putInt(seqByToken).array(),
+				nonce = OSSerializer.nonceGeneration(ByteBuffer.allocate(INTEGER_BYTES).putInt(seqByToken).array(),
 						ctx.getSenderId(), ctx.getCommonIV(), ctx.getIVLength());
 			} else {
 
@@ -132,15 +136,15 @@ public abstract class Decryptor {
 	}
 
 	private static byte[] expandToIntSize(byte[] partialIV) throws OSException {
-		if (partialIV.length > Integer.BYTES) {
-			LOGGER.error("The partial IV is: " + partialIV.length + " long, " + Integer.BYTES + " was expected");
+		if (partialIV.length > INTEGER_BYTES) {
+			LOGGER.error("The partial IV is: " + partialIV.length + " long, " + INTEGER_BYTES + " was expected");
 			throw new OSException("Partial IV too long");
-		} else if (partialIV.length == Integer.BYTES) {
+		} else if (partialIV.length == INTEGER_BYTES) {
 			return partialIV;
 		}
-		byte[] ret = new byte[Integer.BYTES];
+		byte[] ret = new byte[INTEGER_BYTES];
 		for (int i = 0; i < partialIV.length; i++) {
-			ret[Integer.BYTES - partialIV.length + i] = partialIV[i];
+			ret[INTEGER_BYTES - partialIV.length + i] = partialIV[i];
 		}
 		return ret;
 
