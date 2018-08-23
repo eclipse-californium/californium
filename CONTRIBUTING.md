@@ -1,7 +1,6 @@
 # How to contribute to Eclipse Californium
 
-First of all, thanks for considering to contribute to Eclipse Californium. We really appreciate the time and effort you want to
-spend helping to improve things around here. And help we can use :-)
+First of all, thanks for considering to contribute to Eclipse Californium. We really appreciate the time and effort you want to spend helping to improve things around here. And help we can use :-)
 
 Here is a (non-exclusive, non-prioritized) list of things you might be able to help us with:
 
@@ -40,6 +39,7 @@ You can find all the details in the [Contributing via Git](http://wiki.eclipse.o
 ## Making your Changes
 
 1. Consider to start with creating an issue on GitHub to discuss your plans and get the proper startup information.
+1. Ensure, your plans will work with java 1.7
 1. Fork the repository on GitHub
 1. Create a new branch for your changes based on the 2.0.x branch. 
    Please note: work based on other branches without prior discussion in an issue, may be in vain.
