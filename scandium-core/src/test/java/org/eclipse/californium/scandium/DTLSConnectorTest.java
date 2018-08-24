@@ -348,7 +348,7 @@ public class DTLSConnectorTest {
 	public void testRetransmission() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 
 		try {
 			rawClient.start();
@@ -417,7 +417,7 @@ public class DTLSConnectorTest {
 	public void testNoRetransmissionIfMessageReceived() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 
 		// Add latency to PSK store
 		pskStoreLatency = 1000;
@@ -504,7 +504,7 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 		rawClient.start();
 
 		rawClient.sendRecord(serverEndpoint,
@@ -591,7 +591,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 		try {
 			rawClient.start();
 			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(),rawClient.socket.getLocalPort());
@@ -672,7 +672,7 @@ public class DTLSConnectorTest {
 	public void testReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		try {
 
 			// Start connector
@@ -735,7 +735,7 @@ public class DTLSConnectorTest {
 	public void testServerFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
 		try {
 
@@ -804,7 +804,7 @@ public class DTLSConnectorTest {
 	public void testResumeClientFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector, serverConfig);
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
 		SimpleRecordLayer serverRecordLayer = new SimpleRecordLayer(rawServer);
 
 		try {
@@ -911,7 +911,7 @@ public class DTLSConnectorTest {
 	public void testFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector, serverConfig);
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
 
 		try {
 			// Start connector (Server)
@@ -976,7 +976,7 @@ public class DTLSConnectorTest {
 	public void testResumeFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
 		DTLSSession clientSession = new DTLSSession(serverEndpoint, true);
 		try {
@@ -1420,7 +1420,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(endpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(endpoint, handler);
 
 		try{
 			rawClient.start();
@@ -1858,7 +1858,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 
 		try {
 			rawClient.start();
@@ -2067,7 +2067,7 @@ public class DTLSConnectorTest {
 		DataHandler handler;
 		Thread receiver;
 
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DtlsConnectorConfig config) {
+		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler) {
 			this.address = bindToAddress;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {
