@@ -321,21 +321,18 @@ public class OSCoreTest {
 			request2 = ObjectSecurityLayer.prepareSend(request2, db.getContext("coap://localhost:5683"));
 		} catch (OSException e) {
 			e.printStackTrace();
-			assertTrue(false);
+			fail();
 		}
 
 		dbClientToServer();
 
 		// receiving seq 0 twice
-		boolean detectedDuplicate = false;
 		try {
 			ObjectSecurityLayer.prepareReceive(request);
 			ObjectSecurityLayer.prepareReceive(request2);
+			fail("duplicate seq 0 not detected!");
 		} catch (OSException e) {
-			e.printStackTrace();
-			detectedDuplicate = true;
 		}
-		assertTrue(detectedDuplicate);
 
 		// Test receive replay of response
 		setUp();// reset sequence number counters
@@ -352,25 +349,18 @@ public class OSCoreTest {
 			response2.setMID(34);
 		} catch (OSException e) {
 			e.printStackTrace();
-			assertTrue(false);
+			fail();
 		}
-		detectedDuplicate = false;
 		try {
 			db.addContext(t1, clientCtx);
 			db.getContext("coap://localhost:5683").setSenderSeq(0);
 			db.addSeqByToken(t1, 0);
 			ObjectSecurityLayer.prepareReceive(response1);
 			ObjectSecurityLayer.prepareReceive(response2);
+			fail("invalid token not detected!");
 		} catch (OSException e) {
-			e.printStackTrace();
-			if (e.getMessage().equals(ErrorDescriptions.TOKEN_INVALID)) {
-				detectedDuplicate = true;
-			} else {
-				detectedDuplicate = false;
-			}
-
+			assertEquals(ErrorDescriptions.TOKEN_INVALID, e.getMessage());
 		}
-		assertTrue(detectedDuplicate);
 	}
 
 	@Test
@@ -386,14 +376,11 @@ public class OSCoreTest {
 		} catch (OSException e) {
 			e.printStackTrace();
 		}
-		boolean detectWrap = false;
 		try {
 			sendRequest("coap://localhost:5683", db, t3);
+			fail("expected OSException");
 		} catch (OSException e) {
-			e.printStackTrace();
-			detectWrap = true;
 		}
-		assertTrue(detectWrap);
 	}
 
 	@Test
