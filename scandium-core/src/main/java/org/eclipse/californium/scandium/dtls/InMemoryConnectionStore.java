@@ -25,6 +25,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix session resumption with
  *                                                    session cache. issue #712
  *    Achim Kraus (Bosch Software Innovations GmbH) - add more logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - restore connection from
+ *                                                    client session cache,
+ *                                                    when provided.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -118,7 +121,9 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 *            connection is considered stale and can be evicted from the store if
 	 *            a new connection is to be added to the store
 	 * @param sessionCache a second level cache to use for <em>current</em>
-	 *            connection state of established DTLS sessions.
+	 *                     connection state of established DTLS sessions.
+	 *                     If implements {@link ClientSessionCache}, restore
+	 *                     connection from the cache and mark them to resume. 
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
@@ -135,6 +140,22 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 					removeSessionFromCache(staleConnection);
 				}
 			});
+			
+			if (sessionCache instanceof ClientSessionCache) {
+				ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
+				LOG.debug("resume client sessions {}", clientCache);
+				for (InetSocketAddress peer : clientCache) {
+					SessionTicket ticket = clientCache.getSessionTicket(peer);
+					SessionId id = clientCache.getSessionIdentity(peer);
+					if (ticket != null && id != null) {
+						// restore connection from session ticket 
+						Connection connection = new Connection(ticket, id);
+						connection.setResumptionRequired(true);
+						connections.put(peer, connection);
+						LOG.debug("resume {} {}", peer, id);
+					}
+				}
+			}
 		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
@@ -231,7 +252,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 				} else if (conFromLocalCache == null) {
 					// this probably means that we are taking over the session from a failed node
-					return new Connection(ticket);
+					return new Connection(ticket, id);
 					// connection will be put to first level cache as part of
 					// the abbreviated handshake
 				} else {
