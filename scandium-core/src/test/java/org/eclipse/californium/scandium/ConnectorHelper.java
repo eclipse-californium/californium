@@ -323,7 +323,7 @@ public class ConnectorHelper {
 		DatagramSocket socket;
 		Thread receiver;
 
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DtlsConnectorConfig config) {
+		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler) {
 			this.address = bindToAddress;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {
