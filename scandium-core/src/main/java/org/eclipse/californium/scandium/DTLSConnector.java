@@ -92,6 +92,14 @@
  *                                                    block of processApplicationDataRecord.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
+ *                                                    Move handshakeCompleted out on synchronized block.
+ *                                                    When handshaker replaced, called handshakeFailed
+ *                                                    on old to trigger sent error for pending messages.
+ *                                                    Reuse ongoing handshaker instead of creating a new
+ *                                                    one.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -820,7 +828,6 @@ public class DTLSConnector implements Connector {
 			} else {
 				// keep established session intact and only terminate ongoing handshake
 				send(alert, session);
-				connection.terminateOngoingHandshake();
 			}
 			handshaker.handshakeFailed(cause);
 		}
@@ -914,14 +921,16 @@ public class DTLSConnector implements Connector {
 				}
 			}
 			if (receivedApplicationMessage != null) {
-				connection.refreshAutoResumptionTime();
 				if (ongoingHandshake != null) {
 					// the fragment could be de-crypted
 					// thus, the handshake seems to have been completed successfully
 					ongoingHandshake.handshakeCompleted();
+				} else {
+					connection.refreshAutoResumptionTime();
 				}
 				connectionStore.update(connection);
-				RawDataChannel channel = messageHandler;
+
+				final RawDataChannel channel = messageHandler;
 				// finally, forward de-crypted message to application layer
 				// outside the synchronized block
 				if (channel != null) {
@@ -1190,7 +1199,7 @@ public class DTLSConnector implements Connector {
 		if (isClientInControlOfSourceIpAddress(clientHello, record)) {
 			if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
-				resumeExistingSession(clientHello, record);
+				resumeExistingSession(clientHello, record, null);
 			} else {
 				// At this point the client has demonstrated reachability by completing a cookie exchange
 				// so we start a new handshake (see section 4.2.8 of RFC 6347 (DTLS 1.2))
@@ -1235,7 +1244,7 @@ public class DTLSConnector implements Connector {
 				processOngoingHandshakeMessage(clientHello, record, connection);
 			} else if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
-				resumeExistingSession(clientHello, record);
+				resumeExistingSession(clientHello, record, connection);
 			} else {
 				// At this point the client has demonstrated reachability by completing a cookie exchange
 				// so we terminate the previous connection and start a new handshake
@@ -1307,7 +1316,8 @@ public class DTLSConnector implements Connector {
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
-				getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+				getRecordLayerForPeer(peerConnection), peerConnection.getSessionListener(), config,
+				maximumTransmissionUnit);
 		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
 	}
@@ -1319,7 +1329,7 @@ public class DTLSConnector implements Connector {
 	 * @throws HandshakeException if the session cannot be resumed based on the parameters
 	 *             provided in the client hello message
 	 */
-	private void resumeExistingSession(final ClientHello clientHello, final Record record) throws HandshakeException {
+	private void resumeExistingSession(final ClientHello clientHello, final Record record, final Connection connection) throws HandshakeException {
 		LOGGER.debug("Client [{}] wants to resume session with ID [{}]", clientHello.getPeer(),
 				clientHello.getSessionId());
 		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
@@ -1339,7 +1349,8 @@ public class DTLSConnector implements Connector {
 					ticket, record.getSequenceNumber());
 
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
-					getRecordLayerForPeer(peerConnection), peerConnection, config, maximumTransmissionUnit);
+					getRecordLayerForPeer(peerConnection), peerConnection.getSessionListener(), config,
+					maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
 
 			if (previousConnection.hasEstablishedSession()) {
@@ -1353,10 +1364,9 @@ public class DTLSConnector implements Connector {
 								throws HandshakeException {
 							LOGGER.debug(
 									"Discarding existing connection to [{}] after successful resumption of session [ID={}] by peer [{}]",
-									new Object[]{
 											previousConnection.getPeerAddress(),
 											establishedSession.getSessionIdentifier(),
-											establishedSession.getPeer()});
+											establishedSession.getPeer());
 							previousConnection.cancelPendingFlight();
 							connectionStore.remove(previousConnection, false);
 						}
@@ -1369,6 +1379,13 @@ public class DTLSConnector implements Connector {
 			} else {
 				// client wants to resume a session that has been established with another node
 				// simply start the abbreviated handshake
+			}
+
+			if (connection != null) {
+				final Handshaker pendingHandshaker = connection.getOngoingHandshake();
+				if (pendingHandshaker != null) {
+					pendingHandshaker.handshakeFailed(new IOException("ongoing handshake resumed!"));
+				}
 			}
 
 			// add the new one to the store
@@ -1517,17 +1534,20 @@ public class DTLSConnector implements Connector {
 				return;
 			}
 			message.onConnecting();
-			// no session with peer established yet, 
-			// create new empty session & start handshake
-			Handshaker handshaker = new ClientHandshaker(
+			Handshaker handshaker = connection.getOngoingHandshake();
+			if (handshaker == null) {
+				// no session with peer established yet, create new empty session &
+				// start handshake
+				handshaker = new ClientHandshaker(
 					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
 					getRecordLayerForPeer(connection),
-					connection,
+					connection.getSessionListener(),
 					config,
 					maximumTransmissionUnit);
-			initializeHandshaker(handshaker);
+				initializeHandshaker(handshaker);
+				handshaker.startHandshake();
+			}
 			handshaker.addSessionListener(newDeferredMessageSender(message));
-			handshaker.startHandshake();
 		}
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
@@ -1546,8 +1566,8 @@ public class DTLSConnector implements Connector {
 			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
 			terminateConnection(connection, null, null);
 			connectionStore.put(newConnection);
-			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
-					getRecordLayerForPeer(newConnection), newConnection, config, maximumTransmissionUnit);
+			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, getRecordLayerForPeer(newConnection),
+					newConnection.getSessionListener(), config, maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();

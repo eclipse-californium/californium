@@ -47,6 +47,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
  *                                                    parameter for session listener.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
