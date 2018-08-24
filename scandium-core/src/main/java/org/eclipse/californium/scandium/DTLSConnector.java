@@ -84,6 +84,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix issues #716 and #717
  *                                                    change scopes to protected to support
  *                                                    subclass specific implementations.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use session ticket when sending messages
+ *                                                    over a connection marked for resumption.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -152,6 +154,7 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionCache;
+import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -1443,7 +1446,8 @@ public class DTLSConnector implements Connector {
 		}
 
 		DTLSSession session = connection.getEstablishedSession();
-		if (session == null) {
+		SessionTicket ticket = connection.getSessionTicket();
+		if (session == null && ticket == null) {
 			if (!checkOutboundEndpointContext(message, null)) {
 				return;
 			}
@@ -1462,7 +1466,14 @@ public class DTLSConnector implements Connector {
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
 			// create the session to resume from the previous one.
-			DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress, session.getSessionTicket(), 0);
+			SessionId sessionId;
+			if (ticket == null) {
+				ticket = session.getSessionTicket();
+				sessionId = session.getSessionIdentifier();
+			} else {
+				sessionId = connection.getSessionIdentity();
+			}
+			DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
 
 			// terminate the previous connection and add the new one to the store
 			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());

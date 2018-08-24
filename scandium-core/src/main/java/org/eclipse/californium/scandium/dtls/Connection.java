@@ -20,6 +20,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use volatile for establishedSession.
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add automatic resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add session id to resume
+ *                                                    connections created based
+ *                                                    on the client session cache.
+ *                                                    remove unused constructor.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -46,6 +50,7 @@ public final class Connection implements SessionListener {
 
 	private final InetSocketAddress peerAddress;
 	private final SessionTicket ticket;
+	private final SessionId sessionId;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 	private final AtomicLong lastMessage = new AtomicLong();
@@ -63,7 +68,14 @@ public final class Connection implements SessionListener {
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
 	public Connection(final InetSocketAddress peerAddress, final Long autoResumptionTimeout) {
-		this(peerAddress, (Handshaker) null, autoResumptionTimeout);
+		if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		} else {
+			this.sessionId = null;
+			this.ticket = null;
+			this.peerAddress = peerAddress;
+			this.autoResumptionTimeout = autoResumptionTimeout;
+		}
 	}
 
 	/**
@@ -71,34 +83,19 @@ public final class Connection implements SessionListener {
 	 * connection that should be resumed.
 	 * 
 	 * @param sessionTicket The other connection's current state.
+	 * @param sessionId The other connection's session id.
 	 */
-	public Connection(final SessionTicket sessionTicket) {
+	public Connection(final SessionTicket sessionTicket, SessionId sessionId) {
 		if (sessionTicket == null) {
 			throw new NullPointerException("session ticket must not be null");
 		}
+		if (sessionId == null) {
+			throw new NullPointerException("session identity must not be null");
+		}
 		this.ticket = sessionTicket;
+		this.sessionId =sessionId;
 		this.peerAddress = null;
 		this.autoResumptionTimeout = null;
-	}
-
-	/**
-	 * Creates a new new connection to a given peer.
-	 * 
-	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @param ongoingHandshake the object responsible for managing the already ongoing
-	 *                   handshake with the peer
-	 * @param autoResumptionTimeout
-	 * @throws NullPointerException if the peer address is <code>null</code>
-	 */
-	public Connection(final InetSocketAddress peerAddress, final Handshaker ongoingHandshake, final Long autoResumptionTimeout) {
-		if (peerAddress == null) {
-			throw new NullPointerException("Peer address must not be null");
-		} else {
-			this.ticket = null;
-			this.peerAddress = peerAddress;
-			this.autoResumptionTimeout = autoResumptionTimeout;
-			this.ongoingHandshake.set(ongoingHandshake);
-		}
 	}
 
 	/**
@@ -112,6 +109,15 @@ public final class Connection implements SessionListener {
 	 */
 	public boolean isActive() {
 		return establishedSession != null || ticket != null;
+	}
+
+	/**
+	 * Gets the session identity this connection can be resumed from.
+	 * 
+	 * @return The session identity or {@code null} if this connection has not been created from a session ticket.
+	 */
+	public SessionId getSessionIdentity() {
+		return sessionId;
 	}
 
 	/**

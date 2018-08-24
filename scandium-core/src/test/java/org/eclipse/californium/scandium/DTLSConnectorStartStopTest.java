@@ -37,6 +37,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
@@ -71,6 +72,7 @@ public class DTLSConnectorStartStopTest {
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
 	static ConnectorHelper serverHelper;
+	static InMemoryClientSessionCache clientSessionCache;
 
 	DTLSConnector client;
 	DtlsConnectorConfig clientConfig;
@@ -89,6 +91,7 @@ public class DTLSConnectorStartStopTest {
 	public static void startServer() throws IOException, GeneralSecurityException {
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer();
+		clientSessionCache = new InMemoryClientSessionCache();
 	}
 
 	/**
@@ -101,11 +104,11 @@ public class DTLSConnectorStartStopTest {
 
 	@Before
 	public void setUp() throws Exception {
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(clientConfig, clientConnectionStore, clientSessionCache);
 		clientChannel = serverHelper.new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
 	}
@@ -120,16 +123,23 @@ public class DTLSConnectorStartStopTest {
 
 	@Test
 	public void testStopCallsMessageCallbackOnError() throws InterruptedException {
-		testStopCallsMessageCallbackOnError(100, 20);
+		testStopCallsMessageCallbackOnError(100, 20, false);
 	}
 
 	@Test
 	public void testStopCallsMessageCallbackOnErrorCirtical() throws InterruptedException {
-		testStopCallsMessageCallbackOnError(2, 20);
+		testStopCallsMessageCallbackOnError(2, 20, false);
 	}
 
-	private void testStopCallsMessageCallbackOnError(final int pending, final int loops) throws InterruptedException {
+	@Test
+	public void testRestartFromClientSessionCache() throws InterruptedException {
+		testStopCallsMessageCallbackOnError(10, 20, true);
+	}
+
+	private void testStopCallsMessageCallbackOnError(final int pending, final int loops, boolean restart)
+			throws InterruptedException {
 		byte[] data = { 0, 1, 2 };
+		int lastServerRemaining = -1;
 		InetSocketAddress dest = serverHelper.serverEndpoint;
 		EndpointContext context = new AddressEndpointContext(dest);
 
@@ -159,6 +169,11 @@ public class DTLSConnectorStartStopTest {
 							+ ConnectorHelper.MAX_TIME_TO_WAIT_SECS + " seconds",
 					latch.await(ConnectorHelper.MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
+			if (lastServerRemaining > -1) {
+				assertThat("number of server sessions changed!", serverHelper.serverConnectionStore.remainingCapacity(),
+						is(lastServerRemaining));
+			}
+
 			for (int index = 1; index < pending; ++index) {
 				LOGGER.info("loop: {}, send {}", loop, index);
 				messageCallback = new SimpleMessageCallback(0, true, callback);
@@ -177,6 +192,18 @@ public class DTLSConnectorStartStopTest {
 						LOGGER.info("loop: {}, call {} {}", loop, index, calls);
 					}
 				}
+			}
+			assertThat("loop: " + loop + ", " + callback.toString(), complete, is(true));
+			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
+			try {
+				if (restart) {
+					client.destroy();
+					setUp();
+				} else {
+					client.start();
+				}
+			} catch (IOException e) {
+			} catch (Exception e) {
 			}
 			assertThat("loop: " + loop + ", " + callback.toString(), callback.await(200), is(true));
 		}
