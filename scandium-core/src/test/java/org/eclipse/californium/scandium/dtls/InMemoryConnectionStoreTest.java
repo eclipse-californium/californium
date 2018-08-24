@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -121,7 +124,7 @@ public class InMemoryConnectionStoreTest {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
 		Connection con = new Connection(peerAddress, null);
-		con.sessionEstablished(null, newSession(peerAddress));
+		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
 

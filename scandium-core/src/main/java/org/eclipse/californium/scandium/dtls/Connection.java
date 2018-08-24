@@ -27,6 +27,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as 
  *                                                    parameter for session listener.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -47,13 +50,14 @@ import org.slf4j.LoggerFactory;
  * <li>a pending flight that has not been acknowledged by the peer yet</li>
  * </ul> 
  */
-public final class Connection implements SessionListener {
+public final class Connection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final InetSocketAddress peerAddress;
 	private final SessionTicket ticket;
 	private final SessionId sessionId;
+	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 	private final AtomicLong lastMessage = new AtomicLong();
@@ -78,6 +82,7 @@ public final class Connection implements SessionListener {
 			this.ticket = null;
 			this.peerAddress = peerAddress;
 			this.autoResumptionTimeout = autoResumptionTimeout;
+			this.sessionListener = new ConnectionSessionListener();
 		}
 	}
 
@@ -99,6 +104,17 @@ public final class Connection implements SessionListener {
 		this.sessionId =sessionId;
 		this.peerAddress = null;
 		this.autoResumptionTimeout = null;
+		this.sessionListener = null;
+	}
+
+	/**
+	 * Get session listener of connection.
+	 * 
+	 * @return session listener. {@code null}, if the connection just provides a
+	 *         session ticket ({@link Connection#Connection(SessionTicket)}).
+	 */
+	public final SessionListener getSessionListener() {
+		return sessionListener;
 	}
 
 	/**
@@ -188,27 +204,6 @@ public final class Connection implements SessionListener {
 	}
 
 	/**
-	 * Sets the handshaker managing the currently ongoing handshake with the peer.
-	 * 
-	 * @param ongoingHandshake the handshaker
-	 */
-	public void setOngoingHandshake(Handshaker ongoingHandshake) {
-		this.ongoingHandshake.set(ongoingHandshake);
-	}
-
-	/**
-	 * Stops an ongoing handshake with the peer and removes all state information
-	 * about the handshake.
-	 * 
-	 * Cancels any pending flight and sets <em>ongoingHandshake</em> property to
-	 * <code>null</code>. 
-	 */
-	public void terminateOngoingHandshake() {
-		cancelPendingFlight();
-		setOngoingHandshake(null);
-	}
-
-	/**
 	 * Registers an outbound flight that has not been acknowledged by the peer
 	 * yet in order to be able to cancel its re-transmission later once it has
 	 * been acknowledged. The retransmission of a different previous pending
@@ -254,39 +249,6 @@ public final class Connection implements SessionListener {
 		return session;
 	}
 
-	@Override
-	public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
-		this.ongoingHandshake.set(handshaker);
-		LOGGER.debug("Handshake with [{}] has been started", handshaker.getPeerAddress());
-	}
-
-	@Override
-	public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
-		this.establishedSession = session;
-		LOGGER.debug("Session with [{}] has been established", session.getPeer());
-	}
-
-	@Override
-	public void handshakeCompleted(Handshaker handshaker) {
-		if (ongoingHandshake.compareAndSet(handshaker, null)) {
-			cancelPendingFlight();
-			LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
-		}
-	}
-
-	@Override
-	public void handshakeFailed(Handshaker handshaker, Throwable error) {
-		if (ongoingHandshake.compareAndSet(handshaker, null)) {
-			cancelPendingFlight();
-			LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
-		}
-	}
-
-
-	@Override
-	public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
-	}
-
 	/**
 	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
 	 */
@@ -329,5 +291,41 @@ public final class Connection implements SessionListener {
 	 */
 	public void setResumptionRequired(boolean resumptionRequired) {
 		this.resumptionRequired = resumptionRequired;
+	}
+	
+	private class ConnectionSessionListener implements SessionListener {
+		@Override
+		public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
+			ongoingHandshake.set(handshaker);
+			LOGGER.debug("Handshake with [{}] has been started", handshaker.getPeerAddress());
+		}
+
+		@Override
+		public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
+			establishedSession = session;
+			LOGGER.debug("Session with [{}] has been established", session.getPeer());
+		}
+
+		@Override
+		public void handshakeCompleted(Handshaker handshaker) {
+			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				refreshAutoResumptionTime();
+				cancelPendingFlight();
+				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
+			}
+		}
+
+		@Override
+		public void handshakeFailed(Handshaker handshaker, Throwable error) {
+			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				cancelPendingFlight();
+				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
+			}
+		}
+
+		@Override
+		public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
+			
+		}
 	}
 }
