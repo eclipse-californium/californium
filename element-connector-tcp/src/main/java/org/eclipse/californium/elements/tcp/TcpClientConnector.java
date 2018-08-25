@@ -90,7 +90,7 @@ public class TcpClientConnector implements Connector {
 	protected final TcpContextUtil contextUtil;
 
 	public TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		this(numberOfThreads, idleTimeout, connectTimeoutMillis, new TcpContextUtil());
+		this(numberOfThreads, connectTimeoutMillis, idleTimeout, new TcpContextUtil());
 	}
 
 	protected TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout, TcpContextUtil contextUtil) {
