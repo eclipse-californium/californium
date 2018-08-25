@@ -36,11 +36,11 @@ public class TcpAdaptionLayer extends AbstractLayer {
 
 		if (message.isConfirmable()) {
 			// CoAP over TCP uses empty messages as pings for keep alive.
-			// TODO: Should we isntead rely on TCP keep-alives configured via TCP Connector?
+			// TODO: Should we instead rely on TCP keep-alives configured via TCP Connector?
 			lower().sendEmptyMessage(exchange, message);
 		} else {
 			// Empty messages don't make sense when running over TCP connector.
-			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {}", message);
+			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {} - {}", message, exchange.getCurrentRequest(), new Throwable());
 		}
 	}
 

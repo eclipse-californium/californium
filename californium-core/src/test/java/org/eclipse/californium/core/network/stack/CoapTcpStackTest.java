@@ -55,8 +55,10 @@ public class CoapTcpStackTest {
 
 
 	@Test public void sendRstExpectNotSend() {
+		Request request = new Request(CoAP.Code.GET);
+		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		EmptyMessage message = new EmptyMessage(CoAP.Type.RST);
-		stack.sendEmptyMessage(null, message);
+		stack.sendEmptyMessage(exchange, message);
 
 		verify(outbox, never()).sendEmptyMessage(any(Exchange.class), any(EmptyMessage.class));
 	}
