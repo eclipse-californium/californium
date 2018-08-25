@@ -34,13 +34,13 @@ public final class SessionId {
 
 	// Members ////////////////////////////////////////////////////////
 	private static final SessionId EMPTY_SESSION_ID = new SessionId(new byte[0]);
+	private final int hashCode;
 	private final byte[] id; // opaque SessionID<0..32>
 	private final String text; 
 	// Constructors ///////////////////////////////////////////////////
 
 	public SessionId() {
-		id = new Random(new SecureRandom()).getRandomBytes();
-		text = ByteArrayUtils.toHex(id);
+		this(new Random(new SecureRandom()).getRandomBytes());
 	}
 
 	/**
@@ -54,6 +54,7 @@ public final class SessionId {
 			throw new NullPointerException("Session ID must not be null");
 		}
 		this.id = Arrays.copyOf(sessionId, sessionId.length);
+		this.hashCode = Arrays.hashCode(id);
 		text = ByteArrayUtils.toHex(id);
 	}
 
@@ -83,10 +84,7 @@ public final class SessionId {
 	 */
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + Arrays.hashCode(id);
-		return result;
+		return hashCode;
 	}
 
 	/**
@@ -108,9 +106,7 @@ public final class SessionId {
 		if (getClass() != obj.getClass())
 			return false;
 		SessionId other = (SessionId) obj;
-		if (!Arrays.equals(id, other.id))
-			return false;
-		return true;
+		return Arrays.equals(id, other.id);
 	}
 
 	/**
