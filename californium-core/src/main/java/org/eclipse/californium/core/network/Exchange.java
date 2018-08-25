@@ -477,7 +477,7 @@ public class Exchange {
 				key = KeyMID.fromOutboundMessage(currentRequest);
 			}
 			if (token != null || key != null) {
-				LOGGER.info("{} replace {} by {}", this, currentRequest, newCurrentRequest);
+				LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
 				RemoveHandler obs = this.removeHandler;
 				if (obs != null) {
 					obs.remove(this, token, key);

@@ -34,6 +34,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
  * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class ObserveNon extends CoapResource {
+	private static final byte[] EMPTY = new byte[0];
 
 	// Members ////////////////////////////////////////////////////////////////
 
@@ -140,7 +141,7 @@ public class ObserveNon extends CoapResource {
 		}
 		
 		// set payload and content type
-		data = payload;
+		data = payload != null ? payload : EMPTY;
 		dataCf = format;
 
 		getAttributes().clearContentType();
