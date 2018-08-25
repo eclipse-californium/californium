@@ -66,6 +66,7 @@ public class CO08 extends TestClientAbstract {
 		URI uri = null;
 		try {
 			uri = new URI(serverURI + resourceUri);
+			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
@@ -152,7 +153,7 @@ public class CO08 extends TestClientAbstract {
 			if (response != null) {
 				success &= checkCode(EXPECTED_RESPONSE_CODE_2, response.getCode());
 				success &= hasToken(response);
-				success &= hasObserve(response, true);
+				success &= hasNoObserve(response);
 			} else {
 				System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received");
 				success = false;

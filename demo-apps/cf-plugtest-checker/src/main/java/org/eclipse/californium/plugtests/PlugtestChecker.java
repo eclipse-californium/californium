@@ -19,6 +19,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add notification processing and
  *                                                    adjust tests.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add block2 backward-compatibility
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tcp compatibility
+ *                                                    add hasNoObserver
+ *                                                    wait for response, when cancel
+ *                                                    observe relation
  ******************************************************************************/
 
 package org.eclipse.californium.plugtests;
@@ -50,6 +54,7 @@ import javax.net.ssl.SSLContext;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -115,6 +120,8 @@ public class PlugtestChecker {
 
 	};
 
+	private static volatile boolean verbose;
+	
 	/** The server uri. */
 	private String serverURI = null;
 
@@ -243,7 +250,6 @@ public class PlugtestChecker {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
 		int index = 0;
-		boolean verbose = false;
 		boolean ping[] = { true };
 		boolean rpc = false;
 		boolean x509 = false;
@@ -386,6 +392,8 @@ public class PlugtestChecker {
 		 */
 		protected boolean sync = true;
 
+		protected boolean useTcp = false;
+
 		/**
 		 * Current started observation.
 		 */
@@ -431,7 +439,11 @@ public class PlugtestChecker {
 		 * @param testName the test name
 		 */
 		public TestClientAbstract(String testName) {
-			this(testName, false, true);
+			this(testName, PlugtestChecker.verbose, true);
+		}
+
+		public void setUseTcp(String scheme) {
+			useTcp = CoAP.isTcpScheme(scheme);
 		}
 
 		/**
@@ -500,6 +512,7 @@ public class PlugtestChecker {
 			URI uri = null;
 			try {
 				uri = new URI(serverURI + resourceUri);
+				useTcp = CoAP.isTcpScheme(uri.getScheme());
 			} catch (URISyntaxException use) {
 				System.err.println("Invalid URI: " + use.getMessage());
 			}
@@ -585,8 +598,10 @@ public class PlugtestChecker {
 						}
 						Utils.prettyPrint(response);
 					}
-
-					if ((requests > 1) && !request.getOptions().hasBlock1() && !response.getOptions().hasBlock2()) {
+					if (response.getOptions().hasBlock1()) {
+						requests -= response.getOptions().getBlock1().getNum();
+					}
+					if ((requests > 1) && !response.getOptions().hasBlock2()) {
 						// set block2 option from counter
 						// backwards compatibility (test only)
 						int size = response.getPayloadSize() / requests;
@@ -594,7 +609,7 @@ public class PlugtestChecker {
 						if ((size - bit) != 0) {
 							bit <<= 1;
 						}
-						response.getOptions().setBlock2(BlockOption.size2Szx(bit), false, requests);
+						response.getOptions().setBlock2(BlockOption.size2Szx(bit), false, requests - 1);
 					}
 
 					System.out.println("**** BEGIN CHECK ****");
@@ -647,6 +662,10 @@ public class PlugtestChecker {
 					// set Observe to cancel
 					cancel.setObserveCancel();
 					endpoint.sendRequest(cancel);
+					try {
+						cancel.waitForResponse(2000);
+					} catch (InterruptedException e) {
+					}
 				}
 				endpoint.cancelObservation(origin.getToken());
 				endpoint.removeNotificationListener(this);
@@ -784,6 +803,10 @@ public class PlugtestChecker {
 		 * @return true, if successful
 		 */
 		protected boolean checkType(Type expectedMessageType, Type actualMessageType) {
+			if (useTcp) {
+				// TCP doesn't sue a message type!
+				return true;
+			}
 			boolean success = expectedMessageType.equals(actualMessageType);
 
 			if (!success) {
@@ -986,7 +1009,7 @@ public class PlugtestChecker {
 		 * @param response the response
 		 * @return true, if successful
 		 */
-		protected boolean hasObserve(Response response, boolean invert) {
+		private boolean hasObserve(Response response, boolean invert) {
 			// boolean success =
 			// response.hasOption(OptionNumberRegistry.OBSERVE);
 			boolean success = response.getOptions().hasObserve();
@@ -1009,6 +1032,10 @@ public class PlugtestChecker {
 
 		protected boolean hasObserve(Response response) {
 			return hasObserve(response, false);
+		}
+
+		protected boolean hasNoObserve(Response response) {
+			return hasObserve(response, true);
 		}
 
 		protected boolean checkOption(Option expextedOption, Option actualOption) {

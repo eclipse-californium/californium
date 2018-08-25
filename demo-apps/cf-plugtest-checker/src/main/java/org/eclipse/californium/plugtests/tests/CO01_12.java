@@ -58,6 +58,7 @@ public class CO01_12 extends TestClientAbstract {
 		URI uri = null;
 		try {
 			uri = new URI(serverURI + resourceUri);
+			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
@@ -139,7 +140,7 @@ public class CO01_12 extends TestClientAbstract {
 			response = request.waitForResponse(10000);
 
 			if (response != null) {
-				success &= hasObserve(response, true);
+				success &= hasNoObserve(response);
 			} else {
 				System.out.println("FAIL: No Response after cancellation");
 				success = false;

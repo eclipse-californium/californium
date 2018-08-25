@@ -64,6 +64,7 @@ public class CO07 extends TestClientAbstract {
 		URI uri = null;
 		try {
 			uri = new URI(serverURI + resourceUri);
+			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
@@ -124,10 +125,6 @@ public class CO07 extends TestClientAbstract {
 
 						success &= checkResponse(request, response);
 						time = response.getOptions().getMaxAge() * 1000;
-
-						if (!hasObserve(response)) {
-							break;
-						}
 					}
 				}
 
@@ -154,7 +151,7 @@ public class CO07 extends TestClientAbstract {
 
 					success &= checkCode(EXPECTED_RESPONSE_CODE_2, response.getCode());
 					success &= hasToken(response);
-					success &= hasObserve(response, true);
+					success &= hasNoObserve(response);
 				} else {
 					System.out.println("FAIL: No " + EXPECTED_RESPONSE_CODE_2 + " received in " + time + "ms");
 					success = false;

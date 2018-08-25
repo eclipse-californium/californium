@@ -63,6 +63,7 @@ public class CO09 extends TestClientAbstract {
 		URI uri = null;
 		try {
 			uri = new URI(serverURI + resourceUri);
+			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
