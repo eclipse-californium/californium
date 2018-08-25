@@ -31,6 +31,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
  *                                                    from DTLSConnector to DTLSSession
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - preserve creation time of session.
+ *                                                    update time on set master secret.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -170,7 +172,7 @@ public final class DTLSSession {
 	 *            whether the entity represents a client or a server.
 	 */
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient) {
-		this(peerAddress, isClient, 0);
+		this(peerAddress, isClient, 0, System.currentTimeMillis());
 	}
 
 	/**
@@ -195,15 +197,14 @@ public final class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo){
-		this(peerAddress, false, initialSequenceNo);
+	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
+		this(peerAddress, false, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
 		masterSecret = ticket.getMasterSecret();
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		compressionMethod = ticket.getCompressionMethod();
 	}
-
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
@@ -220,12 +221,32 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
+		this(peerAddress, isClient, initialSequenceNo, System.currentTimeMillis());
+	}
+
+	/**
+	 * Creates a new session initialized with a given sequence number.
+	 *
+	 * @param peerAddress
+	 *            the IP address and port of the peer this session is established with
+	 * @param isClient
+	 *            indicates whether this session has been established playing the client or server side
+	 * @param initialSequenceNo the initial record sequence number to start from
+	 *            in epoch 0. When starting a new handshake with a client that
+	 *            has successfully exchanged a cookie with the server, the
+	 *            sequence number to use in the SERVER_HELLO record MUST be the same as
+	 *            the one from the successfully validated CLIENT_HELLO record
+	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
+	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
+	 * @param creationTime creation time of session. Maybe from previous session on resumption.
+	 */
+	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo, long creationTime) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
-			this.creationTime = System.currentTimeMillis();
+			this.creationTime = creationTime;
 			this.peer = peerAddress;
 			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
@@ -608,6 +629,7 @@ public final class DTLSSession {
 						MASTER_SECRET_LENGTH, masterSecret.length));
 			} else {
 				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
+				this.creationTime = System.currentTimeMillis();
 			}
 		}
 	}
@@ -866,7 +888,7 @@ public final class DTLSSession {
 					getWriteState().getCompressionMethod(),
 					getMasterSecret(),
 					getPeerIdentity(),
-					System.currentTimeMillis());
+					creationTime);
 		} else {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
