@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation. 
  *                                      Derived from NettyContextUtils.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove spaces from session id. 
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -116,7 +117,7 @@ public class TlsContextUtil extends TcpContextUtil {
 
 			byte[] sessionId = sslSession.getId();
 			if (sessionId != null && sessionId.length > 0) {
-				String sslId = StringUtil.byteArray2HexString(sessionId, 0);
+				String sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);
 				String cipherSuite = sslSession.getCipherSuite();
 				LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
 				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
