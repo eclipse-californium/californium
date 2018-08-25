@@ -21,6 +21,13 @@ import static org.junit.Assert.assertThat;
 import org.junit.Test;
 
 public class StringUtilTest {
+	@Test
+	public void testHex2ByteArray() {
+		String line = "4130010A";
+		byte[] result = StringUtil.hex2ByteArray(line);
+
+		assertThat(result, is(new byte[] { 0x41, 0x30, 0x01, 0x0a }));
+	}
 
 	@Test
 	public void testHex2CharArray() {
