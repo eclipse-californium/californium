@@ -43,6 +43,10 @@
  *                                                    Issue #487
  *    Achim Kraus (Bosch Software Innovations GmbH) - add checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for hasMID before
+ *                                                    sending ACK or RST.
+ *                                                    (therefore tcp messages are not
+ *                                                    rejected nor acknowledged)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -345,7 +349,7 @@ public class Exchange {
 	public void sendAccept() {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		if (current.getType() == Type.CON && !current.isAcknowledged()) {
+		if (current.getType() == Type.CON && current.hasMID() && !current.isAcknowledged()) {
 			current.setAcknowledged(true);
 			EmptyMessage ack = EmptyMessage.newACK(current);
 			endpoint.sendEmptyMessage(this, ack);
@@ -359,9 +363,11 @@ public class Exchange {
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		current.setRejected(true);
-		EmptyMessage rst = EmptyMessage.newRST(current);
-		endpoint.sendEmptyMessage(this, rst);
+		if (current.hasMID() && !current.isRejected()) {
+			current.setRejected(true);
+			EmptyMessage rst = EmptyMessage.newRST(current);
+			endpoint.sendEmptyMessage(this, rst);
+		}
 	}
 
 	/**

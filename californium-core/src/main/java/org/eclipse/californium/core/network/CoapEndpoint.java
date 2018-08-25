@@ -55,6 +55,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add coap-stack-factory
  *    Achim Kraus (Bosch Software Innovations GmbH) - use checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reject messages with MID only
+ *                                                    (therefore tcp messages are not rejected)
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -858,7 +860,7 @@ public class CoapEndpoint implements Endpoint {
 					// https://tools.ietf.org/html/rfc7252#section-4.2
 					reject(raw, e);
 					LOGGER.debug("rejected malformed message from [{}], reason: {}",
-							new Object[] { raw.getEndpointContext(), e.getMessage() });
+							raw.getEndpointContext(), e.getMessage());
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.debug("discarding malformed message from [{}]", raw.getEndpointContext());
@@ -950,7 +952,8 @@ public class CoapEndpoint implements Endpoint {
 							}
 						}
 					});
-				} else if (response.getType() != Type.ACK) {
+				} else if (response.getType() != Type.ACK && response.hasMID()) {
+					// reject only messages with MID, ignore for TCP
 					LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
 					reject(response);
 				}
