@@ -57,6 +57,7 @@
  *                                                    rejection of previous notifications
  *    Achim Kraus (Bosch Software Innovations GmbH) - reject messages with MID only
  *                                                    (therefore tcp messages are not rejected)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - setup retransmitResponse for notifies
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -606,6 +607,12 @@ public class CoapEndpoint implements Endpoint {
 
 			@Override
 			public void runStriped() {
+				if (exchange.getRequest().getOptions().hasObserve()) {
+					// observe- or cancel-observe-requests may have multiple responses
+					// when observes are finished, the last response has no longer an
+					// observe option. Therefore check the request for it.
+					exchange.retransmitResponse();
+				}
 				coapstack.sendResponse(exchange, response);
 			}
 		});

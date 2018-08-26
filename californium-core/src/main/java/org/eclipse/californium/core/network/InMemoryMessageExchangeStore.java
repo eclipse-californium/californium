@@ -35,6 +35,8 @@
  *                                                    Add exchange dump to status.
  *    Achim Kraus (Bosch Software Innovations GmbH) - check for modified current requests
  *                                                    or responses.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move retransmitResponse to
+ *                                                    CoapEndpoint to support tcp.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -362,7 +364,6 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
 			Response currentResponse = exchange.getCurrentResponse();
-			exchange.retransmitResponse();
 			if (registerWithMessageId(exchange, currentResponse) > Message.NONE) {
 				if (exchange.getCurrentResponse() != currentResponse) {
 					throw new ConcurrentModificationException("Current response modified!");
