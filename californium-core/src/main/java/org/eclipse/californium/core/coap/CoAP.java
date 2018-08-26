@@ -255,6 +255,16 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks if a given CoAP code is a observable method.
+	 * 
+	 * @param code the code to check.
+	 * @return {@code true} if code is GET or FETCH.
+	 */
+	public static boolean isObservable(final Code code) {
+		return code == Code.GET || code == Code.FETCH;
+	}
+
+	/**
 	 * CoAP defines four types of messages:
 	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
 	 */
