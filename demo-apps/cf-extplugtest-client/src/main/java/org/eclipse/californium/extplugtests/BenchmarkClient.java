@@ -51,15 +51,11 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
-import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
-import org.eclipse.californium.plugtests.ClientInitializer.PlugPskStore;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -323,6 +319,7 @@ public class BenchmarkClient {
 		feed.addObserver(feedObserver);
 		server.add(feed);
 		server.setExecutor(executorService);
+		client.setExecutor(executorService);
 		endpoint.setExecutor(executorService);
 		this.endpoint = endpoint;
 	}
@@ -476,7 +473,7 @@ public class BenchmarkClient {
 					"  (Benchmark 500 clients each sending about 2000 request and the response should have 200 bytes payload.)");
 			System.out.println();
 			System.out.println("  " + BenchmarkClient.class.getSimpleName()
-					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed&rlen=400 50 2 x 500 2000");
+					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&rlen=400 50 2 x 500 2000");
 			System.out.println(
 					"  (Reverse-observe benchmark using 50 clients each sending about 2 request and waiting for about 500 notifies each client.");
 			System.out.println("   The notifies are sent every 2000ms have 400 bytes payload.");
@@ -542,10 +539,10 @@ public class BenchmarkClient {
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
 				new DaemonThreadFactory("Aux#"));
 
-		boolean plain = uri.getScheme().equals(CoAP.COAP_URI_SCHEME);
+		boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
-				noneStop ? "none-stop " : "", plain ? "" : "secure ", overallRequests, uri);
+				noneStop ? "none-stop " : "", secure ? "secure" : "", overallRequests, uri);
 
 		if (overallNotifies > 0) {
 			if (intervalMin == intervalMax) {
@@ -562,19 +559,15 @@ public class BenchmarkClient {
 		for (int index = 0; index < clients; ++index) {
 			CoapEndpoint.CoapEndpointBuilder endpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
 			endpointBuilder.setNetworkConfig(config);
-			if (plain) {
-				endpointBuilder.setConnectorWithAutoConfiguration(new UDPConnector());
-			} else {
+			Arguments connectionArgs = arguments;
+			if (secure) {
 				random.nextBytes(id);
-				DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-				dtlsBuilder.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
-				dtlsBuilder.setClientOnly();
-				dtlsBuilder.setConnectionThreadCount(1);
-				dtlsBuilder.setMaxConnections(10);
-				endpointBuilder.setConnector(new DTLSConnector(dtlsBuilder.build()));
+				String name = ClientInitializer.PSK_IDENTITY_PREFIX + ByteArrayUtils.toHex(id);
+				connectionArgs = arguments.create(name, null);
 			}
+			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs);
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
-					endpointBuilder.build());
+					coapEndpoint);
 			clientList.add(client);
 			if (index == 0) {
 				// first client, so test request
