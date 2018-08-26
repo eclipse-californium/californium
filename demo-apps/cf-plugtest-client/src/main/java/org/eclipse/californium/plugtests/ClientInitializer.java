@@ -15,6 +15,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove MAC usage for
  *                                                    PSK identity.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add argument -i (identity)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add createEndpoint to create
+ *                                                    more client endpoints.
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -54,12 +56,13 @@ public class ClientInitializer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class.getCanonicalName());
 
+	public static final String PSK_IDENTITY_PREFIX = "cali.";
+
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
-	private static final String PSK_IDENTITY_PREFIX = "cali.";
 	private static final byte[] PSK_SECRET = ".fornium".getBytes();
 
 	/**
@@ -71,15 +74,15 @@ public class ClientInitializer {
 		int index = 0;
 		boolean json = false;
 		boolean verbose = false;
-		boolean ping[] = { true };
-		boolean rpc = false;
+		boolean ping = true;
+		boolean rpk = false;
 		boolean x509 = false;
 		String id = null;
 		String secret = null;
 
 		if (args[index].equals("-s")) {
 			++index;
-			ping[0] = false;
+			ping = false;
 		}
 		if (args[index].equals("-v")) {
 			++index;
@@ -91,7 +94,7 @@ public class ClientInitializer {
 		}
 		if (args[index].equals("-r")) {
 			++index;
-			rpc = true;
+			rpk = true;
 		} else if (args[index].equals("-x")) {
 			++index;
 			x509 = true;
@@ -114,15 +117,24 @@ public class ClientInitializer {
 			uri = uri.substring(uri.length() - 1);
 		}
 
-		setupEndpoint(config, uri, id, secret, verbose, rpc, x509, ping);
-
+		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
+				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
+		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, leftArgs);
+		CoapEndpoint coapEndpoint = createEndpoint(config, arguments);
+		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
 
-		return new Arguments(uri, ping[0], verbose, json, leftArgs);
+		return arguments;
 	}
 
-	private static void setupEndpoint(NetworkConfig config, String uri, String id, String secret, boolean verbose,
-			boolean rpc, boolean x509, boolean[] ping) {
+	/**
+	 * Create endpoint from arguments.
+	 * 
+	 * @param config network configuation to use
+	 * @param arguments arguments
+	 * @return created endpoint.
+	 */
+	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments) {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
@@ -131,7 +143,7 @@ public class ClientInitializer {
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
 		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
 
-		if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
+		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			SslContextUtil.Credentials clientCredentials = null;
 			Certificate[] trustedCertificates = null;
 			SSLContext clientSslContext = null;
@@ -153,31 +165,31 @@ public class ClientInitializer {
 				e.printStackTrace();
 			}
 
-			if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
+			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				if (rpc || x509) {
+				if (arguments.rpk || arguments.x509) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							rpc);
+							arguments.rpk);
 					dtlsConfig.setTrustStore(trustedCertificates);
-				} else if (id != null) {
-					dtlsConfig.setPskStore(new PlugPskStore(id, secret.getBytes()));
+				} else if (arguments.id != null) {
+					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, arguments.secret.getBytes()));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
 					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(rid)));
 				}
+				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
+				dtlsConfig.setConnectionThreadCount(1);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 				connector = new DTLSConnector(dtlsConfig.build());
-			} else if (uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
+			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
 				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-				ping[0] = false;
 			}
-		} else if (uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
+		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-			ping[0] = false;
-		} else if (uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
+		} else if (arguments.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
 			connector = new UDPConnector();
 		}
 
@@ -185,10 +197,10 @@ public class ClientInitializer {
 		builder.setConnector(connector);
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();
-		if (verbose) {
+		if (arguments.verbose) {
 			endpoint.addInterceptor(new MessageTracer());
 		}
-		EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
+		return endpoint;
 	}
 
 	public static class PlugPskStore implements PskStore {
@@ -240,15 +252,57 @@ public class ClientInitializer {
 		public final boolean ping;
 		public final boolean verbose;
 		public final boolean json;
+		public final boolean rpk;
+		public final boolean x509;
+		public final String id;
+		public final String secret;
 		public final String uri;
 		public final String[] args;
 
-		public Arguments(String uri, boolean ping, boolean verbose, boolean json, String[] args) {
+		/**
+		 * Create new arguments instance.
+		 * 
+		 * @param uri destination URI
+		 * @param id client id
+		 * @param secret client secret (PSK only). if {@code null} and
+		 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
+		 *            {@link ClientInitializer#PSK_SECRET}
+		 * @param rpk {@code true}, if raw public key is preferred,
+		 *            {@code false}, otherwise
+		 * @param x509 {@code true}, if x.509 should be used, {@code false},
+		 *            otherwise
+		 * @param ping {@code true}, if client starts communication with ping,
+		 *            {@code false}, otherwise
+		 * @param verbose {@code true}, enable verbose mode, {@code false},
+		 *            otherwise
+		 * @param json {@code true}, json content should be used, {@code false},
+		 *            otherwise
+		 * @param args left arguments
+		 */
+		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ping, boolean verbose,
+				boolean json, String[] args) {
 			this.uri = uri;
+			this.id = id;
+			this.secret = secret;
+			this.rpk = rpk;
+			this.x509 = x509;
 			this.ping = ping;
 			this.verbose = verbose;
 			this.json = json;
 			this.args = args;
+		}
+
+		/**
+		 * Create arguments clone with different PSK identity and secret.
+		 * 
+		 * @param id psk identity
+		 * @param secret secret (PSK only). if {@code null} and
+		 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
+		 *            {@link ClientInitializer#PSK_SECRET}
+		 * @return create arguments clone.
+		 */
+		public Arguments create(String id, String secret) {
+			return new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, args);
 		}
 	}
 }
