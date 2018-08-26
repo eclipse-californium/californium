@@ -620,8 +620,8 @@ public class Request extends Message {
 	 * @throws IllegalStateException if this is not a GET request.
 	 */
 	public final Request setObserve() {
-		if (code != CoAP.Code.GET) {
-			throw new IllegalStateException("observe option can only be set on a GET request");
+		if (!CoAP.isObservable(code)) {
+			throw new IllegalStateException("observe option can only be set on a GET or FETCH request");
 		}
 		getOptions().setObserve(0);
 		return this;
@@ -644,8 +644,8 @@ public class Request extends Message {
 	 * @throws IllegalStateException if this is not a GET request.
 	 */
 	public final Request setObserveCancel() {
-		if (code != CoAP.Code.GET) {
-			throw new IllegalStateException("observe option can only be set on a GET request");
+		if (!CoAP.isObservable(code)) {
+			throw new IllegalStateException("observe option can only be set on a GET or FETCH request");
 		}
 		getOptions().setObserve(1);
 		return this;
