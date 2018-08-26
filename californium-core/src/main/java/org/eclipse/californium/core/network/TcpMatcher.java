@@ -44,12 +44,14 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - provide ExchangeObserver
  *                                                 remove implementation
  * Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
+ * Achim Kraus (Bosch Software Innovations GmbH) - cancel observe relation on sent errors.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
 import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -57,6 +59,7 @@ import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
+import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.slf4j.Logger;
@@ -111,12 +114,22 @@ public final class TcpMatcher extends BaseMatcher {
 
 	@Override
 	public void sendResponse(Exchange exchange) {
-		Response response = exchange.getCurrentResponse();
+		final Response response = exchange.getCurrentResponse();
+		final ObserveRelation observeRelation = exchange.getRelation();
 
 		// ensure Token is set
 		response.setToken(exchange.getCurrentRequest().getToken());
 
-		// Only Observes keep the exchange active (CoAP server side)
+		if (observeRelation != null) {
+			response.addMessageObserver(new MessageObserverAdapter() {
+				
+				@Override
+				public void onSendError(Throwable error) {
+					observeRelation.cancel();
+				}
+			});
+		}
+
 		exchange.setComplete();
 	}
 
