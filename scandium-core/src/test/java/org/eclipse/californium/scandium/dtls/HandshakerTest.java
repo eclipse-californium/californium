@@ -23,6 +23,7 @@
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF tests to PseudoRandomFunctionTest
  *    Ludwig Seitz (RISE SICS) - Moved verifyCertificate() tests here from CertificateMessage
+ *    Achim Kraus (Bosch Software Innovations GmbH) - report expired certificates
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -36,6 +37,8 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -72,6 +75,24 @@ public class HandshakerTest {
 	InetSocketAddress peerAddress;
 	PublicKey serverPublicKey;
 	TrustedRpkStore rpkStore;
+
+	/**
+	 * Report failure during handshake and certification validation. Fail
+	 * explicitly on expired certificates.
+	 * 
+	 * @param e exception to fail with
+	 */
+	public static void failedHandshake(Exception e) {
+		Throwable cause = e.getCause();
+		if (cause instanceof CertPathValidatorException) {
+			cause = cause.getCause();
+		}
+		if (cause instanceof CertificateExpiredException) {
+			fail("Please renew certificates in demo-certs! " + cause.getMessage());
+		}
+		e.printStackTrace();
+		fail(e.toString());
+	}
 
 	@Before
 	public void setUp() throws Exception {
@@ -310,7 +331,7 @@ public class HandshakerTest {
 			handshakerWithAnchors.verifyCertificate(message);
 			// all is well
 		} catch (HandshakeException e) {
-			fail("Verification of certificate should have succeeded");
+			failedHandshake(e);
 		}
 	}
 

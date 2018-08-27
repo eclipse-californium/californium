@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - report expired certificates
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -20,13 +21,16 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
+import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
@@ -208,8 +212,16 @@ public class CertificateRequestTest {
 		PKIXParameters params = new PKIXParameters(trustAnchors);
 		params.setRevocationEnabled(false);
 
+		Throwable error = null;
 		CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-		validator.validate(clientPath, params);
+		try {
+			validator.validate(clientPath, params);
+		} catch (CertPathValidatorException e) {
+			HandshakerTest.failedHandshake(e);
+		} catch (InvalidAlgorithmParameterException e) {
+			error = e;
+		}
+		assertNull(error);
 	}
 
 	/**
