@@ -359,7 +359,7 @@ public class BenchmarkClient {
 					}
 					return true;
 				} else {
-					LOGGER.warn("Received error response: {}", response.advanced());
+					LOGGER.warn("Received error response: {} - {}", response.advanced().getCode(), response.advanced().getPayloadString());
 				}
 			} else {
 				LOGGER.warn("Received no response!");
