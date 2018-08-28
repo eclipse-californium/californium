@@ -31,6 +31,7 @@
  *                                                 this method in a sub-class.
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - add logs for create and close channel
+ * Achim Kraus (Bosch Software Innovations GmbH) - adjust logging
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -58,6 +59,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,8 +149,7 @@ public class TcpClientConnector implements Connector {
 		/* check, if a new connection should be established */
 		if (endpointMatcher != null && !poolMap.contains(addressKey)
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
-			LOGGER.warn("TcpConnector drops {} bytes to new {}:{}",
-					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			LOGGER.warn("TcpConnector drops {} bytes to new {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
 			msg.onError(new EndpointMismatchException("no connection"));
 			return;
 		}
@@ -158,18 +159,34 @@ public class TcpClientConnector implements Connector {
 
 			@Override
 			public void operationComplete(Future<Channel> future) throws Exception {
+				Throwable cause = null;
 				if (future.isSuccess()) {
 					Channel channel = future.getNow();
 					try {
 						send(channel, endpointMatcher, msg);
+					} catch (Throwable t) {
+						cause = t;
 					} finally {
-						channelPool.release(channel);
+						try {
+							channelPool.release(channel);
+						} catch (RejectedExecutionException e) {
+							LOGGER.debug("{}", e.getMessage());
+						}
 					}
 				} else if (future.isCancelled()) {
-					msg.onError(new CancellationException());
+					cause = new CancellationException();
 				} else {
+					cause = future.cause();
+				}
+				if (cause != null) {
+					if (cause instanceof ConnectTimeoutException) {
+						LOGGER.warn("{}", cause.getMessage());
+					} else if (cause instanceof CancellationException) {
+						LOGGER.debug("{}", cause.getMessage());
+					} else {
+						LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
+					}
 					msg.onError(future.cause());
-					LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
 				}
 			}
 		});
@@ -191,8 +208,7 @@ public class TcpClientConnector implements Connector {
 		 * check, if the message should be sent with the established connection
 		 */
 		if (endpointMatcher != null && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			LOGGER.warn("TcpConnector drops {} bytes to {}:{}",
-					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			LOGGER.warn("TcpConnector drops {} bytes to {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
 			msg.onError(new EndpointMismatchException());
 			return;
 		}
@@ -207,6 +223,7 @@ public class TcpClientConnector implements Connector {
 				} else if (future.isCancelled()) {
 					msg.onError(new CancellationException());
 				} else {
+					LOGGER.warn("TcpConnector drops {} bytes to {}:{} caused by", msg.getSize(), msg.getAddress(), msg.getPort(), future.cause());
 					msg.onError(future.cause());
 				}
 			}
