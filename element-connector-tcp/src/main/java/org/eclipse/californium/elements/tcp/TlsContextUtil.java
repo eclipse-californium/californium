@@ -11,9 +11,9 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - initial implementation. 
+ *    Bosch Software Innovations GmbH - initial implementation.
  *                                      Derived from NettyContextUtils.
- *    Achim Kraus (Bosch Software Innovations GmbH) - remove spaces from session id. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove spaces from session id.
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -63,6 +63,8 @@ public class TlsContextUtil extends TcpContextUtil {
 	 * 
 	 * @param channel channel of endpoint context
 	 * @return endpoint context
+	 * @throws IllegalStateException if no {@link SslHandler} is available or
+	 *             the handshake isn't finished yet.
 	 */
 	@Override
 	public EndpointContext buildEndpointContext(Channel channel) {
@@ -70,7 +72,7 @@ public class TlsContextUtil extends TcpContextUtil {
 		String id = channel.id().asShortText();
 		SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
 		if (sslHandler == null) {
-			throw new IllegalStateException("No TLS channel " + id + "!");
+			throw new IllegalStateException("Missing SslHandler for " + id + "!");
 		}
 		SSLEngine sslEngine = sslHandler.engine();
 		SSLSession sslSession = sslEngine.getSession();
