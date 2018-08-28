@@ -20,6 +20,7 @@ package org.eclipse.californium.extplugtests;
 
 import java.io.File;
 import java.net.SocketException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -126,9 +127,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 				System.out.println("listen on " + ep.getUri());
 				if (noBenchmark) {
 					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
-					ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
+					URI uri = ep.getUri();
+					ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
+					ep.addInterceptor(new MessageTracer());
 				}
-				ep.addInterceptor(new MessageTracer());
 			}
 
 			if (noBenchmark) {
