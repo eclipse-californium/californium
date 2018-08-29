@@ -172,7 +172,8 @@ public class ClientInitializer {
 							arguments.rpk);
 					dtlsConfig.setTrustStore(trustedCertificates);
 				} else if (arguments.id != null) {
-					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, arguments.secret.getBytes()));
+					byte[] secret = arguments.secret == null ? null : arguments.secret.getBytes();
+					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, secret));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
