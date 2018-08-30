@@ -23,15 +23,8 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector-tcp</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>scandium</artifactId>
+			<artifactId>cf-plugtest-client</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 		
 		<!-- runtime dependencies -->
