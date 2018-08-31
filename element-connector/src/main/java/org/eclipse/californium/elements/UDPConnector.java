@@ -31,6 +31,8 @@
  *                                                    matching with a DtlsEndpointContext
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix rare NullPointerException
  *                                                    on stop()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make connector extendible to
+ *                                                    support multicast sockets
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -72,11 +74,12 @@ public class UDPConnector implements Connector {
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
-	private volatile boolean running;
+	protected volatile boolean running;
+
+	protected final InetSocketAddress localAddr;
 
 	private DatagramSocket socket;
 
-	private final InetSocketAddress localAddr;
 	private volatile InetSocketAddress effectiveAddr;
 
 	private List<Thread> receiverThreads;
@@ -141,7 +144,17 @@ public class UDPConnector implements Connector {
 		}
 
 		// if localAddr is null or port is 0, the system decides
-		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
+		init(new DatagramSocket(localAddr.getPort(), localAddr.getAddress()));
+	}
+
+	/**
+	 * Initialize connector using the provided socket.
+	 * 
+	 * @param socket datagram socket for communication
+	 * @throws IOException
+	 */
+	protected void init(DatagramSocket socket) throws IOException {
+		this.socket = socket;
 		effectiveAddr = (InetSocketAddress) socket.getLocalSocketAddress();
 
 		if (receiveBufferSize != UNDEFINED) {

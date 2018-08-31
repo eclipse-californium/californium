@@ -51,6 +51,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - assign mid before register observation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove exchange on ACK/RST only after
  *                                                    context matching
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multicast
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -259,6 +260,12 @@ public final class UdpMatcher extends BaseMatcher {
 						@Override
 						public void run() {
 
+							if (prev.getCurrentRequest().isMulticast()) {
+								LOGGER.debug("Ignore delayed response {} to multicast request {}", response,
+										prev.getCurrentRequest().getDestinationContext().getPeerAddress());
+								return;
+							}
+
 							try {
 								if (endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
 										response.getSourceContext())) {
@@ -304,9 +311,22 @@ public final class UdpMatcher extends BaseMatcher {
 
 				try {
 					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
-						if (response.getType() == Type.ACK && requestMid != response.getMID()) {
+						// As per RFC 7252, section 8.2:
+						// When matching a response to a multicast request, only the token MUST
+						// match; the source endpoint of the response does not need to (and will
+						// not) be the same as the destination endpoint of the original request.
+						if (currentRequest.isMulticast()) {
+							// do some check, e.g. NON ...
+							// this avoids flooding of ACK messages to multicast groups
+							if (response.getType() != Type.NON) {
+								LOGGER.debug(
+										"ignoring response of type {} for multicast request with token [{}], from {}",
+										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());
+								return;
+							}
+						} else if (response.getType() == Type.ACK && requestMid != response.getMID()) {
 							// The token matches but not the MID.
-							LOGGER.debug("possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
+							LOGGER.debug("ignoring ACK, possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
 									response.getTokenString(), requestMid, response.getMID());
 							// when nested blockwise request/responses occurs (e.g.
 							// caused by retransmission), a old response may stop the
@@ -328,7 +348,7 @@ public final class UdpMatcher extends BaseMatcher {
 								&& exchangeStore.findPrevious(idByMID, exchange) != null) {
 							LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
 							response.setDuplicate(true);
-						} else if (!exchange.isNotification()) {
+						} else if (!exchange.isNotification() && !currentRequest.isMulticast()) {
 							if (response.isNotification() && response.getType() != Type.ACK
 									&& currentRequest.isObserveCancel()) {
 								// overlapping notification for observation cancel request
@@ -374,6 +394,10 @@ public final class UdpMatcher extends BaseMatcher {
 
 			@Override
 			public void run() {
+				if (exchange.getCurrentRequest().isMulticast()) {
+					LOGGER.info("ignoring {} message for multicast request {}", message.getType(), idByMID);
+					return;
+				}
 				if (exchangeStore.get(idByMID) != exchange) {
 					LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
 					return;

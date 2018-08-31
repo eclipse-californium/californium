@@ -66,6 +66,7 @@
  *                                                    executor is set after the endpoint
  *                                                    was started.
  *    Achim Kraus (Bosch Software Innovations GmbH) - cancel pending messages on stop().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multicast
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -101,6 +102,8 @@ import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
+import org.eclipse.californium.core.network.stack.ObserveLayer;
+import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapTcpStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
@@ -183,17 +186,26 @@ public class CoapEndpoint implements Endpoint {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
 
 	/** The stack of layers that make up the CoAP protocol */
-	protected CoapStack coapstack;
+	protected final CoapStack coapstack;
 
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
 
 	private final String scheme;
 
-	/** The configuration of this endpoint */
-	protected final NetworkConfig config;
+	/**
+	 * Base MID for multicast MID range. All multicast requests use the same MID
+	 * scope with MIDs in the range [base...65536). None multicast request use
+	 * the range [0...base). 0 := disable multicast support.
+	 */
+	private final int multicastBaseMid;
 
-	/** The matcher which matches incoming responses, akcs and rsts an exchange */
+	/** The configuration of this endpoint */
+	private final NetworkConfig config;
+
+	/**
+	 * The matcher which matches incoming responses, akcs and rsts an exchange
+	 */
 	private final Matcher matcher;
 
 	/** Serializer to convert messages to datagrams. */
@@ -404,7 +416,7 @@ public class CoapEndpoint implements Endpoint {
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
-
+		this.multicastBaseMid = config.getInt(NetworkConfig.Keys.MULTICAST_BASE_MID);
 		// when remove the deprecated constructors,
 		// this checks and defaults maybe also removed
 		if (tokenGenerator == null) {
@@ -486,14 +498,17 @@ public class CoapEndpoint implements Endpoint {
 			setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(
 					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
+
 				@Override
 				public void started(final Endpoint endpoint) {
 					// do nothing
 				}
+
 				@Override
 				public void stopped(final Endpoint endpoint) {
 					// do nothing
 				}
+
 				@Override
 				public void destroyed(final Endpoint endpoint) {
 					executor.shutdown();
@@ -610,6 +625,31 @@ public class CoapEndpoint implements Endpoint {
 		}
 		// create context, if not already set
 		request.prepareDestinationContext();
+
+		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
+		if (request.isMulticast()) {
+			if (0 >= multicastBaseMid) {
+				LOGGER.warn(
+						"multicast messaging to destination {} is not enabled! Please enable it configuring \"MULTICAST_BASE_MID\" greater than 0",
+						destinationAddress);
+				return;
+			} else if (request.getType() == Type.CON) {
+				LOGGER.warn(
+						" CON request to multicast destination {} is not allowed, as per RFC 7252, 8.1, a client MUST use NON message type for multicast requests ",
+						destinationAddress);
+				return;
+			} else if (request.hasMID() && request.getMID() < multicastBaseMid) {
+				LOGGER.warn(
+						"multicast request to group {} has mid {} which is not in the MULTICAST_MID range [{}-65535]",
+						destinationAddress, request.getMID(), multicastBaseMid);
+				return;
+			}
+		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
+			LOGGER.warn("request has mid {}, which is in the MULTICAST_MID range [{}-65535]", destinationAddress,
+					request.getMID(), multicastBaseMid);
+			return;
+		}
+
 		final Exchange exchange = new Exchange(request, Origin.LOCAL, executor);
 		exchange.execute(new Runnable() {
 
@@ -747,7 +787,7 @@ public class CoapEndpoint implements Endpoint {
 			exchange.setCurrentRequest(request);
 			matcher.sendRequest(exchange);
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -787,7 +827,7 @@ public class CoapEndpoint implements Endpoint {
 			exchange.setCurrentResponse(response);
 			matcher.sendResponse(exchange);
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -871,6 +911,7 @@ public class CoapEndpoint implements Endpoint {
 
 				// Create a new task to process this message
 				runInProtocolStage(new Runnable() {
+
 					@Override
 					public void run() {
 						receiveMessage(raw);
@@ -964,7 +1005,7 @@ public class CoapEndpoint implements Endpoint {
 
 		private void receiveResponse(final Response response) {
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -981,7 +1022,7 @@ public class CoapEndpoint implements Endpoint {
 
 		private void receiveEmptyMessage(final EmptyMessage message) {
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -1212,7 +1253,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @param port port number for socket. A port number of {@code 0} will
 		 *            let the system pick up an ephemeral port
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
@@ -1240,7 +1281,7 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param address local address to bin to
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
@@ -1268,7 +1309,7 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param connector connector to be used
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
@@ -1297,7 +1338,7 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param connector connector to be used
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @throws IllegalArgumentException if applyConfiguration is
 		 *             {@code true}, but the connector is not a

@@ -21,6 +21,9 @@
  *                                                    none plain UDP contexts.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use UdpEndpointContext to prevent
  *                                                    matching with a DtlsEndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multicast support.
+ *                                                    ignore address when matching 
+ *                                                    multicast requests.
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -69,8 +72,8 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 		if (checkAddress) {
 			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
 			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
-			if (peerAddress1.getPort() != peerAddress2.getPort()
-					|| !peerAddress1.getAddress().equals(peerAddress2.getAddress())) {
+			if (peerAddress1.getPort() != peerAddress2.getPort() || (!peerAddress1.getAddress().isMulticastAddress()
+					&& !peerAddress1.getAddress().equals(peerAddress2.getAddress()))) {
 				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
 						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
 				return false;

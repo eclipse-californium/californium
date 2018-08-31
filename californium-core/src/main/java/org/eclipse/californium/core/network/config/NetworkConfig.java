@@ -114,6 +114,8 @@ public final class NetworkConfig {
 		public static final String EXCHANGE_LIFETIME = "EXCHANGE_LIFETIME";
 		public static final String NON_LIFETIME = "NON_LIFETIME";
 		public static final String MAX_TRANSMIT_WAIT = "MAX_TRANSMIT_WAIT";
+		public static final String MAX_LATENCY = "MAX_LATENCY";
+		public static final String MAX_SERVER_RESPONSE_DELAY = "MAX_SERVER_RESPONSE_DELAY";
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
@@ -121,6 +123,13 @@ public final class NetworkConfig {
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String MID_TRACKER = "MID_TACKER";
 		public static final String MID_TRACKER_GROUPS = "MID_TRACKER_GROUPS";
+		/**
+		 * Base MID for multicast MID range. All multicast requests use the same
+		 * MID provider, which generates MIDs in the range [base...65536).
+		 * None multicast request use the range [0...base).
+		 * 0 := disable multicast support.
+		 */
+		public static final String MULTICAST_BASE_MID = "MULTICAST_BASE_MID";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
 		/**

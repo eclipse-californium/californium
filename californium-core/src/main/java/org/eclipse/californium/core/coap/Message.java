@@ -574,14 +574,34 @@ public abstract class Message {
 	/**
 	 * Set destination endpoint context.
 	 * 
+	 * Multicast addresses are not supported.
+	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param peerContext destination endpoint context
 	 * @return this Message
+	 * @throws IllegalArgumentException if destination address is multicast
+	 *             address
+	 * @see #setRequestDestinationContext(EndpointContext)
 	 */
 	public Message setDestinationContext(EndpointContext peerContext) {
+		// requests calls setRequestDestinationContext instead
+		if (peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress()) {
+			throw new IllegalArgumentException("Multicast destination is only supported for request!");
+		}
 		this.destinationContext = peerContext;
 		return this;
+	}
+
+	/**
+	 * Set destination endpoint context for requests.
+	 * Multicast addresses are supported.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @see #setDestinationContext(EndpointContext)
+	 */
+	protected void setRequestDestinationContext(EndpointContext peerContext) {
+		this.destinationContext = peerContext;
 	}
 
 	/**

@@ -110,7 +110,7 @@ public abstract class DataSerializer {
 						request.getBytes(),
 						request.getDestinationContext(),
 						outboundCallback,
-						false);
+						request.isMulticast());
 	}
 
 	/**
