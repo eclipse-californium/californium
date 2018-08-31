@@ -13,6 +13,8 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *                                 (derived from MessageIdTracker)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add mid range to
+ *                                                    support multicast
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -36,15 +38,29 @@ public class NullMessageIdTracker implements MessageIdTracker {
 	/**
 	 * Current MID.
 	 */
-	private AtomicInteger currentMID = new AtomicInteger();
+	private final AtomicInteger currentMID = new AtomicInteger();
+
+	private final int min;
+	private final int range;
 
 	/**
 	 * Creates a new tracker based on configuration values.
 	 * 
 	 * @param initialMid initial MID.
+	 * @param minMid minimal MID (inclusive).
+	 * @param maxMid maximal MID (exclusive).
 	 */
-	public NullMessageIdTracker(int initialMid) {
-		currentMID.set(initialMid);
+	public NullMessageIdTracker(int initialMid, int minMid, int maxMid) {
+		if (minMid >= maxMid) {
+			throw new IllegalArgumentException("max. MID " + maxMid + " must be larger than min. MID " + minMid + "!");
+		}
+		if (initialMid < minMid || maxMid <= initialMid) {
+			throw new IllegalArgumentException(
+					"initial MID " + initialMid + " must be in range [" + minMid + "-" + maxMid + ")!");
+		}
+		currentMID.set(initialMid - minMid);
+		this.min = minMid;
+		this.range = maxMid - minMid;
 	}
 
 	/**
@@ -53,7 +69,11 @@ public class NullMessageIdTracker implements MessageIdTracker {
 	 * @return a message ID.
 	 */
 	public int getNextMessageId() {
-		// mask result to the 16 low bits
-		return currentMID.getAndIncrement() & 0x0000FFFF;
+		int mid = currentMID.getAndIncrement();
+		int result = mid % range;
+		if (result == (range - 1)) {
+			currentMID.addAndGet(-range);
+		}
+		return min + mid;
 	}
 }

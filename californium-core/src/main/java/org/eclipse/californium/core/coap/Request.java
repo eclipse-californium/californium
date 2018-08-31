@@ -34,6 +34,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - check endpoint context for 
  *                                                    setURI
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check multicast on setURI
+ *                                                    set multicast address as
+ *                                                    host URI option. 
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -199,15 +202,6 @@ public class Request extends Message {
 	 */
 	public boolean isMulticast() {
 		return multicast;
-	}
-
-	/**
-	 * Defines whether this request is a multicast request or not.
-	 * 
-	 * @param multicast if this request is a multicast request
-	 */
-	public void setMulticast(boolean multicast) {
-		this.multicast = multicast;
 	}
 
 	/**
@@ -481,6 +475,7 @@ public class Request extends Message {
 			throw new IllegalStateException("destination context already set!");
 		}
 		this.destination = destination;
+		multicast = destination != null && destination.isMulticastAddress();
 		return this;
 	}
 
@@ -552,6 +547,7 @@ public class Request extends Message {
 					null);
 			super.setDestinationContext(context);
 		}
+		multicast = context.getPeerAddress().getAddress().isMulticastAddress();
 	}
 
 	/**
@@ -568,7 +564,8 @@ public class Request extends Message {
 				throw new IllegalStateException("different destination!");
 			}
 		}
-		super.setDestinationContext(peerContext);
+		super.setRequestDestinationContext(peerContext);
+		multicast = peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress();
 		return this;
 	}
 

@@ -146,6 +146,12 @@ public class NetworkConfigDefaults {
 	 * The default health status interval in seconds.
 	 */
 	public static final int DEFAULT_HEALTH_STATUS_INTERVAL = 0; // 0s
+	/**
+	 * The default multicast mid range.
+	 * Enable multicast, and MID reserve range of 65000..65335 for multicast.
+	 * 0 to disable multicast.
+	 */
+	public static final int DEFAULT_MULTICAST_BASE_MID = 65000;
 
 	/*
 	 * Accept other message versions than 1
@@ -175,6 +181,9 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.NSTART, 1);
 		config.setInt(Keys.LEISURE, 5000);
 		config.setFloat(Keys.PROBING_RATE, 1f);
+
+		config.setInt(Keys.MAX_LATENCY, 100 * 1000); //ms
+		config.setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
 
 		config.setBoolean(Keys.USE_RANDOM_MID_START, true);
 		config.setString(Keys.MID_TRACKER, DEFAULT_MID_TRACKER);
@@ -222,6 +231,8 @@ public class NetworkConfigDefaults {
 
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
 		config.setLong(Keys.DTLS_AUTO_RESUME_TIMEOUT, DEFAULT_DTLS_AUTO_RESUME_TIMEOUT);
+
+		config.setInt(Keys.MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
 	}
 
 	// prevent instantiation

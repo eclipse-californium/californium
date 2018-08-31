@@ -21,11 +21,14 @@
  *                                                    add CodeClass
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocols
  *                                                    with mapping to schemes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add IPv4 multicast address
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -79,6 +82,9 @@ public final class CoAP {
 
 	/** The CoAP charset is always UTF-8 */
 	public static final Charset UTF8_CHARSET = StandardCharsets.UTF_8;
+
+	/** IPv4 multicast address for CoAP, RFC 7252, 12.8. */
+	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
 
 	private CoAP() {
 		// prevent instantiation

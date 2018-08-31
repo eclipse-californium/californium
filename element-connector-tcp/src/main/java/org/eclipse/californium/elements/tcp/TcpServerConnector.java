@@ -42,6 +42,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.elements.EndpointUnconnectedException;
+import org.eclipse.californium.elements.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -144,6 +145,14 @@ public class TcpServerConnector implements Connector {
 
 	@Override
 	public void send(final RawData msg) {
+		if (msg == null) {
+			throw new NullPointerException("Message must not be null");
+		}
+		if (msg.isMulticast()) {
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
+			return;
+		}
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?

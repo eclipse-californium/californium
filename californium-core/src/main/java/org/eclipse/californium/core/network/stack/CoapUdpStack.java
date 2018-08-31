@@ -20,6 +20,7 @@
  *                                                    explicit String concatenation
  *    Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multicast support.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -97,7 +98,7 @@ public class CoapUdpStack extends BaseCoapStack {
 	}
 
 	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
-		return new ExchangeCleanupLayer();
+		return new ExchangeCleanupLayer(config);
 	}
 
 	protected Layer createObserveLayer(NetworkConfig config) {

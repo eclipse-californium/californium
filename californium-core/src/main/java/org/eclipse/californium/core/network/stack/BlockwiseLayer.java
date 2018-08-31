@@ -55,6 +55,7 @@
  *                                                    for blockwise transfers
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
  *                                                    for health status instead of own executor.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - disable transparent blockwise for multicast.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -259,7 +260,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		Request requestToSend = request;
 
-		if (isTransparentBlockwiseHandlingEnabled()) {
+		if (isTransparentBlockwiseHandlingEnabled() && !request.isMulticast()) {
 
 			BlockOption block2 = request.getOptions().getBlock2();
 			if (block2 != null && block2.getNum() > 0) {
@@ -603,7 +604,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
-		if (isTransparentBlockwiseHandlingEnabled()) {
+		if (isTransparentBlockwiseHandlingEnabled() && !exchange.getRequest().isMulticast()) {
 			if (response.isError()) {
 				// handle blockwise specific error codes
 				switch(response.getCode()) {

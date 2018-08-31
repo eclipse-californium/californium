@@ -53,6 +53,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -145,8 +146,16 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public void send(final RawData msg) {
+		if (msg == null) {
+			throw new NullPointerException("Message must not be null");
+		}
+		if (msg.isMulticast()) {
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
+			return;
+		}
 		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
-		boolean connected = poolMap.contains(addressKey);
+		final boolean connected = poolMap.contains(addressKey);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
 		if (endpointMatcher != null && !connected && !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
