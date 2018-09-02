@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
+import java.util.List;
+
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -59,25 +61,27 @@ public class WebLink implements Comparable<WebLink> {
 		builder.append('<');
 		builder.append(this.uri);
 		builder.append('>');
-		builder.append(' ').append(this.attributes.getTitle());
-		if (this.attributes.containsAttribute(LinkFormat.RESOURCE_TYPE)) {
-			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.RESOURCE_TYPE).append(":\t").append(this.attributes.getResourceTypes());
+		if (this.attributes.containsAttribute(LinkFormat.TITLE)) {
+			builder.append(' ').append(this.attributes.getTitle());
 		}
-		if (this.attributes.containsAttribute(LinkFormat.INTERFACE_DESCRIPTION)) {
-			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.INTERFACE_DESCRIPTION).append(":\t").append(this.attributes.getInterfaceDescriptions());
-		}
-		if (this.attributes.containsAttribute(LinkFormat.CONTENT_TYPE)) {
-			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.CONTENT_TYPE).append(":\t").append(this.attributes.getContentTypes());
-		}
-		if (this.attributes.containsAttribute(LinkFormat.MAX_SIZE_ESTIMATE)) {
-			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.MAX_SIZE_ESTIMATE).append(":\t").append(this.attributes.getMaximumSizeEstimate());
-		}
-		if (this.attributes.hasObservable()) {
-			builder.append(StringUtil.lineSeparator()).append("\t").append(LinkFormat.OBSERVABLE);
-		}
+		append(builder, LinkFormat.RESOURCE_TYPE);
+		append(builder, LinkFormat.INTERFACE_DESCRIPTION);
+		append(builder, LinkFormat.CONTENT_TYPE);
+		append(builder, LinkFormat.MAX_SIZE_ESTIMATE);
+		append(builder, LinkFormat.OBSERVABLE);
 		return builder.toString();
 	}
 
+	private void append(StringBuilder builder, String attributeName) {
+		if (this.attributes.containsAttribute(attributeName)) {
+			builder.append(StringUtil.lineSeparator()).append("\t").append(attributeName);
+			List<String> values = this.attributes.getAttributeValues(attributeName);
+			if (!values.isEmpty()) {
+				builder.append(":\t").append(values);
+			}
+		}
+	}
+	
 	@Override
 	public int compareTo(WebLink other) {
 		return this.uri.compareTo(other.getURI());
