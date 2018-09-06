@@ -38,6 +38,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -704,6 +705,28 @@ public abstract class Message {
 	public void setReadyToSend() {
 		for (MessageObserver handler : getMessageObservers()) {
 			handler.onReadyToSend();
+		}
+	}
+
+	/**
+	 * Indicate, that this message triggered the connector to establish a
+	 * connection. Not part of the fluent API.
+	 */
+	public void onConnecting() {
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onConnecting();
+		}
+	}
+
+	/**
+	 * Indicate, that this message triggered the connector to establish a
+	 * connection and a dtls handshake flight was retransmitted.
+	 * 
+	 * @param flight {@code 1 ... 6}, number of retransmitted flight.
+	 */
+	public void onDtlsRetransmission(int flight) {
+		for (MessageObserver handler : getMessageObservers()) {
+			handler.onDtlsRetransmission(flight);
 		}
 	}
 

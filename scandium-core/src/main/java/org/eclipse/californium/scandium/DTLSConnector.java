@@ -91,6 +91,7 @@
  *                                                    Move session listener callback out of sync
  *                                                    block of processApplicationDataRecord.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1462,8 +1463,9 @@ public class DTLSConnector implements Connector {
 			if (!checkOutboundEndpointContext(message, null)) {
 				return;
 			}
-			// no session with peer established yet, create new empty session &
-			// start handshake
+			message.onConnecting();
+			// no session with peer established yet, 
+			// create new empty session & start handshake
 			Handshaker handshaker = new ClientHandshaker(
 					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
 					getRecordLayerForPeer(connection),
@@ -1477,6 +1479,7 @@ public class DTLSConnector implements Connector {
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
 			// create the session to resume from the previous one.
+			message.onConnecting();
 			SessionId sessionId;
 			if (ticket == null) {
 				ticket = session.getSessionTicket();
@@ -1562,7 +1565,13 @@ public class DTLSConnector implements Connector {
 				LOGGER.debug("Session with [{}] established, now sending deferred message", establishedSession.getPeer());
 				sendMessage(message, establishedSession);
 			}
-			
+
+			@Override
+			public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
+				LOGGER.debug("Session with [{}] retransmit flight {}", handshaker.getPeerAddress(), flight);
+				message.onDtlsRetransmission(flight);
+			}
+
 			@Override
 			public void handshakeFailed(Handshaker handshaker, Throwable error) {
 				LOGGER.debug("Session with [{}] failed, report error", handshaker.getPeerAddress());

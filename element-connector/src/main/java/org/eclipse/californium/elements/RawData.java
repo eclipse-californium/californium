@@ -27,6 +27,7 @@
  *                                                    constructors.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace isSecure by 
  *                                                    connector's protocol
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
@@ -56,18 +57,18 @@ public final class RawData {
 	public final byte[] bytes;
 
 	/** Indicates if this message is a multicast message */
-	private boolean multicast;
+	private final boolean multicast;
 
 	/**
 	 * Endpoint context of the remote peer.
 	 */
-	private EndpointContext peerEndpointContext;
+	private final EndpointContext peerEndpointContext;
 
 	/**
 	 * Message callback to receive the actual endpoint context the message is
 	 * sent in.
 	 */
-	private MessageCallback callback;
+	private final MessageCallback callback;
 
 	/**
 	 * Instantiates a new raw data.
@@ -219,6 +220,28 @@ public final class RawData {
 	 */
 	public EndpointContext getEndpointContext() {
 		return peerEndpointContext;
+	}
+
+	/**
+	 * Callback, when connector requires to establish a connection. Not called,
+	 * if the connection is already established or the connector doesn't require
+	 * to establish a connection.
+	 */
+	public void onConnecting() {
+		if (null != callback) {
+			callback.onConnecting();
+		}
+	}
+
+	/**
+	 * Callback, when the dtls connector retransmits a handshake flight.
+	 * 
+	 * @param flight {@code 1 ... 6}, number of retransmitted flight.
+	 */
+	public void onDtlsRetransmission(int flight) {
+		if (null != callback) {
+			callback.onDtlsRetransmission(flight);
+		}
 	}
 
 	/**

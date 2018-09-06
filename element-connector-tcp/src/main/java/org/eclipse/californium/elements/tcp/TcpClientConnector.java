@@ -32,6 +32,7 @@
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - add logs for create and close channel
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust logging
+ * Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -145,13 +146,16 @@ public class TcpClientConnector implements Connector {
 	@Override
 	public void send(final RawData msg) {
 		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
+		boolean connected = poolMap.contains(addressKey);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
-		if (endpointMatcher != null && !poolMap.contains(addressKey)
-				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
+		if (endpointMatcher != null && !connected && !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
 			LOGGER.warn("TcpConnector drops {} bytes to new {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
 			msg.onError(new EndpointMismatchException("no connection"));
 			return;
+		}
+		if (!connected) {
+			msg.onConnecting();
 		}
 		final ChannelPool channelPool = poolMap.get(addressKey);
 		Future<Channel> acquire = channelPool.acquire();

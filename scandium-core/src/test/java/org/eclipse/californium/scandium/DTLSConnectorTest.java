@@ -1758,6 +1758,14 @@ public class DTLSConnectorTest {
 		MessageCallback callback = new MessageCallback() {
 
 			@Override
+			public void onConnecting() {
+			}
+
+			@Override
+			public void onDtlsRetransmission(int flight) {
+			}
+
+			@Override
 			public void onSent() {
 			}
 
@@ -1982,6 +1990,40 @@ public class DTLSConnectorTest {
 		assertNotNull("Server does not receive alert as answer of HELLO_REQUEST", alert);
 		assertEquals("Client must answer to HELLO_REQUEST with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
 		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+	}
+
+	/**
+	 * Test invoking of onConnect when sending without session.
+	 * Test onConnect is not invoked, when sending with established session.
+	 */
+	@Test
+	public void testSendingInvokesOnConnect() throws Exception {
+		// GIVEN a EndpointContextMatcher, blocking
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		// GIVEN a message to send
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(serverEndpoint), callback, false);
+		client.start();
+
+		// WHEN sending the initial message
+		client.send(outboundMessage);
+
+		// THEN assert that a session is established.
+		assertThat(callback.await(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(true));
+
+		// THEN assert that onConnect is invoked once
+		assertThat(callback.isConnecting(), is(true));
+
+		// WHEN sending the next message
+		callback = new SimpleMessageCallback(1, false);
+		// GIVEN a message to send
+		outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverEndpoint),
+				callback, false);
+		client.send(outboundMessage);
+
+		assertThat(callback.await(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(true));
+		// THEN assert that onConnect is not invoked
+		assertThat(callback.isConnecting(), is(false));
 	}
 
 	private ClientHello createClientHello() {
