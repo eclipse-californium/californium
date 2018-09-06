@@ -27,6 +27,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -80,6 +81,16 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onReadyToSend() {
+		// empty default implementation
+	}
+
+	@Override
+	public void onConnecting() {
+		// empty default implementation
+	}
+
+	@Override
+	public void onDtlsRetransmission(int flight) {
 		// empty default implementation
 	}
 

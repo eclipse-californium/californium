@@ -56,6 +56,14 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * Indicator for message sent.
 	 */
 	private boolean sent;
+	/**
+	 * Indicator for connect.
+	 */
+	private boolean connecting;
+	/**
+	 * Retransmitted dtls handshake flight.
+	 */
+	private int retransmittedDtlsFlight;
 
 	/**
 	 * Create new message callback.
@@ -90,6 +98,16 @@ public class SimpleMessageCallback implements MessageCallback {
 		latchCalls = new CountDownLatch(calls);
 		this.countContextEstablished = countContextEstablished;
 		this.chained = chained;
+	}
+
+	@Override
+	public synchronized void onConnecting() {
+		connecting = true;
+	}
+
+	@Override
+	public synchronized void onDtlsRetransmission(int flight) {
+		retransmittedDtlsFlight = flight;
 	}
 
 	@Override
@@ -177,6 +195,24 @@ public class SimpleMessageCallback implements MessageCallback {
 	 */
 	public synchronized boolean isSent() {
 		return sent;
+	}
+
+	/**
+	 * Check, if message requires to establish a connection.
+	 * 
+	 * @return {@code true}, if requires a connection, {@code false}, otherwise
+	 */
+	public synchronized boolean isConnecting() {
+		return connecting;
+	}
+
+	/**
+	 * Check, if message requires to establish a connection.
+	 * 
+	 * @return {@code true}, if requires a connection, {@code false}, otherwise
+	 */
+	public synchronized int getRetransmittedDtlsFlight() {
+		return retransmittedDtlsFlight;
 	}
 
 	/**

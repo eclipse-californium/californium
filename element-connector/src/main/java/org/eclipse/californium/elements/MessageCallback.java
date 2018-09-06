@@ -19,10 +19,25 @@
  *                                                    issue #305
  *    Achim Kraus (Bosch Software Innovations GmbH) - add comment on processing
  *                                                    onContextEstablished. issue #311 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 public interface MessageCallback {
+
+	/**
+	 * Called, when connector requires to establish a connection. Not called, if
+	 * the connection is already established or the connector doesn't require to
+	 * establish a connection.
+	 */
+	void onConnecting();
+
+	/**
+	 * Called, when the dtls connector retransmits a handshake flight.
+	 * 
+	 * @param flight {@code 1 ... 6}, number of retransmitted flight.
+	 */
+	void onDtlsRetransmission(int flight);
 
 	/**
 	 * Called when the context information for an outbound message has been

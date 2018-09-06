@@ -58,6 +58,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - reject messages with MID only
  *                                                    (therefore tcp messages are not rejected)
  *    Achim Kraus (Bosch Software Innovations GmbH) - setup retransmitResponse for notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - forward onConnect
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -1028,6 +1029,16 @@ public class CoapEndpoint implements Endpoint {
 				throw new NullPointerException("message must not be null");
 			}
 			this.message = message;
+		}
+
+		@Override
+		public void onConnecting() {
+			message.onConnecting();
+		}
+
+		@Override
+		public void onDtlsRetransmission(int flight) {
+			message.onDtlsRetransmission(flight);
 		}
 
 		@Override

@@ -25,6 +25,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move onContextEstablished
  *                                                    to MessageObserver.
  *                                                    Issue #487
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -42,6 +43,10 @@ import org.eclipse.californium.elements.EndpointContext;
  * still has not received anything from the remote endpoint</li>
  * <li>{@link #onCancel()} when the message has been canceled</li>
  * <li>{@link #onReadyToSend()} right before the message is being sent</li>
+ * <li>{@link #onConnecting()} right before a connector establish a connection. 
+ * Not called, if the connection is already established or the connector doesn't
+ * require to establish a connection.</li>
+ * <li>{@link #onDtlsRetransmission()} when a dtls handshake flight is retransmitted.</li>
  * <li>{@link #onSent()} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
@@ -108,6 +113,20 @@ public interface MessageObserver {
 	 * prepared.
 	 */
 	void onReadyToSend();
+
+	/**
+	 * Invoked, when connector requires to establish a connection before sending
+	 * the message.
+	 */
+	void onConnecting();
+
+	/**
+	 * Indicate, that this message triggered the connector to establish a
+	 * connection and a dtls handshake flight was retransmitted.
+	 * 
+	 * @param flight {@code 1 ... 6}, number of retransmitted flight.
+	 */
+	void onDtlsRetransmission(int flight);
 
 	/**
 	 * Invoked right after the message has been sent.
