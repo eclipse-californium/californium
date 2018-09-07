@@ -485,7 +485,10 @@ public class DTLSConnector implements Connector {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					mtu = Math.min(mtu, iface.getMTU());
+					int ifaceMtu = iface.getMTU();
+					if (ifaceMtu > 0 && ifaceMtu < mtu) {
+						mtu = ifaceMtu;
+					}
 				}
 				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", mtu);
 				this.maximumTransmissionUnit = mtu;
