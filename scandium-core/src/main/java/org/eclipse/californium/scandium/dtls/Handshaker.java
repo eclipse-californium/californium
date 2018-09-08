@@ -44,6 +44,8 @@
  *                                                    process reordered handshake messages
  *                                                    and create the specific, when the parameters
  *                                                    are available.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
+ *                                                    parameter for session listener.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -921,9 +923,9 @@ public abstract class Handshaker {
 		}
 	}
 
-	protected final void handshakeCompleted() {
+	public final void handshakeCompleted() {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeCompleted(getPeerAddress());
+			sessionListener.handshakeCompleted(this);
 		}
 	}
 
@@ -935,7 +937,7 @@ public abstract class Handshaker {
 	 */
 	public final void handshakeFailed(Throwable cause) {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeFailed(getPeerAddress(), cause);
+			sessionListener.handshakeFailed(this, cause);
 		}
 	}
 

@@ -24,6 +24,8 @@
  *                                                    connections created based
  *                                                    on the client session cache.
  *                                                    remove unused constructor.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as 
+ *                                                    parameter for session listener.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -264,23 +266,21 @@ public final class Connection implements SessionListener {
 	}
 
 	@Override
-	public void handshakeCompleted(InetSocketAddress peer) {
-		Handshaker handshaker = ongoingHandshake.getAndSet(null);
-		if (handshaker != null) {
+	public void handshakeCompleted(Handshaker handshaker) {
+		if (ongoingHandshake.compareAndSet(handshaker, null)) {
 			cancelPendingFlight();
-			LOGGER.debug("Handshake with [{}] has been completed", peer);
+			LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 		}
 	}
 
 	@Override
-	public void handshakeFailed(InetSocketAddress peer, Throwable error) {
-		Handshaker handshaker = ongoingHandshake.getAndSet(null);
-		if (handshaker != null) {
+	public void handshakeFailed(Handshaker handshaker, Throwable error) {
+		if (ongoingHandshake.compareAndSet(handshaker, null)) {
 			cancelPendingFlight();
-			LOGGER.debug("Handshake with [{}] has failed", peer);
+			LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 		}
 	}
-	
+
 	/**
 	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
 	 */
