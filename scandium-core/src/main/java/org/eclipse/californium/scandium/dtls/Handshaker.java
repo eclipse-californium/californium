@@ -46,6 +46,7 @@
  *                                                    are available.
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
  *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -938,6 +939,18 @@ public abstract class Handshaker {
 	public final void handshakeFailed(Throwable cause) {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeFailed(this, cause);
+		}
+	}
+
+	/**
+	 * Notifies all registered session listeners about a handshake
+	 * retransmit of a flight.
+	 * 
+	 * @param flight number of retransmitted flight.
+	 */
+	public final void handshakeFlightRetransmitted(int flight) {
+		for (SessionListener sessionListener : sessionListeners) {
+			sessionListener.handshakeFlightRetransmitted(this, flight);
 		}
 	}
 

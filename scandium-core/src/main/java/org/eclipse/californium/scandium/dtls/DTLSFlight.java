@@ -24,6 +24,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isRetransmissionCancelled
  *                                                    to stop retransmission when already
  *                                                    hand over to other executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -55,13 +56,21 @@ public class DTLSFlight {
 	private final List<Record> messages;
 
 	/** The peer's address. */
-	private InetSocketAddress peerAddress;
+	private final InetSocketAddress peerAddress;
 
 	/**
 	 * The current DTLS session with the peer. Needed to set the record sequence
 	 * number correctly when retransmitted.
 	 */
-	private DTLSSession session;
+	private final DTLSSession session;
+
+	/** 
+	 * The number of the flight. 
+	 * See RFC6347, page 21.
+	 * Note: californium uses a HelloVerifyRequest also for resumption, 
+	 * therefore the numbers are incremented!
+	 */
+	private final int flightNumber;
 
 	/** The number of retransmissions. */
 	private int tries;
@@ -89,39 +98,6 @@ public class DTLSFlight {
 	private ScheduledFuture<?> retransmitTask;
 
 	/**
-	 * Initializes an empty, fresh flight. The timeout is set to 0, it will be
-	 * set later by the standard duration.
-	 * 
-	 * @deprecated use other constructor
-	 */
-	@Deprecated
-	public DTLSFlight() {
-		this.messages = new ArrayList<Record>();
-		this.tries = 0;
-		this.timeout = 0;
-	}
-
-	/**
-	 * Creates an empty flight to be sent to a given peer.
-	 * 
-	 * Flights created using this constructor are <em>not</em>
-	 * eligible for re-transmission because there is no
-	 * <code>DTLSSession</code> available to obtain record sequence
-	 * numbers from.
-	 * 
-	 * @param peerAddress the IP address and port to send the records to
-	 * @throws NullPointerException if peerAddress is <code>null</code>
-	 */
-	@Deprecated
-	public DTLSFlight(final InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			throw new NullPointerException("Peer address must not be null");
-		}
-		this.peerAddress = peerAddress;
-		this.messages = new ArrayList<Record>();
-	}
-
-	/**
 	 * Creates an empty flight to be sent within a session with a peer.
 	 * 
 	 * Flights created using this constructor are by default eligible for
@@ -131,7 +107,7 @@ public class DTLSFlight {
 	 *                 when sending out the flight
 	 * @throws NullPointerException if session is <code>null</code>
 	 */
-	public DTLSFlight(final DTLSSession session) {
+	public DTLSFlight(DTLSSession session, int flightNumber) {
 		if (session == null) {
 			throw new NullPointerException("Session must not be null");
 		}
@@ -142,6 +118,7 @@ public class DTLSFlight {
 		this.peerAddress = session.getPeer();
 		this.messages = new ArrayList<Record>();
 		this.retransmissionNeeded = true;
+		this.flightNumber = flightNumber;
 	}
 
 	/**
@@ -175,32 +152,12 @@ public class DTLSFlight {
 		return peerAddress;
 	}
 
-	/**
-	 * Sets the IP address and port to send the flight's messages to.
-	 * 
-	 * @param peerAddress the peer address
-	 * @deprecated use the constructor to implicitly set the peer address
-	 *                   as part of the provided session 
-	 */
-	@Deprecated
-	public void setPeerAddress(InetSocketAddress peerAddress) {
-		this.peerAddress = peerAddress;
-	}
-
 	public DTLSSession getSession() {
 		return session;
 	}
 
-	/**
-	 * Sets the session to get sequence numbers from when sending the
-	 * flight's messages.
-	 * 
-	 * @param session the session
-	 * @deprecated use the constructor to set the session
-	 */
-	@Deprecated
-	public void setSession(DTLSSession session) {
-		this.session = session;
+	public int getFlightNumber() {
+		return flightNumber;
 	}
 
 	public int getTries() {

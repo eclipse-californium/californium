@@ -23,6 +23,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -146,7 +147,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							clientHello.getPeer()));
 		} else {
-			DTLSFlight flight = new DTLSFlight(getSession());
+			DTLSFlight flight = new DTLSFlight(getSession(), 4);
 			md.update(clientHello.getRawMessage());
 
 			clientRandom = clientHello.getRandom();

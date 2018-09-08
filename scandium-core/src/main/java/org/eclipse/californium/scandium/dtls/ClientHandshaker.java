@@ -40,6 +40,7 @@
  *    Vikram (University of Rostock) - added ECDHE_PSK mode
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
  *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -353,7 +354,7 @@ public class ClientHandshaker extends Handshaker {
 		// update the length (cookie added)
 		clientHello.setFragmentLength(clientHello.getMessageLength());
 
-		DTLSFlight flight = new DTLSFlight(getSession());
+		DTLSFlight flight = new DTLSFlight(getSession(), 3);
 		flight.addMessage(wrapMessage(clientHello));
 		recordLayer.sendFlight(flight);
 	}
@@ -499,7 +500,7 @@ public class ClientHandshaker extends Handshaker {
 			return;
 		}
 		serverHelloDone = message;
-		DTLSFlight flight = new DTLSFlight(getSession());
+		DTLSFlight flight = new DTLSFlight(getSession(), 5);
 
 		createCertificateMessage(flight);
 
@@ -715,7 +716,7 @@ public class ClientHandshaker extends Handshaker {
 			startMessage.addExtension(ext);
 			LOGGER.debug(
 					"Indicating max. fragment length [{}] to server [{}]",
-					new Object[]{maxFragmentLengthCode, getPeerAddress()});
+					maxFragmentLengthCode, getPeerAddress());
 		}
 
 		addServerNameIndication(startMessage);
@@ -725,7 +726,7 @@ public class ClientHandshaker extends Handshaker {
 
 		// store for later calculations
 		clientHello = startMessage;
-		DTLSFlight flight = new DTLSFlight(session);
+		DTLSFlight flight = new DTLSFlight(session, 1);
 		flight.addMessage(wrapMessage(startMessage));
 
 		recordLayer.sendFlight(flight);

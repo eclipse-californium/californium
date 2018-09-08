@@ -16,6 +16,7 @@
  *                                                    for handshakeFailed.
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
  *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -39,5 +40,9 @@ public class SessionAdapter implements SessionListener{
 
 	@Override
 	public void handshakeFailed(Handshaker handshaker, Throwable error) {
+	}
+
+	@Override
+	public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
 	}
 }
