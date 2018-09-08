@@ -86,6 +86,10 @@
  *                                                    subclass specific implementations.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use session ticket when sending messages
  *                                                    over a connection marked for resumption.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as 
+ *                                                    parameter for session listener.
+ *                                                    Move session listener callback out of sync
+ *                                                    block of processApplicationDataRecord.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -837,6 +841,7 @@ public class DTLSConnector implements Connector {
 		final Connection connection = connectionStore.get(record.getPeerAddress());
 		if (connection != null && (session = connection.getEstablishedSession()) != null) {
 			RawData receivedApplicationMessage = null;
+			Handshaker ongoingHandshake = connection.getOngoingHandshake();
 			synchronized (session) {
 				// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 				// before MAC validation based on the record's sequence numbers
@@ -847,9 +852,6 @@ public class DTLSConnector implements Connector {
 						// an established, i.e. fully negotiated, session
 						record.setSession(session);
 						ApplicationMessage message = (ApplicationMessage) record.getFragment();
-						// the fragment could be de-crypted
-						// thus, the handshake seems to have been completed successfully
-						connection.handshakeCompleted(record.getPeerAddress());
 						session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 						// create application message.
 						receivedApplicationMessage = RawData.inbound(message.getData(), session.getConnectionReadContext(), false);
@@ -864,6 +866,11 @@ public class DTLSConnector implements Connector {
 			}
 			if (receivedApplicationMessage != null) {
 				connection.refreshAutoResumptionTime();
+				if (ongoingHandshake != null) {
+					// the fragment could be de-crypted
+					// thus, the handshake seems to have been completed successfully
+					ongoingHandshake.handshakeCompleted();
+				}
 				connectionStore.update(connection);
 				RawDataChannel channel = messageHandler;
 				// finally, forward de-crypted message to application layer
@@ -1556,8 +1563,8 @@ public class DTLSConnector implements Connector {
 			}
 			
 			@Override
-			public void handshakeFailed(InetSocketAddress peer, Throwable error) {
-				LOGGER.debug("Session with [{}] failed, report error", peer);
+			public void handshakeFailed(Handshaker handshaker, Throwable error) {
+				LOGGER.debug("Session with [{}] failed, report error", handshaker.getPeerAddress());
 				message.onError(error);
 			}
 		};

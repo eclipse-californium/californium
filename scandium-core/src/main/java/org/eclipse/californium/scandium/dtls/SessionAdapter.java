@@ -14,10 +14,10 @@
  *    Simon Bernard (Sierra Wireless) - Initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add empty implementation 
  *                                                    for handshakeFailed.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
+ *                                                    parameter for session listener.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
 
 /**
  * An abstract adapter class for listening handshake. The methods in this
@@ -34,10 +34,10 @@ public class SessionAdapter implements SessionListener{
 	}
 
 	@Override
-	public void handshakeCompleted(InetSocketAddress peer) {
+	public void handshakeCompleted(Handshaker handshaker) {
 	}
 
 	@Override
-	public void handshakeFailed(InetSocketAddress peer, Throwable error) {
+	public void handshakeFailed(Handshaker handshaker, Throwable error) {
 	}
 }
