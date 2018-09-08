@@ -90,6 +90,7 @@
  *                                                    parameter for session listener.
  *                                                    Move session listener callback out of sync
  *                                                    block of processApplicationDataRecord.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1676,37 +1677,40 @@ public class DTLSConnector implements Connector {
 
 	private void handleTimeout(DTLSFlight flight) {
 
-		// set DTLS retransmission maximum
-		final int max = config.getMaxRetransmissions();
+		Connection connection = connectionStore.get(flight.getPeerAddress());
+		if (null != connection) {
+			Handshaker handshaker = connection.getOngoingHandshake();
+			if (null != handshaker) {
 
-		// check if limit of retransmissions reached
-		if (flight.getTries() < max) {
-			LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
-					new Object[]{flight.getPeerAddress(), max - flight.getTries() - 1});
+				// set DTLS retransmission maximum
+				final int max = config.getMaxRetransmissions();
 
-			try {
-				flight.incrementTries();
-				flight.setNewSequenceNumbers();
-				sendFlight(flight);
+				// check if limit of retransmissions reached
+				if (flight.getTries() < max) {
+					LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
+							flight.getPeerAddress(), max - flight.getTries() - 1);
 
-				// schedule next retransmission
-				scheduleRetransmission(flight);
-			} catch (IOException e) {
-				// stop retransmission on IOExceptions
-				LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-			} catch (GeneralSecurityException e) {
-				LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-			}
-		} else {
-			LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-					new Object[]{flight.getPeerAddress(), max});
-			// inform handshaker
-			Connection connection = connectionStore.get(flight.getPeerAddress());
-			if (null != connection) {
-				Handshaker handshaker = connection.getOngoingHandshake();
-				if (null != handshaker) {
-					handshaker.handshakeFailed(new Exception("handshake flight timeout!"));
+					try {
+						flight.incrementTries();
+						flight.setNewSequenceNumbers();
+						sendFlight(flight);
+
+						// schedule next retransmission
+						scheduleRetransmission(flight);
+						handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
+						return;
+					} catch (IOException e) {
+						// stop retransmission on IOExceptions
+						LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+					} catch (GeneralSecurityException e) {
+						LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+					}
+				} else {
+					LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
+							flight.getPeerAddress(), max);
 				}
+				// inform handshaker
+				handshaker.handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " timeout!"));
 			}
 		}
 	}

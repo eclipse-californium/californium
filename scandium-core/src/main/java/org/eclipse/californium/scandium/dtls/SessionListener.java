@@ -21,6 +21,7 @@
  *                                                    handshake errors.
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
  *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -72,4 +73,12 @@ public interface SessionListener {
 	 * @param error the error occurred during the handshake
 	 */
 	void handshakeFailed(Handshaker handshaker, Throwable error);
+
+	/**
+	 * Indicates that a handshake flight is retransmitted.
+	 * 
+	 * @param handshaker the handshaker that retransmits a flight
+	 * @param flight number of flight, which is retransmitted
+	 */
+	void handshakeFlightRetransmitted(Handshaker handshaker, int flight);
 }

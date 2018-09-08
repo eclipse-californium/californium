@@ -26,6 +26,7 @@
  *                                                    remove unused constructor.
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as 
  *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -279,6 +280,11 @@ public final class Connection implements SessionListener {
 			cancelPendingFlight();
 			LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 		}
+	}
+
+
+	@Override
+	public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
 	}
 
 	/**

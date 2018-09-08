@@ -47,6 +47,7 @@
  *    Vikram (University of Rostock) - added ECDHE_PSK mode
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
  *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -428,7 +429,7 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
-		DTLSFlight flight = new DTLSFlight(getSession());
+		DTLSFlight flight = new DTLSFlight(getSession(), 6);
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
@@ -499,7 +500,7 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientHello(final ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
-		DTLSFlight flight = new DTLSFlight(getSession());
+		DTLSFlight flight = new DTLSFlight(getSession(), 4);
 
 		// update the handshake hash
 		md.update(clientHello.getRawMessage());
@@ -743,11 +744,7 @@ public class ServerHandshaker extends Handshaker {
 
 	@Override
 	public void startHandshake() throws HandshakeException {
-		HelloRequest helloRequest = new HelloRequest(session.getPeer());
-
-		DTLSFlight flight = new DTLSFlight(getSession());
-		flight.addMessage(wrapMessage(helloRequest));
-		recordLayer.sendFlight(flight);
+		throw new HandshakeException("starting an handshake is not supported for server handshaker!", null);
 	}
 
 	/**
