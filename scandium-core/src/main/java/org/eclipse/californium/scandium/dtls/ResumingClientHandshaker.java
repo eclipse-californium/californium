@@ -28,6 +28,8 @@
  *                                                    before the SERVER_HELLO.
  *                                                    move expectChangeCipherSpecMessage after
  *                                                    receiving SERVER_HELLO.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
+ *                                                    session resumption is refused.
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -154,7 +156,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
+					session.resetMasterSecret();
 					super.receivedServerHello(serverHello);
+					return;
 				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
 					throw new HandshakeException(
 							"Server wants to change compression method in resumed session",

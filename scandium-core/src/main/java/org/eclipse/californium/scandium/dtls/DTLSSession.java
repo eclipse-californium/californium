@@ -36,6 +36,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter and
  *                                                    handshake parameter available to
  *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
+ *                                                    session resumption is refused.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -647,6 +649,7 @@ public final class DTLSSession {
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
 	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 * @throws IllegalStateException if the secret is already set
 	 */
 	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
@@ -662,6 +665,19 @@ public final class DTLSSession {
 				this.creationTime = System.currentTimeMillis();
 			}
 		}
+		else {
+			throw new IllegalStateException("master secret already available!");
+		}
+	}
+
+	/**
+	 * Reset master secret. 
+	 * 
+	 * Intended to be used, When session resumption is
+	 * refused and a new session id and master secret is generated.
+	 */
+	void resetMasterSecret() {
+		masterSecret = null;
 	}
 
 	/**
