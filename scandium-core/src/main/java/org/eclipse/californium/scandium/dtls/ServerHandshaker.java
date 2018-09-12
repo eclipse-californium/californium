@@ -48,6 +48,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
  *                                                    process reordered handshake messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add preSharedKeyIdentity to
+ *                                                    support creating statistics.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -145,6 +147,8 @@ public class ServerHandshaker extends Handshaker {
 
 	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
+
+	private String preSharedKeyIdentity;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -244,6 +248,9 @@ public class ServerHandshaker extends Handshaker {
 
 	// Methods ////////////////////////////////////////////////////////
 
+	public String getPreSharedKeyIdentity() {
+		return preSharedKeyIdentity;
+	}
 
 	@Override
 	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
@@ -712,6 +719,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
+		preSharedKeyIdentity = identity;
 		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
 		return configurePskCredentials(identity, psk, null);
 	}
@@ -722,6 +730,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
+		preSharedKeyIdentity = identity;
 		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
 		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
 		return configurePskCredentials(identity, psk, otherSecret);
