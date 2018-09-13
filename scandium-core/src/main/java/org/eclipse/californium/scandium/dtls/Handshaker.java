@@ -50,6 +50,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
  *                                                    ensure, that the session listener methods
  *                                                    are called via the handshaker.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - suppress duplicates only from
+ *                                                    the same epoch
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -145,6 +147,9 @@ public abstract class Handshaker {
 
 	/** The next expected handshake message sequence number. */
 	private int nextReceiveSeq = 0;
+
+	/** The current flight number. */
+	protected int flightNumber = 0;
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
@@ -431,7 +436,9 @@ public abstract class Handshaker {
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		if (!session.isDuplicate(record.getSequenceNumber())) {
+		boolean sameEpoch = session.getReadEpoch() == record.getEpoch();
+		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
+				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
 			try {
 				record.setSession(session);
 				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
@@ -466,9 +473,12 @@ public abstract class Handshaker {
 						session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
-		} else {
+		} else if (sameEpoch) {
 			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
 					StringUtil.lineSeparator(), record);
+		} else {
+			LOGGER.trace("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
+					record.getPeerAddress(), StringUtil.lineSeparator(), record);
 		}
 	}
 

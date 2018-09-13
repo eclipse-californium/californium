@@ -169,6 +169,11 @@ public final class DtlsConnectorConfig {
 
 	private Boolean sniEnabled;
 
+	/**
+	 * Use HELLO_VERIFY_REQUEST for session resumption.
+	 */
+	private Boolean verifyRequestOnResumptionEnabled;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -253,6 +258,19 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean isSniEnabled() {
 		return sniEnabled;
+	}
+
+	/**
+	 * Checks whether a HELLO_VERIFY_REQUEST should be used also for session
+	 * resumption. Though a CLIENT_HELLO with an session id is used for session
+	 * resumption, that session ID could be used to check, if this is a valid
+	 * CLIENT_HELLO request.
+	 * 
+	 * @return {@code true} if a HELLO_VERIFY_REQUEST should be used also for
+	 *         session resumption
+	 */
+	public Boolean isVerifyRequestOnResumptionEnabled() {
+		return verifyRequestOnResumptionEnabled;
 	}
 
 	/**
@@ -478,6 +496,7 @@ public final class DtlsConnectorConfig {
 		cloned.connectionThreadCount = connectionThreadCount;
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
+		cloned.verifyRequestOnResumptionEnabled = verifyRequestOnResumptionEnabled;
 		return cloned;
 	}
 
@@ -1018,6 +1037,26 @@ public final class DtlsConnectorConfig {
 			return this;
 		}
 
+		/**
+		 * Sets whether a HELLO_VERIFY_REQUEST should be used also for session
+		 * resumption. If a CLIENT_HELLO with an session ID is used for session
+		 * resumption, that session ID could be used to check, if this is a
+		 * valid CLIENT_HELLO request. Though HELLO_VERIFY_REQUEST requires one
+		 * message exchange more, it slows down a bit the handshake. If your
+		 * system is expect to be attacked by spoofed IP message with valid
+		 * session IDs, enable the use of verify requests as protection against
+		 * that. The default is disabled (assuming that spoof attack with valid
+		 * session IDs are negligible).
+		 * 
+		 * @param flag {@code true} if a HELLO_VERIFY_REQUEST should be used
+		 *            also for session resumption
+		 * @return this builder for command chaining.
+		 */
+		public Builder setVerifyRequestOnResumptionEnabled(boolean flag) {
+			config.verifyRequestOnResumptionEnabled = flag;
+			return this;
+		}
+
 		private boolean isConfiguredWithKeyPair() {
 			return config.privateKey != null && config.publicKey != null;
 		}
@@ -1106,6 +1145,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.sniEnabled == null) {
 				config.sniEnabled = Boolean.TRUE;
+			}
+			if (config.verifyRequestOnResumptionEnabled == null) {
+				config.verifyRequestOnResumptionEnabled = Boolean.FALSE;
 			}
 
 			// check cipher consistency

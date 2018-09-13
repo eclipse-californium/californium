@@ -108,7 +108,7 @@ public class DTLSConnectorStartStopTest {
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore, clientSessionCache);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = serverHelper.new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
 	}

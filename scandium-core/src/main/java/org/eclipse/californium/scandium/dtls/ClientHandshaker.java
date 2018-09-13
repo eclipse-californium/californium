@@ -353,8 +353,9 @@ public class ClientHandshaker extends Handshaker {
 		clientHello.setCookie(message.getCookie());
 		// update the length (cookie added)
 		clientHello.setFragmentLength(clientHello.getMessageLength());
-
-		DTLSFlight flight = new DTLSFlight(getSession(), 3);
+		
+		flightNumber = 3;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(clientHello));
 		recordLayer.sendFlight(flight);
 	}
@@ -500,7 +501,8 @@ public class ClientHandshaker extends Handshaker {
 			return;
 		}
 		serverHelloDone = message;
-		DTLSFlight flight = new DTLSFlight(getSession(), 5);
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		createCertificateMessage(flight);
 
@@ -725,8 +727,9 @@ public class ClientHandshaker extends Handshaker {
 		state = startMessage.getMessageType().getCode();
 
 		// store for later calculations
+		flightNumber = 1;
 		clientHello = startMessage;
-		DTLSFlight flight = new DTLSFlight(session, 1);
+		DTLSFlight flight = new DTLSFlight(session, flightNumber);
 		flight.addMessage(wrapMessage(startMessage));
 
 		recordLayer.sendFlight(flight);
