@@ -436,7 +436,8 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
-		DTLSFlight flight = new DTLSFlight(getSession(), 6);
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
@@ -507,7 +508,11 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientHello(final ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
-		DTLSFlight flight = new DTLSFlight(getSession(), 4);
+
+		byte[] cookie = clientHello.getCookie();
+		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
+
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// update the handshake hash
 		md.update(clientHello.getRawMessage());

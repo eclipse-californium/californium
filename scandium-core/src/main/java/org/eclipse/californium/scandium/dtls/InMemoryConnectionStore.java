@@ -28,13 +28,17 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - restore connection from
  *                                                    client session cache,
  *                                                    when provided.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add putEstablishedSession
+ *                                                    and removeFromEstablishedSessions
+ *                                                    for faster find
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +82,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final LeastRecentlyUsedCache<InetSocketAddress, Connection> connections;
+	private final Map<SessionId, Connection> connectionsByEstablishedSession;
 	private final SessionCache sessionCache;
 
 	private String tag = "";
@@ -129,6 +134,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 		connections = new LeastRecentlyUsedCache<>(capacity, threshold);
 		connections.setEvictingOnReadAccess(false);
 		connections.setUpdatingOnReadAccess(false);
+		connectionsByEstablishedSession = new HashMap<>();
 		this.sessionCache = sessionCache;
 
 		if (sessionCache != null) {
@@ -137,6 +143,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 				@Override
 				public void onEviction(Connection staleConnection) {
+					removeFromEstablishedSessions(staleConnection);
 					removeSessionFromCache(staleConnection);
 				}
 			});
@@ -213,11 +220,17 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public synchronized boolean update(final Connection connection) {
-
-		if (connection != null) {
-			return connections.update(connection.getPeerAddress());
+		if (connection != null && connections.update(connection.getPeerAddress())) {
+			return true;
 		} else {
 			return false;
+		}
+	}
+
+	public synchronized void putEstablishedSession(final DTLSSession session, final Connection connection) {
+		connectionsByEstablishedSession.put(session.getSessionIdentifier(), connection);
+		if (sessionCache != null) {
+			sessionCache.put(session);
 		}
 	}
 
@@ -264,15 +277,11 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	}
 
 	private synchronized Connection findLocally(final SessionId id) {
-
-		return connections.find(new Predicate<Connection>() {
-
-			@Override
-			public boolean accept(final Connection connection) {
-				DTLSSession session = connection.getEstablishedSession();
-				return session != null && id.equals(session.getSessionIdentifier());
-			}
-		});
+		Connection connection = connectionsByEstablishedSession.get(id);
+		if (connection != null) {
+			connections.update(connection.getPeerAddress());
+		}
+		return connection;
 	}
 
 	@Override
@@ -308,6 +317,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			} else {
 				LOG.debug("{}connection: remove {}", tag, peerAddress);
 			}
+			removeFromEstablishedSessions(connection);
 			if (removeFromSessionCache) {
 				removeSessionFromCache(connection);
 			}
@@ -330,11 +340,23 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			} else {
 				LOG.debug("{}connection: remove {}", tag, connection.getPeerAddress());
 			}
+			removeFromEstablishedSessions(connection);
 			if (removeFromSessionCache) {
 				removeSessionFromCache(connection);
 			}
 		}
 		return removed;
+	}
+
+	private void removeFromEstablishedSessions(Connection connection) {
+		DTLSSession establishedSession = connection.getEstablishedSession();
+		if (establishedSession != null) {
+			SessionId sessionId = establishedSession.getSessionIdentifier();
+			Connection removedConnection = connectionsByEstablishedSession.remove(sessionId);
+			if (removedConnection != connection) {
+				connectionsByEstablishedSession.put(sessionId, removedConnection);
+			}
+		}
 	}
 
 	private synchronized void removeSessionFromCache(final Connection connection) {
@@ -346,6 +368,7 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	@Override
 	public final synchronized void clear() {
 		connections.clear();
+		connectionsByEstablishedSession.clear();
 		// TODO: does it make sense to clear the SessionCache as well?
 	}
 

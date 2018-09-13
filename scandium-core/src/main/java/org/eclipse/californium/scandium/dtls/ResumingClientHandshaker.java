@@ -31,6 +31,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
  *                                                    session resumption is refused.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust dtls flight number
+ *                                                    for short resumption
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -223,7 +225,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// this last flight
 			return;
 		}
-		DTLSFlight flight = new DTLSFlight(getSession(), 5);
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// update the handshake hash
 		md.update(clientHello.toByteArray());
@@ -285,8 +288,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		state = message.getMessageType().getCode();
 		clientHello = message;
-
-		DTLSFlight flight = new DTLSFlight(getSession(), 1);
+		
+		flightNumber = 1;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(message));
 
 		recordLayer.sendFlight(flight);

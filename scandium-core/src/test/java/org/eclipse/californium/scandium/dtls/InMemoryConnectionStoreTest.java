@@ -62,7 +62,7 @@ public class InMemoryConnectionStoreTest {
 	public void testFindRetrievesLocalConnection() {
 		// given a connection store containing a connection with a peer
 		store.put(con);
-
+		store.putEstablishedSession(con.getEstablishedSession(), con);
 		// when retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
 		assertThat(connectionWithPeer, is(con));
@@ -95,6 +95,7 @@ public class InMemoryConnectionStoreTest {
 		sessionCache.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
 		store.put(con);
+		store.putEstablishedSession(con.getEstablishedSession(), con);
 
 		// WHEN the session is removed from the cache (e.g. because it became stale)
 		sessionCache.remove(con.getEstablishedSession().getSessionIdentifier());

@@ -38,7 +38,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests to
  *                                                    DTLSCorrelationTest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for automatic resumption
- *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite   
+ *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove HELLO_VERIFY_REQUEST
+ *                                                    from resumption tests
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -124,6 +126,8 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -132,6 +136,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class DTLSConnectorTest {
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class.getName());
+	
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
@@ -204,7 +210,7 @@ public class DTLSConnectorTest {
 			.setReceiverThreadCount(1)
 			.build();
 
-		server = new DTLSConnector(serverConfig, serverConnectionStore, serverSessionCache);
+		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.setExecutor(executor);
 		server.start();
@@ -226,7 +232,7 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
@@ -242,7 +248,7 @@ public class DTLSConnectorTest {
 		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
 		clientConfig = clientConfigBuilder.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
@@ -576,7 +582,7 @@ public class DTLSConnectorTest {
 
 		// WHEN starting a new handshake (epoch 0) reusing the same client IP
 		clientConfig = newStandardConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
 		// THEN assert that the handshake succeeds and a session is established
 		givenAnEstablishedSession();
@@ -839,16 +845,7 @@ public class DTLSConnectorTest {
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
 			resumingClientHandshaker.startHandshake();
 
-			// Wait to receive response (should be HELLO_VERIFY_REQUEST, additional flight)
-			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
-			assertNotNull("timeout", rs); // check there is no timeout
-			assertEquals(1, rs.size());
-			// Handle and answer ( CLIENT HELLO, flight 1)
-			for (Record r : rs) {
-				resumingClientHandshaker.processMessage(r);
-			}
-
-			// Wait to receive response (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
+			// Wait to receive response (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, flight 2)
 			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
 			assertEquals(3, rs.size());
@@ -1290,15 +1287,6 @@ public class DTLSConnectorTest {
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
 			resumingClientHandshaker.startHandshake();
 
-			// Wait to receive response (should be HELLO_VERIFY_REQUEST, additional flight)
-			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
-			assertNotNull("timeout", rs); // check there is no timeout
-			assertEquals(1, rs.size());
-			// Handle and answer ( CLIENT HELLO, flight 1)
-			for (Record r : rs) {
-				resumingClientHandshaker.processMessage(r);
-			}
-
 			// Wait to receive response (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
 			List<Record> drops = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", drops); // check there is no timeout
@@ -1384,7 +1372,7 @@ public class DTLSConnectorTest {
 		// create a new client with different inetAddress but with the same session store.
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
 		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
@@ -1798,7 +1786,7 @@ public class DTLSConnectorTest {
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setSupportedCipherSuites(new CipherSuite[] {CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
 				.build();
-			client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+			client = new DTLSConnector(clientConfig, clientConnectionStore);
 			givenAnEstablishedSession();
 	}
 	
@@ -1813,7 +1801,7 @@ public class DTLSConnectorTest {
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
 	}
 
@@ -1843,7 +1831,7 @@ public class DTLSConnectorTest {
 			.setAddress(clientEndpoint)
 			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
 
 		assertClientIdentity(PreSharedKeyIdentity.class);
@@ -1863,7 +1851,7 @@ public class DTLSConnectorTest {
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore, null);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		givenAnEstablishedSession();
 
 		assertClientIdentity(X509CertPath.class);
@@ -2281,6 +2269,7 @@ public class DTLSConnectorTest {
 			List<Record> messages = flight.getMessages();
 			for (int i = messages.size() - 1; i >= 0; i--) {
 				try {
+					LOGGER.info("Reverse send {}: {}", i, messages.get(i));
 					connector.sendRecord(flight.getPeerAddress(), messages.get(i).toByteArray());
 				} catch (IOException e) {
 					throw new RuntimeException(e);

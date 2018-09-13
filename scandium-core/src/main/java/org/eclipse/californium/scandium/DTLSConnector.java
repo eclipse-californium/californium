@@ -91,7 +91,7 @@
  *                                                    Move session listener callback out of sync
  *                                                    block of processApplicationDataRecord.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
- *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add onConnecting and onDtlsRetransmission
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
  *                                                    ensure, that the session listener methods
  *                                                    are called via the handshaker.
@@ -103,6 +103,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
  *                                                    move default thread numbers to configuration.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add cause to handshake failure.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove HELLO_VERIFY_REQUEST
+ *                                                    from resumption handshakes
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -283,8 +285,7 @@ public class DTLSConnector implements Connector {
 				new InMemoryConnectionStore(
 						configuration.getMaxConnections(),
 						configuration.getStaleConnectionThreshold(),
-						sessionCache),
-				sessionCache);
+						sessionCache));
 	}
 
 	/**
@@ -295,33 +296,6 @@ public class DTLSConnector implements Connector {
 	 * @throws NullPointerException if any of the parameters is <code>null</code>.
 	 */
 	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
-		this(configuration, connectionStore, null);
-	}
-
-	/**
-	 * Creates a DTLS connector for a given set of configuration options.
-	 * 
-	 * @param configuration The configuration options.
-	 * @param connectionStore The registry to use for managing connections to
-	 *            peers. For backwards compatibility, if no session cache is
-	 *            provided and the connection store is also a
-	 *            {@link SessionListener}, that listener is sued to synchronize
-	 *            the session cache with the established sessions.
-	 * @param sessionCache An (optional) cache for <code>DTLSSession</code>
-	 *            objects that can be used for persisting and/or sharing of
-	 *            session state among multiple instances of
-	 *            <code>DTLSConnector</code>. Whenever a handshake with a client
-	 *            is finished the negotiated session is put to this cache.
-	 *            Similarly, whenever a client wants to perform an abbreviated
-	 *            handshake based on an existing session the connection store
-	 *            will try to retrieve the session from this cache if it is not
-	 *            available from the connection store's in-memory (first-level)
-	 *            cache.
-	 * @throws NullPointerException if the configuration or connectionStore is
-	 *             <code>null</code>.
-	 */
-	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore, final SessionCache sessionCache) {
-
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
 		} else if (connectionStore == null) {
@@ -330,21 +304,15 @@ public class DTLSConnector implements Connector {
 			this.config = configuration;
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.connectionStore = connectionStore;
-			if (sessionCache != null) {
-				this.sessionCacheSynchronization = new SessionAdapter() {
+			this.sessionCacheSynchronization = new SessionAdapter() {
 
-					@Override
-					public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-							throws HandshakeException {
-						sessionCache.put(establishedSession);
-					}
-				};
-			} else if (connectionStore instanceof SessionListener) {
-				// backwards compatibility
-				this.sessionCacheSynchronization = (SessionListener) connectionStore;
-			} else {
-				this.sessionCacheSynchronization = null;
-			}
+				@Override
+				public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+						throws HandshakeException {
+					Connection connection = connectionStore.get(handshaker.getPeerAddress());
+					connectionStore.putEstablishedSession(establishedSession, connection);
+				}
+			};
 			int maxConnections = configuration.getMaxConnections();
 			// create cache slightly larger than max connections for new CLIENT_HELLOs
 			this.connectionExecutors = new LeastRecentlyUsedCache<>(maxConnections + (maxConnections / 16), 20);
@@ -761,7 +729,8 @@ public class DTLSConnector implements Connector {
 	private void processRecord(Record record) {
 
 		try {
-			LOGGER.trace("Received DTLS record of type [{}]", record.getType());
+			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},reqn:{}]", record.getType(),
+					record.getLength(), record.getEpoch(), record.getSequenceNumber());
 
 			switch(record.getType()) {
 			case APPLICATION_DATA:
@@ -1032,7 +1001,7 @@ public class DTLSConnector implements Connector {
 	private void processHandshakeRecord(final Record record) {
 
 		LOGGER.debug("Received {} record from peer [{}]",
-				new Object[]{record.getType(), record.getPeerAddress()});
+				record.getType(), record.getPeerAddress());
 		final Connection con = connectionStore.get(record.getPeerAddress());
 		try {
 			if (con == null) {
@@ -1187,7 +1156,7 @@ public class DTLSConnector implements Connector {
 
 		// before starting a new handshake or resuming an established session we need to make sure that the
 		// peer is in possession of the IP address indicated in the client hello message
-		if (isClientInControlOfSourceIpAddress(clientHello, record)) {
+		if (isClientInControlOfSourceIpAddress(clientHello, record, null)) {
 			if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
 				resumeExistingSession(clientHello, record, null);
@@ -1227,7 +1196,7 @@ public class DTLSConnector implements Connector {
 
 		// before starting a new handshake or resuming an established session we need to make sure that the
 		// peer is in possession of the IP address indicated in the client hello message
-		if (isClientInControlOfSourceIpAddress(clientHello, record)) {
+		if (isClientInControlOfSourceIpAddress(clientHello, record, connection)) {
 			if (isHandshakeAlreadyStartedForMessage(clientHello, connection)) {
 				// client has sent this message before (maybe our response flight has been lost)
 				// but we do not want to start over again, so let the existing handshaker handle
@@ -1268,18 +1237,49 @@ public class DTLSConnector implements Connector {
 	 * @return <code>true</code> if the client hello message contains a cookie and the cookie
 	 *             is identical to the cookie expected from the peer address
 	 */
-	private boolean isClientInControlOfSourceIpAddress(ClientHello clientHello, Record record) {
+	private boolean isClientInControlOfSourceIpAddress(ClientHello clientHello, Record record, Connection connection) {
 		// verify client's ability to respond on given IP address
 		// by exchanging a cookie as described in section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
 		try {
-			byte[] expectedCookie = cookieGenerator.generateCookie(clientHello);
-			if (Arrays.equals(expectedCookie, clientHello.getCookie())) {
-				return true;
-			} else {
-				sendHelloVerify(clientHello, record, expectedCookie);
-				return false;
+			byte[] expectedCookie = null;
+			byte[] providedCookie = clientHello.getCookie();
+			if (providedCookie != null && providedCookie.length > 0) {
+				expectedCookie = cookieGenerator.generateCookie(clientHello);
+				// if cookie is present, it must match
+				if (Arrays.equals(expectedCookie, providedCookie)) {
+					return true;
+				}
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("provided cookie must {} match {}. Send verify request to {}",
+							StringUtil.byteArray2HexString(providedCookie, StringUtil.NO_SEPARATOR, 6),
+							StringUtil.byteArray2HexString(expectedCookie, StringUtil.NO_SEPARATOR, 6),
+							record.getPeerAddress());
+				}
+				// otherwise send verify request
+			} else if (!config.isVerifyRequestOnResumptionEnabled()) {
+				Connection sessionConnection = connectionStore.find(clientHello.getSessionId());
+				if (sessionConnection != null) {
+					// found provided session.
+					if (record.getPeerAddress().equals(sessionConnection.getPeerAddress())) {
+						// same peer wants to resume his session
+						return true;
+					}
+					if (connection == null || !connection.hasEstablishedSession()) {
+						// only new connections or connections without
+						// established sessions
+						return true;
+					}
+					// for connection with other established session,
+					// use the verify request
+				}
 			}
+			if (expectedCookie == null) {
+				expectedCookie = cookieGenerator.generateCookie(clientHello);
+			}
+			// for all cases not detected above, use a verify request.
+			sendHelloVerify(clientHello, record, expectedCookie);
+			return false;
 		} catch (GeneralSecurityException e) {
 			throw new DtlsHandshakeException("Cannot compute cookie for peer", AlertDescription.INTERNAL_ERROR,
 					AlertLevel.FATAL, clientHello.getPeer(), e);
@@ -1555,7 +1555,8 @@ public class DTLSConnector implements Connector {
 
 			// terminate the previous connection and add the new one to the store
 			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
-			terminateConnection(connection, null, null);
+			connection.cancelPendingFlight();
+			connectionStore.remove(connection, false);
 			connectionStore.put(newConnection);
 			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, getRecordLayerForPeer(newConnection),
 					newConnection.getSessionListener(), config, maximumTransmissionUnit);

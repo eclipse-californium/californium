@@ -14,6 +14,8 @@
  *    Simon Bernard (Sierra Wireless) - Initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix session resumption with 
  *                                                    session cache. issue #712
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add putEstablishedSession
+ *                                                    for faster find
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -44,6 +46,14 @@ public interface ResumptionSupportingConnectionStore {
 	 * @return <code>true</code>, if updated, <code>false</code>, otherwise.
 	 */
 	boolean update(Connection connection);
+
+	/**
+	 * Put connection associated with the session id into the store.
+	 * 
+	 * @param session established session.
+	 * @param connection connection of established session
+	 */
+	void putEstablishedSession(final DTLSSession session, final Connection connection);
 
 	/**
 	 * Gets the number of additional connection this store can manage.

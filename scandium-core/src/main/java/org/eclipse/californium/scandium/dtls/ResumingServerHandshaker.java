@@ -24,6 +24,8 @@
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust dtls flight number
+ *                                                    for short resumption
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -147,7 +149,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							clientHello.getPeer()));
 		} else {
-			DTLSFlight flight = new DTLSFlight(getSession(), 4);
+			flightNumber += 2;
+			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 			md.update(clientHello.getRawMessage());
 
 			clientRandom = clientHello.getRandom();
@@ -201,11 +204,4 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		sessionEstablished();
 		handshakeCompleted();
 	}
-
-//	@Override
-//	protected boolean isChangeCipherSpecMessageDue() {
-//
-//		// in an abbreviated handshake we immediately expect the client's ChangeCipherSpec message
-//		return true;
-//	}
 }
