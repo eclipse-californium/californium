@@ -17,6 +17,8 @@
  *                                                    client & server keys and certificate chains
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Replace getLocalHost() by
+ *                                                    getLoopbackAddress()
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -133,7 +135,7 @@ public class ClientHandshakerTest {
 
 	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore) throws Exception {
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLocalHost(), 0))
+				new DtlsConnectorConfig.Builder(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),

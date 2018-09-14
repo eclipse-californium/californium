@@ -889,6 +889,14 @@ public class DTLSConnectorTest {
 			assertNotNull("timeout", drops); // check there is no timeout
 			assertEquals(3, drops.size());
 
+			// create server session listener to ensure, that server finish also the handshake
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker handshaker = con.getOngoingHandshake();
+			assertNotNull(handshaker);
+			LatchSessionListener serverSessionListener = new LatchSessionListener();
+			handshaker.addSessionListener(serverSessionListener);
+			
 			// drop it, force retransmission (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
 			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
@@ -900,9 +908,11 @@ public class DTLSConnectorTest {
 			}
 
 			// Ensure handshake is successfully done
-			assertTrue("handshake failed",
+			assertTrue("client handshake failed",
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		} finally {
 			rawClient.stop();
 		}
@@ -1450,12 +1460,7 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			synchronized (client) {
-				client.releaseSocket();
-				// in order to prevent sporadic BindExceptions during test execution
-				// give OS some time before allowing test cases to re-bind to same port
-				client.wait(200);
-			}
+			client.releaseSocket();
 		}
 	}
 
