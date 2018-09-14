@@ -421,6 +421,38 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * @return a copy of this configuration
+	 */
+	@Override
+	protected Object clone() {
+		DtlsConnectorConfig cloned = new DtlsConnectorConfig();
+		cloned.address = address;
+		cloned.trustStore = trustStore;
+		cloned.certificateVerifier = certificateVerifier;
+		cloned.earlyStopRetransmission = earlyStopRetransmission;
+		cloned.enableReuseAddress = enableReuseAddress;
+		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
+		cloned.retransmissionTimeout = retransmissionTimeout;
+		cloned.maxRetransmissions = maxRetransmissions;
+		cloned.maxTransmissionUnit = maxTransmissionUnit;
+		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
+		cloned.sendRawKey = sendRawKey;
+		cloned.pskStore = pskStore;
+		cloned.privateKey = privateKey;
+		cloned.publicKey = publicKey;
+		cloned.certChain = certChain;
+		cloned.supportedCipherSuites = supportedCipherSuites;
+		cloned.trustedRPKs = trustedRPKs;
+		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
+		cloned.maxConnections = maxConnections;
+		cloned.staleConnectionThreshold = staleConnectionThreshold;
+		cloned.connectionThreadCount = connectionThreadCount;
+		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
+		cloned.sniEnabled = sniEnabled;
+		return cloned;
+	}
+
+	/**
 	 * A helper for creating instances of <code>DtlsConnectorConfig</code>
 	 * based on the builder pattern.
 	 *
@@ -465,6 +497,14 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder() {
 			config = new DtlsConnectorConfig();
+		}
+		
+		/**
+		 * Create a builder from an existing DtlsConnectorConfig.
+		 * This allow to create a new config starting from values of another one.
+		 */
+		public Builder(DtlsConnectorConfig initalValues){
+			config = (DtlsConnectorConfig) initalValues.clone();
 		}
 
 		/**
