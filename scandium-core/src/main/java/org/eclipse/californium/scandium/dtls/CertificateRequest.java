@@ -444,10 +444,14 @@ public final class CertificateRequest extends HandshakeMessage {
 
 		for (ClientCertificateType type : certificateTypes) {
 			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
-			boolean meetsSigningRequirements = !type.requiresSigningCapability() ||
-					(type.requiresSigningCapability() && cert.getKeyUsage() != null && cert.getKeyUsage()[0]);
-			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", 
-					new Object[]{ type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements});
+			// KeyUsage is an optional extension which may be used to restrict the way the key can be used.
+			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+			// If this extension is used, we check if digitalsignature usage is present.
+			// (For more details see : https://github.com/eclipse/californium/issues/748)
+			boolean meetsSigningRequirements = !type.requiresSigningCapability()
+					|| (cert.getKeyUsage() == null || cert.getKeyUsage()[0]);
+			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", new Object[] {
+					type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements });
 			if (isCompatibleType && meetsSigningRequirements) {
 				return true;
 			}
