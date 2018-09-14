@@ -582,7 +582,7 @@ public class ServerHandshaker extends Handshaker {
 						"using server name indication received from peer [{}]",
 						clientHello.getPeer());
 			} else {
-				LOGGER.warn("client [{}] included SNI in HELLO but SNI support is disabled",
+				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
 						clientHello.getPeer());
 			}
 		}
