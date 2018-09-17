@@ -47,6 +47,7 @@ public final class DtlsTestTools {
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
 	public static final String ROOT_CA_ALIAS = "root";
+	public static final String NO_SIGNING_ALIAS = "nosigning";
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static KeyStore keyStore;
 	private static KeyStore trustStore;
@@ -54,6 +55,7 @@ public final class DtlsTestTools {
 	private static X509Certificate[] serverCertificateChain;
 	private static X509Certificate[] clientCertificateChain;
 	private static X509Certificate rootCaCertificate;
+	private static X509Certificate nosigningCertificate; // a certificate without digitalSignature value in keyusage
 
 	static {
 		try {
@@ -74,6 +76,7 @@ public final class DtlsTestTools {
 			}
 			serverCertificateChain = getCertificateChain(keyStore, SERVER_NAME);
 			clientCertificateChain = getCertificateChain(keyStore, CLIENT_NAME);
+			nosigningCertificate = (X509Certificate) keyStore.getCertificate(NO_SIGNING_ALIAS);
 		} catch (IOException | GeneralSecurityException e) {
 			// nothing we can do
 		}
@@ -271,5 +274,12 @@ public final class DtlsTestTools {
 	 */
 	public static X509Certificate getTrustedRootCA() {
 		return rootCaCertificate;
+	}
+
+	/**
+	 * @return a certificate without digitalSignature in keyusage extension
+	 */
+	public static X509Certificate getNoSigningCertificate() {
+		return nosigningCertificate;
 	}
 }

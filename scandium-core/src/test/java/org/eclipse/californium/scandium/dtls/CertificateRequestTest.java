@@ -96,7 +96,7 @@ public class CertificateRequestTest {
 	@Test
 	public void testIsSupportedKeyTypeFailsForCertWithoutDigitalSignatureKeyUsage() throws Exception {
 
-		X509Certificate cert = DtlsTestTools.getTrustedCertificates()[0];
+		X509Certificate cert = DtlsTestTools.getNoSigningCertificate();
 		CertificateRequest req = new CertificateRequest(peerAddress);
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		assertFalse(req.isSupportedKeyType(cert));
