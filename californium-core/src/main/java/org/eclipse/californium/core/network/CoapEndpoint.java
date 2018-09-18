@@ -982,7 +982,7 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled()) {
 				// CoAP Ping
-				if (message.getType() == Type.CON || message.getType() == Type.NON) {
+				if ((message.getType() == Type.CON || message.getType() == Type.NON) && message.hasMID()) {
 					LOGGER.debug("responding to ping from {}", message.getSourceContext());
 					reject(message);
 				} else {
