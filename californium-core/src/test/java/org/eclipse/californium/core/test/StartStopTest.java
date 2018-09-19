@@ -28,6 +28,7 @@ import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -128,8 +129,9 @@ public class StartStopTest {
 		Thread.sleep(100);
 		Request request = Request.newGet();
 		request.setURI("coap://localhost:"+serverPort+"/res");
-		String response = request.send().waitForResponse(1000).getPayloadString();
-		Assert.assertEquals(expected, response);
+		Response response = request.send().waitForResponse(2000);
+		Assert.assertNotNull(response);
+		Assert.assertEquals(expected, response.getPayloadString());
 	}
 	
 }
