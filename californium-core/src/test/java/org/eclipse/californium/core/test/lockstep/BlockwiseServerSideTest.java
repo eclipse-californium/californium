@@ -26,6 +26,7 @@
  *                                                    storeType(String var)
  *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageExchangeStoreTool
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - relax timing for eclipse jenkins
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -73,7 +74,7 @@ public class BlockwiseServerSideTest {
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static final int TEST_PREFERRED_BLOCK_SIZE = 128; // bytes
-	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
+	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 2000;
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
 
@@ -97,7 +98,6 @@ public class BlockwiseServerSideTest {
 		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
-				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 100)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
