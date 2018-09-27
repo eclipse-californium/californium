@@ -27,6 +27,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use MessageExchangeStoreTool
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
  *    Achim Kraus (Bosch Software Innovations GmbH) - relax timing for eclipse jenkins
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add partial support for TimeAssume
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -52,6 +53,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -74,7 +76,7 @@ public class BlockwiseServerSideTest {
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static final int TEST_PREFERRED_BLOCK_SIZE = 128; // bytes
-	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 2000;
+	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 500;
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
 
@@ -417,23 +419,24 @@ public class BlockwiseServerSideTest {
 
 		System.out.println("2 consecutive complete PUT with block1 transfer:");
 
+		TimeAssume assume = new TimeAssume();
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
 				.payload(reqtPayload.substring(0, 128)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128)
 				.payload(reqtPayload.substring(128, 256)).go();
-		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go(assume);
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128)
 				.payload(reqtPayload.substring(256, 300)).go();
-		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go(assume);
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		// Transfer is complete : ensure BlockwiseLayer is empty.
 		assertTrue("BlockwiseLayer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
@@ -446,17 +449,17 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
 				.payload(reqtPayload.substring(0, 128)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128)
 				.payload(reqtPayload.substring(128, 256)).go();
-		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go(assume);
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128)
 				.payload(reqtPayload.substring(256, 300)).go();
-		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go(assume);
+		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		assertTrue("blockwise layer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
 	}

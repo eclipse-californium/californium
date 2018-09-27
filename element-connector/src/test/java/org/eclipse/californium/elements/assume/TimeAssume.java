@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use system property to enable it
  ******************************************************************************/
 package org.eclipse.californium.elements.assume;
 
@@ -33,6 +34,14 @@ import org.junit.AssumptionViolatedException;
 public class TimeAssume {
 
 	/**
+	 * Enable in time assumption.
+	 * 
+	 * @see system property
+	 *      "org.eclipse.californium.elements.assume.TimeAssume.enable".
+	 */
+	private boolean enabled;
+
+	/**
 	 * Estimated end time.
 	 */
 	private long end;
@@ -41,7 +50,7 @@ public class TimeAssume {
 	 * Create new timing assumption.
 	 */
 	public TimeAssume() {
-
+		enabled = Boolean.getBoolean(TimeAssume.class.getName() + ".enable");
 	}
 
 	/**
@@ -77,8 +86,8 @@ public class TimeAssume {
 	 * @return {@code true}, if the actual execution time is still within the
 	 *         assumption, {@code true}, false, if not.
 	 */
-	private boolean inTime() {
-		return 0 == end || System.nanoTime() <= end;
+	public boolean inTime() {
+		return !enabled || 0 == end || System.nanoTime() <= end;
 	}
 
 	/**
