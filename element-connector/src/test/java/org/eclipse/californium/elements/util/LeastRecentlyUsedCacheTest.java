@@ -12,14 +12,18 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
- *    Achim Kraus (Bosch Software Innovations GmbH) - add test for find and 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for find and
  *                                                    evict on access
- *    Achim Kraus (Bosch Software Innovations GmbH) - add test for iterator 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for iterator
  *                                                    and update last-access time
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use TimeAssume to relax failures
+ *                                                    caused by delayed execution
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -30,6 +34,7 @@ import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 import org.junit.Test;
@@ -76,32 +81,38 @@ public class LeastRecentlyUsedCacheTest {
 	public void testUpdate() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 1;
+		TimeAssume assume = new TimeAssume();
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
 		cache.setUpdatingOnReadAccess(false);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
-		Thread.sleep(THRESHOLD_MILLIS / 2);
-		assertNotNull(cache.get(key));
-		assertTrue(cache.update(key)); // update last-access time
-		Thread.sleep((THRESHOLD_MILLIS / 2) + 100);
-		assertNotNull(cache.get(key)); // not expired
-		assertTrue(cache.update(key));
-		Thread.sleep(THRESHOLD_MILLIS / 2);
-		assertNotNull(cache.get(key)); // no update last-access time
-		Thread.sleep((THRESHOLD_MILLIS / 2) + 100);
-		assertNull(cache.get(key)); // expired!
+		assume.sleep(THRESHOLD_MILLIS / 2);
+		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
+		// update last-access time
+		assertThat(cache.update(key), assume.inTime(is(true)));
+		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		// not expired
+		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
+		assertThat(cache.update(key), assume.inTime(is(true)));
+		assume.sleep(THRESHOLD_MILLIS / 2);
+		// no update last-access time
+		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
+		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		// expired!
+		assertThat(cache.get(key), assume.inTime(is(nullValue())));
 	}
 
 	@Test
 	public void testIteratorWhenExpired() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 5;
+		TimeAssume assume = new TimeAssume();
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
-		Thread.sleep(THRESHOLD_MILLIS / 2);
+		assume.sleep(THRESHOLD_MILLIS / 2);
 		Iterator<String> valuesIterator = cache.valuesIterator();
 		cache.setUpdatingOnReadAccess(true);
 		assertNext(valuesIterator);
@@ -113,18 +124,23 @@ public class LeastRecentlyUsedCacheTest {
 		assertNext(valuesIterator);
 		cache.setUpdatingOnReadAccess(true);
 		assertNext(valuesIterator);
-		Thread.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
 
 		valuesIterator = cache.valuesIterator();
-		assertNext(valuesIterator);
-		assertNext(valuesIterator);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
+		assertNext(valuesIterator, assume);
+		assertNext(valuesIterator, assume);
 		assertFalse(valuesIterator.hasNext());
 	}
 
 	private void assertNext(Iterator<String> iterator) {
-		String value = iterator.next();
+		String value = iterator.hasNext() ? iterator.next() : null;
 		assertNotNull(value);
+	}
+
+	private void assertNext(Iterator<String> iterator, TimeAssume assume) {
+		String value = iterator.hasNext() ? iterator.next() : null;
+		assertThat(value, assume.inTime(is(notNullValue())));
 	}
 
 	@Test
@@ -173,25 +189,26 @@ public class LeastRecentlyUsedCacheTest {
 	public void testFindNoneUniqueSucceedsEvenFirstEvicted() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 3;
+		TimeAssume assume = new TimeAssume();
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
 
-		Thread.sleep(THRESHOLD_MILLIS / 2);
+		assume.sleep(THRESHOLD_MILLIS / 2);
 
 		// skip 1., update 2. by read
 		SkipFirsts predicate = new SkipFirsts(1);
 		String value;
-		assertNotNull((value = cache.find(predicate, false)));
+		assertThat((value = cache.find(predicate, false)), assume.inTime(is(notNullValue())));
 
 		// expires 1.
-		Thread.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
 
 		EvictionCounter counter = new EvictionCounter();
 		cache.addEvictionListener(counter);
 		// evict 1., select the 2.
 		predicate = new SkipFirsts(0);
-		assertThat(cache.find(predicate, false), is(value));
+		assertThat(cache.find(predicate, false), assume.inTime(is(value)));
 		assertThat(counter.count, is(1));
 	}
 
