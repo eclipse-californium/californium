@@ -65,6 +65,7 @@
  *                                                    report errors, when a different
  *                                                    executor is set after the endpoint
  *                                                    was started.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel pending messages on stop().
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -575,6 +576,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendRequest(final Request request) {
+		if (!started) {
+			request.cancel();
+			return;
+		}
 		// create context, if not already set
 		request.prepareDestinationContext();
 		final Exchange exchange = new Exchange(request, Origin.LOCAL, executor);
@@ -589,6 +594,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
+		if (!started) {
+			response.cancel();
+			return;
+		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendResponse(exchange, response);
@@ -610,6 +619,10 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+		if (!started) {
+			message.cancel();
+			return;
+		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendEmptyMessage(exchange, message);
@@ -717,6 +730,9 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			request.setReadyToSend();
+			if (!started) {
+				request.cancel();
+			}
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
 			if (request.isCanceled()) {
@@ -728,7 +744,7 @@ public class CoapEndpoint implements Endpoint {
 				// However, that might have happened BEFORE the exchange got registered with the
 				// ExchangeStore. So, to make sure that we do not leak memory we complete the
 				// Exchange again here, triggering the "housekeeping" functionality in the Matcher
-				exchange.setComplete();
+				exchange.executeComplete();
 
 			} else {
 				RawData message = serializer.serializeRequest(request, new ExchangeCallback(exchange, request));
@@ -753,10 +769,14 @@ public class CoapEndpoint implements Endpoint {
 			}
 			response.setReadyToSend();
 
+			if (!started) {
+				response.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (response.isCanceled()) {
 				if (null != exchange) {
-					exchange.setComplete();
+					exchange.executeComplete();
 				}
 			} else {
 				connector.send(serializer.serializeResponse(response, new ExchangeCallback(exchange, response)));
@@ -778,10 +798,15 @@ public class CoapEndpoint implements Endpoint {
 				interceptor.sendEmptyMessage(message);
 			}
 			message.setReadyToSend();
+
+			if (!started) {
+				message.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (message.isCanceled()) {
 				if (null != exchange) {
-					exchange.setComplete();
+					exchange.executeComplete();
 				}
 			} else if (exchange != null) {
 				connector.send(serializer.serializeEmptyMessage(message, new ExchangeCallback(exchange, message)));
@@ -893,6 +918,11 @@ public class CoapEndpoint implements Endpoint {
 
 			// set request attributes from raw data
 			request.setScheme(scheme);
+
+			if (!started) {
+				LOGGER.debug("not running, drop request {}", request);
+				return;
+			}
 
 			/* 
 			 * Logging here causes significant performance loss.
