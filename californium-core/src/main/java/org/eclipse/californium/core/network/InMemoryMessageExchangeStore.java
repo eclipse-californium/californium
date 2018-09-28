@@ -39,6 +39,7 @@
  *                                                    CoapEndpoint to support tcp.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
  *                                                    for health status instead of own executor.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel not acknowledged requests on stop().
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -396,6 +397,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public synchronized void stop() {
 		if (running) {
 			running = false;
+			for (Exchange exchange : exchangesByMID.values()) {
+				exchange.getRequest().setCanceled(true);
+			}
 			if (statusLogger != null) {
 				statusLogger.cancel(false);
 				statusLogger = null;
