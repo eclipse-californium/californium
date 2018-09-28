@@ -37,6 +37,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
+import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 
@@ -179,6 +180,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
+		add(new ReverseRequest(config));
 		add(new Benchmark(noBenchmark, maxResourceSize));
 	}
 }
