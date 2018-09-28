@@ -71,15 +71,17 @@ import org.slf4j.LoggerFactory;
  * Example:
  * 
  * <pre>
- * coap://localhost:5783/reverse-observe?obs=25&res=feed&rlen=400
+ * coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&rlen=400
  * </pre>
  * 
  * Will request an observation from the origin peer using
  * 
  * <pre>
- * coap://localhost:???/feed?rlen=400
+ * coap://localhost:???/feed-CON?rlen=400
  * </pre>
  * 
+ * (Please refer to the documentation of the Feed resource in the extplugtest client.
+ *  "feed-CON" resource will send notifies using CON, "feed-NON" using NON)
  */
 public class ReverseObserve extends CoapResource implements NotificationListener {
 
@@ -103,22 +105,22 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Observation tokens by peer address.
 	 */
-	private ConcurrentMap<String, ObservationRequest> observesByPeer = new ConcurrentHashMap<String, ObservationRequest>();
+	private final ConcurrentMap<String, ObservationRequest> observesByPeer = new ConcurrentHashMap<String, ObservationRequest>();
 	/**
 	 * Observations by token.
 	 */
-	private ConcurrentMap<Token, Observation> observesByToken = new ConcurrentHashMap<Token, Observation>();
+	private final ConcurrentMap<Token, Observation> observesByToken = new ConcurrentHashMap<Token, Observation>();
 
-	private ConcurrentMap<Token, String> peersByToken = new ConcurrentHashMap<Token, String>();
+	private final ConcurrentMap<Token, String> peersByToken = new ConcurrentHashMap<Token, String>();
 
 	/**
 	 * Overall received notifications.
 	 */
-	private AtomicLong overallNotifies = new AtomicLong();
+	private final AtomicLong overallNotifies = new AtomicLong();
 	/**
 	 * Overall received notifications.
 	 */
-	private AtomicLong overallObserves = new AtomicLong();
+	private final AtomicLong overallObserves = new AtomicLong();
 	/**
 	 * Scheduler for notification timeout.
 	 */
