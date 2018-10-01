@@ -124,7 +124,10 @@ public class SecureBlockwiseTest {
 	private void createSecureServer(MatcherMode mode) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setReceiverThreadCount(2)
+				.setConnectionThreadCount(2)
+				.setPskStore(pskStore).build();
 		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
 				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
@@ -148,7 +151,10 @@ public class SecureBlockwiseTest {
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setPskStore(pskStore).build();
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setReceiverThreadCount(2)
+				.setConnectionThreadCount(2)
+				.setPskStore(pskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.CoapEndpointBuilder();
 		builder.setConnector(clientConnector);
