@@ -48,6 +48,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - change ExchangeObserver
  *                                                    to RemoveHandler
  *                                                    remove "is last", not longer meaningful
+ *    Achim Kraus (Bosch Software Innovations GmbH) - assign mid before register observation
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -112,7 +113,13 @@ public final class UdpMatcher extends BaseMatcher {
 		// for observe request.
 		Request request = exchange.getCurrentRequest();
 		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
-			registerObserve(request);
+			if (exchangeStore.assignMessageId(request) != Message.NONE) {
+				registerObserve(request);
+			} else {
+				LOGGER.warn("message IDs exhausted, could not register outbound observe request for tracking");
+				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
+				return;
+			}
 		}
 
 		try {
@@ -255,7 +262,7 @@ public final class UdpMatcher extends BaseMatcher {
 		EndpointContext context = exchange.getEndpointContext();
 		Request currentRequest = exchange.getCurrentRequest();
 		int requestMid = currentRequest.getMID();
-		if (context == null || requestMid == Message.NONE) {
+		if (context == null) {
 			LOGGER.debug("ignoring response {}, request pending to sent!", response);
 			return null;
 		}
