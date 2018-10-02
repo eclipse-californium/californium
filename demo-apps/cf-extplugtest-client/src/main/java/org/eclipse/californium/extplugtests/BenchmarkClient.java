@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.LongUnaryOperator;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -459,16 +458,15 @@ public class BenchmarkClient {
 				}
 
 				public void next() {
-					long c = overallRequestsDownCounter.getAndUpdate(new LongUnaryOperator() {
-
-						@Override
-						public long applyAsLong(final long currentValue) {
-							if (currentValue > 0) {
-								return currentValue - 1;
-							}
-							return 0;
+					long c = overallRequestsDownCounter.get();
+					while (c > 0) {
+						if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
+							--c;
+							break;
 						}
-					});
+						c = overallRequestsDownCounter.get();
+					}
+
 					if (0 < c) {
 						requestsCounter.incrementAndGet();
 						Request post = Request.newPost();
@@ -478,9 +476,9 @@ public class BenchmarkClient {
 					} else {
 						overallRequestsDone.countDown();
 						if (overallReverseResponsesDownCounter.getCount() == 0) {
-    						stop();
-    					}
-    				}
+							stop();
+						}
+					}
 				}
 
 			}, post);
