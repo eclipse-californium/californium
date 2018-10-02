@@ -102,6 +102,7 @@
  *                                                    one.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
  *                                                    move default thread numbers to configuration.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add cause to handshake failure.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1753,38 +1754,46 @@ public class DTLSConnector implements Connector {
 		if (null != connection) {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
-
+				Exception cause = null;
 				if (resend) {
-				// set DTLS retransmission maximum
+					// set DTLS retransmission maximum
 					final int max = config.getMaxRetransmissions();
-	
+
 					// check if limit of retransmissions reached
 					if (flight.getTries() < max) {
 						LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
 								flight.getPeerAddress(), max - flight.getTries() - 1);
-	
+
 						try {
 							flight.incrementTries();
 							flight.setNewSequenceNumbers();
 							sendFlight(flight);
-	
+
 							// schedule next retransmission
 							scheduleRetransmission(flight);
 							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
 							return;
 						} catch (IOException e) {
 							// stop retransmission on IOExceptions
+							cause = e;
 							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
 						} catch (GeneralSecurityException e) {
 							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+							cause = e;
 						}
 					} else {
 						LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
 								flight.getPeerAddress(), max);
 					}
 				}
+				if (cause == null) {
+					cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout!");
+				} else {
+					cause = new Exception("handshake flight " + flight.getFlightNumber() + " failed!", cause);
+				}
+
 				// inform handshaker
-				handshaker.handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " timeout!"));
+				handshaker.handshakeFailed(cause);
 			}
 		}
 	}
