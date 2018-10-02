@@ -76,9 +76,11 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -151,6 +153,11 @@ public abstract class Handshaker {
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
+	/** Maximum number of application data messages, which may be processed deferred after the handshake */
+	private final int maxDeferredProcessedApplicationDataMessages;
+	/** List of application data messages, which are processed deferred after the handshake */
+	private final  List<Object> deferredApplicationData;
+
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
 	
@@ -207,9 +214,8 @@ public abstract class Handshaker {
 	 *             <code>null</code>.
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
-			TrustedRpkStore rpkStore) {
-		this(isClient, 0, session, recordLayer, sessionListener, certVerifier, maxTransmissionUnit, rpkStore);
+			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
+		this(isClient, 0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 	}
 
 	/**
@@ -242,12 +248,13 @@ public abstract class Handshaker {
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
-			TrustedRpkStore rpkStore) {
+			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
+		} else if (config == null) {
+			throw new NullPointerException("Dtls Connector Config must not be null");
 		} else if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
@@ -256,8 +263,10 @@ public abstract class Handshaker {
 		this.nextReceiveSeq = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
+		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
+		this.deferredApplicationData = new ArrayList<Object>(maxDeferredProcessedApplicationDataMessages);
 		addSessionListener(sessionListener);
-		this.certificateVerifier = certVerifier;
+		this.certificateVerifier = config.getCertificateVerifier();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -269,7 +278,7 @@ public abstract class Handshaker {
 			throw new IllegalStateException(String.format("Message digest algorithm %s is not available on JVM",
 					MESSAGE_DIGEST_ALGORITHM_NAME));
 		}
-		this.rpkStore = rpkStore;
+		this.rpkStore = config.getRpkTrustStore();
 	}
 
 	/**
@@ -901,6 +910,30 @@ public abstract class Handshaker {
 		this.nextReceiveSeq++;
 	}
 
+	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
+		// backwards compatibility, allow on outgoing message to be stored.
+		int max = maxDeferredProcessedApplicationDataMessages == 0 ? 1 : maxDeferredProcessedApplicationDataMessages;
+		if (deferredApplicationData.size() < max) {
+			deferredApplicationData.add(outgoingMessage);
+		}
+	}
+
+	public void addApplicationDataForDeferredProcessing(Record incomingMessage) {
+		if (deferredApplicationData.size() < maxDeferredProcessedApplicationDataMessages) {
+			deferredApplicationData.add(incomingMessage);
+		}
+	}
+
+	public List<Object> takeDeferredApplicationData() {
+		List<Object> applicationData = new ArrayList<Object>(deferredApplicationData);
+		deferredApplicationData.clear();
+		return applicationData;
+	}
+
+	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
+		deferredApplicationData.addAll(replacedHandshaker.takeDeferredApplicationData());
+	}
+
 	/**
 	 * Adds a listener to the list of listeners to be notified
 	 * about session life cycle events.
@@ -953,6 +986,11 @@ public abstract class Handshaker {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeFailed(this, cause);
 		}
+		for (Object message : takeDeferredApplicationData()) {
+			if (message instanceof RawData) {
+				((RawData) message).onError(cause);
+			}
+		}
 	}
 
 	/**
@@ -964,6 +1002,11 @@ public abstract class Handshaker {
 	public final void handshakeFlightRetransmitted(int flight) {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeFlightRetransmitted(this, flight);
+		}
+		for (Object message : deferredApplicationData) {
+			if (message instanceof RawData) {
+				((RawData) message).onDtlsRetransmission(flight);
+			}
 		}
 	}
 
@@ -987,7 +1030,7 @@ public abstract class Handshaker {
 	 * 
 	 * @return {@code true} if the message is expected next.
 	 */
-	final boolean isChangeCipherSpecMessageExpected() {
+	public final boolean isChangeCipherSpecMessageExpected() {
 		return changeCipherSuiteMessageExpected;
 	}
 
