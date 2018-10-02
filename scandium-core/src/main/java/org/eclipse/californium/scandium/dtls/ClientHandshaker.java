@@ -157,8 +157,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getCertificateVerifier(), maxTransmissionUnit,
-				config.getRpkTrustStore());
+		super(true, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();

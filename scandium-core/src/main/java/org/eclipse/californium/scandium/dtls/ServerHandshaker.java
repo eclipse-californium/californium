@@ -204,8 +204,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getCertificateVerifier(),
-				maxTransmissionUnit, config.getRpkTrustStore());
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 

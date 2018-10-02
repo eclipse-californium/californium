@@ -29,6 +29,7 @@
  *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
  *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
  *                                                    move default thread numbers to this configuration.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add deferred processed messages
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -69,6 +70,10 @@ import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
  */
 public final class DtlsConnectorConfig {
 
+	/**
+	 * The default value for the <em>maxDeferredProcessedApplicationDataMessages</em> property.
+	 */
+	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES = 10;
 	/**
 	 * The default value for the <em>maxConncetions</em> property.
 	 */
@@ -151,6 +156,8 @@ public final class DtlsConnectorConfig {
 
 	private Integer outboundMessageBufferSize;
 
+	private Integer maxDeferredProcessedApplicationDataMessages;
+
 	private Integer maxConnections;
 
 	private Long staleConnectionThreshold;
@@ -207,6 +214,15 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getRetransmissionTimeout() {
 		return retransmissionTimeout;
+	}
+
+	/**
+	 * Gets the maximum number of deferred processed application data messages.
+	 * 
+	 * @return the maximum number of deferred processed application data messages
+	 */
+	public Integer getMaxDeferredProcessedApplicationDataMessages() {
+		return maxDeferredProcessedApplicationDataMessages;
 	}
 
 	/**
@@ -491,6 +507,7 @@ public final class DtlsConnectorConfig {
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
+		cloned.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
 		cloned.maxConnections = maxConnections;
 		cloned.staleConnectionThreshold = staleConnectionThreshold;
 		cloned.connectionThreadCount = connectionThreadCount;
@@ -930,6 +947,29 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Set maximum number of deferred processed application data messages.
+		 * 
+		 * Application data messages received or sent during a handshake may be
+		 * dropped or processed deferred after the handshake. Set this to limit
+		 * the maximum number of messages, which are intended to be processed
+		 * deferred. If more messages are sent or received, theses messages are
+		 * dropped.
+		 * 
+		 * @param maxDeferredProcessedApplicationDataMessages maximum number of
+		 *            deferred processed messages
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given limit is &lt; 0.
+		 */
+		public Builder setMaxDeferredProcessedApplicationDataMessages(final int maxDeferredProcessedApplicationDataMessages) {
+			if (maxDeferredProcessedApplicationDataMessages < 0) {
+				throw new IllegalArgumentException("Max deferred processed application data messages must not be negative!");
+			} else {
+				config.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+				return this;
+			}
+		}
+
+		/**
 		 * Sets the maximum number of active connections the connector should support.
 		 * <p>
 		 * An <em>active</em> connection is a connection that has been used within the
@@ -1118,6 +1158,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;
+			}
+			if (config.maxDeferredProcessedApplicationDataMessages == null){
+				config.maxDeferredProcessedApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
 			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
