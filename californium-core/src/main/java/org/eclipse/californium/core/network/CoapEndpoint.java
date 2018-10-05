@@ -217,6 +217,34 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
 
+	private final EndpointReceiver endpointStackReceiver = new EndpointReceiver() {
+
+		@Override
+		public void receiveRequest(Exchange exchange, Request request) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			coapstack.receiveRequest(exchange, request);
+		}
+
+		@Override
+		public void receiveResponse(Exchange exchange, Response response) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			response.setRTT(exchange.calculateRTT());
+			coapstack.receiveResponse(exchange, response);
+		}
+
+		@Override
+		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			coapstack.receiveEmptyMessage(exchange, message);
+		}
+
+		@Override
+		public void reject(final Message message) {
+			EmptyMessage rst = EmptyMessage.newRST(message);
+			coapstack.sendEmptyMessage(null, rst);
+		}
+	};
+
 	/**
 	 * Creates a new <em>coap</em> endpoint using default configuration.
 	 * <p>
@@ -909,11 +937,6 @@ public class CoapEndpoint implements Endpoint {
 			coapstack.sendEmptyMessage(null, rst);
 		}
 
-		private void reject(final Message message) {
-			EmptyMessage rst = EmptyMessage.newRST(message);
-			coapstack.sendEmptyMessage(null, rst);
-		}
-
 		private void receiveRequest(final Request request) {
 
 			// set request attributes from raw data
@@ -935,17 +958,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
-				final Exchange exchange = matcher.receiveRequest(request);
-				if (exchange != null) {
-					exchange.execute(new Runnable() {
-
-						@Override
-						public void run() {
-							exchange.setEndpoint(CoapEndpoint.this);
-							coapstack.receiveRequest(exchange, request);
-						}
-					});
-				}
+				matcher.receiveRequest(request, endpointStackReceiver);
 			}
 		}
 
@@ -962,33 +975,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				final Exchange exchange = matcher.receiveResponse(response);
-				if (exchange != null) {
-					exchange.execute(new Runnable() {
-
-						@Override
-						public void run() {
-							// entered serial execution.
-							// recheck, if the response still match the exchange
-							// and the exchange is not changed in the meantime
-							if (exchange.checkCurrentResponse(response)) {
-								exchange.setEndpoint(CoapEndpoint.this);
-								response.setRTT(exchange.calculateRTT());
-								coapstack.receiveResponse(exchange, response);
-							} else if (!response.isDuplicate() && response.getType() != Type.ACK) {
-								LOGGER.debug("rejecting not longer matchable response from {}",
-										response.getSourceContext());
-								// reject(response);
-							} else {
-								LOGGER.debug("not longer matched response {}", response);
-							}
-						}
-					});
-				} else if (response.getType() != Type.ACK && response.hasMID()) {
-					// reject only messages with MID, ignore for TCP
-					LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
-					reject(response);
-				}
+				matcher.receiveResponse(response, endpointStackReceiver);
 			}
 		}
 
@@ -1008,24 +995,9 @@ public class CoapEndpoint implements Endpoint {
 				// CoAP Ping
 				if ((message.getType() == Type.CON || message.getType() == Type.NON) && message.hasMID()) {
 					LOGGER.debug("responding to ping from {}", message.getSourceContext());
-					reject(message);
+					endpointStackReceiver.reject(message);
 				} else {
-					final Exchange exchange = matcher.receiveEmptyMessage(message);
-					if (exchange != null) {
-						exchange.execute(new Runnable() {
-
-							@Override
-							public void run() {
-								// entered serial execution.
-								// recheck, it the empty message still match the exchange
-								// and the exchange is not changed in the meantime
-								if (exchange.checkMID(message.getMID())) {
-									exchange.setEndpoint(CoapEndpoint.this);
-									coapstack.receiveEmptyMessage(exchange, message);
-								}
-							}
-						});
-					}
+					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
 				}
 			}
 		}
