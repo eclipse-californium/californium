@@ -41,6 +41,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.EndpointUnconnectedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -148,7 +149,7 @@ public class TcpServerConnector implements Connector {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
 			LOGGER.warn("Attempting to send message to an address without an active connection {}",
 					msg.getAddress());
-			msg.onError(new EndpointMismatchException());
+			msg.onError(new EndpointUnconnectedException());
 			return;
 		}
 		EndpointContext context = contextUtil.buildEndpointContext(channel);

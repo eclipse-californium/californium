@@ -30,6 +30,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
  *                                                    move default thread numbers to this configuration.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add deferred processed messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add server only.
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -58,8 +59,9 @@ import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
  * </p>
  * <pre>
  * InetSocketAddress bindToAddress = new InetSocketAddress("localhost", 0); // use ephemeral port
- * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder(bindToAddress)
- *    .setPskStore(new StaticPskStore("identity", "secret".getBytes()));
+ * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder()
+ *    .setAddress(bindToAddress)
+ *    .setPskStore(new StaticPskStore("identity", "secret".getBytes()))
  *    .set... // additional configuration
  *    .build();
  * 
@@ -132,6 +134,9 @@ public final class DtlsConnectorConfig {
 
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
+
+	/** does not start handshakes */
+	private Boolean serverOnly;
 
 	/** do we send only the raw key (RPK) and not the full certificate (X509) */
 	private Boolean sendRawKey;
@@ -398,6 +403,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Sets whether the connector acts only as server and doesn't start new handshakes.
+	 * 
+	 * @return <code>true</code> if the connector acts only as server
+	 */
+	public Boolean isServerOnly() {
+		return serverOnly;
+	}
+
+	/**
 	 * Checks whether the connector will send a <em>raw public key</em>
 	 * instead of an X.509 certificate in order to authenticate to the peer
 	 * during a DTLS handshake.
@@ -499,6 +513,7 @@ public final class DtlsConnectorConfig {
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
+		cloned.serverOnly = serverOnly;
 		cloned.sendRawKey = sendRawKey;
 		cloned.pskStore = pskStore;
 		cloned.privateKey = privateKey;
@@ -511,6 +526,7 @@ public final class DtlsConnectorConfig {
 		cloned.maxConnections = maxConnections;
 		cloned.staleConnectionThreshold = staleConnectionThreshold;
 		cloned.connectionThreadCount = connectionThreadCount;
+		cloned.receiverThreadCount = receiverThreadCount;
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyRequestOnResumptionEnabled = verifyRequestOnResumptionEnabled;
@@ -613,6 +629,19 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setClientOnly() {
 			clientOnly = true;
+			return this;
+		}
+
+		/**
+		 * Indicates that the <em>DTLSConnector</em> will only act as server.
+		 * 
+		 * A server only accepts handshakes, it never starts them.
+		 * 
+		 * @param enable {@code true} if the connector acts only as server.
+		 * @return this builder for command chaining
+		 */
+		public Builder setServerOnly(boolean enable) {
+			config.serverOnly = enable;
 			return this;
 		}
 
@@ -1152,6 +1181,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.clientAuthenticationRequired == null) {
 				config.clientAuthenticationRequired = true;
+			}
+			if (config.serverOnly == null) {
+				config.serverOnly = false;
 			}
 			if (config.sendRawKey == null) {
 				config.sendRawKey = true;

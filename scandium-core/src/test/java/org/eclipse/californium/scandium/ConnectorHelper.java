@@ -121,6 +121,7 @@ public class ConnectorHelper {
 			.setClientAuthenticationRequired(true)
 			.setReceiverThreadCount(1)
 			.setConnectionThreadCount(2)
+			.setServerOnly(true)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
