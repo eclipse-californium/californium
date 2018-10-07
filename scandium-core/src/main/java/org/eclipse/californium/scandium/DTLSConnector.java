@@ -108,6 +108,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - extend deferred processed messages to
  *                                                    limited number of incoming and outgoing messages
  *                                                    extend executor names with specific prefix.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix reuse of already stopped serial
+ *                                                    executors.
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -674,9 +676,16 @@ public class DTLSConnector implements Connector {
 	/**
 	 * Get serial executor for peer.
 	 * 
+	 * Use the {@link #connectionExecutors} cache to ensure, that the same
+	 * serial executor is used for all message to and from the same peer. If the
+	 * connector is stopped, new returned serial executor are not added to the
+	 * cache.
+	 * 
 	 * @param peerAddress socket address of peer
-	 * @return serial executor. {@ocde null}, if {@link #connectionExecutors} is
-	 *         full.
+	 * @return serial executor. If the connector is already stopped, then the
+	 *         returned executor will be shutdown and throws a
+	 *         {@link RejectedExecutionException} on executing a job.
+	 *         {@code null}, if {@link #connectionExecutors} is exhausted.
 	 */
 	private final SerialExecutor getSerialExecutor(InetSocketAddress peerAddress) {
 		Executor executor = getExecutorService();
@@ -684,8 +693,11 @@ public class DTLSConnector implements Connector {
 			SerialExecutor serialExecutor = connectionExecutors.get(peerAddress);
 			if (serialExecutor == null) {
 				serialExecutor = new SerialExecutor(executor);
-				if (!connectionExecutors.put(peerAddress, serialExecutor)) {
-					serialExecutor = null;
+				if (running.get()) {
+					// only store serial executor, when connector is running.
+					if (!connectionExecutors.put(peerAddress, serialExecutor)) {
+						serialExecutor = null;
+					}
 				}
 			}
 			return serialExecutor;
