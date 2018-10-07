@@ -17,9 +17,12 @@
  *                                                    which fails to clone hmac.
  *                                                    Use nanoTime instead of 
  *                                                    currentTimeMillis.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use binary address instead of
+ *                                                    string
  */
 package org.eclipse.californium.scandium;
 
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
@@ -185,7 +188,11 @@ public class CookieGenerator {
 		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
 		final Mac hmac = getHMAC();
 		// Client-IP
-		hmac.update(clientHello.getPeer().toString().getBytes());
+		InetSocketAddress peer = clientHello.getPeer();
+		hmac.update(peer.getAddress().getAddress());
+		int port = peer.getPort();
+		hmac.update((byte) (port >>> 8));
+		hmac.update((byte) port);
 		// Client-Parameters
 		hmac.update((byte) clientHello.getClientVersion().getMajor());
 		hmac.update((byte) clientHello.getClientVersion().getMinor());
