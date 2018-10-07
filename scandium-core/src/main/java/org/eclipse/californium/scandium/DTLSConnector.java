@@ -144,6 +144,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.EndpointUnconnectedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -1574,6 +1575,9 @@ public class DTLSConnector implements Connector {
 		DTLSSession session = connection.getEstablishedSession();
 		SessionTicket ticket = connection.getSessionTicket();
 		if (session == null && ticket == null) {
+			if (config.isServerOnly()) {
+				message.onError(new EndpointUnconnectedException());
+			}
 			if (!checkOutboundEndpointContext(message, null)) {
 				return;
 			}
@@ -1596,6 +1600,9 @@ public class DTLSConnector implements Connector {
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()) {
 			// create the session to resume from the previous one.
+			if (config.isServerOnly()) {
+				message.onError(new EndpointMismatchException());
+			}
 			message.onConnecting();
 			SessionId sessionId;
 			if (ticket == null) {
