@@ -103,7 +103,7 @@ public class DTLSConnectorStartStopTest {
 	}
 
 	@Before
-	public void setUp() throws Exception {
+	public void setUp() throws IOException, GeneralSecurityException {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -122,28 +122,34 @@ public class DTLSConnectorStartStopTest {
 	}
 
 	@Test
-	public void testStopCallsMessageCallbackOnError() throws InterruptedException {
+	public void testStopCallsMessageCallbackOnError()
+			throws InterruptedException, IOException, GeneralSecurityException {
 		testStopCallsMessageCallbackOnError(100, 20, false);
 	}
 
 	@Test
-	public void testStopCallsMessageCallbackOnErrorCirtical() throws InterruptedException {
+	public void testStopCallsMessageCallbackOnErrorCirtical()
+			throws InterruptedException, IOException, GeneralSecurityException {
 		testStopCallsMessageCallbackOnError(2, 20, false);
 	}
 
 	@Test
-	public void testRestartFromClientSessionCache() throws InterruptedException {
+	public void testRestartFromClientSessionCache() throws InterruptedException, IOException, GeneralSecurityException {
 		testStopCallsMessageCallbackOnError(10, 20, true);
 	}
 
 	private void testStopCallsMessageCallbackOnError(final int pending, final int loops, boolean restart)
-			throws InterruptedException {
+			throws InterruptedException, IOException, GeneralSecurityException {
 		byte[] data = { 0, 1, 2 };
 		int lastServerRemaining = -1;
 		InetSocketAddress dest = serverHelper.serverEndpoint;
 		EndpointContext context = new AddressEndpointContext(dest);
+		boolean setup = false;
 
 		for (int loop = 0; loop < loops; ++loop) {
+			if (setup) {
+				setUp();
+			}
 			try {
 				client.start();
 			} catch (IOException e) {
@@ -195,17 +201,12 @@ public class DTLSConnectorStartStopTest {
 			}
 			assertThat("loop: " + loop + ", " + callback.toString(), complete, is(true));
 			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
-			try {
-				if (restart) {
-					client.destroy();
-					setUp();
-				} else {
-					client.start();
-				}
-			} catch (IOException e) {
-			} catch (Exception e) {
+			if (restart) {
+				client.destroy();
+				setup = true;
 			}
 			assertThat("loop: " + loop + ", " + callback.toString(), callback.await(200), is(true));
+			Thread.sleep(100);
 		}
 		Thread.sleep(100);
 	}
