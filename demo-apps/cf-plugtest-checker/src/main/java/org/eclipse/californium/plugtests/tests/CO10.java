@@ -57,6 +57,7 @@ public class CO10 extends TestClientAbstract {
 		URI uri = null;
 		try {
 			uri = new URI(serverURI + resourceUri);
+			setUseTcp(uri.getScheme());
 		} catch (URISyntaxException use) {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
@@ -125,7 +126,7 @@ public class CO10 extends TestClientAbstract {
 						response = asyncRequest.waitForResponse(time / 2);
 						if (response != null) {
 							success &= checkToken(asyncRequest.getToken(), response.getToken());
-							success &= hasObserve(response, true); // inverted
+							success &= hasNoObserve(response);
 							System.out.println("+++++ OK +++++");
 						} else {
 							System.out.println("FAIL: No response to unrelated GET");

@@ -19,10 +19,11 @@
  *                                                    of handshake
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFailed to report
  *                                                    handshake errors.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
+ *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
 
 /**
  * A listener for life-cycle events of <code>DTLSSession</code>s.
@@ -61,16 +62,23 @@ public interface SessionListener {
 	 * In particular, this means that both peers have received the other
 	 * peer's <em>FINISHED</em> messages.
 	 * 
-	 * @param peer the IP address and port of the peer the handshake has been completed with
+	 * @param handshaker the handshaker that has been completed
 	 */
-	void handshakeCompleted(InetSocketAddress peer);
+	void handshakeCompleted(Handshaker handshaker);
 
 	/**
 	 * Indicates that a handshake with a given peer has failed.
 	 * 
-	 * @param peer the IP address and port of the peer the handshake has failed
+	 * @param handshaker the handshaker that has failed
 	 * @param error the error occurred during the handshake
 	 */
-	void handshakeFailed(InetSocketAddress peer, Throwable error);
+	void handshakeFailed(Handshaker handshaker, Throwable error);
 
+	/**
+	 * Indicates that a handshake flight is retransmitted.
+	 * 
+	 * @param handshaker the handshaker that retransmits a flight
+	 * @param flight number of flight, which is retransmitted
+	 */
+	void handshakeFlightRetransmitted(Handshaker handshaker, int flight);
 }

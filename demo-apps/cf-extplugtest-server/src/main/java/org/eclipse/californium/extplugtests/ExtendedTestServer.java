@@ -15,14 +15,16 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
  *                                                    for configuration
  *    Achim Kraus (Bosch Software Innovations GmbH) - add benchmark
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util.
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
 import java.net.SocketException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Endpoint;
@@ -35,6 +37,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
+import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 
@@ -62,11 +65,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10000);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
+			int processors = Runtime.getRuntime().availableProcessors();
+			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors/2);
+			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
 		}
 
 	};
@@ -107,7 +113,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				protocols = Arrays.asList(Protocol.DTLS);
 			}
 
-			ScheduledExecutorService executor = Executors.newScheduledThreadPool(//
+			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 
@@ -126,9 +132,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 				System.out.println("listen on " + ep.getUri());
 				if (noBenchmark) {
 					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
-					ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
+					URI uri = ep.getUri();
+					ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
+					ep.addInterceptor(new MessageTracer());
 				}
-				ep.addInterceptor(new MessageTracer());
 			}
 
 			if (noBenchmark) {
@@ -173,6 +180,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
+		add(new ReverseRequest(config));
 		add(new Benchmark(noBenchmark, maxResourceSize));
 	}
 }

@@ -24,6 +24,15 @@
  *                                                    APPLICATION messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't ignore retransmission of last flight
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix NullPointerException, if ccs is processed 
+ *                                                    before the SERVER_HELLO.
+ *                                                    move expectChangeCipherSpecMessage after
+ *                                                    receiving SERVER_HELLO.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
+ *                                                    session resumption is refused.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adjust dtls flight number
+ *                                                    for short resumption
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -87,7 +96,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
-		expectChangeCipherSpecMessage();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -151,7 +159,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
+					session.resetMasterSecret();
 					super.receivedServerHello(serverHello);
+					return;
 				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
 					throw new HandshakeException(
 							"Server wants to change compression method in resumed session",
@@ -169,6 +179,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				} else {
 					this.serverHello = serverHello;
 					serverRandom = serverHello.getRandom();
+					expectChangeCipherSpecMessage();
 				}
 				break;
 
@@ -214,7 +225,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// this last flight
 			return;
 		}
-		DTLSFlight flight = new DTLSFlight(getSession());
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// update the handshake hash
 		md.update(clientHello.toByteArray());
@@ -276,8 +288,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		state = message.getMessageType().getCode();
 		clientHello = message;
-
-		DTLSFlight flight = new DTLSFlight(getSession());
+		
+		flightNumber = 1;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(message));
 
 		recordLayer.sendFlight(flight);

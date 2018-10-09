@@ -55,6 +55,17 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add coap-stack-factory
  *    Achim Kraus (Bosch Software Innovations GmbH) - use checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reject messages with MID only
+ *                                                    (therefore tcp messages are not rejected)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - setup retransmitResponse for notifies
+ *    Achim Kraus (Bosch Software Innovations GmbH) - forward onConnecting and onDtlsRetransmission
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
+ *                                                    with serial executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util and only
+ *                                                    report errors, when a different
+ *                                                    executor is set after the endpoint
+ *                                                    was started.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cancel pending messages on stop().
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -66,7 +77,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -105,10 +116,9 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 
 /**
  * Endpoint encapsulates the stack that executes the CoAP protocol. Endpoint
@@ -193,11 +203,7 @@ public class CoapEndpoint implements Endpoint {
 	private final DataParser parser;
 
 	/** The executor to run tasks for this endpoint and its layers */
-	private ScheduledExecutorService executor;
-	/**
-	 * Striped executor facade based on the {@link #executor}.
-	 */
-	private volatile Executor exchangeExecutor;
+	private ExecutorService executor;
 
 	/** Indicates if the endpoint has been started */
 	private boolean started;
@@ -401,22 +407,22 @@ public class CoapEndpoint implements Endpoint {
 			}
 		}
 
-		Executor exchangeExecutionHandler = new Executor() {
+		final Executor exchangeExecutionHandler = new Executor() {
 
 			@Override
 			public void execute(Runnable command) {
-				Executor executor = exchangeExecutor;
-				if (executor == null) {
+				final Executor exchangeExecutor = executor;
+				if (exchangeExecutor == null) {
 					LOGGER.error("Executor not ready for exchanges!",
 							new Throwable("exchange execution failed!"));
 				} else {
-					executor.execute(command);
+					exchangeExecutor.execute(command);
 				}
 			}
 		};
 
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
-		LOGGER.info("{} uses {}", new Object[] { getClass().getSimpleName(), endpointContextMatcher.getName() });
+		LOGGER.info("{} uses {}", getClass().getSimpleName(), endpointContextMatcher.getName());
 
 		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl());
 
@@ -449,7 +455,7 @@ public class CoapEndpoint implements Endpoint {
 
 			// in production environments the executor should be set to a multi threaded version
 			// in order to utilize all cores of the processor
-			setExecutor(Executors.newSingleThreadScheduledExecutor(
+			setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(
 					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
 				@Override
@@ -466,7 +472,6 @@ public class CoapEndpoint implements Endpoint {
 				}
 			});
 		}
-		exchangeExecutor = new StripedExecutorService(executor);
 
 		try {
 			LOGGER.debug("Starting endpoint at {}", getUri());
@@ -477,30 +482,12 @@ public class CoapEndpoint implements Endpoint {
 			for (EndpointObserver obs : observers) {
 				obs.started(this);
 			}
-			startExecutor();
 			LOGGER.info("Started endpoint at {}", getUri());
 		} catch (IOException e) {
 			// free partially acquired resources
 			stop();
 			throw e;
 		}
-	}
-
-	/**
-	 * Makes sure that the executor has started, i.e., a thread has been
-	 * created. This is necessary for the server because it makes sure a
-	 * non-daemon thread is running. Otherwise the program might find that only
-	 * daemon threads are running and exit.
-	 */
-	private void startExecutor() {
-		// Run a task that does nothing but make sure at least one thread of
-		// the executor has started.
-		runInProtocolStage(new Runnable() {
-			@Override
-			public void run() {
-				// do nothing
-			}
-		});
 	}
 
 	@Override
@@ -515,7 +502,6 @@ public class CoapEndpoint implements Endpoint {
 			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
-			matcher.clear();
 		}
 	}
 
@@ -544,9 +530,13 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void setExecutor(final ScheduledExecutorService executor) {
-		// TODO: don't we need to stop and shut down the previous executor?
-		this.executor = executor;
-		this.coapstack.setExecutor(executor);
+		if (this.executor != executor) {
+			if (started) {
+				throw new IllegalStateException("endpoint already started!");
+			}
+			this.executor = executor;
+			this.coapstack.setExecutor(executor);
+		}
 	}
 
 	@Override
@@ -586,13 +576,17 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendRequest(final Request request) {
+		if (!started) {
+			request.cancel();
+			return;
+		}
 		// create context, if not already set
 		request.prepareDestinationContext();
-		Exchange exchange = new Exchange(request, Origin.LOCAL, exchangeExecutor);
-		exchange.execute(new StripedExchangeJob(exchange) {
+		final Exchange exchange = new Exchange(request, Origin.LOCAL, executor);
+		exchange.execute(new Runnable() {
 
 			@Override
-			public void runStriped() {
+			public void run() {
 				coapstack.sendRequest(exchange, request);
 			}
 		});
@@ -600,24 +594,47 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-		exchange.execute(new StripedExchangeJob(exchange) {
-
-			@Override
-			public void runStriped() {
-				coapstack.sendResponse(exchange, response);
-			}
-		});
+		if (!started) {
+			response.cancel();
+			return;
+		}
+		if (exchange.checkOwner()) {
+			// send response while processing exchange.
+			coapstack.sendResponse(exchange, response);
+		} else {
+			exchange.execute(new Runnable() {
+				@Override
+				public void run() {
+					if (exchange.getRequest().getOptions().hasObserve()) {
+						// observe- or cancel-observe-requests may have multiple responses
+						// when observes are finished, the last response has no longer an
+						// observe option. Therefore check the request for it.
+						exchange.retransmitResponse();
+					}
+					coapstack.sendResponse(exchange, response);
+				}
+			});
+		}
 	}
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
-		exchange.execute(new StripedExchangeJob(exchange) {
+		if (!started) {
+			message.cancel();
+			return;
+		}
+		if (exchange.checkOwner()) {
+			// send response while processing exchange.
+			coapstack.sendEmptyMessage(exchange, message);
+		} else {
+			exchange.execute(new Runnable() {
 
-			@Override
-			public void runStriped() {
-				coapstack.sendEmptyMessage(exchange, message);
-			}
-		});
+				@Override
+				public void run() {
+					coapstack.sendEmptyMessage(exchange, message);
+				}
+			});
+		}
 	}
 
 	/**
@@ -713,6 +730,9 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			request.setReadyToSend();
+			if (!started) {
+				request.cancel();
+			}
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
 			if (request.isCanceled()) {
@@ -724,7 +744,7 @@ public class CoapEndpoint implements Endpoint {
 				// However, that might have happened BEFORE the exchange got registered with the
 				// ExchangeStore. So, to make sure that we do not leak memory we complete the
 				// Exchange again here, triggering the "housekeeping" functionality in the Matcher
-				exchange.setComplete();
+				exchange.executeComplete();
 
 			} else {
 				RawData message = serializer.serializeRequest(request, new ExchangeCallback(exchange, request));
@@ -749,10 +769,14 @@ public class CoapEndpoint implements Endpoint {
 			}
 			response.setReadyToSend();
 
+			if (!started) {
+				response.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (response.isCanceled()) {
 				if (null != exchange) {
-					exchange.setComplete();
+					exchange.executeComplete();
 				}
 			} else {
 				connector.send(serializer.serializeResponse(response, new ExchangeCallback(exchange, response)));
@@ -774,10 +798,15 @@ public class CoapEndpoint implements Endpoint {
 				interceptor.sendEmptyMessage(message);
 			}
 			message.setReadyToSend();
+
+			if (!started) {
+				message.cancel();
+			}
+
 			// MessageInterceptor might have canceled
 			if (message.isCanceled()) {
 				if (null != exchange) {
-					exchange.setComplete();
+					exchange.executeComplete();
 				}
 			} else if (exchange != null) {
 				connector.send(serializer.serializeEmptyMessage(message, new ExchangeCallback(exchange, message)));
@@ -858,7 +887,7 @@ public class CoapEndpoint implements Endpoint {
 					// https://tools.ietf.org/html/rfc7252#section-4.2
 					reject(raw, e);
 					LOGGER.debug("rejected malformed message from [{}], reason: {}",
-							new Object[] { raw.getEndpointContext(), e.getMessage() });
+							raw.getEndpointContext(), e.getMessage());
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.debug("discarding malformed message from [{}]", raw.getEndpointContext());
@@ -890,6 +919,11 @@ public class CoapEndpoint implements Endpoint {
 			// set request attributes from raw data
 			request.setScheme(scheme);
 
+			if (!started) {
+				LOGGER.debug("not running, drop request {}", request);
+				return;
+			}
+
 			/* 
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
@@ -901,12 +935,12 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
-				Exchange exchange = matcher.receiveRequest(request);
+				final Exchange exchange = matcher.receiveRequest(request);
 				if (exchange != null) {
-					exchangeExecutor.execute(new StripedExchangeJob(exchange) {
+					exchange.execute(new Runnable() {
 
 						@Override
-						public void runStriped() {
+						public void run() {
 							exchange.setEndpoint(CoapEndpoint.this);
 							coapstack.receiveRequest(exchange, request);
 						}
@@ -928,13 +962,13 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				Exchange exchange = matcher.receiveResponse(response);
+				final Exchange exchange = matcher.receiveResponse(response);
 				if (exchange != null) {
-					exchangeExecutor.execute(new StripedExchangeJob(exchange) {
+					exchange.execute(new Runnable() {
 
 						@Override
-						public void runStriped() {
-							// entered striped execution.
+						public void run() {
+							// entered serial execution.
 							// recheck, if the response still match the exchange
 							// and the exchange is not changed in the meantime
 							if (exchange.checkCurrentResponse(response)) {
@@ -944,13 +978,14 @@ public class CoapEndpoint implements Endpoint {
 							} else if (!response.isDuplicate() && response.getType() != Type.ACK) {
 								LOGGER.debug("rejecting not longer matchable response from {}",
 										response.getSourceContext());
-							//	reject(response);
+								// reject(response);
 							} else {
 								LOGGER.debug("not longer matched response {}", response);
 							}
 						}
 					});
-				} else if (response.getType() != Type.ACK) {
+				} else if (response.getType() != Type.ACK && response.hasMID()) {
+					// reject only messages with MID, ignore for TCP
 					LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
 					reject(response);
 				}
@@ -971,17 +1006,17 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled()) {
 				// CoAP Ping
-				if (message.getType() == Type.CON || message.getType() == Type.NON) {
+				if ((message.getType() == Type.CON || message.getType() == Type.NON) && message.hasMID()) {
 					LOGGER.debug("responding to ping from {}", message.getSourceContext());
 					reject(message);
 				} else {
-					Exchange exchange = matcher.receiveEmptyMessage(message);
+					final Exchange exchange = matcher.receiveEmptyMessage(message);
 					if (exchange != null) {
-						exchangeExecutor.execute(new StripedExchangeJob(exchange) {
+						exchange.execute(new Runnable() {
 
 							@Override
-							public void runStriped() {
-								// entered striped execution.
+							public void run() {
+								// entered serial execution.
 								// recheck, it the empty message still match the exchange
 								// and the exchange is not changed in the meantime
 								if (exchange.checkMID(message.getMID())) {
@@ -1018,6 +1053,16 @@ public class CoapEndpoint implements Endpoint {
 				throw new NullPointerException("message must not be null");
 			}
 			this.message = message;
+		}
+
+		@Override
+		public void onConnecting() {
+			message.onConnecting();
+		}
+
+		@Override
+		public void onDtlsRetransmission(int flight) {
+			message.onDtlsRetransmission(flight);
 		}
 
 		@Override

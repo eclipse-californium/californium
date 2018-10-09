@@ -109,8 +109,7 @@ public abstract class BaseMatcher implements Matcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore the exchange store to use for keeping track of
 	 *            message exchanges with endpoints.
-	 * @param executor executor to be used for exchanges. Intended to execute
-	 *            jobs with a striped executor.
+	 * @param executor executor to be used for exchanges.
 	 * @throws NullPointerException if one of the parameters is {@code null}.
 	 */
 	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,

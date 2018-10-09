@@ -132,7 +132,7 @@ public class X509CertPath implements Principal {
 						throw new IllegalArgumentException(
 								"Given certificates do not form a chain, root is not the last!");
 					}
-					if (includeRoot) {
+					if (includeRoot || certificateChain.length == 1) {
 						certificates.add(xcert);
 					}
 				} else {

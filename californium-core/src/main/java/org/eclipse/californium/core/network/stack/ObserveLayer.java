@@ -31,6 +31,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove synchronization and use
  *                                                    striped exchange execution instead.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
+ *                                                    with serial executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -43,7 +45,6 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.StripedExchangeJob;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -208,10 +209,10 @@ public class ObserveLayer extends AbstractLayer {
 				}
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
-				exchange.execute(new StripedExchangeJob(exchange) {
+				exchange.execute(new Runnable() {
 
 					@Override
-					public void runStriped() {
+					public void run() {
 						ObserveLayer.super.sendResponse(exchange, next);
 					}
 				});
@@ -236,10 +237,10 @@ public class ObserveLayer extends AbstractLayer {
 				relation.setNextControlNotification(null);
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
-				exchange.execute(new StripedExchangeJob(exchange) {
+				exchange.execute(new Runnable() {
 
 					@Override
-					public void runStriped() {
+					public void run() {
 						ObserveLayer.super.sendResponse(exchange, next);
 					}
 				});

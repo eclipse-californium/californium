@@ -102,6 +102,7 @@ public class ConnectorHelper {
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore.setTag("server");
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
@@ -116,7 +117,10 @@ public class ConnectorHelper {
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
+			.setMaxTransmissionUnit(1024)
 			.setClientAuthenticationRequired(true)
+			.setReceiverThreadCount(1)
+			.setConnectionThreadCount(2)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -155,6 +159,8 @@ public class ConnectorHelper {
 	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
@@ -184,7 +190,7 @@ public class ConnectorHelper {
 		assertNotNull(establishedServerSession);
 		if (releaseSocket) {
 			synchronized (client) {
-				client.releaseSocket();
+				client.stop();
 				// in order to prevent sporadic BindExceptions during test execution
 				// give OS some time before allowing test cases to re-bind to same port
 				client.wait(200);
@@ -205,10 +211,12 @@ public class ConnectorHelper {
 		}
 
 		@Override
-		public synchronized void receiveData(RawData raw) {
+		public void receiveData(RawData raw) {
 			super.receiveData(raw);
-			if (latch != null) {
-				latch.countDown();
+			synchronized (this) {
+				if (latch != null) {
+					latch.countDown();
+				}
 			}
 		}
 	}
@@ -221,14 +229,18 @@ public class ConnectorHelper {
 			setProcessor(processor);
 		}
 
-		public void setProcessor(final RawDataProcessor processor) {
+		public synchronized void setProcessor(final RawDataProcessor processor) {
 			this.processor = processor;
 		}
 
 		@Override
 		public void receiveData(final RawData raw) {
+			RawDataProcessor processor;
+			synchronized (this) {
+				processor = this.processor;
+			}
 			if (processor != null) {
-				RawData response = this.processor.process(raw);
+				RawData response = processor.process(raw);
 				if (response != null) {
 					server.send(response);
 				}
@@ -317,7 +329,7 @@ public class ConnectorHelper {
 		DatagramSocket socket;
 		Thread receiver;
 
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DtlsConnectorConfig config) {
+		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler) {
 			this.address = bindToAddress;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {

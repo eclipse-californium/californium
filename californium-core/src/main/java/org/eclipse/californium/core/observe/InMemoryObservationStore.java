@@ -20,21 +20,22 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add observation to logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - start status logging with first
  *                                                    stored observation.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    for health status instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +49,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 	private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 	private final NetworkConfig config;
-	private ScheduledExecutorService scheduler;
+	private ScheduledFuture<?> statusLogger;
 
 	public InMemoryObservationStore(NetworkConfig config) {
 		this.config = config;
@@ -151,13 +152,12 @@ public final class InMemoryObservationStore implements ObservationStore {
 	}
 
 	@Override
-	public void start() {
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+	public synchronized void start() {
+		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL,
+				NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			scheduler = Executors
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("ObservationStore"));
-			scheduler.scheduleAtFixedRate(new Runnable() {
+			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -179,9 +179,10 @@ public final class InMemoryObservationStore implements ObservationStore {
 	}
 
 	@Override
-	public void stop() {
-		if (scheduler != null) {
-			scheduler.shutdownNow();
+	public synchronized void stop() {
+		if (statusLogger != null) {
+			statusLogger.cancel(false);
+			statusLogger = null;
 		}
 	}
 }

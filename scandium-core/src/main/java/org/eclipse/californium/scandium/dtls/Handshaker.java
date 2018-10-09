@@ -39,6 +39,19 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Vikram (University of Rostock) - generatePremasterSecertFromPSK with otherSecret from ECDHE_PSK
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use handshake parameter and
+ *                                                    generic handshake messages to
+ *                                                    process reordered handshake messages
+ *                                                    and create the specific, when the parameters
+ *                                                    are available.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - issue 744: use handshaker as
+ *                                                    parameter for session listener.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshakeFlightRetransmitted
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - suppress duplicates only from
+ *                                                    the same epoch
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -50,7 +63,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -64,9 +76,11 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -136,6 +150,14 @@ public abstract class Handshaker {
 	/** The next expected handshake message sequence number. */
 	private int nextReceiveSeq = 0;
 
+	/** The current flight number. */
+	protected int flightNumber = 0;
+
+	/** Maximum number of application data messages, which may be processed deferred after the handshake */
+	private final int maxDeferredProcessedApplicationDataMessages;
+	/** List of application data messages, which are processed deferred after the handshake */
+	private final  List<Object> deferredApplicationData;
+
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
 	
@@ -192,9 +214,8 @@ public abstract class Handshaker {
 	 *             <code>null</code>.
 	 */
 	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
-			TrustedRpkStore rpkStore) {
-		this(isClient, 0, session, recordLayer, sessionListener, certVerifier, maxTransmissionUnit, rpkStore);
+			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
+		this(isClient, 0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 	}
 
 	/**
@@ -227,12 +248,13 @@ public abstract class Handshaker {
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, CertificateVerifier certVerifier, int maxTransmissionUnit,
-			TrustedRpkStore rpkStore) {
+			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
+		} else if (config == null) {
+			throw new NullPointerException("Dtls Connector Config must not be null");
 		} else if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
@@ -241,8 +263,10 @@ public abstract class Handshaker {
 		this.nextReceiveSeq = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
+		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
+		this.deferredApplicationData = new ArrayList<Object>(maxDeferredProcessedApplicationDataMessages);
 		addSessionListener(sessionListener);
-		this.certificateVerifier = certVerifier;
+		this.certificateVerifier = config.getCertificateVerifier();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
@@ -254,7 +278,7 @@ public abstract class Handshaker {
 			throw new IllegalStateException(String.format("Message digest algorithm %s is not available on JVM",
 					MESSAGE_DIGEST_ALGORITHM_NAME));
 		}
-		this.rpkStore = rpkStore;
+		this.rpkStore = config.getRpkTrustStore();
 	}
 
 	/**
@@ -421,7 +445,9 @@ public abstract class Handshaker {
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		if (!session.isDuplicate(record.getSequenceNumber())) {
+		boolean sameEpoch = session.getReadEpoch() == record.getEpoch();
+		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
+				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
 			try {
 				record.setSession(session);
 				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
@@ -434,6 +460,14 @@ public abstract class Handshaker {
 						// messageToProcess is fragmented and not all parts have been received yet
 					} else {
 						// continue with the now fully re-assembled message
+						if (messageToProcess instanceof GenericHandshakeMessage) {
+							HandshakeParameter parameter = session.getParameter();
+							if (parameter == null) {
+								throw new IllegalStateException("handshake parameter are required!");
+							}
+							messageToProcess = ((GenericHandshakeMessage) messageToProcess)
+									.getSpecificHandshakeMessage(parameter);
+						}
 						doProcessMessage(messageToProcess);
 					}
 
@@ -448,9 +482,12 @@ public abstract class Handshaker {
 						session.getPeer());
 				throw new HandshakeException("Cannot process handshake message", alert);
 			}
-		} else {
+		} else if (sameEpoch) {
 			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
 					StringUtil.lineSeparator(), record);
+		} else {
+			LOGGER.trace("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
+					record.getPeerAddress(), StringUtil.lineSeparator(), record);
 		}
 	}
 
@@ -789,13 +826,11 @@ public abstract class Handshaker {
 					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
 			reassembly = wholeMessage.toByteArray();
 
-			KeyExchangeAlgorithm keyExchangeAlgorithm = KeyExchangeAlgorithm.NULL;
-			boolean receiveRawPublicKey = false;
+			HandshakeParameter parameter = null;
 			if (session != null) {
-				keyExchangeAlgorithm = session.getKeyExchange();
-				receiveRawPublicKey = session.receiveRawPublicKey();
+				parameter = session.getParameter();
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, keyExchangeAlgorithm, receiveRawPublicKey, getPeerAddress());
+			message = HandshakeMessage.fromByteArray(reassembly, parameter, getPeerAddress());
 		}
 
 		return message;
@@ -875,6 +910,30 @@ public abstract class Handshaker {
 		this.nextReceiveSeq++;
 	}
 
+	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
+		// backwards compatibility, allow on outgoing message to be stored.
+		int max = maxDeferredProcessedApplicationDataMessages == 0 ? 1 : maxDeferredProcessedApplicationDataMessages;
+		if (deferredApplicationData.size() < max) {
+			deferredApplicationData.add(outgoingMessage);
+		}
+	}
+
+	public void addApplicationDataForDeferredProcessing(Record incomingMessage) {
+		if (deferredApplicationData.size() < maxDeferredProcessedApplicationDataMessages) {
+			deferredApplicationData.add(incomingMessage);
+		}
+	}
+
+	public List<Object> takeDeferredApplicationData() {
+		List<Object> applicationData = new ArrayList<Object>(deferredApplicationData);
+		deferredApplicationData.clear();
+		return applicationData;
+	}
+
+	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
+		deferredApplicationData.addAll(replacedHandshaker.takeDeferredApplicationData());
+	}
+
 	/**
 	 * Adds a listener to the list of listeners to be notified
 	 * about session life cycle events.
@@ -911,9 +970,9 @@ public abstract class Handshaker {
 		}
 	}
 
-	protected final void handshakeCompleted() {
+	public final void handshakeCompleted() {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeCompleted(getPeerAddress());
+			sessionListener.handshakeCompleted(this);
 		}
 	}
 
@@ -925,7 +984,29 @@ public abstract class Handshaker {
 	 */
 	public final void handshakeFailed(Throwable cause) {
 		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeFailed(getPeerAddress(), cause);
+			sessionListener.handshakeFailed(this, cause);
+		}
+		for (Object message : takeDeferredApplicationData()) {
+			if (message instanceof RawData) {
+				((RawData) message).onError(cause);
+			}
+		}
+	}
+
+	/**
+	 * Notifies all registered session listeners about a handshake
+	 * retransmit of a flight.
+	 * 
+	 * @param flight number of retransmitted flight.
+	 */
+	public final void handshakeFlightRetransmitted(int flight) {
+		for (SessionListener sessionListener : sessionListeners) {
+			sessionListener.handshakeFlightRetransmitted(this, flight);
+		}
+		for (Object message : deferredApplicationData) {
+			if (message instanceof RawData) {
+				((RawData) message).onDtlsRetransmission(flight);
+			}
 		}
 	}
 
@@ -949,7 +1030,7 @@ public abstract class Handshaker {
 	 * 
 	 * @return {@code true} if the message is expected next.
 	 */
-	final boolean isChangeCipherSpecMessageExpected() {
+	public final boolean isChangeCipherSpecMessageExpected() {
 		return changeCipherSuiteMessageExpected;
 	}
 

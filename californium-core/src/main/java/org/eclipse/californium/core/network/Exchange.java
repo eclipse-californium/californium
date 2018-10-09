@@ -43,6 +43,12 @@
  *                                                    Issue #487
  *    Achim Kraus (Bosch Software Innovations GmbH) - add checkMID to support
  *                                                    rejection of previous notifications
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add check for hasMID before
+ *                                                    sending ACK or RST.
+ *                                                    (therefore tcp messages are not
+ *                                                    rejected nor acknowledged)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
+ *                                                    with serial executor
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -71,6 +77,7 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,11 +94,11 @@ import org.slf4j.LoggerFactory;
  * functionality. The CoAP Stack contains the functionality of the CoAP protocol
  * and modifies the exchange appropriately. The class Exchange and its fields
  * are <em>NOT</em> thread-safe. The setter methods must be called within a
- * {@link StripedExchangeJob}, which must be executed using
- * {@link #execute(StripedExchangeJob)}. For convenience the
- * {@link #executeComplete()} is provided to execute {@link #setComplete()}
- * accordingly. Methods, which are documented to throw a
- * {@link ConcurrentModificationException}MUST comply to this execution pattern!
+ * {@link Runnable}, which must be executed using {@link #execute(Runnable)}.
+ * For convenience the {@link #executeComplete()} is provided to execute
+ * {@link #setComplete()} accordingly. Methods, which are documented to throw a
+ * {@link ConcurrentModificationException} MUST comply to this execution
+ * pattern!
  * <p>
  * If the exchange represents a "blockwise" transfer and if the transparent mode
  * is used, the exchange keeps also the (original) request and use the current
@@ -155,17 +162,12 @@ public class Exchange {
 	 */
 	private final int id;
 	/**
-	 * Executor to ensure, that the exchange is executed with a
-	 * {@link StripedExchangeJob}.
+	 * Executor for exchange jobs.
 	 * 
 	 * Note: for unit tests this may be {@code null} to escape the owner checking.
 	 * Otherwise many change in the tests would be required.
 	 */
-	private final Executor executor;
-	/**
-	 * Current owner of the this exchange.
-	 */
-	private final AtomicReference<Thread> owner = new AtomicReference<Thread>();
+	private final SerialExecutor executor;
 	/**
 	 * Caller of {@link #setComplete()}. Intended for debug logging.
 	 */
@@ -263,8 +265,7 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Intended to execute
-	 *            jobs with a striped executor.
+	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
 	 * @throws NullPointerException, if request is {@code null}
 	 */
 	public Exchange(Request request, Origin origin, Executor executor) {
@@ -277,8 +278,7 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Intended to execute
-	 *            jobs with a striped executor.
+	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
 	 * @param ctx the endpoint context of this exchange
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
@@ -293,8 +293,7 @@ public class Exchange {
 	 * 
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Intended to execute
-	 *            jobs with a striped executor.
+	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
 	 * @param ctx the endpoint context of this exchange
 	 * @param keepRequestInStore {@code true}, to keep the original request in
 	 *            store until completed, {@code false} otherwise.
@@ -309,7 +308,7 @@ public class Exchange {
 			throw new NullPointerException("request must not be null!");
 		}
 		this.id = INSTANCE_COUNTER.incrementAndGet();
-		this.executor = executor;
+		this.executor = SerialExecutor.create(executor);
 		this.currentRequest = request;
 		this.request = request;
 		this.origin = origin;
@@ -317,14 +316,6 @@ public class Exchange {
 		this.keepRequestInStore = keepRequestInStore;
 		this.notification = notification;
 		this.nanoTimestamp = System.nanoTime();
-	}
-
-	/**
-	 * Object to be used as stripe for striped execution. Reduce the heap
-	 * consumption of larger stripe keys in the striped executor.
-	 */
-	Object getStripe() {
-		return complete;
 	}
 
 	@Override
@@ -345,7 +336,7 @@ public class Exchange {
 	public void sendAccept() {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		if (current.getType() == Type.CON && !current.isAcknowledged()) {
+		if (current.getType() == Type.CON && current.hasMID() && !current.isAcknowledged()) {
 			current.setAcknowledged(true);
 			EmptyMessage ack = EmptyMessage.newACK(current);
 			endpoint.sendEmptyMessage(this, ack);
@@ -359,9 +350,11 @@ public class Exchange {
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		current.setRejected(true);
-		EmptyMessage rst = EmptyMessage.newRST(current);
-		endpoint.sendEmptyMessage(this, rst);
+		if (current.hasMID() && !current.isRejected()) {
+			current.setRejected(true);
+			EmptyMessage rst = EmptyMessage.newRST(current);
+			endpoint.sendEmptyMessage(this, rst);
+		}
 	}
 
 	/**
@@ -421,8 +414,8 @@ public class Exchange {
 	 * Sets the request that this exchange is associated with.
 	 * 
 	 * @param newRequest the request
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 * @see #setCurrentRequest(Request)
 	 */
 	public void setRequest(Request newRequest) {
@@ -456,8 +449,8 @@ public class Exchange {
 	 * the origin request (equal to getRequest()) should be set.
 	 * 
 	 * @param newCurrentRequest the current request block
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void setCurrentRequest(Request newCurrentRequest) {
 		assertOwner();
@@ -477,7 +470,7 @@ public class Exchange {
 				key = KeyMID.fromOutboundMessage(currentRequest);
 			}
 			if (token != null || key != null) {
-				LOGGER.info("{} replace {} by {}", this, currentRequest, newCurrentRequest);
+				LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
 				RemoveHandler obs = this.removeHandler;
 				if (obs != null) {
 					obs.remove(this, token, key);
@@ -502,8 +495,8 @@ public class Exchange {
 	 * Sets the response.
 	 * 
 	 * @param response the response
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void setResponse(Response response) {
 		assertOwner();
@@ -527,8 +520,8 @@ public class Exchange {
 	 * blockwise, the origin request (equal to getResponse()) should be set.
 	 * 
 	 * @param newCurrentResponse the current response block
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void setCurrentResponse(Response newCurrentResponse) {
 		assertOwner();
@@ -550,8 +543,8 @@ public class Exchange {
 	 * @param checkResponse response to check.
 	 * @return {@code true}, if the response must be processed using this
 	 *         exchange, {@code false}, otherwise.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public boolean checkCurrentResponse(Response checkResponse) {
 		assertOwner();
@@ -596,8 +589,8 @@ public class Exchange {
 	 * @param mid MID to check.
 	 * @return {@code true}, if the mid matches this exchange, {@code false},
 	 *         otherwise.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public boolean checkMID(final int mid) {
 		assertOwner();
@@ -682,8 +675,8 @@ public class Exchange {
 	 * calls to the requests.
 	 * 
 	 * @param message message, which transmission has reached the timeout.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void setTimedOut(Message message) {
 		assertOwner();
@@ -724,8 +717,8 @@ public class Exchange {
 	 * Set retransmission handle.
 	 * 
 	 * @param newRetransmissionHandle
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void setRetransmissionHandle(ScheduledFuture<?> newRetransmissionHandle) {
 		assertOwner();
@@ -743,8 +736,8 @@ public class Exchange {
 	 * Prepare exchange for retransmit a response.
 	 * 
 	 * @throws IllegalStateException if exchange is not a REMOTE exchange.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void retransmitResponse() {
 		assertOwner();
@@ -837,8 +830,8 @@ public class Exchange {
 	 * @return {@code true}, if complete is set the first time, {@code false},
 	 *         if it is repeated.
 	 * @throws ExchangeCompleteException, if exchange was already completed.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public boolean setComplete() {
 		assertOwner();
@@ -906,7 +899,8 @@ public class Exchange {
 	/**
 	 * Execute complete.
 	 * 
-	 * Schedules stripe exchange job, if current thread is not already owner.
+	 * Schedules job for this exchange, if current thread is not already owner
+	 * of it.
 	 * 
 	 * @return {@code true}, if exchange was not already completed,
 	 *         {@code false}, if exchange is already completed.
@@ -918,10 +912,10 @@ public class Exchange {
 		if (executor == null || checkOwner()) {
 			setComplete();
 		} else {
-			execute(new StripedExchangeJob(this) {
+			execute(new Runnable() {
 
 				@Override
-				public void runStriped() {
+				public void run() {
 					if (!complete.get()) {
 						setComplete();
 					}
@@ -977,8 +971,8 @@ public class Exchange {
 	 * also kept in the message exchange store. This method removes the
 	 * notification message from the store.
 	 * 
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	public void removeNotifications() {
 		assertOwner();
@@ -1041,22 +1035,17 @@ public class Exchange {
 	}
 
 	/**
-	 * Execute a striped job.
+	 * Execute a job serialized related to this exchange.
 	 * 
 	 * If exchange is already owned by the current thread, execute it
 	 * synchronous. Otherwise schedule the execution.
 	 * 
-	 * @param command striped job
-	 * @throws IllegalArgumentException if exchange of provided job is not this
-	 *             exchange
+	 * @param command job
 	 */
-	public void execute(final StripedExchangeJob command) {
-		if (command.exchange != this) {
-			throw new IllegalArgumentException(this + " can not execute job for " + command.exchange);
-		}
+	public void execute(final Runnable command) {
 		try {
 			if (executor == null || checkOwner()) {
-				command.runStriped();
+				command.run();
 			} else {
 				executor.execute(command);
 			}
@@ -1072,8 +1061,8 @@ public class Exchange {
 	 * using this exchange.
 	 * 
 	 * @param message message to be send using this exchange.
-	 * @throws ConcurrentModificationException, if not executed within the
-	 *             {@link StripedExchangeJob}.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 * @throws ExchangeCompleteException, if exchange is already completed
 	 */
 	public void assertIncomplete(Object message) {
@@ -1084,52 +1073,14 @@ public class Exchange {
 	}
 
 	/**
-	 * Set current thread as owner.
-	 * 
-	 * @throws ConcurrentModificationException, if owner is already set.
-	 */
-	void setOwner() {
-		Thread thread = owner.get();
-		if (!owner.compareAndSet(null, Thread.currentThread())) {
-			if (thread == null) {
-				throw new ConcurrentModificationException(this + " was already owned!");
-			} else {
-				throw new ConcurrentModificationException(this + " already owned by " + thread.getName() + "!");
-			}
-		}
-	}
-
-	/**
-	 * Remove current thread as owner.
-	 * 
-	 * @throws ConcurrentModificationException, if the current thread is not the
-	 *             owner.
-	 */
-	void clearOwner() {
-		if (!owner.compareAndSet(Thread.currentThread(), null)) {
-			Thread thread = owner.get();
-			if (thread == null) {
-				throw new ConcurrentModificationException(this + " is not owned, clear failed!");
-			} else {
-				throw new ConcurrentModificationException(this + " owned by " + thread.getName() + ", clear failed!");
-			}
-		}
-	}
-
-	/**
 	 * Assert, that the current thread owns this exchange.
+	 *
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
 	 */
 	private void assertOwner() {
 		if (executor != null) {
-			Thread me = Thread.currentThread();
-			if (owner.get() != me) {
-				Thread thread = owner.get();
-				if (thread == null) {
-					throw new ConcurrentModificationException(this + " is not owned!");
-				} else {
-					throw new ConcurrentModificationException(this + " owned by " + thread.getName() + "!");
-				}
-			}
+			executor.assertOwner();
 		}
 	}
 
@@ -1139,8 +1090,12 @@ public class Exchange {
 	 * @return {@code true}, if current thread owns this exchange,
 	 *         {@code false}, otherwise.
 	 */
-	private boolean checkOwner() {
-		return owner.get() == Thread.currentThread();
+	public boolean checkOwner() {
+		if (executor != null) {
+			return executor.checkOwner();
+		} else {
+			return true;
+		}
 	}
 
 	/**
@@ -1244,20 +1199,23 @@ public class Exchange {
 			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
-	
-    /**
-     * Sets cryptoContextId
-     * @param cryptoContextId a byte array used for mapping cryptographic contexts
-     */
-    public void setCryptographicContextID(byte[] cryptoContextId){
-        this.cryptoContextId = cryptoContextId;
-    }
 
-    /**
-     * Gets cryptoContextId
-     * @return
-     */
-    public byte[] getCryptographicContextID(){
-        return this.cryptoContextId;
-    }
+	/**
+	 * Sets cryptoContextId
+	 * 
+	 * @param cryptoContextId a byte array used for mapping cryptographic
+	 *            contexts
+	 */
+	public void setCryptographicContextID(byte[] cryptoContextId) {
+		this.cryptoContextId = cryptoContextId;
+	}
+
+	/**
+	 * Gets cryptoContextId
+	 * 
+	 * @return
+	 */
+	public byte[] getCryptographicContextID() {
+		return this.cryptoContextId;
+	}
 }

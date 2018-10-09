@@ -19,33 +19,28 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add notification processing and
  *                                                    adjust tests.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add block2 backward-compatibility
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add tcp compatibility
+ *                                                    add hasNoObserver
+ *                                                    wait for response, when cancel
+ *                                                    observe relation
  ******************************************************************************/
 
 package org.eclipse.californium.plugtests;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
-import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -58,25 +53,14 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.UDPConnector;
-import org.eclipse.californium.elements.tcp.TcpClientConnector;
-import org.eclipse.californium.elements.tcp.TlsClientConnector;
-import org.eclipse.californium.elements.util.SslContextUtil;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
 /**
  * The PlugtestChecker is a client to verify the server behavior.
@@ -84,20 +68,11 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * It uses Cf's internal API for "deep message inspection."
  */
 public class PlugtestChecker {
-
 	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 64;
 	public static final int PLUGTEST_BLOCK_SZX = 2; // 64 bytes
-
-	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-	private static final String CLIENT_NAME = "client";
-	private static final String PSK_IDENTITY_PREFIX = "cali.";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
 
 	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
 
@@ -115,6 +90,8 @@ public class PlugtestChecker {
 
 	};
 
+	private static volatile boolean verbose;
+	
 	/** The server uri. */
 	private String serverURI = null;
 
@@ -241,128 +218,25 @@ public class PlugtestChecker {
 
 		// Config used for plugtest
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Arguments arguments = ClientInitializer.init(config, args);
 
-		int index = 0;
-		boolean verbose = false;
-		boolean ping[] = { true };
-		boolean rpc = false;
-		boolean x509 = false;
-		if (args[index].equals("-s")) {
-			++index;
-			ping[0] = false;
-		}
-		if (args[index].equals("-v")) {
-			++index;
-			verbose = true;
-		}
-		if (args[index].equals("-r")) {
-			++index;
-			rpc = true;
-		} else if (args[index].equals("-x")) {
-			++index;
-			x509 = true;
-		}
-
-		String uri = args[index];
-
-		// allow quick hostname as argument
-
-		if (uri.indexOf("://") == -1) {
-			uri = "coap://" + uri;
-		}
-		if (uri.endsWith("/")) {
-			uri = uri.substring(-1);
-		}
-
-		setupEndpoint(config, uri, verbose, rpc, x509, ping);
-
-		if (ping[0]) {
-			if (ping(uri)) {
-				System.out.println("PASS: " + uri + " responds to ping");
+		if (arguments.ping) {
+			System.out.println("===============\nCC31\n---------------");
+			if (ping(arguments.uri)) {
+				System.out.println("PASS: " + arguments.uri + " responds to ping");
 			} else {
-				System.out.println("FAIL: Not responding to ping");
+				System.out.println("FAIL:" + arguments.uri + " does not respond to ping, exiting...");
 				System.exit(-1);
 			}
 		}
 
 		// create the factory with the given server URI
-		PlugtestChecker clientFactory = new PlugtestChecker(uri);
+		PlugtestChecker clientFactory = new PlugtestChecker(arguments.uri);
 
 		// instantiate the chosen tests
-		clientFactory.instantiateTests(Arrays.copyOfRange(args, index + 1, args.length));
+		clientFactory.instantiateTests(arguments.args);
 
 		System.exit(0);
-	}
-
-	private static void setupEndpoint(NetworkConfig config, String uri, boolean verbose, boolean rpc, boolean x509,
-			boolean ping[]) {
-		Connector connector = null;
-
-		if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
-			SslContextUtil.Credentials clientCredentials = null;
-			Certificate[] trustedCertificates = null;
-			SSLContext serverSslContext = null;
-			try {
-				clientCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-						CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				serverSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
-						clientCredentials.getCertificateChain(), trustedCertificates);
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			if (uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
-				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				if (rpc || x509) {
-					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							rpc);
-					dtlsConfig.setTrustStore(trustedCertificates);
-				} else {
-					byte[] id = null;
-					try {
-						Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-						if (nets.hasMoreElements()) {
-							id = nets.nextElement().getHardwareAddress();
-						}
-					} catch (Throwable e) {
-					}
-					if (id == null) {
-						id = new byte[8];
-						SecureRandom random = new SecureRandom();
-						random.nextBytes(id);
-					}
-					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(id)));
-				}
-				connector = new DTLSConnector(dtlsConfig.build());
-			} else if (uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-				int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-				int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-				connector = new TlsClientConnector(serverSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-				ping[0] = false;
-			}
-		} else if (uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
-			int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-			int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-			int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
-			ping[0] = false;
-		} else if (uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
-			connector = new UDPConnector();
-		}
-
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
-		builder.setConnector(connector);
-		builder.setNetworkConfig(config);
-		CoapEndpoint endpoint = builder.build();
-		if (verbose) {
-			endpoint.addInterceptor(new MessageTracer());
-		}
-		EndpointManager.getEndpointManager().setDefaultEndpoint(endpoint);
 	}
 
 	/**
@@ -385,6 +259,8 @@ public class PlugtestChecker {
 		 * single threaded servers and slow resources.
 		 */
 		protected boolean sync = true;
+
+		protected boolean useTcp = false;
 
 		/**
 		 * Current started observation.
@@ -431,7 +307,11 @@ public class PlugtestChecker {
 		 * @param testName the test name
 		 */
 		public TestClientAbstract(String testName) {
-			this(testName, false, true);
+			this(testName, PlugtestChecker.verbose, true);
+		}
+
+		public void setUseTcp(String scheme) {
+			useTcp = CoAP.isTcpScheme(scheme);
 		}
 
 		/**
@@ -500,6 +380,7 @@ public class PlugtestChecker {
 			URI uri = null;
 			try {
 				uri = new URI(serverURI + resourceUri);
+				useTcp = CoAP.isTcpScheme(uri.getScheme());
 			} catch (URISyntaxException use) {
 				System.err.println("Invalid URI: " + use.getMessage());
 			}
@@ -585,8 +466,10 @@ public class PlugtestChecker {
 						}
 						Utils.prettyPrint(response);
 					}
-
-					if ((requests > 1) && !request.getOptions().hasBlock1() && !response.getOptions().hasBlock2()) {
+					if (response.getOptions().hasBlock1()) {
+						requests -= response.getOptions().getBlock1().getNum();
+					}
+					if ((requests > 1) && !response.getOptions().hasBlock2()) {
 						// set block2 option from counter
 						// backwards compatibility (test only)
 						int size = response.getPayloadSize() / requests;
@@ -594,7 +477,7 @@ public class PlugtestChecker {
 						if ((size - bit) != 0) {
 							bit <<= 1;
 						}
-						response.getOptions().setBlock2(BlockOption.size2Szx(bit), false, requests);
+						response.getOptions().setBlock2(BlockOption.size2Szx(bit), false, requests - 1);
 					}
 
 					System.out.println("**** BEGIN CHECK ****");
@@ -647,6 +530,10 @@ public class PlugtestChecker {
 					// set Observe to cancel
 					cancel.setObserveCancel();
 					endpoint.sendRequest(cancel);
+					try {
+						cancel.waitForResponse(2000);
+					} catch (InterruptedException e) {
+					}
 				}
 				endpoint.cancelObservation(origin.getToken());
 				endpoint.removeNotificationListener(this);
@@ -784,6 +671,10 @@ public class PlugtestChecker {
 		 * @return true, if successful
 		 */
 		protected boolean checkType(Type expectedMessageType, Type actualMessageType) {
+			if (useTcp) {
+				// TCP doesn't sue a message type!
+				return true;
+			}
 			boolean success = expectedMessageType.equals(actualMessageType);
 
 			if (!success) {
@@ -986,7 +877,7 @@ public class PlugtestChecker {
 		 * @param response the response
 		 * @return true, if successful
 		 */
-		protected boolean hasObserve(Response response, boolean invert) {
+		private boolean hasObserve(Response response, boolean invert) {
 			// boolean success =
 			// response.hasOption(OptionNumberRegistry.OBSERVE);
 			boolean success = response.getOptions().hasObserve();
@@ -1009,6 +900,10 @@ public class PlugtestChecker {
 
 		protected boolean hasObserve(Response response) {
 			return hasObserve(response, false);
+		}
+
+		protected boolean hasNoObserve(Response response) {
+			return hasObserve(response, true);
 		}
 
 		protected boolean checkOption(Option expextedOption, Option actualOption) {
@@ -1218,38 +1113,6 @@ public class PlugtestChecker {
 
 	}
 
-	private static class PlugPskStore implements PskStore {
-
-		private final String identity;
-
-		public PlugPskStore(String id) {
-			identity = PSK_IDENTITY_PREFIX + id;
-			System.out.println("DTLS-PSK-Identity: " + identity + " (" + (id.length() / 2) + " bytes)");
-		}
-
-		@Override
-		public byte[] getKey(String identity) {
-			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
-			}
-			return null;
-		}
-
-		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
-			return getKey(identity);
-		}
-
-		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
-			return identity;
-		}
-
-		@Override
-		public String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-			return identity;
-		}
-	}
 
 	private static boolean ping(String address) {
 		try {

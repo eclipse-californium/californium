@@ -33,6 +33,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix resend current response
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove synchronization and use
  *                                                    striped exchange execution instead.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
+ *                                                    with serial executor
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -47,7 +49,6 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.StripedExchangeJob;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,10 +184,10 @@ public class ReliabilityLayer extends AbstractLayer {
 			public void onSent() {
 				task.message.removeMessageObserver(this);
 				if (!exchange.isComplete()) {
-					exchange.execute(new StripedExchangeJob(exchange) {
+					exchange.execute(new Runnable() {
 
 						@Override
-						public void runStriped() {
+						public void run() {
 							task.startTimer();
 						}
 					});
@@ -392,10 +393,10 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		@Override
 		public void run() {
-			exchange.execute(new StripedExchangeJob(exchange) {
+			exchange.execute(new Runnable() {
 
 				@Override
-				public void runStriped() {
+				public void run() {
 					retry();
 				}
 			});

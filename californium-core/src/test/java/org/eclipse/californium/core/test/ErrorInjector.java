@@ -53,7 +53,7 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		response.addMessageObserver(new ErrorInjectorMessageObserver(response));
 	}
 
-	private class ErrorInjectorMessageObserver extends MessageObserverAdapter {
+	public class ErrorInjectorMessageObserver extends MessageObserverAdapter {
 
 		private Message message;
 

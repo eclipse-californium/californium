@@ -26,7 +26,7 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - derive max fragment length from network MTU
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
- *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use isSendRawKey also for
  *                                                    supportedServerCertificateTypes
  *    Ludwig Seitz (RISE SICS) - Updated calls to verifyCertificate() after refactoring
  *    Bosch Software Innovations GmbH - migrate to SLF4J
@@ -35,9 +35,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - issue #549
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix usage of literal address
  *                                                    with enabled sni
- *    Vikram (University of Rostock) - added ECDHE_PSK mode                                                
+ *    Vikram (University of Rostock) - added ECDHE_PSK mode
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
+ *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -154,8 +157,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config.getCertificateVerifier(), maxTransmissionUnit,
-				config.getRpkTrustStore());
+		super(true, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
@@ -350,8 +352,9 @@ public class ClientHandshaker extends Handshaker {
 		clientHello.setCookie(message.getCookie());
 		// update the length (cookie added)
 		clientHello.setFragmentLength(clientHello.getMessageLength());
-
-		DTLSFlight flight = new DTLSFlight(getSession());
+		
+		flightNumber = 3;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(clientHello));
 		recordLayer.sendFlight(flight);
 	}
@@ -394,6 +397,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
 		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
 		session.setSniSupported(serverHello.hasServerNameExtension());
+		session.setParameterAvailable();
 	}
 
 	/**
@@ -496,7 +500,8 @@ public class ClientHandshaker extends Handshaker {
 			return;
 		}
 		serverHelloDone = message;
-		DTLSFlight flight = new DTLSFlight(getSession());
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		createCertificateMessage(flight);
 
@@ -712,7 +717,7 @@ public class ClientHandshaker extends Handshaker {
 			startMessage.addExtension(ext);
 			LOGGER.debug(
 					"Indicating max. fragment length [{}] to server [{}]",
-					new Object[]{maxFragmentLengthCode, getPeerAddress()});
+					maxFragmentLengthCode, getPeerAddress());
 		}
 
 		addServerNameIndication(startMessage);
@@ -721,8 +726,9 @@ public class ClientHandshaker extends Handshaker {
 		state = startMessage.getMessageType().getCode();
 
 		// store for later calculations
+		flightNumber = 1;
 		clientHello = startMessage;
-		DTLSFlight flight = new DTLSFlight(session);
+		DTLSFlight flight = new DTLSFlight(session, flightNumber);
 		flight.addMessage(wrapMessage(startMessage));
 
 		recordLayer.sendFlight(flight);

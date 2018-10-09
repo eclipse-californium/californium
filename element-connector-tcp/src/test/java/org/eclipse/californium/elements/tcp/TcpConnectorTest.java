@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -149,5 +150,38 @@ public class TcpConnectorTest {
 			}
 			assertTrue("Received unexpected message: " + received, matched);
 		}
+	}
+
+	@Test
+	public void onConnect() throws Exception {
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
+				IDLE_TIMEOUT_IN_S);
+		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
+				IDLE_TIMEOUT_IN_S);
+
+		cleanup.add(server);
+		cleanup.add(client);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		server.start();
+		client.start();
+
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData msg = createMessage(server.getAddress(), messageSize, callback);
+
+		client.send(msg);
+		serverCatcher.blockUntilSize(1);
+		assertTrue(callback.isConnecting());
+
+		callback = new SimpleMessageCallback();
+		msg = createMessage(server.getAddress(), messageSize, callback);
+
+		client.send(msg);
+		serverCatcher.blockUntilSize(2);
+		assertFalse(callback.isConnecting());
+
 	}
 }

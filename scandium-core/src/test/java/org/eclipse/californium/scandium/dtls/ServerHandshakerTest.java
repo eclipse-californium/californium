@@ -21,6 +21,7 @@
  *                                                    client & server keys and certificate chains
  *    Kai Hudalla (Bosch Software Innovations GmbH) - use SessionListener to trigger sending of pending
  *                                                    APPLICATION messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - report expired certificates
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -346,7 +347,11 @@ public class ServerHandshakerTest {
 	@Test
 	public void testDoProcessMessageProcessesQueuedMessages() throws Exception {
 		Record nextRecord = givenAHandshakerWithAQueuedMessage();
-		handshaker.processMessage(nextRecord);
+		try {
+			handshaker.processMessage(nextRecord);
+		} catch (HandshakeException e) {
+			HandshakerTest.failedHandshake(e);
+		}
 		assertThatAllMessagesHaveBeenProcessedInOrder();
 	}
 

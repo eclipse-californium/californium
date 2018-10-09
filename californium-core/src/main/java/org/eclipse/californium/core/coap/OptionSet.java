@@ -169,7 +169,7 @@ public final class OptionSet {
 		
 		observe = origin.observe;
 		if(origin.oscore != null)
-			oscore	= origin.oscore.clone();
+				oscore	= origin.oscore.clone();
 		
 		others              = copyList(origin.others);
 	}
@@ -1508,5 +1508,4 @@ public final class OptionSet {
 			builder.setLength(builder.length() - 1);
 		}
 	}
-
 }

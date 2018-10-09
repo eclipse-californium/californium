@@ -19,6 +19,8 @@
  *                                                 TLS handshake.
  * Bosch Software Innovations GmbH - migrate to SLF4J
  * Achim Kraus (Bosch Software Innovations GmbH) - add handshake timeout
+ * Achim Kraus (Bosch Software Innovations GmbH) - change exception type to
+ *                                                 IllegalStateException
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -97,9 +99,9 @@ public class TlsClientConnector extends TcpClientConnector {
 	 */
 	@Override
 	protected void send(final Channel channel, final EndpointContextMatcher endpointMatcher, final RawData msg) {
-		SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
+		final SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
 		if (sslHandler == null) {
-			throw new RuntimeException("Missing SslHandler");
+			msg.onError(new IllegalStateException("Missing SslHandler"));
 		} else {
 			/*
 			 * Trigger handshake.
@@ -112,11 +114,12 @@ public class TlsClientConnector extends TcpClientConnector {
 					if (future.isSuccess()) {
 						EndpointContext context = contextUtil.buildEndpointContext(channel);
 						if (context == null || context.get(TlsEndpointContext.KEY_SESSION_ID) == null) {
-							throw new RuntimeException("Missing TlsEndpointContext " + context);
+							msg.onError(new IllegalStateException("Missing TlsEndpointContext " + context));
+							return;
 						}
 						/*
-						 * Handshake succeeded! Call super.send() to actually
-						 * send the message.
+						 * Handshake succeeded! 
+						 * Call super.send() to actually send the message.
 						 */
 						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
 					} else if (future.isCancelled()) {

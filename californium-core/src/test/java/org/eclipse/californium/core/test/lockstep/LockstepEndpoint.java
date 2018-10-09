@@ -24,25 +24,26 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - rename loadMID into sameMID
  *    Achim Kraus (Bosch Software Innovations GmbH) - add smart deduplication filter.
  *                                                    filter messages based on the last
- *                                                    received messages and the current 
+ *                                                    received messages and the current
  *                                                    expectation. If the test expect the
- *                                                    message to be repeated, add the mid 
+ *                                                    message to be repeated, add the mid
  *                                                    expectation. Change type(Type type)
  *                                                    to accept multiple types (Type... types).
  *                                                    Changed reponseType in type(Type... types)
  *                                                    and storeType().
  *    Achim Kraus (Bosch Software Innovations GmbH) - add getToken(String) to access
- *                                                    both stored representations 
+ *                                                    both stored representations
  *                                                    ("token" and "both").
  *                                                    Adjust usage to getMID(String) and
  *                                                    getToken(String) and add some methods
  *                                                    to use them.
- *                                                    Split receiveNextMessage into 
- *                                                    receiveNextMessage and 
+ *                                                    Split receiveNextMessage into
+ *                                                    receiveNextMessage and
  *                                                    receiveNextExpectedMessage
  *                                                    to check, if still messages
  *                                                    arrive.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace byte array token by Token
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for TimeAssume
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -83,6 +84,8 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.assume.TimeAssume;
+import org.junit.AssumptionViolatedException;
 
 public class LockstepEndpoint {
 
@@ -792,6 +795,27 @@ public class LockstepEndpoint {
 			go(msg);
 		}
 
+		@Override
+		public void go(TimeAssume assume) throws Exception {
+			try {
+				go();
+			} catch (AssumptionViolatedException ex) {
+				throw ex;
+			} catch (Error ex) {
+				if (assume.inTime()) {
+					throw ex;
+				} else {
+					throw new AssumptionViolatedException("assumed time expired!", ex);
+				}
+			} catch (Exception ex) {
+				if (assume.inTime()) {
+					throw ex;
+				} else {
+					throw new AssumptionViolatedException("assumed time expired!", ex);
+				}
+			}
+		}
+
 		public String toString() {
 			StringBuilder result = new StringBuilder("{");
 			for (Expectation<Message> expectation : expectations) {
@@ -1315,6 +1339,27 @@ public class LockstepEndpoint {
 				}
 			}
 		}
+
+		@Override
+		public void go(TimeAssume assume) throws Exception {
+			try {
+				go();
+			} catch (AssumptionViolatedException ex) {
+				throw ex;
+			} catch (Error ex) {
+				if (assume.inTime()) {
+					throw ex;
+				} else {
+					throw new AssumptionViolatedException("assumed time expired!", ex);
+				}
+			} catch (Exception ex) {
+				if (assume.inTime()) {
+					throw ex;
+				} else {
+					throw new AssumptionViolatedException("assumed time expired!", ex);
+				}
+			}
+		}
 	}
 
 	public static interface Expectation<T> {
@@ -1480,6 +1525,11 @@ public class LockstepEndpoint {
 			RawData raw = serializer.serializeEmptyMessage(message, null);
 			send(raw);
 		}
+
+		@Override
+		public void go(TimeAssume assume) throws Exception {
+			go();
+		}
 	}
 
 	public class RequestProperty extends MessageProperty {
@@ -1583,6 +1633,11 @@ public class LockstepEndpoint {
 			request.setDestinationContext(context);
 			RawData raw = serializer.serializeRequest(request);
 			send(raw);
+		}
+
+		@Override
+		public void go(TimeAssume assume) throws Exception {
+			go();
 		}
 	}
 
@@ -1715,6 +1770,11 @@ public class LockstepEndpoint {
 			RawData raw = serializer.serializeResponse(response, null);
 			send(raw);
 		}
+
+		@Override
+		public void go(TimeAssume assume) throws Exception {
+			go();
+		}
 	}
 
 	public static interface Action {
@@ -1726,6 +1786,8 @@ public class LockstepEndpoint {
 		 * before changing this.
 		 */
 		public void go() throws Exception;
+
+		public void go(TimeAssume assume) throws Exception;
 	}
 
 	public static interface MidExpectation {

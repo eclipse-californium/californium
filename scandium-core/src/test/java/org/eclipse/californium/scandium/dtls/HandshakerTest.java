@@ -23,6 +23,7 @@
  *                                                    APPLICATION messages
  *    Bosch Software Innovations GmbH - move PRF tests to PseudoRandomFunctionTest
  *    Ludwig Seitz (RISE SICS) - Moved verifyCertificate() tests here from CertificateMessage
+ *    Achim Kraus (Bosch Software Innovations GmbH) - report expired certificates
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -36,6 +37,8 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -44,6 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
@@ -73,6 +78,24 @@ public class HandshakerTest {
 	PublicKey serverPublicKey;
 	TrustedRpkStore rpkStore;
 
+	/**
+	 * Report failure during handshake and certification validation. Fail
+	 * explicitly on expired certificates.
+	 * 
+	 * @param e exception to fail with
+	 */
+	public static void failedHandshake(Exception e) {
+		Throwable cause = e.getCause();
+		if (cause instanceof CertPathValidatorException) {
+			cause = cause.getCause();
+		}
+		if (cause instanceof CertificateExpiredException) {
+			fail("Please renew certificates in demo-certs! " + cause.getMessage());
+		}
+		e.printStackTrace();
+		fail(e.toString());
+	}
+
 	@Before
 	public void setUp() throws Exception {
 		for (int i = 0; i < receivedMessages.length; i++) {
@@ -81,6 +104,7 @@ public class HandshakerTest {
 
 		session = new DTLSSession(endpoint, false);
 		session.setReceiveRawPublicKey(false);
+		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
 		certificateMessage = createCertificateMessage(1);
@@ -88,8 +112,12 @@ public class HandshakerTest {
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		rpkStore = new InMemoryRpkTrustStore(Collections.singleton(new RawPublicKeyIdentity(serverPublicKey)));
-		handshaker = new Handshaker(false, session, recordLayer, null, new StaticCertificateVerifier(null), 1500,
-				rpkStore) {
+		DtlsConnectorConfig.Builder builder = new Builder();
+		builder.setClientOnly();
+		builder.setCertificateVerifier(new StaticCertificateVerifier(null));
+		builder.setRpkTrustStore(rpkStore);
+		
+		handshaker = new Handshaker(false, session, recordLayer, null, builder.build(), 1500) {
 
 			@Override
 			public void startHandshake() {
@@ -103,9 +131,14 @@ public class HandshakerTest {
 				}
 			}
 		};
-		
+
+		builder = new Builder();
+		builder.setClientOnly();
+		builder.setCertificateVerifier(new StaticCertificateVerifier(trustAnchor));
+		builder.setRpkTrustStore(rpkStore);
+
 		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null,
-				new StaticCertificateVerifier(trustAnchor), 1500, rpkStore) {
+				 builder.build(), 1500) {
 
 			@Override
 			public void startHandshake() {
@@ -123,9 +156,12 @@ public class HandshakerTest {
 
 	@Test
 	public void testProcessMessageBuffersUnexpectedChangeCipherSpecMessage() throws Exception {
+		DtlsConnectorConfig.Builder builder = new Builder();
+		builder.setClientOnly();
+		builder.setRpkTrustStore(rpkStore);
 
 		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
-		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, rpkStore);
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, builder.build());
 
 		// WHEN the peer sends its ChangeCipherSpec message
 		InetSocketAddress senderAddress = new InetSocketAddress(5000);
@@ -148,9 +184,12 @@ public class HandshakerTest {
 	public void testProcessMessageBuffersFinishedMessageUntilChangeCipherSpecIsReceived() throws Exception {
 
 		final InetSocketAddress senderAddress = new InetSocketAddress(5000);
+		DtlsConnectorConfig.Builder builder = new Builder();
+		builder.setClientOnly();
+		builder.setRpkTrustStore(rpkStore);
 
 		// GIVEN a handshaker expecting the peer's ChangeCipherSpec message
-		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, rpkStore);
+		ChangeCipherSpecTestHandshaker handshaker = new ChangeCipherSpecTestHandshaker(session, recordLayer, builder.build());
 		handshaker.expectChangeCipherSpecMessage();
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
@@ -310,7 +349,7 @@ public class HandshakerTest {
 			handshakerWithAnchors.verifyCertificate(message);
 			// all is well
 		} catch (HandshakeException e) {
-			fail("Verification of certificate should have succeeded");
+			failedHandshake(e);
 		}
 	}
 
@@ -358,8 +397,8 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		ChangeCipherSpecTestHandshaker(final DTLSSession session, final RecordLayer recordLayer,
-				TrustedRpkStore rpkStore) {
-			super(false, session, recordLayer, null, null, 1500, rpkStore);
+				DtlsConnectorConfig config) {
+			super(false, session, recordLayer, null, config, 1500);
 		}
 
 		@Override

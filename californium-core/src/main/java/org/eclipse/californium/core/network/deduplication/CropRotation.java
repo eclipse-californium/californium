@@ -19,21 +19,21 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - make first and second
  *                                                    volatile
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
+ *                                                    instead of own executor.
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This deduplicator is probably inferior to the {@link SweepDeduplicator}. This
@@ -48,8 +48,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 public class CropRotation implements Deduplicator {
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(CropRotation.class.getCanonicalName());
-	private boolean running = false;
-	private ScheduledExecutorService executor;
+	private volatile ScheduledFuture<?> jobStatus;
 
 	private final ExchangeMap maps[];
 	private volatile int first;
@@ -76,27 +75,23 @@ public class CropRotation implements Deduplicator {
 		maps[2] = new ExchangeMap();
 		first = 0;
 		second = 1;
-		period = config.getInt(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
+		period = config.getLong(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
 	}
 
 	@Override
 	public synchronized void start() {
-		if (!running) {
-			if (executor == null || executor.isShutdown()) {
-				executor = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("Deduplicator"));
-			}
-			rotation.schedule();
-			running = true;
+		if (jobStatus == null) {
+			jobStatus = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(rotation, period, period,
+					TimeUnit.MILLISECONDS);
 		}
 	}
 
 	@Override
 	public synchronized void stop() {
-		if (running) {
-			rotation.cancel();
-			executor.shutdown();
+		if (jobStatus != null) {
+			jobStatus.cancel(false);
+			jobStatus = null;
 			clear();
-			running = false;
 		}
 	}
 
@@ -150,19 +145,11 @@ public class CropRotation implements Deduplicator {
 
 	private class Rotation implements Runnable {
 
-		private ScheduledFuture<?> future;
-
 		public void run() {
 			try {
 				rotation();
 			} catch (Throwable t) {
 				LOGGER.warn("Exception in Crop-Rotation algorithm", t);
-			} finally {
-				try {
-					schedule();
-				} catch (Throwable t) {
-					LOGGER.warn("Exception while scheduling Crop-Rotation algorithm", t);
-				}
 			}
 		}
 
@@ -172,19 +159,6 @@ public class CropRotation implements Deduplicator {
 				first = second;
 				second = (second + 1) % 3;
 				maps[third].clear();
-			}
-		}
-
-		private void schedule() {
-			if (!executor.isShutdown()) {
-				LOGGER.debug("CR schedules in {} ms", period);
-				future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
-			}
-		}
-
-		private void cancel() {
-			if (future != null) {
-				future.cancel(true);
 			}
 		}
 	}

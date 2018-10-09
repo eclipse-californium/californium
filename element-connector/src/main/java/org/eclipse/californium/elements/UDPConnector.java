@@ -29,13 +29,17 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - reduce logging on shutdown
  *    Achim Kraus (Bosch Software Innovations GmbH) - use UdpEndpointContext to prevent
  *                                                    matching with a DtlsEndpointContext
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix rare NullPointerException
+ *                                                    on stop()
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -73,6 +77,7 @@ public class UDPConnector implements Connector {
 	private DatagramSocket socket;
 
 	private final InetSocketAddress localAddr;
+	private volatile InetSocketAddress effectiveAddr;
 
 	private List<Thread> receiverThreads;
 	private List<Thread> senderThreads;
@@ -123,7 +128,7 @@ public class UDPConnector implements Connector {
 			this.localAddr = address;
 		}
 		this.running = false;
-
+		this.effectiveAddr = localAddr;
 		// TODO: think about restricting the outbound queue's capacity
 		this.outgoing = new LinkedBlockingQueue<RawData>();
 	}
@@ -137,8 +142,7 @@ public class UDPConnector implements Connector {
 
 		// if localAddr is null or port is 0, the system decides
 		socket = new DatagramSocket(localAddr.getPort(), localAddr.getAddress());
-		// running only, if the socket could be opened
-		running = true;
+		effectiveAddr = (InetSocketAddress) socket.getLocalSocketAddress();
 
 		if (receiveBufferSize != UNDEFINED) {
 			socket.setReceiveBufferSize(receiveBufferSize);
@@ -150,9 +154,11 @@ public class UDPConnector implements Connector {
 		}
 		sendBufferSize = socket.getSendBufferSize();
 
+		// running only, if the socket could be opened
+		running = true;
+
 		// start receiver and sender threads
-		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads",
-				new Object[] { senderCount, receiverCount });
+		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads", senderCount, receiverCount);
 
 		receiverThreads = new LinkedList<Thread>();
 		for (int i = 0; i < receiverCount; i++) {
@@ -178,44 +184,44 @@ public class UDPConnector implements Connector {
 		 * 1.7.0_09, Windows 7.
 		 */
 
-		if (LOGGER.isInfoEnabled()) {
-			String startupMsg = new StringBuilder("UDPConnector listening on ").append(socket.getLocalSocketAddress())
-					.append(", recv buf = ").append(receiveBufferSize).append(", send buf = ").append(sendBufferSize)
-					.append(", recv packet size = ").append(receiverPacketSize).toString();
-			LOGGER.info(startupMsg);
-		}
+		LOGGER.info("UDPConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}", effectiveAddr,
+				receiveBufferSize, sendBufferSize, receiverPacketSize);
 	}
 
 	@Override
-	public synchronized void stop() {
-		if (!running) {
-			return;
-		}
-		running = false;
-		// stop all threads
-		if (senderThreads != null) {
-			for (Thread t : senderThreads) {
-				t.interrupt();
+	public void stop() {
+		// move onError callback out of synchronized block
+		List<RawData> pending = new ArrayList<>(outgoing.size());
+		synchronized (this) {
+			if (!running) {
+				return;
 			}
-			senderThreads.clear();
-			senderThreads = null;
-		}
-		if (receiverThreads != null) {
-			for (Thread t : receiverThreads) {
-				t.interrupt();
+			running = false;
+			// stop all threads
+			if (senderThreads != null) {
+				for (Thread t : senderThreads) {
+					t.interrupt();
+				}
+				senderThreads.clear();
+				senderThreads = null;
 			}
-			receiverThreads.clear();
-			receiverThreads = null;
+			if (receiverThreads != null) {
+				for (Thread t : receiverThreads) {
+					t.interrupt();
+				}
+				receiverThreads.clear();
+				receiverThreads = null;
+			}
+			outgoing.drainTo(pending);
+			if (socket != null) {
+				socket.close();
+				socket = null;
+			}
+			LOGGER.info("UDPConnector on [{}] has stopped.", effectiveAddr);
 		}
-		outgoing.clear();
-
-		String address = localAddr.toString();
-		if (socket != null) {
-			address = socket.getLocalSocketAddress().toString();
-			socket.close();
-			socket = null;
+		for (RawData data : pending) {
+			notifyMsgAsInterrupted(data);
 		}
-		LOGGER.info("UDPConnector on [{}] has stopped.", address);
 	}
 
 	@Override
@@ -227,8 +233,17 @@ public class UDPConnector implements Connector {
 	public void send(RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
-		} else {
-			outgoing.add(msg);
+		}
+		// move onError callback out of synchronized block
+		boolean running;
+		synchronized (this) {
+			running = this.running;
+			if (running) {
+				outgoing.add(msg);
+			}
+		}
+		if (!running) {
+			notifyMsgAsInterrupted(msg);
 		}
 	}
 
@@ -243,10 +258,15 @@ public class UDPConnector implements Connector {
 	}
 
 	public InetSocketAddress getAddress() {
-		if (socket == null)
-			return localAddr;
-		else
-			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		return effectiveAddr;
+	}
+
+	private void notifyMsgAsInterrupted(RawData msg) {
+		msg.onError(new InterruptedIOException("Connector is not running."));
+	}
+
+	private synchronized DatagramSocket getSocket() {
+		return socket;
 	}
 
 	private abstract class NetworkStageThread extends Thread {
@@ -303,18 +323,15 @@ public class UDPConnector implements Connector {
 
 		protected void work() throws IOException {
 			datagram.setLength(size);
-			DatagramSocket currentSocket;
-			synchronized (this) {
-				currentSocket = UDPConnector.this.socket;
-			}
+			DatagramSocket currentSocket = getSocket();
 			if (currentSocket != null) {
 				currentSocket.receive(datagram);
-				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", currentSocket.getLocalSocketAddress(),
-						datagram.getLength(), datagram.getAddress(), datagram.getPort());
+				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", effectiveAddr, datagram.getLength(),
+						datagram.getAddress(), datagram.getPort());
 				byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 				RawData msg = RawData.inbound(bytes,
-						new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())), false);
-
+						new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
+						false);
 				receiver.receiveData(msg);
 			}
 		}
@@ -341,22 +358,19 @@ public class UDPConnector implements Connector {
 			EndpointContext connectionContext = new UdpEndpointContext(destinationAddress);
 			EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
 			if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, connectionContext)) {
-				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", socket.getLocalSocketAddress(),
-						datagram.getLength(), destinationAddress.getAddress(), destinationAddress.getPort());
+				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", effectiveAddr, datagram.getLength(),
+						destinationAddress.getAddress(), destinationAddress.getPort());
 				raw.onError(new EndpointMismatchException());
 				return;
 			}
 			datagram.setData(raw.getBytes());
 			datagram.setSocketAddress(destinationAddress);
 
-			DatagramSocket socket;
-			synchronized (this) {
-				socket = UDPConnector.this.socket;
-			}
-			if (socket != null) {
+			DatagramSocket currentSocket = getSocket();
+			if (currentSocket != null) {
 				try {
 					raw.onContextEstablished(connectionContext);
-					socket.send(datagram);
+					currentSocket.send(datagram);
 					raw.onSent();
 				} catch (IOException ex) {
 					raw.onError(ex);

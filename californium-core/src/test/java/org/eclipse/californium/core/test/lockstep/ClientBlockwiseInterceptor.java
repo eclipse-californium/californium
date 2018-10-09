@@ -23,46 +23,69 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.elements.util.IntendedTestException;
 
 /**
- * A message interceptor for tracing messages from the viewpoint of a CoAP client.
+ * A message interceptor for tracing messages from the viewpoint of a CoAP
+ * client.
  *
  */
 public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor implements MessageInterceptor {
 
 	@Override
 	public synchronized void sendRequest(final Request request) {
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendRequestDetails(request);
-		buffer.append("    ----->");
+		if (errorInjector != null) {
+			buffer.append("    (should be dropped by error)");
+			request.addMessageObserver(new LoggingMessageObserver(errorInjector, request) {
+
+				@Override
+				public void log(IntendedTestException exception) {
+					logNewLine();
+					appendRequestDetails(request);
+					if (exception == null) {
+						buffer.append("    -----> (sent!)");
+					}
+					else {
+						buffer.append("    -----> (dropped)");
+					}
+				};
+			});
+		}
+		else {
+			buffer.append("    ----->");
+		}
 	}
 
 	@Override
 	public synchronized void sendResponse(final Response response) {
-		buffer.append("ERROR: Server received ").append(response).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server received ").append(response);
 	}
 
 	@Override
 	public synchronized void sendEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendEmptyMessageDetails(message);
 		buffer.append("   ----->");
 	}
 
 	@Override
 	public synchronized void receiveRequest(final Request request) {
-		buffer.append(System.lineSeparator()).append("ERROR: Server sent ").append(request).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server sent ").append(request);
 	}
 
 	@Override
 	public synchronized void receiveResponse(Response response) {
-		buffer.append(System.lineSeparator()).append("<-----   ");
+		logNewLine("<-----   ");
 		appendResponseDetails(response);
 	}
 
 	@Override
 	public synchronized void receiveEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator()).append("<-----   ");
+		logNewLine("<-----   ");
 		appendEmptyMessageDetails(message);
 	}
 }

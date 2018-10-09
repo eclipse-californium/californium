@@ -20,6 +20,10 @@
  *                                                    DatagramSocket to use the erroneous
  *                                                    internal "old implementation mode".
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup logging.
+ *                                                    add port to exception message.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add message buffer to write
+ *                                                    logging only on failure.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -36,11 +40,15 @@ import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.eclipse.californium.elements.runner.BufferedLoggingTestRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,15 +60,18 @@ import org.slf4j.LoggerFactory;
  * port in range {@link #AUTO_PORT_RANGE_MIN} to {@link #AUTO_PORT_RANGE_MAX}.
  * The full range is used before any free port is reused.
  * 
- * To log all exchanged message, use level FINE. If sending and receiving should
- * be distinguished, use level FINER. For the test executed with maven, this is
- * usually configured using the logging properties
- * ("src/test/resources/Californium-logging.properties").
+ * To log all exchanged message, use level DEBUG. If sending and receiving
+ * should be distinguished, use level TRACE. If the messages should only be
+ * written on failure, use INFO and the {@link BufferedLoggingTestRunner}. For
+ * the test executed with maven, this is usually configured using the logging
+ * properties ("module-directory/logback-test.xml").
  * 
- * Note: If not executed with maven, ensure, that the used "logging.properties"
- * are also matching your requirements, either by editing the global file
- * "JRE/lib/logging.properties" or by providing the property
- * "java.util.logging.config.file".
+ * Note: If not executed with maven, ensure, that the used "logback.xml" are
+ * also matching your requirements, either by editing the global file
+ * "JRE/lib/logback.xml" or by providing the property
+ * "logback.configurationFile" with the filename of the logback configuration
+ * file, usually "-Dlogback.configurationFile=logback-test.xml" should work for
+ * the most californium modules.
  * 
  * Currently neither multicast nor specific/multi network interfaces are
  * supported.
@@ -92,6 +103,15 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Map of sockets.
 	 */
 	private static final ConcurrentMap<Integer, DirectDatagramSocketImpl> map = new ConcurrentHashMap<Integer, DirectDatagramSocketImpl>();
+
+	/**
+	 * List of buffered logging messages.
+	 */
+	private static final ConcurrentLinkedQueue<String> logBuffer = new ConcurrentLinkedQueue<String>();
+	/**
+	 * Enable buffered logging.
+	 */
+	private static final AtomicBoolean enableLoggingBuffer = new AtomicBoolean();
 
 	/**
 	 * Initialization indicator.
@@ -139,7 +159,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void bind(int lport, InetAddress laddr) throws SocketException {
-		LOGGER.debug("binding to port {}, address {}", new Object[] { lport, laddr });
+		LOGGER.debug("binding to port {}, address {}", lport, laddr);
 		int port = bind(lport);
 		synchronized (this) {
 			this.localPort = port;
@@ -159,10 +179,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			addr = this.localAddress;
 			this.closed = true;
 		}
-		LOGGER.debug("closing port {}, address {}", new Object[] { port, addr });
+		LOGGER.debug("closing port {}, address {}", port, addr);
 		if (!isClosed) {
 			if (!map.remove(port, this)) {
-				LOGGER.info("cannot close unknown port {}, address {}", new Object[] { port, addr });
+				LOGGER.info("cannot close unknown port {}, address {}", port, addr);
 			}
 		}
 	}
@@ -182,7 +202,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (0 < timeout) {
 				exchange = incomingQueue.poll(timeout, TimeUnit.MILLISECONDS);
 				if (null == exchange) {
-					throw new SocketTimeoutException("no data available");
+					throw new SocketTimeoutException("no data available for port " + port);
 				}
 			} else {
 				exchange = incomingQueue.take();
@@ -205,22 +225,26 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug("socket already closed {}", exchange.format(currentSetup));
 			}
-			throw new SocketException("Socket " + addr + ":" + port + " closed!");
+			throw new SocketException("Socket " + addr + ":" + port + " already closed!");
+		} else if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("incoming {}", exchange.format(currentSetup));
 		} else if (LOGGER.isDebugEnabled()) {
-			LOGGER.debug("incoming {}", exchange.format(currentSetup));
+			LOGGER.debug(">> {}", exchange.format(currentSetup));
+		} else if (LOGGER.isInfoEnabled() && enableLoggingBuffer.get()) {
+			logBuffer.offer(exchange.format(currentSetup));
 		}
 		int receivedLength = exchange.data.length;
 		int destPacketLength = destPacket.getLength();
 		byte[] destPacketData = destPacket.getData();
 		if (destPacketLength < receivedLength) {
 			if (destPacketData.length > destPacketLength) {
-				LOGGER.debug("increasing receive buffer from {} to full buffer capacity [{}]",
-						new Object[] { destPacketLength, destPacketData.length });
+				LOGGER.debug("increasing receive buffer from {} to full buffer capacity [{}]", destPacketLength,
+						destPacketData.length);
 				destPacketLength = destPacketData.length;
 			}
 			if (destPacketLength < receivedLength) {
-				LOGGER.debug("truncating data [length: {}] to fit into receive buffer [size: {}]",
-						new Object[] { receivedLength, destPacketLength });
+				LOGGER.debug("truncating data [length: {}] to fit into receive buffer [size: {}]", receivedLength,
+						destPacketLength);
 				receivedLength = destPacketLength;
 			}
 		}
@@ -248,11 +272,11 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		final DatagramExchange exchange = new DatagramExchange(local, port, packet);
 		final DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
 		if (null == destination) {
+			String message = String.format("destination port %s not available!", exchange.destinationPort);
 			if (LOGGER.isErrorEnabled()) {
-				LOGGER.error("destination (port {}) not available! {}",
-						new Object[] { exchange.destinationPort, exchange.format(currentSetup) });
+				LOGGER.error("{} {}", message, exchange.format(currentSetup));
 			}
-			throw new PortUnreachableException("destination not available");
+			throw new PortUnreachableException(message);
 		} else if (isClosed) {
 			if (LOGGER.isWarnEnabled()) {
 				LOGGER.warn("closed/packet dropped! {}", exchange.format(currentSetup));
@@ -263,8 +287,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 				LOGGER.error("packet dropped! {}", exchange.format(currentSetup));
 			}
 			throw new PortUnreachableException("buffer exhausted");
-		} else if (LOGGER.isDebugEnabled()) {
-			LOGGER.debug("outgoing {}", exchange.format(currentSetup));
+		} else if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("outgoing {}", exchange.format(currentSetup));
 		}
 	}
 
@@ -353,8 +377,8 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			if (!sourceAddress.equals(destinationAddress)) {
 				destination = destinationAddress.getHostAddress();
 			}
-			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", new Object[] { id, tid,
-					sourceAddress.getHostAddress(), sourcePort, delay, destination, destinationPort, content });
+			return java.text.MessageFormat.format("(E{0},T{1}) {2}:{3} ={4}=> {5}:{6} [{7}]", id, tid,
+					sourceAddress.getHostAddress(), sourcePort, delay, destination, destinationPort, content);
 		}
 	}
 
@@ -475,6 +499,28 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 */
 	public static void clearAll() {
 		map.clear();
+	}
+
+	/**
+	 * Clear all messages in the logging buffer. Enables buffered logging.
+	 */
+	public static void clearBufferLogging() {
+		enableLoggingBuffer.set(true);
+		logBuffer.clear();
+	}
+
+	/**
+	 * Flush all messages in the logging buffer. Disables buffered logging
+	 * afterwards.
+	 */
+	public static void flushBufferLogging() {
+		enableLoggingBuffer.set(false);
+		int counter = 0;
+		String message;
+		while ((message = logBuffer.poll()) != null) {
+			++counter;
+			LOGGER.info(String.format("--%02d--> %s", counter, message));
+		}
 	}
 
 	private static class Setup {

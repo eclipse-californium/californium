@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
+ *                                                    ensure, that the session listener methods
+ *                                                    are called via the handshaker.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -59,7 +62,7 @@ public class InMemoryConnectionStoreTest {
 	public void testFindRetrievesLocalConnection() {
 		// given a connection store containing a connection with a peer
 		store.put(con);
-
+		store.putEstablishedSession(con.getEstablishedSession(), con);
 		// when retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
 		assertThat(connectionWithPeer, is(con));
@@ -92,6 +95,7 @@ public class InMemoryConnectionStoreTest {
 		sessionCache.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
 		store.put(con);
+		store.putEstablishedSession(con.getEstablishedSession(), con);
 
 		// WHEN the session is removed from the cache (e.g. because it became stale)
 		sessionCache.remove(con.getEstablishedSession().getSessionIdentifier());
@@ -100,21 +104,6 @@ public class InMemoryConnectionStoreTest {
 		Connection connectionToResume = store.find(sessionId);
 		assertThat(connectionToResume, is(nullValue()));
 		assertThat(store.get(con.getPeerAddress()), is(nullValue()));
-	}
-
-	@Test
-	public void testSessionEstablishedPutsSessionToSessionCache() throws Exception {
-		// GIVEN a connection store with an empty session cache
-		SessionCache sessionCache = new InMemorySessionCache();
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
-
-		// WHEN a session is established as part of a successful handshake
-		store.sessionEstablished(null, con.getEstablishedSession());
-
-		// THEN assert that the established session has been put to the session cache
-		SessionTicket ticketFromCache = sessionCache.get(sessionId);
-		assertThat(ticketFromCache, is(notNullValue()));
-		assertThat(ticketFromCache.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
 	@Test
@@ -136,7 +125,7 @@ public class InMemoryConnectionStoreTest {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
 		Connection con = new Connection(peerAddress, null);
-		con.sessionEstablished(null, newSession(peerAddress));
+		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
 

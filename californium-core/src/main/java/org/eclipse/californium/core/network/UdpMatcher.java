@@ -48,6 +48,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - change ExchangeObserver
  *                                                    to RemoveHandler
  *                                                    remove "is last", not longer meaningful
+ *    Achim Kraus (Bosch Software Innovations GmbH) - assign mid before register observation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove exchange on ACK/RST only after
+ *                                                    context matching
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -112,7 +115,13 @@ public final class UdpMatcher extends BaseMatcher {
 		// for observe request.
 		Request request = exchange.getCurrentRequest();
 		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
-			registerObserve(request);
+			if (exchangeStore.assignMessageId(request) != Message.NONE) {
+				registerObserve(request);
+			} else {
+				LOGGER.warn("message IDs exhausted, could not register outbound observe request for tracking");
+				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
+				return;
+			}
 		}
 
 		try {
@@ -255,7 +264,7 @@ public final class UdpMatcher extends BaseMatcher {
 		EndpointContext context = exchange.getEndpointContext();
 		Request currentRequest = exchange.getCurrentRequest();
 		int requestMid = currentRequest.getMID();
-		if (context == null || requestMid == Message.NONE) {
+		if (context == null) {
 			LOGGER.debug("ignoring response {}, request pending to sent!", response);
 			return null;
 		}
@@ -319,7 +328,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
 		KeyMID idByMID = KeyMID.fromInboundMessage(message);
-		Exchange exchange = exchangeStore.remove(idByMID, null);
+		Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
@@ -328,6 +337,7 @@ public final class UdpMatcher extends BaseMatcher {
 		try {
 			if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 					message.getSourceContext())) {
+				exchangeStore.remove(idByMID, exchange);
 				LOGGER.debug("received expected reply for message {}", idByMID);
 				return exchange;
 			} else {

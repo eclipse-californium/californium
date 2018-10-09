@@ -38,7 +38,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move correlation tests to
  *                                                    DTLSCorrelationTest.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add tests for automatic resumption
- *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite   
+ *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove HELLO_VERIFY_REQUEST
+ *                                                    from resumption tests
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -60,6 +62,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,6 +78,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -118,10 +123,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -130,13 +136,16 @@ import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorServic
  */
 @Category(Medium.class)
 public class DTLSConnectorTest {
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class.getName());
+	
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
+
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
-	private static final int DTLS_UDP_IP_HEADER_LENGTH = 53;
-	private static final int IPV6_MIN_MTU = 1280;
 	private static final String CLIENT_IDENTITY = "Client_identity";
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -148,7 +157,7 @@ public class DTLSConnectorTest {
 	private static InMemorySessionCache serverSessionCache;
 	private static SimpleRawDataChannel serverRawDataChannel;
 	private static RawDataProcessor serverRawDataProcessor;
-	private static StripedExecutorService stripedExecutor;
+	private static ExecutorService executor;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -162,7 +171,7 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
-		stripedExecutor = new StripedExecutorService(Runtime.getRuntime().availableProcessors());
+		executor = Executors.newFixedThreadPool(2);
 		// load the key store
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -198,11 +207,12 @@ public class DTLSConnectorTest {
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
+			.setReceiverThreadCount(1)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		server.setRawDataReceiver(serverRawDataChannel);
-		server.setExecutor(stripedExecutor);
+		server.setExecutor(executor);
 		server.start();
 		serverEndpoint = server.getAddress();
 		assertTrue(server.isRunning());
@@ -210,7 +220,7 @@ public class DTLSConnectorTest {
 
 	@AfterClass
 	public static void tearDown() {
-		stripedExecutor.shutdownNow();
+		executor.shutdownNow();
 		server.destroy();
 	}
 
@@ -218,11 +228,12 @@ public class DTLSConnectorTest {
 	public void setUp() throws Exception {
 		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore.setTag("client");
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		client.setExecutor(stripedExecutor);
+		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -232,12 +243,13 @@ public class DTLSConnectorTest {
 		serverSessionCache.establishedSessionCounter.set(0);
 		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore.setTag("client");
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
 		clientConfig = clientConfigBuilder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		client.setExecutor(stripedExecutor);
+		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
@@ -259,6 +271,8 @@ public class DTLSConnectorTest {
 	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
 				.setTrustStore(DtlsTestTools.getTrustedCertificates());
 	}
@@ -348,7 +362,7 @@ public class DTLSConnectorTest {
 	public void testRetransmission() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 
 		try {
 			rawClient.start();
@@ -417,7 +431,7 @@ public class DTLSConnectorTest {
 	public void testNoRetransmissionIfMessageReceived() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 
 		// Add latency to PSK store
 		pskStoreLatency = 1000;
@@ -504,7 +518,7 @@ public class DTLSConnectorTest {
 				latch.countDown();
 			}
 		};
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 		rawClient.start();
 
 		rawClient.sendRecord(serverEndpoint,
@@ -591,7 +605,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 		try {
 			rawClient.start();
 			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(),rawClient.socket.getLocalPort());
@@ -669,10 +683,10 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
-	public void testReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+	public void testServerReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		try {
 
 			// Start connector
@@ -720,6 +734,246 @@ public class DTLSConnectorTest {
 		}
 	}
 
+	@Test
+	public void testClientReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+			InetSocketAddress rawServerEndpoint = new InetSocketAddress("localhost", rawServer.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Start the client
+			CountDownLatch latch = new CountDownLatch(1);
+			clientRawDataChannel.setLatch(latch);
+			client.setRawDataReceiver(clientRawDataChannel);
+			client.start();
+			clientEndpoint = client.getAddress();
+			RawData data = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(rawServerEndpoint), null, false);
+			client.send(data);
+
+			// Create server handshaker
+			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(clientEndpoint, false, 1),
+					new ReverseRecordLayer(rawServer), sessionListener, serverConfig, 1280);
+
+			// Wait to receive response (should be CLIENT HELLO, flight 3)
+			List<Record> rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE, flight 4)
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Wait for receive response (CERTIFICATE, ... , FINISHED, flight 5)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			// Handle and answer (should be CCS, FINISHED, flight 6)
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawServer.stop();
+		}
+	}
+
+	@Test
+	public void testServerResumeReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
+		ReverseRecordLayer clientRecordLayer = new ReverseRecordLayer(rawClient);
+		DTLSSession clientSession = new DTLSSession(serverEndpoint, true);
+		try {
+
+			// Start connector
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Create handshaker
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
+					clientConfig, 1280);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			// Handle and answer (CLIENT HELLO with cookie)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			// Handle and answer (CERTIFICATE, CHANGE CIPHER SPEC, ...,
+			// FINISHED)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Wait to receive response from server (should be CHANGE CIPHER
+			// SPEC, FINISHED)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			// Handle (CHANGE CIPHER SPEC, FINISHED)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// Create resume handshaker
+			sessionListener = new LatchSessionListener();
+			DTLSSession resumableSession = new DTLSSession(clientSession.getSessionIdentifier(), serverEndpoint,
+					clientSession.getSessionTicket(), 0);
+			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
+					clientRecordLayer, sessionListener, clientConfig, 1280);
+
+
+			// Start resuming handshake (Send CLIENT HELLO, additional flight)
+			resumingClientHandshaker.startHandshake();
+
+			// Wait to receive response (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, flight 2)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			assertEquals(3, rs.size());
+
+			// create server session listener to ensure, that server finish also the handshake
+			Connection con = serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker handshaker = con.getOngoingHandshake();
+			assertNotNull(handshaker);
+			LatchSessionListener serverSessionListener = new LatchSessionListener();
+			handshaker.addSessionListener(serverSessionListener);
+
+			// Handle and answer ( CHANGE CIPHER SPEC, FINISHED, flight 3)
+			for (Record r : rs) {
+				resumingClientHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("client handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	@Test
+	public void testClientResumeReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
+		ReverseRecordLayer serverRecordLayer = new ReverseRecordLayer(rawServer);
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+
+			InetSocketAddress rawServerEndpoint = new InetSocketAddress("localhost", rawServer.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Start the client
+			client.setRawDataReceiver(clientRawDataChannel);
+			client.start();
+			clientEndpoint = client.getAddress();
+			RawData data = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(rawServerEndpoint), null, false);
+			client.send(data);
+
+			// Create server handshaker
+			DTLSSession serverSession = new DTLSSession(clientEndpoint, false, 1);
+			ServerHandshaker serverHandshaker = new ServerHandshaker(serverSession, serverRecordLayer, sessionListener,
+					serverConfig, 1280);
+
+			// 1. handshake
+			// Wait to receive response (should be CLIENT HELLO)
+			List<Record> rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs); // check there is no timeout
+			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Wait to receive response (CERTIFICATE, ... , FINISHED)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// application data
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			assertEquals(1, rs.size());
+
+			sessionListener = new LatchSessionListener();
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), clientEndpoint,
+					serverSession.getSessionTicket(), 0);
+			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
+					serverRecordLayer, sessionListener, serverConfig, 1280);
+
+			// force resuming handshake
+			client.forceResumeSessionFor(rawServerEndpoint);
+			data = RawData.outbound("Hello Again".getBytes(), new AddressEndpointContext(rawServerEndpoint), null, false);
+			client.send(data);
+
+			// Wait to receive response (should be CLIENT HELLO, flight 1)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			assertEquals(1, rs.size());
+			// Handle and answer (should be SERVER HELLO, CCS, FINISHED, flight 2).
+			// Note: additional flight used by scandium
+			for (Record r : rs) {
+				resumingServerHandshaker.processMessage(r);
+			}
+
+			// Wait to receive response (CCS, client FINISHED, flight 3) + (application data)
+			List<Record> drops = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", drops);
+			assertEquals(3, drops.size());
+			// remove application data, not retransmitted!
+			drops.remove(2); 
+			
+			// drop last flight 3, server resends flight 2
+			serverRecordLayer.resendLastFlight();
+
+			// Wait to receive response (CCS, client FINISHED, flight 3)
+			// ("application data" doesn't belong to flight)
+			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertNotNull("timeout", rs);
+			assertEquals(2, rs.size());
+			assertFlightRecordsRetransmitted(drops, rs);
+			for (Record r : rs) {
+				resumingServerHandshaker.processMessage(r);
+			}
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		} finally {
+			rawServer.stop();
+		}
+	}
+	
+	
 	/**
 	 * Test retransmission of last flight.
 	 * 
@@ -735,7 +989,7 @@ public class DTLSConnectorTest {
 	public void testServerFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
 		try {
 
@@ -804,7 +1058,7 @@ public class DTLSConnectorTest {
 	public void testResumeClientFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector, serverConfig);
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
 		SimpleRecordLayer serverRecordLayer = new SimpleRecordLayer(rawServer);
 
 		try {
@@ -911,7 +1165,7 @@ public class DTLSConnectorTest {
 	public void testFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector, serverConfig);
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
 
 		try {
 			// Start connector (Server)
@@ -976,7 +1230,7 @@ public class DTLSConnectorTest {
 	public void testResumeFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
 		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
 		DTLSSession clientSession = new DTLSSession(serverEndpoint, true);
 		try {
@@ -1032,15 +1286,6 @@ public class DTLSConnectorTest {
 
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
 			resumingClientHandshaker.startHandshake();
-
-			// Wait to receive response (should be HELLO_VERIFY_REQUEST, additional flight)
-			rs = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
-			assertNotNull("timeout", rs); // check there is no timeout
-			assertEquals(1, rs.size());
-			// Handle and answer ( CLIENT HELLO, flight 1)
-			for (Record r : rs) {
-				resumingClientHandshaker.processMessage(r);
-			}
 
 			// Wait to receive response (should be SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
 			List<Record> drops = collector.waitForFlight(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -1420,7 +1665,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(endpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(endpoint, handler);
 
 		try{
 			rawClient.start();
@@ -1502,6 +1747,14 @@ public class DTLSConnectorTest {
 		client.start();
 		final AtomicReference<AlertMessage> alert = new AtomicReference<>();
 		MessageCallback callback = new MessageCallback() {
+
+			@Override
+			public void onConnecting() {
+			}
+
+			@Override
+			public void onDtlsRetransmission(int flight) {
+			}
 
 			@Override
 			public void onSent() {
@@ -1659,8 +1912,8 @@ public class DTLSConnectorTest {
 		// when retrieving the maximum transmission unit from the client
 		int mtu = connector.getMaximumTransmissionUnit();
 
-		// then the value is the IPv6 min. MTU
-		assertThat(mtu, is(IPV6_MIN_MTU));
+		// then the value is the IPv4 min. MTU
+		assertThat(mtu, is(DTLSConnector.DEFAULT_IPV4_MTU));
 	}
 
 	@Test
@@ -1672,8 +1925,8 @@ public class DTLSConnectorTest {
 		InetSocketAddress unknownPeer = serverEndpoint;
 		int maxFragmentLength = client.getMaximumFragmentLength(unknownPeer);
 
-		// then the value is the minimum IPv6 MTU - DTLS/UDP/IP header overhead
-		assertThat(maxFragmentLength, is(IPV6_MIN_MTU - DTLS_UDP_IP_HEADER_LENGTH));
+		// then the value is the minimum IPv4 MTU - DTLS/UDP/IP header overhead
+		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - DTLSSession.HEADER_LENGTH));
 	}
 
 	@Test
@@ -1730,6 +1983,40 @@ public class DTLSConnectorTest {
 		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
 	}
 
+	/**
+	 * Test invoking of onConnect when sending without session.
+	 * Test onConnect is not invoked, when sending with established session.
+	 */
+	@Test
+	public void testSendingInvokesOnConnect() throws Exception {
+		// GIVEN a EndpointContextMatcher, blocking
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		// GIVEN a message to send
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(serverEndpoint), callback, false);
+		client.start();
+
+		// WHEN sending the initial message
+		client.send(outboundMessage);
+
+		// THEN assert that a session is established.
+		assertThat(callback.await(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(true));
+
+		// THEN assert that onConnect is invoked once
+		assertThat(callback.isConnecting(), is(true));
+
+		// WHEN sending the next message
+		callback = new SimpleMessageCallback(1, false);
+		// GIVEN a message to send
+		outboundMessage = RawData.outbound(new byte[] { 0x01 }, new AddressEndpointContext(serverEndpoint),
+				callback, false);
+		client.send(outboundMessage);
+
+		assertThat(callback.await(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(true));
+		// THEN assert that onConnect is not invoked
+		assertThat(callback.isConnecting(), is(false));
+	}
+
 	private ClientHello createClientHello() {
 		return createClientHello(null);
 	}
@@ -1778,7 +2065,7 @@ public class DTLSConnectorTest {
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 		if (releaseSocket) {
-			client.releaseSocket();
+			client.stop();
 		}
 	}
 
@@ -1858,7 +2145,7 @@ public class DTLSConnectorTest {
 			}
 		};
 
-		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler, clientConfig);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, handler);
 
 		try {
 			rawClient.start();
@@ -1931,8 +2218,8 @@ public class DTLSConnectorTest {
 
 	public class SimpleRecordLayer implements RecordLayer {
 
-		private final UdpConnector connector;
-		private volatile DTLSFlight lastFlight;
+		protected final UdpConnector connector;
+		protected volatile DTLSFlight lastFlight;
 
 		public SimpleRecordLayer(UdpConnector connector) {
 			this.connector = connector;
@@ -1970,32 +2257,24 @@ public class DTLSConnectorTest {
 		}
 	};
 
-	public class ReverseRecordLayer implements RecordLayer {
-
-		private UdpConnector connector;
+	public class ReverseRecordLayer extends SimpleRecordLayer {
 
 		public ReverseRecordLayer(UdpConnector connector) {
-			this.connector = connector;
-		}
-
-		@Override
-		public void sendRecord(Record record) {
+			super(connector);
 		}
 
 		@Override
 		public void sendFlight(DTLSFlight flight) {
+			lastFlight = flight;
 			List<Record> messages = flight.getMessages();
 			for (int i = messages.size() - 1; i >= 0; i--) {
 				try {
+					LOGGER.info("Reverse send {}: {}", i, messages.get(i));
 					connector.sendRecord(flight.getPeerAddress(), messages.get(i).toByteArray());
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
 			}
-		}
-
-		@Override
-		public void cancelRetransmissions() {
 		}
 	};
 
@@ -2067,7 +2346,7 @@ public class DTLSConnectorTest {
 		DataHandler handler;
 		Thread receiver;
 
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler, final DtlsConnectorConfig config) {
+		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler) {
 			this.address = bindToAddress;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {

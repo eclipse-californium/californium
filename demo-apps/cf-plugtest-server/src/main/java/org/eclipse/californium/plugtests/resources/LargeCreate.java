@@ -28,6 +28,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class LargeCreate extends CoapResource {
+	private static final byte[] EMPTY = new byte[0];
 
 // Members /////////////////////////////////////////////////////////////////
 	
@@ -86,7 +87,7 @@ public class LargeCreate extends CoapResource {
 		public StorageResource(String name, byte[] post, int ct) {
 			super(name);
 			
-			this.data = post;
+			this.data = post != null ? post : EMPTY;
 			this.dataCt = ct;
 			
 			getAttributes().addContentType(dataCt);

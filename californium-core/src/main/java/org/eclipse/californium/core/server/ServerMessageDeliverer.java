@@ -28,7 +28,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
-import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -146,7 +146,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	protected final void checkForObserveOption(final Exchange exchange, final Resource resource) {
 
 		Request request = exchange.getRequest();
-		if (request.getCode() == Code.GET && request.getOptions().hasObserve() && resource.isObservable()) {
+		if (CoAP.isObservable(request.getCode()) && request.getOptions().hasObserve() && resource.isObservable()) {
 
 			InetSocketAddress source = request.getSourceContext().getPeerAddress();
 

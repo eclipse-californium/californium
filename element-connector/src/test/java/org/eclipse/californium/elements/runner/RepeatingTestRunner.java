@@ -16,6 +16,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix typo "alife" with "alive"
  *                                                    cleanup logging
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add earlier failure logging
+ *                                                    for easier locating the
+ *                                                    failure cause in logs.
  ******************************************************************************/
 package org.eclipse.californium.elements.runner;
 
@@ -23,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
@@ -144,6 +146,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
 			@Override
 			public void testFailure(Failure failure) throws Exception {
+				logInfo("test", "[loop={}] failed {}.", loop, failure);
 				failureCounter.incrementAndGet();
 			}
 
@@ -173,6 +176,7 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 		}
 	}
 
+	
 	/**
 	 * Write a logging with provided message and memory statistic.
 	 * 

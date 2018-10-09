@@ -20,9 +20,11 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.test.BlockwiseTransferTest.ReceiveRequestHandler;
+import org.eclipse.californium.elements.util.IntendedTestException;
 
 /**
- * A message interceptor for tracing messages from the viewpoint of a CoAP server.
+ * A message interceptor for tracing messages from the viewpoint of a CoAP
+ * server.
  *
  */
 public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor implements MessageInterceptor {
@@ -34,29 +36,44 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 
 	@Override
 	public synchronized void sendRequest(final Request request) {
-		buffer.append(System.lineSeparator()).append("ERROR: Server sent ").append(request).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server sent ").append(request);
 	}
 
 	@Override
 	public synchronized void sendResponse(final Response response) {
+		if (errorInjector != null) {
+			logNewLine("(should be dropped by error)   ");
+			appendResponseDetails(response);
+			response.addMessageObserver(new LoggingMessageObserver(errorInjector, response) {
 
-		buffer.append(System.lineSeparator()).append("<-----   ");
-		appendResponseDetails(response);
+				@Override
+				public void log(IntendedTestException exception) {
+					if (exception == null) {
+						logNewLine("(sent!) <-----   ");
+					} else {
+						logNewLine("(dropped) <---   ");
+					}
+					appendResponseDetails(response);
+				};
+			});
+		} else {
+			logNewLine("<-----   ");
+			appendResponseDetails(response);
+		}
 	}
 
 	@Override
 	public synchronized void sendEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator()).append("<-----   ");
+		logNewLine("<-----   ");
 		appendEmptyMessageDetails(message);
 	}
 
 	@Override
 	public synchronized void receiveRequest(final Request request) {
-
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendRequestDetails(request);
 		buffer.append("    ----->");
-
 		if (null != handler) {
 			handler.receiveRequest(request);
 		}
@@ -64,12 +81,13 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 
 	@Override
 	public synchronized void receiveResponse(final Response response) {
-		buffer.append(System.lineSeparator()).append("ERROR: Server received ").append(response).append(System.lineSeparator());
+		logNewLine();
+		buffer.append("ERROR: Server received ").append(response);
 	}
 
 	@Override
 	public synchronized void receiveEmptyMessage(final EmptyMessage message) {
-		buffer.append(System.lineSeparator());
+		logNewLine();
 		appendEmptyMessageDetails(message);
 		buffer.append("    ----->");
 	}

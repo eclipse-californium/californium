@@ -23,6 +23,7 @@ package org.eclipse.californium.plugtests;
 
 import java.io.File;
 import java.net.SocketException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
@@ -115,10 +116,11 @@ public class PlugtestServer extends AbstractTestServer {
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
-				System.out.println("listen on " + ep.getUri());
+				URI uri = ep.getUri();
+				System.out.println("listen on " + uri);
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
-				ep.addInterceptor(new AnonymizedOriginTracer(ep.getUri().getScheme()));
+				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
 			}
 
 			System.out.println(PlugtestServer.class.getSimpleName() + " started ...");

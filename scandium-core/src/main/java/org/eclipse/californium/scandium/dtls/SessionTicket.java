@@ -12,11 +12,18 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use create time milliseconds
+ *                                                    for timestamp. Convert it to 
+ *                                                    seconds, when encoded, and
+ *                                                    back to milliseconds, when
+ *                                                    decoded.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -29,12 +36,13 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  */
 public final class SessionTicket {
 
-	private ProtocolVersion protocolVersion;
-	private byte[] masterSecret;
-	private CipherSuite cipherSuite;
-	private CompressionMethod compressionMethod;
-	private Principal clientIdentity;
-	private long timestamp;
+	private final int hashCode;
+	private final ProtocolVersion protocolVersion;
+	private final byte[] masterSecret;
+	private final CipherSuite cipherSuite;
+	private final CompressionMethod compressionMethod;
+	private final Principal clientIdentity;
+	private final long timestampMillis;
 
 	/**
 	 * Creates a ticket from a set of crypto params.
@@ -44,6 +52,7 @@ public final class SessionTicket {
 	 * @param compressionMethod
 	 * @param masterSecret
 	 * @param clientIdentity
+	 * @param timestampMillis timestamp of session creation.
 	 */
 	SessionTicket(
 			final ProtocolVersion protocolVersion,
@@ -51,7 +60,7 @@ public final class SessionTicket {
 			final CompressionMethod compressionMethod,
 			final byte[] masterSecret,
 			final Principal clientIdentity,
-			final long timestamp) {
+			final long timestampMillis) {
 
 		if (protocolVersion == null) {
 			throw new NullPointerException("Protcol version must not be null");
@@ -67,7 +76,10 @@ public final class SessionTicket {
 			this.cipherSuite = cipherSuite;
 			this.compressionMethod = compressionMethod;
 			this.clientIdentity = clientIdentity;
-			this.timestamp = timestamp;
+			this.timestampMillis = timestampMillis;
+			// the master secret is intended to be unique
+			// therefore the hash code only consider that master secret
+			this.hashCode = Arrays.hashCode(masterSecret);
 		}
 	}
 
@@ -88,6 +100,8 @@ public final class SessionTicket {
 	 * This method is useful for e.g. sharing the session with other nodes by means
 	 * of a cache server or database so that a client can resume a session on another
 	 * node if this node fails.
+	 * <p>
+	 * The timestampMillis are encoded in seconds.
 	 * 
 	 * @param writer The writer to serialize to.
 	 */
@@ -109,7 +123,7 @@ public final class SessionTicket {
 		PrincipalSerializer.serialize(clientIdentity, writer);
 
 		// timestamp
-		writer.writeLong(timestamp, 32);
+		writer.writeLong(TimeUnit.MILLISECONDS.toSeconds(timestampMillis), 32);
 	}
 
 	/**
@@ -161,13 +175,47 @@ public final class SessionTicket {
 		}
 
 		// timestamp
-		long timestamp = source.readLong(32);
+		long timestampMillis = TimeUnit.SECONDS.toMillis(source.readLong(32));
 
 		// assemble session
-		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, identity, timestamp);
+		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, identity, timestampMillis);
 	}
 
-	
+	@Override
+	public int hashCode() {
+		return hashCode;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SessionTicket other = (SessionTicket) obj;
+		// the master secret is intended to be unique
+		// therefore check it first, the other compares
+		// are more or less for validation
+		if (!Arrays.equals(masterSecret, other.masterSecret)) {
+			return false;
+		}
+		if (!protocolVersion.equals(other.protocolVersion)) {
+			return false;
+		}
+		if (!cipherSuite.equals(other.cipherSuite)) {
+			return false;
+		}
+		if (!compressionMethod.equals(other.compressionMethod)) {
+			return false;
+		}
+		if (!clientIdentity.equals(other.clientIdentity)) {
+			return false;
+		}
+		return timestampMillis == other.timestampMillis;
+	}
+
 	/**
 	 * @return the protocolVersion
 	 */
@@ -212,6 +260,6 @@ public final class SessionTicket {
 	 * @return the timestamp
 	 */
 	public final long getTimestamp() {
-		return timestamp;
+		return timestampMillis;
 	}
 }

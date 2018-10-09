@@ -156,8 +156,7 @@ public class TcpServerConnector implements Connector {
 		/* check, if the message should be sent with the established connection */
 		if (null != endpointMatcher
 				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			LOGGER.warn("TcpConnector drops {} bytes to {}:{}",
-					new Object[] { msg.getSize(), msg.getAddress(), msg.getPort() });
+			LOGGER.warn("TcpConnector drops {} bytes to {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
 			msg.onError(new EndpointMismatchException());
 			return;
 		}

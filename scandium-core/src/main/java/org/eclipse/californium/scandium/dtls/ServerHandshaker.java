@@ -45,6 +45,11 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Vikram (University of Rostock) - added ECDHE_PSK mode
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
+ *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add preSharedKeyIdentity to
+ *                                                    support creating statistics.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -143,6 +148,8 @@ public class ServerHandshaker extends Handshaker {
 	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
 
+	private String preSharedKeyIdentity;
+
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -197,8 +204,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config.getCertificateVerifier(),
-				maxTransmissionUnit, config.getRpkTrustStore());
+		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 
 		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 
@@ -241,6 +247,9 @@ public class ServerHandshaker extends Handshaker {
 
 	// Methods ////////////////////////////////////////////////////////
 
+	public String getPreSharedKeyIdentity() {
+		return preSharedKeyIdentity;
+	}
 
 	@Override
 	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
@@ -426,7 +435,8 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
-		DTLSFlight flight = new DTLSFlight(getSession());
+		flightNumber += 2;
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
@@ -497,7 +507,11 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientHello(final ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
-		DTLSFlight flight = new DTLSFlight(getSession());
+
+		byte[] cookie = clientHello.getCookie();
+		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
+
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// update the handshake hash
 		md.update(clientHello.getRawMessage());
@@ -572,7 +586,7 @@ public class ServerHandshaker extends Handshaker {
 						"using server name indication received from peer [{}]",
 						clientHello.getPeer());
 			} else {
-				LOGGER.warn("client [{}] included SNI in HELLO but SNI support is disabled",
+				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
 						clientHello.getPeer());
 			}
 		}
@@ -709,6 +723,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
+		preSharedKeyIdentity = identity;
 		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
 		return configurePskCredentials(identity, psk, null);
 	}
@@ -719,6 +734,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
+		preSharedKeyIdentity = identity;
 		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
 		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
 		return configurePskCredentials(identity, psk, otherSecret);
@@ -741,11 +757,7 @@ public class ServerHandshaker extends Handshaker {
 
 	@Override
 	public void startHandshake() throws HandshakeException {
-		HelloRequest helloRequest = new HelloRequest(session.getPeer());
-
-		DTLSFlight flight = new DTLSFlight(getSession());
-		flight.addMessage(wrapMessage(helloRequest));
-		recordLayer.sendFlight(flight);
+		throw new HandshakeException("starting an handshake is not supported for server handshaker!", null);
 	}
 
 	/**
@@ -821,8 +833,9 @@ public class ServerHandshaker extends Handshaker {
 					negotiatedSupportedGroup = group;
 					session.setCipherSuite(cipherSuite);
 					addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
+					session.setParameterAvailable();
 					LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]",
-							new Object[]{cipherSuite.name(), getPeerAddress()});
+							cipherSuite.name(), getPeerAddress());
 					return;
 				}
 			}

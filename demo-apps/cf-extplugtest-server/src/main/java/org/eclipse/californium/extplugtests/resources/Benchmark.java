@@ -73,7 +73,7 @@ public class Benchmark extends CoapResource {
 
 		if (disable) {
 			// disabled => response with NOT_IMPLEMENTED
-			exchange.respond(NOT_IMPLEMENTED);
+			exchange.respond(NOT_IMPLEMENTED, RESOURCE_NAME + " is not supported on this host!");
 			return;
 		}
 

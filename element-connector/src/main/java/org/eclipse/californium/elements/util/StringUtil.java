@@ -109,6 +109,41 @@ public class StringUtil {
 	}
 
 	/**
+	 * Convert hexadecimal String into decoded byte array.
+	 * 
+	 * @param hex hexadecimal string. e.g. "4130010A"
+	 * @return byte array with decoded hexadecimal input parameter.
+	 * @throws IllegalArgumentException if the parameter length is odd or
+	 *             contains non hexadecimal characters.
+	 */
+	public static byte[] hex2ByteArray(String hex) {
+		if (hex == null) {
+			return null;
+		}
+		int length = hex.length();
+		if ((1 & length) != 0) {
+			throw new IllegalArgumentException("'" + hex + "' has odd length!");
+		}
+		length /= 2;
+		byte[] result = new byte[length];
+		for (int indexDest = 0, indexSrc = 0; indexDest < length; ++indexDest) {
+			int digit = Character.digit(hex.charAt(indexSrc), 16);
+			if (digit < 0) {
+				throw new IllegalArgumentException("'" + hex + "' digit " + indexSrc + " is not hexadecimal!");
+			}
+			result[indexDest] = (byte) (digit << 4);
+			++indexSrc;
+			digit = Character.digit(hex.charAt(indexSrc), 16);
+			if (digit < 0) {
+				throw new IllegalArgumentException("'" + hex + "' digit " + indexSrc + " is not hexadecimal!");
+			}
+			result[indexDest] |= (byte) digit;
+			++indexSrc;
+		}
+		return result;
+	}
+
+	/**
 	 * Byte array to hexadecimal string.
 	 * 
 	 * @param byteArray byte array to be converted to string

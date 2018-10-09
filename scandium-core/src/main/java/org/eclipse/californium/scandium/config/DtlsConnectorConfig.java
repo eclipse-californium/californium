@@ -26,7 +26,10 @@
  *                                                    trustStore := null, disable x.509
  *                                                    trustStore := [], enable x.509, trust all
  *    Bosch Software Innovations GmbH - remove serverNameResolver property
- *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256                        
+ *    Vikram (University of Rostock) - added CipherSuite TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multiple receiver threads.
+ *                                                    move default thread numbers to this configuration.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add deferred processed messages
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.config;
@@ -68,6 +71,10 @@ import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 public final class DtlsConnectorConfig {
 
 	/**
+	 * The default value for the <em>maxDeferredProcessedApplicationDataMessages</em> property.
+	 */
+	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES = 10;
+	/**
 	 * The default value for the <em>maxConncetions</em> property.
 	 */
 	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
@@ -75,6 +82,19 @@ public final class DtlsConnectorConfig {
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
+	/**
+	 * The default size of the executor's thread pool which is used for processing records.
+	 * <p>
+	 * The value of this property is 6 * <em>#(CPU cores)</em>.
+	 */
+	private static final int DEFAULT_EXECUTOR_THREAD_POOL_SIZE = 6 * Runtime.getRuntime().availableProcessors();
+	/**
+	 * The default number of receiver threads.
+	 * <p>
+	 * The value of this property is (<em>#(CPU cores)</em> + 1) / 2.
+	 */
+	private static final int DEFAULT_RECEIVER_THREADS = (Runtime.getRuntime().availableProcessors() + 1) / 2;
+
 	private static final String EC_ALGORITHM_NAME = "EC";
 
 	private InetSocketAddress address;
@@ -101,9 +121,14 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Maximal number of retransmissions before the attempt to transmit a
-	 * message is canceled
+	 * message is canceled.
 	 */
 	private Integer maxRetransmissions;
+
+	/**
+	 * Maximum transmission unit.
+	 */
+	private Integer maxTransmissionUnit;
 
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
@@ -131,11 +156,15 @@ public final class DtlsConnectorConfig {
 
 	private Integer outboundMessageBufferSize;
 
+	private Integer maxDeferredProcessedApplicationDataMessages;
+
 	private Integer maxConnections;
 
 	private Long staleConnectionThreshold;
 
 	private Integer connectionThreadCount;
+
+	private Integer receiverThreadCount;
 
 	/**
 	 * Automatic session resumption timeout. Triggers session resumption
@@ -146,6 +175,11 @@ public final class DtlsConnectorConfig {
 	private Long autoResumptionTimeoutMillis;
 
 	private Boolean sniEnabled;
+
+	/**
+	 * Use HELLO_VERIFY_REQUEST for session resumption.
+	 */
+	private Boolean verifyRequestOnResumptionEnabled;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -183,6 +217,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the maximum number of deferred processed application data messages.
+	 * 
+	 * @return the maximum number of deferred processed application data messages
+	 */
+	public Integer getMaxDeferredProcessedApplicationDataMessages() {
+		return maxDeferredProcessedApplicationDataMessages;
+	}
+
+	/**
 	 * Gets the maximum number of times a flight of handshake messages gets re-transmitted
 	 * to a peer.
 	 * 
@@ -190,6 +233,17 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxRetransmissions() {
 		return maxRetransmissions;
+	}
+
+	/**
+	 * Gets the maximum transmission unit.
+	 * 
+	 * Maximum number of bytes sent in one transmission.
+	 * 
+	 * @return maximum transmission unit
+	 */
+	public Integer getMaxTransmissionUnit() {
+		return maxTransmissionUnit;
 	}
 
 	/**
@@ -220,6 +274,19 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean isSniEnabled() {
 		return sniEnabled;
+	}
+
+	/**
+	 * Checks whether a HELLO_VERIFY_REQUEST should be used also for session
+	 * resumption. Though a CLIENT_HELLO with an session id is used for session
+	 * resumption, that session ID could be used to check, if this is a valid
+	 * CLIENT_HELLO request.
+	 * 
+	 * @return {@code true} if a HELLO_VERIFY_REQUEST should be used also for
+	 *         session resumption
+	 */
+	public Boolean isVerifyRequestOnResumptionEnabled() {
+		return verifyRequestOnResumptionEnabled;
 	}
 
 	/**
@@ -383,6 +450,18 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the number of threads which should be use to receive datagrams
+	 * from the socket.
+	 * <p>
+	 * The default value is half of <em>#(CPU cores)</em>.
+	 * 
+	 * @return the number of threads.
+	 */
+	public Integer getReceiverThreadCount() {
+		return receiverThreadCount;
+	}
+
+	/**
 	 * Get the timeout for automatic session resumption.
 	 * 
 	 * If no messages are exchanged for this timeout, the next message will
@@ -402,6 +481,40 @@ public final class DtlsConnectorConfig {
 	 */
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
+	}
+
+	/**
+	 * @return a copy of this configuration
+	 */
+	@Override
+	protected Object clone() {
+		DtlsConnectorConfig cloned = new DtlsConnectorConfig();
+		cloned.address = address;
+		cloned.trustStore = trustStore;
+		cloned.certificateVerifier = certificateVerifier;
+		cloned.earlyStopRetransmission = earlyStopRetransmission;
+		cloned.enableReuseAddress = enableReuseAddress;
+		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
+		cloned.retransmissionTimeout = retransmissionTimeout;
+		cloned.maxRetransmissions = maxRetransmissions;
+		cloned.maxTransmissionUnit = maxTransmissionUnit;
+		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
+		cloned.sendRawKey = sendRawKey;
+		cloned.pskStore = pskStore;
+		cloned.privateKey = privateKey;
+		cloned.publicKey = publicKey;
+		cloned.certChain = certChain;
+		cloned.supportedCipherSuites = supportedCipherSuites;
+		cloned.trustedRPKs = trustedRPKs;
+		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
+		cloned.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+		cloned.maxConnections = maxConnections;
+		cloned.staleConnectionThreshold = staleConnectionThreshold;
+		cloned.connectionThreadCount = connectionThreadCount;
+		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
+		cloned.sniEnabled = sniEnabled;
+		cloned.verifyRequestOnResumptionEnabled = verifyRequestOnResumptionEnabled;
+		return cloned;
 	}
 
 	/**
@@ -449,6 +562,14 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder() {
 			config = new DtlsConnectorConfig();
+		}
+		
+		/**
+		 * Create a builder from an existing DtlsConnectorConfig.
+		 * This allow to create a new config starting from values of another one.
+		 */
+		public Builder(DtlsConnectorConfig initalValues){
+			config = (DtlsConnectorConfig) initalValues.clone();
 		}
 
 		/**
@@ -563,6 +684,18 @@ public final class DtlsConnectorConfig {
 				config.maxRetransmissions = count;
 				return this;
 			}
+		}
+
+		/**
+		 * Set maximum transmission unit. Maximum number of bytes sent in one
+		 * transmission.
+		 * 
+		 * @param mtu maximum transmission unit
+		 * @return this builder for command chaining
+		 */
+		public Builder setMaxTransmissionUnit(int mtu) {
+			config.maxTransmissionUnit = mtu;
+			return this;
 		}
 
 		/**
@@ -814,6 +947,29 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Set maximum number of deferred processed application data messages.
+		 * 
+		 * Application data messages received or sent during a handshake may be
+		 * dropped or processed deferred after the handshake. Set this to limit
+		 * the maximum number of messages, which are intended to be processed
+		 * deferred. If more messages are sent or received, theses messages are
+		 * dropped.
+		 * 
+		 * @param maxDeferredProcessedApplicationDataMessages maximum number of
+		 *            deferred processed messages
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given limit is &lt; 0.
+		 */
+		public Builder setMaxDeferredProcessedApplicationDataMessages(final int maxDeferredProcessedApplicationDataMessages) {
+			if (maxDeferredProcessedApplicationDataMessages < 0) {
+				throw new IllegalArgumentException("Max deferred processed application data messages must not be negative!");
+			} else {
+				config.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+				return this;
+			}
+		}
+
+		/**
 		 * Sets the maximum number of active connections the connector should support.
 		 * <p>
 		 * An <em>active</em> connection is a connection that has been used within the
@@ -878,6 +1034,20 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Set the number of thread which should be used to receive
+		 * datagrams from the socket.
+		 * <p>
+		 * The default value is half of <em>#(CPU cores)</em>.
+		 * 
+		 * @param threadCount the number of threads.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setReceiverThreadCount(int threadCount) {
+			config.receiverThreadCount = threadCount;
+			return this;
+		}
+
+		/**
 		 * Set the timeout of automatic session resumption in milliseconds.
 		 * <p>
 		 * The default value is {@code null}, no automatic session resumption.
@@ -904,6 +1074,26 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setSniEnabled(boolean flag) {
 			config.sniEnabled = flag;
+			return this;
+		}
+
+		/**
+		 * Sets whether a HELLO_VERIFY_REQUEST should be used also for session
+		 * resumption. If a CLIENT_HELLO with an session ID is used for session
+		 * resumption, that session ID could be used to check, if this is a
+		 * valid CLIENT_HELLO request. Though HELLO_VERIFY_REQUEST requires one
+		 * message exchange more, it slows down a bit the handshake. If your
+		 * system is expect to be attacked by spoofed IP message with valid
+		 * session IDs, enable the use of verify requests as protection against
+		 * that. The default is disabled (assuming that spoof attack with valid
+		 * session IDs are negligible).
+		 * 
+		 * @param flag {@code true} if a HELLO_VERIFY_REQUEST should be used
+		 *            also for session resumption
+		 * @return this builder for command chaining.
+		 */
+		public Builder setVerifyRequestOnResumptionEnabled(boolean flag) {
+			config.verifyRequestOnResumptionEnabled = flag;
 			return this;
 		}
 
@@ -969,8 +1159,17 @@ public final class DtlsConnectorConfig {
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;
 			}
+			if (config.maxDeferredProcessedApplicationDataMessages == null){
+				config.maxDeferredProcessedApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
+			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
+			}
+			if (config.connectionThreadCount == null) {
+				config.connectionThreadCount = DEFAULT_EXECUTOR_THREAD_POOL_SIZE;
+			}
+			if (config.receiverThreadCount == null) {
+				config.receiverThreadCount = DEFAULT_RECEIVER_THREADS;
 			}
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
@@ -989,6 +1188,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.sniEnabled == null) {
 				config.sniEnabled = Boolean.TRUE;
+			}
+			if (config.verifyRequestOnResumptionEnabled == null) {
+				config.verifyRequestOnResumptionEnabled = Boolean.FALSE;
 			}
 
 			// check cipher consistency

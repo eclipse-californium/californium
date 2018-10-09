@@ -36,6 +36,10 @@ keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias client | 
   keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > client.pem
 keytool -alias client -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file client.pem
 
+echo "creating certificate with no digitalSignature keyusage..."
+keytool -genkeypair -alias nosigning -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-nosigning' \
+        -ext BC=ca:true -ext KU=keyEn -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
+
 echo "exporting keys into PKCS#12 format to support android"
 keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD \
    -destkeystore $KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12

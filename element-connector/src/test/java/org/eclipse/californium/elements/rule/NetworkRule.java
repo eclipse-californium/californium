@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial implementation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - cleanup logging
  ******************************************************************************/
 package org.eclipse.californium.elements.rule;
 
@@ -112,8 +113,7 @@ public class NetworkRule implements TestRule {
 			try {
 				mode = Mode.valueOf(envMode);
 			} catch (IllegalArgumentException ex) {
-				LOGGER.error("Value {} for property {} not supported!",
-						new Object[] { envMode, PROPERTY_NAME });
+				LOGGER.error("Value {} for property {} not supported!", envMode, PROPERTY_NAME);
 			}
 		}
 		usedMode = mode;
@@ -324,8 +324,7 @@ public class NetworkRule implements TestRule {
 				}
 			};
 		} else {
-			LOGGER.warn("Skip {} not applicable with socket mode {}",
-					new Object[] { description, usedMode });
+			LOGGER.warn("Skip {} not applicable with socket mode {}", description, usedMode);
 			return SKIP;
 		}
 	}
@@ -390,19 +389,19 @@ public class NetworkRule implements TestRule {
 			synchronized (RULES_STACK) {
 				description = this.description;
 			}
-			String message;
+			StringBuilder messageBuilder = new StringBuilder(toString());
 
 			if (null == description) {
-				message = this + " rule is not applied!";
+				messageBuilder.append(" rule is not applied!");
 			} else {
-				message = this + " rule is not active!";
+				messageBuilder.append(" rule is not active!");
 			}
 			if (null == activeRule) {
-				message += " No active rule!";
+				messageBuilder.append(" No active rule!");
 			} else {
-				message += " Instead " + activeRule + " is active!";
-
+				messageBuilder.append(" Instead ").append(activeRule).append(" is active!");
 			}
+			String message = messageBuilder.toString();
 			LOGGER.error(message);
 			throw new IllegalStateException(message);
 		}

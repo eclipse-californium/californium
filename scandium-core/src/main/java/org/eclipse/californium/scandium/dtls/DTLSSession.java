@@ -31,6 +31,13 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - move creation of endpoint context
  *                                                    from DTLSConnector to DTLSSession
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - preserve creation time of session.
+ *                                                    update time on set master secret.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter and
+ *                                                    handshake parameter available to
+ *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
+ *                                                    session resumption is refused.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -61,12 +68,14 @@ public final class DTLSSession {
 	 * <li>13 bytes DTLS record header</li>
 	 * <li>8 bytes UDP header</li>
 	 * <li>20 bytes IP header</li>
+	 * <li>36 bytes optional IP options</li>
 	 * </ol>
 	 * <p>
 	 * 53 bytes in total.
 	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
 								+ 13 // bytes DTLS record headers
+								+ 36 // bytes optional IP options
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class.getName());
@@ -150,6 +159,12 @@ public final class DTLSSession {
 	 */
 	private boolean receiveRawPublicKey = false;
 
+	/**
+	 * Indicates, that the handshake parameters are available.
+	 * @see HandshakeParameter
+	 */
+	private boolean parameterAvailable = false;
+
 	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
@@ -168,7 +183,7 @@ public final class DTLSSession {
 	 *            whether the entity represents a client or a server.
 	 */
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient) {
-		this(peerAddress, isClient, 0);
+		this(peerAddress, isClient, 0, System.currentTimeMillis());
 	}
 
 	/**
@@ -193,15 +208,14 @@ public final class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo){
-		this(peerAddress, false, initialSequenceNo);
+	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
+		this(peerAddress, false, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
 		masterSecret = ticket.getMasterSecret();
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		compressionMethod = ticket.getCompressionMethod();
 	}
-
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
@@ -218,12 +232,32 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
 	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
+		this(peerAddress, isClient, initialSequenceNo, System.currentTimeMillis());
+	}
+
+	/**
+	 * Creates a new session initialized with a given sequence number.
+	 *
+	 * @param peerAddress
+	 *            the IP address and port of the peer this session is established with
+	 * @param isClient
+	 *            indicates whether this session has been established playing the client or server side
+	 * @param initialSequenceNo the initial record sequence number to start from
+	 *            in epoch 0. When starting a new handshake with a client that
+	 *            has successfully exchanged a cookie with the server, the
+	 *            sequence number to use in the SERVER_HELLO record MUST be the same as
+	 *            the one from the successfully validated CLIENT_HELLO record
+	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
+	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
+	 * @param creationTime creation time of session. Maybe from previous session on resumption.
+	 */
+	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo, long creationTime) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
-			this.creationTime = System.currentTimeMillis();
+			this.creationTime = creationTime;
 			this.peer = peerAddress;
 			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
@@ -564,6 +598,27 @@ public final class DTLSSession {
 		return writeState.getCipherSuite().name();
 	}
 
+	/**
+	 * Set parameter available. Enables {@link #getParameter()} to return the
+	 * handshake parameter.
+	 */
+	public void setParameterAvailable() {
+		parameterAvailable = true;
+	}
+
+	/**
+	 * Return the handshake parameter, if set available.
+	 * 
+	 * @return the handshake parameter, or {@code null}, if
+	 *         {@link #setParameterAvailable()} wasn't called before.
+	 */
+	public HandshakeParameter getParameter() {
+		if (parameterAvailable) {
+			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveRawPublicKey);
+		}
+		return null;
+	}
+
 	final KeyExchangeAlgorithm getKeyExchange() {
 		if (cipherSuite == null) {
 			throw new IllegalStateException("Cipher suite has not been set (yet)");
@@ -594,6 +649,7 @@ public final class DTLSSession {
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
 	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 * @throws IllegalStateException if the secret is already set
 	 */
 	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
@@ -606,8 +662,22 @@ public final class DTLSSession {
 						MASTER_SECRET_LENGTH, masterSecret.length));
 			} else {
 				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
+				this.creationTime = System.currentTimeMillis();
 			}
 		}
+		else {
+			throw new IllegalStateException("master secret already available!");
+		}
+	}
+
+	/**
+	 * Reset master secret. 
+	 * 
+	 * Intended to be used, When session resumption is
+	 * refused and a new session id and master secret is generated.
+	 */
+	void resetMasterSecret() {
+		masterSecret = null;
 	}
 
 	/**
@@ -864,7 +934,7 @@ public final class DTLSSession {
 					getWriteState().getCompressionMethod(),
 					getMasterSecret(),
 					getPeerIdentity(),
-					System.currentTimeMillis());
+					creationTime);
 		} else {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
