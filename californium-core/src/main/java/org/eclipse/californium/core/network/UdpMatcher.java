@@ -49,6 +49,8 @@
  *                                                    to RemoveHandler
  *                                                    remove "is last", not longer meaningful
  *    Achim Kraus (Bosch Software Innovations GmbH) - assign mid before register observation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove exchange on ACK/RST only after
+ *                                                    context matching
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -267,6 +269,29 @@ public final class UdpMatcher extends BaseMatcher {
 			return null;
 		}
 
+		// As per RFC 7252, section 8.2:
+		// When matching a response to a multicast request, only the token MUST
+		// match; the source endpoint of the response does not need to (and will
+		// not) be the same as the destination endpoint of the original request.
+		if (currentRequest.isMulticast()) {
+			// do some check, e.g. NON ...
+			// this avoids flooding of ACK messages to multicast groups
+			if (response.getType() != Type.NON) {
+				LOGGER.warn(
+						"Received response of type {} for multicast request for token [{}], response MID {} from source address {}",
+						response.getType(), response.getTokenString(), response.getMID(),
+								response.getSourceContext().getPeerAddress());
+				return null;
+			}
+			KeyMID idByMID = KeyMID.fromInboundMessage(response);
+			if (exchangeStore.findPrevious(idByMID, exchange) != null) {
+
+				LOGGER.trace("Received duplicate response for open multicast exchange: {0}", response);
+				response.setDuplicate(true);
+			}
+			return exchange;
+		}
+
 		try {
 			if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
 				if (response.getType() == Type.ACK && requestMid != response.getMID()) {
@@ -326,7 +351,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
 		KeyMID idByMID = KeyMID.fromInboundMessage(message);
-		Exchange exchange = exchangeStore.remove(idByMID, null);
+		Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
@@ -335,6 +360,7 @@ public final class UdpMatcher extends BaseMatcher {
 		try {
 			if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 					message.getSourceContext())) {
+				exchangeStore.remove(idByMID, exchange);
 				LOGGER.debug("received expected reply for message {}", idByMID);
 				return exchange;
 			} else {
