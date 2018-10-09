@@ -93,6 +93,11 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int DEFAULT_MAX_RETRANSMISSIONS = 4;
 	/**
+	 * The default value for the <em>verifyPeersOnResumptionThreshold</em>
+	 * property.
+	 */
+	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
+	/**
 	 * The default size of the executor's thread pool which is used for processing records.
 	 * <p>
 	 * The value of this property is 6 * <em>#(CPU cores)</em>.
@@ -190,9 +195,21 @@ public final class DtlsConnectorConfig {
 	private Boolean sniEnabled;
 
 	/**
-	 * Use HELLO_VERIFY_REQUEST for session resumption.
+	 * Threshold of pending handshakes without verified peer for session
+	 * resumption in percent of {link {@link #maxConnections}. If more such
+	 * handshakes are pending, then use a verify request to ensure, that the
+	 * used client hello is not spoofed.
+	 * 
+	 * <pre>
+	 * 0 := always use a HELLO_VERIFY_REQUEST
+	 * 1 ... 100 := dynamically determine to use a HELLO_VERIFY_REQUEST.
+	 * </pre>
+	 * 
+	 * Default {@link #DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}.
+	 * 
+	 * @see #getVerifyPeersOnResumptionThreshold()
 	 */
-	private Boolean verifyRequestOnResumptionEnabled;
+	private Integer verifyPeersOnResumptionThreshold;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -290,16 +307,34 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Checks whether a HELLO_VERIFY_REQUEST should be used also for session
-	 * resumption. Though a CLIENT_HELLO with an session id is used for session
-	 * resumption, that session ID could be used to check, if this is a valid
-	 * CLIENT_HELLO request.
+	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
+	 * percent of {@link #getMaxConnections()}. Though a CLIENT_HELLO with an
+	 * session id is used in session resumption, that session ID could be used
+	 * to check.
 	 * 
-	 * @return {@code true} if a HELLO_VERIFY_REQUEST should be used also for
-	 *         session resumption
+	 * <pre>
+	 * Value 
+	 * 0 : always use a verify request.
+	 * 1 ... 100 : dynamically use a verify request.
+	 * </pre>
+	 * 
+	 * Peers are identified by their endpoint (ip-address and port) and dtls
+	 * sessions have a id and may be also related to an endpoint. If a peer
+	 * resumes its own session (by id, and that session is related to the same
+	 * endpoint as the peer), no verify request is used. If a peer resumes as
+	 * session (by id), but a different session is related to its endpoint, then
+	 * a verify request is used to ensure, that the peer really owns that
+	 * endpoint. If a peer resumes a session, and the endpoint of the peer is
+	 * either unused or not related to a established session, this threshold
+	 * controls, if a verify request is sued or not. If more resumption
+	 * handshakes without verified peers are pending than this threshold, then a
+	 * verify request is used.
+	 * 
+	 * @return threshold handshakes without verified peer in percent of
+	 *         {@link #getMaxConnections()}.
 	 */
-	public Boolean isVerifyRequestOnResumptionEnabled() {
-		return verifyRequestOnResumptionEnabled;
+	public Integer getVerifyPeersOnResumptionThreshold() {
+		return verifyPeersOnResumptionThreshold;
 	}
 
 	/**
@@ -537,7 +572,7 @@ public final class DtlsConnectorConfig {
 		cloned.receiverThreadCount = receiverThreadCount;
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
-		cloned.verifyRequestOnResumptionEnabled = verifyRequestOnResumptionEnabled;
+		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		return cloned;
 	}
 
@@ -1115,22 +1150,22 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets whether a HELLO_VERIFY_REQUEST should be used also for session
-		 * resumption. If a CLIENT_HELLO with an session ID is used for session
-		 * resumption, that session ID could be used to check, if this is a
-		 * valid CLIENT_HELLO request. Though HELLO_VERIFY_REQUEST requires one
-		 * message exchange more, it slows down a bit the handshake. If your
-		 * system is expect to be attacked by spoofed IP message with valid
-		 * session IDs, enable the use of verify requests as protection against
-		 * that. The default is disabled (assuming that spoof attack with valid
-		 * session IDs are negligible).
+		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
+		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
 		 * 
-		 * @param flag {@code true} if a HELLO_VERIFY_REQUEST should be used
-		 *            also for session resumption
+		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
+		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
+		 *            is based on
+		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if threshold is not between 0 and 1000
+		 * @see DtlsConnectorConfig#verifyPeersOnResumptionThreshold
 		 */
-		public Builder setVerifyRequestOnResumptionEnabled(boolean flag) {
-			config.verifyRequestOnResumptionEnabled = flag;
+		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
+			if (threshold < 0 || threshold > 100) {
+				throw new IllegalArgumentException("threshold must be between 0 and 100, but is " + threshold + "!");
+			}
+			config.verifyPeersOnResumptionThreshold = threshold;
 			return this;
 		}
 
@@ -1217,6 +1252,12 @@ public final class DtlsConnectorConfig {
 			if (config.certificateVerifier == null && config.trustStore != null) {
 				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
 			}
+			if (config.sniEnabled == null) {
+				config.sniEnabled = Boolean.TRUE;
+			}
+			if (config.verifyPeersOnResumptionThreshold == null) {
+				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
+			}
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
 				determineCipherSuitesFromConfig();
 			}
@@ -1225,12 +1266,6 @@ public final class DtlsConnectorConfig {
 				// otherwise this would be interpreted for client only
 				// as ECDHE_ECDSA support!
 				config.trustedRPKs = new TrustAllRpks();
-			}
-			if (config.sniEnabled == null) {
-				config.sniEnabled = Boolean.TRUE;
-			}
-			if (config.verifyRequestOnResumptionEnabled == null) {
-				config.verifyRequestOnResumptionEnabled = Boolean.FALSE;
 			}
 
 			// check cipher consistency

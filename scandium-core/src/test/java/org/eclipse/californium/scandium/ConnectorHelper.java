@@ -74,7 +74,7 @@ public class ConnectorHelper {
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
-	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 2;
+	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 3;
 
 
 	DTLSConnector server;
@@ -151,6 +151,7 @@ public class ConnectorHelper {
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.setPskStore(pskStore)
+			.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 			.setMaxTransmissionUnit(1024)
 			.setClientAuthenticationRequired(true)
 			.setReceiverThreadCount(1)
@@ -379,12 +380,17 @@ public class ConnectorHelper {
 		}
 
 		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
-			List<Record> received = waitForRecords(timeout, unit);
+			long timeoutNanos = unit.toNanos(timeout);
+			long time = System.nanoTime();
+			List<Record> received = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
 			if (null != received && received.size() < size) {
 				received = new ArrayList<Record>(received);
 				List<Record> next;
-				if (null != (next = waitForRecords(200, TimeUnit.MILLISECONDS))) {
-					received.addAll(next);
+				timeoutNanos -= (System.nanoTime() - time);
+				if (0 < timeoutNanos) {
+					if (null != (next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS))) {
+						received.addAll(next);
+					}
 				}
 			}
 			return received;
@@ -399,8 +405,8 @@ public class ConnectorHelper {
 		DatagramSocket socket;
 		Thread receiver;
 
-		public UdpConnector(final InetSocketAddress bindToAddress, final DataHandler dataHandler) {
-			this.address = bindToAddress;
+		public UdpConnector(final int port, final DataHandler dataHandler) {
+			this.address = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {
 
@@ -443,6 +449,18 @@ public class ConnectorHelper {
 
 			if (!socket.isClosed()) {
 				socket.send(datagram);
+			}
+		}
+
+		public final InetSocketAddress getAddress() {
+			DatagramSocket socket;
+			synchronized (this) {
+				socket = this.socket;
+			}
+			if (socket == null) {
+				return address;
+			} else {
+				return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 			}
 		}
 	}
