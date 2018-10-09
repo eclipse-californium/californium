@@ -269,29 +269,6 @@ public final class UdpMatcher extends BaseMatcher {
 			return null;
 		}
 
-		// As per RFC 7252, section 8.2:
-		// When matching a response to a multicast request, only the token MUST
-		// match; the source endpoint of the response does not need to (and will
-		// not) be the same as the destination endpoint of the original request.
-		if (currentRequest.isMulticast()) {
-			// do some check, e.g. NON ...
-			// this avoids flooding of ACK messages to multicast groups
-			if (response.getType() != Type.NON) {
-				LOGGER.warn(
-						"Received response of type {} for multicast request for token [{}], response MID {} from source address {}",
-						response.getType(), response.getTokenString(), response.getMID(),
-								response.getSourceContext().getPeerAddress());
-				return null;
-			}
-			KeyMID idByMID = KeyMID.fromInboundMessage(response);
-			if (exchangeStore.findPrevious(idByMID, exchange) != null) {
-
-				LOGGER.trace("Received duplicate response for open multicast exchange: {0}", response);
-				response.setDuplicate(true);
-			}
-			return exchange;
-		}
-
 		try {
 			if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
 				if (response.getType() == Type.ACK && requestMid != response.getMID()) {
