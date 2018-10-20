@@ -175,7 +175,7 @@ public class ObserveLayer extends AbstractLayer {
 	}
 
 	private void prepareSelfReplacement(Exchange exchange, Response response) {
-		response.addMessageObserver(new NotificationController(exchange, response));
+		response.addMessageObserver(new NotificationController(exchange));
 	}
 
 	/**
@@ -184,11 +184,9 @@ public class ObserveLayer extends AbstractLayer {
 	private class NotificationController extends MessageObserverAdapter {
 
 		private Exchange exchange;
-		private Response response;
 
-		public NotificationController(Exchange exchange, Response response) {
+		public NotificationController(Exchange exchange) {
 			this.exchange = exchange;
-			this.response = response;
 		}
 
 		@Override
@@ -221,13 +219,14 @@ public class ObserveLayer extends AbstractLayer {
 
 		@Override
 		public void onRetransmission() {
+			// called within the exchange executor context.
 			ObserveRelation relation = exchange.getRelation();
 			final Response next = relation.getNextControlNotification();
 			if (next != null) {
 				LOGGER.debug("notification has timed out and there is a fresher notification for the retransmission");
-				// Cancel the original retransmission and send the fresh
-				// notification here
-				response.cancel();
+				// Cancel the original retransmission and 
+				// send the fresh notification here
+				exchange.getCurrentResponse().cancel();
 				// Convert all notification retransmissions to CON
 				if (next.getType() != Type.CON) {
 					next.setType(Type.CON);
@@ -237,13 +236,7 @@ public class ObserveLayer extends AbstractLayer {
 				relation.setNextControlNotification(null);
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
-				exchange.execute(new Runnable() {
-
-					@Override
-					public void run() {
-						ObserveLayer.super.sendResponse(exchange, next);
-					}
-				});
+				ObserveLayer.super.sendResponse(exchange, next);
 			}
 		}
 
