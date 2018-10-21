@@ -180,16 +180,11 @@ public final class TcpMatcher extends BaseMatcher {
 			@Override
 			public void run() {
 				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
-				if (checkResponseToken && exchangeStore.get(idByToken) == null) {
+				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
 					LOGGER.error("ignoring response {}, exchange completed in the meantime!", response);
 					return;
 				}
-/*
-				if (!exchange.checkCurrentResponse(response)) {
-					LOGGER.debug("ignoring response {}, exchange changed!", response);
-					return;
-				}
-*/
+
 				EndpointContext context = exchange.getEndpointContext();
 				if (context == null) {
 					// ignore response
