@@ -395,8 +395,8 @@ public class BenchmarkClient {
 					if (c == 0) {
 						overallRequestsDone.countDown();
 						if (overallReverseResponsesDownCounter.getCount() == 0) {
-    						stop();
-    					}
+							stop();
+						}
 					}
 					return true;
 				} else {
@@ -667,10 +667,10 @@ public class BenchmarkClient {
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
 
-		for (BenchmarkClient client : clientList) {
+		for (int index = clients - 1; index >= 0; --index) {
+			BenchmarkClient client = clientList.get(index);
 			client.startBenchmark();
 		}
-
 		System.out.println("Benchmark started.");
 
 		// Wait with timeout or all requests send.

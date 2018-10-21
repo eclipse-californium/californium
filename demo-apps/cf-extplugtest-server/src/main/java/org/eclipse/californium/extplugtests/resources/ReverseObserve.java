@@ -61,7 +61,8 @@ import org.slf4j.LoggerFactory;
  * 
  * <dl>
  * <dt>obs=number</dt>
- * <dd>number of observes before the observation is reregistered.</dd>
+ * <dd>number of notifies before the observation is reregistered.
+ * 0 to cancel a established observation</dd>
  * <dt>res=path</dt>
  * <dd>path of resource to observe.</dd>
  * </dl>
@@ -100,7 +101,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
-	private static final int MAX_NOTIFIES = 100000;
+	private static final int MAX_NOTIFIES = 10000000;
 
 	/**
 	 * Observation tokens by peer address.
@@ -272,10 +273,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 	private class RequestObserver extends MessageObserverAdapter {
 
-		private CoapExchange incomingExchange;
-		private Request outgoingObserveRequest;
-		private AtomicBoolean registered = new AtomicBoolean();
-		private int count;
+		private final CoapExchange incomingExchange;
+		private final Request outgoingObserveRequest;
+		private final AtomicBoolean registered = new AtomicBoolean();
+		private final int count;
 
 		public RequestObserver(CoapExchange incomingExchange, Request outgoingObserveRequest, int count) {
 			this.incomingExchange = incomingExchange;
