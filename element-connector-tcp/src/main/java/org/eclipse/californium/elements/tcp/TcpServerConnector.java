@@ -129,11 +129,11 @@ public class TcpServerConnector implements Connector {
 	@Override
 	public synchronized void stop() {
 		if (null != bossGroup) {
-			bossGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			bossGroup.shutdownGracefully(1, 1000, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			bossGroup = null;
 		}
 		if (null != workerGroup) {
-			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			workerGroup.shutdownGracefully(1, 1000, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}

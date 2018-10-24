@@ -134,7 +134,7 @@ public class TcpClientConnector implements Connector {
 	@Override
 	public synchronized void stop() {
 		if (workerGroup != null) {
-			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			workerGroup.shutdownGracefully(1, 1000, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
