@@ -140,6 +140,7 @@ public class ClientInitializer {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
+		int tlsHandshakeTimeout = config.getInt(NetworkConfig.Keys.TLS_HANDSHAKE_TIMEOUT);
 		int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
@@ -195,7 +196,8 @@ public class ClientInitializer {
 				}
 				connector = dtlsConnector;
 			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tlsHandshakeTimeout,
+						tcpIdleTimeout);
 			}
 		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
