@@ -210,6 +210,7 @@ public final class NetworkConfig {
 		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
+		public static final String TLS_HANDSHAKE_TIMEOUT = "TLS_HANDSHAKE_TIMEOUT";
 
 		/** Properties for encryption */
 		/**

@@ -36,6 +36,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector;
+import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -92,6 +93,7 @@ public abstract class AbstractTestServer extends CoapServer {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
 		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
+		int tlsHandshakeTimeout = config.getInt(Keys.TLS_HANDSHAKE_TIMEOUT);
 		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
@@ -190,8 +192,8 @@ public abstract class AbstractTestServer extends CoapServer {
 					addEndpoint(builder.build());
 				}
 				if (protocols.contains(Protocol.TLS)) {
-					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
-							tcpIdleTimeout);
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, ClientAuthMode.WANTED,
+							bindToAddress, tcpThreads, tlsHandshakeTimeout, tcpIdleTimeout);
 					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
 					builder.setConnector(connector);
 					builder.setNetworkConfig(config);

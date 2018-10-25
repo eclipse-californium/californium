@@ -122,6 +122,13 @@ public class NetworkConfigDefaults {
 	public static final int DEFAULT_TCP_CONNECT_TIMEOUT = 10000; // 10s [ms]
 
 	/**
+	 * The default tls handshake timeout in milliseconds.
+	 * <p>
+	 * The default value is 10s.
+	 */
+	public static final int DEFAULT_TLS_HANDSHAKE_TIMEOUT = 10000; // 10s [ms]
+
+	/**
 	 * The default secure session timeout in seconds.
 	 * <p>
 	 * The default value is 24h.
@@ -211,6 +218,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(Keys.TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT); // ms
+		config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT); // ms
 
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
 		config.setLong(Keys.DTLS_AUTO_RESUME_TIMEOUT, DEFAULT_DTLS_AUTO_RESUME_TIMEOUT);
