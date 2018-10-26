@@ -30,6 +30,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
  *                                                    ensure, that the session listener methods
  *                                                    are called via the handshaker.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move DTLSFlight to Handshaker
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -59,7 +60,6 @@ public final class Connection {
 	private final SessionId sessionId;
 	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
-	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 	private final AtomicLong lastMessage = new AtomicLong();
 	private final Long autoResumptionTimeout;
 
@@ -204,29 +204,13 @@ public final class Connection {
 	}
 
 	/**
-	 * Registers an outbound flight that has not been acknowledged by the peer
-	 * yet in order to be able to cancel its re-transmission later once it has
-	 * been acknowledged. The retransmission of a different previous pending
-	 * flight will be cancelled also.
-	 * 
-	 * @param pendingFlight the flight
-	 * @see #cancelPendingFlight()
-	 */
-	public void setPendingFlight(DTLSFlight pendingFlight) {
-		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
-		if (flight != null && flight != pendingFlight) {
-			flight.cancelRetransmission();
-		}
-	}
-
-	/**
-	 * Cancels any pending re-transmission of an outbound flight that has been registered
-	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
-	 * 
-	 * This method is usually invoked once an flight has been acknowledged by the peer. 
+	 * Cancels any pending re-transmission of an outbound flight.
 	 */
 	public void cancelPendingFlight() {
-		setPendingFlight(null);
+		Handshaker handshaker = ongoingHandshake.get();
+		if (handshaker != null) {
+			handshaker.cancelPendingFlight();
+		}
 	}
 
 	/**
@@ -310,7 +294,6 @@ public final class Connection {
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
 				refreshAutoResumptionTime();
-				cancelPendingFlight();
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
@@ -318,7 +301,6 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				cancelPendingFlight();
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}

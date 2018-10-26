@@ -50,6 +50,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  *    Achim Kraus (Bosch Software Innovations GmbH) - add preSharedKeyIdentity to
  *                                                    support creating statistics.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -261,7 +262,7 @@ public class ServerHandshaker extends Handshaker {
 					getPeerAddress());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
-			recordLayer.sendFlight(lastFlight);
+			sendFlight(lastFlight);
 			return;
 		}
 
@@ -285,9 +286,7 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
 				receivedClientHello((ClientHello) handshakeMsg);
@@ -487,7 +486,7 @@ public class ServerHandshaker extends Handshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 		sessionEstablished();
 	}
 
@@ -532,8 +531,7 @@ public class ServerHandshaker extends Handshaker {
 		flight.addMessage(wrapMessage(serverHelloDone));
 		md.update(serverHelloDone.toByteArray());
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void createServerHello(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {

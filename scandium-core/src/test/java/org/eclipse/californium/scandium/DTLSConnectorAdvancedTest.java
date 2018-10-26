@@ -18,6 +18,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce waitForFlightReceived
  *                                                    with additional retransmission
  *                                                    compensation for faster timeouts
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add test for timeout of handshaker
+ *                                                    with stopped retransmission
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -432,7 +434,7 @@ public class DTLSConnectorAdvancedTest {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
-		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		try {
 
 			// Start connector
@@ -502,7 +504,7 @@ public class DTLSConnectorAdvancedTest {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
-		SimpleRecordLayer serverRecordLayer = new SimpleRecordLayer(rawServer);
+		BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
 
 		try {
 			// Start connector (Server)
@@ -620,7 +622,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(clientEndpoint, false, 1),
-					new SimpleRecordLayer(rawServer), sessionListener, serverHelper.serverConfig, 1280);
+					new BasicRecordLayer(rawServer), sessionListener, serverHelper.serverConfig, 1280);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
@@ -665,7 +667,7 @@ public class DTLSConnectorAdvancedTest {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
-		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
 		try {
 
@@ -759,7 +761,7 @@ public class DTLSConnectorAdvancedTest {
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
-		SimpleRecordLayer clientRecordLayer = new SimpleRecordLayer(rawClient);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
 		try {
 
@@ -843,6 +845,151 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	/**
+	 * Test the server handshake fails, if clients FINISH is dropped.
+	 */
+	@Test
+	public void testServerTimeout() throws Exception {
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawClient = new UdpConnector(clientEndpoint, collector);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
+		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+		try {
+
+			// Start connector
+			rawClient.start();
+			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Create handshaker
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
+					clientConfig, 1280);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+
+			// create server session listener to ensure, 
+			// that server finish also the handshake
+			Connection con = serverHelper.serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker handshaker = con.getOngoingHandshake();
+			assertNotNull(handshaker);
+			LatchSessionListener serverSessionListener = new LatchSessionListener();
+			handshaker.addSessionListener(serverSessionListener);
+
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			clientRecordLayer.setDrop(-1);
+			for (Record r : rs) {
+				clientHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake failed
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			assertNotNull("server handshake not failed", error);
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	@Test
+	public void testClientResumeTimeout() throws Exception {
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		UdpConnector rawServer = new UdpConnector(new InetSocketAddress(0), collector);
+		BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+
+			InetSocketAddress rawServerEndpoint = new InetSocketAddress("localhost", rawServer.socket.getLocalPort());
+			LatchSessionListener sessionListener = new LatchSessionListener();
+
+			// Start the client
+			client.setRawDataReceiver(clientRawDataChannel);
+			client.start();
+			clientEndpoint = client.getAddress();
+			RawData data = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(rawServerEndpoint),
+					null, false);
+			client.send(data);
+
+			// Create server handshaker
+			DTLSSession serverSession = new DTLSSession(clientEndpoint, false, 1);
+			ServerHandshaker serverHandshaker = new ServerHandshaker(serverSession, serverRecordLayer, sessionListener,
+					serverHelper.serverConfig, 1280);
+
+			// 1. handshake
+			// Wait to receive response (should be CLIENT HELLO)
+			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Wait to receive response (CERTIFICATE, ... , FINISHED)
+			rs = waitForFlightReceived("flight 3", collector, 5);
+			for (Record r : rs) {
+				serverHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// application data
+			rs = waitForFlightReceived("app data", collector, 1);
+
+			sessionListener = new LatchSessionListener();
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), clientEndpoint,
+					serverSession.getSessionTicket(), 0);
+			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
+					serverRecordLayer, sessionListener, serverHelper.serverConfig, 1280);
+
+			// force resuming handshake
+			client.forceResumeSessionFor(rawServerEndpoint);
+			data = RawData.outbound("Hello Again".getBytes(), new AddressEndpointContext(rawServerEndpoint), null,
+					false);
+			client.send(data);
+
+			// Wait to receive response (should be CLIENT HELLO, flight 1)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
+			Connection con = clientConnectionStore.get(rawServerEndpoint);
+			assertNotNull(con);
+			Handshaker handshaker = con.getOngoingHandshake();
+			assertNotNull(handshaker);
+			LatchSessionListener clientSessionListener = new LatchSessionListener();
+			handshaker.addSessionListener(clientSessionListener);
+
+			// Handle and answer
+			// (SERVER HELLO, CCS, FINISHED drop, flight 2).
+			serverRecordLayer.setDrop(-1);
+			for (Record r : rs) {
+				resumingServerHandshaker.processMessage(r);
+			}
+
+			// Ensure handshake failed
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			assertNotNull("client handshake not failed", error);
+		} finally {
+			rawServer.stop();
+		}
+	}
+
 	@Test
 	public void testClientTimeout() throws Exception {
 		// Configure UDP connector we will use as Server
@@ -864,7 +1011,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			SimpleRecordLayer serverRecordLayer = new SimpleRecordLayer(rawServer);
+			BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
 			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(clientEndpoint, false, 1),
 					serverRecordLayer, sessionListener, serverHelper.serverConfig, 1280);
 
@@ -992,13 +1139,13 @@ public class DTLSConnectorAdvancedTest {
 		}
 	};
 
-	public static class SimpleRecordLayer implements RecordLayer {
+	public static class BasicRecordLayer implements RecordLayer {
 
 		private final AtomicInteger drop = new AtomicInteger(0);
 		protected final UdpConnector connector;
 		protected volatile DTLSFlight lastFlight;
 
-		public SimpleRecordLayer(UdpConnector connector) {
+		public BasicRecordLayer(UdpConnector connector) {
 			this.connector = connector;
 		}
 
@@ -1016,10 +1163,6 @@ public class DTLSConnectorAdvancedTest {
 					throw new RuntimeException(e);
 				}
 			}
-		}
-
-		@Override
-		public void cancelRetransmissions() {
 		}
 
 		public void resendLastFlight() throws GeneralSecurityException {
@@ -1049,7 +1192,7 @@ public class DTLSConnectorAdvancedTest {
 		}
 	};
 
-	public static class ReverseRecordLayer extends SimpleRecordLayer {
+	public static class ReverseRecordLayer extends BasicRecordLayer {
 
 		public ReverseRecordLayer(UdpConnector connector) {
 			super(connector);
