@@ -13,6 +13,7 @@
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused sendRecord
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove cancelRetransmissions
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -26,9 +27,5 @@ public class SimpleRecordLayer implements RecordLayer {
 
 	public DTLSFlight getSentFlight() {
 		return sentFlight;
-	}
-
-	@Override
-	public void cancelRetransmissions() {
 	}
 }

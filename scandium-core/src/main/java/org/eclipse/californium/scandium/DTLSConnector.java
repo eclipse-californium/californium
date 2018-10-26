@@ -111,6 +111,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix reuse of already stopped serial
  *                                                    executors.
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused RecordLayer.sendRecord
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
+ *                                                    add timeout for handshakes
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -195,7 +197,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
  */
-public class DTLSConnector implements Connector {
+public class DTLSConnector implements Connector, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by a
@@ -1374,7 +1376,7 @@ public class DTLSConnector implements Connector {
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
-				getRecordLayerForPeer(peerConnection), peerConnection.getSessionListener(), config,
+				this, peerConnection.getSessionListener(), config,
 				maximumTransmissionUnit);
 		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
@@ -1407,7 +1409,7 @@ public class DTLSConnector implements Connector {
 					ticket, record.getSequenceNumber());
 
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
-					getRecordLayerForPeer(peerConnection), peerConnection.getSessionListener(), config,
+					this, peerConnection.getSessionListener(), config,
 					maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
 
@@ -1439,7 +1441,7 @@ public class DTLSConnector implements Connector {
 				// simply start the abbreviated handshake
 			}
 
-			if (connection != null) {
+			if (connection != null && !connection.hasEstablishedSession()) {
 				final Handshaker pendingHandshaker = connection.getOngoingHandshake();
 				if (pendingHandshaker != null) {
 					pendingHandshaker.handshakeFailed(new IOException("ongoing handshake resumed!"));
@@ -1455,7 +1457,7 @@ public class DTLSConnector implements Connector {
 			LOGGER.debug(
 					"Client [{}] tries to resume non-existing session [ID={}], performing full handshake instead ...",
 					clientHello.getPeer(), clientHello.getSessionId());
-			terminateConnection(connectionStore.get(clientHello.getPeer()));
+			terminateConnection(connection);
 			startNewHandshake(clientHello, record);
 		}
 	}
@@ -1606,7 +1608,7 @@ public class DTLSConnector implements Connector {
 				// start handshake
 				handshaker = new ClientHandshaker(
 					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
-					getRecordLayerForPeer(connection),
+					this,
 					connection.getSessionListener(),
 					config,
 					maximumTransmissionUnit);
@@ -1636,7 +1638,7 @@ public class DTLSConnector implements Connector {
 			connection.cancelPendingFlight();
 			connectionStore.remove(connection, false);
 			connectionStore.put(newConnection);
-			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, getRecordLayerForPeer(newConnection),
+			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, this,
 					newConnection.getSessionListener(), config, maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
 			Handshaker previous = connection.getOngoingHandshake();
@@ -1722,23 +1724,17 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void sendHandshakeFlight(DTLSFlight flight, Connection connection) {
+	@Override
+	public void sendFlight(DTLSFlight flight) throws IOException {
 		if (flight != null) {
 			if (flight.isRetransmissionNeeded()) {
-				connection.setPendingFlight(flight);
 				scheduleRetransmission(flight);
-			} else {
-				connection.cancelPendingFlight();
 			}
-			try {
-				sendFlight(flight);
-			} catch (IOException e) {
-				LOGGER.warn("Could not send handshake flight", e);
-			}
+			sendFlightOverNetwork(flight);
 		}
 	}
 
-	private void sendFlight(DTLSFlight flight) throws IOException {
+	private void sendFlightOverNetwork(DTLSFlight flight) throws IOException {
 		byte[] payload = new byte[] {};
 		int maxDatagramSize = maximumTransmissionUnit;
 		if (flight.getSession() != null) {
@@ -1808,52 +1804,80 @@ public class DTLSConnector implements Connector {
 		}
 	}
 
-	private void handleTimeout(DTLSFlight flight, boolean resend) {
+	private void handleTimeout(DTLSFlight flight) {
 
-		Connection connection = connectionStore.get(flight.getPeerAddress());
-		if (null != connection) {
-			Handshaker handshaker = connection.getOngoingHandshake();
-			if (null != handshaker) {
-				Exception cause = null;
-				if (resend) {
-					// set DTLS retransmission maximum
-					final int max = config.getMaxRetransmissions();
+		if (!flight.isResponseCompleted()) {
+			Connection connection = connectionStore.get(flight.getPeerAddress());
+			if (null != connection && !connection.hasEstablishedSession()) {
+				Handshaker handshaker = connection.getOngoingHandshake();
+				if (null != handshaker) {
+					Exception cause = null;
+					if (running.get()) {
+						// set DTLS retransmission maximum
+						final int max = config.getMaxRetransmissions();
+						int tries = flight.getTries();
 
-					// check if limit of retransmissions reached
-					if (flight.getTries() < max) {
-						LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
-								flight.getPeerAddress(), max - flight.getTries() - 1);
+						if (tries < max) {
+							// limit of retransmissions not reached
+							if (config.isEarlyStopRetransmission() && flight.isReponseStarted()) {
+								// don't retransmit, just schedule last timeout
+								while (tries < max) {
+									++tries;
+									flight.incrementTries();
+									flight.incrementTimeout();
+								}
+								// increment one more to indicate, that
+								// handshake times out without reaching
+								// the max retransmissions.
+								flight.incrementTries();
+								LOGGER.debug("schedule handshake timeout {}ms after flight {}", flight.getTimeout(),
+										flight.getFlightNumber());
+								ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(flight), flight.getTimeout(),
+										TimeUnit.MILLISECONDS);
+								flight.setTimeoutTask(f);
+								return;
+							}
 
-						try {
-							flight.incrementTries();
-							flight.setNewSequenceNumbers();
-							sendFlight(flight);
+							LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
+									flight.getPeerAddress(), max - tries - 1);
+							try {
+								flight.incrementTries();
+								flight.setNewSequenceNumbers();
+								sendFlightOverNetwork(flight);
 
-							// schedule next retransmission
-							scheduleRetransmission(flight);
-							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
-							return;
-						} catch (IOException e) {
-							// stop retransmission on IOExceptions
-							cause = e;
-							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-						} catch (GeneralSecurityException e) {
-							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-							cause = e;
+								// schedule next retransmission
+								scheduleRetransmission(flight);
+								handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
+								return;
+							} catch (IOException e) {
+								// stop retransmission on IOExceptions
+								cause = e;
+								LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+							} catch (GeneralSecurityException e) {
+								LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
+								cause = e;
+							}
+						} else if (tries > max) {
+							LOGGER.debug("Flight for [{}] has reached timeout, discarding ...",
+									flight.getPeerAddress());
+							cause = new Exception("handshake timeout with flight " + flight.getFlightNumber() + "!");
+						} else {
+							LOGGER.debug(
+									"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
+									flight.getPeerAddress(), max);
+							cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout after "
+									+ max + " retransmissions!");
 						}
-					} else {
-						LOGGER.debug("Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-								flight.getPeerAddress(), max);
 					}
-				}
-				if (cause == null) {
-					cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout!");
-				} else {
-					cause = new Exception("handshake flight " + flight.getFlightNumber() + " failed!", cause);
-				}
+					if (cause == null) {
+						cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout!");
+					} else {
+						cause = new Exception("handshake flight " + flight.getFlightNumber() + " failed!", cause);
+					}
 
-				// inform handshaker
-				handshaker.handshakeFailed(cause);
+					// inform handshaker
+					handshaker.handshakeFailed(cause);
+				}
 			}
 		}
 	}
@@ -1872,8 +1896,8 @@ public class DTLSConnector implements Connector {
 			}
 
 			// schedule retransmission task
-			ScheduledFuture<?> f = timer.schedule(new RetransmitTask(flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
-			flight.setRetransmitTask(f);
+			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
+			flight.setTimeoutTask(f);
 		}
 	}
 
@@ -1954,58 +1978,69 @@ public class DTLSConnector implements Connector {
 		return running.get();
 	}
 
-	private RecordLayer getRecordLayerForPeer(final Connection connection) {
-		return new RecordLayer() {
-
-			@Override
-			public void sendFlight(DTLSFlight flight) {
-				sendHandshakeFlight(flight, connection);
-			}
-
-			public void cancelRetransmissions() {
-				// TODO remove this check when this experimental feature will be
-				// not experimental anymore ^^
-				if (config.isEarlyStopRetransmission()) {
-					connection.cancelPendingFlight();
-				}
-			}
-		};
-	}
-
-	private class RetransmitTask implements Runnable {
-
-		private DTLSFlight flight;
-
-		RetransmitTask(final DTLSFlight flight) {
-			this.flight = flight;
+	/**
+	 * Peer related task for executing in serial executor.
+	 */
+	private class PeerTask implements Runnable {
+		/**
+		 * Related peer.
+		 */
+		private final InetSocketAddress peer;
+		/**
+		 * Task to execute in serial executor.
+		 */
+		private final Runnable task;
+		/**
+		 * Flag to force execution, if serial execution is exhausted or
+		 * shutdown. The task is then executed in the context of this
+		 * {@link Runnable}.
+		 */
+		private final boolean force;
+		/**
+		 * Create peer task.
+		 * 
+		 * @param peer related peer
+		 * @param task task to be execute in serial executor
+		 * @param force flag indicating, that the task should be executed, even
+		 *            if the serial executors are exhausted or shutdown.
+		 */
+		private PeerTask(InetSocketAddress peer, Runnable task, boolean force) {
+			this.peer = peer;
+			this.task = task;
+			this.force = force;
 		}
 
 		@Override
 		public void run() {
-			if (running.get()) {
-				final SerialExecutor serialExecutor = getSerialExecutor(flight.getPeerAddress());
-				if (serialExecutor == null) {
-					LOGGER.debug("Execution cache is full while retransmission of flight [peer: {}]",
-							flight.getPeerAddress());
-				} else {
-					try {
-						serialExecutor.execute(new Runnable() {
-
-							@Override
-							public void run() {
-								if (!flight.isRetransmissionCancelled()) {
-									handleTimeout(flight, true);
-								}
-							}
-						});
-						return;
-					} catch (RejectedExecutionException e) {
-						LOGGER.debug("Execution rejected while retransmission of flight [peer: {}]",
-								flight.getPeerAddress(), e);
-					}
+			final SerialExecutor serialExecutor = getSerialExecutor(peer);
+			if (serialExecutor == null) {
+				LOGGER.debug("Execution cache is full while execute task of peer: {}", peer);
+			} else {
+				try {
+					serialExecutor.execute(task);
+					return;
+				} catch (RejectedExecutionException e) {
+					LOGGER.debug("Execution rejected while execute task of peer: {}", peer, e);
 				}
 			}
-			handleTimeout(flight, false);
+			if (force) {
+				task.run();
+			}
+		}
+	}
+
+	/**
+	 * Peer task calling the {@link #handleTimeout(DTLSFlight)}. 
+	 */
+	private class TimeoutPeerTask extends PeerTask {
+
+		private TimeoutPeerTask(final DTLSFlight flight) {
+			super(flight.getPeerAddress(), new Runnable() {
+				@Override
+				public void run() {
+					handleTimeout(flight);
+				}
+			}, true);
 		}
 	}
 
@@ -2013,7 +2048,6 @@ public class DTLSConnector implements Connector {
 	 * A worker thread for continuously doing repetitive tasks.
 	 */
 	private abstract class Worker extends Thread {
-
 		/**
 		 * Instantiates a new worker.
 		 *

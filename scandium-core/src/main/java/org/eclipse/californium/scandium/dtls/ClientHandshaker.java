@@ -41,6 +41,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
  *                                                    process reordered handshake messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -227,9 +228,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-
 			switch (handshakeMsg.getMessageType()) {
 			case HELLO_REQUEST:
 				receivedHelloRequest();
@@ -295,7 +294,7 @@ public class ClientHandshaker extends Handshaker {
 
 			incrementNextReceiveSeq();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
 
 		default:
@@ -356,7 +355,7 @@ public class ClientHandshaker extends Handshaker {
 		flightNumber = 3;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(clientHello));
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	/**
@@ -620,8 +619,7 @@ public class ClientHandshaker extends Handshaker {
 		// included, used for server's finished message
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
@@ -730,8 +728,7 @@ public class ClientHandshaker extends Handshaker {
 		clientHello = startMessage;
 		DTLSFlight flight = new DTLSFlight(session, flightNumber);
 		flight.addMessage(wrapMessage(startMessage));
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void addServerNameIndication(final ClientHello helloMessage) {

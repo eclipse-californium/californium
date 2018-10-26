@@ -52,9 +52,11 @@
  *                                                    are called via the handshaker.
  *    Achim Kraus (Bosch Software Innovations GmbH) - suppress duplicates only from
  *                                                    the same epoch
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -71,6 +73,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -131,7 +134,6 @@ public abstract class Handshaker {
 	private SecretKey serverWriteKey;
 
 	protected final DTLSSession session;
-	protected final RecordLayer recordLayer;
 	/**
 	 * The logic in charge of verifying the chain of certificates asserting this
 	 * handshaker's identity
@@ -157,6 +159,10 @@ public abstract class Handshaker {
 	private final int maxDeferredProcessedApplicationDataMessages;
 	/** List of application data messages, which are processed deferred after the handshake */
 	private final  List<Object> deferredApplicationData;
+
+	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
+
+	private final RecordLayer recordLayer;
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
@@ -190,6 +196,7 @@ public abstract class Handshaker {
 	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
+	private boolean sessionEstablished = false;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -468,6 +475,16 @@ public abstract class Handshaker {
 							messageToProcess = ((GenericHandshakeMessage) messageToProcess)
 									.getSpecificHandshakeMessage(parameter);
 						}
+						if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
+							// only cancel on HANDSHAKE messages
+							// the very last flight CCS + FINISH
+							// must be not canceled before the FINISH
+							DTLSFlight flight = pendingFlight.get();
+							if (flight != null) {
+								LOGGER.debug("response for flight {} started", flight.getFlightNumber());
+								flight.setResponseStarted();
+							}
+						}
 						doProcessMessage(messageToProcess);
 					}
 
@@ -504,8 +521,7 @@ public abstract class Handshaker {
 	 *            a handshake message or cannot be processed properly
 	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
 	 */
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
-	}
+	protected abstract void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException;
 
 	/**
 	 * Starts the handshake by sending the first flight to the peer.
@@ -935,6 +951,42 @@ public abstract class Handshaker {
 	}
 
 	/**
+	 * Registers an outbound flight that has not been acknowledged by the peer
+	 * yet in order to be able to cancel its re-transmission later once it has
+	 * been acknowledged. The retransmission of a different previous pending
+	 * flight will be cancelled also.
+	 * 
+	 * @param pendingFlight the flight
+	 * @see #cancelPendingFlight()
+	 */
+	public void setPendingFlight(DTLSFlight pendingFlight) {
+		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
+		if (flight != null && flight != pendingFlight) {
+			flight.setResponseCompleted();
+		}
+	}
+
+	/**
+	 * Cancels any pending re-transmission of an outbound flight that has been registered
+	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
+	 * 
+	 * This method is usually invoked once an flight has been acknowledged by the peer. 
+	 */
+	public void cancelPendingFlight() {
+		setPendingFlight(null);
+	}
+
+	public void sendFlight(DTLSFlight flight) {
+		setPendingFlight(null);
+		try {
+			recordLayer.sendFlight(flight);
+			setPendingFlight(flight);
+		} catch(IOException e) {
+			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
+		}
+	}
+
+	/**
 	 * Adds a listener to the list of listeners to be notified
 	 * about session life cycle events.
 	 * 
@@ -965,12 +1017,14 @@ public abstract class Handshaker {
 	}
 
 	protected final void sessionEstablished() throws HandshakeException {
+		sessionEstablished = true;
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.sessionEstablished(this, this.getSession());
 		}
 	}
 
 	public final void handshakeCompleted() {
+		cancelPendingFlight();
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
@@ -983,12 +1037,15 @@ public abstract class Handshaker {
 	 * @param cause The reason for the failure.
 	 */
 	public final void handshakeFailed(Throwable cause) {
-		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeFailed(this, cause);
-		}
-		for (Object message : takeDeferredApplicationData()) {
-			if (message instanceof RawData) {
-				((RawData) message).onError(cause);
+		cancelPendingFlight();
+		if (!sessionEstablished) {
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.handshakeFailed(this, cause);
+			}
+			for (Object message : takeDeferredApplicationData()) {
+				if (message instanceof RawData) {
+					((RawData) message).onError(cause);
+				}
 			}
 		}
 	}
