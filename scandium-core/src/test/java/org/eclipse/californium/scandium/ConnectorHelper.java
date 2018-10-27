@@ -41,8 +41,12 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,6 +60,7 @@ import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
+import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
@@ -292,7 +297,7 @@ public class ConnectorHelper {
 	 */
 	static interface DataHandler {
 
-		void handleData(byte[] data);
+		void handleData(InetSocketAddress endpoint, byte[] data);
 	}
 
 	/**
@@ -308,7 +313,7 @@ public class ConnectorHelper {
 		}
 
 		@Override
-		public void handleData(byte[] data) {
+		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			if (process(data))
 				latch.countDown();
 		}
@@ -323,6 +328,35 @@ public class ConnectorHelper {
 
 		public void setLatch(final CountDownLatch latch) {
 			this.latch = latch;
+		}
+	};
+
+	static class RecordCollectorDataHandler implements ConnectorHelper.DataHandler {
+
+		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
+
+		@Override
+		public void handleData(InetSocketAddress endpoint, byte[] data) {
+			try {
+				records.put(Record.fromByteArray(data, endpoint));
+			} catch (InterruptedException e) {
+			}
+		}
+
+		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
+			return records.poll(timeout, unit);
+		}
+
+		public List<Record> waitForFlight(long timeout, TimeUnit unit) throws InterruptedException {
+			List<Record> received = waitForRecords(timeout, unit);
+			if (null != received) {
+				received = new ArrayList<Record>(received);
+				List<Record> next;
+				if (null != (next = waitForRecords(200, TimeUnit.MILLISECONDS))) {
+					received.addAll(next);
+				}
+			}
+			return received;
 		}
 	};
 
@@ -348,7 +382,7 @@ public class ConnectorHelper {
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
-								handler.handleData(Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
+								handler.handleData(address, Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
 								packet.setLength(buf.length);
 							}
 						} catch (IOException e) {
