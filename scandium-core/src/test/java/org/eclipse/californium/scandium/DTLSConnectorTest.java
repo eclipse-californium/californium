@@ -2071,7 +2071,7 @@ public class DTLSConnectorTest {
 		}
 	}
 
-	private abstract class LatchDecrementingDataHandler implements DataHandler {
+	private static abstract class LatchDecrementingDataHandler implements DataHandler {
 		private CountDownLatch latch;
 
 		public LatchDecrementingDataHandler(CountDownLatch latch){
@@ -2091,7 +2091,7 @@ public class DTLSConnectorTest {
 		}
 	};
 
-	private class RecordCollectorDataHandler implements DataHandler {
+	private static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
 
@@ -2120,7 +2120,7 @@ public class DTLSConnectorTest {
 		}
 	};
 
-	private class LatchSessionListener extends SessionAdapter {
+	private static class LatchSessionListener extends SessionAdapter {
 
 		private CountDownLatch latch = new CountDownLatch(1);
 
@@ -2198,7 +2198,7 @@ public class DTLSConnectorTest {
 		}
 	}
 
-	private class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
+	private static class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
 		private CountDownLatch latch;
 
 		public LatchDecrementingRawDataChannel() {
@@ -2218,7 +2218,7 @@ public class DTLSConnectorTest {
 		}
 	}
 
-	public class SimpleRecordLayer implements RecordLayer {
+	public static class SimpleRecordLayer implements RecordLayer {
 
 		protected final UdpConnector connector;
 		protected volatile DTLSFlight lastFlight;
@@ -2254,7 +2254,7 @@ public class DTLSConnectorTest {
 		}
 	};
 
-	public class ReverseRecordLayer extends SimpleRecordLayer {
+	public static class ReverseRecordLayer extends SimpleRecordLayer {
 
 		public ReverseRecordLayer(UdpConnector connector) {
 			super(connector);
@@ -2336,7 +2336,7 @@ public class DTLSConnectorTest {
 		void handleData(byte[] data);
 	}
 
-	private class UdpConnector {
+	private static class UdpConnector {
 
 		InetSocketAddress address;
 		DatagramSocket socket;
@@ -2392,7 +2392,7 @@ public class DTLSConnectorTest {
 		}
 	}
 
-	private class SingleAlertCatcher implements AlertHandler {
+	private static class SingleAlertCatcher implements AlertHandler {
 
 		private CountDownLatch latch = new CountDownLatch(1);
 		private AlertMessage alert;
