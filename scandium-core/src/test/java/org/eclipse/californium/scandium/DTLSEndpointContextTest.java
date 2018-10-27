@@ -270,7 +270,7 @@ public class DTLSEndpointContextTest {
 
 	private void givenAStartedSession(RawData msgToSend, CountDownLatch latch) throws Exception {
 
-		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.new LatchDecrementingRawDataChannel();
+		LatchDecrementingRawDataChannel clientRawDataChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();

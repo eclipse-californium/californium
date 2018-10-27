@@ -27,6 +27,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - expose client channel to ensure, that
  *                                                    a server response is received before shutdown
  *                                                    the connector
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use connector in SimpleRawDataChannel
+ *                                                    for sending responses instead fixed server
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -78,7 +80,7 @@ public class ConnectorHelper {
 	RawDataProcessor serverRawDataProcessor;
 	DTLSSession establishedServerSession;
 
-	private static DtlsConnectorConfig serverConfig;
+	DtlsConnectorConfig serverConfig;
 
 	/**
 	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
@@ -99,11 +101,9 @@ public class ConnectorHelper {
 	 */
 	public void startServer() throws IOException, GeneralSecurityException {
 
-		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
-		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
@@ -125,6 +125,9 @@ public class ConnectorHelper {
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
+		serverRawDataProcessor = new MessageCapturingProcessor();
+		serverRawDataChannel = new SimpleRawDataChannel(server);
+		serverRawDataChannel.setProcessor(serverRawDataProcessor);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
 		serverEndpoint = server.getAddress();
@@ -178,7 +181,7 @@ public class ConnectorHelper {
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
 
 		CountDownLatch latch = new CountDownLatch(1);
-		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel();
+		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(client);
 		clientChannel.setLatch(latch);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
@@ -200,11 +203,11 @@ public class ConnectorHelper {
 		return clientChannel;
 	}
 
-	class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
+	static class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
 		private CountDownLatch latch;
 
-		public LatchDecrementingRawDataChannel() {
-			super(null);
+		public LatchDecrementingRawDataChannel(DTLSConnector server) {
+			super(server);
 		}
 
 		public synchronized void setLatch(CountDownLatch latchToDecrement) {
@@ -222,12 +225,13 @@ public class ConnectorHelper {
 		}
 	}
 
-	class SimpleRawDataChannel implements RawDataChannel {
+	static class SimpleRawDataChannel implements RawDataChannel {
 
 		private RawDataProcessor processor;
+		private DTLSConnector connector;
 
-		public SimpleRawDataChannel(final RawDataProcessor processor) {
-			setProcessor(processor);
+		public SimpleRawDataChannel(DTLSConnector connector) {
+			this.connector = connector;
 		}
 
 		public synchronized void setProcessor(final RawDataProcessor processor) {
@@ -243,7 +247,7 @@ public class ConnectorHelper {
 			if (processor != null) {
 				RawData response = processor.process(raw);
 				if (response != null) {
-					server.send(response);
+					connector.send(response);
 				}
 			}
 		}

@@ -107,7 +107,7 @@ public class HelloExtensionNegotiationTest {
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
-		clientRawDataChannel = serverHelper.new LatchDecrementingRawDataChannel();
+		clientRawDataChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 	}
 
 	/**
