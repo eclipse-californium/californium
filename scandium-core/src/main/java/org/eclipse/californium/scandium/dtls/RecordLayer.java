@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused sendRecord
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -20,13 +21,6 @@ package org.eclipse.californium.scandium.dtls;
  * 
  */
 public interface RecordLayer {
-
-	/**
-	 * Sends a DTLS record to a peer.
-	 * 
-	 * @param record the record to send
-	 */
-	void sendRecord(Record record);
 
 	/**
 	 * Sends a set of records containing DTLS handshake messages to a peer.

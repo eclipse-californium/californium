@@ -110,6 +110,7 @@
  *                                                    extend executor names with specific prefix.
  *    Achim Kraus (Bosch Software Innovations GmbH) - fix reuse of already stopped serial
  *                                                    executors.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused RecordLayer.sendRecord
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -1938,11 +1939,6 @@ public class DTLSConnector implements Connector {
 
 	private RecordLayer getRecordLayerForPeer(final Connection connection) {
 		return new RecordLayer() {
-
-			@Override
-			public void sendRecord(Record record) {
-				sendRecord(record);
-			}
 
 			@Override
 			public void sendFlight(DTLSFlight flight) {

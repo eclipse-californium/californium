@@ -41,6 +41,7 @@
  *    Vikram (University of Rostock) - add tests to check ECDHE_PSK CipherSuite
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove HELLO_VERIFY_REQUEST
  *                                                    from resumption tests
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused sendRecord
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
@@ -2227,19 +2228,14 @@ public class DTLSConnectorTest {
 		}
 
 		@Override
-		public void sendRecord(Record record) {
-			try {
-				connector.sendRecord(record.getPeerAddress(), record.toByteArray());
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		@Override
 		public void sendFlight(DTLSFlight flight) {
 			lastFlight = flight;
-			for (Record r : flight.getMessages()) {
-				sendRecord(r);
+			for (Record record : flight.getMessages()) {
+				try {
+					connector.sendRecord(record.getPeerAddress(), record.toByteArray());
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
 			}
 		}
 
@@ -2268,10 +2264,11 @@ public class DTLSConnectorTest {
 		public void sendFlight(DTLSFlight flight) {
 			lastFlight = flight;
 			List<Record> messages = flight.getMessages();
-			for (int i = messages.size() - 1; i >= 0; i--) {
+			for (int index = messages.size() - 1; index >= 0; index--) {
 				try {
-					LOGGER.info("Reverse send {}: {}", i, messages.get(i));
-					connector.sendRecord(flight.getPeerAddress(), messages.get(i).toByteArray());
+					Record record = messages.get(index);
+					LOGGER.info("Reverse send {}: {}", index, record);
+					connector.sendRecord(record.getPeerAddress(), record.toByteArray());
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
