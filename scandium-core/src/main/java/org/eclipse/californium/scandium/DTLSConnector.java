@@ -418,14 +418,25 @@ public class DTLSConnector implements Connector {
 	 * prior to removing all session state.
 	 * 
 	 * @param peerAddress the address of the peer to close the connection to
+	 * @throws IllegalStateException, if executor cache is exceeded.
 	 */
 	public final void close(InetSocketAddress peerAddress) {
-		Connection connection = connectionStore.get(peerAddress);
+		final Connection connection = connectionStore.get(peerAddress);
 		if (connection != null && connection.getEstablishedSession() != null) {
-			terminateConnection(
-					connection,
-					new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, peerAddress),
-					connection.getEstablishedSession());
+			SerialExecutor serialExecutor = getSerialExecutor(peerAddress);
+			if (serialExecutor != null) {
+				serialExecutor.execute(new Runnable() {
+
+					@Override
+					public void run() {
+						terminateConnection(connection, 
+								new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, connection.getPeerAddress()),
+								connection.getEstablishedSession());
+					}
+				});
+			} else {
+				throw new IllegalStateException("executor cache exceeded!");
+			}
 		}
 	}
 
